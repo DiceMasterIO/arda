@@ -1,0 +1,17 @@
+# Capstone's local-only outputs. Committed docs are the factual
+# reference; everything listed here is personal working state.
+# The feature chain (groom -> plan -> implement) never commits.
+
+# Feature working files: interviews, specs, plans, review ledgers
+features/
+
+# Interview transcripts for every other stage
+*-interview.md
+
+# Local settings
+capstone.json
+
+# Opinionated and personal outputs
+review.md
+be-review.md
+fe-review.md

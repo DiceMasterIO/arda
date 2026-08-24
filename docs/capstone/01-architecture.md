@@ -1,0 +1,55 @@
+---
+mode: prescriptive
+generated_date: 2026-08-24
+paths_covered: ["crates/**", "Cargo.toml"]
+---
+
+> Prescriptive — written from the design interview, not from code.
+
+# Architecture
+
+## Layers
+
+Cargo workspace, one repo (`architecture-interview.md §Q2`). Crates and
+allowed dependency direction (enforced by the crate graph — a crate not
+in another's `Cargo.toml` cannot be imported):
+
+| Crate | Planned path | Contains | May depend on |
+|---|---|---|---|
+| `arda-core` | `crates/arda-core/` | Shared types (coords, cells, objects, tile IDs), the two-grid coordinate system, seed/subseed derivation (counter-based PRNG keyed (seed, tier, stage, coords, attempt) — §Q4), world formats read+write, manifest | nothing internal |
+| `arda-gen` | `crates/arda-gen/` | The three generation stages: continent (`logic/01`), area (`logic/02`), block (`logic/03`); the batch orchestrator with the rayon-style pool (§Q3) | `arda-core` |
+| `arda-render` | `crates/arda-render/` | Built-in symbolic style, tileset-manifest rendering, cartographic area/continent maps, JSON serialization (`logic/04` §Q14) | `arda-core` |
+| `arda` | `crates/arda/` | Facade: re-exports the public API (`World::load`, `World::generate`, query types, export calls). The crate consumers depend on | `arda-core`, `arda-gen`, `arda-render` |
+| `arda-cli` | `crates/arda-cli/` | The `arda` binary: `generate`/`export` subcommands; docker entrypoint | `arda` |
+
+`arda-render` never depends on `arda-gen` — rendering reads stored
+worlds only (§Q2).
+
+## Module boundaries
+
+- Public surface = the `arda` facade crate; `arda-core`/`-gen`/`-render` are published but semver-internal (0.x, §Q6) — consumers are documented to use `arda` only.
+- Inside `arda-gen`, stage modules mirror the causal pipeline (`continent`, `area::{relief,water,climate,vegetation,settlement,landuse,roads}`, `block`); a stage module may read only prior stages' output types (`logic/02` invariant), enforced by review, not tooling (single-crate interior).
+- World formats live only in `arda-core::formats`; no other crate encodes/decodes bytes.
+
+## Entry points
+
+- `crates/arda-cli/src/main.rs` — the only process; subcommands `generate`, `export` (`mockup/01`, `mockup/03`).
+- Library entry: `arda::World` (`mockup/04`).
+
+## Communication
+
+No network, no queues, no IPC: all communication is in-process calls
+plus the world directory on disk (`mockup/02`). The CLI↔library seam is
+plain function calls — the CLI is a thin wrapper (§D6, mockup 04).
+
+## Composition
+
+No DI container. `main()` parses args, builds a `Config`, calls facade
+functions; the batch orchestrator wires stages sequentially per tier
+and fans areas out over the thread pool (§Q3). Determinism forbids
+wiring that depends on execution order (§Q4).
+
+## Frontend
+
+No human-facing UI — surfaces are `[api, cli]`; design stage formalized
+`skipped: no-ui` (`design-interview.md`, `architecture-interview.md §D7`).
