@@ -40,10 +40,16 @@ pub struct Plate {
 
 /// Seeds 8-14 plates as Voronoi sites, forcing the domain rim oceanic so map
 /// edges are guaranteed ocean (`logic/01` step 1, mockup Q22).
+///
+/// `attempt` is the validation reroll counter (`logic/01` §Q9): a rejected
+/// continent is regenerated from a derived subseed, not from a new seed.
 #[must_use]
 #[allow(clippy::cast_possible_wrap)]
-pub fn seed_plates(seed: u64, sim: SimExtent) -> Vec<Plate> {
-    let mut r = rng(seed, SeedKey::new(Tier::Continent, Stage::Plates, 0, 0, 0));
+pub fn seed_plates(seed: u64, sim: SimExtent, attempt: u8) -> Vec<Plate> {
+    let mut r = rng(
+        seed,
+        SeedKey::new(Tier::Continent, Stage::Plates, 0, 0, attempt),
+    );
     let count = 8 + u8::try_from(r.next_u32() % 7).unwrap_or(0); // 8..=14
 
     (0..count)
@@ -110,20 +116,20 @@ mod tests {
     fn plate_count_is_within_the_interviewed_range() {
         // logic/01 step 1: seed 8-14 plates.
         for seed in 0..20u64 {
-            let n = seed_plates(seed, sim()).len();
+            let n = seed_plates(seed, sim(), 0).len();
             assert!((8..=14).contains(&n), "seed {seed} produced {n} plates");
         }
     }
 
     #[test]
     fn plate_seeding_is_deterministic() {
-        assert_eq!(seed_plates(42, sim()), seed_plates(42, sim()));
+        assert_eq!(seed_plates(42, sim(), 0), seed_plates(42, sim(), 0));
     }
 
     #[test]
     fn rim_plates_are_oceanic() {
         // logic/01 step 1: the domain rim is forced oceanic.
-        let plates = seed_plates(42, sim());
+        let plates = seed_plates(42, sim(), 0);
         let s = sim();
         for p in &plates {
             let near_rim = p.centre_x < s.width / 5
@@ -143,13 +149,13 @@ mod tests {
 
     #[test]
     fn at_least_one_plate_is_continental() {
-        let plates = seed_plates(42, sim());
+        let plates = seed_plates(42, sim(), 0);
         assert!(plates.iter().any(|p| p.crust == CrustType::Continental));
     }
 
     #[test]
     fn voronoi_assignment_is_total_and_stable() {
-        let plates = seed_plates(42, sim());
+        let plates = seed_plates(42, sim(), 0);
         let s = sim();
         for y in 0..s.height {
             for x in 0..s.width {

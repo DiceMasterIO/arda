@@ -60,14 +60,24 @@ impl ContinentGrid {
     }
 }
 
-/// Runs the skeleton continent stage.
+/// Runs the skeleton continent stage at attempt 0.
 ///
 /// Steps, in the `logic/01` order: seed plates on a 2x domain, run the
 /// coupled tectonics loop, apply isostatic base elevation, cut the coastline
 /// at sea level, then upsample 4 km to 1 km with noise refinement.
 #[must_use]
-#[allow(clippy::cast_possible_wrap)]
 pub fn generate_continent(seed: u64, config: GenerateConfig) -> ContinentGrid {
+    generate_continent_attempt(seed, config, 0)
+}
+
+/// Runs the continent stage for one validation attempt.
+///
+/// `attempt` feeds the subseed derivation, so a continent rejected by the
+/// step-9 gate is regenerated deterministically rather than randomly
+/// (`logic/01` §Q9).
+#[must_use]
+#[allow(clippy::cast_possible_wrap)]
+pub fn generate_continent_attempt(seed: u64, config: GenerateConfig, attempt: u8) -> ContinentGrid {
     let vis_w = config.size_km().width as i32;
     let vis_h = config.size_km().height as i32;
 
@@ -76,7 +86,7 @@ pub fn generate_continent(seed: u64, config: GenerateConfig) -> ContinentGrid {
         width: (vis_w * 2 / SIM_CELL_KM).max(8),
         height: (vis_h * 2 / SIM_CELL_KM).max(8),
     };
-    let plates = plates::seed_plates(seed, sim);
+    let plates = plates::seed_plates(seed, sim, attempt);
 
     // Step 2: coupled tectonics.
     let uplift = tectonics::run_tectonics(&plates, sim, SKELETON_STEPS);
@@ -109,7 +119,13 @@ pub fn generate_continent(seed: u64, config: GenerateConfig) -> ContinentGrid {
             // refines coarse features but never relocates them).
             if h > 0 {
                 // i64 intermediate: the product overflows i32 at full swing.
-                let detail = i64::from(fbm(seed ^ 0x00DE_7A11, x, y, 24, 4));
+                let detail = i64::from(fbm(
+                    seed ^ 0x00DE_7A11 ^ (u64::from(attempt) << 48),
+                    x,
+                    y,
+                    24,
+                    4,
+                ));
                 #[allow(clippy::cast_possible_truncation)]
                 let detail_mm = (detail * 180_000 / 32_768) as i32;
                 h = h.saturating_add(detail_mm);

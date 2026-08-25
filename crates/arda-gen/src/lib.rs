@@ -10,3 +10,6 @@ pub mod area;
 pub mod block;
 pub mod continent;
 pub mod noise;
+pub mod orchestrator;
+
+pub use orchestrator::{generate_world, GenError};
