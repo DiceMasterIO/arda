@@ -10,7 +10,7 @@ pub mod objects;
 
 /// The world-format major. Bumped only by a breaking layout change; loaders
 /// refuse newer majors with the regenerate remedy (`logic/05`).
-pub const FORMAT_VERSION: u32 = 1;
+pub const FORMAT_VERSION: u32 = 2;
 
 /// Writes a little-endian `u16` into `out`.
 pub(crate) fn put_u16(out: &mut Vec<u8>, v: u16) {
