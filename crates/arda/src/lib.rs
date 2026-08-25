@@ -23,6 +23,66 @@ pub fn generate(seed: u64, config: GenerateConfig, out: &Path) -> Result<Manifes
     arda_gen::generate_world(seed, config, out)
 }
 
+/// Output format for `export` (`mockup/03`).
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum ExportFormat {
+    /// Cartographic PNG.
+    Png,
+    /// Versioned JSON.
+    Json,
+}
+
+/// An export failure at the facade boundary.
+#[derive(Debug, thiserror::Error)]
+pub enum ExportError {
+    /// The world could not supply the requested tile.
+    #[error(transparent)]
+    Load(#[from] LoadError),
+    /// The renderer refused.
+    #[error(transparent)]
+    Render(#[from] arda_render::RenderError),
+    /// The artifact could not be written.
+    #[error("failed writing {path}: {source}")]
+    Write {
+        /// The file being written.
+        path: String,
+        /// Underlying cause.
+        #[source]
+        source: std::io::Error,
+    },
+}
+
+/// Exports one area tile to `out`, returning the file written.
+///
+/// # Errors
+/// See [`ExportError`].
+pub fn export_area(
+    world: &World,
+    ax: i32,
+    ay: i32,
+    out: &Path,
+    format: ExportFormat,
+) -> Result<PathBuf, ExportError> {
+    let area = world.area(ax, ay)?;
+    let name = format!("area_{ax:02}_{ay:02}");
+    let (path, bytes) = match format {
+        ExportFormat::Png => (
+            out.join(format!("{name}.png")),
+            arda_render::render_area_png(area.cells())?,
+        ),
+        ExportFormat::Json => (
+            out.join(format!("{name}.json")),
+            arda_render::area_json(world.manifest(), ax, ay, area.cells(), area.objects())
+                .into_bytes(),
+        ),
+    };
+    std::fs::write(&path, bytes).map_err(|e| ExportError::Write {
+        path: path.display().to_string(),
+        source: e,
+    })?;
+    Ok(path)
+}
+
 /// One loaded area tile.
 pub struct Area {
     cells: AreaCells,
