@@ -7,7 +7,7 @@ pub mod carto;
 pub mod json;
 pub mod symbolic;
 
-pub use carto::render_area_png;
+pub use carto::{render_area_png, render_overview_png};
 pub use json::{area_json, block_json, SCHEMA_VERSION};
 pub use symbolic::{render_block_png, SQUARE_PX};
 
