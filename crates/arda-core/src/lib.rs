@@ -11,6 +11,7 @@ pub mod coords;
 pub mod error;
 pub mod fixed;
 pub mod formats;
+pub mod objects;
 pub mod rng;
 
 pub use cell::{Cell, Cover, RoadClass, TerrainKind};
@@ -25,5 +26,7 @@ pub use formats::cells::{decode_cells, encode_cells, AreaCells, CELL_BYTES};
 pub use formats::manifest::{
     read_manifest, write_manifest, Manifest, ValidationStats, MANIFEST_NAME,
 };
+pub use formats::objects::{decode_objects, encode_objects, OBJECTS_MAGIC};
 pub use formats::FORMAT_VERSION;
+pub use objects::{AreaObjects, Lake, RiverSegment};
 pub use rng::{derive, rng, SeedKey, Stage, Tier};
