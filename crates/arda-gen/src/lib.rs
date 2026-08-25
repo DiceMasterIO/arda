@@ -6,5 +6,6 @@
 // `code-prefs.md` §Q1 bans unwrap/expect *outside* `#[cfg(test)]`.
 #![cfg_attr(test, allow(clippy::unwrap_used, clippy::expect_used))]
 
+pub mod area;
 pub mod continent;
 pub mod noise;
