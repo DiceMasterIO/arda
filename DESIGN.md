@@ -4,9 +4,10 @@ Deterministic procedural worldgen for tabletop: one seed → one
 continent (default 500×1000 km) → 51.2 km areas of 512² 100 m cells →
 64² five-ft tactical blocks. Rust workspace (crate + CLI + docker),
 OSS MIT/Apache-2.0, offline batch only. Reference is prescriptive
-(from the design interview; no code yet). Pipeline: mockup ✓ logic ✓
-design (skipped, no UI) ✓ architecture ✓ code-prefs ✓ stack ✓ — build
-pending.
+(from the design interview); the walking-skeleton slice is now code —
+chapters have not yet been resynced against it. Pipeline: mockup ✓
+logic ✓ design (skipped, no UI) ✓ architecture ✓ code-prefs ✓ stack ✓
+build ✓ (build-order steps 0–3 of 13; see `docs/capstone/changelog.md`).
 
 ## Topics
 
