@@ -109,6 +109,39 @@ pub fn export_overview(world: &World, out: &Path, px: u32) -> Result<PathBuf, Ex
     Ok(path)
 }
 
+/// Exports one tactical block — the wave-function-collapse tile layer — as
+/// a symbolic PNG or its JSON with the tile legend.
+///
+/// # Errors
+/// [`ExportError::Load`] when no block was materialised for that cell.
+pub fn export_block(
+    world: &World,
+    ax: i32,
+    ay: i32,
+    cx: u16,
+    cy: u16,
+    out: &Path,
+    format: ExportFormat,
+) -> Result<PathBuf, ExportError> {
+    let block = world.block(ax, ay, cx, cy)?;
+    let name = format!("block_{ax:02}_{ay:02}_{cx:03}_{cy:03}");
+    let (path, bytes) = match format {
+        ExportFormat::Png => (
+            out.join(format!("{name}.png")),
+            arda_render::render_block_png(block)?,
+        ),
+        ExportFormat::Json => (
+            out.join(format!("{name}.json")),
+            arda_render::block_json(world.manifest(), block).into_bytes(),
+        ),
+    };
+    std::fs::write(&path, bytes).map_err(|e| ExportError::Write {
+        path: path.display().to_string(),
+        source: e,
+    })?;
+    Ok(path)
+}
+
 /// One loaded area tile.
 pub struct Area {
     cells: AreaCells,

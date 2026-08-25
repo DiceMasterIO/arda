@@ -32,16 +32,7 @@ pub fn abs_cell(area: AreaCoord, local_x: u16, local_y: u16) -> (i32, i32) {
 /// (`implementation.md` "Pinned edges", `logic/02` amendment 3).
 #[must_use]
 pub fn boundary_height(seed: u64, continent: &ContinentGrid, abs_x: i32, abs_y: i32) -> i32 {
-    // Bilinear sample of the 1 km continent grid at 100 m resolution.
-    let km_x = abs_x.div_euclid(CELLS_PER_KM);
-    let km_y = abs_y.div_euclid(CELLS_PER_KM);
-    let fx = i64::from(abs_x.rem_euclid(CELLS_PER_KM)) * 65536 / i64::from(CELLS_PER_KM);
-    let fy = i64::from(abs_y.rem_euclid(CELLS_PER_KM)) * 65536 / i64::from(CELLS_PER_KM);
-
-    let at = |x: i32, y: i32| i64::from(continent.get(x, y).raw());
-    let top = at(km_x, km_y) + (((at(km_x + 1, km_y) - at(km_x, km_y)) * fx) >> 16);
-    let bottom = at(km_x, km_y + 1) + (((at(km_x + 1, km_y + 1) - at(km_x, km_y + 1)) * fx) >> 16);
-    let coarse = top + (((bottom - top) * fy) >> 16);
+    let coarse = coarse_height(continent, abs_x, abs_y);
 
     // Area-scale detail, keyed by absolute position so it is edge-safe.
     // Amplitude scales with elevation, so detail never manufactures coastline
@@ -56,7 +47,32 @@ pub fn boundary_height(seed: u64, continent: &ContinentGrid, abs_x: i32, abs_y: 
 
     #[allow(clippy::cast_possible_truncation)]
     {
-        (coarse + ((detail * amplitude) >> 15)) as i32
+        (i64::from(coarse) + ((detail * i64::from(amplitude)) >> 15)) as i32
+    }
+}
+
+/// The smooth regional surface under a cell: a bilinear sample of the 1 km
+/// continent grid, with no area-scale detail added.
+///
+/// This is the uplift pattern. The artifact raises land "fastest near the
+/// mountain edge, slowly in the lowland" — a regional trend. Driving uplift
+/// from the noise-refined relief instead amplifies every per-cell bump for
+/// the whole run, and the bumps grow into dams that close off basins.
+#[must_use]
+pub fn coarse_height(continent: &ContinentGrid, abs_x: i32, abs_y: i32) -> i32 {
+    // Bilinear sample of the 1 km continent grid at 100 m resolution.
+    let km_x = abs_x.div_euclid(CELLS_PER_KM);
+    let km_y = abs_y.div_euclid(CELLS_PER_KM);
+    let fx = i64::from(abs_x.rem_euclid(CELLS_PER_KM)) * 65536 / i64::from(CELLS_PER_KM);
+    let fy = i64::from(abs_y.rem_euclid(CELLS_PER_KM)) * 65536 / i64::from(CELLS_PER_KM);
+
+    let at = |x: i32, y: i32| i64::from(continent.get(x, y).raw());
+    let top = at(km_x, km_y) + (((at(km_x + 1, km_y) - at(km_x, km_y)) * fx) >> 16);
+    let bottom = at(km_x, km_y + 1) + (((at(km_x + 1, km_y + 1) - at(km_x, km_y + 1)) * fx) >> 16);
+
+    #[allow(clippy::cast_possible_truncation)]
+    {
+        (top + (((bottom - top) * fy) >> 16)) as i32
     }
 }
 

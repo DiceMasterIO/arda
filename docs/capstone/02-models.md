@@ -59,15 +59,19 @@ in-memory types (arda-core) ↔ binary layers (arda-core::formats, the
 only byte codec) ↔ export JSON (arda-render, snake_case SI schema with
 `schema_version`, additive-only — `logic/04` §Q14).
 
-## Observed — steps 0–3 (2026-08-25)
+## Observed — area drainage rewrite (2026-08-26)
 
-Built shape, where it diverges from the prescription above:
+Built shape. `format_version` is **2**: `objects.bin` record layouts
+changed, so worlds written by format 1 are refused with the regenerate
+remedy.
 
-- `Cell` is a 33-byte little-endian row carrying all 17 fields of the artifact list. The skeleton populates only `height`, `terrain`, `cover`, `drainage_area_cells`, `discharge`, `watercourse_order`, `watercourse_width_dm`; the remaining ten hold their `Default`.
-- **`watercourse_order` does not hold Strahler order.** It stores `log2(drainage_area_cells / 240) + 1`, a magnitude band. The Entities table and `mockup/04` both say Strahler; the code does not implement it, and `06-testing.md`'s Horton gate cannot be computed from what is stored.
-- **`Lake` is never constructed.** `compose` emits `lakes: Vec::new()` unconditionally, so the type exists with no producer.
-- `RiverSegment.course` is a head-to-terminus walk, not a reach between junctions, so segments sharing a trunk repeat its cells.
-- Sea and lake cells carry non-zero `drainage_area_cells` and `discharge`; nothing zeroes them.
+- `Cell` is a 33-byte little-endian row carrying all 17 fields of the artifact list. Populated: `height`, `terrain`, `cover`, `slope_milli_deg`, `aspect_deg`, `drainage_area_cells`, `discharge`, `watercourse_order`, `watercourse_width_dm`, `height_above_river_dm`, `wetness`. Still at `Default` pending the climate stage: `temperature`, `rainfall`, `moisture`, `forest_density`, and pending step 5: `road`, `built_by`.
+- `watercourse_order` holds **true Strahler order**: heads are 1, and a cell takes the maximum incoming order plus one when two or more inflows share it. Order is computed over the routing graph, which passes through filled basins, so a river keeps its order across a lake.
+- `watercourse_width_dm` follows the artifact's relation `w = 4·sqrt(Q)` — 1 m³/s gives about 4 m, 25 m³/s about 20 m.
+- `height_above_river_dm` is Height Above Nearest Drainage, clamped at zero: routing runs on the filled surface while heights are raw, so a cell inside a basin can sit below the channel it drains to. `wetness` is a fixed-point topographic wetness index; **no `ln`, `tan`, or `atan2` reaches a sim path** (see `03-conventions.md`).
+- `Lake` has a producer. A filled basin is recorded when it covers ≥ 100 cells **and** is ≥ 2,000 mm deep, carrying `surface`, `depth_mm`, `outlet`, and its cells; its cells take `terrain: Lake`. Sub-threshold basins fill for routing only and stay `Land`.
+- `RiverSegment` is one network link — source or junction, downstream to the next junction, the sea, a lake, or the tile edge — and carries `feeds` and `ends` (`Terminus`), so, per the artifact, every segment knows which segment it feeds and how it ends. Channel cells are partitioned exactly once.
+- Cells whose `terrain` is not `Land` store zero for `drainage_area_cells`, `discharge`, and `watercourse_order`. Routing still crosses them.
 
 ## Validation
 
