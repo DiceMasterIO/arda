@@ -25,7 +25,7 @@ Effectively none: stages are pure functions over value inputs (`04-data-flow.md`
 
 ## Observed — area drainage rewrite (2026-08-26)
 
-- **147 tests** pass across the workspace on the 3-OS CI matrix: unit tests per crate, `crates/arda-gen/tests/drainage_invariants.rs`, `crates/arda/tests/round_trip.rs`, `crates/arda-cli/tests/cli.rs`, and the workspace golden gate `tests/golden_world.rs`.
+- **157 tests** pass across the workspace on the 3-OS CI matrix: unit tests per crate, `crates/arda-gen/tests/drainage_invariants.rs`, `crates/arda/tests/round_trip.rs`, `crates/arda-cli/tests/cli.rs`, and the workspace golden gate `tests/golden_world.rs`.
 - **Global drainage invariants** now exist, and are the direct answer to the coverage-shape finding recorded below: (a) every land cell's flow path reaches sea, a lake, or the tile edge; (b) lakes are emitted and meet their thresholds; (c) non-land cells carry no flow; (d) segments partition the channel network exactly once; (e) Strahler order never decreases downstream; (f) the same seed yields identical lakes and reaches; (g) each segment's terminus agrees with its link; (h) tile seams are no rougher than the interior, compared land-to-land.
 - **`crates/arda-gen/benches/area_erosion.rs`** enforces the erosion budget: both passes must finish within 30 s per 512×512 tile in release. Measured 2.17 s.
 - `[profile.test] opt-level = 2` — unoptimised sim code made the suite roughly eight times slower and dominated CI wall-clock.

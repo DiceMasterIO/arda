@@ -10,7 +10,14 @@ Backend only (no frontend — design skipped, no UI). Every step follows
 that decided each shape. Verification is per-step; a step is done when
 its verification passes.
 
-**Build state: steps 0–3 complete** (2026-08-25). The seam sketches and
+**Build state: steps 0–3 complete** (2026-08-25), plus the drainage and
+continent work of 2026-08-26, which pulled parts of steps 4 and 5 forward:
+the continent tier gained belt tectonics with plate drift, a shelf coast, and
+global 1 km erosion; the area tier gained four-process erosion, depression
+filling with lakes, true Strahler order, reach-based segments, and the
+derived river fields. Measured against Earth: median land elevation 303–337 m
+against 330 m, land above 500 m 37–41% against 33%, lake area 0.5–1.1%
+against ~1%. The seam sketches and
 step rows below were corrected against what building them actually
 taught; the three corrections are called out inline as **Correction**.
 Steps 4–12 remain prescriptive.

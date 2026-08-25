@@ -18,6 +18,7 @@ story (`architecture-interview.md §D4, §Q6`).
 |---|---|---|
 | Batch generate | `cargo run -p arda-cli -- generate --seed <n> --out <dir>` (release builds for real runs) | `docker run -v $PWD/worlds:/worlds ghcr.io/<owner>/arda generate …` (`mockup/05`) |
 | Export | `cargo run -p arda-cli -- export --world <dir> …` | same image, `export` subcommand |
+| Preview | `cargo run -p arda-cli --release -- preview --seed <n> --out <dir>` | same image, `preview` subcommand |
 | Serve (read-only HTTP) | `cargo run -p arda-cli --release -- serve <dir> --port 8080` | `docker run -p 8080:8080 -v $PWD/worlds:/worlds ghcr.io/<owner>/arda serve /worlds/w42 --port 8080` (`mockup/06`) |
 
 `generate` and `export` run to completion and exit. `serve` (build
@@ -39,7 +40,8 @@ budget default 16 GB, configurable (§Q3, flag shape deferred — §D9).
 
 ## Developer workflow
 
-- Tests: `cargo test --workspace`; benches: `cargo bench` (§Q7 gates).
+- Tests: `cargo test --workspace`; benches: `cargo bench` (§Q7 gates, plus the 30 s/tile erosion budget).
+- Quick look at a seed: `cargo run -p arda-cli --release -- preview --seed 42 --out ./preview` — the default continent in under 20 s, written as one overview PNG.
 - Lint/format: `cargo clippy --workspace -- -D warnings`; `cargo fmt --check`.
 - Type check: `cargo check --workspace`.
 - Migrations: none — no database; world format changes bump `format_version` (`02-models.md` Schema).

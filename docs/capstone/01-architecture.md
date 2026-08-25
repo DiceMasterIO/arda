@@ -21,7 +21,7 @@ in another's `Cargo.toml` cannot be imported):
 | `arda-gen` | `crates/arda-gen/` | The three generation stages: continent (`logic/01`), area (`logic/02`), block (`logic/03`); the batch orchestrator with the rayon-style pool (§Q3) | `arda-core` |
 | `arda-render` | `crates/arda-render/` | Built-in symbolic style, tileset-manifest rendering, cartographic area/continent maps, JSON serialization (`logic/04` §Q14) | `arda-core` |
 | `arda` | `crates/arda/` | Facade: re-exports the public API (`World::load`, `World::generate`, query types, export calls). The crate consumers depend on | `arda-core`, `arda-gen`, `arda-render` |
-| `arda-cli` | `crates/arda-cli/` | The `arda` binary: `generate`/`export`/`serve` subcommands; docker entrypoint. `serve` (build §Q1) is a synchronous read-only HTTP layer over the export renderers — it adds no generation path and no write path | `arda` |
+| `arda-cli` | `crates/arda-cli/` | The `arda` binary: `generate`/`export`/`preview`/`serve` subcommands; docker entrypoint. `serve` (build §Q1) is a synchronous read-only HTTP layer over the export renderers — it adds no generation path and no write path | `arda` |
 
 `arda-render` never depends on `arda-gen` — rendering reads stored
 worlds only (§Q2).
@@ -34,7 +34,7 @@ worlds only (§Q2).
 
 ## Entry points
 
-- `crates/arda-cli/src/main.rs` — the only process; subcommands `generate`, `export`, `serve` (`mockup/01`, `mockup/03`, `mockup/06`).
+- `crates/arda-cli/src/main.rs` — the only process; subcommands `generate`, `export`, `preview`, `serve` (`mockup/01`, `mockup/03`, `mockup/06`). `preview` is generate-plus-overview in one step; `export` gained `--overview` (whole world) and `--block` (one tactical block).
 - Library entry: `arda::World` (`mockup/04`).
 
 ## Communication
