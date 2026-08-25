@@ -36,7 +36,7 @@ paid services.
 
 | Capability | Pick | License | Role | Traces |
 |---|---|---|---|---|
-| Benches | `criterion` | MIT/Apache-2.0 | enforce arch §Q7 export/load numbers | §Q8 |
+| Benches | `criterion` | MIT/Apache-2.0 | enforce arch §Q7 export/load numbers; `crates/arda-gen/benches/area_erosion.rs` gates erosion at 30 s/tile | §Q8 |
 | Golden hashing | `blake3` — also a **runtime** dependency of `arda-core::rng`, which derives each ChaCha8 subseed key from `blake3(domain ‖ seed ‖ key)` | CC0/Apache-2.0 | per-stage world hashes, CI determinism gate; subseed derivation | §Q8; arch §Q4 |
 | Lint/format | clippy `-D warnings`, rustfmt defaults | toolchain | CI gates | code-prefs §Q7 |
 | Supply chain | `cargo-deny` | MIT/Apache-2.0 | license + advisory checks | code-prefs §Q7 |

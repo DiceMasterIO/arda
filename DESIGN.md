@@ -7,7 +7,8 @@ OSS MIT/Apache-2.0, offline batch only. Reference is prescriptive
 (from the design interview); the walking-skeleton slice is now code —
 chapters have not yet been resynced against it. Pipeline: mockup ✓
 logic ✓ design (skipped, no UI) ✓ architecture ✓ code-prefs ✓ stack ✓
-build ✓ (build-order steps 0–3 of 13; see `docs/capstone/changelog.md`).
+build ✓ (steps 0–3, plus the 2026-08-26 drainage and continent work that
+pulled parts of 4–5 forward; see `docs/capstone/changelog.md`).
 
 ## Topics
 

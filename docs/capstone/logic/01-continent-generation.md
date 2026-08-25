@@ -31,6 +31,21 @@ tunable defaults.
 9. **Validation** (§Q9): land fraction within 25–90%, ≥1 range above 1,500 m, ≥1 major river reaching the sea (all tunable).
 10. **Tile bundles** (§Q7, §Q8): for each 51.2 km tile, emit its input bundle — edge heights, entering rivers (edge position, catchment, discharge), climate regime + wind + edge moisture, settlement density, road-exit points where trunk corridors cross tile edges. Bundles are computed from coarse data + seed only, so adjacent tiles are mirror-consistent by construction.
 
+## Observed — continent rebuild (2026-08-26)
+
+Built shape of steps 1-4. Steps 5-9 (climate, hydrology objects, human
+geography, naming, validation stats) remain unbuilt.
+
+1. **Plate seeding.** Count scales with domain area (~1 per 2,800 sim cells), so boundary density — and with it the spacing of mountain belts — is the same at any continent size; a fixed 8-14 made the default world a flat plain while a quarter-size one came out mountainous. Crust follows position rather than chance: continental in the core, oceanic beyond 0.8 of the half-width, mixed between. Leaving it to chance meant the central plates were sometimes all oceanic and the continent failed to exist.
+2. **Boundary lookup is domain-warped.** Raw Voronoi gives straight-line plate boundaries, and since the coast follows them the continent came out a polygon.
+3. **Tectonics raises belts, not lines.** Uplift spreads across an orogenic belt either side of each boundary — 9 cells for collisions, 6 for arcs — with a cubic falloff. A one-cell ridge plus heavy diffusion produced a 118 m plateau across a UK-sized landmass. Plates drift each step (`centre + drift * step`), so belts migrate and the continent becomes a collage of orogens rather than one range. Uplift is normalised so its 99.5th percentile hits a target relief, making hypsometry independent of continent size, and subsidence is floored so a rift cannot drown the interior.
+4. **Coast.** Crust is blurred into a **shelf gradient** so the continent meets the ocean over tens of kilometres instead of one 4 km cell, then blended with a centred mask. Sea level is crossed at mid-continentality, not at 0.87 as a straight interpolation gives. Noise is applied on **both** sides of sea level; restricting it to land left the sea floor as pure bilinear interpolation and the coastline followed the 4 km grid as rectangular steps.
+5. **Coarse erosion runs here** (step 2's "erosion and drainage respond"), globally on the 1 km grid: priority-flood, D8 by steepest descent, stream-power incision clamped so a channel never cuts below what it drains into, and isotropic hillslope creep. Running it globally rather than per-tile is what lets valleys cross tile boundaries and leaves no pinned-rim seams.
+
+Measured against Earth (seeds 42 and 7, default size): median land elevation 303-337 m against 330 m; land above 500 m 37-41% against 33%; lake area 0.5-1.1% against ~1%.
+
+**Known limitation.** Terrain is built from value noise on a square lattice, which is anisotropic — its gradients favour the lattice axes, so steepest descent does too and only ~17% of flow directions are diagonal against an isotropic 50%. Isotropic gradient noise is the fix; one attempt produced blocky coastlines and was reverted.
+
 ## Branches
 
 - Boundary type (step 2) is decided solely by the two plates' crust types and relative motion (§Q5).
