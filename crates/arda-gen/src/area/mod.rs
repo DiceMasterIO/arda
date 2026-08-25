@@ -28,12 +28,17 @@ pub const LAKE_MIN_CELLS: usize = 100;
 /// Smallest maximum depth that is recorded as a lake, in millimetres.
 pub const LAKE_MIN_DEPTH_MM: u32 = 2_000;
 
-/// Discharge in thousandth-cumecs contributed per upstream cell.
+/// Discharge from catchment, anchored to the artifact's own equivalence:
+/// a watercourse begins at "about 40 litres per second, which in a temperate
+/// climate means roughly three square kilometres of catchment". Three km² is
+/// 300 cells and 40 L/s is 40 thousandth-cumecs, so discharge scales as
+/// `cells * 40 / 300`.
 ///
-/// `ponytail:` the artifact's rule is rainfall-driven — "the rain that fell
-/// upstream, less the roughly half that evaporates or soaks in". No stage
-/// produces rainfall yet, so this stands in until the climate stage exists.
-const DISCHARGE_PER_CELL_MILLI: u32 = 90;
+/// `ponytail:` linear in catchment. The artifact's real rule is rainfall
+/// driven — "the rain that fell upstream, less the roughly half that
+/// evaporates or soaks in" — which needs the climate stage.
+const DISCHARGE_NUM: u32 = 40;
+const DISCHARGE_DEN: u32 = CHANNEL_THRESHOLD_CELLS;
 
 fn coord(x: i32, y: i32) -> Option<CellCoord> {
     CellCoord::new(u16::try_from(x).ok()?, u16::try_from(y).ok()?)
@@ -104,7 +109,7 @@ pub fn compose(heights: &[i32], filled: &Filled, water: &WaterGrid) -> (AreaCell
             // Non-land cells carry no flow of their own; routing still
             // crosses them so land upstream reaches an outlet.
             let drainage = if land { water.drainage_at(at) } else { 0 };
-            let discharge = DischargeMilli::new(drainage.saturating_mul(DISCHARGE_PER_CELL_MILLI));
+            let discharge = DischargeMilli::new(drainage / DISCHARGE_DEN * DISCHARGE_NUM);
             let order = if land { water.order_at(at) } else { 0 };
             let hand_mm = if land { hand[at.index()] } else { 0 };
 

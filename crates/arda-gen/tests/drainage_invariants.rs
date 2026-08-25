@@ -240,30 +240,44 @@ fn g_segments_terminate_consistently_with_their_link() {
 }
 
 #[test]
-fn h_tile_seams_have_no_wall() {
-    // Erosion holds the pinned rim fixed while the interior incises. Without
-    // a taper that leaves a raised lip around every tile; this bounds the
-    // step across the seam against the tile's own interior roughness.
-    let left = &tiles()[0].cells;
-    let mut interior_steps = Vec::new();
-    for y in (2..N - 2).step_by(7) {
-        for x in 2..N - 2 {
-            let a = left.get(cc(x, y)).height.raw();
-            let b = left.get(cc(x + 1, y)).height.raw();
-            interior_steps.push(i64::from((a - b).abs()));
+fn h_tile_seams_are_no_rougher_than_the_interior() {
+    // Erosion holds the pinned rim fixed while the interior incises, which
+    // risks a raised lip around every tile.
+    //
+    // The comparison must be like for like: land-to-land steps only. An
+    // earlier version of this test compared the maximum seam step against
+    // the interior *median* and failed on a legitimate 60 m drop from a
+    // cliff into the sea, which is terrain, not an artifact.
+    let cells = &tiles()[0].cells;
+    let land_step = |ax: i32, ay: i32, bx: i32, by: i32| -> Option<i64> {
+        let a = cells.get(cc(ax, ay));
+        let b = cells.get(cc(bx, by));
+        (a.terrain == TerrainKind::Land && b.terrain == TerrainKind::Land)
+            .then(|| i64::from((a.height.raw() - b.height.raw()).abs()))
+    };
+    let p90 = |mut v: Vec<i64>| -> i64 {
+        if v.is_empty() {
+            return 0;
         }
-    }
-    interior_steps.sort_unstable();
-    let median = interior_steps[interior_steps.len() / 2];
+        v.sort_unstable();
+        v[v.len() * 9 / 10]
+    };
 
-    let mut seam = 0i64;
-    for y in 0..N {
-        let edge = left.get(cc(N - 1, y)).height.raw();
-        let inside = left.get(cc(N - 2, y)).height.raw();
-        seam = seam.max(i64::from((edge - inside).abs()));
-    }
+    // The seam itself, and a control the same shape eight cells inward.
+    let seam: Vec<i64> = (0..N)
+        .filter_map(|y| land_step(N - 1, y, N - 2, y))
+        .collect();
+    let control: Vec<i64> = (0..N)
+        .filter_map(|y| land_step(N - 9, y, N - 10, y))
+        .collect();
     assert!(
-        seam < median.max(1) * 400,
-        "seam step {seam} mm dwarfs the interior median {median} mm"
+        seam.len() > N as usize / 4,
+        "not enough land on the seam to judge: {} rows",
+        seam.len()
+    );
+    let (s90, c90) = (p90(seam), p90(control));
+    assert!(
+        s90 <= c90.max(1) * 3,
+        "seam roughness p90 {s90} mm is far above the interior control {c90} mm"
     );
 }
