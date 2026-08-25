@@ -3,39 +3,34 @@
 //! Layouts are hand-specified little-endian; each layer documents its own
 //! row format. No other crate encodes or decodes world bytes.
 
+pub mod cells;
 pub mod manifest;
 
 /// The world-format major. Bumped only by a breaking layout change; loaders
 /// refuse newer majors with the regenerate remedy (`logic/05`).
 pub const FORMAT_VERSION: u32 = 1;
 
-// Consumed by the layer codecs added next; the allow goes away with them.
-#[allow(dead_code)]
 /// Writes a little-endian `u16` into `out`.
 pub(crate) fn put_u16(out: &mut Vec<u8>, v: u16) {
     out.extend_from_slice(&v.to_le_bytes());
 }
 
 /// Writes a little-endian `u32` into `out`.
-#[allow(dead_code)]
 pub(crate) fn put_u32(out: &mut Vec<u8>, v: u32) {
     out.extend_from_slice(&v.to_le_bytes());
 }
 
 /// Writes a little-endian `i32` into `out`.
-#[allow(dead_code)]
 pub(crate) fn put_i32(out: &mut Vec<u8>, v: i32) {
     out.extend_from_slice(&v.to_le_bytes());
 }
 
 /// Writes a little-endian `i16` into `out`.
-#[allow(dead_code)]
 pub(crate) fn put_i16(out: &mut Vec<u8>, v: i16) {
     out.extend_from_slice(&v.to_le_bytes());
 }
 
 /// Reads a little-endian `u16` at `at`, advancing the cursor.
-#[allow(dead_code)]
 pub(crate) fn take_u16(src: &[u8], at: &mut usize) -> u16 {
     let v = u16::from_le_bytes([src[*at], src[*at + 1]]);
     *at += 2;
@@ -43,7 +38,6 @@ pub(crate) fn take_u16(src: &[u8], at: &mut usize) -> u16 {
 }
 
 /// Reads a little-endian `u32` at `at`, advancing the cursor.
-#[allow(dead_code)]
 pub(crate) fn take_u32(src: &[u8], at: &mut usize) -> u32 {
     let v = u32::from_le_bytes([src[*at], src[*at + 1], src[*at + 2], src[*at + 3]]);
     *at += 4;
@@ -51,7 +45,6 @@ pub(crate) fn take_u32(src: &[u8], at: &mut usize) -> u32 {
 }
 
 /// Reads a little-endian `i32` at `at`, advancing the cursor.
-#[allow(dead_code)]
 pub(crate) fn take_i32(src: &[u8], at: &mut usize) -> i32 {
     let v = i32::from_le_bytes([src[*at], src[*at + 1], src[*at + 2], src[*at + 3]]);
     *at += 4;
@@ -59,7 +52,6 @@ pub(crate) fn take_i32(src: &[u8], at: &mut usize) -> i32 {
 }
 
 /// Reads a little-endian `i16` at `at`, advancing the cursor.
-#[allow(dead_code)]
 pub(crate) fn take_i16(src: &[u8], at: &mut usize) -> i16 {
     let v = i16::from_le_bytes([src[*at], src[*at + 1]]);
     *at += 2;
@@ -67,7 +59,6 @@ pub(crate) fn take_i16(src: &[u8], at: &mut usize) -> i16 {
 }
 
 /// Reads one byte at `at`, advancing the cursor.
-#[allow(dead_code)]
 pub(crate) fn take_u8(src: &[u8], at: &mut usize) -> u8 {
     let v = src[*at];
     *at += 1;

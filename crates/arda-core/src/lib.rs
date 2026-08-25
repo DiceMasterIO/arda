@@ -5,6 +5,7 @@
 // `code-prefs.md` §Q1 bans unwrap/expect *outside* `#[cfg(test)]`.
 #![cfg_attr(test, allow(clippy::unwrap_used, clippy::expect_used))]
 
+pub mod cell;
 pub mod config;
 pub mod coords;
 pub mod error;
@@ -12,6 +13,7 @@ pub mod fixed;
 pub mod formats;
 pub mod rng;
 
+pub use cell::{Cell, Cover, RoadClass, TerrainKind};
 pub use config::{GenerateConfig, LatitudeBand, SizeKm};
 pub use coords::{
     AreaCoord, CellCoord, ContinentCoord, SquareCoord, AREA_CELLS, BLOCK_SQUARES, CELL_SIZE_M,
@@ -19,6 +21,7 @@ pub use coords::{
 };
 pub use error::{ConfigError, FormatError, LoadError};
 pub use fixed::{DischargeMilli, HeightMm, RainfallMm, TempCentiC};
+pub use formats::cells::{decode_cells, encode_cells, AreaCells, CELL_BYTES};
 pub use formats::manifest::{
     read_manifest, write_manifest, Manifest, ValidationStats, MANIFEST_NAME,
 };
