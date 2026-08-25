@@ -83,6 +83,32 @@ pub fn export_area(
     Ok(path)
 }
 
+/// Default pixels per area tile in an overview render.
+pub const OVERVIEW_PX_PER_AREA: u32 = 48;
+
+/// Renders every loaded area into one overview image at `<out>/overview.png`.
+///
+/// # Errors
+/// Propagates render and write failures.
+pub fn export_overview(world: &World, out: &Path, px: u32) -> Result<PathBuf, ExportError> {
+    let areas: Vec<(i32, i32, &AreaCells)> = world
+        .area_coords()
+        .filter_map(|(x, y)| world.area(x, y).ok().map(|a| (x, y, a.cells())))
+        .collect();
+    let bytes = arda_render::render_overview_png(
+        &areas,
+        world.manifest().areas_wide,
+        world.manifest().areas_high,
+        px,
+    )?;
+    let path = out.join("overview.png");
+    std::fs::write(&path, bytes).map_err(|e| ExportError::Write {
+        path: path.display().to_string(),
+        source: e,
+    })?;
+    Ok(path)
+}
+
 /// One loaded area tile.
 pub struct Area {
     cells: AreaCells,
@@ -226,6 +252,12 @@ impl World {
     #[must_use]
     pub const fn manifest(&self) -> &Manifest {
         &self.manifest
+    }
+
+    /// Every area coordinate in this world, row-major.
+    pub fn area_coords(&self) -> impl Iterator<Item = (i32, i32)> + '_ {
+        let (w, h) = (self.manifest.areas_wide, self.manifest.areas_high);
+        (0..h).flat_map(move |y| (0..w).map(move |x| (x, y)))
     }
 
     /// Reads one area tile.

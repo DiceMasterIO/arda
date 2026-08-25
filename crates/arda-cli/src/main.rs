@@ -1,7 +1,10 @@
 //! The `arda` binary: `generate` and `export` subcommands (`mockup/01`, `03`).
 
 use anyhow::{bail, Context, Result};
-use arda::{export_area, generate, ExportFormat, GenerateConfig, LatitudeBand, SizeKm, World};
+use arda::{
+    export_area, export_overview, generate, ExportFormat, GenerateConfig, LatitudeBand, SizeKm,
+    World,
+};
 use clap::{Parser, Subcommand, ValueEnum};
 use std::path::{Path, PathBuf};
 
@@ -33,17 +36,41 @@ enum Command {
         #[arg(long)]
         out: PathBuf,
     },
+    /// Generate a world and render one overview image of it.
+    ///
+    /// The quickest way to look at a seed: the default continent takes
+    /// well under a minute and lands as a single PNG.
+    Preview {
+        /// The sole source of nondeterminism.
+        #[arg(long)]
+        seed: u64,
+        /// Continent extent as WxH in kilometres.
+        #[arg(long, default_value = "500x1000")]
+        size: String,
+        /// Use the 8-tile micro continent instead.
+        #[arg(long)]
+        micro: bool,
+        /// Pixels per area tile in the overview.
+        #[arg(long, default_value_t = arda::OVERVIEW_PX_PER_AREA)]
+        px: u32,
+        /// Directory to create; holds `world/` and `overview.png`.
+        #[arg(long)]
+        out: PathBuf,
+    },
     /// Render or serialise part of a generated world.
     Export {
         /// The world directory to read.
         #[arg(long)]
         world: PathBuf,
-        /// Area tile as `<ax>,<ay>`.
-        #[arg(long)]
+        /// Area tile as `<ax>,<ay>`. Ignored with `--overview`.
+        #[arg(long, default_value = "0,0")]
         area: String,
         /// Output format.
         #[arg(long, value_enum, default_value_t = Format::Png)]
         format: Format,
+        /// Render the whole world as one overview image instead of one area.
+        #[arg(long)]
+        overview: bool,
         /// Directory to write into.
         #[arg(long)]
         out: PathBuf,
@@ -94,7 +121,42 @@ fn run_generate(seed: u64, size: &str, micro: bool, out: &Path) -> Result<()> {
     Ok(())
 }
 
-fn run_export(world: &Path, area: &str, format: Format, out: &Path) -> Result<()> {
+fn run_preview(seed: u64, size: &str, micro: bool, px: u32, out: &Path) -> Result<()> {
+    let config = if micro {
+        GenerateConfig::MICRO
+    } else {
+        GenerateConfig::new(parse_size(size)?, LatitudeBand::new(35, 55), 15)?
+    };
+    let world_dir = out.join("world");
+    std::fs::create_dir_all(&world_dir).context("cannot create the output directory")?;
+
+    println!(
+        "arda {} — preview (seed {seed}, {}x{}km, {} areas)",
+        env!("CARGO_PKG_VERSION"),
+        config.size_km().width,
+        config.size_km().height,
+        config.areas_wide() * config.areas_high()
+    );
+    let manifest = generate(seed, config, &world_dir)?;
+    println!(
+        "  generated {} areas · land {}‰",
+        manifest.stats.area_count, manifest.stats.land_fraction_permille
+    );
+
+    let world = World::load(&world_dir)?;
+    let path = export_overview(&world, out, px)?;
+    println!("wrote {}", path.display());
+    Ok(())
+}
+
+fn run_export(world: &Path, area: &str, format: Format, overview: bool, out: &Path) -> Result<()> {
+    if overview {
+        let world = World::load(world)?;
+        std::fs::create_dir_all(out).context("cannot create the output directory")?;
+        let path = export_overview(&world, out, arda::OVERVIEW_PX_PER_AREA)?;
+        println!("wrote {}", path.display());
+        return Ok(());
+    }
     let Some((ax, ay)) = area.split_once(',') else {
         bail!("area must look like 1,1, got {area}");
     };
@@ -120,11 +182,19 @@ fn main() -> Result<()> {
             micro,
             out,
         } => run_generate(seed, &size, micro, &out),
+        Command::Preview {
+            seed,
+            size,
+            micro,
+            px,
+            out,
+        } => run_preview(seed, &size, micro, px, &out),
         Command::Export {
             world,
             area,
             format,
+            overview,
             out,
-        } => run_export(&world, &area, format, &out),
+        } => run_export(&world, &area, format, overview, &out),
     }
 }

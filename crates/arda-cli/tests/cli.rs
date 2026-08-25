@@ -132,3 +132,52 @@ fn export_refuses_a_partial_world() {
         .unwrap();
     assert!(!res.status.success());
 }
+
+#[test]
+fn preview_generates_a_world_and_one_overview_image() {
+    let dir = TempDir::new("preview");
+    let out = Command::new(bin())
+        .args(["preview", "--seed", "42", "--micro", "--px", "16", "--out"])
+        .arg(dir.path())
+        .output()
+        .unwrap();
+    assert!(
+        out.status.success(),
+        "stderr: {}",
+        String::from_utf8_lossy(&out.stderr)
+    );
+    assert!(dir.path().join("world/world.json").is_file());
+    let png = dir.path().join("overview.png");
+    assert!(png.is_file(), "no overview.png written");
+
+    // 2 areas wide, 4 high, 16 px each.
+    let bytes = std::fs::read(&png).unwrap();
+    assert_eq!(
+        &bytes[..8],
+        &[0x89, b'P', b'N', b'G', 0x0D, 0x0A, 0x1A, 0x0A]
+    );
+    let width = u32::from_be_bytes([bytes[16], bytes[17], bytes[18], bytes[19]]);
+    let height = u32::from_be_bytes([bytes[20], bytes[21], bytes[22], bytes[23]]);
+    assert_eq!((width, height), (2 * 16, 4 * 16));
+}
+
+#[test]
+fn export_overview_renders_an_existing_world() {
+    let world = TempDir::new("ov-world");
+    let out = TempDir::new("ov-out");
+    generate_micro(world.path());
+
+    let res = Command::new(bin())
+        .args(["export", "--world"])
+        .arg(world.path())
+        .args(["--overview", "--out"])
+        .arg(out.path())
+        .output()
+        .unwrap();
+    assert!(
+        res.status.success(),
+        "stderr: {}",
+        String::from_utf8_lossy(&res.stderr)
+    );
+    assert!(out.path().join("overview.png").is_file());
+}
