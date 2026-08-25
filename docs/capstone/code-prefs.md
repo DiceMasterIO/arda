@@ -1,5 +1,6 @@
 ---
 generated_date: 2026-08-24
+generated_at_commit: 8d3c9d9
 ---
 
 > User-stated preferences — normative, not a description of current

@@ -3,6 +3,7 @@ generated_date: 2026-08-24
 scenario: area-generation
 traces: [Q7, Q8, Q11]
 artifact: ../mockup-artifact.md
+generated_at_commit: 8d3c9d9
 ---
 
 # 02 — Area generation

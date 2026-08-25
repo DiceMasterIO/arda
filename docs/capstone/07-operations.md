@@ -1,7 +1,8 @@
 ---
 mode: prescriptive
-generated_date: 2026-08-24
+generated_date: 2026-08-25
 paths_covered: [".github/**", "Dockerfile", "Cargo.toml"]
+generated_at_commit: 8d3c9d9
 ---
 
 > Prescriptive — written from the design interview, not from code.
@@ -17,18 +18,23 @@ story (`architecture-interview.md §D4, §Q6`).
 |---|---|---|
 | Batch generate | `cargo run -p arda-cli -- generate --seed <n> --out <dir>` (release builds for real runs) | `docker run -v $PWD/worlds:/worlds ghcr.io/<owner>/arda generate …` (`mockup/05`) |
 | Export | `cargo run -p arda-cli -- export --world <dir> …` | same image, `export` subcommand |
+| Serve (read-only HTTP) | `cargo run -p arda-cli --release -- serve <dir> --port 8080` | `docker run -p 8080:8080 -v $PWD/worlds:/worlds ghcr.io/<owner>/arda serve /worlds/w42 --port 8080` (`mockup/06`) |
 
-The binary runs to completion and exits; no daemons, no ports.
+`generate` and `export` run to completion and exit. `serve` (build
+§Q1) is the one long-running process: a synchronous, read-only server
+over an already-generated world. It never writes, so it holds no lock
+and any number of instances may share a world directory.
 
 ## Configuration
 
 No environment variables planned. All configuration is CLI flags plus
-the optional `--config` file (`mockup/01`; schema at build). Memory
+the optional `--config` file (`mockup/01`; schema at build), and
+`serve`'s `--port` (default 8080 — `mockup/06`). Memory
 budget default 16 GB, configurable (§Q3, flag shape deferred — §D9).
 
 ## Infrastructure
 
-- `Dockerfile` at repo root: multi-arch (amd64/arm64) image, entrypoint `arda`, no exposed ports, volumes for `/worlds` (+ any `--out` mount) — `mockup/05`.
+- `Dockerfile` at repo root: multi-arch (amd64/arm64) image, entrypoint `arda`, volumes for `/worlds` (+ any `--out` mount) — `mockup/05`. `EXPOSE 8080` for `serve` (build §Q1); `generate` and `export` ignore it.
 - `.github/workflows/`: CI (push/PR — test, clippy, fmt, golden-hash gate on ubuntu/macos/windows runners) and release (tag → publish workspace crates to crates.io, build+push GHCR image) — §Q6.
 
 ## Developer workflow

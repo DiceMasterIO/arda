@@ -1,6 +1,8 @@
 ---
+generated_date: 2026-08-24
 scenarios: [batch-generate, inspect-volume]
 implements: [Q8, Q11, Q17, Q22]
+generated_at_commit: 8d3c9d9
 ---
 
 # 02 — The world directory (output volume)

@@ -1,7 +1,8 @@
 ---
 mode: prescriptive
-generated_date: 2026-08-24
+generated_date: 2026-08-25
 paths_covered: ["crates/**", "Cargo.toml"]
+generated_at_commit: 8d3c9d9
 ---
 
 > Prescriptive — written from the design interview, not from code.
@@ -20,7 +21,7 @@ in another's `Cargo.toml` cannot be imported):
 | `arda-gen` | `crates/arda-gen/` | The three generation stages: continent (`logic/01`), area (`logic/02`), block (`logic/03`); the batch orchestrator with the rayon-style pool (§Q3) | `arda-core` |
 | `arda-render` | `crates/arda-render/` | Built-in symbolic style, tileset-manifest rendering, cartographic area/continent maps, JSON serialization (`logic/04` §Q14) | `arda-core` |
 | `arda` | `crates/arda/` | Facade: re-exports the public API (`World::load`, `World::generate`, query types, export calls). The crate consumers depend on | `arda-core`, `arda-gen`, `arda-render` |
-| `arda-cli` | `crates/arda-cli/` | The `arda` binary: `generate`/`export` subcommands; docker entrypoint | `arda` |
+| `arda-cli` | `crates/arda-cli/` | The `arda` binary: `generate`/`export`/`serve` subcommands; docker entrypoint. `serve` (build §Q1) is a synchronous read-only HTTP layer over the export renderers — it adds no generation path and no write path | `arda` |
 
 `arda-render` never depends on `arda-gen` — rendering reads stored
 worlds only (§Q2).
@@ -33,14 +34,20 @@ worlds only (§Q2).
 
 ## Entry points
 
-- `crates/arda-cli/src/main.rs` — the only process; subcommands `generate`, `export` (`mockup/01`, `mockup/03`).
+- `crates/arda-cli/src/main.rs` — the only process; subcommands `generate`, `export`, `serve` (`mockup/01`, `mockup/03`, `mockup/06`).
 - Library entry: `arda::World` (`mockup/04`).
 
 ## Communication
 
-No network, no queues, no IPC: all communication is in-process calls
-plus the world directory on disk (`mockup/02`). The CLI↔library seam is
-plain function calls — the CLI is a thin wrapper (§D6, mockup 04).
+No queues, no IPC: all communication is in-process calls plus the world
+directory on disk (`mockup/02`). The CLI↔library seam is plain function
+calls — the CLI is a thin wrapper (§D6, mockup 04).
+
+One network surface exists, added at the build gate: `serve`'s
+read-only HTTP endpoints (build §Q1, `mockup/06`). It lives entirely in
+`arda-cli` — no library crate opens a socket — and is synchronous, so
+architecture §Q3's no-async-runtime decision still holds. Generation
+remains fully offline.
 
 ## Composition
 

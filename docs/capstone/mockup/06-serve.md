@@ -1,6 +1,8 @@
 ---
+generated_date: 2026-08-24
 scenarios: [serve-vtt]
 implements: [build-interview §Q1]
+generated_at_commit: 8d3c9d9
 ---
 
 # 06 — `arda serve` (CLI/docker): read-only HTTP API

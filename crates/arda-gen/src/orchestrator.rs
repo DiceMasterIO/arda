@@ -162,6 +162,11 @@ pub fn generate_world(seed: u64, config: GenerateConfig, out: &Path) -> Result<M
         .collect::<Result<Vec<()>, GenError>>()?;
 
     // Continent layer, then the manifest LAST — the completion stamp.
+    //
+    // `ponytail:` the continent layer is written empty — consumers that need
+    // coarse data regenerate it from the seed. Upgrade path: give it the
+    // fixed-layout relief/climate/drainage/density grid `02-models.md`
+    // specifies, at build-order step 4 when those fields exist to store.
     write_file(&out.join("continent").join("overview.bin"), &[])?;
 
     let manifest = Manifest {
