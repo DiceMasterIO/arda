@@ -137,3 +137,42 @@ fn different_seeds_produce_different_worlds() {
         std::fs::read(b.path().join("areas/00_00/cells.bin")).unwrap()
     );
 }
+
+#[test]
+fn every_area_materialises_blocks_where_it_has_sampled_land() {
+    // Guards the block stride: identical block archives across tiles are only
+    // legitimate when both are genuinely empty.
+    let dir = TempDir::new("blocks-present");
+    generate(42, GenerateConfig::MICRO, dir.path()).unwrap();
+    let world = World::load(dir.path()).unwrap();
+
+    let mut report = Vec::new();
+    for ay in 0..4 {
+        for ax in 0..2 {
+            let area = world.area(ax, ay).unwrap();
+            let mut land = 0;
+            let mut blocks = 0;
+            let mut y = 0u16;
+            while y < 512 {
+                let mut x = 0u16;
+                while x < 512 {
+                    if area.cell(x, y).unwrap().terrain == arda::TerrainKind::Land {
+                        land += 1;
+                        if world.block(ax, ay, x, y).is_ok() {
+                            blocks += 1;
+                        }
+                    }
+                    x += 64;
+                }
+                y += 64;
+            }
+            report.push(format!("{ax},{ay}: sampled land {land}, blocks {blocks}"));
+            assert_eq!(land, blocks, "tile {ax},{ay} has land without blocks");
+        }
+    }
+    println!("{}", report.join("\n"));
+    assert!(
+        report.iter().any(|r| !r.ends_with("blocks 0")),
+        "no tile materialised any block"
+    );
+}
