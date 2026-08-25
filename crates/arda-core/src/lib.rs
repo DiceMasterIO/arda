@@ -5,13 +5,17 @@
 // `code-prefs.md` §Q1 bans unwrap/expect *outside* `#[cfg(test)]`.
 #![cfg_attr(test, allow(clippy::unwrap_used, clippy::expect_used))]
 
+pub mod config;
 pub mod coords;
+pub mod error;
 pub mod fixed;
 pub mod rng;
 
+pub use config::{GenerateConfig, LatitudeBand, SizeKm};
 pub use coords::{
     AreaCoord, CellCoord, ContinentCoord, SquareCoord, AREA_CELLS, BLOCK_SQUARES, CELL_SIZE_M,
     SQUARE_SIZE_MM,
 };
+pub use error::{ConfigError, FormatError, LoadError};
 pub use fixed::{DischargeMilli, HeightMm, RainfallMm, TempCentiC};
 pub use rng::{derive, rng, SeedKey, Stage, Tier};
