@@ -7,5 +7,6 @@
 #![cfg_attr(test, allow(clippy::unwrap_used, clippy::expect_used))]
 
 pub mod area;
+pub mod block;
 pub mod continent;
 pub mod noise;
