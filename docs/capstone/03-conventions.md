@@ -2,6 +2,7 @@
 mode: prescriptive
 generated_date: 2026-08-24
 paths_covered: ["crates/**"]
+generated_at_commit: 8d3c9d9
 ---
 
 > Prescriptive — written from the design interview, not from code.

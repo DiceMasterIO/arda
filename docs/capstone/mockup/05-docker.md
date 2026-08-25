@@ -1,6 +1,8 @@
 ---
+generated_date: 2026-08-24
 scenarios: [batch-generate, inspect-volume, export-vtt]
 implements: [Q17, Q19]
+generated_at_commit: 8d3c9d9
 ---
 
 # 05 — Docker container

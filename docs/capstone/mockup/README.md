@@ -1,3 +1,8 @@
+---
+generated_date: 2026-08-24
+generated_at_commit: 8d3c9d9
+---
+
 # Mockup — arda
 
 One seed → one continent (default 500×1000 km) → 190 areas of 512²

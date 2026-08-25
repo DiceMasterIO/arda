@@ -3,6 +3,7 @@ generated_date: 2026-08-24
 scenario: block-generation
 traces: [Q12, Q13]
 artifact: ../mockup-artifact.md
+generated_at_commit: 8d3c9d9
 ---
 
 # 03 — Block generation

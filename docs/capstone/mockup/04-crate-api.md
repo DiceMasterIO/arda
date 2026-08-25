@@ -1,6 +1,8 @@
 ---
+generated_date: 2026-08-24
 scenarios: [load-query]
 implements: [Q1, Q5, Q11, Q17, Q19]
+generated_at_commit: 8d3c9d9
 ---
 
 # 04 — Crate API (Rust): load & query

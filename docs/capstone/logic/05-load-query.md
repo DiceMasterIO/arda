@@ -2,6 +2,7 @@
 generated_date: 2026-08-24
 scenario: load-query
 traces: [Q16]
+generated_at_commit: 8d3c9d9
 ---
 
 # 05 — Load & query

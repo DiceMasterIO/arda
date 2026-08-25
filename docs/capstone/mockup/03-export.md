@@ -1,6 +1,8 @@
 ---
+generated_date: 2026-08-24
 scenarios: [export-vtt, inspect-volume]
 implements: [Q16, Q17, Q22, Q12]
+generated_at_commit: 8d3c9d9
 ---
 
 # 03 — `arda export` (CLI): images + JSON on demand

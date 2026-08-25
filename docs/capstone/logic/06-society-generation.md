@@ -2,6 +2,7 @@
 generated_date: 2026-08-25
 scenario: society-generation
 traces: [build-interview §Q2, §Q3, §Q4]
+generated_at_commit: 8d3c9d9
 ---
 
 # 06 — Society generation (realms, buildings, NPCs)

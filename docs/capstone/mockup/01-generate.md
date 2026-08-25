@@ -1,6 +1,8 @@
 ---
+generated_date: 2026-08-24
 scenarios: [batch-generate]
 implements: [Q9, Q10, Q18, Q20, Q22]
+generated_at_commit: 8d3c9d9
 ---
 
 # 01 — `arda generate` (CLI): the batch
