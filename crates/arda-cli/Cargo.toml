@@ -1,0 +1,19 @@
+[package]
+name = "arda-cli"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+repository.workspace = true
+description = "The arda command-line binary"
+
+[[bin]]
+name = "arda"
+path = "src/main.rs"
+
+[dependencies]
+arda.workspace = true
+clap.workspace = true
+anyhow.workspace = true
+
+[lints]
+workspace = true

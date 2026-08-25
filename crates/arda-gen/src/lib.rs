@@ -1,0 +1,4 @@
+//! Generation stages: continent (`logic/01`), area (`logic/02`), block (`logic/03`).
+//!
+//! Every stage is a pure function over prior stages' outputs; the
+//! orchestrator is the only caller that touches disk.
