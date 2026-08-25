@@ -279,9 +279,21 @@ pub fn generate_area(
             Some(r.get(coord(i % N, i / N)?))
         })
         .collect();
-    let coarse = heights.clone();
+    // Uplift follows the regional trend, not the per-cell detail: driving it
+    // from `heights` amplifies every noise bump into a dam over the run.
+    let uplift: Vec<i32> = (0..(N * N) as usize)
+        .filter_map(|i| {
+            let i = i32::try_from(i).ok()?;
+            let (ax, ay) = crate::continent::bundles::abs_cell(
+                bundle.area,
+                u16::try_from(i % N).ok()?,
+                u16::try_from(i / N).ok()?,
+            );
+            Some(crate::continent::bundles::coarse_height(continent, ax, ay))
+        })
+        .collect();
 
-    erosion::erode(&mut heights, &coarse, bundle);
+    erosion::erode(&mut heights, &uplift, bundle);
 
     let filled = fill::fill(&heights, bundle);
     let w = water::water(&filled, bundle);

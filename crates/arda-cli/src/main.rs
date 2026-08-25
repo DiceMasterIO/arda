@@ -2,8 +2,8 @@
 
 use anyhow::{bail, Context, Result};
 use arda::{
-    export_area, export_overview, generate, ExportFormat, GenerateConfig, LatitudeBand, SizeKm,
-    World,
+    export_area, export_block, export_overview, generate, ExportFormat, GenerateConfig,
+    LatitudeBand, SizeKm, World,
 };
 use clap::{Parser, Subcommand, ValueEnum};
 use std::path::{Path, PathBuf};
@@ -71,6 +71,10 @@ enum Command {
         /// Render the whole world as one overview image instead of one area.
         #[arg(long)]
         overview: bool,
+        /// Render one tactical block (the WFC tile layer) as
+        /// `<ax>,<ay>,<cx>,<cy>`. Blocks exist on a 64-cell stride.
+        #[arg(long)]
+        block: Option<String>,
         /// Directory to write into.
         #[arg(long)]
         out: PathBuf,
@@ -149,7 +153,40 @@ fn run_preview(seed: u64, size: &str, micro: bool, px: u32, out: &Path) -> Resul
     Ok(())
 }
 
-fn run_export(world: &Path, area: &str, format: Format, overview: bool, out: &Path) -> Result<()> {
+fn run_export(
+    world: &Path,
+    area: &str,
+    format: Format,
+    overview: bool,
+    block: Option<&str>,
+    out: &Path,
+) -> Result<()> {
+    if let Some(spec) = block {
+        let parts: Vec<&str> = spec.split(',').map(str::trim).collect();
+        let [ax, ay, cx, cy] = parts.as_slice() else {
+            bail!("block must look like 1,1,64,128 (area x, area y, cell x, cell y), got {spec}");
+        };
+        let world = World::load(world)?;
+        std::fs::create_dir_all(out).context("cannot create the output directory")?;
+        let fmt = match format {
+            Format::Png => ExportFormat::Png,
+            Format::Json => ExportFormat::Json,
+        };
+        let path = export_block(
+            &world,
+            ax.parse().context("area x must be a number")?,
+            ay.parse().context("area y must be a number")?,
+            cx.parse().context("cell x must be a number")?,
+            cy.parse().context("cell y must be a number")?,
+            out,
+            fmt,
+        )
+        .with_context(|| {
+            format!("no block at {spec}; blocks are materialised on a 64-cell stride over land")
+        })?;
+        println!("wrote {}", path.display());
+        return Ok(());
+    }
     if overview {
         let world = World::load(world)?;
         std::fs::create_dir_all(out).context("cannot create the output directory")?;
@@ -194,7 +231,8 @@ fn main() -> Result<()> {
             area,
             format,
             overview,
+            block,
             out,
-        } => run_export(&world, &area, format, overview, &out),
+        } => run_export(&world, &area, format, overview, block.as_deref(), &out),
     }
 }

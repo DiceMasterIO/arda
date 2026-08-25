@@ -23,11 +23,21 @@ Three layers, decided at `architecture-interview.md §Q5`; style detail
 
 Effectively none: stages are pure functions over value inputs (`04-data-flow.md`), so tests feed literal inputs — no IO to fake. Disk-format round-trip tests use temp dirs. Ambient randomness is forbidden (§Q4), so no seams need faking; time is never read in sim paths.
 
-## Observed — steps 0–3 (2026-08-25)
+## Observed — area drainage rewrite (2026-08-26)
 
-- 113 tests pass: unit tests in all four library crates, `crates/arda/tests/round_trip.rs`, `crates/arda-cli/tests/cli.rs`, and the workspace golden gate `tests/golden_world.rs` with fixture `tests/golden/micro-42.txt`, run on the 3-OS CI matrix.
-- **The statistical validation suite does not exist.** No Horton, Hack, rank-size, sinuosity, or farmland gate is implemented (step 12).
-- **Coverage-shape gap, recorded as a finding.** Every existing sim test asserts a *local* property — round-trips, determinism, per-cell bounds, edge agreement. None asserts a *global* one such as "every land cell drains to sea or tile edge". A drainage stage in which 93% of catchment terminates in an interior pit passed the whole suite. Determinism gates prove output is stable, never that it is correct; the two must not be conflated when judging a stage done.
+- **147 tests** pass across the workspace on the 3-OS CI matrix: unit tests per crate, `crates/arda-gen/tests/drainage_invariants.rs`, `crates/arda/tests/round_trip.rs`, `crates/arda-cli/tests/cli.rs`, and the workspace golden gate `tests/golden_world.rs`.
+- **Global drainage invariants** now exist, and are the direct answer to the coverage-shape finding recorded below: (a) every land cell's flow path reaches sea, a lake, or the tile edge; (b) lakes are emitted and meet their thresholds; (c) non-land cells carry no flow; (d) segments partition the channel network exactly once; (e) Strahler order never decreases downstream; (f) the same seed yields identical lakes and reaches; (g) each segment's terminus agrees with its link; (h) tile seams are no rougher than the interior, compared land-to-land.
+- **`crates/arda-gen/benches/area_erosion.rs`** enforces the erosion budget: both passes must finish within 30 s per 512×512 tile in release. Measured 2.17 s.
+- `[profile.test] opt-level = 2` — unoptimised sim code made the suite roughly eight times slower and dominated CI wall-clock.
+- **The statistical validation suite still does not exist.** No Horton, Hack, rank-size, sinuosity, or farmland gate is implemented (step 12). Until it does, the erosion constants are calibrated only against the artifact's two stated equilibrium anchors, not against network statistics.
+
+### Coverage-shape finding, and how it was closed
+
+Before the invariants above, every sim test asserted a *local* property —
+round trips, determinism, per-cell bounds, edge agreement. A drainage
+stage in which **93% of catchment terminated in an interior pit** passed
+the entire suite. Determinism gates prove output is stable, never that
+it is correct; the two must not be conflated when judging a stage done.
 
 ## Coverage shape
 

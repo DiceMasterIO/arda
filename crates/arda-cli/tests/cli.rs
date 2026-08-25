@@ -181,3 +181,42 @@ fn export_overview_renders_an_existing_world() {
     );
     assert!(out.path().join("overview.png").is_file());
 }
+
+#[test]
+fn export_renders_a_tactical_block() {
+    // The wave-function-collapse layer had no command at all until now.
+    let world = TempDir::new("blk-world");
+    let out = TempDir::new("blk-out");
+    generate_micro(world.path());
+
+    let res = Command::new(bin())
+        .args(["export", "--world"])
+        .arg(world.path())
+        .args(["--block", "0,1,64,64", "--out"])
+        .arg(out.path())
+        .output()
+        .unwrap();
+    assert!(
+        res.status.success(),
+        "stderr: {}",
+        String::from_utf8_lossy(&res.stderr)
+    );
+    assert!(out.path().join("block_00_01_064_064.png").is_file());
+}
+
+#[test]
+fn export_block_names_the_stride_when_there_is_none() {
+    let world = TempDir::new("blk-miss");
+    let out = TempDir::new("blk-miss-out");
+    generate_micro(world.path());
+
+    let res = Command::new(bin())
+        .args(["export", "--world"])
+        .arg(world.path())
+        .args(["--block", "0,1,7,7", "--out"])
+        .arg(out.path())
+        .output()
+        .unwrap();
+    assert!(!res.status.success());
+    assert!(String::from_utf8_lossy(&res.stderr).contains("64-cell stride"));
+}
