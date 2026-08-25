@@ -1,0 +1,15 @@
+[package]
+name = "arda"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+repository.workspace = true
+description = "Deterministic procedural worldgen for tabletop"
+
+[dependencies]
+arda-core.workspace = true
+arda-gen.workspace = true
+arda-render.workspace = true
+
+[lints]
+workspace = true

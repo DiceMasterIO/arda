@@ -1,0 +1,17 @@
+[package]
+name = "arda-gen"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+repository.workspace = true
+description = "Continent, area, and block generation stages for arda"
+
+[dependencies]
+arda-core.workspace = true
+rand_chacha.workspace = true
+rand_core.workspace = true
+rayon.workspace = true
+thiserror.workspace = true
+
+[lints]
+workspace = true
