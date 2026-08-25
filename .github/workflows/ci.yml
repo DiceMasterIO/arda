@@ -12,6 +12,8 @@ jobs:
       - uses: actions/checkout@v4
       - uses: dtolnay/rust-toolchain@stable
       - run: cargo test --workspace --all-features
+      - name: Determinism gate
+        run: cargo test --test golden_world -- --nocapture
 
   lint:
     runs-on: ubuntu-latest

@@ -43,3 +43,26 @@ semicolon_if_nothing_returned = "warn"
 
 [profile.release]
 codegen-units = 1
+
+# Workspace-level golden-world gate (`06-testing.md`). The root package exists
+# only to host it, so it has no library or binary of its own.
+[package]
+name = "arda-workspace-tests"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+publish = false
+
+[lib]
+path = "tests/empty_lib.rs"
+
+[dev-dependencies]
+arda = { workspace = true }
+blake3 = { workspace = true }
+
+[[test]]
+name = "golden_world"
+path = "tests/golden_world.rs"
+
+[lints]
+workspace = true
