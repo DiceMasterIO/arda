@@ -147,13 +147,12 @@ pub fn decode_objects(path: &str, bytes: &[u8]) -> Result<AreaObjects, FormatErr
                     let discharge = DischargeMilli::new(take_u32(bytes, &mut at));
                     let feeds_raw = take_u16(bytes, &mut at);
                     let ends_raw = take_u8(bytes, &mut at);
-                    let ends = Terminus::from_u8(ends_raw).ok_or(
-                        FormatError::UnknownDiscriminant {
+                    let ends =
+                        Terminus::from_u8(ends_raw).ok_or(FormatError::UnknownDiscriminant {
                             path: path.to_owned(),
                             field: "terminus",
                             value: u16::from(ends_raw),
-                        },
-                    )?;
+                        })?;
                     let course = take_course(path, bytes, &mut at)?;
                     out.rivers.push(RiverSegment {
                         id,
@@ -176,11 +175,13 @@ pub fn decode_objects(path: &str, bytes: &[u8]) -> Result<AreaObjects, FormatErr
                     let ox = take_u16(bytes, &mut at);
                     let oy = take_u16(bytes, &mut at);
                     let outlet = if has_outlet {
-                        Some(CellCoord::new(ox, oy).ok_or(FormatError::UnknownDiscriminant {
-                            path: path.to_owned(),
-                            field: "lake outlet",
-                            value: ox.max(oy),
-                        })?)
+                        Some(
+                            CellCoord::new(ox, oy).ok_or(FormatError::UnknownDiscriminant {
+                                path: path.to_owned(),
+                                field: "lake outlet",
+                                value: ox.max(oy),
+                            })?,
+                        )
                     } else {
                         None
                     };
