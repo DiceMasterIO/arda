@@ -10,6 +10,7 @@ description = "Deterministic procedural worldgen for tabletop"
 arda-core.workspace = true
 arda-gen.workspace = true
 arda-render.workspace = true
+thiserror.workspace = true
 
 [lints]
 workspace = true

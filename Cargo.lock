@@ -71,6 +71,7 @@ dependencies = [
  "arda-core",
  "arda-gen",
  "arda-render",
+ "thiserror",
 ]
 
 [[package]]
