@@ -6,13 +6,16 @@
 
 pub mod bundles;
 pub mod coast;
+pub mod erode;
 pub mod plates;
 pub mod tectonics;
 
 use crate::noise::fbm;
 use arda_core::{GenerateConfig, HeightMm};
-use coast::{base_elevation_mm, rim_forced_ocean};
-use plates::{plate_of, SimExtent};
+use coast::{
+    continental_mask, graded_base_mm, rim_forced_ocean, shelf_gradient, CONTINENTALITY_FULL,
+};
+use plates::SimExtent;
 
 /// Simulation cell size in kilometres (`logic/01` step 2).
 const SIM_CELL_KM: i32 = 4;
@@ -89,18 +92,46 @@ pub fn generate_continent_attempt(seed: u64, config: GenerateConfig, attempt: u8
     let plates = plates::seed_plates(seed, sim, attempt);
 
     // Step 2: coupled tectonics.
-    let uplift = tectonics::run_tectonics(&plates, sim, SKELETON_STEPS);
+    let uplift = tectonics::run_tectonics(seed, &plates, sim, SKELETON_STEPS);
 
     // Step 3: isostasy plus accumulated uplift, on the 4 km grid.
+    // Crust is sampled through a warped Voronoi so plate boundaries are not
+    // straight lines, then blurred into a shelf gradient so the continent
+    // meets the ocean over tens of kilometres rather than one 4 km cell.
+    let binary: Vec<i32> = (0..sim.height)
+        .flat_map(|y| (0..sim.width).map(move |x| (x, y)))
+        .map(|(x, y)| {
+            let id = plates::plate_of_warped(seed, &plates, x, y);
+            let continental = plates
+                .iter()
+                .find(|p| p.id == id)
+                .is_some_and(|p| p.crust == plates::CrustType::Continental);
+            i32::from(continental) * CONTINENTALITY_FULL
+        })
+        .collect();
+    let mut continentality = shelf_gradient(&binary, sim.width, sim.height);
+
+    // Blend the plate field with a centred mask, weighting the mask twice.
+    //
+    // Multiplying by the mask instead leaves the result at the mercy of which
+    // plates happen to sit in the middle: with only eight plates on a small
+    // domain, often none does, and attempt 0 of the micro world came out 169
+    // per mille land. Blending guarantees the core is above sea level while
+    // the plates still shape the margins, which is where the ragged coast and
+    // the offshore islands come from.
+    for y in 0..sim.height {
+        for x in 0..sim.width {
+            let i = usize::try_from(y * sim.width + x).unwrap_or(0);
+            let m = continental_mask(x, y, sim.width, sim.height);
+            continentality[i] = (continentality[i] + 2 * m) / 3;
+        }
+    }
+
     let coarse: Vec<i32> = (0..sim.height)
         .flat_map(|y| (0..sim.width).map(move |x| (x, y)))
         .map(|(x, y)| {
-            let id = plate_of(&plates, x, y);
-            let base = plates
-                .iter()
-                .find(|p| p.id == id)
-                .map_or(coast::OCEANIC_BASE_MM, base_elevation_mm);
-            base.saturating_add(uplift[usize::try_from(y * sim.width + x).unwrap_or(0)])
+            let i = usize::try_from(y * sim.width + x).unwrap_or(0);
+            graded_base_mm(continentality[i]).saturating_add(uplift[i])
         })
         .collect();
 
@@ -114,22 +145,30 @@ pub fn generate_continent_attempt(seed: u64, config: GenerateConfig, attempt: u8
         for x in 0..vis_w {
             let mut h = sample_coarse(&coarse, sim, x + off_x, y + off_y);
 
-            // Noise refinement: about +/-180 m of detail, only on land, so
-            // the coastline stays where tectonics put it (§Q8: area detail
-            // refines coarse features but never relocates them).
-            if h > 0 {
-                // i64 intermediate: the product overflows i32 at full swing.
-                let detail = i64::from(fbm(
-                    seed ^ 0x00DE_7A11 ^ (u64::from(attempt) << 48),
-                    x,
-                    y,
-                    24,
-                    4,
-                ));
-                #[allow(clippy::cast_possible_truncation)]
-                let detail_mm = (detail * 180_000 / 32_768) as i32;
-                h = h.saturating_add(detail_mm);
-            }
+            // Noise refinement, applied on both sides of sea level.
+            //
+            // Restricting detail to land left the sea floor as pure bilinear
+            // interpolation, so the sea-level contour followed the 4 km grid
+            // and the coast came out as rectangular steps. Perturbing the
+            // shelf too is what produces bays and headlands.
+            //
+            // Amplitude tapers with depth: the abyssal floor stays smooth
+            // while the shelf and the coast get the full swing.
+            // Amplitude must stay well under the coastal plain's own height.
+            // At 60-200 m it swamped a 107 m plain and drowned half of it;
+            // the point of this noise is a ragged coast, not new terrain.
+            let shelf = 1_024 - (h.abs() / 400).clamp(0, 1_024);
+            let amp = 12_000 + 38_000 * i64::from(shelf) / 1_024;
+            let detail = i64::from(fbm(
+                seed ^ 0x00DE_7A11 ^ (u64::from(attempt) << 48),
+                x,
+                y,
+                24,
+                5,
+            ));
+            #[allow(clippy::cast_possible_truncation)]
+            let detail_mm = (detail * amp / 32_768) as i32;
+            h = h.saturating_add(detail_mm);
 
             if rim_forced_ocean(x, y, vis_w, vis_h, RIM_MARGIN) {
                 h = h.min(coast::OCEANIC_BASE_MM / 2);
@@ -137,6 +176,11 @@ pub fn generate_continent_attempt(seed: u64, config: GenerateConfig, attempt: u8
             height_mm.push(h);
         }
     }
+
+    // Step 2 (continued): coarse erosion and drainage respond on the 1 km
+    // grid. Running it here rather than only per-tile is what lets valleys
+    // cross tile boundaries, and it leaves no pinned-rim seams.
+    erode::erode_continent(&mut height_mm, vis_w, vis_h);
 
     ContinentGrid {
         width: vis_w,
@@ -206,14 +250,18 @@ mod tests {
     }
 
     #[test]
-    fn land_fraction_is_within_the_validation_gate() {
-        // logic/01 step 9: land fraction within 25-90%.
-        let grid = generate_continent(42, GenerateConfig::MICRO);
-        let permille = grid.land_fraction_permille();
-        assert!(
-            (250..=900).contains(&permille),
-            "land fraction {permille} per mille is outside 250..=900"
-        );
+    fn some_attempt_passes_the_land_fraction_gate() {
+        // `logic/01` §Q9 gates land fraction at 25-90% and rerolls up to five
+        // times on failure, so the property is that the ladder finds an
+        // acceptable continent — not that attempt 0 always does. Asserting the
+        // latter made this fail on a seed the batch handles fine.
+        for seed in [1u64, 7, 42, 99] {
+            let ok = (0..5).any(|attempt| {
+                let g = generate_continent_attempt(seed, GenerateConfig::MICRO, attempt);
+                (250..=900).contains(&g.land_fraction_permille())
+            });
+            assert!(ok, "seed {seed} failed the gate on all five attempts");
+        }
     }
 
     #[test]

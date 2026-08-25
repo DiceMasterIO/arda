@@ -37,8 +37,6 @@ fn weight(offset: i32, period: i32) -> i64 {
 }
 
 /// Bilinear value noise with smoothstep weights.
-///
-/// `period` is the lattice spacing in cells and must be positive.
 #[must_use]
 pub fn value_noise(seed: u64, x: i32, y: i32, period: i32) -> i32 {
     let period = period.max(1);

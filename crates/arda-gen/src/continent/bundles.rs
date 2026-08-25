@@ -63,8 +63,21 @@ pub fn coarse_height(continent: &ContinentGrid, abs_x: i32, abs_y: i32) -> i32 {
     // Bilinear sample of the 1 km continent grid at 100 m resolution.
     let km_x = abs_x.div_euclid(CELLS_PER_KM);
     let km_y = abs_y.div_euclid(CELLS_PER_KM);
-    let fx = i64::from(abs_x.rem_euclid(CELLS_PER_KM)) * 65536 / i64::from(CELLS_PER_KM);
-    let fy = i64::from(abs_y.rem_euclid(CELLS_PER_KM)) * 65536 / i64::from(CELLS_PER_KM);
+    // Smoothstep weights, not linear.
+    //
+    // Straight bilinear leaves a crease along every 1 km cell edge, and those
+    // creases are axis-aligned, so steepest descent follows them: the
+    // diagonal share of flow directions fell to 14% and rivers were drawn as
+    // straight combs. Smoothstep makes the interpolated surface C1 across
+    // cell boundaries, so the gradient direction is free to point anywhere.
+    let smooth = |v: i32| -> i64 {
+        let t = i64::from(v) * 65536 / i64::from(CELLS_PER_KM);
+        let t2 = (t * t) >> 16;
+        let t3 = (t2 * t) >> 16;
+        (3 * t2 - 2 * t3).clamp(0, 65536)
+    };
+    let fx = smooth(abs_x.rem_euclid(CELLS_PER_KM));
+    let fy = smooth(abs_y.rem_euclid(CELLS_PER_KM));
 
     let at = |x: i32, y: i32| i64::from(continent.get(x, y).raw());
     let top = at(km_x, km_y) + (((at(km_x + 1, km_y) - at(km_x, km_y)) * fx) >> 16);

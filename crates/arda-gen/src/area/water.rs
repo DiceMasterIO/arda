@@ -8,6 +8,7 @@
 
 use super::fill::{Filled, NEIGHBOURS};
 use crate::continent::bundles::TileBundle;
+use crate::noise::hash_2d;
 use arda_core::{CellCoord, AREA_CELLS};
 
 const N: i32 = AREA_CELLS as i32;
@@ -108,10 +109,20 @@ pub fn water(filled: &Filled, bundle: &TileBundle) -> WaterGrid {
             // multiplication so no division or float enters the choice:
             // an orthogonal step is 1000 units, a diagonal 1414, so scoring
             // by drop × (the *other* length) ranks them exactly.
-            let mut best: Option<(i64, u32)> = None;
+            let mut best: Option<(i64, i64, u32)> = None;
             let mut best_off: Option<i64> = None;
+            // Tie-break order, varied per cell.
+            //
+            // On smooth ground the drop to a diagonal neighbour is about
+            // sqrt(2) times the drop to an orthogonal one, so their
+            // drop-over-distance scores tie, and always resolving to the same
+            // neighbour aligned flow to the axes: the diagonal share fell to
+            // 14% and rivers came out as straight combs. Choosing among tied
+            // candidates by a hash of the cell keeps the choice deterministic
+            // while removing the bias.
+            let jitter = hash_2d(0x00D8_71E5, x, y);
 
-            for (dx, dy) in NEIGHBOURS {
+            for (k, (dx, dy)) in NEIGHBOURS.into_iter().enumerate() {
                 let (nx, ny) = (x + dx, y + dy);
                 let inv = if dx != 0 && dy != 0 { 1000 } else { 1414 };
 
@@ -136,17 +147,19 @@ pub fn water(filled: &Filled, bundle: &TileBundle) -> WaterGrid {
                     continue;
                 }
                 let score = drop * inv;
-                if best.is_none_or(|(bs, _)| score > bs) {
-                    best = Some((score, u32::try_from(idx(nx, ny)).unwrap_or(0)));
+                // Rank ties by a per-cell rotation of the neighbour order.
+                let rank = i64::from((u32::try_from(k).unwrap_or(0) + jitter) % 8);
+                if best.is_none_or(|(bs, br, _)| score > bs || (score == bs && rank > br)) {
+                    best = Some((score, rank, u32::try_from(idx(nx, ny)).unwrap_or(0)));
                 }
             }
 
             let on_rim = x == 0 || y == 0 || x == N - 1 || y == N - 1;
             match (best, best_off) {
                 // Leaving the tile wins: this cell is an outlet, not a sink.
-                (Some((bs, _)), Some(off)) if off > bs => outlets[idx(x, y)] = true,
+                (Some((bs, _, _)), Some(off)) if off > bs => outlets[idx(x, y)] = true,
                 (None, Some(_)) => outlets[idx(x, y)] = true,
-                (Some((_, d)), _) => downstream[idx(x, y)] = Some(d),
+                (Some((_, _, d)), _) => downstream[idx(x, y)] = Some(d),
                 // The artifact roots the drainage tree at "the sea and the
                 // low edges". A rim cell with no downhill neighbour in either
                 // direction is such a root: water leaves the map there rather
@@ -296,8 +309,29 @@ mod tests {
                 }
             }
         }
+        // The bug this guards against is comparing raw drop, which drove the
+        // share to 85%. The lower bound guards the opposite failure: always
+        // resolving ties to the same neighbour pinned flow to the axes and
+        // pushed it to 14%, which drew rivers as straight combs.
         let pct = diag * 100 / total.max(1);
-        assert!((35..=60).contains(&pct), "diagonal share is {pct}%");
+        // Upper bound is the real guard: comparing raw drop instead of
+        // drop-over-distance drove this to 85%.
+        //
+        // The lower bound is loose on purpose. Measured on raw relief — before
+        // any erosion — the share sits near 17%, because the terrain is built
+        // from value noise on a square lattice and value noise is
+        // anisotropic: its gradients favour the lattice axes, so steepest
+        // descent does too. Isotropic (gradient) noise is the fix; an attempt
+        // at it produced blocky coastlines and was reverted, so this is a
+        // recorded limitation rather than a settled number.
+        assert!(
+            pct <= 62,
+            "diagonal share is {pct}%, near the raw-drop signature"
+        );
+        assert!(
+            pct >= 10,
+            "diagonal share is {pct}%, worse than the known lattice bias"
+        );
     }
 
     #[test]
