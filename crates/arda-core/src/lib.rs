@@ -9,6 +9,7 @@ pub mod config;
 pub mod coords;
 pub mod error;
 pub mod fixed;
+pub mod formats;
 pub mod rng;
 
 pub use config::{GenerateConfig, LatitudeBand, SizeKm};
@@ -18,4 +19,8 @@ pub use coords::{
 };
 pub use error::{ConfigError, FormatError, LoadError};
 pub use fixed::{DischargeMilli, HeightMm, RainfallMm, TempCentiC};
+pub use formats::manifest::{
+    read_manifest, write_manifest, Manifest, ValidationStats, MANIFEST_NAME,
+};
+pub use formats::FORMAT_VERSION;
 pub use rng::{derive, rng, SeedKey, Stage, Tier};
