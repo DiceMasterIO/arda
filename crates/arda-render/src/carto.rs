@@ -15,7 +15,11 @@ pub fn render_area_png(cells: &AreaCells) -> Result<Vec<u8>, RenderError> {
         for x in 0..AREA_CELLS {
             let at = CellCoord::new(x, y).ok_or(RenderError::Png)?;
             let cell = cells.get(at);
-            let colour = if cell.watercourse_order > 0 {
+            let colour = if cell.terrain == TerrainKind::Lake {
+                // Inland water reads lighter than the sea, so a lake is not
+                // mistaken for a bay.
+                [58, 110, 190]
+            } else if cell.watercourse_order > 0 {
                 [40, 92, 170]
             } else if cell.terrain == TerrainKind::Land {
                 // 0 m to about 2000 m across a green-to-pale ramp.

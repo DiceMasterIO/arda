@@ -141,11 +141,19 @@ pub fn water(filled: &Filled, bundle: &TileBundle) -> WaterGrid {
                 }
             }
 
+            let on_rim = x == 0 || y == 0 || x == N - 1 || y == N - 1;
             match (best, best_off) {
                 // Leaving the tile wins: this cell is an outlet, not a sink.
                 (Some((bs, _)), Some(off)) if off > bs => outlets[idx(x, y)] = true,
                 (None, Some(_)) => outlets[idx(x, y)] = true,
                 (Some((_, d)), _) => downstream[idx(x, y)] = Some(d),
+                // The artifact roots the drainage tree at "the sea and the
+                // low edges". A rim cell with no downhill neighbour in either
+                // direction is such a root: water leaves the map there rather
+                // than pooling against a pinned edge. Erosion lowers the
+                // interior while the rim stays fixed, so without this the
+                // whole catchment behind a rim cell would strand.
+                (None, None) if on_rim => outlets[idx(x, y)] = true,
                 (None, None) => {}
             }
         }
