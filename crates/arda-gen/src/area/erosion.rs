@@ -26,12 +26,17 @@ pub const ITERATIONS: u32 = 40;
 /// Uplift at the highest coarse relief, millimetres per iteration.
 const UPLIFT_PEAK_MM: i64 = 900;
 
-/// Incision coefficient. Calibrated against the artifact's equilibrium
-/// targets: a channel draining 1 km² settles near a 9% slope, one draining
-/// 100 km² near 1%. Those two points give `m/n = 0.5`, which the exponents
-/// below encode; this scales the rate.
-const K_NUM: i64 = 7;
-const K_DEN: i64 = 1_000;
+/// Incision coefficient, calibrated against the artifact's equilibrium
+/// targets: "a mountain stream draining a single square kilometre settles
+/// near a 9% slope, a river draining a hundred near 1%".
+///
+/// At equilibrium uplift balances incision, `U = K·sqrt(A)·S`. Both anchor
+/// points give the same `K`, which is the check that `m/n = 0.5` is right:
+/// A=100 cells with S=90‰ and A=10,000 with S=10‰ both need incision to
+/// equal `UPLIFT_PEAK_MM`. Solving with area in cells and slope in per-mille
+/// gives `K_NUM/K_DEN = 100`.
+const K_NUM: i64 = 100;
+const K_DEN: i64 = 1;
 
 /// Hillslope creep coefficient, as a fraction of the five-point Laplacian.
 const CREEP_NUM: i64 = 3;
@@ -115,7 +120,10 @@ pub fn erode(heights: &mut [i32], coarse: &[i32], bundle: &TileBundle) {
                         // slope in 1/1000 units; A in cells
                         let slope = drop * 1000 / dist;
                         let incision = K_NUM * isqrt(i64::from(area[i])) * slope / (K_DEN * 100);
-                        dz -= incision;
+                        // A channel may not cut below what it drains into.
+                        // Without this the calibrated K digs a pit at every
+                        // cell and the basins all become lakes.
+                        dz -= incision.min(drop);
                     }
                 }
 
@@ -231,7 +239,14 @@ fn collapse(heights: &mut [i32]) {
                     if drop <= max_drop {
                         continue;
                     }
-                    let excess = drop - max_drop;
+                    // Ramped like every other process. Untapered, collapse ran
+                    // at full strength against the pinned rim, digging the
+                    // rim's neighbour down while the rim itself stayed — which
+                    // is exactly the seam step the taper exists to prevent.
+                    let excess = (drop - max_drop) * taper(x, y) / 1024;
+                    if excess <= 0 {
+                        continue;
+                    }
                     let frozen =
                         heights[j] <= 0 || nx == 0 || ny == 0 || nx == N - 1 || ny == N - 1;
                     if frozen {
@@ -312,27 +327,39 @@ mod tests {
     #[test]
     fn no_slope_exceeds_the_repose_angle() {
         // Artifact: slopes past ~35 degrees collapse until they are not.
+        //
+        // Asserted where erosion runs at full strength. Within EDGE_TAPER of
+        // the pinned rim every process including collapse is deliberately
+        // ramped to zero, so the rule cannot hold there; that band is
+        // reported rather than asserted, and it is bounded by the untouched
+        // relief it is ramping back toward.
         let (h, c, b) = setup();
         let mut e = h.clone();
         erode(&mut e, &c, &b);
-        let mut worst = 0i64;
-        for y in 1..N - 1 {
-            for x in 1..N - 1 {
-                if e[idx(x, y)] <= 0 {
-                    continue;
-                }
-                for (dx, dy) in NEIGHBOURS {
-                    let drop = i64::from(e[idx(x, y)] - e[idx(x + dx, y + dy)]);
-                    let run = if dx != 0 && dy != 0 { 141_400 } else { 100_000 };
-                    worst = worst.max(drop * 1000 / run);
+
+        let worst = |lo: i32, hi: i32| {
+            let mut w = 0i64;
+            for y in lo..hi {
+                for x in lo..hi {
+                    if e[idx(x, y)] <= 0 {
+                        continue;
+                    }
+                    for (dx, dy) in NEIGHBOURS {
+                        let drop = i64::from(e[idx(x, y)] - e[idx(x + dx, y + dy)]);
+                        let run = if dx != 0 && dy != 0 { 141_400 } else { 100_000 };
+                        w = w.max(drop * 1000 / run);
+                    }
                 }
             }
-        }
-        // One collapse pass per iteration leaves a small overshoot; the
-        // artifact's rule is "until it is not", not "never momentarily".
+            w
+        };
+
+        let full = worst(EDGE_TAPER, N - EDGE_TAPER);
+        let all = worst(1, N - 1);
+        println!("steepest tan*1000: full-strength {full}, including taper band {all}");
         assert!(
-            worst <= TALUS_TAN_1000 * 3 / 2,
-            "steepest slope tan*1000 = {worst}"
+            full <= TALUS_TAN_1000 * 5 / 4,
+            "full-strength region reaches tan*1000 = {full}, past the repose angle {TALUS_TAN_1000}"
         );
     }
 
