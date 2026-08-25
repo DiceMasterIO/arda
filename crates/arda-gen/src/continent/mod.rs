@@ -4,6 +4,7 @@
 //! 1 km upsample. Climate, hydrology, human geography, and naming arrive at
 //! build-order step 4.
 
+pub mod bundles;
 pub mod coast;
 pub mod plates;
 pub mod tectonics;
