@@ -41,6 +41,8 @@ pub enum Stage {
     Blocks = 6,
     /// Per-tile input bundles (`logic/01` step 10).
     Bundles = 7,
+    /// Landscape evolution: uplift, incision, creep, collapse, droplets.
+    Erosion = 8,
 }
 
 /// The full key for one random stream.

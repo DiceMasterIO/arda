@@ -8,7 +8,7 @@ use super::{put_i32, put_u16, put_u32, take_i32, take_u16, take_u32, take_u8};
 use crate::coords::CellCoord;
 use crate::error::FormatError;
 use crate::fixed::{DischargeMilli, HeightMm};
-use crate::objects::{AreaObjects, Lake, RiverSegment};
+use crate::objects::{AreaObjects, Lake, RiverSegment, Terminus};
 
 /// Container magic.
 pub const OBJECTS_MAGIC: &[u8; 8] = b"ARDAOBJ\0";
@@ -63,6 +63,8 @@ pub fn encode_objects(objects: &AreaObjects) -> Vec<u8> {
         rivers.push(r.order);
         put_u16(&mut rivers, r.width_dm);
         put_u32(&mut rivers, r.discharge.raw());
+        put_u16(&mut rivers, r.feeds.unwrap_or(0));
+        rivers.push(r.ends as u8);
         put_course(&mut rivers, &r.course);
     }
 
@@ -70,6 +72,19 @@ pub fn encode_objects(objects: &AreaObjects) -> Vec<u8> {
     for l in &objects.lakes {
         put_u16(&mut lakes, l.id);
         put_i32(&mut lakes, l.surface.raw());
+        put_u32(&mut lakes, l.depth_mm);
+        match l.outlet {
+            Some(c) => {
+                lakes.push(1);
+                put_u16(&mut lakes, c.x());
+                put_u16(&mut lakes, c.y());
+            }
+            None => {
+                lakes.push(0);
+                put_u16(&mut lakes, 0);
+                put_u16(&mut lakes, 0);
+            }
+        }
         put_course(&mut lakes, &l.cells);
     }
 
@@ -125,28 +140,58 @@ pub fn decode_objects(path: &str, bytes: &[u8]) -> Result<AreaObjects, FormatErr
         match kind {
             KIND_RIVERS => {
                 for _ in 0..record_ct {
-                    need(path, bytes, at, 9)?;
+                    need(path, bytes, at, 12)?;
                     let id = take_u16(bytes, &mut at);
                     let order = take_u8(bytes, &mut at);
                     let width_dm = take_u16(bytes, &mut at);
                     let discharge = DischargeMilli::new(take_u32(bytes, &mut at));
+                    let feeds_raw = take_u16(bytes, &mut at);
+                    let ends_raw = take_u8(bytes, &mut at);
+                    let ends = Terminus::from_u8(ends_raw).ok_or(
+                        FormatError::UnknownDiscriminant {
+                            path: path.to_owned(),
+                            field: "terminus",
+                            value: u16::from(ends_raw),
+                        },
+                    )?;
                     let course = take_course(path, bytes, &mut at)?;
                     out.rivers.push(RiverSegment {
                         id,
                         order,
                         width_dm,
                         discharge,
+                        feeds: (feeds_raw != 0).then_some(feeds_raw),
+                        ends,
                         course,
                     });
                 }
             }
             KIND_LAKES => {
                 for _ in 0..record_ct {
-                    need(path, bytes, at, 6)?;
+                    need(path, bytes, at, 15)?;
                     let id = take_u16(bytes, &mut at);
                     let surface = HeightMm::new(take_i32(bytes, &mut at));
+                    let depth_mm = take_u32(bytes, &mut at);
+                    let has_outlet = take_u8(bytes, &mut at) == 1;
+                    let ox = take_u16(bytes, &mut at);
+                    let oy = take_u16(bytes, &mut at);
+                    let outlet = if has_outlet {
+                        Some(CellCoord::new(ox, oy).ok_or(FormatError::UnknownDiscriminant {
+                            path: path.to_owned(),
+                            field: "lake outlet",
+                            value: ox.max(oy),
+                        })?)
+                    } else {
+                        None
+                    };
                     let cells = take_course(path, bytes, &mut at)?;
-                    out.lakes.push(Lake { id, surface, cells });
+                    out.lakes.push(Lake {
+                        id,
+                        surface,
+                        depth_mm,
+                        outlet,
+                        cells,
+                    });
                 }
             }
             // Forward compatibility: a section a later build wrote and this
@@ -174,6 +219,8 @@ mod tests {
                     order: 3,
                     width_dm: 240,
                     discharge: DischargeMilli::new(88_000),
+                    feeds: None,
+                    ends: Terminus::Sea,
                     course: vec![cc(0, 0), cc(1, 0), cc(1, 1), cc(511, 511)],
                 },
                 RiverSegment {
@@ -181,12 +228,16 @@ mod tests {
                     order: 1,
                     width_dm: 15,
                     discharge: DischargeMilli::new(400),
+                    feeds: Some(1),
+                    ends: Terminus::Junction,
                     course: vec![cc(100, 200)],
                 },
             ],
             lakes: vec![Lake {
                 id: 1,
                 surface: HeightMm::new(214_000),
+                depth_mm: 4_200,
+                outlet: Some(cc(52, 51)),
                 cells: vec![cc(50, 50), cc(51, 50), cc(50, 51)],
             }],
         }
@@ -235,6 +286,27 @@ mod tests {
 
     /// Forward compatibility: a section this build does not know is skipped,
     /// so build-order step 5 can add settlements without a format major bump.
+    #[test]
+    fn segment_links_and_termini_round_trip() {
+        // Artifact, Water: "every segment knows which segment it feeds and
+        // how it ends"; lakes record surface, depth, and their outlet cell.
+        let back = decode_objects("objects.bin", &encode_objects(&sample())).unwrap();
+        assert_eq!(back.rivers[0].ends, Terminus::Sea);
+        assert_eq!(back.rivers[0].feeds, None);
+        assert_eq!(back.rivers[1].ends, Terminus::Junction);
+        assert_eq!(back.rivers[1].feeds, Some(1));
+        assert_eq!(back.lakes[0].depth_mm, 4_200);
+        assert_eq!(back.lakes[0].outlet, Some(cc(52, 51)));
+    }
+
+    #[test]
+    fn a_lake_spilling_off_tile_has_no_outlet_cell() {
+        let mut o = sample();
+        o.lakes[0].outlet = None;
+        let back = decode_objects("objects.bin", &encode_objects(&o)).unwrap();
+        assert_eq!(back.lakes[0].outlet, None);
+    }
+
     #[test]
     fn unknown_section_kind_is_skipped() {
         let mut bytes = encode_objects(&sample());
