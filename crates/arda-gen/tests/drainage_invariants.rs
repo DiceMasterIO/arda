@@ -46,8 +46,19 @@ fn tiles() -> &'static Vec<Tile> {
                 let b = bundle_for(42, &c, coord);
                 let r = relief(42, &c, &b);
                 let mut heights: Vec<i32> = (0..(N * N)).map(|i| r.get(cc(i % N, i / N))).collect();
-                let coarse = heights.clone();
-                erosion::erode(&mut heights, &coarse, &b);
+                // Mirror generate_area: uplift follows the smooth regional
+                // surface, not the noise-refined relief.
+                let uplift: Vec<i32> = (0..(N * N))
+                    .map(|i| {
+                        let (ax, ay) = arda_gen::continent::bundles::abs_cell(
+                            coord,
+                            u16::try_from(i % N).unwrap(),
+                            u16::try_from(i / N).unwrap(),
+                        );
+                        arda_gen::continent::bundles::coarse_height(&c, ax, ay)
+                    })
+                    .collect();
+                erosion::erode(&mut heights, &uplift, &b);
                 let filled = fill::fill(&heights, &b);
                 let water = arda_gen::area::water(&filled, &b);
                 let (cells, objects) = compose(&heights, &filled, &water);

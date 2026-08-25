@@ -127,12 +127,22 @@ pub fn erode(heights: &mut [i32], coarse: &[i32], bundle: &TileBundle) {
                     }
                 }
 
-                // 3. Hillslope creep: five-point Laplacian.
-                let lap = i64::from(heights[idx(x - 1, y)])
+                // 3. Hillslope creep, isotropic nine-point Laplacian.
+                //
+                // The five-point form uses only orthogonal neighbours, so it
+                // smooths along the axes differently from the diagonals and
+                // imprints axis-aligned structure over the run. Steepest
+                // descent then follows it and rivers come out as straight
+                // combs — the diagonal share of flow directions sat at 14%.
+                let orth = i64::from(heights[idx(x - 1, y)])
                     + i64::from(heights[idx(x + 1, y)])
                     + i64::from(heights[idx(x, y - 1)])
-                    + i64::from(heights[idx(x, y + 1)])
-                    - 4 * i64::from(h);
+                    + i64::from(heights[idx(x, y + 1)]);
+                let diag = i64::from(heights[idx(x - 1, y - 1)])
+                    + i64::from(heights[idx(x + 1, y - 1)])
+                    + i64::from(heights[idx(x - 1, y + 1)])
+                    + i64::from(heights[idx(x + 1, y + 1)]);
+                let lap = (4 * orth + diag - 20 * i64::from(h)) / 6;
                 dz += CREEP_NUM * lap / CREEP_DEN;
 
                 let applied = dz * ramp / 1024;

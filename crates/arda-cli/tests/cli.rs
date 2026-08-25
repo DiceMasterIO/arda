@@ -185,23 +185,35 @@ fn export_overview_renders_an_existing_world() {
 #[test]
 fn export_renders_a_tactical_block() {
     // The wave-function-collapse layer had no command at all until now.
+    //
+    // Which cells carry a block depends on where the land falls, so this
+    // walks the stride rather than pinning one coordinate — an earlier
+    // version hard-coded a cell that later became sea.
     let world = TempDir::new("blk-world");
     let out = TempDir::new("blk-out");
     generate_micro(world.path());
 
-    let res = Command::new(bin())
-        .args(["export", "--world"])
-        .arg(world.path())
-        .args(["--block", "0,1,64,64", "--out"])
-        .arg(out.path())
-        .output()
-        .unwrap();
-    assert!(
-        res.status.success(),
-        "stderr: {}",
-        String::from_utf8_lossy(&res.stderr)
-    );
-    assert!(out.path().join("block_00_01_064_064.png").is_file());
+    let mut rendered = None;
+    'search: for ay in 0..4 {
+        for cy in (0..512).step_by(64) {
+            for cx in (0..512).step_by(64) {
+                let spec = format!("0,{ay},{cx},{cy}");
+                let res = Command::new(bin())
+                    .args(["export", "--world"])
+                    .arg(world.path())
+                    .args(["--block", &spec, "--out"])
+                    .arg(out.path())
+                    .output()
+                    .unwrap();
+                if res.status.success() {
+                    rendered = Some(format!("block_00_{ay:02}_{cx:03}_{cy:03}.png"));
+                    break 'search;
+                }
+            }
+        }
+    }
+    let name = rendered.expect("no land cell in the micro world carried a block");
+    assert!(out.path().join(&name).is_file(), "{name} was not written");
 }
 
 #[test]

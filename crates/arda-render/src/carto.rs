@@ -3,6 +3,55 @@
 use crate::RenderError;
 use arda_core::{AreaCells, CellCoord, TerrainKind, AREA_CELLS};
 
+/// Hypsometric palette: elevation in millimetres to RGB.
+///
+/// Stops follow the convention of physical atlases — lowland green, upland
+/// tan, montane brown, then rock and snow. A single linear ramp was tried
+/// first and is useless: it saturated to white above 2,040 m and showed no
+/// variation at all below that, which hid the fact that the whole continent
+/// was a 118 m plateau.
+#[must_use]
+pub fn land_colour(height_mm: i32) -> [u8; 3] {
+    const STOPS: [(i32, [u8; 3]); 7] = [
+        (0, [86, 125, 70]),           // coastal plain
+        (200_000, [122, 148, 78]),    // lowland
+        (500_000, [163, 165, 92]),    // upland
+        (900_000, [173, 141, 88]),    // hill
+        (1_400_000, [150, 112, 78]),  // montane
+        (2_000_000, [140, 130, 128]), // bare rock
+        (2_800_000, [242, 242, 245]), // snow
+    ];
+    let h = height_mm.max(0);
+    let mut i = 0;
+    while i + 1 < STOPS.len() && h >= STOPS[i + 1].0 {
+        i += 1;
+    }
+    if i + 1 >= STOPS.len() {
+        return STOPS[STOPS.len() - 1].1;
+    }
+    let (lo, c0) = STOPS[i];
+    let (hi, c1) = STOPS[i + 1];
+    let span = (hi - lo).max(1);
+    let t = i64::from((h - lo).clamp(0, span));
+    let mix = |a: u8, b: u8| {
+        let v = i64::from(a) + (i64::from(b) - i64::from(a)) * t / i64::from(span);
+        u8::try_from(v.clamp(0, 255)).unwrap_or(255)
+    };
+    [mix(c0[0], c1[0]), mix(c0[1], c1[1]), mix(c0[2], c1[2])]
+}
+
+/// Sea colour by depth: shelf is lighter than abyss.
+#[must_use]
+pub fn sea_colour(height_mm: i32) -> [u8; 3] {
+    let depth = (-height_mm).clamp(0, 3_000_000);
+    let t = u8::try_from(depth / 14_000).unwrap_or(214);
+    [
+        26u8.saturating_sub(t / 8),
+        58u8.saturating_sub(t / 5),
+        110u8.saturating_sub(t / 3),
+    ]
+}
+
 /// Renders one area tile, one pixel per 100 m cell, hypsometrically tinted.
 ///
 /// # Errors
@@ -22,16 +71,9 @@ pub fn render_area_png(cells: &AreaCells) -> Result<Vec<u8>, RenderError> {
             } else if cell.watercourse_order > 0 {
                 [40, 92, 170]
             } else if cell.terrain == TerrainKind::Land {
-                // 0 m to about 2000 m across a green-to-pale ramp.
-                let t = u8::try_from((cell.height.raw() / 8_000).clamp(0, 255)).unwrap_or(255);
-                [
-                    64u8.saturating_add(t),
-                    120u8.saturating_add(t / 2),
-                    60u8.saturating_add(t),
-                ]
+                land_colour(cell.height.raw())
             } else {
-                let d = u8::try_from((-cell.height.raw() / 20_000).clamp(0, 90)).unwrap_or(90);
-                [10, 40u8.saturating_sub(d / 4), 110u8.saturating_sub(d)]
+                sea_colour(cell.height.raw())
             };
             let i = usize::try_from((u32::from(y) * side + u32::from(x)) * 3)
                 .map_err(|_| RenderError::Png)?;
@@ -111,12 +153,7 @@ pub fn render_overview_png(
                     Feature::Sea => [10, 30, 78],
                     Feature::Land => {
                         let mean = height_sum / land_count.max(1);
-                        let t = u8::try_from((mean / 8_000).clamp(0, 255)).unwrap_or(255);
-                        [
-                            64u8.saturating_add(t),
-                            120u8.saturating_add(t / 2),
-                            60u8.saturating_add(t),
-                        ]
+                        land_colour(i32::try_from(mean).unwrap_or(0))
                     }
                     Feature::River => [40, 92, 170],
                     Feature::Lake => [58, 110, 190],
