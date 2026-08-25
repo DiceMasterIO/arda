@@ -48,6 +48,7 @@ codegen-units = 1
 # only to host it, so it has no library or binary of its own.
 [package]
 name = "arda-workspace-tests"
+autotests = false
 version.workspace = true
 edition.workspace = true
 license.workspace = true

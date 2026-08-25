@@ -29,6 +29,7 @@ build ✓ (build-order steps 0–3 of 13; see `docs/capstone/changelog.md`).
 | `docs/capstone/mockup-artifact.md` | The traceable product mockup the surface units decompose | 2026-08-24 |
 | `docs/capstone/mockup/` | Product mockup: 6 surface units + README index | 2026-08-25 |
 | `docs/capstone/logic/` | Business logic: 6 scenario files (continent, area, block, export, load-query, society) | 2026-08-25 |
+| `docs/capstone/features/` | Feature chain: 01 area drainage correctness (spec ready) | 2026-08-25 |
 | `docs/capstone/implementation.md` | Approved build plan: 13 steps, layout, seams; steps 0–3 built | 2026-08-25 |
 | `docs/capstone/code-prefs.md` | Normative code preferences (9 domains) | 2026-08-24 |
 | `docs/capstone/changelog.md` | Append-only ledger of capstone runs | 2026-08-24 |

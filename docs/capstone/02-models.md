@@ -59,6 +59,16 @@ in-memory types (arda-core) ↔ binary layers (arda-core::formats, the
 only byte codec) ↔ export JSON (arda-render, snake_case SI schema with
 `schema_version`, additive-only — `logic/04` §Q14).
 
+## Observed — steps 0–3 (2026-08-25)
+
+Built shape, where it diverges from the prescription above:
+
+- `Cell` is a 33-byte little-endian row carrying all 17 fields of the artifact list. The skeleton populates only `height`, `terrain`, `cover`, `drainage_area_cells`, `discharge`, `watercourse_order`, `watercourse_width_dm`; the remaining ten hold their `Default`.
+- **`watercourse_order` does not hold Strahler order.** It stores `log2(drainage_area_cells / 240) + 1`, a magnitude band. The Entities table and `mockup/04` both say Strahler; the code does not implement it, and `06-testing.md`'s Horton gate cannot be computed from what is stored.
+- **`Lake` is never constructed.** `compose` emits `lakes: Vec::new()` unconditionally, so the type exists with no producer.
+- `RiverSegment.course` is a head-to-terminus walk, not a reach between junctions, so segments sharing a trunk repeat its cells.
+- Sea and lake cells carry non-zero `drainage_area_cells` and `discharge`; nothing zeroes them.
+
 ## Validation
 
 - Config validated before generation (ranges; `logic/01` preconditions).
