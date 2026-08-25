@@ -13,5 +13,12 @@ rand_core.workspace = true
 rayon.workspace = true
 thiserror.workspace = true
 
+[dev-dependencies]
+criterion.workspace = true
+
+[[bench]]
+name = "area_erosion"
+harness = false
+
 [lints]
 workspace = true
