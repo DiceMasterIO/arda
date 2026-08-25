@@ -19,6 +19,13 @@ this chapter maps them onto the planned crates.
 3. **load-query** (`logic/05`): `World::load` reads manifest eagerly; areas lazy + cached; blocks lazy; typed errors (missing/partial, version skew, corruption, range).
 4. **serve** (`mockup/06`, build §Q1): `arda-cli` binds a synchronous listener → each request maps to a load-query read plus, where the path asks for an artifact, the same `arda-render` call `export` makes → response bytes. No request mutates anything; determinism makes the response a pure function of (seed, path), which is what the ETags are derived from.
 
+## Observed — steps 0–3 (2026-08-25)
+
+- The area stage runs `relief → water → compose` only; the other five stages of lifecycle 1 are unbuilt (step 5).
+- **`water` takes `(relief)` and nothing else.** It never sees the `TileBundle`, so `logic/01` step 10's entering rivers have no consumer and no cross-tile flow exists.
+- **There is no outflow boundary condition.** Off-tile neighbours are skipped in the D8 search, so a cell on the tile edge routes to the best *inland* downhill neighbour instead of leaving the tile.
+- Flow accumulation runs over sea cells as well as land.
+
 ## State
 
 The world directory is the only persistent state; immutable once the
