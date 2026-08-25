@@ -3,6 +3,7 @@
 //! Layouts are hand-specified little-endian; each layer documents its own
 //! row format. No other crate encodes or decodes world bytes.
 
+pub mod blocks;
 pub mod cells;
 pub mod manifest;
 pub mod objects;
