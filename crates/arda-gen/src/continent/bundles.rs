@@ -5,7 +5,7 @@
 //! by construction, and areas may generate in any order (`logic/01`
 //! invariant).
 
-use super::ContinentGrid;
+use super::{Continent, ContinentGrid};
 use crate::noise::fbm;
 use arda_core::{AreaCoord, AREA_CELLS};
 
@@ -112,14 +112,14 @@ pub struct TileBundle {
 /// neighbour's first row/column — so `south` and the neighbour's `north` name
 /// the same absolute cells and are equal by construction.
 #[must_use]
-pub fn bundle_for(seed: u64, continent: &ContinentGrid, area: AreaCoord) -> TileBundle {
+pub fn bundle_for(seed: u64, continent: &Continent, area: AreaCoord) -> TileBundle {
     let n = AREA_CELLS;
 
     let row = |local_y: u16| -> Vec<i32> {
         (0..n)
             .map(|local_x| {
                 let (ax, ay) = abs_cell(area, local_x, local_y);
-                boundary_height(seed, continent, ax, ay)
+                boundary_height(seed, &continent.grid, ax, ay)
             })
             .collect()
     };
@@ -127,7 +127,7 @@ pub fn bundle_for(seed: u64, continent: &ContinentGrid, area: AreaCoord) -> Tile
         (0..n)
             .map(|local_y| {
                 let (ax, ay) = abs_cell(area, local_x, local_y);
-                boundary_height(seed, continent, ax, ay)
+                boundary_height(seed, &continent.grid, ax, ay)
             })
             .collect()
     };
@@ -162,8 +162,8 @@ mod tests {
     use super::*;
     use arda_core::GenerateConfig;
 
-    fn fixture() -> ContinentGrid {
-        crate::continent::generate_continent(42, GenerateConfig::MICRO)
+    fn fixture() -> Continent {
+        crate::continent::build_continent(42, GenerateConfig::MICRO, 0)
     }
 
     #[test]
@@ -178,8 +178,8 @@ mod tests {
     fn boundary_height_is_deterministic() {
         let c = fixture();
         assert_eq!(
-            boundary_height(42, &c, 700, 1200),
-            boundary_height(42, &c, 700, 1200)
+            boundary_height(42, &c.grid, 700, 1200),
+            boundary_height(42, &c.grid, 700, 1200)
         );
     }
 

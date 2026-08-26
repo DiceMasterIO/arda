@@ -280,14 +280,14 @@ fn collapse(heights: &mut [i32]) {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::continent::build_continent;
     use crate::continent::bundles::bundle_for;
-    use crate::continent::generate_continent;
     use arda_core::{AreaCoord, GenerateConfig};
 
     fn setup() -> (Vec<i32>, Vec<i32>, TileBundle) {
-        let c = generate_continent(42, GenerateConfig::MICRO);
+        let c = build_continent(42, GenerateConfig::MICRO, 0);
         let b = bundle_for(42, &c, AreaCoord::new(0, 1));
-        let r = crate::area::relief::relief(42, &c, &b);
+        let r = crate::area::relief::relief(42, &c.grid, &b);
         let h: Vec<i32> = (0..(N * N) as usize)
             .filter_map(|i| {
                 let i = i32::try_from(i).ok()?;

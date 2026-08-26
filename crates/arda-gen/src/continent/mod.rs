@@ -75,6 +75,36 @@ pub fn generate_continent(seed: u64, config: GenerateConfig) -> ContinentGrid {
     generate_continent_attempt(seed, config, 0)
 }
 
+/// Everything the continent stage knows, threaded to bundles and areas
+/// (feature 03 §Q2 — closes the computes-and-discards seam).
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct Continent {
+    /// The accepted 1 km continent grid.
+    pub grid: ContinentGrid,
+    /// Per-cell climate fields for [`Continent::grid`].
+    pub climate: climate::ContinentClimate,
+    /// The drainage tree and per-cell loads routed over [`Continent::grid`].
+    pub hydrology: hydrology::ContinentHydrology,
+}
+
+/// Runs the continent stage for one attempt and packages the context.
+///
+/// Runs exactly the sequence `generate_world` runs on acceptance:
+/// [`generate_continent_attempt`], then [`climate::climate`], then
+/// [`hydrology::hydrology`] over the result — so callers get one continent
+/// context instead of computing climate and hydrology again themselves.
+#[must_use]
+pub fn build_continent(seed: u64, config: GenerateConfig, attempt: u8) -> Continent {
+    let grid = generate_continent_attempt(seed, config, attempt);
+    let clim = climate::climate(&grid, config.latitude_band());
+    let hydro = hydrology::hydrology(&grid, &clim);
+    Continent {
+        grid,
+        climate: clim,
+        hydrology: hydro,
+    }
+}
+
 /// Runs the continent stage for one validation attempt.
 ///
 /// `attempt` feeds the subseed derivation, so a continent rejected by the
