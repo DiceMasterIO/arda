@@ -32,7 +32,10 @@ pub use formats::cells::{decode_cells, encode_cells, AreaCells, CELL_BYTES};
 pub use formats::manifest::{
     read_manifest, write_manifest, Manifest, ValidationStats, MANIFEST_NAME,
 };
-pub use formats::objects::{decode_objects, encode_objects, OBJECTS_MAGIC};
+pub use formats::objects::{
+    decode_continent_objects, decode_objects, encode_continent_objects, encode_objects,
+    CONTINENT_OBJECTS_MAGIC, OBJECTS_MAGIC,
+};
 pub use formats::overview::{
     decode_overview, encode_overview, OVERVIEW_CELL_BYTES, OVERVIEW_MAGIC,
 };
