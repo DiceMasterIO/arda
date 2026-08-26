@@ -20,5 +20,9 @@ criterion.workspace = true
 name = "area_erosion"
 harness = false
 
+[[bench]]
+name = "continent_stage"
+harness = false
+
 [lints]
 workspace = true
