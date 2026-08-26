@@ -246,14 +246,17 @@ mod tests {
             let mut at = i;
             let mut steps = 0;
             loop {
-                let (x, y) = (at as i32 % w, at as i32 / w);
+                let (x, y) = (
+                    i32::try_from(at).unwrap_or(0) % w,
+                    i32::try_from(at).unwrap_or(0) / w,
+                );
                 if g.get(x, y).raw() <= 0 {
                     break; // reached ocean
                 }
                 let Some(d) = hy.downstream[at] else {
                     panic!("land cell {x},{y} is a routing dead end");
                 };
-                at = d as usize;
+                at = usize::try_from(d).unwrap_or(0);
                 steps += 1;
                 assert!(steps <= w * h, "cycle from cell {i}");
             }
@@ -268,8 +271,15 @@ mod tests {
         let w = g.width();
         for (i, d) in hy.downstream.iter().enumerate() {
             let Some(d) = *d else { continue };
-            let d = d as usize;
-            let land = |j: usize| g.get(j as i32 % w, j as i32 / w).raw() > 0;
+            let d = usize::try_from(d).unwrap_or(0);
+            let land = |j: usize| {
+                g.get(
+                    i32::try_from(j).unwrap_or(0) % w,
+                    i32::try_from(j).unwrap_or(0) / w,
+                )
+                .raw()
+                    > 0
+            };
             if land(i) && land(d) {
                 assert!(hy.catchment_km2[d] >= hy.catchment_km2[i]);
                 assert!(hy.discharge_l_s[d] >= hy.discharge_l_s[i]);
@@ -283,7 +293,13 @@ mod tests {
         let (g, hy) = hydro();
         let w = g.width();
         for i in 0..hy.catchment_km2.len() {
-            if g.get(i as i32 % w, i as i32 / w).raw() <= 0 {
+            if g.get(
+                i32::try_from(i).unwrap_or(0) % w,
+                i32::try_from(i).unwrap_or(0) / w,
+            )
+            .raw()
+                <= 0
+            {
                 assert_eq!(hy.catchment_km2[i], 0);
                 assert_eq!(hy.discharge_l_s[i], 0);
             }
@@ -298,7 +314,10 @@ mod tests {
             match *d {
                 None => assert_eq!(hy.downstream_dir[i], 255),
                 Some(d) => {
-                    let (dx, dy) = (d as i32 % w - i as i32 % w, d as i32 / w - i as i32 / w);
+                    let (dx, dy) = (
+                        i32::try_from(d).unwrap_or(0) % w - i32::try_from(i).unwrap_or(0) % w,
+                        i32::try_from(d).unwrap_or(0) / w - i32::try_from(i).unwrap_or(0) / w,
+                    );
                     let k = hy.downstream_dir[i] as usize;
                     assert_eq!(super::super::erode::NEIGHBOURS[k], (dx, dy));
                 }
@@ -358,7 +377,9 @@ mod tests {
         assert_eq!(main.feeds, None, "main stem must reach the sea");
         assert!(main.catchment_km2 >= 300);
         // Course runs source → mouth, descending on the routing surface.
-        let idx = |c: &arda_core::KmCoord| c.y as usize * w as usize + c.x as usize;
+        let idx = |c: &arda_core::KmCoord| {
+            usize::from(c.y) * usize::try_from(w).unwrap_or(0) + usize::from(c.x)
+        };
         for pair in main.course.windows(2) {
             assert!(hy.filled[idx(&pair[0])] >= hy.filled[idx(&pair[1])]);
         }

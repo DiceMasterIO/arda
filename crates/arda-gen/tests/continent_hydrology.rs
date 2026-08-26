@@ -53,17 +53,33 @@ fn every_micro_land_cell_reaches_the_ocean() {
     let c = climate(&g, LatitudeBand::new(35, 55));
     let hy = hydrology(&g, &c);
     let (w, h) = (g.width(), g.height());
-    for i in 0..(w * h) as usize {
-        if g.get(i as i32 % w, i as i32 / w).raw() <= 0 {
+    for i in 0..usize::try_from(w * h).unwrap_or(0) {
+        if g.get(
+            i32::try_from(i).unwrap_or(0) % w,
+            i32::try_from(i).unwrap_or(0) / w,
+        )
+        .raw()
+            <= 0
+        {
             continue;
         }
         let mut at = i;
         let mut steps = 0;
-        while g.get(at as i32 % w, at as i32 / w).raw() > 0 {
+        while g
+            .get(
+                i32::try_from(at).unwrap_or(0) % w,
+                i32::try_from(at).unwrap_or(0) / w,
+            )
+            .raw()
+            > 0
+        {
             let d = hy.downstream[at].unwrap_or_else(|| panic!("dead end at {at}"));
-            at = d as usize;
+            at = usize::try_from(d).unwrap_or(0);
             steps += 1;
-            assert!(steps <= (w * h) as usize, "cycle from {i}");
+            assert!(
+                steps <= usize::try_from(w * h).unwrap_or(0),
+                "cycle from {i}"
+            );
         }
     }
 }
@@ -77,7 +93,7 @@ fn micro_rivers_satisfy_the_course_invariants() {
     let hy = hydrology(&g, &c);
     let rivers = extract_rivers(&g, &hy);
     assert!(!rivers.is_empty());
-    let w = g.width() as usize;
+    let w = usize::try_from(g.width()).unwrap_or(0);
     for r in &rivers {
         if let Some(f) = r.feeds {
             assert!(f < r.id);
@@ -93,7 +109,7 @@ fn micro_rivers_satisfy_the_course_invariants() {
                 "course break in river {}",
                 r.id
             );
-            let idx = |c: &arda_core::KmCoord| c.y as usize * w + c.x as usize;
+            let idx = |c: &arda_core::KmCoord| usize::from(c.y) * w + usize::from(c.x);
             assert!(
                 hy.filled[idx(a)] >= hy.filled[idx(b)],
                 "course climbs in river {}",
