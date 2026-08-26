@@ -275,7 +275,8 @@ mod tests {
         let c = climate(&g, BAND);
         for y in 0..10 {
             for x in 0..4 {
-                assert_eq!(c.rainfall[(y * 10 + x) as usize], 0, "sea cell {x},{y}");
+                let i = usize::try_from(y * 10 + x).unwrap();
+                assert_eq!(c.rainfall[i], 0, "sea cell {x},{y}");
             }
         }
     }
