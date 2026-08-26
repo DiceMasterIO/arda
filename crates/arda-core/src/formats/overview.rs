@@ -73,8 +73,27 @@ pub fn decode_overview(path: &str, bytes: &[u8]) -> Result<ContinentOverview, Fo
     need(at, 8)?;
     let width = take_u32(bytes, &mut at);
     let height = take_u32(bytes, &mut at);
-    let count = width as usize * height as usize;
-    need(at, count * OVERVIEW_CELL_BYTES)?;
+    // File-supplied dims: multiply with checked arithmetic so a crafted
+    // header can't overflow `usize` and panic (debug) or abort on a
+    // capacity overflow (release). `expected: usize::MAX` is a saturated
+    // stand-in for "impossibly large" — the header claims more bytes than
+    // any real file could hold, so the exact figure is not meaningful.
+    let count = (width as usize)
+        .checked_mul(height as usize)
+        .ok_or_else(|| FormatError::UnexpectedEof {
+            path: path.to_owned(),
+            read: bytes.len(),
+            expected: usize::MAX,
+        })?;
+    let byte_len =
+        count
+            .checked_mul(OVERVIEW_CELL_BYTES)
+            .ok_or_else(|| FormatError::UnexpectedEof {
+                path: path.to_owned(),
+                read: bytes.len(),
+                expected: usize::MAX,
+            })?;
+    need(at, byte_len)?;
 
     let mut cells = Vec::with_capacity(count);
     for _ in 0..count {
@@ -194,6 +213,21 @@ mod tests {
                 field: "climate regime",
                 ..
             }
+        ));
+    }
+
+    #[test]
+    fn huge_dims_that_overflow_the_byte_count_are_refused_not_panicked() {
+        // A crafted header whose width * height * cell-size overflows usize
+        // must be refused with UnexpectedEof, never panic or abort.
+        let mut bytes = Vec::new();
+        bytes.extend_from_slice(OVERVIEW_MAGIC);
+        put_u32(&mut bytes, u32::MAX);
+        put_u32(&mut bytes, u32::MAX);
+        let err = decode_overview("overview.bin", &bytes).unwrap_err();
+        assert!(matches!(
+            err,
+            crate::error::FormatError::UnexpectedEof { .. }
         ));
     }
 

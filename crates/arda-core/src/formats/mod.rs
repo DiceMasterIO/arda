@@ -10,7 +10,7 @@ pub mod objects;
 pub mod overview;
 
 /// The world-format major. Bumped only by a breaking layout change; loaders
-/// refuse newer majors with the regenerate remedy (`logic/05`).
+/// refuse any other major with the regenerate remedy (`logic/05`).
 /// 3: continent overview records + continent objects (feature 02).
 pub const FORMAT_VERSION: u32 = 3;
 

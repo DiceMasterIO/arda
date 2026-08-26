@@ -40,7 +40,12 @@ fn put_course(out: &mut Vec<u8>, course: &[CellCoord]) {
 fn take_course(path: &str, src: &[u8], at: &mut usize) -> Result<Vec<CellCoord>, FormatError> {
     need(path, src, *at, 4)?;
     let n = take_u32(src, at) as usize;
-    need(path, src, *at, n * 4)?;
+    let byte_len = n.checked_mul(4).ok_or_else(|| FormatError::UnexpectedEof {
+        path: path.to_owned(),
+        read: src.len(),
+        expected: usize::MAX,
+    })?;
+    need(path, src, *at, byte_len)?;
     let mut out = Vec::with_capacity(n);
     for _ in 0..n {
         let x = take_u16(src, at);
@@ -221,7 +226,12 @@ fn put_km_course(out: &mut Vec<u8>, course: &[KmCoord]) {
 fn take_km_course(path: &str, src: &[u8], at: &mut usize) -> Result<Vec<KmCoord>, FormatError> {
     need(path, src, *at, 4)?;
     let n = take_u32(src, at) as usize;
-    need(path, src, *at, n * 4)?;
+    let byte_len = n.checked_mul(4).ok_or_else(|| FormatError::UnexpectedEof {
+        path: path.to_owned(),
+        read: src.len(),
+        expected: usize::MAX,
+    })?;
+    need(path, src, *at, byte_len)?;
     let mut out = Vec::with_capacity(n);
     for _ in 0..n {
         let x = take_u16(src, at);

@@ -68,13 +68,15 @@ pub struct ContinentOverview {
 /// feature-02 threshold, whole course at 1 km resolution.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct ContinentRiver {
-    /// Continent-wide identifier, 1-based, deterministic.
+    /// Continent-wide identifier, 1-based, deterministic. 1-based; 0 is
+    /// reserved as the on-wire "no river" sentinel for `feeds`.
     pub id: u16,
     /// Catchment at the mouth, km².
     pub catchment_km2: u32,
     /// Discharge at the mouth.
     pub discharge: DischargeMilli,
-    /// River this one joins; `None` when it reaches the sea.
+    /// River this one joins; `None` when it reaches the sea. `Some(0)` is
+    /// unrepresentable on the wire, since 0 encodes "no river".
     pub feeds: Option<u16>,
     /// Course cells, source to mouth.
     pub course: Vec<KmCoord>,
