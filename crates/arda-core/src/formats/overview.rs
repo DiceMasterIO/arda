@@ -59,31 +59,35 @@ pub fn decode_overview(path: &str, bytes: &[u8]) -> Result<ContinentOverview, Fo
         });
     }
     let mut at = OVERVIEW_MAGIC.len();
-    let need = |at: usize, extra: usize| {
-        if at + extra > bytes.len() {
-            Err(FormatError::UnexpectedEof {
-                path: path.to_owned(),
-                read: bytes.len(),
-                expected: at + extra,
-            })
-        } else {
-            Ok(())
-        }
+    // `at.checked_add(extra)` so this guard itself can never wrap, no matter
+    // what sizes a future caller feeds it — `None` just means "past EOF".
+    let need = |at: usize, extra: usize| match at.checked_add(extra) {
+        Some(end) if end <= bytes.len() => Ok(()),
+        Some(end) => Err(FormatError::UnexpectedEof {
+            path: path.to_owned(),
+            read: bytes.len(),
+            expected: end,
+        }),
+        None => Err(FormatError::UnexpectedEof {
+            path: path.to_owned(),
+            read: bytes.len(),
+            expected: at.saturating_add(extra),
+        }),
     };
     need(at, 8)?;
     let width = take_u32(bytes, &mut at);
     let height = take_u32(bytes, &mut at);
-    // File-supplied dims: multiply with checked arithmetic so a crafted
-    // header can't overflow `usize` and panic (debug) or abort on a
-    // capacity overflow (release). `expected: usize::MAX` is a saturated
-    // stand-in for "impossibly large" — the header claims more bytes than
-    // any real file could hold, so the exact figure is not meaningful.
+    // File-supplied dims: chain every multiply/add through checked
+    // arithmetic so a crafted header can't wrap `usize` and slip past an
+    // EOF guard (release, no overflow-checks) or panic on the add (debug).
+    // Each step below reports the genuine (saturated where unrepresentable)
+    // byte requirement rather than a fabricated sentinel.
     let count = (width as usize)
         .checked_mul(height as usize)
         .ok_or_else(|| FormatError::UnexpectedEof {
             path: path.to_owned(),
             read: bytes.len(),
-            expected: usize::MAX,
+            expected: (width as usize).saturating_mul(height as usize),
         })?;
     let byte_len =
         count
@@ -91,9 +95,24 @@ pub fn decode_overview(path: &str, bytes: &[u8]) -> Result<ContinentOverview, Fo
             .ok_or_else(|| FormatError::UnexpectedEof {
                 path: path.to_owned(),
                 read: bytes.len(),
-                expected: usize::MAX,
+                // Saturated: the true requirement exceeds usize::MAX.
+                expected: count.saturating_mul(OVERVIEW_CELL_BYTES),
             })?;
-    need(at, byte_len)?;
+    let total = byte_len
+        .checked_add(at)
+        .ok_or_else(|| FormatError::UnexpectedEof {
+            path: path.to_owned(),
+            read: bytes.len(),
+            // Saturated: the true requirement exceeds usize::MAX.
+            expected: byte_len.saturating_add(at),
+        })?;
+    if total > bytes.len() {
+        return Err(FormatError::UnexpectedEof {
+            path: path.to_owned(),
+            read: bytes.len(),
+            expected: total,
+        });
+    }
 
     let mut cells = Vec::with_capacity(count);
     for _ in 0..count {
@@ -224,6 +243,26 @@ mod tests {
         bytes.extend_from_slice(OVERVIEW_MAGIC);
         put_u32(&mut bytes, u32::MAX);
         put_u32(&mut bytes, u32::MAX);
+        let err = decode_overview("overview.bin", &bytes).unwrap_err();
+        assert!(matches!(
+            err,
+            crate::error::FormatError::UnexpectedEof { .. }
+        ));
+    }
+
+    #[test]
+    fn dims_at_the_exact_wrap_window_are_refused_not_panicked() {
+        // floor(u64::MAX / 18) == 1_024_819_115_206_086_200 is the one count
+        // value where `count * 18` fits in u64 (it lands 15 bytes short of
+        // u64::MAX) but `count * 18 + 16` (the header) wraps past it. That
+        // count factors into two u32s — 238_795_480 * 4_291_618_565 — so a
+        // real width/height header can reach the wrap window. This must be
+        // refused as UnexpectedEof, not panic (debug) or wrap past the EOF
+        // guard into a capacity-overflow abort (release).
+        let mut bytes = Vec::new();
+        bytes.extend_from_slice(OVERVIEW_MAGIC);
+        put_u32(&mut bytes, 238_795_480);
+        put_u32(&mut bytes, 4_291_618_565);
         let err = decode_overview("overview.bin", &bytes).unwrap_err();
         assert!(matches!(
             err,
