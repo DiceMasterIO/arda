@@ -6,7 +6,7 @@
 //! `regime: u8`, `downstream: u8` (0–7 fixed neighbour order,
 //! 255 = none), `catchment_km2: u32`, `discharge_l_s: u32`.
 
-use super::{put_i16, put_i32, put_u32, take_i16, take_i32, take_u32, take_u8};
+use super::{put_i16, put_i32, put_u16, put_u32, take_i16, take_i32, take_u16, take_u32, take_u8};
 use crate::continent::{ClimateRegime, ContinentCell, ContinentOverview};
 use crate::error::FormatError;
 use crate::fixed::{DischargeMilli, HeightMm, RainfallMm, TempCentiC};
@@ -23,6 +23,7 @@ const NO_DOWNSTREAM: u8 = 255;
 /// Encodes the continent grid.
 #[must_use]
 pub fn encode_overview(overview: &ContinentOverview) -> Vec<u8> {
+    debug_assert_eq!(overview.cells.len(), overview.width.unsigned_abs() as usize * overview.height.unsigned_abs() as usize, "overview cells must fill width x height");
     let count = overview.cells.len();
     let mut out = Vec::with_capacity(16 + count * OVERVIEW_CELL_BYTES);
     out.extend_from_slice(OVERVIEW_MAGIC);
@@ -31,7 +32,7 @@ pub fn encode_overview(overview: &ContinentOverview) -> Vec<u8> {
     for c in &overview.cells {
         put_i32(&mut out, c.height.raw());
         put_i16(&mut out, c.temperature.raw());
-        super::put_u16(&mut out, c.rainfall.raw());
+        put_u16(&mut out, c.rainfall.raw());
         out.push(c.regime as u8);
         out.push(c.downstream.unwrap_or(NO_DOWNSTREAM));
         put_u32(&mut out, c.catchment_km2);
@@ -72,7 +73,7 @@ pub fn decode_overview(path: &str, bytes: &[u8]) -> Result<ContinentOverview, Fo
     for _ in 0..count {
         let h = take_i32(bytes, &mut at);
         let t = take_i16(bytes, &mut at);
-        let r = super::take_u16(bytes, &mut at);
+        let r = take_u16(bytes, &mut at);
         let regime_raw = take_u8(bytes, &mut at);
         let regime = ClimateRegime::from_u8(regime_raw).ok_or(FormatError::UnknownDiscriminant {
             path: path.to_owned(),
