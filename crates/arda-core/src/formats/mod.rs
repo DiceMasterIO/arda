@@ -7,6 +7,7 @@ pub mod blocks;
 pub mod cells;
 pub mod manifest;
 pub mod objects;
+pub mod overview;
 
 /// The world-format major. Bumped only by a breaking layout change; loaders
 /// refuse newer majors with the regenerate remedy (`logic/05`).

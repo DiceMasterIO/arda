@@ -7,6 +7,7 @@
 
 pub mod cell;
 pub mod config;
+pub mod continent;
 pub mod coords;
 pub mod error;
 pub mod fixed;
@@ -17,8 +18,9 @@ pub mod tiles;
 
 pub use cell::{Cell, Cover, RoadClass, TerrainKind};
 pub use config::{GenerateConfig, LatitudeBand, SizeKm};
+pub use continent::{ClimateRegime, ContinentCell, ContinentObjects, ContinentOverview, ContinentRiver};
 pub use coords::{
-    AreaCoord, CellCoord, ContinentCoord, SquareCoord, AREA_CELLS, BLOCK_SQUARES, CELL_SIZE_M,
+    AreaCoord, CellCoord, ContinentCoord, KmCoord, SquareCoord, AREA_CELLS, BLOCK_SQUARES, CELL_SIZE_M,
     SQUARE_SIZE_MM,
 };
 pub use error::{ConfigError, FormatError, LoadError};
@@ -29,6 +31,7 @@ pub use formats::manifest::{
     read_manifest, write_manifest, Manifest, ValidationStats, MANIFEST_NAME,
 };
 pub use formats::objects::{decode_objects, encode_objects, OBJECTS_MAGIC};
+pub use formats::overview::{decode_overview, encode_overview, OVERVIEW_CELL_BYTES, OVERVIEW_MAGIC};
 pub use formats::FORMAT_VERSION;
 pub use objects::{AreaObjects, Lake, RiverSegment, Terminus};
 pub use rng::{derive, rng, SeedKey, Stage, Tier};
