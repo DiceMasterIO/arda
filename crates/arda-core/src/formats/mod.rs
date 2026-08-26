@@ -11,7 +11,8 @@ pub mod overview;
 
 /// The world-format major. Bumped only by a breaking layout change; loaders
 /// refuse newer majors with the regenerate remedy (`logic/05`).
-pub const FORMAT_VERSION: u32 = 2;
+/// 3: continent overview records + continent objects (feature 02).
+pub const FORMAT_VERSION: u32 = 3;
 
 /// Writes a little-endian `u16` into `out`.
 pub(crate) fn put_u16(out: &mut Vec<u8>, v: u16) {
