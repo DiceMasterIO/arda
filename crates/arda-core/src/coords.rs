@@ -109,6 +109,28 @@ impl SquareCoord {
     }
 }
 
+/// Index of a 1 km cell within the continent working grid.
+///
+/// Continent axes are capped at 2,000 km (`config.rs`), so `u16` holds
+/// any coordinate. Unlike `CellCoord` there is no fixed upper bound to
+/// validate against here: the grid's own dimensions travel with the
+/// overview layer.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
+pub struct KmCoord {
+    /// Column, kilometres from the west edge.
+    pub x: u16,
+    /// Row, kilometres from the north edge.
+    pub y: u16,
+}
+
+impl KmCoord {
+    /// Builds a continent-cell index.
+    #[must_use]
+    pub const fn new(x: u16, y: u16) -> Self {
+        Self { x, y }
+    }
+}
+
 /// Index of a 1 km cell on the continent working grid (`logic/01` step 4).
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub struct ContinentCoord {
