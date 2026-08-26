@@ -181,7 +181,8 @@ pub fn generate_world(seed: u64, config: GenerateConfig, out: &Path) -> Result<M
                 temperature: TempCentiC::new(clim.temperature[i]),
                 rainfall: RainfallMm::new(clim.rainfall[i]),
                 regime: clim.regime[i],
-                downstream: (hydro.downstream_dir[i] != 255).then_some(hydro.downstream_dir[i]),
+                downstream: (hydro.downstream_dir[i] != arda_core::NO_DOWNSTREAM)
+                    .then_some(hydro.downstream_dir[i]),
                 catchment_km2: hydro.catchment_km2[i],
                 discharge: DischargeMilli::new(hydro.discharge_l_s[i]),
             });
