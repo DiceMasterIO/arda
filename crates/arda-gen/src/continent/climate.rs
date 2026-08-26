@@ -16,6 +16,8 @@ pub struct ContinentClimate {
     pub rainfall: Vec<u16>,
     /// Climate regime.
     pub regime: Vec<ClimateRegime>,
+    /// Final advection moisture store, 0..=M_SAT (feature 03 §Q6).
+    pub moisture: Vec<u16>,
 }
 
 /// Continentality cap: −1 centi-°C per km inland up to 300 km
@@ -90,7 +92,8 @@ const C_NORM: u64 = 153;
 /// One pass advects due west→east by one cell, diffuses, then
 /// exchanges with the surface (feature 02 §Q4). Pass count is fixed at
 /// 1.5 × width — never a convergence test, so determinism holds.
-fn rainfall_field(grid: &ContinentGrid) -> Vec<u16> {
+/// Returns (rainfall, moisture).
+fn rainfall_field(grid: &ContinentGrid) -> (Vec<u16>, Vec<u16>) {
     let (w, h) = (grid.width(), grid.height());
     let count = usize::try_from(w * h).unwrap_or(0);
     let idx = |x: i32, y: i32| usize::try_from(y * w + x).unwrap_or(0);
@@ -145,10 +148,15 @@ fn rainfall_field(grid: &ContinentGrid) -> Vec<u16> {
     }
 
     let p = u64::try_from(passes).unwrap_or(1).max(1);
-    accum
+    let rainfall = accum
         .into_iter()
         .map(|r| u16::try_from(((r / p) * C_NORM) >> 4).unwrap_or(u16::MAX))
-        .collect()
+        .collect();
+    let moisture = m
+        .into_iter()
+        .map(|v| u16::try_from(v).unwrap_or(u16::MAX))
+        .collect();
+    (rainfall, moisture)
 }
 
 /// Computes temperature and regime; rainfall is computed via advection-diffusion.
@@ -183,11 +191,12 @@ pub fn climate(grid: &ContinentGrid, band: LatitudeBand) -> ContinentClimate {
             });
         }
     }
-    let rainfall = rainfall_field(grid);
+    let (rainfall, moisture) = rainfall_field(grid);
     ContinentClimate {
         temperature,
         rainfall,
         regime,
+        moisture,
     }
 }
 
@@ -309,5 +318,21 @@ mod tests {
             windward > leeward,
             "no shadow: windward {windward} <= leeward {leeward}"
         );
+    }
+
+    #[test]
+    fn the_final_moisture_store_is_exposed() {
+        // Feature 03 §Q6: edge moisture for the step-10 bundle payload.
+        let g = grid(|x, _| if x >= 4 { 400_000 } else { -1_000 });
+        let c = climate(&g, BAND);
+        assert_eq!(c.moisture.len(), 100);
+        // Sea cells sit near saturation; land cells are depleted below it.
+        let sea = c.moisture[5 * 10 + 1];
+        let far_land = c.moisture[5 * 10 + 9];
+        assert!(
+            sea > far_land,
+            "sea {sea} not wetter than far land {far_land}"
+        );
+        assert!(u64::from(sea) <= M_SAT);
     }
 }
