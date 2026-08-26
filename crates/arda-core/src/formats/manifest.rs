@@ -91,7 +91,9 @@ pub fn read_manifest(dir: &Path) -> Result<Manifest, LoadError> {
             reason: e.to_string(),
         })?;
 
-    if manifest.format_version > FORMAT_VERSION {
+    // Exact major match: older and newer worlds are both refused with
+    // the regenerate remedy (feature 02 §Q6, `logic/05`).
+    if manifest.format_version != FORMAT_VERSION {
         return Err(LoadError::VersionSkew {
             found: manifest.format_version,
             supported: FORMAT_VERSION,
@@ -173,6 +175,22 @@ mod tests {
             .unwrap_err()
             .to_string()
             .contains("regenerate"));
+    }
+
+    #[test]
+    fn older_format_major_is_refused_with_the_regenerate_remedy() {
+        // Feature 02 §Q6 / spec R6: a format-(N-1) world must not load.
+        let dir = TempDir::new();
+        let mut old = sample();
+        old.format_version = FORMAT_VERSION - 1;
+        write_manifest(dir.path(), &old).unwrap();
+        match read_manifest(dir.path()).unwrap_err() {
+            LoadError::VersionSkew { found, supported } => {
+                assert_eq!(found, FORMAT_VERSION - 1);
+                assert_eq!(supported, FORMAT_VERSION);
+            }
+            other => panic!("expected VersionSkew, got {other:?}"),
+        }
     }
 
     #[test]
