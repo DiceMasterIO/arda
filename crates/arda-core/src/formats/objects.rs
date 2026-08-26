@@ -5,7 +5,8 @@
 //! major).
 
 use super::{put_i32, put_u16, put_u32, take_i32, take_u16, take_u32, take_u8};
-use crate::coords::CellCoord;
+use crate::continent::{ContinentObjects, ContinentRiver};
+use crate::coords::{CellCoord, KmCoord};
 use crate::error::FormatError;
 use crate::fixed::{DischargeMilli, HeightMm};
 use crate::objects::{AreaObjects, Lake, RiverSegment, Terminus};
@@ -204,6 +205,101 @@ pub fn decode_objects(path: &str, bytes: &[u8]) -> Result<AreaObjects, FormatErr
     Ok(out)
 }
 
+/// Container magic for `continent/objects.bin`.
+pub const CONTINENT_OBJECTS_MAGIC: &[u8; 8] = b"ARDACOB\0";
+
+const KIND_CONTINENT_RIVERS: u16 = 1;
+
+fn put_km_course(out: &mut Vec<u8>, course: &[KmCoord]) {
+    put_u32(out, u32::try_from(course.len()).unwrap_or(u32::MAX));
+    for c in course {
+        put_u16(out, c.x);
+        put_u16(out, c.y);
+    }
+}
+
+fn take_km_course(path: &str, src: &[u8], at: &mut usize) -> Result<Vec<KmCoord>, FormatError> {
+    need(path, src, *at, 4)?;
+    let n = take_u32(src, at) as usize;
+    need(path, src, *at, n * 4)?;
+    let mut out = Vec::with_capacity(n);
+    for _ in 0..n {
+        let x = take_u16(src, at);
+        let y = take_u16(src, at);
+        out.push(KmCoord::new(x, y));
+    }
+    Ok(out)
+}
+
+/// Encodes the continent object lists.
+#[must_use]
+pub fn encode_continent_objects(objects: &ContinentObjects) -> Vec<u8> {
+    let mut rivers = Vec::new();
+    for r in &objects.rivers {
+        put_u16(&mut rivers, r.id);
+        put_u32(&mut rivers, r.catchment_km2);
+        put_u32(&mut rivers, r.discharge.raw());
+        put_u16(&mut rivers, r.feeds.unwrap_or(0));
+        put_km_course(&mut rivers, &r.course);
+    }
+    let mut out = Vec::with_capacity(CONTINENT_OBJECTS_MAGIC.len() + 12 + rivers.len());
+    out.extend_from_slice(CONTINENT_OBJECTS_MAGIC);
+    put_u16(&mut out, 1);
+    put_u16(&mut out, KIND_CONTINENT_RIVERS);
+    put_u32(
+        &mut out,
+        u32::try_from(objects.rivers.len()).unwrap_or(u32::MAX),
+    );
+    put_u32(&mut out, u32::try_from(rivers.len()).unwrap_or(u32::MAX));
+    out.extend_from_slice(&rivers);
+    out
+}
+
+/// Decodes the continent object lists.
+///
+/// # Errors
+/// Same classes as [`decode_objects`], against the continent magic.
+pub fn decode_continent_objects(path: &str, bytes: &[u8]) -> Result<ContinentObjects, FormatError> {
+    let magic_len = CONTINENT_OBJECTS_MAGIC.len();
+    if bytes.len() < magic_len || &bytes[..magic_len] != CONTINENT_OBJECTS_MAGIC {
+        return Err(FormatError::BadMagic {
+            path: path.to_owned(),
+            layer: "continent objects",
+        });
+    }
+    let mut at = magic_len;
+    need(path, bytes, at, 2)?;
+    let sections = take_u16(bytes, &mut at);
+    let mut out = ContinentObjects::empty();
+    for _ in 0..sections {
+        need(path, bytes, at, 10)?;
+        let kind = take_u16(bytes, &mut at);
+        let record_ct = take_u32(bytes, &mut at) as usize;
+        let byte_len = take_u32(bytes, &mut at) as usize;
+        need(path, bytes, at, byte_len)?;
+        let end = at + byte_len;
+        if kind == KIND_CONTINENT_RIVERS {
+            for _ in 0..record_ct {
+                need(path, bytes, at, 12)?;
+                let id = take_u16(bytes, &mut at);
+                let catchment_km2 = take_u32(bytes, &mut at);
+                let discharge = DischargeMilli::new(take_u32(bytes, &mut at));
+                let feeds_raw = take_u16(bytes, &mut at);
+                let course = take_km_course(path, bytes, &mut at)?;
+                out.rivers.push(ContinentRiver {
+                    id,
+                    catchment_km2,
+                    discharge,
+                    feeds: (feeds_raw != 0).then_some(feeds_raw),
+                    course,
+                });
+            }
+        }
+        at = end;
+    }
+    Ok(out)
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -319,5 +415,77 @@ mod tests {
         bytes.extend_from_slice(&[0xDE, 0xAD, 0xBE, 0xEF]);
 
         assert_eq!(decode_objects("objects.bin", &bytes).unwrap(), sample());
+    }
+
+    // Continent objects tests
+    fn km(x: u16, y: u16) -> KmCoord {
+        KmCoord::new(x, y)
+    }
+
+    fn continent_sample() -> ContinentObjects {
+        ContinentObjects {
+            rivers: vec![
+                ContinentRiver {
+                    id: 1,
+                    catchment_km2: 9_385,
+                    discharge: DischargeMilli::new(38_000_000),
+                    feeds: None,
+                    course: vec![km(10, 3), km(10, 4), km(11, 5)],
+                },
+                ContinentRiver {
+                    id: 2,
+                    catchment_km2: 1_020,
+                    discharge: DischargeMilli::new(4_100_000),
+                    feeds: Some(1),
+                    course: vec![km(9, 4), km(10, 4)],
+                },
+            ],
+        }
+    }
+
+    #[test]
+    fn continent_objects_round_trip() {
+        let bytes = encode_continent_objects(&continent_sample());
+        assert_eq!(
+            decode_continent_objects("continent/objects.bin", &bytes).unwrap(),
+            continent_sample()
+        );
+    }
+
+    #[test]
+    fn empty_continent_objects_round_trip() {
+        let bytes = encode_continent_objects(&ContinentObjects::empty());
+        assert_eq!(
+            decode_continent_objects("continent/objects.bin", &bytes).unwrap(),
+            ContinentObjects::empty()
+        );
+    }
+
+    #[test]
+    fn continent_magic_differs_from_area_magic() {
+        // A continent objects file handed to the area decoder must be
+        // refused, and vice versa — the magics are the diagnostic.
+        let bytes = encode_continent_objects(&continent_sample());
+        assert!(matches!(
+            decode_objects("x", &bytes).unwrap_err(),
+            FormatError::BadMagic { .. }
+        ));
+    }
+
+    #[test]
+    fn unknown_continent_section_kind_is_skipped() {
+        // Additive evolution within a major (`02-models.md` Schema).
+        let mut bytes = encode_continent_objects(&continent_sample());
+        let at = CONTINENT_OBJECTS_MAGIC.len();
+        let count = u16::from_le_bytes([bytes[at], bytes[at + 1]]);
+        bytes[at..at + 2].copy_from_slice(&(count + 1).to_le_bytes());
+        bytes.extend_from_slice(&777u16.to_le_bytes());
+        bytes.extend_from_slice(&1u32.to_le_bytes());
+        bytes.extend_from_slice(&4u32.to_le_bytes());
+        bytes.extend_from_slice(&[1, 2, 3, 4]);
+        assert_eq!(
+            decode_continent_objects("continent/objects.bin", &bytes).unwrap(),
+            continent_sample()
+        );
     }
 }
