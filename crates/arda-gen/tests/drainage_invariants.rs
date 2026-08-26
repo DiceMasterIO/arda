@@ -11,8 +11,8 @@ use arda_core::{
 };
 use arda_gen::area::water::WaterGrid;
 use arda_gen::area::{compose, erosion, fill, relief};
+use arda_gen::continent::build_continent;
 use arda_gen::continent::bundles::bundle_for;
-use arda_gen::continent::generate_continent;
 use std::sync::OnceLock;
 
 const N: i32 = AREA_CELLS as i32;
@@ -38,13 +38,13 @@ struct Tile {
 fn tiles() -> &'static Vec<Tile> {
     static TILES: OnceLock<Vec<Tile>> = OnceLock::new();
     TILES.get_or_init(|| {
-        let c = generate_continent(42, GenerateConfig::MICRO);
+        let c = build_continent(42, GenerateConfig::MICRO, 0);
         LAND_TILES
             .iter()
             .map(|&(x, y)| {
                 let coord = AreaCoord::new(x, y);
                 let b = bundle_for(42, &c, coord);
-                let r = relief(42, &c, &b);
+                let r = relief(42, &c.grid, &b);
                 let mut heights: Vec<i32> = (0..(N * N)).map(|i| r.get(cc(i % N, i / N))).collect();
                 // Mirror generate_area: uplift follows the smooth regional
                 // surface, not the noise-refined relief.
@@ -55,7 +55,7 @@ fn tiles() -> &'static Vec<Tile> {
                             u16::try_from(i % N).unwrap(),
                             u16::try_from(i / N).unwrap(),
                         );
-                        arda_gen::continent::bundles::coarse_height(&c, ax, ay)
+                        arda_gen::continent::bundles::coarse_height(&c.grid, ax, ay)
                     })
                     .collect();
                 erosion::erode(&mut heights, &uplift, &b);
@@ -218,7 +218,7 @@ fn e_strahler_never_decreases_downstream() {
 
 #[test]
 fn f_the_same_seed_yields_the_same_lakes_and_reaches() {
-    let c = generate_continent(42, GenerateConfig::MICRO);
+    let c = build_continent(42, GenerateConfig::MICRO, 0);
     for t in tiles() {
         let b = bundle_for(42, &c, t.coord);
         let again = arda_gen::area::generate_area(42, &c, &b);

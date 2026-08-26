@@ -8,8 +8,8 @@
 
 use arda_core::{AreaCoord, GenerateConfig, AREA_CELLS};
 use arda_gen::area::{erosion, relief};
+use arda_gen::continent::build_continent;
 use arda_gen::continent::bundles::bundle_for;
-use arda_gen::continent::generate_continent;
 use criterion::{criterion_group, criterion_main, Criterion};
 use std::hint::black_box;
 use std::time::Duration;
@@ -20,9 +20,9 @@ const N: i32 = AREA_CELLS as i32;
 const BUDGET: Duration = Duration::from_secs(30);
 
 fn bench_erosion(c: &mut Criterion) {
-    let continent = generate_continent(42, GenerateConfig::MICRO);
+    let continent = build_continent(42, GenerateConfig::MICRO, 0);
     let bundle = bundle_for(42, &continent, AreaCoord::new(0, 1));
-    let r = relief(42, &continent, &bundle);
+    let r = relief(42, &continent.grid, &bundle);
     let base: Vec<i32> = (0..(N * N))
         .filter_map(|i| {
             let at =

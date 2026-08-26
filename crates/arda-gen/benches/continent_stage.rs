@@ -8,9 +8,8 @@
 #![allow(missing_docs)]
 
 use arda_core::GenerateConfig;
-use arda_gen::continent::climate::climate;
-use arda_gen::continent::generate_continent;
-use arda_gen::continent::hydrology::{extract_rivers, hydrology};
+use arda_gen::continent::build_continent;
+use arda_gen::continent::hydrology::extract_rivers;
 use criterion::{criterion_group, criterion_main, Criterion};
 use std::hint::black_box;
 use std::time::Duration;
@@ -18,10 +17,8 @@ use std::time::Duration;
 const BUDGET: Duration = Duration::from_secs(60);
 
 fn full_stage(seed: u64, config: GenerateConfig) -> usize {
-    let g = generate_continent(seed, config);
-    let c = climate(&g, config.latitude_band());
-    let hy = hydrology(&g, &c);
-    extract_rivers(&g, &hy).len()
+    let ctx = build_continent(seed, config, 0);
+    extract_rivers(&ctx.grid, &ctx.hydrology).len()
 }
 
 fn bench_continent(c: &mut Criterion) {

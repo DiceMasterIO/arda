@@ -11,7 +11,7 @@ pub mod relief;
 pub mod water;
 
 use crate::continent::bundles::TileBundle;
-use crate::continent::ContinentGrid;
+use crate::continent::Continent;
 use arda_core::{
     AreaCells, AreaObjects, Cell, CellCoord, Cover, DischargeMilli, HeightMm, Lake, RiverSegment,
     Terminus, TerrainKind, AREA_CELLS,
@@ -269,10 +269,10 @@ fn collect_segments(cells: &AreaCells, water: &WaterGrid, lake_cell: &[bool]) ->
 #[must_use]
 pub fn generate_area(
     seed: u64,
-    continent: &ContinentGrid,
+    continent: &Continent,
     bundle: &TileBundle,
 ) -> (AreaCells, AreaObjects) {
-    let r = relief(seed, continent, bundle);
+    let r = relief(seed, &continent.grid, bundle);
     let mut heights: Vec<i32> = (0..(N * N) as usize)
         .filter_map(|i| {
             let i = i32::try_from(i).ok()?;
@@ -289,7 +289,11 @@ pub fn generate_area(
                 u16::try_from(i % N).ok()?,
                 u16::try_from(i / N).ok()?,
             );
-            Some(crate::continent::bundles::coarse_height(continent, ax, ay))
+            Some(crate::continent::bundles::coarse_height(
+                &continent.grid,
+                ax,
+                ay,
+            ))
         })
         .collect();
 
@@ -303,12 +307,12 @@ pub fn generate_area(
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::continent::build_continent;
     use crate::continent::bundles::bundle_for;
-    use crate::continent::generate_continent;
     use arda_core::{AreaCoord, GenerateConfig};
 
     fn world(area: AreaCoord) -> (AreaCells, AreaObjects) {
-        let c = generate_continent(42, GenerateConfig::MICRO);
+        let c = build_continent(42, GenerateConfig::MICRO, 0);
         let b = bundle_for(42, &c, area);
         generate_area(42, &c, &b)
     }

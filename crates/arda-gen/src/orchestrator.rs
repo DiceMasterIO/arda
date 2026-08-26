@@ -8,8 +8,8 @@ use crate::area::generate_area;
 use crate::block::{constraints_for, fill_block};
 use crate::continent::bundles::bundle_for;
 use crate::continent::climate::climate;
-use crate::continent::generate_continent_attempt;
 use crate::continent::hydrology::{extract_rivers, hydrology};
+use crate::continent::{generate_continent_attempt, Continent};
 use arda_core::{
     encode_blocks, encode_cells, encode_continent_objects, encode_objects, encode_overview,
     write_manifest, AreaCoord, BlockArchive, CellCoord, ContinentCell, ContinentObjects,
@@ -84,7 +84,7 @@ fn write_file(path: &Path, bytes: &[u8]) -> Result<(), GenError> {
 /// Generates and writes one area tile, blocks included.
 fn write_area(
     seed: u64,
-    continent: &crate::continent::ContinentGrid,
+    continent: &Continent,
     area: AreaCoord,
     out: &Path,
 ) -> Result<(), GenError> {
@@ -151,10 +151,23 @@ pub fn generate_world(seed: u64, config: GenerateConfig, out: &Path) -> Result<M
             LAND_FRACTION_GATE.end()
         );
     }
-    let Some((continent, land)) = accepted else {
+    let Some((grid, land)) = accepted else {
         return Err(GenError::Validation {
             check: format!("{last_check} after {CONTINENT_ATTEMPTS} rerolls"),
         });
+    };
+
+    // Build the continent context once, from the already-accepted grid:
+    // climate and hydrology are pure functions of it, so this is the same
+    // computation `build_continent` runs, without a second
+    // `generate_continent_attempt` call (attempt already ran above).
+    // `&continent` then threads to both the area fan-out and persistence.
+    let clim = climate(&grid, config.latitude_band());
+    let hydro = hydrology(&grid, &clim);
+    let continent = Continent {
+        grid,
+        climate: clim,
+        hydrology: hydro,
     };
 
     // Tiers 2 and 3: areas fan out, each writing its own keyed outputs. The
@@ -165,26 +178,25 @@ pub fn generate_world(seed: u64, config: GenerateConfig, out: &Path) -> Result<M
         .map(|&area| write_area(seed, &continent, area, out))
         .collect::<Result<Vec<()>, GenError>>()?;
 
-    // Continent layer (feature 02): climate, hydrology, rivers —
-    // logic/01 steps 5–6 — then the manifest LAST, the completion stamp.
-    let clim = climate(&continent, config.latitude_band());
-    let hydro = hydrology(&continent, &clim);
-    let rivers = extract_rivers(&continent, &hydro);
+    // Continent layer (feature 02): rivers — logic/01 step 6 — then the
+    // manifest LAST, the completion stamp. Climate and hydrology were
+    // already computed above and are reused here, not recomputed.
+    let rivers = extract_rivers(&continent.grid, &continent.hydrology);
 
-    let (cw, ch) = (continent.width(), continent.height());
+    let (cw, ch) = (continent.grid.width(), continent.grid.height());
     let mut cells = Vec::with_capacity(usize::try_from(cw * ch).unwrap_or(0));
     for y in 0..ch {
         for x in 0..cw {
             let i = usize::try_from(y * cw + x).unwrap_or(0);
             cells.push(ContinentCell {
-                height: continent.get(x, y),
-                temperature: TempCentiC::new(clim.temperature[i]),
-                rainfall: RainfallMm::new(clim.rainfall[i]),
-                regime: clim.regime[i],
-                downstream: (hydro.downstream_dir[i] != arda_core::NO_DOWNSTREAM)
-                    .then_some(hydro.downstream_dir[i]),
-                catchment_km2: hydro.catchment_km2[i],
-                discharge: DischargeMilli::new(hydro.discharge_l_s[i]),
+                height: continent.grid.get(x, y),
+                temperature: TempCentiC::new(continent.climate.temperature[i]),
+                rainfall: RainfallMm::new(continent.climate.rainfall[i]),
+                regime: continent.climate.regime[i],
+                downstream: (continent.hydrology.downstream_dir[i] != arda_core::NO_DOWNSTREAM)
+                    .then_some(continent.hydrology.downstream_dir[i]),
+                catchment_km2: continent.hydrology.catchment_km2[i],
+                discharge: DischargeMilli::new(continent.hydrology.discharge_l_s[i]),
             });
         }
     }
