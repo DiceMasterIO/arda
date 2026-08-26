@@ -290,6 +290,24 @@ mod tests {
     }
 
     #[test]
+    fn a_height_past_i32_max_is_refused_not_wrapped_negative() {
+        // The symmetric arm of the dims guard.
+        let mut bytes = Vec::new();
+        bytes.extend_from_slice(OVERVIEW_MAGIC);
+        put_u32(&mut bytes, 0);
+        put_u32(&mut bytes, u32::MAX);
+        let err = decode_overview("overview.bin", &bytes).unwrap_err();
+        assert!(matches!(
+            err,
+            crate::error::FormatError::DimensionsOverflow {
+                width: 0,
+                height: u32::MAX,
+                ..
+            }
+        ));
+    }
+
+    #[test]
     fn an_invalid_downstream_direction_is_refused() {
         let mut bytes = encode_overview(&sample());
         bytes[16 + 4 * 18 + 9] = 8; // valid values are 0–7 and 255
