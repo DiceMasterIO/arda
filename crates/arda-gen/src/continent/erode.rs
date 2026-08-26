@@ -13,7 +13,7 @@
 //!   hundreds of kilometres instead of stopping at a 51 km tile boundary.
 
 /// The eight neighbour offsets, fixed order.
-const NEIGHBOURS: [(i32, i32); 8] = [
+pub(crate) const NEIGHBOURS: [(i32, i32); 8] = [
     (0, -1),
     (1, -1),
     (1, 0),
@@ -113,7 +113,7 @@ fn isqrt(v: i64) -> i64 {
 
 /// Priority-flood to a routing surface. The domain rim is ocean, so seeding
 /// from it needs no bundle.
-fn fill(heights: &[i32], w: i32, h: i32) -> Vec<i32> {
+pub(crate) fn fill(heights: &[i32], w: i32, h: i32) -> Vec<i32> {
     use std::cmp::Reverse;
     use std::collections::BinaryHeap;
     let count = usize::try_from(w * h).unwrap_or(0);
@@ -151,7 +151,7 @@ fn fill(heights: &[i32], w: i32, h: i32) -> Vec<i32> {
 }
 
 /// Steepest-descent directions and drainage area over a filled surface.
-fn accumulate(filled: &[i32], w: i32, h: i32) -> (Vec<Option<u32>>, Vec<u32>) {
+pub(crate) fn accumulate(filled: &[i32], w: i32, h: i32) -> (Vec<Option<u32>>, Vec<u32>) {
     let count = usize::try_from(w * h).unwrap_or(0);
     let idx = |x: i32, y: i32| usize::try_from(y * w + x).unwrap_or(0);
     let mut downstream: Vec<Option<u32>> = vec![None; count];
