@@ -5,9 +5,9 @@
 //! `architecture-interview.md` §Q7's 30 min stage ceiling, because the
 //! climate passes are the new hot loop and a regression here would
 //! otherwise surface only in full-batch timing.
-#![allow(missing_docs, clippy::expect_used)]
+#![allow(missing_docs)]
 
-use arda_core::{GenerateConfig, LatitudeBand, SizeKm};
+use arda_core::GenerateConfig;
 use arda_gen::continent::climate::climate;
 use arda_gen::continent::generate_continent;
 use arda_gen::continent::hydrology::{extract_rivers, hydrology};
@@ -33,8 +33,7 @@ fn bench_continent(c: &mut Criterion) {
     group.finish();
 
     // Fail loudly rather than only reporting: the budget is a gate.
-    let config = GenerateConfig::new(SizeKm::new(500, 1_000), LatitudeBand::new(35, 55), 15)
-        .expect("default config is valid");
+    let config = GenerateConfig::default();
     let start = std::time::Instant::now();
     let rivers = full_stage(42, config);
     let elapsed = start.elapsed();
