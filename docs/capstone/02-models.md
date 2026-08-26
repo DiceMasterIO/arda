@@ -1,8 +1,8 @@
 ---
 mode: prescriptive
-generated_date: 2026-08-24
+generated_date: 2026-08-26
 paths_covered: ["crates/arda-core/**"]
-generated_at_commit: 8d3c9d9
+generated_at_commit: 9c48e00
 ---
 
 > Prescriptive — written from the design interview, not from code.
@@ -72,6 +72,18 @@ remedy.
 - `Lake` has a producer. A filled basin is recorded when it covers ≥ 100 cells **and** is ≥ 2,000 mm deep, carrying `surface`, `depth_mm`, `outlet`, and its cells; its cells take `terrain: Lake`. Sub-threshold basins fill for routing only and stay `Land`.
 - `RiverSegment` is one network link — source or junction, downstream to the next junction, the sea, a lake, or the tile edge — and carries `feeds` and `ends` (`Terminus`), so, per the artifact, every segment knows which segment it feeds and how it ends. Channel cells are partitioned exactly once.
 - Cells whose `terrain` is not `Land` store zero for `drainage_area_cells`, `discharge`, and `watercourse_order`. Routing still crosses them.
+
+## Observed — continent climate and hydrology (2026-08-26, feature 02)
+
+`format_version` is **3**: the continent layer gained real content, and
+older worlds are refused — the manifest gate is now an **exact major
+match** in both directions, with the regenerate remedy.
+
+- `ContinentCell` is an 18-byte little-endian record per 1 km cell: `height: HeightMm (i32)`, `temperature: TempCentiC (i16)`, `rainfall: RainfallMm (u16)`, `regime: ClimateRegime (u8)`, `downstream: Option<u8>` (0–7 fixed neighbour order; the shared `NO_DOWNSTREAM = 255` sentinel is exported so `arda-gen` and the codec cannot desync), `catchment_km2: u32`, `discharge: DischargeMilli (u32, L/s)`. `ContinentOverview` (dims + row-major cells) round-trips through `formats::overview` behind `ARDAOVR\0`.
+- `ContinentRiver` (id, catchment, mouth discharge, `feeds`, course of `KmCoord`s source→mouth) and `ContinentObjects` persist in `continent/objects.bin` behind `ARDACOB\0`, same tagged-section container as the area file. River ids are 1-based; **0 is reserved** as the on-wire "no river" sentinel for `feeds`.
+- `KmCoord` (u16 pair) is the continent-cell index; the dead `ContinentCoord` was deleted in its favour.
+- Decoders refuse dishonest input rather than wrapping: all size arithmetic on file-supplied values is checked (`UnexpectedEof` with the genuine, saturated-where-unrepresentable requirement), and dims past `i32::MAX` raise the dedicated `FormatError::DimensionsOverflow`.
+- `ClimateRegime` is a closed enum (temperate/mediterranean/boreal/tropical); unknown discriminants are refused naming the field.
 
 ## Validation
 

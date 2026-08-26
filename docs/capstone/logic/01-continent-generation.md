@@ -1,8 +1,9 @@
 ---
-generated_date: 2026-08-24
+generated_date: 2026-08-26
 scenario: continent-generation
 traces: [Q2, Q3, Q4, Q5, Q6, Q7, Q8, Q9]
-generated_at_commit: 8d3c9d9
+generated_at_commit: 9c48e00
+absorbed_from: features/02-continent-climate-hydrology@2026-08-26
 ---
 
 # 01 — Continent generation
@@ -45,6 +46,58 @@ geography, naming, validation stats) remain unbuilt.
 Measured against Earth (seeds 42 and 7, default size): median land elevation 303-337 m against 330 m; land above 500 m 37-41% against 33%; lake area 0.5-1.1% against ~1%.
 
 **Known limitation.** Terrain is built from value noise on a square lattice, which is anisotropic — its gradients favour the lattice axes, so steepest descent does too and only ~17% of flow directions are diagonal against an isotropic 50%. Isotropic gradient noise is the fix; one attempt produced blocky coastlines and was reverted.
+
+## Observed — climate and hydrology (2026-08-26, feature 02)
+
+Built shape of steps 5–6 plus persistence (`continent/climate.rs`,
+`continent/hydrology.rs`, `arda-core::formats::overview`). Steps 7–9
+(human geography, naming, validation additions) remain unbuilt; step
+10's entering rivers still have no producer — feature 03.
+
+5. **Climate** runs on the 1 km grid, all integer. Temperature:
+   sea-level mean linear across the configured band anchored at 18 °C /
+   35°N → 6 °C / 55°N (extrapolated outside), −6.5 °C/km lapse,
+   −1 centi-°C per km distance-to-sea capped at 300 (4-connected BFS);
+   **shipped deviation:** the lapse floors elevation at 0, so sea cells
+   store latitude-and-continentality-only temperature. Regime by band
+   position + elevation, in order: tropical < 23.5°; mediterranean
+   < 42° and < 1,000 m; boreal where T < 3 °C; else temperate.
+   Rainfall: iterative advection-diffusion, uniform due-west wind,
+   fixed 1.5 × width passes, 12.5% lateral diffusion (**shipped
+   deviation:** computed as `a − a/8 + mean4/8`, ≤1 unit above the
+   literal `(7a+mean4)/8` per pass), recharge 1/8-of-deficit over
+   water, land release 1/512 base + 1/64 per 100 m climb clamped at
+   1/16 — **shipped deviation:** climb measures against
+   `max(upwind height, 0)` so a deep offshore shelf is not a cliff.
+   Conversion is pass-count-normalised (`(R/passes) × C_NORM >> 4`,
+   C_NORM = 153), calibrated to a 799 mm/yr land mean on seed 42 at
+   default size (spike report, feature 02 R8).
+6. **Hydrology**: one final priority-flood + D8-steepest-descent route
+   on the post-erosion surface (reusing step 2's `fill`/`accumulate` —
+   climate never feeds back into erosion), accumulating catchment
+   (1 cell = 1 km²) and discharge = Σ(upstream land rainfall) × 125 /
+   7,884 L/s (the artifact's ~0.5 runoff over 1 km², exactly
+   500,000/31,536,000). River objects form above
+   `max(300, land_km2/30)` km² — **amends §Q7's assumed fixed
+   ~3,000 km²**, which this rule reproduces at default-world land
+   areas while keeping MICRO fixtures populated. Mouths are traced in
+   row-major order; the main stem follows the largest-catchment inflow
+   (**shipped deviation from feature 02 spec R4:** ties resolve to the
+   earliest row-major child, not the fixed neighbour order); ids are
+   1-based in creation order so `feeds` is acyclic by construction;
+   courses run source → mouth. No endorheic basins exist by
+   construction (the rim is ocean and the routing surface is filled
+   from it). Sea cells store zero catchment and discharge.
+
+Persistence: `continent/overview.bin` is real — 18-byte little-endian
+records (height, temperature, rainfall, regime, downstream 0–7 with
+255 = none, catchment, discharge) behind `ARDAOVR\0` + dims;
+`continent/objects.bin` carries the rivers section behind `ARDACOB\0`.
+`FORMAT_VERSION` is 3; loaders refuse any other major with the
+regenerate remedy. Five structural invariants and a 60 s default-size
+stage bench gate the tier; climate realism is measured, never gated
+(spike report; Horton ratios were thin at default size — only seed 1
+yielded a measurable N1/N2 = 3.0, an R8 observation for step 12).
 
 ## Branches
 

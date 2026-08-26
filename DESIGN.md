@@ -7,19 +7,20 @@ OSS MIT/Apache-2.0, offline batch only. Reference is prescriptive
 (from the design interview); the walking-skeleton slice is now code —
 chapters have not yet been resynced against it. Pipeline: mockup ✓
 logic ✓ design (skipped, no UI) ✓ architecture ✓ code-prefs ✓ stack ✓
-build ✓ (steps 0–3, plus the 2026-08-26 drainage and continent work that
-pulled parts of 4–5 forward; see `docs/capstone/changelog.md`).
+build ✓ (steps 0–3; the 2026-08-26 drainage/continent work pulled parts
+of 4–5 forward, and feature 02 landed `logic/01` steps 5–6 with
+persistence at format 3; see `docs/capstone/changelog.md`).
 
 ## Topics
 
 | # | File | Covers | Date |
 |---|---|---|---|
-| 01 | `docs/capstone/01-architecture.md` | Workspace crates, boundaries, entry points, composition | 2026-08-25 |
+| 01 | `docs/capstone/01-architecture.md` | Workspace crates, boundaries, entry points, composition | 2026-08-26 |
 | 02 | `docs/capstone/02-models.md` | Entities, binary layers, format_version, validation | 2026-08-24 |
 | 03 | `docs/capstone/03-conventions.md` | Determinism rules, error posture (rest → code-prefs) | 2026-08-24 |
 | 04 | `docs/capstone/04-data-flow.md` | generate/export/load/serve lifecycles, state, failure paths | 2026-08-25 |
 | 05 | `docs/capstone/05-dependencies.md` | Chosen stack: picks, floors, licenses | 2026-08-25 |
-| 06 | `docs/capstone/06-testing.md` | Unit + statistical gates + golden worlds | 2026-08-24 |
+| 06 | `docs/capstone/06-testing.md` | Unit + statistical gates + golden worlds | 2026-08-26 |
 | 07 | `docs/capstone/07-operations.md` | CI/CD, releases, docker, serve, dev workflow | 2026-08-25 |
 | 08 | `docs/capstone/08-glossary.md` | Domain vocabulary | 2026-08-24 |
 
@@ -28,9 +29,9 @@ pulled parts of 4–5 forward; see `docs/capstone/changelog.md`).
 | File | What it is | Date |
 |---|---|---|
 | `docs/capstone/mockup-artifact.md` | The traceable product mockup the surface units decompose | 2026-08-24 |
-| `docs/capstone/mockup/` | Product mockup: 6 surface units + README index | 2026-08-25 |
-| `docs/capstone/logic/` | Business logic: 6 scenario files (continent, area, block, export, load-query, society) | 2026-08-25 |
-| `docs/capstone/features/` | Feature chain: 01 area drainage correctness (spec ready) | 2026-08-25 |
+| `docs/capstone/mockup/` | Product mockup: 6 surface units + README index | 2026-08-26 |
+| `docs/capstone/logic/` | Business logic: 6 scenario files (continent, area, block, export, load-query, society) | 2026-08-26 |
+| `docs/capstone/features/` | Feature chain: 01 area drainage correctness; 02 continent climate + hydrology (implemented 2026-08-26) | 2026-08-26 |
 | `docs/capstone/open-items.md` | Everything known-incomplete: defects, stand-ins, calibration held open | 2026-08-26 |
 | `docs/capstone/implementation.md` | Approved build plan: 13 steps, layout, seams; steps 0–3 built | 2026-08-25 |
 | `docs/capstone/code-prefs.md` | Normative code preferences (9 domains) | 2026-08-24 |
