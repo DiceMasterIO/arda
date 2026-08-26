@@ -5,6 +5,7 @@
 //! build-order step 4.
 
 pub mod bundles;
+pub mod climate;
 pub mod coast;
 pub mod erode;
 pub mod plates;
