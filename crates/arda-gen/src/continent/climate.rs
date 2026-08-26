@@ -116,6 +116,10 @@ fn rainfall_field(grid: &ContinentGrid) -> Vec<u16> {
                 let at = |xx: i32, yy: i32| advected[idx(xx.clamp(0, w - 1), yy.clamp(0, h - 1))];
                 let mean4 = (at(x, y - 1) + at(x + 1, y) + at(x, y + 1) + at(x - 1, y)) / 4;
                 let a = advected[idx(x, y)];
+                // Deviation from spec R1's literal (7M + mean4)/8: the
+                // decomposed form floors each term separately and can sit
+                // one unit higher per pass; shipped and calibrated as-is,
+                // recorded for the reference refresh.
                 m[idx(x, y)] = a - a / DIFFUSE_DIV + mean4 / DIFFUSE_DIV;
             }
         }

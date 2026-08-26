@@ -81,6 +81,20 @@ pub enum FormatError {
         /// The unrecognised byte.
         value: u16,
     },
+    /// A header declares grid dimensions this build cannot represent: no
+    /// existing variant fits (`UnknownDiscriminant.value` is `u16` and would
+    /// truncate a `u32` dimension, `UnexpectedEof` would misname a
+    /// representable-range problem as a length problem), so this names it
+    /// honestly.
+    #[error("{path} declares {width}x{height} cells, too large to represent")]
+    DimensionsOverflow {
+        /// File being read.
+        path: String,
+        /// Declared width in cells.
+        width: u32,
+        /// Declared height in cells.
+        height: u32,
+    },
 }
 
 /// A problem opening or reading a stored world (`logic/05`).

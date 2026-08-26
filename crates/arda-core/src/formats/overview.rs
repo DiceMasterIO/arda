@@ -51,6 +51,8 @@ pub fn encode_overview(overview: &ContinentOverview) -> Vec<u8> {
 /// - [`FormatError::BadMagic`] when the file is not an overview layer.
 /// - [`FormatError::UnexpectedEof`] when the grid runs past the end.
 /// - [`FormatError::UnknownDiscriminant`] on a bad regime or direction.
+/// - [`FormatError::DimensionsOverflow`] when a declared dimension cannot
+///   be represented as the `i32` the rest of the codebase expects.
 pub fn decode_overview(path: &str, bytes: &[u8]) -> Result<ContinentOverview, FormatError> {
     if bytes.len() < OVERVIEW_MAGIC.len() || &bytes[..OVERVIEW_MAGIC.len()] != OVERVIEW_MAGIC {
         return Err(FormatError::BadMagic {
@@ -98,21 +100,7 @@ pub fn decode_overview(path: &str, bytes: &[u8]) -> Result<ContinentOverview, Fo
                 // Saturated: the true requirement exceeds usize::MAX.
                 expected: count.saturating_mul(OVERVIEW_CELL_BYTES),
             })?;
-    let total = byte_len
-        .checked_add(at)
-        .ok_or_else(|| FormatError::UnexpectedEof {
-            path: path.to_owned(),
-            read: bytes.len(),
-            // Saturated: the true requirement exceeds usize::MAX.
-            expected: byte_len.saturating_add(at),
-        })?;
-    if total > bytes.len() {
-        return Err(FormatError::UnexpectedEof {
-            path: path.to_owned(),
-            read: bytes.len(),
-            expected: total,
-        });
-    }
+    need(at, byte_len)?;
 
     let mut cells = Vec::with_capacity(count);
     for _ in 0..count {
@@ -150,7 +138,18 @@ pub fn decode_overview(path: &str, bytes: &[u8]) -> Result<ContinentOverview, Fo
             discharge,
         });
     }
-    #[allow(clippy::cast_possible_wrap)]
+    // Refuse dims this build cannot represent honestly, rather than
+    // silently wrapping a `u32::MAX` width into a negative `i32` (the
+    // struct's field type — see `ContinentOverview`).
+    const I32_MAX_AS_U32: u32 = i32::MAX.unsigned_abs();
+    if width > I32_MAX_AS_U32 || height > I32_MAX_AS_U32 {
+        return Err(FormatError::DimensionsOverflow {
+            path: path.to_owned(),
+            width,
+            height,
+        });
+    }
+    #[allow(clippy::cast_possible_wrap)] // just refused > i32::MAX above
     Ok(ContinentOverview {
         width: width as i32,
         height: height as i32,
@@ -267,6 +266,26 @@ mod tests {
         assert!(matches!(
             err,
             crate::error::FormatError::UnexpectedEof { .. }
+        ));
+    }
+
+    #[test]
+    fn a_width_past_i32_max_is_refused_not_wrapped_negative() {
+        // width = u32::MAX, height = 0, empty body: the byte-length checks
+        // all pass (0 cells needed), so without an explicit dims check this
+        // used to "succeed" with `width: -1` (i32 wrap). Must be refused.
+        let mut bytes = Vec::new();
+        bytes.extend_from_slice(OVERVIEW_MAGIC);
+        put_u32(&mut bytes, u32::MAX);
+        put_u32(&mut bytes, 0);
+        let err = decode_overview("overview.bin", &bytes).unwrap_err();
+        assert!(matches!(
+            err,
+            crate::error::FormatError::DimensionsOverflow {
+                width: u32::MAX,
+                height: 0,
+                ..
+            }
         ));
     }
 
