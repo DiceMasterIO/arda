@@ -7,7 +7,7 @@
 
 use super::{Continent, ContinentGrid};
 use crate::noise::fbm;
-use arda_core::{AreaCoord, AREA_CELLS};
+use arda_core::{AreaCoord, CellCoord, ClimateRegime, DischargeMilli, AREA_CELLS};
 
 /// Area cells per continent kilometre: cells are 100 m, so ten.
 const CELLS_PER_KM: i32 = 10;
@@ -89,6 +89,28 @@ pub fn coarse_height(continent: &ContinentGrid, abs_x: i32, abs_y: i32) -> i32 {
     }
 }
 
+/// Prevailing wind octant (uniform westerlies today — logic/01 §Q6).
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum CompassOctant {
+    /// Wind blows out of the west; the only octant modelled today.
+    West,
+}
+
+/// One watercourse crossing into the tile (logic/01 step 10).
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct EnteringRiver {
+    /// Boundary cell the river is seeded at, the point of lowest relief
+    /// in its crossing window.
+    pub cell: CellCoord,
+    /// Catchment feeding this entry point, summed over every continent
+    /// cell that crosses in at the same seed cell.
+    pub catchment_km2: u32,
+    /// Discharge feeding this entry point, summed the same way.
+    pub discharge: DischargeMilli,
+    /// Strahler floor derived from `catchment_km2` ([`entering_order`]).
+    pub order: u8,
+}
+
 /// One area tile's inputs, computed from coarse data and the seed only.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct TileBundle {
@@ -104,6 +126,22 @@ pub struct TileBundle {
     pub west: Vec<i32>,
     /// Mean elevation across the sampled edges, for cheap summaries.
     pub mean_height_mm: i32,
+    /// Watercourses crossing into the tile from the continent drainage
+    /// tree (`logic/01` step 10).
+    pub entering: Vec<EnteringRiver>,
+    /// Rainfall patch: the tile's 52 km plus the +1 bilinear row/column,
+    /// row-major ([`PATCH_KM`] per side).
+    pub rainfall_km: Vec<u16>,
+    /// Climate regime patch, same footprint as [`TileBundle::rainfall_km`].
+    pub regime_km: Vec<ClimateRegime>,
+    /// Routing-surface patch, same footprint as
+    /// [`TileBundle::rainfall_km`].
+    pub filled_km: Vec<i32>,
+    /// Prevailing wind for this tile.
+    pub wind: CompassOctant,
+    /// Final advection moisture store along the tile's western patch
+    /// edge, [`PATCH_KM`] long.
+    pub west_moisture: Vec<u16>,
 }
 
 /// Builds one tile's bundle.
@@ -147,6 +185,34 @@ pub fn bundle_for(seed: u64, continent: &Continent, area: AreaCoord) -> TileBund
     #[allow(clippy::cast_possible_truncation)]
     let mean_height_mm = (sum / (4 * i64::from(n))) as i32;
 
+    // Patch side: the tile's 52 km plus the +1 bilinear row/column, rooted
+    // at the km cell containing the tile's own origin.
+    let km0x = (area.x * 512).div_euclid(10);
+    let km0y = (area.y * 512).div_euclid(10);
+
+    let mut rainfall_km = Vec::with_capacity(PATCH_KM * PATCH_KM);
+    let mut regime_km = Vec::with_capacity(PATCH_KM * PATCH_KM);
+    let mut filled_km = Vec::with_capacity(PATCH_KM * PATCH_KM);
+    for py in 0..PATCH_KM {
+        let py = i32::try_from(py).unwrap_or(0);
+        for px in 0..PATCH_KM {
+            let px = i32::try_from(px).unwrap_or(0);
+            let i = patch_index(&continent.grid, km0x + px, km0y + py);
+            rainfall_km.push(continent.climate.rainfall[i]);
+            regime_km.push(continent.climate.regime[i]);
+            filled_km.push(continent.hydrology.filled[i]);
+        }
+    }
+    let west_moisture = (0..PATCH_KM)
+        .map(|j| {
+            let j = i32::try_from(j).unwrap_or(0);
+            let i = patch_index(&continent.grid, km0x, km0y + j);
+            continent.climate.moisture[i]
+        })
+        .collect();
+
+    let entering = entering_rivers(seed, continent, area);
+
     TileBundle {
         area,
         north,
@@ -154,7 +220,135 @@ pub fn bundle_for(seed: u64, continent: &Continent, area: AreaCoord) -> TileBund
         east,
         west,
         mean_height_mm,
+        entering,
+        rainfall_km,
+        regime_km,
+        filled_km,
+        wind: CompassOctant::West,
+        west_moisture,
     }
+}
+
+/// Row-major index into a continent-grid-shaped array, clamped exactly
+/// like [`ContinentGrid::get`]: out-of-range coordinates clamp to the
+/// edge, which is always ocean.
+fn patch_index(grid: &ContinentGrid, x: i32, y: i32) -> usize {
+    let cx = x.clamp(0, grid.width() - 1);
+    let cy = y.clamp(0, grid.height() - 1);
+    usize::try_from(cy * grid.width() + cx).unwrap_or(0)
+}
+
+/// Patch side: the tile's 52 km plus the +1 bilinear row/column.
+pub const PATCH_KM: usize = 53;
+
+/// Strahler floor for an entering river (feature 03 §Q3): a
+/// deterministic function of catchment so both sides of a seam agree
+/// by construction. Ratio-4 floor-log anchored at the 3 km² channel
+/// scale; tunable, re-derived at step 12.
+#[must_use]
+pub fn entering_order(catchment_km2: u32) -> u8 {
+    if catchment_km2 < 3 {
+        return 1;
+    }
+    let r = catchment_km2 / 3;
+    let o = 1 + r.ilog2() / 2;
+    u8::try_from(o.min(12)).unwrap_or(12)
+}
+
+/// Watercourses crossing into the tile (logic/01 step 10, feature 03
+/// spec R4). Tiles are 51.2 km, so 1 km cells straddle tile lines;
+/// crossings are judged against the exact 100 m boundary lines. Cell
+/// centers sit at k×10+5 (odd), lines at multiples of 512 (even), so
+/// strict sidedness is total. A corner double-crossing resolves to the
+/// horizontal line (§Q3 tie rule). Merging uses a BTreeMap — ordered,
+/// no hash-iteration in a sim path.
+fn entering_rivers(seed: u64, continent: &Continent, area: AreaCoord) -> Vec<EnteringRiver> {
+    let (w, h) = (continent.grid.width(), continent.grid.height());
+    let n = i64::from(AREA_CELLS);
+    let (x0, y0) = (i64::from(area.x) * n, i64::from(area.y) * n);
+    let (x1, y1) = (x0 + n, y0 + n);
+    let mut seeds: std::collections::BTreeMap<CellCoord, (u64, u64, u8)> =
+        std::collections::BTreeMap::new();
+
+    for ky in 0..h {
+        for kx in 0..w {
+            let i = usize::try_from(ky * w + kx).unwrap_or(0);
+            let c_km2 = continent.hydrology.catchment_km2[i];
+            if c_km2 < 3 {
+                continue; // §Q3: below the artifact's channel scale
+            }
+            let Some(d) = continent.hydrology.downstream[i] else {
+                continue;
+            };
+            let di = i64::from(d);
+            let (dkx, dky) = (di % i64::from(w), di / i64::from(w));
+            let (ocx, ocy) = (i64::from(kx) * 10 + 5, i64::from(ky) * 10 + 5);
+            let (dcx, dcy) = (dkx * 10 + 5, dky * 10 + 5);
+            if !(dcx > x0 && dcx < x1 && dcy > y0 && dcy < y1) {
+                continue; // downstream center not strictly inside
+            }
+
+            // Which line is crossed inward; horizontal wins a corner.
+            // (edge kind, window start on the boundary axis, window
+            //  base, fixed local coordinate on the other axis)
+            let (win0, base, fixed_x, fixed_y) = if ocy < y0 && dcy > y0 {
+                (dkx * 10, x0, None, Some(0i64)) // north line
+            } else if ocy > y1 && dcy < y1 {
+                (dkx * 10, x0, None, Some(n - 1)) // south line
+            } else if ocx < x0 && dcx > x0 {
+                (dky * 10, y0, Some(0i64), None) // west line
+            } else if ocx > x1 && dcx < x1 {
+                (dky * 10, y0, Some(n - 1), None) // east line
+            } else {
+                continue; // no boundary crossed: an interior edge
+            };
+
+            // Entry window: the downstream km cell's 10-cell span on
+            // the crossed line, clipped to the tile.
+            let lo = (win0 - base).clamp(0, n - 1);
+            let hi = (win0 + 10 - base).clamp(0, n);
+            let mut best: Option<(i32, i64)> = None;
+            for j in lo..hi {
+                let (lx, ly) = (fixed_x.unwrap_or(j), fixed_y.unwrap_or(j));
+                let (ax, ay) = abs_cell(
+                    area,
+                    u16::try_from(lx).unwrap_or(0),
+                    u16::try_from(ly).unwrap_or(0),
+                );
+                let hgt = boundary_height(seed, &continent.grid, ax, ay);
+                if hgt <= 0 {
+                    continue; // sea cell cannot seed
+                }
+                if best.is_none_or(|(bh, _)| hgt < bh) {
+                    best = Some((hgt, j)); // ties keep the smaller j
+                }
+            }
+            let Some((_, j)) = best else {
+                continue; // all-sea window: the river is already at sea
+            };
+            let (lx, ly) = (fixed_x.unwrap_or(j), fixed_y.unwrap_or(j));
+            let Some(cell) = CellCoord::new(
+                u16::try_from(lx).unwrap_or(0),
+                u16::try_from(ly).unwrap_or(0),
+            ) else {
+                continue;
+            };
+            let entry = seeds.entry(cell).or_insert((0, 0, 0));
+            entry.0 += u64::from(c_km2);
+            entry.1 += u64::from(continent.hydrology.discharge_l_s[i]);
+            entry.2 = entry.2.max(entering_order(c_km2));
+        }
+    }
+
+    seeds
+        .into_iter()
+        .map(|(cell, (c, q, order))| EnteringRiver {
+            cell,
+            catchment_km2: u32::try_from(c).unwrap_or(u32::MAX),
+            discharge: DischargeMilli::new(u32::try_from(q).unwrap_or(u32::MAX)),
+            order,
+        })
+        .collect()
 }
 
 #[cfg(test)]
@@ -164,6 +358,15 @@ mod tests {
 
     fn fixture() -> Continent {
         crate::continent::build_continent(42, GenerateConfig::MICRO, 0)
+    }
+
+    /// `fixture()`, memoized: several new tests below build bundles over
+    /// the same MICRO continent, and continent generation (plates,
+    /// tectonics, climate, hydrology) is too expensive to redo per test.
+    fn fixture_ctx() -> Continent {
+        static CTX: std::sync::OnceLock<Continent> = std::sync::OnceLock::new();
+        CTX.get_or_init(|| crate::continent::build_continent(42, GenerateConfig::MICRO, 0))
+            .clone()
     }
 
     #[test]
@@ -225,5 +428,111 @@ mod tests {
             .map(|a| bundle_for(42, &c, a))
             .collect();
         assert_eq!(bundles.len(), 8);
+    }
+
+    #[test]
+    fn entering_order_is_the_floor_log_map() {
+        // Feature 03 §Q3: g(c) = 1 + ilog2(c/3)/2, ratio 4, base 3 km².
+        for (c, o) in [
+            (3, 1),
+            (11, 1),
+            (12, 2),
+            (48, 3),
+            (192, 4),
+            (768, 5),
+            (3_072, 6),
+        ] {
+            assert_eq!(entering_order(c), o, "catchment {c}");
+        }
+        assert_eq!(entering_order(u32::MAX), 12, "clamped at 12");
+    }
+
+    #[test]
+    fn patches_cover_the_tile_plus_one() {
+        let ctx = fixture_ctx();
+        let b = bundle_for(42, &ctx, AreaCoord::new(0, 1));
+        assert_eq!(b.rainfall_km.len(), 53 * 53);
+        assert_eq!(b.regime_km.len(), 53 * 53);
+        assert_eq!(b.filled_km.len(), 53 * 53);
+        assert_eq!(b.west_moisture.len(), 53);
+        // The patch matches a direct climate lookup at a spot inside.
+        let (kx0, ky0) = (0i32, 51i32); // tile (0,1) starts at abs cell 512 → km 51
+        let i_patch = 2 * 53 + 3;
+        let i_grid = usize::try_from((ky0 + 2) * ctx.grid.width() + (kx0 + 3)).unwrap();
+        assert_eq!(b.rainfall_km[i_patch], ctx.climate.rainfall[i_grid]);
+        assert_eq!(b.filled_km[i_patch], ctx.hydrology.filled[i_grid]);
+    }
+
+    #[test]
+    fn tile_entries_match_an_independent_crossing_sum() {
+        // Feature 03 spec R4 / §Q9(a): the crossing set is a pure function
+        // of shared continent data. Re-derive tile (1,1)'s west-line
+        // crossings directly from hydrology, independently of the bundle
+        // code, and compare total catchment and discharge (sums are robust
+        // to same-seed merging).
+        let ctx = fixture_ctx();
+        let b = AreaCoord::new(1, 1);
+        let bb = bundle_for(42, &ctx, b);
+        let west: Vec<_> = bb.entering.iter().filter(|e| e.cell.x() == 0).collect();
+
+        let (w, h) = (ctx.grid.width(), ctx.grid.height());
+        let (x0, x1) = (i64::from(b.x) * 512, i64::from(b.x + 1) * 512);
+        let (y0, y1) = (i64::from(b.y) * 512, i64::from(b.y + 1) * 512);
+        let (mut catchment, mut discharge) = (0u64, 0u64);
+        for ky in 0..h {
+            for kx in 0..w {
+                let i = usize::try_from(ky * w + kx).unwrap();
+                if ctx.hydrology.catchment_km2[i] < 3 {
+                    continue;
+                }
+                let Some(d) = ctx.hydrology.downstream[i] else {
+                    continue;
+                };
+                let di = i64::from(d);
+                let (dkx, dky) = (di % i64::from(w), di / i64::from(w));
+                let (ocx, ocy) = (i64::from(kx) * 10 + 5, i64::from(ky) * 10 + 5);
+                let (dcx, dcy) = (dkx * 10 + 5, dky * 10 + 5);
+                let d_inside = dcx > x0 && dcx < x1 && dcy > y0 && dcy < y1;
+                // West-line crossing NOT stolen by the horizontal tie rule.
+                let crosses_ns = (ocy < y0 && dcy > y0) || (ocy > y1 && dcy < y1);
+                if d_inside && ocx < x0 && dcx > x0 && !crosses_ns {
+                    // Apply the same all-sea-window drop rule the bundle
+                    // uses, via the same public height source.
+                    let lo = (dky * 10 - y0).clamp(0, 511);
+                    let hi = (dky * 10 + 10 - y0).clamp(0, 512);
+                    let any_land = (lo..hi).any(|j| {
+                        let (ax, ay) = (i32::try_from(x0).unwrap(), i32::try_from(y0 + j).unwrap());
+                        boundary_height(42, &ctx.grid, ax, ay) > 0
+                    });
+                    if any_land {
+                        catchment += u64::from(ctx.hydrology.catchment_km2[i]);
+                        discharge += u64::from(ctx.hydrology.discharge_l_s[i]);
+                    }
+                }
+            }
+        }
+        // Bundle-side sums over west entries whose window was not all-sea.
+        let got_c: u64 = west.iter().map(|e| u64::from(e.catchment_km2)).sum();
+        let got_d: u64 = west.iter().map(|e| u64::from(e.discharge.raw())).sum();
+        if west.is_empty() {
+            // Legal only when the seam genuinely has no qualifying land
+            // crossing; the independent sum must then be 0 too, or every
+            // window was sea (assert the weaker direction loudly).
+            assert_eq!(catchment, got_c, "bundle dropped land crossings");
+        } else {
+            assert_eq!((got_c, got_d), (catchment, discharge));
+        }
+    }
+
+    #[test]
+    fn crossings_below_three_km2_are_dropped() {
+        let ctx = fixture_ctx();
+        for area in [AreaCoord::new(0, 1), AreaCoord::new(1, 2)] {
+            for e in bundle_for(42, &ctx, area).entering {
+                assert!(e.catchment_km2 >= 3);
+                assert!(e.discharge.raw() > 0);
+                assert_eq!(e.order, entering_order(e.catchment_km2));
+            }
+        }
     }
 }
