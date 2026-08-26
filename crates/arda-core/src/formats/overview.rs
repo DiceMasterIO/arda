@@ -23,7 +23,11 @@ const NO_DOWNSTREAM: u8 = 255;
 /// Encodes the continent grid.
 #[must_use]
 pub fn encode_overview(overview: &ContinentOverview) -> Vec<u8> {
-    debug_assert_eq!(overview.cells.len(), overview.width.unsigned_abs() as usize * overview.height.unsigned_abs() as usize, "overview cells must fill width x height");
+    debug_assert_eq!(
+        overview.cells.len(),
+        overview.width.unsigned_abs() as usize * overview.height.unsigned_abs() as usize,
+        "overview cells must fill width x height"
+    );
     let count = overview.cells.len();
     let mut out = Vec::with_capacity(16 + count * OVERVIEW_CELL_BYTES);
     out.extend_from_slice(OVERVIEW_MAGIC);
@@ -49,7 +53,10 @@ pub fn encode_overview(overview: &ContinentOverview) -> Vec<u8> {
 /// - [`FormatError::UnknownDiscriminant`] on a bad regime or direction.
 pub fn decode_overview(path: &str, bytes: &[u8]) -> Result<ContinentOverview, FormatError> {
     if bytes.len() < OVERVIEW_MAGIC.len() || &bytes[..OVERVIEW_MAGIC.len()] != OVERVIEW_MAGIC {
-        return Err(FormatError::BadMagic { path: path.to_owned(), layer: "overview" });
+        return Err(FormatError::BadMagic {
+            path: path.to_owned(),
+            layer: "overview",
+        });
     }
     let mut at = OVERVIEW_MAGIC.len();
     let need = |at: usize, extra: usize| {
@@ -75,11 +82,12 @@ pub fn decode_overview(path: &str, bytes: &[u8]) -> Result<ContinentOverview, Fo
         let t = take_i16(bytes, &mut at);
         let r = take_u16(bytes, &mut at);
         let regime_raw = take_u8(bytes, &mut at);
-        let regime = ClimateRegime::from_u8(regime_raw).ok_or(FormatError::UnknownDiscriminant {
-            path: path.to_owned(),
-            field: "climate regime",
-            value: u16::from(regime_raw),
-        })?;
+        let regime =
+            ClimateRegime::from_u8(regime_raw).ok_or(FormatError::UnknownDiscriminant {
+                path: path.to_owned(),
+                field: "climate regime",
+                value: u16::from(regime_raw),
+            })?;
         let dir_raw = take_u8(bytes, &mut at);
         let downstream = match dir_raw {
             NO_DOWNSTREAM => None,
@@ -105,7 +113,11 @@ pub fn decode_overview(path: &str, bytes: &[u8]) -> Result<ContinentOverview, Fo
         });
     }
     #[allow(clippy::cast_possible_wrap)]
-    Ok(ContinentOverview { width: width as i32, height: height as i32, cells })
+    Ok(ContinentOverview {
+        width: width as i32,
+        height: height as i32,
+        cells,
+    })
 }
 
 #[cfg(test)]
@@ -129,7 +141,11 @@ mod tests {
             height: HeightMm::new(-2_400_000),
             ..ContinentCell::default()
         };
-        ContinentOverview { width: 3, height: 2, cells }
+        ContinentOverview {
+            width: 3,
+            height: 2,
+            cells,
+        }
     }
 
     #[test]
@@ -160,7 +176,10 @@ mod tests {
     fn truncated_grid_is_refused() {
         let bytes = encode_overview(&sample());
         let err = decode_overview("overview.bin", &bytes[..bytes.len() - 5]).unwrap_err();
-        assert!(matches!(err, crate::error::FormatError::UnexpectedEof { .. }));
+        assert!(matches!(
+            err,
+            crate::error::FormatError::UnexpectedEof { .. }
+        ));
     }
 
     #[test]
@@ -171,7 +190,10 @@ mod tests {
         let err = decode_overview("overview.bin", &bytes).unwrap_err();
         assert!(matches!(
             err,
-            crate::error::FormatError::UnknownDiscriminant { field: "climate regime", .. }
+            crate::error::FormatError::UnknownDiscriminant {
+                field: "climate regime",
+                ..
+            }
         ));
     }
 
@@ -182,7 +204,10 @@ mod tests {
         let err = decode_overview("overview.bin", &bytes).unwrap_err();
         assert!(matches!(
             err,
-            crate::error::FormatError::UnknownDiscriminant { field: "downstream direction", .. }
+            crate::error::FormatError::UnknownDiscriminant {
+                field: "downstream direction",
+                ..
+            }
         ));
     }
 }
