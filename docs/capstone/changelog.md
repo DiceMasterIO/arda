@@ -4,6 +4,23 @@ generated_date: 2026-08-24
 
 # Changelog
 
+## 2026-08-26 (8d3c9d930157..6b65f7c6a0c0)
+
+Architecture-level delta across 86 files (the drainage/continent rebuild
+plus feature 02), base = oldest topic stamp since no prior ranged entry
+exists.
+
+- **New modules:** `arda-gen/src/continent/{climate,hydrology}.rs` (logic/01 steps 5–6: integer advection-diffusion climate; continent drainage tree + river extraction) and `arda-core/src/{continent.rs, formats/overview.rs}` (continent-tier types; `continent/overview.bin` codec). `arda-gen/src/continent/{plates,tectonics,coast,erode}.rs` were rebuilt in place (belt-based uplift, warped Voronoi, shelf-gradient coast, global 1 km stream-power erosion).
+- **World format major 2 → 3:** `continent/overview.bin` carries real 18 B/cell records and `continent/objects.bin` a rivers section; the manifest gate became exact-match (older worlds now refused, `formats/manifest.rs`). New error variant `FormatError::DimensionsOverflow`; decoders refuse crafted headers via fully checked size arithmetic.
+- **New commands/surfaces:** `arda-cli` gained `preview` and `export --overview` / `--block` (whole-world PNG, WFC block layer). No new external dependencies; no dependency-direction changes (`arda-render` still never depends on `arda-gen`).
+- **New test/bench surfaces:** `arda-gen/tests/{drainage_invariants,continent_hydrology,continent_measures}.rs`, `benches/{area_erosion,continent_stage}.rs` (30 s/tile and 60 s/stage release gates); golden fixture re-blessed twice (area drainage rewrite at format 2; continent layer at format 3).
+- **Area tier rewritten** (`arda-gen/src/area/**`): four-process erosion, priority-flood fill with lake emission, D8 by steepest descent, Strahler orders, network-link reaches, HAND/TWI fields — per-cell layouts changed with format 2.
+
+Stale-topic check: `03-conventions.md`, `05-dependencies.md`,
+`07-operations.md`, `08-glossary.md` still carry the 8d3c9d9 stamp; a
+`sync` run would settle them (03's no-libm consequence and 08's new
+continent-tier terms are the visible gaps).
+
 ## 2026-08-26 — implement: 02-continent-climate-hydrology@Q8
 key: implement/02-continent-climate-hydrology@Q8
 
