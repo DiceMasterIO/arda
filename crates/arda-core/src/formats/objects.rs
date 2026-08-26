@@ -18,14 +18,22 @@ const KIND_RIVERS: u16 = 1;
 const KIND_LAKES: u16 = 2;
 
 fn need(path: &str, src: &[u8], at: usize, extra: usize) -> Result<(), FormatError> {
-    if at + extra > src.len() {
-        Err(FormatError::UnexpectedEof {
+    // Mirrors the `need` closure in `overview.rs`: `at.checked_add(extra)`
+    // so a crafted section length can't wrap `usize` past the EOF guard;
+    // `None` just means "past EOF", reported with the honest saturated
+    // requirement rather than a fabricated sentinel.
+    match at.checked_add(extra) {
+        Some(end) if end <= src.len() => Ok(()),
+        Some(end) => Err(FormatError::UnexpectedEof {
             path: path.to_owned(),
             read: src.len(),
-            expected: at + extra,
-        })
-    } else {
-        Ok(())
+            expected: end,
+        }),
+        None => Err(FormatError::UnexpectedEof {
+            path: path.to_owned(),
+            read: src.len(),
+            expected: at.saturating_add(extra),
+        }),
     }
 }
 
