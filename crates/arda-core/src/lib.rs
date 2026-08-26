@@ -20,7 +20,7 @@ pub use cell::{Cell, Cover, RoadClass, TerrainKind};
 pub use config::{GenerateConfig, LatitudeBand, SizeKm};
 pub use continent::{ClimateRegime, ContinentCell, ContinentObjects, ContinentOverview, ContinentRiver};
 pub use coords::{
-    AreaCoord, CellCoord, ContinentCoord, KmCoord, SquareCoord, AREA_CELLS, BLOCK_SQUARES, CELL_SIZE_M,
+    AreaCoord, CellCoord, KmCoord, SquareCoord, AREA_CELLS, BLOCK_SQUARES, CELL_SIZE_M,
     SQUARE_SIZE_MM,
 };
 pub use error::{ConfigError, FormatError, LoadError};
