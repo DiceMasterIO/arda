@@ -660,4 +660,32 @@ mod tests {
             );
         }
     }
+
+    #[test]
+    fn a_merged_seed_keeps_the_max_part_order_not_the_summed_order() {
+        // Feature 03 §Q3: `entering_order` is not additive, so merging must
+        // take the max over contributing edges, never recompute from the
+        // summed catchment. Seed 42's only merge site (see
+        // `merged_seeds_take_the_max_order_not_the_summed_order`) can't tell
+        // the two rules apart — max(order(207), order(148)) and
+        // entering_order(355) both land on 4. Seed 362's merge site can:
+        // tile (1,3) merges two edges of 4 km² and 8 km² (entering_order 1
+        // each, so max = 1) into a summed catchment of 12 km², and
+        // entering_order(12) = 2 — a different bucket, so an inverted rule
+        // is caught by value alone.
+        let ctx = crate::continent::build_continent(362, GenerateConfig::MICRO, 0);
+        let b = bundle_for(362, &ctx, AreaCoord::new(1, 3));
+        let divergent: Vec<_> = b
+            .entering
+            .iter()
+            .filter(|e| e.order < entering_order(e.catchment_km2))
+            .collect();
+        assert!(
+            !divergent.is_empty(),
+            "seed 362 tile (1,3) no longer has a divergent merge"
+        );
+        // Exact pin so an inverted rule fails loudly.
+        let e = divergent[0];
+        assert_eq!((e.catchment_km2, e.order), (12, 1));
+    }
 }
