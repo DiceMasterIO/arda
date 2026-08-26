@@ -67,7 +67,8 @@ pub fn write_manifest(dir: &Path, manifest: &Manifest) -> Result<(), LoadError> 
 /// # Errors
 /// - [`LoadError::ManifestMissing`] when the file is absent (partial world).
 /// - [`LoadError::ManifestUnreadable`] when it will not parse.
-/// - [`LoadError::VersionSkew`] when the format major is newer than this build.
+/// - [`LoadError::VersionSkew`] when the format major does not exactly match
+///   this build's.
 pub fn read_manifest(dir: &Path) -> Result<Manifest, LoadError> {
     let path = dir.join(MANIFEST_NAME);
     let bytes = match std::fs::read(&path) {
