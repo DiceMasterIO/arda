@@ -85,7 +85,7 @@ const DIFFUSE_DIV: u64 = 8;
 /// The accumulator is divided by the pass count before scaling, so the
 /// magnitude is independent of grid width and one calibration serves
 /// unit-test grids, MICRO, and the default world alike.
-const C_NORM: u64 = 256;
+const C_NORM: u64 = 153;
 
 /// One pass advects due west→east by one cell, diffuses, then
 /// exchanges with the surface (feature 02 §Q4). Pass count is fixed at
