@@ -86,8 +86,10 @@ fn every_micro_land_cell_reaches_the_ocean() {
 
 #[test]
 fn micro_rivers_satisfy_the_course_invariants() {
-    // Spec R7 invariants (b) on courses and (c): connected, descending
-    // on the routing surface, feeds acyclic.
+    // Spec R7 invariant (c) on courses: connected, descending on the
+    // routing surface, feeds acyclic. Invariants (b) (catchment/discharge
+    // monotonicity) and (d) (zero catchment/discharge on sea cells) are
+    // covered separately below, against this same real seed-42 terrain.
     let g = generate_continent(42, GenerateConfig::MICRO);
     let c = climate(&g, LatitudeBand::new(35, 55));
     let hy = hydrology(&g, &c);
@@ -115,6 +117,49 @@ fn micro_rivers_satisfy_the_course_invariants() {
                 "course climbs in river {}",
                 r.id
             );
+        }
+    }
+}
+
+#[test]
+fn micro_hydrology_satisfies_catchment_and_sea_invariants() {
+    // Spec R7 invariants (b) and (d), on the real seed-42 micro continent
+    // (hydrology.rs's unit tests only cover these against the synthetic
+    // "dome" fixture, never against generated terrain).
+    let g = generate_continent(42, GenerateConfig::MICRO);
+    let c = climate(&g, LatitudeBand::new(35, 55));
+    let hy = hydrology(&g, &c);
+    let w = g.width();
+    let land = |j: usize| {
+        g.get(
+            i32::try_from(j).unwrap_or(0) % w,
+            i32::try_from(j).unwrap_or(0) / w,
+        )
+        .raw()
+            > 0
+    };
+
+    // (b) catchment and discharge never shrink downstream, land to land.
+    for (i, d) in hy.downstream.iter().enumerate() {
+        let Some(d) = *d else { continue };
+        let d = usize::try_from(d).unwrap_or(0);
+        if land(i) && land(d) {
+            assert!(
+                hy.catchment_km2[d] >= hy.catchment_km2[i],
+                "catchment shrank downstream from {i} to {d}"
+            );
+            assert!(
+                hy.discharge_l_s[d] >= hy.discharge_l_s[i],
+                "discharge shrank downstream from {i} to {d}"
+            );
+        }
+    }
+
+    // (d) sea cells store zero catchment and discharge.
+    for i in 0..hy.catchment_km2.len() {
+        if !land(i) {
+            assert_eq!(hy.catchment_km2[i], 0, "sea cell {i} has nonzero catchment");
+            assert_eq!(hy.discharge_l_s[i], 0, "sea cell {i} has nonzero discharge");
         }
     }
 }

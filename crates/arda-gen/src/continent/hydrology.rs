@@ -169,8 +169,11 @@ pub fn extract_rivers(grid: &ContinentGrid, hydro: &ContinentHydrology) -> Vec<C
         let mut course_rev = vec![mouth];
         let mut at = mouth;
         loop {
-            // Largest-catchment inflow continues the stem; ties break
-            // to the earlier row-major child (feature 02 spec R4).
+            // Largest-catchment inflow continues the stem; ties break to
+            // the earliest row-major child. Spec R4 says "fixed neighbour
+            // order", not row-major order — this is a deliberate deviation,
+            // recorded here for the reference refresh, and the golden
+            // fixture is blessed on this behaviour.
             let mut main: Option<usize> = None;
             for &c in &inflows[at] {
                 let c = c as usize;
