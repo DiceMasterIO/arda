@@ -29,9 +29,9 @@ const RIM_MARGIN: i32 = 2;
 /// The 1 km continent working grid (`logic/01` step 4).
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct ContinentGrid {
-    pub(crate) width: i32,
-    pub(crate) height: i32,
-    pub(crate) height_mm: Vec<i32>,
+    width: i32,
+    height: i32,
+    height_mm: Vec<i32>,
 }
 
 impl ContinentGrid {
