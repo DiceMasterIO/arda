@@ -37,7 +37,7 @@ pub use formats::objects::{
     CONTINENT_OBJECTS_MAGIC, OBJECTS_MAGIC,
 };
 pub use formats::overview::{
-    decode_overview, encode_overview, OVERVIEW_CELL_BYTES, OVERVIEW_MAGIC,
+    decode_overview, encode_overview, NO_DOWNSTREAM, OVERVIEW_CELL_BYTES, OVERVIEW_MAGIC,
 };
 pub use formats::FORMAT_VERSION;
 pub use objects::{AreaObjects, Lake, RiverSegment, Terminus};

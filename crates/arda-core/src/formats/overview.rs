@@ -17,8 +17,10 @@ pub const OVERVIEW_MAGIC: &[u8; 8] = b"ARDAOVR\0";
 /// Bytes per cell record.
 pub const OVERVIEW_CELL_BYTES: usize = 18;
 
-/// Stored value for "no downstream".
-const NO_DOWNSTREAM: u8 = 255;
+/// Stored value for "no downstream" in `ContinentCell.downstream` and in
+/// `arda-gen`'s direction vectors — shared so the sentinel cannot desync
+/// across the crate boundary.
+pub const NO_DOWNSTREAM: u8 = 255;
 
 /// Encodes the continent grid.
 #[must_use]

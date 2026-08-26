@@ -16,7 +16,8 @@ pub struct ContinentHydrology {
     pub filled: Vec<i32>,
     /// Row-major downstream index per cell.
     pub downstream: Vec<Option<u32>>,
-    /// Downstream as a fixed-neighbour-order index; 255 = none.
+    /// Downstream as a fixed-neighbour-order index;
+    /// [`arda_core::NO_DOWNSTREAM`] = none.
     pub downstream_dir: Vec<u8>,
     /// Drainage area, km²; zero on sea cells (§D9 hygiene).
     pub catchment_km2: Vec<u32>,
@@ -67,7 +68,7 @@ pub fn hydrology(grid: &ContinentGrid, climate: &ContinentClimate) -> ContinentH
         }
     }
 
-    let mut downstream_dir = vec![255u8; count];
+    let mut downstream_dir = vec![arda_core::NO_DOWNSTREAM; count];
     let mut catchment_km2 = vec![0u32; count];
     let mut discharge_l_s = vec![0u32; count];
     let w_usize = usize::try_from(w).unwrap_or(1);
@@ -80,7 +81,7 @@ pub fn hydrology(grid: &ContinentGrid, climate: &ContinentClimate) -> ContinentH
             let yd = i32::try_from(di / w_usize).unwrap_or(0);
             let (dx, dy) = (xd - xi, yd - yi);
             if let Some(k) = NEIGHBOURS.iter().position(|&n| n == (dx, dy)) {
-                downstream_dir[i] = u8::try_from(k).unwrap_or(255);
+                downstream_dir[i] = u8::try_from(k).unwrap_or(arda_core::NO_DOWNSTREAM);
             }
         }
         if heights[i] > 0 {
@@ -315,7 +316,7 @@ mod tests {
         let w = g.width();
         for (i, d) in hy.downstream.iter().enumerate() {
             match *d {
-                None => assert_eq!(hy.downstream_dir[i], 255),
+                None => assert_eq!(hy.downstream_dir[i], arda_core::NO_DOWNSTREAM),
                 Some(d) => {
                     let (dx, dy) = (
                         i32::try_from(d).unwrap_or(0) % w - i32::try_from(i).unwrap_or(0) % w,
