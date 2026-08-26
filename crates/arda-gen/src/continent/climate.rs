@@ -68,8 +68,86 @@ fn sea_level_centi(lat_mdeg: i64) -> i64 {
     1_800 - (lat_mdeg - 35_000) * 6 / 100
 }
 
-/// Computes temperature and regime; rainfall stays zero until the
-/// advection pass exists (next task).
+/// Moisture-store saturation, dimensionless fixed point (§Q4 table).
+const M_SAT: u64 = 32_768;
+/// Sea recharge: 1/8 of the deficit per pass.
+const RECHARGE_DIV: u64 = 8;
+/// Base land release, in 1/65,536 units (1/512).
+const F_BASE: u64 = 128;
+/// Orographic release per 100 m of climb, in 1/65,536 units (1/64).
+const F_ORO: u64 = 1_024;
+/// Release clamp (1/16).
+const F_MAX: u64 = 4_096;
+/// Lateral diffusion divisor: 1/8 blend with the 4-neighbour mean.
+const DIFFUSE_DIV: u64 = 8;
+/// Per-pass rainfall scale; calibrated on seed 42 at default size so
+/// the land mean lands near 800 mm/yr (feature 02 §Q3, R8 probe).
+/// The accumulator is divided by the pass count before scaling, so the
+/// magnitude is independent of grid width and one calibration serves
+/// unit-test grids, MICRO, and the default world alike.
+const C_NORM: u64 = 256;
+
+/// One pass advects due west→east by one cell, diffuses, then
+/// exchanges with the surface (feature 02 §Q4). Pass count is fixed at
+/// 1.5 × width — never a convergence test, so determinism holds.
+fn rainfall_field(grid: &ContinentGrid) -> Vec<u16> {
+    let (w, h) = (grid.width(), grid.height());
+    let count = usize::try_from(w * h).unwrap_or(0);
+    let idx = |x: i32, y: i32| usize::try_from(y * w + x).unwrap_or(0);
+    let height = |x: i32, y: i32| i64::from(grid.get(x, y).raw());
+
+    let passes = 3 * w / 2;
+    let mut m = vec![M_SAT; count];
+    let mut advected = vec![0u64; count];
+    let mut accum = vec![0u64; count];
+
+    for _ in 0..passes {
+        // 1. Advect: the store moves one cell east; the west edge
+        //    refills from the off-map ocean (rim is ocean by invariant).
+        for y in 0..h {
+            for x in 0..w {
+                advected[idx(x, y)] = if x == 0 { M_SAT } else { m[idx(x - 1, y)] };
+            }
+        }
+        // 2. Diffuse from the advected snapshot, so scan order cannot
+        //    leak into the result.
+        for y in 0..h {
+            for x in 0..w {
+                let at = |xx: i32, yy: i32| advected[idx(xx.clamp(0, w - 1), yy.clamp(0, h - 1))];
+                let mean4 = (at(x, y - 1) + at(x + 1, y) + at(x, y + 1) + at(x - 1, y)) / 4;
+                let a = advected[idx(x, y)];
+                m[idx(x, y)] = a - a / DIFFUSE_DIV + mean4 / DIFFUSE_DIV;
+            }
+        }
+        // 3. Exchange: recharge over water, release over land
+        //    (logic/01 §Q6: "release on climb, recharge over water").
+        for y in 0..h {
+            for x in 0..w {
+                let i = idx(x, y);
+                if height(x, y) <= 0 {
+                    m[i] += (M_SAT.saturating_sub(m[i])) / RECHARGE_DIV;
+                } else {
+                    // Climb along the wind, floored at sea level so a
+                    // deep offshore shelf does not fabricate a cliff.
+                    let west = if x == 0 { 0 } else { height(x - 1, y).max(0) };
+                    let climb = u64::try_from((height(x, y) - west).max(0)).unwrap_or(0);
+                    let f = (F_BASE + F_ORO * climb / 100_000).min(F_MAX);
+                    let rain = (m[i] * f) >> 16;
+                    accum[i] += rain;
+                    m[i] -= rain;
+                }
+            }
+        }
+    }
+
+    let p = u64::try_from(passes).unwrap_or(1).max(1);
+    accum
+        .into_iter()
+        .map(|r| u16::try_from(((r / p) * C_NORM) >> 4).unwrap_or(u16::MAX))
+        .collect()
+}
+
+/// Computes temperature and regime; rainfall is computed via advection-diffusion.
 #[must_use]
 pub fn climate(grid: &ContinentGrid, band: LatitudeBand) -> ContinentClimate {
     let (w, h) = (grid.width(), grid.height());
@@ -101,9 +179,10 @@ pub fn climate(grid: &ContinentGrid, band: LatitudeBand) -> ContinentClimate {
             });
         }
     }
+    let rainfall = rainfall_field(grid);
     ContinentClimate {
         temperature,
-        rainfall: vec![0; count],
+        rainfall,
         regime,
     }
 }
@@ -188,5 +267,42 @@ mod tests {
     fn climate_is_deterministic() {
         let g = grid(|x, y| (x - y) * 100_000);
         assert_eq!(climate(&g, BAND), climate(&g, BAND));
+    }
+
+    #[test]
+    fn sea_cells_get_no_rainfall() {
+        let g = grid(|x, _| if x >= 4 { 400_000 } else { -1_000 });
+        let c = climate(&g, BAND);
+        for y in 0..10 {
+            for x in 0..4 {
+                assert_eq!(c.rainfall[(y * 10 + x) as usize], 0, "sea cell {x},{y}");
+            }
+        }
+    }
+
+    #[test]
+    fn land_downwind_of_the_sea_gets_rain() {
+        let g = grid(|x, _| if x >= 4 { 400_000 } else { -1_000 });
+        let c = climate(&g, BAND);
+        assert!(c.rainfall[5 * 10 + 4] > 0, "first land column is dry");
+    }
+
+    #[test]
+    fn a_ridge_casts_a_rain_shadow() {
+        // Sea → plain → ridge → plain: the lee plain must be drier than
+        // the windward plain (logic/01 §Q6 rain shadows).
+        let g = grid(|x, _| match x {
+            0..=1 => -1_000,
+            5 => 2_500_000,
+            _ => 200_000,
+        });
+        let c = climate(&g, BAND);
+        let row = 5 * 10;
+        let windward = c.rainfall[row + 4];
+        let leeward = c.rainfall[row + 7];
+        assert!(
+            windward > leeward,
+            "no shadow: windward {windward} <= leeward {leeward}"
+        );
     }
 }
