@@ -1,0 +1,115 @@
+---
+generated_date: 2026-08-24
+---
+
+# Changelog
+
+## 2026-08-26 — implement: 02-continent-climate-hydrology@Q8
+key: implement/02-continent-climate-hydrology@Q8
+
+- Executed all ten plan tasks on `feat/drainage-correctness` (base c2c0d2a, head 9c48e00, 22 commits), subagent-driven with a per-task review gate: (1) continent types + overview codec, (2) continent objects codec, (3) exact-match format gate, (4) temperature/regime/sea-distance, (5) advection-diffusion rainfall, (6) drainage tree with dual loads, (7) river extraction, (8) orchestrator persistence + invariant suite, (9) 60 s stage bench, (10) FORMAT_VERSION 3 + C_NORM calibration (256→153, seed-42 land mean 799 mm/yr) + the single authorized golden re-bless. Source touched: `crates/arda-core/{continent.rs, coords.rs, error.rs, lib.rs, formats/{mod,manifest,objects,overview}.rs}`, `crates/arda-gen/{Cargo.toml, src/continent/{climate,hydrology,erode,mod}.rs, src/orchestrator.rs, tests/{continent_hydrology,continent_measures}.rs, benches/continent_stage.rs}`, `tests/golden/micro-42.txt`. 194 workspace tests green; clippy `-D warnings` and fmt clean.
+- Review loop (ledger, not indexed): **7 rounds to dry** (rounds 6–7 consecutive dry at 9c48e00). 19 branch-level findings confirmed — 1 Critical (EOF-guard add-wrap at the exact `usize` window, proven reachable at dims 238,795,480 × 4,291,618,565), 5 Important (unchecked dims multiply; fabricated `expected: usize::MAX`; `width as i32` wrap decoding u32::MAX to −1; duplicated EOF guard; half-tested dims guard), 13 Minor — all fixed across five waves (97e227a, 9a21416, 6405ad9, 9e33d52, 9c48e00) or recorded/accepted (6: diffuse-step floor decomposition, row-major tie-break, climb/lapse elevation floors → absorbed as shipped rules; objects.rs ~500-line soft cap and course-helper duplication → accepted). 0 refuted; 10 task-level minors triaged accept-as-recorded. A new honest `FormatError::DimensionsOverflow` variant and a shared pub `NO_DOWNSTREAM` sentinel came out of the loop.
+- Chapters refreshed to 9c48e00: `01-architecture.md` (climate/hydrology modules, formats::overview), `02-models.md` (format 3, 18 B ContinentCell, continent objects, decoder refusal posture), `04-data-flow.md` (continent stage through step 6 + persistence; the computes-and-discards seam Feature 03 must budget for), `06-testing.md` (194 tests, invariant suite, probes, bench, re-bless scope), `open-items.md` (#6 closed; #1/#5/#12 marked unblocked-by-02/owned-by-03; build step 4 partially done).
+- Absorbed per the spec's Reference impact: `logic/01-continent-generation.md` — new Observed section for steps 5–6 recording the shipped rules including the four deviations (lapse and climb floors, diffuse decomposition, row-major main-stem ties) and the threshold rule `max(300, land_km2/30)` amending §Q7's assumed fixed ~3,000 km²; `mockup/02-world-layout.md` — overview.bin/objects.bin rows real since format 3. Both stamped `absorbed_from`.
+- Also repaired: `docs/capstone/.gitignore` carried the legacy `changelog.md` ignore line, silently untracking this ledger since 435a6fe; line removed so the ledger follows `docs_in_git: commit` again.
+- Left open for Feature 03 (not groomed): bundle entering rivers + climate fields, area `Cell.rainfall`, cross-seam basin fill, rainfall-driven discharge and channel initiation; plus the recorded seam note that `generate_world` discards the climate/hydrology structs after persisting.
+
+## 2026-08-26 — plan: 02-continent-climate-hydrology@Q8
+key: plan/02-continent-climate-hydrology@Q8
+
+- `docs/capstone/features/02-continent-climate-hydrology/plan.md` — ten TDD tasks with full test and implementation code: (1) continent types + `overview.bin` codec, (2) `continent/objects.bin` rivers codec with its own `ARDACOB\0` magic, (3) exact-match format gate replacing the newer-only check at `manifest.rs:94`, (4) temperature/regime/BFS distance-to-sea, (5) advection-diffusion rainfall, (6) drainage tree reusing `erode.rs`'s `fill`/`accumulate` made `pub(crate)` with dual catchment/discharge loads and the routing surface exposed for feature 03, (7) river extraction with the scaled threshold and largest-catchment main stems, (8) orchestrator persistence + the R7 invariant suite, (9) 60 s continent-stage bench mirroring `area_erosion.rs`, (10) `FORMAT_VERSION` 3, `C_NORM` calibration, R8 measurement probes into `spike-report.md`, and the single authorized golden re-bless. File map: 7 arda-core paths, 8 arda-gen paths, the golden fixture, the spike report. Coverage table maps all 11 requirements, every behavior rule, all 7 unhappy paths, and the global constraints to named tasks.
+- Review passes fixed three drafting defects before the gate: rainfall conversion pass-count-normalized so one calibration serves 10-wide unit grids, MICRO, and the default world (spec's Behavior formula amended accordingly, §Q3/§Q4 targets unchanged); `as usize` casts replaced with `usize::try_from` in the orchestrator snippet; the Horton probe's stream-count array sized from the observed maximum order instead of a fixed cap.
+- Constraints pinned: golden fixture touched only in task 10 (§Q6 sign-off); golden expected red between tasks 8–10 with per-crate test commands named; `stats.named_river_count` stays 0 (§Q1 deferral); no RNG anywhere in the new sim paths; `TileBundle`/area/render files absent from the file map by design (R11).
+
+## 2026-08-26 — groom: 02-continent-climate-hydrology@Q8
+key: groom/02-continent-climate-hydrology@Q8
+
+- `docs/capstone/features/02-continent-climate-hydrology/spec.md` — eleven requirements (R1–R11) building `logic/01` steps 5–6 plus real persistence: uniform-westerly advection-diffusion rainfall (fixed 1.5×width passes, 12.5% diffusion, recharge over water, base + orographic release), band-linear temperature with 6.5 °C/km lapse and 300 km continentality, regime by band position + elevation, one final fill+route on the post-erosion 1 km surface with dual catchment/discharge accumulation, river objects above a land-scaled threshold `max(300, land_km2/30)`, an 18 B/cell `overview.bin` codec plus an `objects.bin` rivers section at `FORMAT_VERSION` 3, five gated structural invariants, measured-not-gated climate stats, Horton on seeds {1,7,42,99} discharging spike S1, a ≤60 s continent-stage bench, and a single end-of-feature golden re-bless with sign-off recorded at §Q6.
+- Rejected and why: rainfall-coupled erosion (reorders logic/01's step sequence, risks measured hypsometry); 4 km routing (courses quantize, disagrees with the 1 km relief areas sample); single upwind sweep and graded/warped wind fields (user chose the softer scheme; extra calibration axes, noise in a sim path); Köppen-lite regimes (amends logic/01 §Q6's recorded rule); heightless overview.bin and unversioned sidecar (readers re-run the stage; version skew moves into code); fixed 3,000 km² threshold (MICRO fixtures get zero rivers); gating rainfall bounds now (fits thresholds to current output).
+- Out of scope as decisions: steps 7–8, step-9 gate wiring, every `TileBundle` change, render/overlay work, continent-tier lakes, area `Cell.rainfall` — all owned by Feature 03 or build-order step 4's remainder. Open-items #6 closes here; #1, #5, #12 are unblocked, not closed.
+- Groom's staleness pass also stamp-refreshed `02-models.md` and `04-data-flow.md` (separate sync entry below).
+
+## 2026-08-26 — sync: 02-models.md+04-data-flow.md
+key: sync/02-models+04-data-flow@c2c0d2a
+
+- `docs/capstone/02-models.md`, `docs/capstone/04-data-flow.md` — stamp refresh only, performed by groom's staleness pass for feature 02. Both chapters' Observed sections were written during the drainage/continent rebuild but their `generated_at_commit` stamps still read 8d3c9d9 (pointer drift). Content verified against HEAD: `FORMAT_VERSION` is 2 (`formats/mod.rs:13`), the D8/fill/outlet behaviour matches `area/water.rs`, the bundle carries edge heights only (`continent/bundles.rs`), and cross-tile inflow has no producer. Stamps bumped to c2c0d2a; no body text changed.
+
+## 2026-08-26 — docs: open-items
+key: docs/open-items@2026-08-26
+
+- `docs/capstone/open-items.md` — single index of everything known-incomplete, each with its evidence and owning code: four blocking-realism defects (cross-tile rivers, WFC noise, unreachable relaxed fallback, value-noise anisotropy), four stand-ins awaiting a producer, four calibration items held open, the two ungroomed successor features, and the unbuilt build-order steps. Also records two findings as *not* defects so they are not re-investigated.
+
+## 2026-08-26 — build: code@Q5 (drainage and continent)
+key: build/code@Q5-drainage
+
+- `crates/arda-gen/src/area/**` — rewrote the area stage against the artifact's own Relief and Water sections, which `logic/02` designates normative and which had not been read when the stage was first built. Four coupled erosion processes (uplift, stream-power incision, hillslope creep, 35-degree talus collapse) replace one; priority-flood filling with lake emission; D8 by steepest descent rather than steepest drop; true Strahler order; reaches as network links carrying `feeds` and `ends`; HAND, TWI, slope, aspect, and floodplain-driven marsh cover. Constants taken from the artifact rather than invented: 300-cell channel threshold (its 3 km² ≈ 40 L/s), `w = 4·sqrt(Q)` channel width, the 1 m / 2.5 m / 2–15 m floodplain bands.
+- `crates/arda-gen/src/continent/**` — rebuilt. Plate count scales with domain area; crust follows position; Voronoi lookup is domain-warped; uplift spreads across orogenic belts and plates drift so belts migrate; uplift is normalised to a target relief and subsidence floored; the crust field is blurred into a shelf and blended with a centred mask; noise applies on both sides of sea level; and coarse erosion now runs globally on the 1 km grid.
+- `crates/arda-render/**`, `crates/arda-cli/**` — hypsometric palette replacing a linear ramp that saturated to white above 2,040 m and hid a 118 m plateau; whole-world overview render; `preview` subcommand; `export --overview` and `export --block`, the latter exposing the WFC tile layer which had no command at all.
+- `crates/arda-gen/tests/drainage_invariants.rs` — eight global invariants, the class of assertion whose absence let a stage with 93% of catchment in interior pits pass 113 tests. `crates/arda-gen/benches/area_erosion.rs` gates erosion at 30 s/tile; measured 2.17 s.
+- Rejected along the way, with reasons: isotropic gradient noise (blocky coastlines, reverted — the lattice anisotropy it would fix is recorded as a known limitation, ~17% diagonal flow against 50%); smoothstep belt profiles (flat-topped, made plateaus not ranges); heavier hillslope creep and lower uplift as lake remedies (both made lakes worse by reducing the relief that drives incision).
+- Left open: rivers still cannot cross tile boundaries, so no catchment can exceed one tile's 2,621 km² — a UK-scale major basin is 9,385 km², 3.6x larger, and the continent cannot yet produce one. `Cell.rainfall` still has no producer, so discharge and channel initiation remain catchment-driven stand-ins. The tactical WFC layer converges but produces salt-and-pepper noise: its adjacency rule is too permissive for structure to emerge.
+- `format_version` is 2: `objects.bin` record layouts changed for `feeds`/`ends` and lake depth/outlet. Golden fixture re-blessed.
+
+## 2026-08-25 — groom: 01-area-drainage-correctness@Q15
+key: groom/01-area-drainage-correctness@Q15
+
+- `docs/capstone/features/01-area-drainage-correctness/spec.md` — twelve requirements (R1–R12) closing ten of the thirteen findings from the river pipeline audit, plus the process finding that no global drainage invariant existed. Chosen approach: priority-flood depressions to a *routing* surface with stored heights left raw; lakes emitted above 100 cells and 2,000 mm (~20/tile, measured from 859 basins/tile with median 2 cells and 208 mm); true Strahler order; D8 by drop÷distance via integer cross-multiplication; reaches as network links partitioning channel cells exactly once; outflow routed against the bundle's real neighbour heights; two-pass erosion with stream-power carving and magnitude-capped droplets detailing; HAND plus a fixed-point TWI with no libm in any sim path.
+- Rejected and why: breach/carve depressions (mutates stored relief, ~2,048 gorges/tile, breaks the pinned-edge guarantee at seams); fill without lakes (leaves `Lake` producer-less); Shreve magnitude (Horton's ratio is defined on Strahler orders); droplet-only erosion (permitted by §Q4 with explicit ordering, but its network statistics are not guaranteed to hit the Horton/Hack/sinuosity bands, and it would run a different erosion model from the continent tier); diffusion-only smoothing (does not concentrate incision); deduplicating head-to-terminus courses (coverage would depend on iteration order); unconditional edge outlets and off-tile-as-sea-level (water leaves uphill, or every edge becomes a fabricated cliff); bespoke banded wetness (not a recognised index); bringing step 12's statistical gates forward (their thresholds would be fitted to current output).
+- Scope reopened at §Q8 after the gate: "no out of scope" superseded §Q1's deferrals. Erosion and the derived river fields moved **into** this feature — both are computable from relief and drainage, and shelving them was an error. Three items stayed out with verified data dependencies rather than preferences: cross-tile inflow, rainfall-driven discharge, and climate-driven channel initiation all require producers that do not exist (`Cell.rainfall` has no writer anywhere in `arda-gen`; the continent stage stops after step 4). They become **feature 02** (continent climate and hydrology, `logic/01` steps 5–6, with spike S1) and **feature 03** (climate-driven refinement plus inflow), neither yet groomed.
+- Two decisions were recorded late, at §Q12 and §Q13: the D8 rule change and sea-cell hygiene had been carried in the gate summary and asserted by a test, but never given decision entries, so no requirement could trace to them. Two further decisions were surfaced only by a coverage check: §Q14 caps both erosion passes at 30 s/tile enforced by a `criterion` bench (rejected: 2 min/tile, which would breach step 12's 12 h batch ceiling once blocks are per-cell), and §Q15 authorises re-blessing `tests/golden/micro-42.txt` once as the final task, which `code-prefs.md` §Q9 requires be explicit.
+- Left open: the lake thresholds and every erosion constant were measured or chosen on pre-erosion noise relief and are re-derived when the statistical gates land at step 12; a basin straddling a tile seam still fills independently on each side and may reach different spill levels until feature 02 supplies a continent drainage tree.
+
+## 2026-08-25 — doctor: ledger catch-up
+key: doctor/torn-writes@2026-08-25
+
+Seven stages carried a `formalized` or `plan_approved` marker with no
+matching changelog key — torn writes under core.md's ledger rule. The
+entries below are reconstructed from each interview's recorded
+decisions; no stage was re-run. They were written late, so read them as
+a summary of the decision record rather than a contemporaneous receipt.
+
+## 2026-08-25 — build: code@Q5
+key: build/code@Q5
+
+- `crates/arda-core/**` — coords/fixed/rng/error/config/cell/objects/tiles plus `formats::{manifest,cells,objects,blocks}`, the workspace's only byte codec. `cells.bin` row pinned at 33 bytes carrying the full artifact field list (skeleton fills relief+water only, rest default); `objects.bin` is a tagged section container whose unknown kinds are skipped, so step 5's settlements/roads/crossings/passes are additive within format major 1. Rejected: `unsafe` transmute for row layout (code-prefs §Q1), a dev-dependency temp-dir crate (hand-rolled instead).
+- `crates/arda-gen/**` — hand-rolled integer value noise; continent stage (Voronoi plates, kinematic-lite 20-step coupled tectonics, isostasy, coast, 4km→1km upsample); tile bundles; area relief+water; 24-tile WFC block fill; orchestrator with rayon fan-out. Deferred to step 4: climate, hydrology objects, human geography, naming, and the full 100-step tectonics loop behind spike S1. Deferred to step 5: the five remaining area stages. Deferred to step 6: the 200+ tile vocabulary behind spike S2.
+- `crates/arda-render/**`, `crates/arda/**`, `crates/arda-cli/**` — symbolic block PNG, cartographic area PNG, versioned JSON (schema_version 1); `World`/`Area` facade; `generate`/`export` subcommands.
+- `tests/golden_world.rs` + `tests/golden/micro-42.txt` — 26-file blake3 fingerprint, wired into the 3-OS CI matrix as the §Q4 gate. Not yet observed green on macOS/Windows — only Linux has run.
+- Divergences from `05-dependencies.md`, each needing a chapter update: `blake3` promoted from dev/tooling to an `arda-core` runtime dependency (the subseed derivation needs it); `thiserror` added workspace-wide (code-prefs §Q4 mandates thiserror-style derives, the chapter names no error crate); `anyhow` added to `arda-cli` only (code-prefs §Q4 permits it there).
+- Divergence from `implementation.md`: its orchestrator sketch omitted `logic/01` §Q9's validation reroll. Added — seed 43 fails the land-fraction gate at attempt 0 and is rerolled deterministically, ≤5 attempts.
+- Known-weak, left open: area drainage does no depression filling, so channels emerge as short disconnected fragments rather than networks reaching the sea. The Horton/Hack/rank-size gates that would catch this are build-order step 12. Blocks are sampled on a 64-cell stride, not one per land cell. Areas and blocks load eagerly, not lazily as `logic/05` specifies. All three marked in-code.
+
+## 2026-08-25 — build: plan@Q5
+key: build/plan@Q5
+
+- `docs/capstone/implementation.md` — approved build plan: workspace layout, three load-bearing seam sketches (subseeding, stage purity, pinned edges), and a 13-step build order with per-step verification. Five late decisions folded in from this stage's own interview: `serve` (Q1), cost-distance realms (Q2), buildings (Q3), SRD 5.1-style NPCs (Q4), tile attributes plus a POI layer (Q5). Deferred as D9 and explicitly not planned: tileset-manifest renderer beyond a stub, `--memory` tuning past an areas-in-flight cap, region-file front door, runtime in-process game API.
+
+## 2026-08-25 — stack: all@Q8
+key: stack/all@Q8
+
+- `docs/capstone/05-dependencies.md` — eight capabilities picked: `zstd`, `png`, `serde`/`serde_json`, `rand_chacha` (ChaCha8), `rayon`, `clap` v4, hand-rolled Q-format fixed-point, and hand-rolled noise/erosion/hydrology/WFC. Dev/tooling: `criterion`, `blake3`, clippy/rustfmt, `cargo-deny`. Rejected: the `fixed` crate, in favour of hand-rolled Q-format newtypes; any third-party crate for sim arithmetic (code-prefs §Q2 forbids it). Zero paid services.
+
+## 2026-08-25 — code-prefs: all@Q9
+key: code-prefs/all@Q9
+
+- `docs/capstone/code-prefs.md` — nine normative domains: `deny(unsafe_code)`/`deny(missing_docs)` with unwrap banned outside tests; commodity adopted but determinism-critical code hand-rolled; data-oriented functional core with traits only when a second implementation exists; per-crate thiserror-style enums with `anyhow` confined to the CLI; package-by-stage layout; test-first with no mocks ever; rustfmt defaults and clippy `-D warnings`; conventional commits; and agent rules forbidding ambient randomness, wall-clock time, and hash-iteration-order dependence in sim paths.
+
+## 2026-08-25 — architecture: all@Q8
+key: architecture/all@Q8
+
+- `docs/capstone/01-architecture.md`, `02-models.md`, `03-conventions.md`, `04-data-flow.md`, `06-testing.md`, `07-operations.md`, `08-glossary.md` — five-crate workspace with a one-way dependency direction and `arda-render` barred from depending on `arda-gen`. The defining decision is §Q4: cross-platform bit-exact determinism, a one-way door binding every later stage to integer/fixed-point sim arithmetic and a counter-based PRNG keyed `(seed, tier, stage, coords, attempt)`. Rejected: same-binary-only determinism, statistical-only determinism, FlatBuffers/Cap'n Proto/Arrow, SQLite, a plugin architecture. Risks logged R1–R4, with spikes S1 (tectonics plausibility) and S2 (WFC convergence) gating build-order steps 4 and 6.
+
+## 2026-08-25 — design: skipped
+key: design/all@skipped
+
+- No `docs/capstone/design/` written. The product has no human-facing UI — surfaces are `[api, cli]` — so the stage was formalized as `skipped: no-ui` rather than producing empty chapters. Revisit only if a UI surface is added.
+
+## 2026-08-25 — logic: all@Q16
+key: logic/all@Q16
+
+- `docs/capstone/logic/01-continent-generation.md` … `06-society-generation.md` — six scenarios pinned trigger by trigger: continent (plates, coupled tectonics, coast, climate, hydrology, human geography, naming, validation with ≤5 subseeded rerolls, tile bundles), area, block (WFC ≤8 retries then a marked relaxed fill), export, load-query, and society. The load-bearing invariant across all six: a tile bundle depends on coarse data and the seed only, never on any area's fine output, which is what lets areas generate in any order. Society was added after the other five, which is why the interview's scenario checklist needed today's catch-up.
+
+## 2026-08-25 — mockup: all@Q22
+key: mockup/all@Q22
+
+- `docs/capstone/mockup-artifact.md` plus `docs/capstone/mockup/01-generate.md` … `06-serve.md` — the product defined across six surfaces: the `generate` batch, the world directory layout, `export`, the crate API, docker, and (added at the build gate) `serve`. Scope decisions recorded: offline batch preparation only, no runtime or streaming API in v1, worlds disposable and regenerable from a seed, and ~61 GB at the default continent size accepted.

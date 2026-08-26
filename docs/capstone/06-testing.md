@@ -1,8 +1,8 @@
 ---
 mode: prescriptive
-generated_date: 2026-08-24
+generated_date: 2026-08-26
 paths_covered: ["crates/*/src/**", "crates/*/tests/**", "tests/**"]
-generated_at_commit: 8d3c9d9
+generated_at_commit: 9c48e00
 ---
 
 > Prescriptive — written from the design interview, not from code.
@@ -30,6 +30,13 @@ Effectively none: stages are pure functions over value inputs (`04-data-flow.md`
 - **`crates/arda-gen/benches/area_erosion.rs`** enforces the erosion budget: both passes must finish within 30 s per 512×512 tile in release. Measured 2.17 s.
 - `[profile.test] opt-level = 2` — unoptimised sim code made the suite roughly eight times slower and dominated CI wall-clock.
 - **The statistical validation suite still does not exist.** No Horton, Hack, rank-size, sinuosity, or farmland gate is implemented (step 12). Until it does, the erosion constants are calibrated only against the artifact's two stated equilibrium anchors, not against network statistics.
+
+## Observed — continent climate and hydrology (2026-08-26, feature 02)
+
+- **194 tests** pass across the workspace. New: `crates/arda-gen/tests/continent_hydrology.rs` — the tier's five structural invariants on the real MICRO continent (every land 1 km cell reaches ocean without cycles; catchment and discharge monotone downstream; courses connected and descending on the routing surface with `feeds` acyclic; sea cells zeroed; stage determinism plus the golden byte gate) — and codec refusal/round-trip suites in `arda-core` covering crafted-header overflow, the exact `usize` wrap window (dims 238,795,480 × 4,291,618,565), dims past `i32::MAX`, and both older- and newer-major manifest refusal.
+- **`crates/arda-gen/tests/continent_measures.rs`** holds the `#[ignore]`d R8 probes (rainfall land-mean / windward-leeward, Horton): measured, never gated — recorded in the feature's spike report. Statistical gates remain step 12.
+- **`crates/arda-gen/benches/continent_stage.rs`** gates the full continent stage at 60 s release for the default 500×1000 km world (criterion group on MICRO, loud assert on default), mirroring `area_erosion.rs`.
+- The golden fixture was re-blessed **once** for `FORMAT_VERSION` 3 (feature 02 §Q6 sign-off): only `world.json`, `continent/overview.bin`, and the new `continent/objects.bin` hashes changed; zero area or block drift.
 
 ### Coverage-shape finding, and how it was closed
 

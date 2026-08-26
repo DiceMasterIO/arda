@@ -1,8 +1,8 @@
 ---
 mode: prescriptive
-generated_date: 2026-08-25
+generated_date: 2026-08-26
 paths_covered: ["crates/arda-gen/**", "crates/arda-render/**", "crates/arda-cli/**"]
-generated_at_commit: 8d3c9d9
+generated_at_commit: 9c48e00
 ---
 
 > Prescriptive — written from the design interview, not from code.
@@ -30,6 +30,19 @@ climate, vegetation, settlement, land use, and roads remain unbuilt
 - **Routing** is D8 by steepest *descent* (drop ÷ distance, compared by integer cross-multiplication), not steepest drop. `water` takes the `TileBundle` so boundary cells route against the neighbouring tile's real heights; a cell whose best descent leaves the tile becomes an **outlet**. Per the artifact the tree is rooted at "the sea and the low edges", so a rim cell with no downhill neighbour is an outlet rather than a sink.
 - Both erosion passes hold the pinned rim fixed and ramp their amplitude to zero over 32 cells approaching it, so the frozen edge does not leave a lip. Within that band the repose-angle rule is deliberately not enforced.
 - **Cross-tile inflow does not exist.** `logic/01` step 10's entering rivers still have no producer, so each tile drains independently and no river spans tiles. Outflow works; inflow waits on the continent drainage tree.
+
+## Observed — continent climate and hydrology (2026-08-26, feature 02)
+
+The continent stage now runs
+`plates → tectonics → coast → upsample → erode → climate → hydrology → rivers`,
+and the orchestrator persists `continent/overview.bin` (real 18 B/cell
+records) and `continent/objects.bin` (rivers) **before** the manifest,
+which stays last as the completion stamp — an interrupt still leaves no
+consumable partial world.
+
+- Climate and hydrology are pure functions (`continent::climate::climate`, `continent::hydrology::{hydrology, extract_rivers}`) over the accepted `ContinentGrid`; the orchestrator computes them after the area fan-out, at the write site. **Seam note for feature 03:** `generate_world` computes and then discards these structs after persisting — the area path does not receive them yet, so 03 must either thread them through or re-derive per world (one extra stage run).
+- The continent drainage tree exists (`ContinentHydrology`: routing surface, downstream tree, catchment km², discharge L/s) but **cross-tile inflow still does not** — `TileBundle` is untouched by design (feature 02 §Q1); rivers still stop at tile seams until feature 03 consumes the tree.
+- `Cell.rainfall` (area tier) still has no producer; continent rainfall exists per 1 km cell and awaits the 03 handoff.
 
 ## State
 

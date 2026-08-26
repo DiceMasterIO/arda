@@ -1,8 +1,9 @@
 ---
-generated_date: 2026-08-24
+generated_date: 2026-08-26
 scenarios: [batch-generate, inspect-volume]
 implements: [Q8, Q11, Q17, Q22]
-generated_at_commit: 8d3c9d9
+generated_at_commit: 9c48e00
+absorbed_from: features/02-continent-climate-hydrology@2026-08-26
 ---
 
 # 02 — The world directory (output volume)
@@ -19,8 +20,8 @@ are assumed; the three-tier content split is interview-backed.
 worlds/w42/
 ├── world.json            # manifest: seed, config, arda version, stats
 ├── continent/
-│   ├── overview.bin      # coarse continent grid: relief, climate, regions
-│   └── objects.bin       # inter-area rivers, region boundaries, road exits
+│   ├── overview.bin      # 1 km grid, real since format 3: relief, climate, drainage (18 B/cell)
+│   └── objects.bin       # inter-area rivers (real since format 3); region boundaries, road exits pending
 ├── areas/
 │   └── <ax>_<ay>/        # one per 51.2 km tile, e.g. 03_11/
 │       ├── cells.bin     # 512×512 × per-cell properties (§Q11 list)
