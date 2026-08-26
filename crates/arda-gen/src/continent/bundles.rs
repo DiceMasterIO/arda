@@ -531,8 +531,133 @@ mod tests {
             for e in bundle_for(42, &ctx, area).entering {
                 assert!(e.catchment_km2 >= 3);
                 assert!(e.discharge.raw() > 0);
-                assert_eq!(e.order, entering_order(e.catchment_km2));
+                // Not `e.order == entering_order(e.catchment_km2)`: that
+                // identity only holds for unmerged seeds. Merged seeds
+                // (see `merged_seeds_take_the_max_order_not_the_summed_order`)
+                // legitimately take the max per-edge order, which is not
+                // `entering_order` of the summed catchment.
+                assert!(e.order >= 1 && e.order <= 12);
             }
+        }
+    }
+
+    #[test]
+    fn merged_seeds_take_the_max_order_not_the_summed_order() {
+        // Feature 03 §Q3: crossings sharing a seed cell sum catchment and
+        // discharge but take the MAX per-edge order over the contributing
+        // edges — `entering_order` is not additive, so `entering_order(sum)`
+        // would be a different (wrong) rule: e.g. two 8 km² edges merging to
+        // catchment 16 give max(order(8), order(8)) = max(1,1) = 1, but
+        // entering_order(16) = 2.
+        //
+        // MICRO seed 42 has exactly one multi-contributor seed cell, on
+        // tile (0,2). Find it the same way
+        // `tile_entries_match_an_independent_crossing_sum` finds its
+        // crossings: reimplement the crossing/window/tie-break rule
+        // independently of `entering_rivers`, grouped by seed cell, rather
+        // than hardcoding a cell coordinate — so this keeps working if the
+        // fixture's exact numbers drift (§Q9(a): the crossing set is a pure
+        // function of shared continent data).
+        //
+        // NB: at today's fixture, the merge site's two contributors are
+        // 207 km² (order 4) and 148 km² (order 3): max(4,3) = 4, and that
+        // *coincidentally* equals entering_order(355) = 4 too — both land
+        // in the same floor-log bucket. So this test cannot, by itself,
+        // distinguish the max-of-parts rule from the wrong sum-then-order
+        // rule by value alone; it pins the max-of-parts computation
+        // directly against independently re-derived per-edge orders
+        // instead, which is correct regardless of that coincidence.
+        let ctx = fixture_ctx();
+        let area = AreaCoord::new(0, 2);
+        let bundle = bundle_for(42, &ctx, area);
+
+        let (w, h) = (ctx.grid.width(), ctx.grid.height());
+        let n = i64::from(AREA_CELLS);
+        let (x0, y0) = (i64::from(area.x) * n, i64::from(area.y) * n);
+        let (x1, y1) = (x0 + n, y0 + n);
+        let mut groups: std::collections::BTreeMap<(u16, u16), Vec<u32>> =
+            std::collections::BTreeMap::new();
+        for ky in 0..h {
+            for kx in 0..w {
+                let i = usize::try_from(ky * w + kx).unwrap();
+                let c_km2 = ctx.hydrology.catchment_km2[i];
+                if c_km2 < 3 {
+                    continue;
+                }
+                let Some(d) = ctx.hydrology.downstream[i] else {
+                    continue;
+                };
+                let di = i64::from(d);
+                let (dkx, dky) = (di % i64::from(w), di / i64::from(w));
+                let (ocx, ocy) = (i64::from(kx) * 10 + 5, i64::from(ky) * 10 + 5);
+                let (dcx, dcy) = (dkx * 10 + 5, dky * 10 + 5);
+                if !(dcx > x0 && dcx < x1 && dcy > y0 && dcy < y1) {
+                    continue; // downstream center not strictly inside
+                }
+                let (win0, base, fixed_x, fixed_y) = if ocy < y0 && dcy > y0 {
+                    (dkx * 10, x0, None, Some(0i64))
+                } else if ocy > y1 && dcy < y1 {
+                    (dkx * 10, x0, None, Some(n - 1))
+                } else if ocx < x0 && dcx > x0 {
+                    (dky * 10, y0, Some(0i64), None)
+                } else if ocx > x1 && dcx < x1 {
+                    (dky * 10, y0, Some(n - 1), None)
+                } else {
+                    continue; // interior edge
+                };
+                let lo = (win0 - base).clamp(0, n - 1);
+                let hi = (win0 + 10 - base).clamp(0, n);
+                let mut best: Option<(i32, i64)> = None;
+                for j in lo..hi {
+                    let (lx, ly) = (fixed_x.unwrap_or(j), fixed_y.unwrap_or(j));
+                    let (ax, ay) = abs_cell(
+                        area,
+                        u16::try_from(lx).unwrap_or(0),
+                        u16::try_from(ly).unwrap_or(0),
+                    );
+                    let hgt = boundary_height(42, &ctx.grid, ax, ay);
+                    if hgt <= 0 {
+                        continue; // sea cell cannot seed
+                    }
+                    if best.is_none_or(|(bh, _)| hgt < bh) {
+                        best = Some((hgt, j));
+                    }
+                }
+                let Some((_, j)) = best else {
+                    continue; // all-sea window
+                };
+                let (lx, ly) = (fixed_x.unwrap_or(j), fixed_y.unwrap_or(j));
+                let (Ok(cx), Ok(cy)) = (u16::try_from(lx), u16::try_from(ly)) else {
+                    continue;
+                };
+                groups.entry((cx, cy)).or_default().push(c_km2);
+            }
+        }
+
+        let merged: Vec<_> = groups.into_iter().filter(|(_, v)| v.len() >= 2).collect();
+        assert!(
+            !merged.is_empty(),
+            "no multi-contributor seed found on tile (0,2); if the fixture \
+             changed, find the new merge site rather than deleting this test"
+        );
+        for ((cx, cy), parts) in merged {
+            let cell = CellCoord::new(cx, cy).unwrap();
+            let want_catchment: u32 = parts.iter().sum();
+            let want_order = parts.iter().map(|&c| entering_order(c)).max().unwrap();
+            let got = bundle
+                .entering
+                .iter()
+                .find(|e| e.cell == cell)
+                .unwrap_or_else(|| panic!("bundle has no entry at merged seed {cell:?}"));
+            assert_eq!(
+                got.catchment_km2, want_catchment,
+                "catchment must sum every contributing edge at {cell:?}"
+            );
+            assert_eq!(
+                got.order, want_order,
+                "order at {cell:?} must be max(per-edge order), never \
+                 entering_order(summed catchment)"
+            );
         }
     }
 }
