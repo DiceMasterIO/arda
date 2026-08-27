@@ -260,21 +260,50 @@ fn near_rim(c: CellCoord) -> bool {
 /// (`fill::tests::basins_are_disjoint`) — stay disjoint here too: a
 /// subset of a disjoint set is still disjoint. No cross-basin claiming is
 /// needed to keep a cell out of two `Lake`s.
+///
+/// Outlets are computed in a second pass, after every basin's clamp,
+/// trim, and threshold filter has run (feature 03 §Q5, round-2 review
+/// fix): [`recompute_outlet`] needs to know the FINAL surviving lake set
+/// tile-wide, not just this one basin's own before/after, so it cannot
+/// run until every basin here has already been decided.
 fn collect_lakes(heights: &[i32], filled: &Filled, bundle: &TileBundle) -> Vec<Lake> {
-    filled
+    // Pass 1: clamp, trim, and threshold-filter every basin. Outlets wait
+    // for pass 2 — computing one here could only consult this basin's own
+    // surviving cells, not the tile's final lake set.
+    let survivors: Vec<(i32, u32, Vec<CellCoord>)> = filled
         .basins
         .iter()
-        .filter_map(|b| clamp_and_trim(b, filled, heights, bundle))
-        .filter(|(_, depth_mm, cells, _)| {
+        .filter_map(|b| clamp_and_trim(b, heights, bundle))
+        .filter(|(_, depth_mm, cells)| {
             cells.len() >= LAKE_MIN_CELLS && *depth_mm >= LAKE_MIN_DEPTH_MM
         })
+        .collect();
+
+    // Every cell belonging to a basin that survived pass 1 — the tile's
+    // final lake membership. A basin the threshold dropped is not a lake,
+    // so its cells are dry for this purpose; that is the only coherent
+    // definition once the filter has run.
+    let mut submerged = vec![false; (N * N) as usize];
+    for (_, _, cells) in &survivors {
+        for c in cells {
+            submerged[c.index()] = true;
+        }
+    }
+
+    // Pass 2: now that final membership is settled tile-wide, each
+    // surviving lake's outlet can be judged against it.
+    survivors
+        .into_iter()
         .enumerate()
-        .map(|(i, (surface_mm, depth_mm, cells, outlet))| Lake {
-            id: u16::try_from(i + 1).unwrap_or(u16::MAX),
-            surface: HeightMm::new(surface_mm),
-            depth_mm,
-            outlet,
-            cells,
+        .map(|(i, (surface_mm, depth_mm, cells))| {
+            let outlet = recompute_outlet(&cells, &submerged, filled);
+            Lake {
+                id: u16::try_from(i + 1).unwrap_or(u16::MAX),
+                surface: HeightMm::new(surface_mm),
+                depth_mm,
+                outlet,
+                cells,
+            }
         })
         .collect()
 }
@@ -327,8 +356,8 @@ fn clamp_near_rim(b: &Basin, heights: &[i32], bundle: &TileBundle) -> (i32, u32)
     (surface_mm, depth_mm)
 }
 
-/// A basin's cells, surface, depth, and outlet once cells the shared
-/// surface leaves dry are trimmed out (feature 03 §Q5).
+/// A basin's cells, surface, and depth once cells the shared surface
+/// leaves dry are trimmed out (feature 03 §Q5).
 ///
 /// `clamp_near_rim` alone can move a near-rim basin's surface DOWN — even
 /// below the basin's own floor — so a cell `fill::fill` recorded as
@@ -340,21 +369,21 @@ fn clamp_near_rim(b: &Basin, heights: &[i32], bundle: &TileBundle) -> (i32, u32)
 /// Returns `None` when every cell is trimmed: a basin with no submerged
 /// cell left is not a lake.
 ///
-/// Round-1 review fix: the outlet moves in step with the surface and
-/// membership. `b.outlet` was `fill::spill_cell`'s answer for the
-/// ORIGINAL, untrimmed cell set at the ORIGINAL, unclamped surface; once
-/// either changes, that cell can end up non-adjacent to the surviving
-/// cells, or even one of them, or simply sitting at the wrong height
-/// relative to the newly recorded surface. Kept unchanged only when
-/// neither the surface nor the cell set moved (the common case — most
-/// basins are interior and pass through `clamp_near_rim` untouched);
-/// recomputed via [`recompute_outlet`] otherwise.
+/// Round-2 review fix: outlet computation does not happen here any more.
+/// It used to (round-1's fix recomputed it per-basin, in step with the
+/// surface and membership this function already tracks), but a per-basin
+/// outlet can only ever consult `fill::fill`'s pre-clamp snapshot for
+/// "is this candidate still submerged in some OTHER basin" — and that
+/// snapshot goes stale the moment a sibling basin is itself clamped and
+/// trimmed (see [`recompute_outlet`]'s doc for the failure this allowed).
+/// The outlet now waits for a second pass over every basin's surviving
+/// cells, run once by [`collect_lakes`] after this function has decided
+/// every basin's fate.
 fn clamp_and_trim(
     b: &Basin,
-    filled: &Filled,
     heights: &[i32],
     bundle: &TileBundle,
-) -> Option<(i32, u32, Vec<CellCoord>, Option<CellCoord>)> {
+) -> Option<(i32, u32, Vec<CellCoord>)> {
     let (surface_mm, _) = clamp_near_rim(b, heights, bundle);
     // feature 03 §Q5: the shared surface governs; a cell above it is not
     // submerged, so it leaves the lake. Trim only — never flood (see the
@@ -367,40 +396,45 @@ fn clamp_and_trim(
         .collect();
     let floor = cells.iter().map(|c| heights[c.index()]).min()?;
     let depth_mm = u32::try_from(surface_mm.saturating_sub(floor)).unwrap_or(0);
-    let outlet = if surface_mm == b.surface_mm && cells.len() == b.cells.len() {
-        b.outlet
-    } else {
-        recompute_outlet(b, &cells, filled, heights)
-    };
-    Some((surface_mm, depth_mm, cells, outlet))
+    Some((surface_mm, depth_mm, cells))
 }
 
-/// A trimmed basin's outlet: the lowest cell adjacent to the surviving
-/// `cells` that is not itself one of them (round-1 review fix).
+/// A lake's outlet: the lowest cell 8-adjacent to `cells` that belongs to
+/// no SURVIVING lake — this one or any other (feature 03 §Q5, round-2
+/// review fix).
 ///
-/// Mirrors [`fill::spill_cell`]'s rule — lowest dry neighbour, ties to the
-/// smaller [`CellCoord`] — over the SURVIVING cell set rather than
-/// `fill::fill`'s original one, since that is what changed. Reimplemented
-/// rather than called directly: `spill_cell` takes the whole-tile `surface`
-/// array private to [`Filled`] and judges "still submerged" against the
-/// ORIGINAL per-basin fill, which would wrongly reject a cell this same
-/// trim just released (it is still raised in that stale array, even though
-/// it now sits at or above the clamped surface `clamp_and_trim` recorded).
-/// That exception is narrow: a neighbour is accepted as dry either because
-/// it was never part of THIS basin's raised ground (checked against
-/// `filled`, exactly as `spill_cell` checks it, so a neighbour still
-/// genuinely underwater in some OTHER basin is still excluded), or because
-/// it WAS this basin's own raised ground and the trim just released it.
+/// Mirrors [`fill::spill_cell`]'s rule exactly — lowest neighbour keyed by
+/// the routing surface `filled.get`, ties to the smaller [`CellCoord`] —
+/// so behaviour is unchanged for a basin that was never clamped (its
+/// candidates are all either plain dry ground, where `filled.get` equals
+/// raw height, or `spill_cell`'s own original answer). What changed is
+/// what "belongs to no surviving lake" is judged against: `submerged`, a
+/// tile-wide grid [`collect_lakes`] builds from the FINAL lake set — every
+/// basin's clamp, trim, and `LAKE_MIN_CELLS`/`LAKE_MIN_DEPTH_MM` filter
+/// already applied — rather than `fill::fill`'s pre-clamp snapshot.
 ///
-/// Returns `None` when the surviving cells have no non-member neighbour at
-/// all (only possible for a basin occupying its tile in full, which
-/// `LAKE_MIN_CELLS` makes vanishingly unlikely in practice).
-fn recompute_outlet(
-    basin: &Basin,
-    cells: &[CellCoord],
-    filled: &Filled,
-    heights: &[i32],
-) -> Option<CellCoord> {
+/// Round-1's fix reimplemented `spill_cell` per basin, over that basin's
+/// own surviving cells, but still consulted `fill::fill`'s pre-clamp
+/// `Filled` to decide whether a candidate belonged to some OTHER basin.
+/// That snapshot is built once, before any basin is clamped, and is never
+/// updated as siblings are trimmed. Basin *membership* comes from a
+/// 4-connected flood (`fill::find_basins`), but this search — like
+/// `fill::fill`'s own flood and `spill_cell` — is 8-connected
+/// (`fill::NEIGHBOURS`), so two basins can be diagonally adjacent without
+/// ever merging into one. A cell released by ONE basin's trim can sit
+/// diagonally against a surviving cell of a DIFFERENT, also-near-rim
+/// basin; the stale snapshot still shows it raised at that other basin's
+/// pre-clamp spill, so round-1's per-basin check wrongly turned it away —
+/// yielding an outlet that was too high, or `None` when a valid, lower
+/// outlet existed. Judging every candidate against one final `submerged`
+/// grid, built only after every basin's fate is settled, removes the
+/// staleness: a cell no longer needs a special "was this MY basin's own
+/// raised ground" exception, because a basin's own trimmed-away cells are
+/// — correctly, uniformly — not `submerged` either.
+///
+/// Returns `None` when every 8-neighbour of `cells` either belongs to a
+/// surviving lake or falls off the tile.
+fn recompute_outlet(cells: &[CellCoord], submerged: &[bool], filled: &Filled) -> Option<CellCoord> {
     let mut best: Option<(i32, CellCoord)> = None;
     for c in cells {
         let (x, y) = (i32::from(c.x()), i32::from(c.y()));
@@ -408,14 +442,10 @@ fn recompute_outlet(
             let Some(nb) = coord(x + dx, y + dy) else {
                 continue;
             };
-            if cells.binary_search(&nb).is_ok() {
-                continue; // still a member of the surviving lake
+            if submerged[nb.index()] {
+                continue; // belongs to a surviving lake -- this one or another
             }
-            let was_this_basin = basin.cells.binary_search(&nb).is_ok();
-            if !was_this_basin && filled.get(nb) > heights[nb.index()] {
-                continue; // raised by a genuinely different basin
-            }
-            let h = heights[nb.index()];
+            let h = filled.get(nb);
             if best.is_none_or(|(bh, bc)| h < bh || (h == bh && nb < bc)) {
                 best = Some((h, nb));
             }
@@ -924,8 +954,8 @@ mod tests {
             "basin shape drifted from the pinned survey; task-5-report.md needs a re-run"
         );
 
-        let (surface_mm, depth_mm, cells, outlet) = clamp_and_trim(basin, &filled, &heights, &b)
-            .expect("the clamp does not empty this basin");
+        let (surface_mm, depth_mm, cells) =
+            clamp_and_trim(basin, &heights, &b).expect("the clamp does not empty this basin");
         assert!(
             surface_mm < basin.surface_mm,
             "this case is meant to pin a DOWN clamp"
@@ -947,10 +977,23 @@ mod tests {
             }
         }
 
-        // Round-1 review fix: the outlet must move with the trim rather
-        // than stay pinned at `fill::fill`'s pre-clamp answer, which here
-        // is one of the 15 cells the trim just released (so `b.outlet`
-        // itself would fail the very assertion below if reused unchanged).
+        // Round-2 review fix: the outlet now comes from a second pass over
+        // the tile's final lake set (`collect_lakes`), not from
+        // `clamp_and_trim` itself. Mirror that pass here for this single
+        // basin: a `submerged` grid marking exactly its surviving `cells`,
+        // as `collect_lakes` would build if this were the tile's only
+        // lake.
+        let mut submerged = vec![false; (N * N) as usize];
+        for &c in &cells {
+            submerged[c.index()] = true;
+        }
+        let outlet = recompute_outlet(&cells, &submerged, &filled);
+
+        // Round-1 review fix, still true under round-2's reshuffle: the
+        // outlet must move with the trim rather than stay pinned at
+        // `fill::fill`'s pre-clamp answer, which here is one of the 15
+        // cells the trim just released (so `b.outlet` itself would fail
+        // the very assertion below if reused unchanged).
         let out = outlet.expect(
             "a basin the trim leaves with 35 surviving cells must still have a valid outlet",
         );
@@ -995,10 +1038,184 @@ mod tests {
         );
 
         assert_eq!(
-            clamp_and_trim(basin, &filled, &heights, &b),
+            clamp_and_trim(basin, &heights, &b),
             None,
             "every cell in this basin sits at or above the clamped surface, so trimming \
              must empty it and the basin must not become a lake"
         );
+    }
+
+    /// Heights used only by
+    /// `diagonally_adjacent_basins_do_not_exclude_each_others_released_cells`
+    /// below.
+    const DIAG_LOW_MM: i32 = 3_000;
+    const DIAG_HIGH_MM: i32 = 9_000;
+    const DIAG_CLAMP_MM: i32 = 5_500;
+
+    /// Hand-built `heights` for the diagonal-neighbour regression test
+    /// below (feature 03 §Q5, round-2 review fix): dry everywhere except
+    /// two near-rim basins, X and Y, positioned so exactly one cell of
+    /// each is an 8-neighbour of the other while neither basin is
+    /// 4-adjacent to the other at all — the shape `fill::find_basins`'
+    /// 4-connected grouping and the outlet search's 8-connected
+    /// (`fill::NEIGHBOURS`) search disagree on. Wall cells use the same
+    /// non-flat ramp as `cross_tile.rs`'s `walled_pit` (`WALL_BASE +`
+    /// chebyshev distance to the nearest edge `* WALL_STEP`), so
+    /// `fill::fill`'s priority-flood can never raise one above its own
+    /// height, keeping X and Y the only two basins the fixture produces.
+    ///
+    /// Each basin is a "sacrificial tail plus surviving body," not a
+    /// single flat rectangle: the tail is the only part that needs to
+    /// touch `near_rim` (so `clamp_near_rim` applies to the whole basin)
+    /// and is deliberately the part the clamp trims away, so the
+    /// SURVIVING body never sits within one cell of the tile's literal
+    /// edge — the actual rim column/row is a flat, unbeatable
+    /// `WALL_BASE` floor (`fill::fill` seeds it directly, never raised),
+    /// which would otherwise always out-price whatever this test wants to
+    /// compare it against.
+    ///
+    /// X: columns 1..=2 (the sacrificial, near-rim tail) plus column 3
+    /// (the surviving body), rows 2..=151 — 450 cells, all `DIAG_HIGH_MM`
+    /// on the tail and `DIAG_LOW_MM` on the body.
+    ///
+    /// Y: a single cell at (4, 152) — diagonally adjacent to X's (3, 151)
+    /// (dx=1, dy=1) and 4-adjacent to nothing in X — plus columns 1..=3
+    /// (sacrificial tail) and column 4 (surviving body) for rows
+    /// 153..=302 — 601 cells total, same height split as X.
+    ///
+    /// A flat `filled_km` clamp at `DIAG_CLAMP_MM`, between `DIAG_LOW_MM`
+    /// and `DIAG_HIGH_MM`, trims every tail cell from both basins,
+    /// including Y's lone (4, 152) — releasing it back to dry land
+    /// immediately next to X's surviving (3, 151).
+    fn diagonal_neighbour_pits() -> Vec<i32> {
+        const WALL_BASE: i32 = 10_000;
+        const WALL_STEP: i32 = 100;
+        let mut heights = vec![0i32; usize::try_from(N * N).unwrap_or(0)];
+        for y in 0..N {
+            for x in 0..N {
+                let dist = x.min(y).min(N - 1 - x).min(N - 1 - y);
+                let i = usize::try_from(y * N + x).unwrap_or(0);
+                heights[i] = WALL_BASE + dist * WALL_STEP;
+            }
+        }
+        let mut set = |x: i32, y: i32, h: i32| {
+            let i = usize::try_from(y * N + x).unwrap_or(0);
+            heights[i] = h;
+        };
+        for y in 2..=151 {
+            set(1, y, DIAG_HIGH_MM);
+            set(2, y, DIAG_HIGH_MM);
+            set(3, y, DIAG_LOW_MM);
+        }
+        set(4, 152, DIAG_HIGH_MM);
+        for y in 153..=302 {
+            set(1, y, DIAG_HIGH_MM);
+            set(2, y, DIAG_HIGH_MM);
+            set(3, y, DIAG_HIGH_MM);
+            set(4, y, DIAG_LOW_MM);
+        }
+        heights
+    }
+
+    #[test]
+    fn diagonally_adjacent_basins_do_not_exclude_each_others_released_cells() {
+        // Feature 03 §Q5, round-2 review fix (the gap round-1 left open):
+        // `recompute_outlet` judged "is this candidate still submerged in
+        // some OTHER basin" against `fill::fill`'s pre-clamp snapshot,
+        // which is built once and never updated as sibling basins are
+        // themselves clamped and trimmed. Basin membership comes from a
+        // 4-connected flood (`fill::find_basins`) while the outlet search
+        // is 8-connected (`fill::NEIGHBOURS`), so two basins can be
+        // diagonally adjacent without ever merging — exactly the shape
+        // `diagonal_neighbour_pits` builds: two near-rim basins, X and Y,
+        // touching at exactly one diagonal pair of cells and nowhere
+        // else, both down-clamped and trimmed by the same flat
+        // `filled_km` surface.
+        let ctx = fixture_ctx();
+        let mut b = bundle_for(SEAM_LAKE_SEED, &ctx, AreaCoord::new(0, 1));
+        b.filled_km = vec![DIAG_CLAMP_MM; PATCH_KM * PATCH_KM];
+
+        let heights = diagonal_neighbour_pits();
+        let filled = fill::fill(&heights, &b);
+        let lakes = collect_lakes(&heights, &filled, &b);
+
+        let x_tail = coord(1, 100).unwrap();
+        let x_touch = coord(3, 151).unwrap();
+        let y_touch = coord(4, 152).unwrap(); // trimmed away from Y
+        let y_tail = coord(1, 200).unwrap();
+        let y_body = coord(4, 200).unwrap();
+
+        assert_eq!((i32::from(x_touch.x()) - i32::from(y_touch.x())).abs(), 1);
+        assert_eq!((i32::from(x_touch.y()) - i32::from(y_touch.y())).abs(), 1);
+
+        assert_eq!(lakes.len(), 2, "expected exactly the two synthetic lakes");
+        let x_lake = lakes
+            .iter()
+            .find(|l| l.cells.contains(&x_touch))
+            .expect("basin X must survive the clamp as a lake");
+        let y_lake = lakes
+            .iter()
+            .find(|l| l.cells.contains(&y_body))
+            .expect("basin Y must survive the clamp as a lake");
+        assert_ne!(
+            x_lake.id, y_lake.id,
+            "X and Y must be reported as distinct lakes"
+        );
+
+        // Both basins actually lost cells to the trim -- "both trimmed",
+        // not just a basin whose surface changed with no cell loss -- and
+        // in particular Y's diagonal tip did.
+        assert!(
+            !x_lake.cells.contains(&x_tail),
+            "X's sacrificial tail cell {x_tail:?} must have been trimmed by the clamp"
+        );
+        assert!(
+            !y_lake.cells.contains(&y_tail),
+            "Y's sacrificial tail cell {y_tail:?} must have been trimmed by the clamp"
+        );
+        assert!(
+            !y_lake.cells.contains(&y_touch),
+            "Y's diagonal tip {y_touch:?} must have been trimmed by the clamp -- it is the \
+             cell the round-2 bug wrongly kept treating as still submerged"
+        );
+
+        // The core mechanism the bug got wrong: `fill::fill`'s pre-clamp
+        // snapshot still shows Y's released tip as submerged (that is
+        // exactly why the old per-basin check excluded it)...
+        assert!(
+            filled.get(y_touch) > heights[y_touch.index()],
+            "fixture drifted: {y_touch:?} must still read as submerged in fill::fill's \
+             pre-clamp snapshot for this to exercise the bug's exact mechanism"
+        );
+        // ...yet it belongs to neither surviving lake, so it is genuinely
+        // free once every basin's fate (not just Y's) is known -- the
+        // fact `recompute_outlet` now judges candidates against.
+        assert!(
+            !x_lake.cells.contains(&y_touch) && !y_lake.cells.contains(&y_touch),
+            "{y_touch:?} must not belong to either surviving lake"
+        );
+
+        // Every surviving lake still has a valid, well-formed outlet: not
+        // one of its own cells, not a cell of the other lake, and `Some`
+        // given the tile's wall ramp always offers a dry neighbour.
+        for (lake, other) in [(x_lake, y_lake), (y_lake, x_lake)] {
+            let out = lake.outlet.unwrap_or_else(|| {
+                panic!(
+                    "lake {} has a dry neighbour available (at least the tile's own wall \
+                     ramp) so its outlet must be Some",
+                    lake.id
+                )
+            });
+            assert!(
+                !lake.cells.contains(&out),
+                "lake {}'s outlet {out:?} must not be one of its own surviving cells",
+                lake.id
+            );
+            assert!(
+                !other.cells.contains(&out),
+                "lake {}'s outlet {out:?} must not be a cell of the other lake",
+                lake.id
+            );
+        }
     }
 }
