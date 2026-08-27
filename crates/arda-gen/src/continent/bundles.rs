@@ -107,7 +107,18 @@ pub struct EnteringRiver {
     pub catchment_km2: u32,
     /// Discharge feeding this entry point, summed the same way.
     pub discharge: DischargeMilli,
-    /// Strahler floor derived from `catchment_km2` ([`entering_order`]).
+    /// Strahler floor for this entry point.
+    ///
+    /// For a single contributing edge this is `entering_order(catchment_km2)`
+    /// (`self.catchment_km2` re-applied to [`entering_order`]). For a
+    /// MERGED seed (two or more continent edges landing on the same cell)
+    /// it is instead the MAX, over the contributing edges, of each edge's
+    /// own `entering_order(its own catchment)` — deliberately NOT
+    /// `entering_order` of the summed `catchment_km2` on this same struct.
+    /// Order continuity must hold edge-by-edge (feature 03 §Q3: "order
+    /// takes the max"), so re-deriving the floor from the total after
+    /// summing would understate it whenever the edges' catchments straddle
+    /// an `entering_order` step differently than their sum does.
     pub order: u8,
 }
 
