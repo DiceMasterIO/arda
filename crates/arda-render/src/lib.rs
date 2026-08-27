@@ -69,6 +69,7 @@ mod tests {
                 area_count: 8,
                 settlement_count: 0,
                 named_river_count: 0,
+                river_count: 0,
             },
         }
     }
