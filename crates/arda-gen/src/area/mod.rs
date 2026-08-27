@@ -403,15 +403,28 @@ fn clamp_and_trim(
 /// no SURVIVING lake — this one or any other (feature 03 §Q5, round-2
 /// review fix).
 ///
-/// Mirrors [`fill::spill_cell`]'s rule exactly — lowest neighbour keyed by
-/// the routing surface `filled.get`, ties to the smaller [`CellCoord`] —
-/// so behaviour is unchanged for a basin that was never clamped (its
-/// candidates are all either plain dry ground, where `filled.get` equals
-/// raw height, or `spill_cell`'s own original answer). What changed is
-/// what "belongs to no surviving lake" is judged against: `submerged`, a
-/// tile-wide grid [`collect_lakes`] builds from the FINAL lake set — every
-/// basin's clamp, trim, and `LAKE_MIN_CELLS`/`LAKE_MIN_DEPTH_MM` filter
-/// already applied — rather than `fill::fill`'s pre-clamp snapshot.
+/// Mirrors the deleted `fill::spill_cell`'s rule — lowest neighbour keyed
+/// by the routing surface `filled.get`, ties to the smaller [`CellCoord`].
+/// That is NOT "unchanged for a basin that was never clamped", even
+/// though it sounds like it should be: `submerged` marks only the FINAL,
+/// POST-THRESHOLD lake set (`LAKE_MIN_CELLS`/`LAKE_MIN_DEPTH_MM` already
+/// applied, see [`collect_lakes`]), while `spill_cell` read `fill::fill`'s
+/// raw per-basin submersion directly, which knows nothing of that filter
+/// and treats a cell as wet the moment ANY basin — however small or
+/// shallow — claims it. A neighbour belonging to a genuine basin that
+/// never cleared the threshold is therefore now a valid outlet candidate,
+/// for every basin and not just a clamped one, where `spill_cell` would
+/// have turned it away as still submerged. That is a correctness
+/// improvement, not a regression to paper over: a basin that misses the
+/// threshold is not in the surviving set, so `compose` persists every one
+/// of its cells as `TerrainKind::Land` (or `Sea`), never `Lake` — treating
+/// it as fair game for an outlet is exactly consistent with what the
+/// world actually stores.
+///
+/// `submerged` itself is also new relative to `spill_cell`: a tile-wide
+/// grid [`collect_lakes`] builds from that same FINAL lake set, rather
+/// than consulting `fill::fill`'s pre-clamp snapshot the way round-1's fix
+/// did — the round-2 fix the rest of this doc comment covers below.
 ///
 /// Round-1's fix reimplemented `spill_cell` per basin, over that basin's
 /// own surviving cells, but still consulted `fill::fill`'s pre-clamp
@@ -874,7 +887,6 @@ mod tests {
             cells: vec![inner_cell, rim_cell],
             surface_mm: 500, // local spill, deliberately far from `flat`
             depth_mm: 400,
-            outlet: None,
         };
         assert_eq!(
             clamp_near_rim(&basin, &heights, &b),
@@ -889,7 +901,6 @@ mod tests {
             cells: vec![coord(200, 200).unwrap()],
             surface_mm: 500,
             depth_mm: 400,
-            outlet: None,
         };
         assert_eq!(clamp_near_rim(&interior, &heights, &b), (500, 400));
     }
@@ -992,8 +1003,10 @@ mod tests {
         // Round-1 review fix, still true under round-2's reshuffle: the
         // outlet must move with the trim rather than stay pinned at
         // `fill::fill`'s pre-clamp answer, which here is one of the 15
-        // cells the trim just released (so `b.outlet` itself would fail
-        // the very assertion below if reused unchanged).
+        // cells the trim just released (the basin's own pre-clamp outlet —
+        // back when `Basin` still carried one, before round-3 deleted the
+        // dead field — would have failed the very assertion below if
+        // reused unchanged).
         let out = outlet.expect(
             "a basin the trim leaves with 35 surviving cells must still have a valid outlet",
         );
