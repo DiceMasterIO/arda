@@ -10,11 +10,11 @@ pub mod fill;
 pub mod relief;
 pub mod water;
 
-use crate::continent::bundles::TileBundle;
+use crate::continent::bundles::{abs_cell, TileBundle, PATCH_KM};
 use crate::continent::Continent;
 use arda_core::{
-    AreaCells, AreaObjects, Cell, CellCoord, Cover, DischargeMilli, HeightMm, Lake, RiverSegment,
-    Terminus, TerrainKind, AREA_CELLS,
+    AreaCells, AreaObjects, Cell, CellCoord, Cover, DischargeMilli, HeightMm, Lake, RainfallMm,
+    RiverSegment, Terminus, TerrainKind, AREA_CELLS,
 };
 use fields::Floodplain;
 use fill::Filled;
@@ -28,20 +28,58 @@ pub const LAKE_MIN_CELLS: usize = 100;
 /// Smallest maximum depth that is recorded as a lake, in millimetres.
 pub const LAKE_MIN_DEPTH_MM: u32 = 2_000;
 
-/// Discharge from catchment, anchored to the artifact's own equivalence:
-/// a watercourse begins at "about 40 litres per second, which in a temperate
-/// climate means roughly three square kilometres of catchment". Three km² is
-/// 300 cells and 40 L/s is 40 thousandth-cumecs, so discharge scales as
-/// `cells * 40 / 300`.
-///
-/// `ponytail:` linear in catchment. The artifact's real rule is rainfall
-/// driven — "the rain that fell upstream, less the roughly half that
-/// evaporates or soaks in" — which needs the climate stage.
-const DISCHARGE_NUM: u32 = 40;
-const DISCHARGE_DEN: u32 = CHANNEL_THRESHOLD_CELLS;
-
 fn coord(x: i32, y: i32) -> Option<CellCoord> {
     CellCoord::new(u16::try_from(x).ok()?, u16::try_from(y).ok()?)
+}
+
+/// Resamples the tile's rainfall patch onto every area cell (feature 03
+/// §Q4): a smoothstep-bilinear resample of the 1 km rainfall grid at
+/// 100 m resolution, mirroring
+/// [`crate::continent::bundles::coarse_height`]'s own interpolation
+/// exactly, but reading the tile's [`TileBundle::rainfall_km`] patch
+/// rather than the continent grid directly.
+#[must_use]
+pub fn area_rainfall(bundle: &TileBundle) -> Vec<u16> {
+    let km0x = (bundle.area.x * 512).div_euclid(10);
+    let km0y = (bundle.area.y * 512).div_euclid(10);
+    let patch = i32::try_from(PATCH_KM).unwrap_or(0);
+
+    // Identical smoothstep weights to `coarse_height`; see there for why
+    // straight bilinear is not used.
+    let smooth = |v: i32| -> i64 {
+        let t = i64::from(v) * 65536 / 10;
+        let t2 = (t * t) >> 16;
+        let t3 = (t2 * t) >> 16;
+        (3 * t2 - 2 * t3).clamp(0, 65536)
+    };
+
+    let mut rain = Vec::with_capacity((N * N) as usize);
+    for y in 0..N {
+        for x in 0..N {
+            let (ax, ay) = abs_cell(
+                bundle.area,
+                u16::try_from(x).unwrap_or(0),
+                u16::try_from(y).unwrap_or(0),
+            );
+            // Patch coordinate of the km cell containing this 100 m cell,
+            // relative to the patch origin `km0` (Task 3), plus its
+            // fractional offset within that km cell.
+            let (kx, ky) = (ax.div_euclid(10) - km0x, ay.div_euclid(10) - km0y);
+            let (fx, fy) = (smooth(ax.rem_euclid(10)), smooth(ay.rem_euclid(10)));
+
+            let at = |dx: i32, dy: i32| -> i64 {
+                let px = usize::try_from((kx + dx).clamp(0, patch - 1)).unwrap_or(0);
+                let py = usize::try_from((ky + dy).clamp(0, patch - 1)).unwrap_or(0);
+                i64::from(bundle.rainfall_km[py * PATCH_KM + px])
+            };
+
+            let top = at(0, 0) + (((at(1, 0) - at(0, 0)) * fx) >> 16);
+            let bottom = at(0, 1) + (((at(1, 1) - at(0, 1)) * fx) >> 16);
+            let v = top + (((bottom - top) * fy) >> 16);
+            rain.push(u16::try_from(v.clamp(0, i64::from(u16::MAX))).unwrap_or(u16::MAX));
+        }
+    }
+    rain
 }
 
 /// Channel width from discharge (artifact, Water).
@@ -75,8 +113,17 @@ fn isqrt(v: i64) -> i64 {
 }
 
 /// Builds the stored cell grid and object lists.
+///
+/// `bundle` is unused today; Task 5's lake clamp reads it, and the
+/// signature grows here rather than a second time then.
 #[must_use]
-pub fn compose(heights: &[i32], filled: &Filled, water: &WaterGrid) -> (AreaCells, AreaObjects) {
+pub fn compose(
+    heights: &[i32],
+    filled: &Filled,
+    water: &WaterGrid,
+    rain: &[u16],
+    _bundle: &TileBundle,
+) -> (AreaCells, AreaObjects) {
     let mut cells = AreaCells::flat(Cell::default());
 
     // Which cells belong to a lake big enough to record.
@@ -109,9 +156,18 @@ pub fn compose(heights: &[i32], filled: &Filled, water: &WaterGrid) -> (AreaCell
             // Non-land cells carry no flow of their own; routing still
             // crosses them so land upstream reaches an outlet.
             let drainage = if land { water.drainage_at(at) } else { 0 };
-            let discharge = DischargeMilli::new(drainage / DISCHARGE_DEN * DISCHARGE_NUM);
+            let discharge = if land {
+                DischargeMilli::new(water.discharge_at(at))
+            } else {
+                DischargeMilli::new(0)
+            };
             let order = if land { water.order_at(at) } else { 0 };
             let hand_mm = if land { hand[at.index()] } else { 0 };
+            let rainfall = if land {
+                RainfallMm::new(rain[at.index()])
+            } else {
+                RainfallMm::new(0)
+            };
 
             let cover = match (terrain, fields::floodplain(hand_mm)) {
                 (TerrainKind::Land, Floodplain::Marsh) if order == 0 => Cover::Marsh,
@@ -127,6 +183,7 @@ pub fn compose(heights: &[i32], filled: &Filled, water: &WaterGrid) -> (AreaCell
                     cover,
                     slope_milli_deg,
                     aspect_deg,
+                    rainfall,
                     drainage_area_cells: drainage,
                     discharge,
                     watercourse_order: order,
@@ -300,8 +357,9 @@ pub fn generate_area(
     erosion::erode(&mut heights, &uplift, bundle);
 
     let filled = fill::fill(&heights, bundle);
-    let w = water::water(&filled, bundle);
-    compose(&heights, &filled, &w)
+    let rain = area_rainfall(bundle);
+    let w = water::water(&filled, bundle, &rain);
+    compose(&heights, &filled, &w, &rain, bundle)
 }
 
 #[cfg(test)]
@@ -400,5 +458,22 @@ mod tests {
             .filter(|&at| c.get(at).slope_milli_deg > 0)
             .count();
         assert!(sloped > 1_000, "only {sloped} cells have a slope");
+    }
+
+    #[test]
+    fn rainfall_is_sampled_onto_every_land_cell() {
+        let (c, _) = world(AreaCoord::new(0, 1));
+        let mut wet = 0;
+        for y in 0..N {
+            for x in 0..N {
+                let Some(at) = coord(x, y) else { continue };
+                let cell = c.get(at);
+                match cell.terrain {
+                    TerrainKind::Land => wet += u32::from(cell.rainfall.raw() > 0),
+                    _ => assert_eq!(cell.rainfall.raw(), 0),
+                }
+            }
+        }
+        assert!(wet > 10_000, "only {wet} land cells got rain");
     }
 }
