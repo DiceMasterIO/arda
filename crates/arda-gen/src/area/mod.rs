@@ -345,8 +345,8 @@ fn collect_lakes(heights: &[i32], filled: &Filled, bundle: &TileBundle) -> Vec<L
 ///
 /// Interior basins (no cell within one cell of the rim) pass through
 /// unchanged: `(b.surface_mm, b.depth_mm)`. A near-rim basin's surface
-/// prefers continent-tier lake identity (feature 02 §Q1, closes
-/// open-items #12 EXACTLY rather than only "materially improving" it): if
+/// prefers continent-tier lake identity (feature 02 §Q1, the mechanism
+/// open-items #12 needs): if
 /// any near-rim cell maps, by NEAREST 1 km cell, onto a continent
 /// depression (`bundle.basin_km` != `NO_BASIN`), the surface is the MAX of
 /// those values. That value is constant across the WHOLE continent
@@ -354,7 +354,16 @@ fn collect_lakes(heights: &[i32], filled: &Filled, bundle: &TileBundle) -> Vec<L
 /// the same depression agree exactly regardless of which cells each
 /// fragment's own contact span happens to cover — the residual
 /// span-dependence a bilinear sample of `filled_km` could not remove
-/// (measured: 723 mm on a synthetic straddling case). The lookup is
+/// (measured: 723 mm on a synthetic straddling case, exactly 0 once both
+/// fragments see one shared depression).
+///
+/// **Two residues, both unobserved and both recorded in `open-items.md`
+/// #12 rather than guarded here.** A fragment whose rim abuts two
+/// *different* depressions takes the max of two constants, which is
+/// span-dependent again if its sibling abuts only one. And no fixture has
+/// yet produced a straddling basin whose cells see a continent depression
+/// at all — 0 in a 4,280 seed/seam sweep — so the exact path is proven on
+/// constructed input, not on natural data. The lookup is
 /// nearest-cell, not bilinear — see [`nearest_km_patch`]'s own doc for
 /// why interpolating a piecewise-constant field would be wrong here.
 ///

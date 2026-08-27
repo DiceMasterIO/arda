@@ -143,10 +143,14 @@ pub fn hydrology(grid: &ContinentGrid, climate: &ContinentClimate) -> ContinentH
 /// — no `HashMap`/`HashSet`, so iteration order can never perturb the
 /// result.
 fn basin_components(heights: &[i32], filled: &[i32], w: i32, h: i32) -> Vec<i32> {
-    // 4-connected: `area::fill::find_basins`'s own NEIGHBOURS list (right,
-    // left, down, up), not this module's 8-directional NEIGHBOURS used
-    // above for downstream direction.
-    const FOUR_NEIGHBOURS: [(i32, i32); 4] = [(1, 0), (-1, 0), (0, 1), (0, -1)];
+    // 8-connected, matching `erode::fill`'s own spillover connectivity —
+    // the surface these components group was produced by that flood, so
+    // grouping it more tightly than it was filled can split one physically
+    // continuous plateau into two constants where two submerged cells meet
+    // only diagonally. Since the whole point of `basin_surface` is that one
+    // depression yields one shared number on both sides of a tile seam, the
+    // looser grouping is the safe direction: it can only merge cells that
+    // `fill` already treated as one water body, never split them.
 
     let count = usize::try_from(w * h).unwrap_or(0);
     let idx = |x: i32, y: i32| usize::try_from(y * w + x).unwrap_or(0);
@@ -170,7 +174,7 @@ fn basin_components(heights: &[i32], filled: &[i32], w: i32, h: i32) -> Vec<i32>
                 let ci = idx(cx, cy);
                 members.push(ci);
                 surface = surface.max(filled[ci]);
-                for (dx, dy) in FOUR_NEIGHBOURS {
+                for (dx, dy) in NEIGHBOURS {
                     let (nx, ny) = (cx + dx, cy + dy);
                     if nx < 0 || ny < 0 || nx >= w || ny >= h {
                         continue;
