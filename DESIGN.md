@@ -15,12 +15,12 @@ persistence at format 3; see `docs/capstone/changelog.md`).
 
 | # | File | Covers | Date |
 |---|---|---|---|
-| 01 | `docs/capstone/01-architecture.md` | Workspace crates, boundaries, entry points, composition | 2026-08-26 |
-| 02 | `docs/capstone/02-models.md` | Entities, binary layers, format_version, validation | 2026-08-24 |
+| 01 | `docs/capstone/01-architecture.md` | Workspace crates, boundaries, entry points, composition | 2026-08-27 |
+| 02 | `docs/capstone/02-models.md` | Entities, binary layers, format_version, validation | 2026-08-27 |
 | 03 | `docs/capstone/03-conventions.md` | Determinism rules, error posture (rest → code-prefs) | 2026-08-24 |
-| 04 | `docs/capstone/04-data-flow.md` | generate/export/load/serve lifecycles, state, failure paths | 2026-08-25 |
+| 04 | `docs/capstone/04-data-flow.md` | generate/export/load/serve lifecycles, state, failure paths | 2026-08-27 |
 | 05 | `docs/capstone/05-dependencies.md` | Chosen stack: picks, floors, licenses | 2026-08-25 |
-| 06 | `docs/capstone/06-testing.md` | Unit + statistical gates + golden worlds | 2026-08-26 |
+| 06 | `docs/capstone/06-testing.md` | Unit + statistical gates + golden worlds | 2026-08-27 |
 | 07 | `docs/capstone/07-operations.md` | CI/CD, releases, docker, serve, dev workflow | 2026-08-25 |
 | 08 | `docs/capstone/08-glossary.md` | Domain vocabulary | 2026-08-24 |
 
@@ -29,10 +29,10 @@ persistence at format 3; see `docs/capstone/changelog.md`).
 | File | What it is | Date |
 |---|---|---|
 | `docs/capstone/mockup-artifact.md` | The traceable product mockup the surface units decompose | 2026-08-24 |
-| `docs/capstone/mockup/` | Product mockup: 6 surface units + README index | 2026-08-26 |
-| `docs/capstone/logic/` | Business logic: 6 scenario files (continent, area, block, export, load-query, society) | 2026-08-26 |
-| `docs/capstone/features/` | Feature chain: 01 area drainage correctness; 02 continent climate + hydrology (implemented 2026-08-26) | 2026-08-26 |
-| `docs/capstone/open-items.md` | Everything known-incomplete: defects, stand-ins, calibration held open | 2026-08-26 |
+| `docs/capstone/mockup/` | Product mockup: 6 surface units + README index | 2026-08-27 |
+| `docs/capstone/logic/` | Business logic: 6 scenario files (continent, area, block, export, load-query, society) | 2026-08-27 |
+| `docs/capstone/features/` | Feature chain: 01, 02, 03 implemented | 2026-08-27 |
+| `docs/capstone/open-items.md` | Everything known-incomplete: defects, stand-ins, calibration held open | 2026-08-27 |
 | `docs/capstone/implementation.md` | Approved build plan: 13 steps, layout, seams; steps 0–3 built | 2026-08-25 |
 | `docs/capstone/code-prefs.md` | Normative code preferences (9 domains) | 2026-08-24 |
 | `docs/capstone/changelog.md` | Append-only ledger of capstone runs | 2026-08-24 |

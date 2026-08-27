@@ -1,9 +1,10 @@
 ---
-generated_date: 2026-08-24
+generated_date: 2026-08-27
 scenario: area-generation
 traces: [Q7, Q8, Q11]
 artifact: ../mockup-artifact.md
-generated_at_commit: 8d3c9d9
+generated_at_commit: 8be0a0a
+absorbed_from: features/03-climate-driven-refinement@2026-08-27
 ---
 
 # 02 — Area generation
@@ -64,3 +65,26 @@ None — creates `areas/<ax>_<ay>/` (cells + objects, `mockup/02-world-layout.md
 
 - Success: `areas/<ax>_<ay>/cells.bin` (every per-cell fact in the artifact's "What the finished map knows") + `objects.bin` (river segments, lakes, named settlements with tier/population/site-tags, roads, crossings, passes). Settlement names use the artifact's site-suffix scheme; region/river names from the continent are honored where objects continue across tiles (§Q8).
 - Failure: none defined beyond process death — inputs were validated upstream; a panic on one tile halts the batch naming the tile (assumed).
+
+## Observed — climate-driven water stage (2026-08-27, feature 03)
+
+The Steps section's two long-standing prescriptions are now actually
+implemented rather than approximated: entering rivers really are "sealed in at
+their edge cells", and the artifact's **40 L/s watercourse threshold** is the
+literal initiation rule. Climate, vegetation, settlement, land use and roads
+remain unbuilt.
+
+- **Rainfall** per cell is a smoothstep-bilinear sample of the bundle's 1 km rainfall patch — no added noise, because rain has no meaningful 100 m texture. Non-land cells store 0.
+- **Discharge** is `Σ(upstream land rainfall) × 125 / 788,400` L/s plus any entering rivers' discharge, both accumulated in u64 down the existing routing tree and converted once per cell. At 800 mm/yr a 300-cell catchment yields ≈38 L/s, so the artifact's own "40 L/s ≈ 3 km² in a temperate climate" equivalence is now *emergent* rather than assumed — and a dry region legitimately produces no channel at all.
+- **Entering rivers** seed their boundary cell with `catchment_km2 × 100` cells of drainage, their discharge, and a Strahler floor of `g(catchment)`. Where the two rules disagree — an arid crossing whose seed carries < 40 L/s — climate-driven initiation wins and the order floor does not propagate: the watercourse genuinely is not a watercourse there.
+- **Seam lakes.** A basin touching the tile rim takes its surface from the shared continent routing surface (the max sample over its rim cells) instead of its local spill, so both sides derive the level from the same data. Membership stays local and is *trimmed* — a cell at or above that surface is not submerged and leaves the lake; a basin trimmed empty is not a lake. Outlets are derived afterwards, from the final lake set, so an outlet never names a cell another lake submerges.
+- **Height above river** stores `u16::MAX` where no watercourse lies below a cell, so such land classifies **Dry**. Before this feature it stored 0 and every channel-less land cell was misclassified as marsh — invisible while channels were near-ubiquitous, wrong the moment initiation became climate-driven.
+
+**Amendment to the Invariants section.** "Edge agreement with all four
+neighbours" now covers entering rivers and the shared climate/routing patches,
+not just edge heights. The straddling-lake case is *improved but not exact*:
+both sides read the same continent surface, but each takes the maximum over
+its own rim cells, so fragments with different contact spans can still differ.
+No natural straddling pair exists in 4,280 surveyed (seed, seam) combinations;
+a synthetic case measures a 723 mm gap. Exact agreement needs continent-tier
+lake identity, which `logic/01` does not yet produce.

@@ -1,8 +1,8 @@
 ---
 mode: prescriptive
-generated_date: 2026-08-26
+generated_date: 2026-08-27
 paths_covered: ["crates/**", "Cargo.toml"]
-generated_at_commit: 9c48e00
+generated_at_commit: 8be0a0a
 ---
 
 > Prescriptive — written from the design interview, not from code.
@@ -31,6 +31,7 @@ worlds only (§Q2).
 - Public surface = the `arda` facade crate; `arda-core`/`-gen`/`-render` are published but semver-internal (0.x, §Q6) — consumers are documented to use `arda` only.
 - Inside `arda-gen`, stage modules mirror the causal pipeline (`continent`, `area::{relief,water,climate,vegetation,settlement,landuse,roads}`, `block`); a stage module may read only prior stages' output types (`logic/02` invariant), enforced by review, not tooling (single-crate interior).
 - World formats live only in `arda-core::formats`; no other crate encodes/decodes bytes.
+- Observed (2026-08-27, feature 03): the continent stage is packaged as a `Continent { grid, climate, hydrology }` context, built once per accepted attempt in `orchestrator.rs` and passed to `bundle_for` and `generate_area` — the computes-and-discards seam feature 02 left is closed. `bundles.rs` gained the step-10 payload derivation (entering rivers from the continent tree, 53×53 climate/routing patches); `area/water.rs` consumes it. No dependency direction changed.
 - Observed (2026-08-26, feature 02): the continent stage grew `continent/{climate,hydrology}.rs` (steps 5–6 of `logic/01`, pure functions, no RNG) and `arda-core` grew `formats::overview` plus continent types in `continent.rs`; `erode.rs`'s `fill`/`accumulate` are `pub(crate)`, reused by hydrology so the tier has one routing rule.
 
 ## Entry points
