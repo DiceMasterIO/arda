@@ -21,6 +21,9 @@ pub struct ValidationStats {
     pub settlement_count: u32,
     /// Named rivers reaching the sea.
     pub named_river_count: u32,
+    /// Continent river objects (unnamed until step 8).
+    #[serde(default)]
+    pub river_count: u32,
 }
 
 /// Everything needed to identify, verify, or regenerate a world.
@@ -122,6 +125,7 @@ mod tests {
                 area_count: 8,
                 settlement_count: 0,
                 named_river_count: 0,
+                river_count: 3,
             },
         }
     }
@@ -145,6 +149,35 @@ mod tests {
             std::fs::read(a.path().join("world.json")).unwrap(),
             std::fs::read(b.path().join("world.json")).unwrap()
         );
+    }
+
+    #[test]
+    fn a_manifest_without_the_river_count_key_parses_as_zero() {
+        // `#[serde(default)]` unhappy path: a same-major world written
+        // before this feature lacks `river_count` on disk and must still
+        // load (`logic/01` step 9), defaulting the count to 0.
+        let dir = TempDir::new();
+        let mut value = serde_json::to_value(sample()).unwrap();
+        let removed = value["stats"]
+            .as_object_mut()
+            .unwrap()
+            .remove("river_count");
+        assert!(
+            removed.is_some(),
+            "sample() should have had the key to remove"
+        );
+        assert!(!value["stats"]
+            .as_object()
+            .unwrap()
+            .contains_key("river_count"));
+        std::fs::write(
+            dir.path().join("world.json"),
+            serde_json::to_vec(&value).unwrap(),
+        )
+        .unwrap();
+
+        let read = read_manifest(dir.path()).unwrap();
+        assert_eq!(read.stats.river_count, 0);
     }
 
     #[test]

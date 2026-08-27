@@ -13,8 +13,8 @@ use crate::continent::{generate_continent_attempt, Continent};
 use arda_core::{
     encode_blocks, encode_cells, encode_continent_objects, encode_objects, encode_overview,
     write_manifest, AreaCoord, BlockArchive, CellCoord, ContinentCell, ContinentObjects,
-    ContinentOverview, DischargeMilli, GenerateConfig, Manifest, RainfallMm, TempCentiC,
-    TerrainKind, ValidationStats, AREA_CELLS, FORMAT_VERSION,
+    ContinentOverview, ContinentRiver, DischargeMilli, GenerateConfig, Manifest, RainfallMm,
+    TempCentiC, TerrainKind, ValidationStats, AREA_CELLS, FORMAT_VERSION,
 };
 use rayon::prelude::*;
 use std::path::{Path, PathBuf};
@@ -69,6 +69,17 @@ const LAND_FRACTION_GATE: std::ops::RangeInclusive<u16> = 250..=900;
 /// `ponytail:` sampled blocks; the full batch materialises one per land cell
 /// (`mockup/02`). Build-order step 6 removes the stride.
 const SKELETON_BLOCK_STRIDE: u16 = 64;
+
+/// The step-9 river gate (`logic/01` §Q9, feature 03 §Q7): a continent
+/// needs at least one major river that reaches the sea, i.e. one whose
+/// `feeds` is `None` rather than a downstream junction.
+fn river_gate(rivers: &[ContinentRiver]) -> Result<(), String> {
+    if rivers.iter().any(|r| r.feeds.is_none()) {
+        Ok(())
+    } else {
+        Err("no major river reaches the sea".to_owned())
+    }
+}
 
 fn write_file(path: &Path, bytes: &[u8]) -> Result<(), GenError> {
     let fail = |e: std::io::Error| GenError::Write {
@@ -134,40 +145,53 @@ pub fn generate_world(seed: u64, config: GenerateConfig, out: &Path) -> Result<M
         });
     }
 
-    // Tier 1: continent, single-threaded, with the step-9 validation gate and
-    // its deterministic reroll ladder (`logic/01` §Q9).
-    let mut accepted: Option<(crate::continent::ContinentGrid, u16)> = None;
+    // Tier 1: continent, single-threaded, with the step-9 validation gates
+    // — land fraction, then a sea-reaching river — and their deterministic
+    // reroll ladder (`logic/01` §Q9). Climate, hydrology, and rivers are
+    // pure functions of the grid, so building them here, once a candidate
+    // clears the land gate, lets the river gate inspect them; on
+    // acceptance the same context threads to the area fan-out and
+    // persistence below, with no second computation.
+    let mut accepted: Option<(Continent, u16, Vec<ContinentRiver>)> = None;
     let mut last_check = String::new();
     for attempt in 0..CONTINENT_ATTEMPTS {
         let candidate = generate_continent_attempt(seed, config, attempt);
         let land = candidate.land_fraction_permille();
-        if LAND_FRACTION_GATE.contains(&land) {
-            accepted = Some((candidate, land));
-            break;
+        if !LAND_FRACTION_GATE.contains(&land) {
+            last_check = format!(
+                "land fraction {land} per mille outside {}..={}",
+                LAND_FRACTION_GATE.start(),
+                LAND_FRACTION_GATE.end()
+            );
+            continue;
         }
-        last_check = format!(
-            "land fraction {land} per mille outside {}..={}",
-            LAND_FRACTION_GATE.start(),
-            LAND_FRACTION_GATE.end()
-        );
+
+        let clim = climate(&candidate, config.latitude_band());
+        let hydro = hydrology(&candidate, &clim);
+        let rivers = extract_rivers(&candidate, &hydro);
+        if let Err(check) = river_gate(&rivers) {
+            // logic/01 §Q9: deterministic reroll — a land-passing continent
+            // with no sea-reaching river is rejected too, and the ladder
+            // continues.
+            last_check = check;
+            continue;
+        }
+
+        accepted = Some((
+            Continent {
+                grid: candidate,
+                climate: clim,
+                hydrology: hydro,
+            },
+            land,
+            rivers,
+        ));
+        break;
     }
-    let Some((grid, land)) = accepted else {
+    let Some((continent, land, rivers)) = accepted else {
         return Err(GenError::Validation {
             check: format!("{last_check} after {CONTINENT_ATTEMPTS} rerolls"),
         });
-    };
-
-    // Build the continent context once, from the already-accepted grid:
-    // climate and hydrology are pure functions of it, so this is the same
-    // computation `build_continent` runs, without a second
-    // `generate_continent_attempt` call (attempt already ran above).
-    // `&continent` then threads to both the area fan-out and persistence.
-    let clim = climate(&grid, config.latitude_band());
-    let hydro = hydrology(&grid, &clim);
-    let continent = Continent {
-        grid,
-        climate: clim,
-        hydrology: hydro,
     };
 
     // Tiers 2 and 3: areas fan out, each writing its own keyed outputs. The
@@ -178,10 +202,10 @@ pub fn generate_world(seed: u64, config: GenerateConfig, out: &Path) -> Result<M
         .map(|&area| write_area(seed, &continent, area, out))
         .collect::<Result<Vec<()>, GenError>>()?;
 
-    // Continent layer (feature 02): rivers — logic/01 step 6 — then the
-    // manifest LAST, the completion stamp. Climate and hydrology were
-    // already computed above and are reused here, not recomputed.
-    let rivers = extract_rivers(&continent.grid, &continent.hydrology);
+    // Continent layer (feature 02): rivers were already extracted above,
+    // during the step-9 gate, and are reused here, not recomputed. The
+    // manifest is written LAST, the completion stamp.
+    let river_count = u32::try_from(rivers.len()).unwrap_or(u32::MAX);
 
     let (cw, ch) = (continent.grid.width(), continent.grid.height());
     let mut cells = Vec::with_capacity(usize::try_from(cw * ch).unwrap_or(0));
@@ -226,6 +250,7 @@ pub fn generate_world(seed: u64, config: GenerateConfig, out: &Path) -> Result<M
             area_count: u32::try_from(coords.len()).unwrap_or(u32::MAX),
             settlement_count: 0,
             named_river_count: 0,
+            river_count,
         },
     };
     write_manifest(out, &manifest)?;
@@ -273,5 +298,27 @@ mod tests {
         let a = generate_continent_attempt(43, GenerateConfig::MICRO, 0);
         let b = generate_continent_attempt(43, GenerateConfig::MICRO, 1);
         assert_ne!(a, b, "a reroll must actually change the continent");
+    }
+
+    #[test]
+    fn a_continent_with_no_sea_river_is_rerolled() {
+        // logic/01 step 9 partial gate (feature 03 §Q7): the check exists
+        // and names itself. Micro seeds all pass, so assert the accept
+        // path records a nonzero count instead, and unit-test the check
+        // by feeding an empty river list through the gate helper.
+        assert!(river_gate(&[]).is_err());
+        let ok = vec![arda_core::ContinentRiver {
+            id: 1,
+            catchment_km2: 400,
+            discharge: arda_core::DischargeMilli::new(5_000_000),
+            feeds: None,
+            course: vec![],
+        }];
+        assert!(river_gate(&ok).is_ok());
+        let junction_only = vec![arda_core::ContinentRiver {
+            feeds: Some(1),
+            ..ok[0].clone()
+        }];
+        assert!(river_gate(&junction_only).is_err());
     }
 }

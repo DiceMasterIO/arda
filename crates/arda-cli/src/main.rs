@@ -117,10 +117,11 @@ fn run_generate(seed: u64, size: &str, micro: bool, out: &Path) -> Result<()> {
 
     let manifest = generate(seed, config, out)?;
     println!(
-        "done — {} · {} areas · land {}‰",
+        "done — {} · {} areas · land {}‰ · {} rivers",
         out.display(),
         manifest.stats.area_count,
-        manifest.stats.land_fraction_permille
+        manifest.stats.land_fraction_permille,
+        manifest.stats.river_count
     );
     Ok(())
 }
