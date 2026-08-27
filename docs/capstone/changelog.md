@@ -4,6 +4,22 @@ generated_date: 2026-08-24
 
 # Changelog
 
+## 2026-08-27 (6b65f7c6a0c0..f56314f58bb2)
+
+Architecture-level delta for feature 03, base = the head of the previous
+ranged entry.
+
+- **New module surface:** none — feature 03 added no crate and no module. `crates/arda-gen/src/continent/mod.rs` gained the `Continent { grid, climate, hydrology }` context and `build_continent`, which replaced `&ContinentGrid` in `bundle_for` and `generate_area`. That is the one architectural change: the continent tier's outputs now flow to the area tier instead of being computed and discarded at the write site.
+- **Data contracts:** `TileBundle` reached its full `logic/01` step-10 shape (entering rivers, 53×53 rainfall/regime/routing-surface patches, wind octant, west-edge moisture). `ValidationStats` gained `river_count` (`#[serde(default)]`, additive). `fill::Basin` lost its `outlet` field and `spill_cell` was deleted once outlets moved to a tile-wide second pass. `FORMAT_VERSION` stays **3** — no binary layout changed anywhere (33 B cell record, 18 B overview record untouched), and the export JSON schema is unmodified.
+- **Generation pipeline:** the continent tier's reroll ladder gained a second gate (≥1 river reaching the sea), ordered after the cheap land-fraction gate. The area tier's water stage changed rule, not shape: channel initiation moved from a 300-cell catchment to 40 L/s discharge, discharge became rainfall-driven, and entering rivers seed boundary cells with upstream catchment, discharge, and a Strahler floor.
+- **Rendering:** `arda-render/src/carto.rs` gained order bands (three colours, 1/2/3 px widths, floor at order 3) and a widening pass; `arda-cli`'s generate footer reports the river count. No new dependency, no dependency-direction change.
+- **Test surface:** `crates/arda-gen/tests/cross_tile.rs` (new) holds the cross-tile invariants; `drainage_invariants.rs` gained a lake-outlet sweep. The golden fixture was re-blessed twice on the branch — once for the feature's cell changes, once for a defect the review loop caught before merge.
+
+Stale-topic check: `03-conventions.md`, `05-dependencies.md`,
+`07-operations.md`, `08-glossary.md` still carry the 8d3c9d9 stamp. A `sync`
+run would settle them; 08 in particular now lacks entries for entering river,
+climate regime at the area tier, and the discharge-based watercourse rule.
+
 ## 2026-08-27 — implement: 03-climate-driven-refinement@Q9
 key: implement/03-climate-driven-refinement@Q9
 
