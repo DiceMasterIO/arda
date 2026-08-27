@@ -1,8 +1,8 @@
 ---
 mode: prescriptive
-generated_date: 2026-08-26
+generated_date: 2026-08-27
 paths_covered: ["crates/arda-core/**"]
-generated_at_commit: 9c48e00
+generated_at_commit: 8be0a0a
 ---
 
 > Prescriptive — written from the design interview, not from code.
@@ -101,3 +101,15 @@ gates compatibility, major-versioned independently of crate semver
 (§Q6). Evolution: additive within a major; breaking layout change bumps
 the format major and loaders refuse with the regenerate remedy
 (`logic/05`).
+
+## Observed — climate-driven refinement (2026-08-27, feature 03)
+
+`format_version` stays **3**: every change below is a value change or an
+additive JSON key, never a layout change (`CELL_BYTES` 33 and the 18-byte
+overview record are untouched).
+
+- `ValidationStats` gains `river_count: u32` — continent river objects, `#[serde(default)]` so a same-major world written before this feature still loads with 0. `named_river_count` stays 0: naming is step 8.
+- `Cell.rainfall` finally has a producer (bilinear sample of the bundle's 1 km patch); `Cell.discharge` is now rainfall-driven rather than a catchment proxy; `watercourse_order` starts where discharge reaches 40 L/s rather than at a 300-cell catchment.
+- `height_above_river_dm` stores `u16::MAX` for a cell with no watercourse below it, which is what `logic/02`'s floodplain bands already implied; before feature 03 such cells stored 0 and were misclassified as marsh.
+- `TileBundle` reaches its full `logic/01` step-10 shape: `entering: Vec<EnteringRiver>` (seed cell, catchment, discharge, Strahler floor), 53×53 `rainfall_km`/`regime_km`/`filled_km` patches, a `wind` octant, and a `west_moisture` column. `regime_km`, `wind`, and `west_moisture` are written but not yet read — their consumer is the vegetation stage (build step 5), recorded here so they are not mistaken for dead code.
+- `Lake.outlet` is derived from the final lake set (after clamping, trimming and the size/depth filter), so it never names a cell that another recorded lake submerges. The intermediate `Basin.outlet` was deleted.

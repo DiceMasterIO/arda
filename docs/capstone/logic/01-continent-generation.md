@@ -1,9 +1,9 @@
 ---
-generated_date: 2026-08-26
+generated_date: 2026-08-27
 scenario: continent-generation
 traces: [Q2, Q3, Q4, Q5, Q6, Q7, Q8, Q9]
-generated_at_commit: 9c48e00
-absorbed_from: features/02-continent-climate-hydrology@2026-08-26
+generated_at_commit: 8be0a0a
+absorbed_from: features/02-continent-climate-hydrology@2026-08-26, features/03-climate-driven-refinement@2026-08-27
 ---
 
 # 01 — Continent generation
@@ -126,3 +126,23 @@ None — this scenario has no persistent entities before it runs; it creates the
 
 - Success: `continent/` grid (1 km relief, climate, drainage, density) + objects (plates' final geometry, ranges, major rivers, regions, seas — all named) + one input bundle per tile; batch proceeds to area generation.
 - Failure: non-zero exit after reroll exhaustion or config refusal; nothing written beyond an inspectable partial directory.
+
+## Observed — step 10 built, step 9 partially gated (2026-08-27, feature 03)
+
+Step 10's tile bundles now carry their full payload, and step 9 gained the
+river half of its gate. Steps 7 (human geography) and 8 (naming) remain
+unbuilt, so `named_river_count` stays 0.
+
+10. **Tile bundles.** Beyond edge heights, a bundle carries: **entering rivers**, 53×53 1 km patches of rainfall, regime and the continent routing surface, a prevailing-wind octant, and the west-edge moisture column. All are pure functions of continent data and the seed, so adjacent tiles stay mirror-consistent and areas still generate in any order.
+    - **Entering rivers** are continent D8 edges crossing a tile's exact 100 m boundary line inward, with upstream catchment ≥ 3 km² (the artifact's channel scale). Because tiles are 51.2 km, 1 km cells straddle tile lines, so crossings are judged against the boundary line rather than km-cell footprints; cell centres sit at `k·10+5` and lines at multiples of 512, so sidedness is total and each edge belongs to exactly one tile — the downstream one. A corner crossing resolves to the north/south line. The seed is the lowest-relief cell of the crossing's entry window; a window that is entirely sea drops the crossing (the river already reached the sea). Crossings sharing a seed cell merge: catchment and discharge sum, **order takes the maximum of the contributors' orders — deliberately not the order of the summed catchment**, since the map is not additive.
+    - **Order continuity** uses `g(c) = 1 + ilog2(c/3)/2` clamped to 1..=12. Both sides of a seam compute `g` from the same catchment, so an exit order and the neighbour's entry order agree by construction, without either tile reading the other's output.
+9. **Validation** now also requires ≥1 continent river reaching the sea (`feeds: None`), checked inside the existing ≤5 reroll ladder and after the cheaper land-fraction gate. The river count is recorded in the manifest.
+
+**Recorded approximations.** A river that loops out of and back into the same
+tile double-counts its own upstream (rare at 51 km tiles). The coarse tree and
+the fine area routing agree about *where* water crosses a seam 53–94% of the
+time depending on catchment size — large crossings align, small tributaries
+jog by a median of 8 cells (~800 m, sub-pixel at map scale). That is the
+inherent 1 km-vs-100 m tier gap, not a defect: closing it exactly would
+require reading the neighbour's fine output, which the order-independence
+invariant forbids.

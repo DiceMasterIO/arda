@@ -2,7 +2,8 @@
 generated_date: 2026-08-24
 scenarios: [batch-generate]
 implements: [Q9, Q10, Q18, Q20, Q22]
-generated_at_commit: 8d3c9d9
+generated_at_commit: 8be0a0a
+absorbed_from: features/03-climate-driven-refinement@2026-08-27
 ---
 
 # 01 — `arda generate` (CLI): the batch
@@ -52,3 +53,12 @@ tiers) → summary footer (counts + §Q13 validation statistics).
 - **Empty/initial**: `--out` must not contain a world already; refuse with "directory not empty" rather than overwrite (assumed).
 - **Loading**: per-tier progress as above; safe to abort — nothing consumes a partial world, re-run regenerates identically from the seed (determinism §Q9; resume-vs-restart not interviewed, restart assumed).
 - **Error**: invalid config → exit non-zero naming the field; disk-full mid-batch → exit non-zero, partial directory left for inspection, re-run restarts (assumed).
+
+## Observed — validation footer (2026-08-27, feature 03)
+
+The done line now reports the continent river count alongside the area count
+and land fraction, e.g. `done — ./worlds/w42 · 8 areas · land 487‰ · 5 rivers`.
+The count is `ValidationStats.river_count` and covers continent river objects,
+which are unnamed until `logic/01` step 8 — `named_river_count` stays 0. The
+Horton / Hack / rank-size / sinuosity figures the mocked footer shows remain
+unimplemented (build-order step 12).

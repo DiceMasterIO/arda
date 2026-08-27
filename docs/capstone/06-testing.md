@@ -1,8 +1,8 @@
 ---
 mode: prescriptive
-generated_date: 2026-08-26
+generated_date: 2026-08-27
 paths_covered: ["crates/*/src/**", "crates/*/tests/**", "tests/**"]
-generated_at_commit: 9c48e00
+generated_at_commit: 8be0a0a
 ---
 
 > Prescriptive — written from the design interview, not from code.
@@ -53,3 +53,10 @@ Priorities (prescriptive): heaviest on `arda-core::formats`
 export byte-identity property (`logic/04`). Bench suite enforces §Q7's
 export/load numbers. Coverage percentage targets: none set — the
 statistical + golden gates are the meaningful floor (§Q5).
+
+## Observed — climate-driven refinement (2026-08-27, feature 03)
+
+- **228 tests** pass across the workspace. New: `crates/arda-gen/tests/cross_tile.rs` — seam continuity against an independent re-derivation from the continent tree; inflow effectiveness (a tile's whole-tile max drainage rises with inflow, and every seeded cell's own downstream path rises); rainfall/discharge/initiation rules on composed cells; seam-lake agreement; determinism. `drainage_invariants.rs` gained a lake-outlet geometric-soundness sweep.
+- **Calibration is measured, not assumed.** The render band cutoffs were set from a default-world Strahler histogram (a floor of 4 would have kept only 5.58% of channel cells; the shipped floor of 3 keeps 17.94%). The entering-order merge rule is pinned on a seed where the correct and incorrect rules diverge, verified to fail under inversion.
+- **Recorded limits of the fixtures.** No natural seam-straddling lake pair exists in 4,280 surveyed (seed, seam) combinations, so that case is covered by a synthetic two-tile test rather than a natural one. Seam crossings align with an upstream outlet 53–94% of the time depending on catchment size (median jog on a mismatch: 8 cells) — an inherent 1 km-vs-100 m tier approximation, pinned as a calibrated test rather than an exact equality.
+- The golden fixture was re-blessed twice on this branch: once for the feature's own cell changes, and once for the Marsh→Dry defect the review loop found before merge.

@@ -1,8 +1,8 @@
 ---
 mode: prescriptive
-generated_date: 2026-08-26
+generated_date: 2026-08-27
 paths_covered: ["crates/arda-gen/**", "crates/arda-render/**", "crates/arda-cli/**"]
-generated_at_commit: 9c48e00
+generated_at_commit: 8be0a0a
 ---
 
 > Prescriptive — written from the design interview, not from code.
@@ -73,3 +73,17 @@ workspace makes an outbound connection.
 - Export: out-of-range/unmapped-tile/partial-world → typed refusals, no partial artifact files (`logic/04`).
 - Serve: partial world → refuses to start with export's message; unknown coordinates → 404 carrying the valid ranges, mirroring `logic/05`'s range errors (`mockup/06` States).
 - Memory budget (default 16 GB, configurable — §Q3) bounds areas in flight; the pool blocks rather than exceeding it.
+
+## Observed — climate-driven refinement (2026-08-27, feature 03)
+
+The generate lifecycle's continent tier now ends
+`… → erode → climate → hydrology → rivers → step-9 gate`, and the accepted
+attempt's results are packaged as a `Continent` context that flows into every
+tile. **The seam recorded above is closed**: nothing is computed twice, and
+area workers receive continent climate and drainage rather than the grid alone.
+
+- The step-9 gate ("≥1 river reaches the sea") runs inside the reroll ladder, after the cheap land-fraction gate so a rejected attempt never pays for climate and hydrology. Both gates share the ≤5 ladder and the same error shape.
+- Per tile: `bundle_for` derives entering rivers plus the climate/routing patches; the area stage samples rainfall, seeds each entering river's drainage/discharge/order at its boundary cell, accumulates rain down the routing tree, and initiates channels at 40 L/s.
+- **Cross-tile inflow now exists.** Catchment is no longer bounded by one tile: measured max area-cell catchment at the default 500×1000 km size is 50,070 km² against the old one-tile ceiling of 2,621 km².
+- Rendering reads the same cells: overview river blocks draw in three order bands with 1/2/3 px widths above a floor of order 3; the area map shades every channel by order.
+- `generate`'s footer and the manifest report the continent river count (4 on the default world at seed 42, 8 at seed 7).
