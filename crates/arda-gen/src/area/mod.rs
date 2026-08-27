@@ -11,6 +11,7 @@ pub mod relief;
 pub mod water;
 
 use crate::continent::bundles::{abs_cell, TileBundle, PATCH_KM};
+use crate::continent::hydrology::NO_BASIN;
 use crate::continent::Continent;
 use arda_core::{
     AreaCells, AreaObjects, Cell, CellCoord, Cover, DischargeMilli, HeightMm, Lake, RainfallMm,
@@ -86,6 +87,32 @@ where
     let top = at(0, 0) + (((at(1, 0) - at(0, 0)) * fx) >> 16);
     let bottom = at(0, 1) + (((at(1, 1) - at(0, 1)) * fx) >> 16);
     top + (((bottom - top) * fy) >> 16)
+}
+
+/// Nearest-cell lookup of a km-resolution patch: the patch cell containing
+/// the given tile-local 100 m cell, with no blending against its
+/// neighbours — the opposite of [`sample_km_patch`]'s interpolation.
+///
+/// [`TileBundle::basin_km`] is piecewise-constant per continent depression
+/// (feature 02 §Q1 / open-items #12): interpolating it the way
+/// [`sample_km_patch`] interpolates `filled_km`/`rainfall_km` would blur a
+/// value across a depression's own edge and reintroduce exactly the
+/// span-dependence this lookup exists to remove, so this helper stays
+/// deliberately separate rather than folding into `sample_km_patch`.
+fn nearest_km_patch(bundle: &TileBundle, patch: &[i32], local_x: i32, local_y: i32) -> i32 {
+    let km0x = (bundle.area.x * 512).div_euclid(10);
+    let km0y = (bundle.area.y * 512).div_euclid(10);
+    let side = i32::try_from(PATCH_KM).unwrap_or(0);
+
+    let (ax, ay) = abs_cell(
+        bundle.area,
+        u16::try_from(local_x).unwrap_or(0),
+        u16::try_from(local_y).unwrap_or(0),
+    );
+    let (kx, ky) = (ax.div_euclid(10) - km0x, ay.div_euclid(10) - km0y);
+    let px = usize::try_from(kx.clamp(0, side - 1)).unwrap_or(0);
+    let py = usize::try_from(ky.clamp(0, side - 1)).unwrap_or(0);
+    patch[py * PATCH_KM + px]
 }
 
 /// Resamples the tile's rainfall patch onto every area cell (feature 03
@@ -318,33 +345,59 @@ fn collect_lakes(heights: &[i32], filled: &Filled, bundle: &TileBundle) -> Vec<L
 ///
 /// Interior basins (no cell within one cell of the rim) pass through
 /// unchanged: `(b.surface_mm, b.depth_mm)`. A near-rim basin's surface
-/// becomes the MAX, over its near-rim cells, of the smoothstep-bilinear
-/// sample of `bundle.filled_km` — the same interpolation `area_rainfall`
-/// uses, shared via `sample_km_patch` rather than duplicated a third
-/// time. Depth is then recomputed as `surface` minus the basin's own
-/// floor (its lowest cell's height), saturating (floored) at 0. Cell
-/// membership does not appear in this function's signature at all: the
-/// caller keeps exactly the cells `fill::fill` gave the basin.
+/// prefers continent-tier lake identity (feature 02 §Q1, closes
+/// open-items #12 EXACTLY rather than only "materially improving" it): if
+/// any near-rim cell maps, by NEAREST 1 km cell, onto a continent
+/// depression (`bundle.basin_km` != `NO_BASIN`), the surface is the MAX of
+/// those values. That value is constant across the WHOLE continent
+/// depression (`ContinentHydrology::basin_surface`), so two fragments of
+/// the same depression agree exactly regardless of which cells each
+/// fragment's own contact span happens to cover — the residual
+/// span-dependence a bilinear sample of `filled_km` could not remove
+/// (measured: 723 mm on a synthetic straddling case). The lookup is
+/// nearest-cell, not bilinear — see [`nearest_km_patch`]'s own doc for
+/// why interpolating a piecewise-constant field would be wrong here.
+///
+/// Only when NO near-rim cell sees a continent depression does the
+/// surface fall back to the MAX, over the near-rim cells, of the
+/// smoothstep-bilinear sample of `bundle.filled_km` — the same
+/// interpolation `area_rainfall` uses, shared via `sample_km_patch` rather
+/// than duplicated a third time; unchanged from before this fix, so
+/// behaviour is identical wherever the continent tier sees no depression.
+///
+/// Depth is then recomputed as `surface` minus the basin's own floor (its
+/// lowest cell's height), saturating (floored) at 0. Cell membership does
+/// not appear in this function's signature at all: the caller keeps
+/// exactly the cells `fill::fill` gave the basin.
 fn clamp_near_rim(b: &Basin, heights: &[i32], bundle: &TileBundle) -> (i32, u32) {
     if !b.cells.iter().any(|&c| near_rim(c)) {
         return (b.surface_mm, b.depth_mm);
     }
 
-    let surface_mm = b
-        .cells
+    let rim_cells: Vec<CellCoord> = b.cells.iter().copied().filter(|&c| near_rim(c)).collect();
+
+    let basin_surface_mm = rim_cells
         .iter()
-        .filter(|&&c| near_rim(c))
-        .map(|c| {
-            sample_km_patch(
-                bundle,
-                &bundle.filled_km,
-                i32::from(c.x()),
-                i32::from(c.y()),
-            )
-        })
-        .max()
-        .and_then(|v| i32::try_from(v).ok())
-        .unwrap_or(b.surface_mm);
+        .map(|c| nearest_km_patch(bundle, &bundle.basin_km, i32::from(c.x()), i32::from(c.y())))
+        .filter(|&v| v != NO_BASIN)
+        .max();
+
+    let surface_mm = match basin_surface_mm {
+        Some(v) => v,
+        None => rim_cells
+            .iter()
+            .map(|c| {
+                sample_km_patch(
+                    bundle,
+                    &bundle.filled_km,
+                    i32::from(c.x()),
+                    i32::from(c.y()),
+                )
+            })
+            .max()
+            .and_then(|v| i32::try_from(v).ok())
+            .unwrap_or(b.surface_mm),
+    };
 
     let floor = b
         .cells
@@ -634,15 +687,41 @@ mod tests {
             .clone()
     }
 
-    /// Feature 03 §Q5 test oracle: the max smoothstep-bilinear sample of
-    /// `bundle.filled_km` over the near-rim cells among `cells`,
-    /// reimplemented here independently of `sample_km_patch` /
-    /// `clamp_near_rim` so this check cannot pass merely by calling back
-    /// into the code under test. `None` when `cells` has no near-rim cell.
+    /// Feature 02 §Q1 / feature 03 §Q5 test oracle: the near-rim cells
+    /// among `cells`, first checked for continent-tier lake identity
+    /// (nearest-cell `bundle.basin_km`, `NO_BASIN` excluded) and, only if
+    /// none maps to a depression, falling back to the max smoothstep-bilinear
+    /// sample of `bundle.filled_km` — reimplemented here independently of
+    /// `nearest_km_patch` / `sample_km_patch` / `clamp_near_rim` so this
+    /// check cannot pass merely by calling back into the code under test.
+    /// `None` when `cells` has no near-rim cell.
     fn continent_surface_at(b: &TileBundle, cells: &[CellCoord]) -> Option<i32> {
         let km0x = (b.area.x * 512).div_euclid(10);
         let km0y = (b.area.y * 512).div_euclid(10);
         let side = i32::try_from(PATCH_KM).unwrap_or(0);
+
+        let rim: Vec<&CellCoord> = cells
+            .iter()
+            .filter(|c| c.x() <= 1 || c.y() <= 1 || c.x() >= 510 || c.y() >= 510)
+            .collect();
+        if rim.is_empty() {
+            return None;
+        }
+
+        let basin_best = rim
+            .iter()
+            .map(|c| {
+                let (ax, ay) = abs_cell(b.area, c.x(), c.y());
+                let (kx, ky) = (ax.div_euclid(10) - km0x, ay.div_euclid(10) - km0y);
+                let px = usize::try_from(kx.clamp(0, side - 1)).unwrap_or(0);
+                let py = usize::try_from(ky.clamp(0, side - 1)).unwrap_or(0);
+                b.basin_km[py * PATCH_KM + px]
+            })
+            .filter(|&v| v != crate::continent::hydrology::NO_BASIN)
+            .max();
+        if let Some(v) = basin_best {
+            return Some(v);
+        }
 
         let smooth = |v: i32| -> i64 {
             let t = i64::from(v) * 65536 / 10;
@@ -651,9 +730,8 @@ mod tests {
             (3 * t2 - 2 * t3).clamp(0, 65536)
         };
 
-        let best = cells
+        let best = rim
             .iter()
-            .filter(|c| c.x() <= 1 || c.y() <= 1 || c.x() >= 510 || c.y() >= 510)
             .map(|c| {
                 let (ax, ay) = abs_cell(b.area, c.x(), c.y());
                 let (kx, ky) = (ax.div_euclid(10) - km0x, ay.div_euclid(10) - km0y);
@@ -776,10 +854,14 @@ mod tests {
     #[test]
     fn edge_touching_basins_take_the_continent_spill_level() {
         // Feature 03 spec R9 (closes open-items #12), corrected per §Q5's
-        // recorded decision ("minimal blast radius"): a basin whose cells
-        // sit within one cell of the tile rim must report the SAME surface
-        // the neighbouring tile would compute for the same shared data,
-        // because both sample `bundle.filled_km` instead of each tile's own
+        // recorded decision ("minimal blast radius") and sharpened by
+        // feature 02 §Q1's continent-tier lake identity (`basin_surface`),
+        // added to close #12 EXACTLY rather than only "materially improve"
+        // it: a basin whose cells sit within one cell of the tile rim must
+        // report the SAME surface the neighbouring tile would compute for
+        // the same shared data, because both prefer the constant-per-depression
+        // `bundle.basin_km` (falling back to `bundle.filled_km` only where
+        // the continent tier sees no depression) instead of each tile's own
         // (possibly different) local spill — and cell membership must stay
         // exactly what `fill::fill` found. Because membership no longer
         // moves, both properties are now checked directly against

@@ -291,6 +291,55 @@ fn independent_filled_km_surface(b: &TileBundle, cells: &[CellCoord]) -> Option<
     Some(i32::try_from(best).unwrap_or(i32::MAX))
 }
 
+/// Nearest-cell lookup of `bundle.basin_km` at one tile-local cell —
+/// same coordinate math as [`independent_filled_km_sample`], minus the
+/// bilinear blend: `basin_km` is piecewise-constant per continent
+/// depression (feature 02 §Q1 / open-items #12), so it is looked up by
+/// nearest cell, never interpolated. Independent of `arda_gen::area`'s
+/// private `nearest_km_patch`, which this mirrors rather than calls.
+fn independent_basin_km_sample(b: &TileBundle, local_x: i32, local_y: i32) -> i32 {
+    let km0x = (b.area.x * 512).div_euclid(10);
+    let km0y = (b.area.y * 512).div_euclid(10);
+    let side = i32::try_from(PATCH_KM).unwrap_or(0);
+    let (ax, ay) = abs_cell(
+        b.area,
+        u16::try_from(local_x).unwrap_or(0),
+        u16::try_from(local_y).unwrap_or(0),
+    );
+    let (kx, ky) = (ax.div_euclid(10) - km0x, ay.div_euclid(10) - km0y);
+    let px = usize::try_from(kx.clamp(0, side - 1)).unwrap_or(0);
+    let py = usize::try_from(ky.clamp(0, side - 1)).unwrap_or(0);
+    b.basin_km[py * PATCH_KM + px]
+}
+
+/// Feature 02 §Q1 / feature 03 §Q5 test oracle: like
+/// [`independent_filled_km_surface`], but checked against continent-tier
+/// lake identity FIRST — the max nearest-cell `basin_km` over the
+/// near-rim cells among `cells`, `NO_BASIN` excluded — falling back to
+/// `independent_filled_km_surface` only when no near-rim cell sees a
+/// continent depression. Mirrors `clamp_near_rim`'s own preference order,
+/// reimplemented independently (never calling `nearest_km_patch` /
+/// `sample_km_patch` / `clamp_near_rim`, all private to `arda_gen::area`
+/// regardless). `None` when `cells` has no near-rim cell.
+fn independent_lake_surface_at(b: &TileBundle, cells: &[CellCoord]) -> Option<i32> {
+    let rim: Vec<&CellCoord> = cells
+        .iter()
+        .filter(|c| c.x() <= 1 || c.y() <= 1 || c.x() >= AREA_CELLS - 2 || c.y() >= AREA_CELLS - 2)
+        .collect();
+    if rim.is_empty() {
+        return None;
+    }
+    let basin_best = rim
+        .iter()
+        .map(|c| independent_basin_km_sample(b, i32::from(c.x()), i32::from(c.y())))
+        .filter(|&v| v != arda_gen::continent::hydrology::NO_BASIN)
+        .max();
+    if basin_best.is_some() {
+        return basin_best;
+    }
+    independent_filled_km_surface(b, cells)
+}
+
 /// Spec R12 (a): seam continuity.
 ///
 /// Seam chosen: tile (0,2) -> tile (0,3), (0,3)'s NORTH edge (31
@@ -718,8 +767,10 @@ fn seam_lakes_take_the_shared_surface_and_trim_below_it() {
         checked += 1;
 
         // Both sides of a seam would compute the same level: it comes
-        // only from the shared `bundle.filled_km` patch.
-        let expected = independent_filled_km_surface(&bundle, &lake.cells)
+        // only from shared continent-tier data — `bundle.basin_km` where
+        // the continent tier sees a depression (feature 02 §Q1 /
+        // open-items #12), else the shared `bundle.filled_km` patch.
+        let expected = independent_lake_surface_at(&bundle, &lake.cells)
             .expect("a near-rim lake must have at least one near-rim cell");
         assert_eq!(
             lake.surface.raw(),
@@ -893,53 +944,55 @@ fn walled_pit(x_range: std::ops::Range<i32>, y_range: std::ops::Range<i32>) -> V
     heights
 }
 
-/// SYNTHETIC regression test for feature 03 §Q5 (open-items #12) --
-/// verification-gap task.
+/// SYNTHETIC regression test for feature 03 §Q5 / feature 02 §Q1
+/// (open-items #12) -- verification-gap task, closed exactly by the
+/// continent-tier lake identity `ContinentHydrology::basin_surface` adds.
 ///
-/// The branch review: the feature claims #12 closed (a basin straddling a
-/// tile seam reaching different spill levels on each side), but no
-/// fixture ever produced a straddling lake pair, so the shipped rule
-/// (`clamp_near_rim`'s doc comment names the risk directly: "two
-/// fragments of one straddling basin touch the seam over different
-/// contact spans, so their maxima can differ") was never observed
-/// working on the real scenario. A documented sweep of 4,280 (seed, seam)
-/// combinations -- 300 MICRO seeds x 10 seam-pairs, plus 40 seeds of a
-/// 200x400 km continent x 32 seam-pairs -- found zero natural fixtures
-/// where both sides of a seam independently grow a large-enough lake
-/// touching it (see `.superpowers/sdd/straddling-lakes-report.md`), so
-/// this test is synthetic: two real `TileBundle`s (`ctx()`'s seed 42
-/// attempt 2, tiles (0,1)/(1,1), so `filled_km` is real, non-flat
-/// continent data), each fed a `walled_pit` `heights` array that forces
+/// The branch review: the feature claimed #12 closed (a basin straddling
+/// a tile seam reaching different spill levels on each side), but no
+/// fixture ever produced a straddling lake pair, so the then-shipped rule
+/// (max bilinear sample of `filled_km`, still the fallback below) was
+/// never observed working on the real scenario. A documented sweep of
+/// 4,280 (seed, seam) combinations -- 300 MICRO seeds x 10 seam-pairs,
+/// plus 40 seeds of a 200x400 km continent x 32 seam-pairs -- found zero
+/// natural fixtures where both sides of a seam independently grow a
+/// large-enough lake touching it (see
+/// `.superpowers/sdd/straddling-lakes-report.md`), so this test is
+/// synthetic: two real `TileBundle`s (`ctx()`'s seed 42 attempt 2, tiles
+/// (0,1)/(1,1)), each fed a `walled_pit` `heights` array that forces
 /// exactly one basin reaching the shared seam -- at a DIFFERENT (only
 /// partially overlapping) span of local y on each side, the exact risk
 /// under test.
 ///
-/// Measured (via the real `fill::fill` -> `water::water` -> `compose`
-/// path, i.e. the real `collect_lakes`, on both sides): even at the
-/// smallest gap found by hand-probing this fixture's real `filled_km`
-/// profile for a stretch where P and Q's near-rim columns happen to track
-/// each other closely, the two sides' MAX-sampled surfaces do NOT agree
-/// exactly -- P samples its near-rim band at absolute x 2-3 cells away
-/// from where Q samples its own (`near_rim`'s two-cell width sits on each
-/// tile's OWN side of the seam, never the literal shared boundary column,
-/// which `fill::fill`'s rim-seeded priority-flood can never submerge), so
-/// a real x-gradient in the continent surface leaves a residual gap
-/// before the y-span difference is even added. This test pins that
-/// measured gap (723 mm on 245-246 KM of elevation, ~0.3%) and asserts it
-/// stays within a stated, generous headroom rather than claiming the
-/// exact agreement the shipped MAX rule does not, in general, provide.
+/// Two phases:
 ///
-/// The spec's pre-approved fallback (clamp at the LOWEST near-rim sample
-/// rather than the MAX) was measured on this exact scenario too and is
-/// NOT adopted: it gives a gap of 901 mm here -- WORSE than the shipped
-/// MAX rule's 723 mm, not better -- and on two other probed regions of
-/// this same seam it was sometimes better and sometimes worse than MAX
-/// (never exactly zero either), confirming the spec's own warning that it
-/// is "equally span-dependent." Per the task's instruction not to invent
-/// a third rule when neither pre-approved one demonstrably wins, the
-/// shipped MAX rule is left as-is; the residual gap is flagged in the
-/// report for a maintainer decision rather than silently absorbed into a
-/// wide tolerance.
+/// Phase 1, unchanged from the original verification-gap task: measured
+/// (via the real `fill::fill` -> `water::water` -> `compose` path, i.e.
+/// the real `collect_lakes`, on both sides, with the bundles' REAL
+/// `basin_km`) a 723 mm gap between P's and Q's surfaces -- confirmed
+/// (not assumed) to sit ENTIRELY on the fallback path: every near-rim
+/// cell either fragment samples reads `NO_BASIN` from the real seed-42
+/// continent data here, so this particular synthetic pit has no
+/// continent-tier depression underneath it at all, and the new
+/// depression-preference rule this task adds cannot engage. That is
+/// expected, not a defect: the fix's precondition -- both fragments
+/// mapping into the SAME continent-tier depression -- genuinely does not
+/// hold for a pit that exists only in the area tier's own synthetic
+/// heights. This phase's numbers are pinned exactly as before, now
+/// understood rather than merely tolerated.
+///
+/// Phase 2, new: the identical P/Q fragments (same heights, same
+/// differing contact spans), but with `basin_km` overridden on both
+/// bundles to one shared flat value -- constructing the one precondition
+/// no fixture, natural or synthetic-heights, could supply on its own
+/// (`fill::fill`'s output depends only on `heights`, already computed in
+/// phase 1, never on `bundle` -- see `fill::fill`'s own signature -- so
+/// this phase reuses phase 1's `filled`/`water`/`rain` unchanged and only
+/// recomposes with the mutated bundles). Under that constructed premise
+/// the fix's actual claim holds: both sides read back the identical
+/// constant regardless of their differing contact spans, so the gap is
+/// exactly 0 mm -- proof the mechanism itself is correct, even though no
+/// known fixture exercises it end-to-end without this construction.
 #[test]
 fn straddling_basins_agree_on_their_surface_across_the_seam() {
     let p_coord = AreaCoord::new(0, 1);
@@ -984,18 +1037,81 @@ fn straddling_basins_agree_on_their_surface_across_the_seam() {
         "Q's lake must actually touch the seam-facing near-rim column"
     );
 
+    // Phase 1: confirm the diagnosis directly -- neither fragment's
+    // near-rim cells see a continent depression at this synthetic
+    // location, so the new preference rule cannot engage and the
+    // fallback path governs, unchanged.
+    let no_basin = arda_gen::continent::hydrology::NO_BASIN;
+    let seam_sees_no_basin = |bundle: &TileBundle, seam_x: u16, ys: std::ops::Range<i32>| {
+        ys.map(|y| u16::try_from(y).unwrap()).all(|y| {
+            independent_basin_km_sample(bundle, i32::from(seam_x), i32::from(y)) == no_basin
+        })
+    };
+    assert!(
+        seam_sees_no_basin(&p_bundle, 510, 425..437),
+        "P's near-rim cells unexpectedly see a continent depression; the fixture drifted -- \
+         re-derive phase 1's pinned numbers"
+    );
+    assert!(
+        seam_sees_no_basin(&q_bundle, 1, 429..441),
+        "Q's near-rim cells unexpectedly see a continent depression; the fixture drifted -- \
+         re-derive phase 1's pinned numbers"
+    );
+
     assert_eq!(
         (p_lake.surface.raw(), q_lake.surface.raw()),
         (246_383, 245_660),
         "the measured pair drifted; re-derive the pinned numbers (see this test's doc comment \
          and .superpowers/sdd/straddling-lakes-report.md)"
     );
-
     let gap = p_lake.surface.raw().abs_diff(q_lake.surface.raw());
-    assert!(
-        gap <= 1_500,
-        "straddling fragments with different contact spans disagree by {gap} mm, past the \
-         1,500 mm headroom over the measured 723 mm gap -- #12 is not exactly closed for \
-         differing spans; see .superpowers/sdd/straddling-lakes-report.md"
+    assert_eq!(
+        gap, 723,
+        "the fallback-path gap drifted from the measured 723 mm -- #12 stays open for a basin \
+         with no continent-tier depression backing it; re-derive the pinned number"
+    );
+
+    // Phase 2: construct the fix's actual precondition -- both fragments'
+    // near-rim cells mapping into ONE shared continent depression -- and
+    // confirm the surfaces then agree EXACTLY, over the SAME differing
+    // contact spans phase 1 used. `fill`/`water`/`rain` do not depend on
+    // `bundle.basin_km` (see the doc comment above), so they carry over
+    // unchanged; only `compose` (which runs `collect_lakes`) needs re-running.
+    const SHARED_DEPRESSION_MM: i32 = 500_000;
+    let mut p_shared = p_bundle.clone();
+    let mut q_shared = q_bundle.clone();
+    p_shared.basin_km = vec![SHARED_DEPRESSION_MM; PATCH_KM * PATCH_KM];
+    q_shared.basin_km = vec![SHARED_DEPRESSION_MM; PATCH_KM * PATCH_KM];
+
+    let (_, p_objects2) = compose(&p_heights, &p_filled, &p_water, &p_rain, &p_shared);
+    let (_, q_objects2) = compose(&q_heights, &q_filled, &q_water, &q_rain, &q_shared);
+    assert_eq!(
+        p_objects2.lakes.len(),
+        1,
+        "P's shared-depression lake must still be exactly one"
+    );
+    assert_eq!(
+        q_objects2.lakes.len(),
+        1,
+        "Q's shared-depression lake must still be exactly one"
+    );
+    let p_lake2 = &p_objects2.lakes[0];
+    let q_lake2 = &q_objects2.lakes[0];
+
+    assert_eq!(
+        p_lake2.surface.raw(),
+        SHARED_DEPRESSION_MM,
+        "P did not take the shared continent depression's surface"
+    );
+    assert_eq!(
+        q_lake2.surface.raw(),
+        SHARED_DEPRESSION_MM,
+        "Q did not take the shared continent depression's surface"
+    );
+    assert_eq!(
+        p_lake2.surface.raw(),
+        q_lake2.surface.raw(),
+        "straddling fragments of the SAME continent depression must agree EXACTLY, whatever \
+         their differing contact spans -- this is what closes open-items #12 exactly"
     );
 }
