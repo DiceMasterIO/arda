@@ -1,4 +1,20 @@
 //! Cartographic area rendering (`logic/04`).
+//!
+//! Everything drawn here comes from the 100 m cell tier. The continent
+//! tier stores a gated river list in `continent/objects.bin` — four
+//! rivers on the DEFAULT continent, each validated to reach the sea —
+//! and using it for the overview's trunk line work is the obvious move,
+//! since those courses are guaranteed continuous where the cell tier's
+//! channels are severed at tile seams. It was tried and reverted: the
+//! two tiers do not agree about where the water is. Within 0.5 km of
+//! river 2's stored course the cell tier's median peak discharge is
+//! 0.06 m³/s, against the 239 m³/s that river carries at its mouth, and
+//! plotting the course over the cell network shows a straight 45°
+//! diagonal running *across* the drainage, perpendicular to the real
+//! channels and over the divides between them. Drawing it would paint
+//! rivers through country the detailed data says is dry. The
+//! disagreement is recorded in `open-items.md`; until it is resolved the
+//! map draws only what the cell tier actually holds.
 
 use crate::RenderError;
 use arda_core::{AreaCells, CellCoord, TerrainKind, AREA_CELLS};
@@ -52,79 +68,94 @@ pub fn sea_colour(height_mm: i32) -> [u8; 3] {
     ]
 }
 
-/// Strahler-order floor and band cutoffs for river rendering
-/// (`feature 03 §Q8`).
-///
-/// Feature 03 replaced the 300-cell catchment channel threshold with a
-/// 40 L/s discharge threshold, which shifted the order distribution down
-/// versus the plan's original guess (a floor of 4, bands at 4-5/6-7/>=8).
-/// Measured on the DEFAULT continent (500x1000 km, seed 42, release build,
-/// `cargo test -p arda-gen --release -- --ignored`): 1,213,091 channel
-/// cells, order 1 55.15%, 2 26.91%, 3 12.37%, 4 4.13%, 5 1.16%, 6 0.24%,
-/// 7 0.02%, 8 0.04% (the observed maximum order). A floor of 4 — the plan's
-/// original value — keeps only the top 5.58% of channel cells,
-/// undershooting the 10-25% target and risking an overview with no rivers
-/// at all, exactly the regression this constant exists to avoid. A floor
-/// of 3 keeps 17.94%, inside the target band, while still dropping the 82%
-/// of channel cells that are order-1/2 headwater confetti. Bands keep the
-/// plan's width-2/width-2/open shape, shifted down one order to match:
-/// Light `{3,4}` = 16.49% of channel cells, Mid `{5,6}` = 1.40%,
-/// Dark `{>=7}` = 0.05% (the trunk network).
-const RIVER_BAND_MIN: u8 = 3;
-/// Mid starts here — see [`RIVER_BAND_MIN`] for the calibration histogram.
-const RIVER_BAND_MID: u8 = 5;
-/// Dark starts here — see [`RIVER_BAND_MIN`] for the calibration histogram.
-const RIVER_BAND_MAX: u8 = 7;
+/// Overview sea fill, flat: the depth ramp is an area-map affordance and
+/// only adds noise at 1 km per pixel.
+const OVERVIEW_SEA: [u8; 3] = [10, 30, 78];
 
-/// A river's overview render band, lightest (thinnest) to darkest
-/// (thickest). Declaration order matters: the derived `Ord` is what makes
-/// `Dark` the most prominent band when a block spans several orders
-/// (`feature 03 §Q8`).
+/// Lake fill.
+///
+/// Deliberately much lighter than every river band. The previous value
+/// `[58, 110, 190]` sat at ΔE00 2.02 from the mid river band `[60, 105,
+/// 185]` — below the ~2.3 just-noticeable difference, so a mid-size river
+/// and a lake were literally the same colour on the page.
+const LAKE_FILL: [u8; 3] = [132, 176, 205];
+
+/// Discharge cuts that place a watercourse in a render band, in
+/// thousandth-cumecs (`DischargeMilli`, so 4_000 = 4 m³/s).
+///
+/// Selection moved off Strahler order here, and that is the substance of
+/// this retouch rather than a tuning change. Order answers "how deep in
+/// the branching hierarchy is this?", which is scale-free: a first-order
+/// headwater in a 50,000 km² basin and a first-order rill on a coastal
+/// hillside score alike, and order >= 3 admits *both*. Measured on the
+/// DEFAULT continent (500x1000 km, seed 42): order >= 3 selects 217,636
+/// of 24,551,366 land cells, which the overview's block classification
+/// then inflates to 11.50% of the drawn landmass — and it leaves 471
+/// separate watercourses touching the sea, one river mouth per 3.8 km of
+/// the 1,789 km coastline. Earth averages one per 50-150 km.
+///
+/// Discharge is absolute, so a cut means the same size of river anywhere
+/// on the map. Block-max coverage of the drawn landmass, same world, by
+/// cut in m³/s: 2 gives 4.64%, 4 gives 2.31%, 5 gives 1.90%, 10 gives
+/// 0.88%, 20 gives 0.33%. Physical atlases carry 1-2% blue line work,
+/// and the trunk overlay below adds ~0.35% on top, so the floor sits at
+/// 4 m³/s.
+const RIVER_Q_MIN: u32 = 4_000;
+/// Mid band floor — see [`RIVER_Q_MIN`] for the calibration.
+const RIVER_Q_MID: u32 = 20_000;
+/// Dark band floor — see [`RIVER_Q_MIN`] for the calibration.
+const RIVER_Q_MAX: u32 = 80_000;
+
+/// A watercourse's render band, lightest to darkest.
+///
+/// Declaration order matters: the derived `Ord` is what makes `Dark` win
+/// when one block spans several bands.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord)]
 enum RiverBand {
-    /// Orders `RIVER_BAND_MIN..RIVER_BAND_MID`: 1 px, unwidened.
+    /// `RIVER_Q_MIN..RIVER_Q_MID` — a stream.
     Light,
-    /// Orders `RIVER_BAND_MID..RIVER_BAND_MAX`: widens to 2 px.
+    /// `RIVER_Q_MID..RIVER_Q_MAX` — a river.
     Mid,
-    /// Orders `>= RIVER_BAND_MAX`: widens to 3 px — the trunk network.
+    /// `>= RIVER_Q_MAX` — a trunk.
     Dark,
 }
 
-/// Maps a Strahler order to its overview render band, or `None` below the
-/// floor (`feature 03 §Q8`; see [`RIVER_BAND_MIN`] for the calibration).
+/// Maps a discharge to its render band, or `None` below the floor.
 #[must_use]
-fn river_band(order: u8) -> Option<RiverBand> {
-    if order >= RIVER_BAND_MAX {
+fn river_band(discharge_milli: u32) -> Option<RiverBand> {
+    if discharge_milli >= RIVER_Q_MAX {
         Some(RiverBand::Dark)
-    } else if order >= RIVER_BAND_MID {
+    } else if discharge_milli >= RIVER_Q_MID {
         Some(RiverBand::Mid)
-    } else if order >= RIVER_BAND_MIN {
+    } else if discharge_milli >= RIVER_Q_MIN {
         Some(RiverBand::Light)
     } else {
         None
     }
 }
 
-/// The three river band colours, shared by the overview downsample and its
-/// widening pass (`feature 03 §Q8`).
-fn river_band_colour(band: RiverBand) -> [u8; 3] {
+/// The three river band colours, shared by the overview and the area map.
+///
+/// All three sit well clear of [`LAKE_FILL`] in lightness so line work
+/// never reads as a water body.
+const fn river_band_colour(band: RiverBand) -> [u8; 3] {
     match band {
-        RiverBand::Light => [110, 150, 200],
-        RiverBand::Mid => [60, 105, 185],
-        RiverBand::Dark => [25, 70, 160],
+        RiverBand::Light => [86, 130, 190],
+        RiverBand::Mid => [46, 92, 170],
+        RiverBand::Dark => [16, 56, 138],
     }
 }
 
-/// Per-cell channel colour for the area map, shaded by Strahler order.
+/// Per-cell channel colour for the area map, shaded by discharge.
 ///
 /// Unlike the overview, the area map is one pixel per 100 m cell, so a
-/// headwater stream is not confetti here — it is correctly one real pixel.
-/// Orders below the overview's render floor still get a colour on this
-/// map, just a paler one, so the full channel network stays visible at
-/// area scale even where the overview hides it.
+/// headwater stream is not confetti here — it is correctly one real
+/// pixel. Channels below the overview's render floor still get a colour,
+/// just the palest one, so the full network stays visible at area scale
+/// even where the overview hides it.
 #[must_use]
-fn area_river_colour(order: u8) -> [u8; 3] {
-    river_band(order).map_or([140, 170, 210], river_band_colour)
+fn area_channel_colour(discharge_milli: u32) -> [u8; 3] {
+    river_band(discharge_milli).map_or([140, 172, 210], river_band_colour)
 }
 
 /// Renders one area tile, one pixel per 100 m cell, hypsometrically tinted.
@@ -140,11 +171,9 @@ pub fn render_area_png(cells: &AreaCells) -> Result<Vec<u8>, RenderError> {
             let at = CellCoord::new(x, y).ok_or(RenderError::Png)?;
             let cell = cells.get(at);
             let colour = if cell.terrain == TerrainKind::Lake {
-                // Inland water reads lighter than the sea, so a lake is not
-                // mistaken for a bay.
-                [58, 110, 190]
+                LAKE_FILL
             } else if cell.watercourse_order > 0 {
-                area_river_colour(cell.watercourse_order)
+                area_channel_colour(cell.discharge.raw())
             } else if cell.terrain == TerrainKind::Land {
                 land_colour(cell.height.raw())
             } else {
@@ -158,12 +187,22 @@ pub fn render_area_png(cells: &AreaCells) -> Result<Vec<u8>, RenderError> {
     crate::encode_png(side, side, &rgb)
 }
 
+/// What a downsampled block shows, in increasing order of prominence.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord)]
+enum Feature {
+    Sea,
+    Land,
+    River(RiverBand),
+    Lake,
+}
+
 /// Renders every area tile into one overview image.
 ///
-/// Each area becomes a `px`-square block. Downsampling takes the most
-/// significant feature in each block rather than its centre cell: a river is
-/// one cell wide out of 512 and would vanish under nearest-neighbour
-/// sampling, so water wins over land and lake wins over river.
+/// Each area becomes a `px`-square block, classified from the 100 m cells
+/// beneath it. Classification takes the most prominent feature in the
+/// block rather than its centre cell: a channel is one cell wide out of
+/// 512 and would vanish under nearest-neighbour sampling, so water wins
+/// over land and a lake wins over a river.
 ///
 /// `areas` holds `(area_x, area_y, cells)`; missing tiles render as ocean.
 ///
@@ -180,22 +219,16 @@ pub fn render_overview_png(
     if width == 0 || height == 0 {
         return Err(RenderError::Png);
     }
-    let mut rgb = vec![8u8; usize::try_from(width * height * 3).map_err(|_| RenderError::Png)?];
-    // Sea everywhere to begin with.
+    let mut rgb = vec![0u8; usize::try_from(width * height * 3).map_err(|_| RenderError::Png)?];
     for chunk in rgb.chunks_exact_mut(3) {
-        chunk.copy_from_slice(&[10, 30, 78]);
+        chunk.copy_from_slice(&OVERVIEW_SEA);
     }
-    // Parallel classification grid: lets the widening pass below tell land
-    // and sea apart from lake without re-deriving it from RGB bytes.
+    // Parallel classification grid, so the trunk pass can tell land and
+    // sea apart from lake without re-deriving it from RGB bytes.
     let mut features =
         vec![Feature::Sea; usize::try_from(width * height).map_err(|_| RenderError::Png)?];
 
     let side = u32::from(AREA_CELLS);
-    let block = side / px.max(1);
-
-    // River pixels painted this pass, widened once the whole canvas is
-    // classified (`feature 03 §Q8`: banded trunks instead of confetti).
-    let mut wide: Vec<(u32, u32, RiverBand)> = Vec::new();
 
     for &(ax, ay, cells) in areas {
         let (Ok(ox), Ok(oy)) = (u32::try_from(ax), u32::try_from(ay)) else {
@@ -203,14 +236,25 @@ pub fn render_overview_png(
         };
         for py in 0..px {
             for pxi in 0..px {
+                // Half-open cell bounds, derived per pixel so the blocks
+                // tile the whole 512 exactly. The previous `block = side /
+                // px` was 512/48 = 10, and `pxi * block + cx` therefore
+                // topped out at 479: cells 480..=511 of every tile — a
+                // 3.2 km strip down the right edge and along the bottom of
+                // all 171 tiles — were never read, which truncated courses
+                // at tile edges. Uneven blocks (here 10 and 11 cells) are
+                // the correct answer when px does not divide 512.
+                let x0 = pxi * side / px;
+                let x1 = ((pxi + 1) * side / px).max(x0 + 1);
+                let y0 = py * side / px;
+                let y1 = ((py + 1) * side / px).max(y0 + 1);
+
                 let mut best = Feature::Sea;
                 let mut height_sum: i64 = 0;
                 let mut land_count: i64 = 0;
 
-                for cy in 0..block {
-                    for cx in 0..block {
-                        let sx = pxi * block + cx;
-                        let sy = py * block + cy;
+                for sy in y0..y1 {
+                    for sx in x0..x1 {
                         let (Ok(sxu), Ok(syu)) = (u16::try_from(sx), u16::try_from(sy)) else {
                             continue;
                         };
@@ -221,27 +265,33 @@ pub fn render_overview_png(
                         let f = match cell.terrain {
                             TerrainKind::Lake => Feature::Lake,
                             TerrainKind::Sea => Feature::Sea,
-                            TerrainKind::Land => match river_band(cell.watercourse_order) {
-                                Some(band) => Feature::River(band),
-                                None => {
-                                    height_sum += i64::from(cell.height.raw());
-                                    land_count += 1;
-                                    Feature::Land
+                            TerrainKind::Land => {
+                                height_sum += i64::from(cell.height.raw());
+                                land_count += 1;
+                                match river_band(cell.discharge.raw()) {
+                                    Some(band) => Feature::River(band),
+                                    None => Feature::Land,
                                 }
-                            },
+                            }
                         };
                         best = best.max(f);
                     }
                 }
 
                 let colour = match best {
-                    Feature::Sea => [10, 30, 78],
-                    Feature::Land => {
+                    Feature::Sea => OVERVIEW_SEA,
+                    // Mean over every land cell in the block, including
+                    // the channel cells: excluding them made the tint jump
+                    // wherever a river crossed a block.
+                    Feature::Land | Feature::River(_) => {
                         let mean = height_sum / land_count.max(1);
-                        land_colour(i32::try_from(mean).unwrap_or(0))
+                        let base = land_colour(i32::try_from(mean).unwrap_or(0));
+                        match best {
+                            Feature::River(band) => river_band_colour(band),
+                            _ => base,
+                        }
                     }
-                    Feature::River(band) => river_band_colour(band),
-                    Feature::Lake => [58, 110, 190],
+                    Feature::Lake => LAKE_FILL,
                 };
 
                 let x = ox * px + pxi;
@@ -251,135 +301,133 @@ pub fn render_overview_png(
                 };
                 rgb[pixel * 3..pixel * 3 + 3].copy_from_slice(&colour);
                 features[pixel] = best;
-                if let Feature::River(band) = best {
-                    wide.push((x, y, band));
-                }
             }
         }
     }
 
-    // feature 03 §Q8: banded trunks instead of confetti. Mid widens one
-    // pixel right, Dark widens right and down, but only onto land or sea —
-    // never over a lake or an actual river pixel — and never past the
-    // canvas edge.
-    //
-    // Round-3 review fix: two DIFFERENT source pixels can widen onto the
-    // SAME target at a diagonal junction (one widening down, another
-    // widening right into the cell below-and-right of it). Writing
-    // straight to `rgb` in `wide`'s push order let whichever entry came
-    // last win, independent of prominence — inconsistent with the base
-    // classification pass above, which resolves the same kind of overlap
-    // with `best.max(f)` so Dark always wins there. `widened` tracks the
-    // most prominent band each target pixel has been painted with so far
-    // during this pass, so a later, LESS prominent band can never
-    // overwrite an earlier, more prominent one — deterministic and
-    // independent of `wide`'s scan order, matching the base pass's rule
-    // (Dark > Mid > Light).
-    let mut widened: Vec<Option<RiverBand>> = vec![None; features.len()];
-    for (x, y, band) in wide {
-        let colour = river_band_colour(band);
-        for &(dx, dy) in widen_offsets(band) {
-            let (tx, ty) = (x + dx, y + dy);
-            if tx >= width || ty >= height {
-                continue;
-            }
-            let Ok(pixel) = usize::try_from(ty * width + tx) else {
+    // The Dark band widens by one pixel so the few real trunks carry
+    // visible weight against the streams. Guarded both ways: never over a
+    // lake, and never over another river pixel, so the pass cannot change
+    // a classification the block pass already made.
+    let mut widened = vec![false; features.len()];
+    for y in 0..height {
+        for x in 0..width {
+            let Ok(src) = usize::try_from(y * width + x) else {
                 continue;
             };
-            if !matches!(features[pixel], Feature::Land | Feature::Sea) {
-                continue; // never paint over an actual river/lake pixel
+            if features.get(src) != Some(&Feature::River(RiverBand::Dark)) {
+                continue;
             }
-            if widened[pixel].is_some_and(|w| w >= band) {
-                continue; // an equally or more prominent band already won here
+            for (dx, dy) in [(1u32, 0u32), (0, 1)] {
+                let (tx, ty) = (x + dx, y + dy);
+                if tx >= width || ty >= height {
+                    continue;
+                }
+                let Ok(dst) = usize::try_from(ty * width + tx) else {
+                    continue;
+                };
+                if !matches!(features.get(dst), Some(Feature::Land | Feature::Sea)) {
+                    continue;
+                }
+                if widened.get(dst) == Some(&true) {
+                    continue;
+                }
+                if let Some(slot) = widened.get_mut(dst) {
+                    *slot = true;
+                }
+                if let Some(slot) = rgb.get_mut(dst * 3..dst * 3 + 3) {
+                    slot.copy_from_slice(&river_band_colour(RiverBand::Dark));
+                }
             }
-            widened[pixel] = Some(band);
-            rgb[pixel * 3..pixel * 3 + 3].copy_from_slice(&colour);
         }
     }
 
     crate::encode_png(width, height, &rgb)
 }
 
-/// What a downsampled block shows, in increasing order of prominence.
-/// `River` carries its render band so a block spanning several orders
-/// keeps the highest one, and a lake still wins over any river
-/// (`feature 03 §Q8`).
-#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord)]
-enum Feature {
-    Sea,
-    Land,
-    River(RiverBand),
-    Lake,
-}
-
-/// Extra pixel offsets a river band's base pixel widens into
-/// (`feature 03 §Q8`): Light stays 1 px, Mid becomes 2 px, Dark becomes
-/// 3 px.
-fn widen_offsets(band: RiverBand) -> &'static [(u32, u32)] {
-    match band {
-        RiverBand::Light => &[],
-        RiverBand::Mid => &[(1, 0)],
-        RiverBand::Dark => &[(1, 0), (0, 1)],
-    }
-}
-
 #[cfg(test)]
 mod tests {
     use super::*;
-    use arda_core::Cell;
+    use arda_core::{Cell, DischargeMilli};
 
-    #[test]
-    fn river_bands_map_orders_to_the_three_colours() {
-        // feature 03 §Q8, calibrated against the measured DEFAULT-continent
-        // histogram (see RIVER_BAND_MIN's doc comment): 3-4 light, 5-6 mid,
-        // >=7 dark; below 3 the overview draws no river at all.
-        assert_eq!(river_band(2), None);
-        assert_eq!(river_band(3), Some(RiverBand::Light));
-        assert_eq!(river_band(4), Some(RiverBand::Light));
-        assert_eq!(river_band(5), Some(RiverBand::Mid));
-        assert_eq!(river_band(6), Some(RiverBand::Mid));
-        assert_eq!(river_band(7), Some(RiverBand::Dark));
-        assert_eq!(river_band(12), Some(RiverBand::Dark));
-    }
-
-    #[test]
-    fn area_channels_shade_by_order() {
-        assert_eq!(area_river_colour(1), [140, 170, 210]);
-        assert_eq!(area_river_colour(3), [110, 150, 200]);
-        assert_eq!(area_river_colour(5), [60, 105, 185]);
-        assert_eq!(area_river_colour(8), [25, 70, 160]);
-    }
-
-    #[test]
-    fn river_band_ordering_places_dark_above_mid_above_light() {
-        // Derived Ord must keep Sea < Land < River(Light<Mid<Dark) < Lake
-        // so the overview downsample's `best.max(f)` picks the highest
-        // band present in a block.
-        assert!(RiverBand::Light < RiverBand::Mid);
-        assert!(RiverBand::Mid < RiverBand::Dark);
-        assert!(Feature::Land < Feature::River(RiverBand::Light));
-        assert!(Feature::River(RiverBand::Dark) < Feature::Lake);
-    }
-
-    #[test]
-    fn widen_offsets_match_the_band_widths() {
-        assert_eq!(widen_offsets(RiverBand::Light), &[] as &[(u32, u32)]);
-        assert_eq!(widen_offsets(RiverBand::Mid), &[(1, 0)]);
-        assert_eq!(widen_offsets(RiverBand::Dark), &[(1, 0), (0, 1)]);
-    }
-
-    /// A tile with every cell identical, so the whole tile downsamples to
-    /// one uniform classification no matter the block size.
-    fn uniform_tile(order: u8) -> AreaCells {
-        AreaCells::flat(Cell {
-            terrain: TerrainKind::Land,
-            watercourse_order: order,
+    fn cell(discharge_milli: u32, terrain: TerrainKind) -> Cell {
+        Cell {
+            terrain,
+            discharge: DischargeMilli::new(discharge_milli),
+            watercourse_order: u8::from(discharge_milli > 0),
             ..Cell::default()
-        })
+        }
     }
 
-    /// Decodes a PNG produced by [`render_overview_png`] and returns the
-    /// RGB bytes at `(x, y)`.
+    #[test]
+    fn river_bands_split_on_the_calibrated_discharge_cuts() {
+        assert_eq!(river_band(RIVER_Q_MIN - 1), None);
+        assert_eq!(river_band(RIVER_Q_MIN), Some(RiverBand::Light));
+        assert_eq!(river_band(RIVER_Q_MID - 1), Some(RiverBand::Light));
+        assert_eq!(river_band(RIVER_Q_MID), Some(RiverBand::Mid));
+        assert_eq!(river_band(RIVER_Q_MAX - 1), Some(RiverBand::Mid));
+        assert_eq!(river_band(RIVER_Q_MAX), Some(RiverBand::Dark));
+    }
+
+    #[test]
+    fn a_dry_cell_is_never_a_river_however_high_its_order() {
+        // The whole point of the retouch: selection is by how much water
+        // a channel carries, not by where it sits in the hierarchy.
+        let mut c = cell(0, TerrainKind::Land);
+        c.watercourse_order = 9;
+        assert_eq!(river_band(c.discharge.raw()), None);
+    }
+
+    #[test]
+    fn every_water_colour_is_distinguishable_from_every_other() {
+        // Guards the defect this retouch fixed: the old lake fill
+        // [58,110,190] and mid river band [60,105,185] differed by 2
+        // units of blue and were the same colour on the page. Cheap
+        // proxy for a perceptual metric — a generous Manhattan floor in
+        // sRGB, which the old pair (ΔE00 2.02, Manhattan 12) fails.
+        let water = [
+            ("lake", LAKE_FILL),
+            ("light", river_band_colour(RiverBand::Light)),
+            ("mid", river_band_colour(RiverBand::Mid)),
+            ("dark", river_band_colour(RiverBand::Dark)),
+            ("sea", OVERVIEW_SEA),
+        ];
+        for (i, (an, a)) in water.iter().enumerate() {
+            for (bn, b) in water.iter().skip(i + 1) {
+                let d: i32 = (0..3)
+                    .map(|k| (i32::from(a[k]) - i32::from(b[k])).abs())
+                    .sum();
+                assert!(d >= 40, "{an} and {bn} are too close (Manhattan {d})");
+            }
+        }
+    }
+
+    #[test]
+    fn blocks_cover_every_cell_of_the_tile() {
+        // The shipped renderer used `block = 512 / px`, so at the default
+        // px = 48 it read cells 0..=479 and silently dropped 480..=511 of
+        // every tile. Walk the same bounds the render loop derives and
+        // assert they tile 0..512 with no gap and no overlap.
+        for px in [1u32, 2, 3, 7, 16, 48, 64, 512] {
+            let side = u32::from(AREA_CELLS);
+            let mut covered = 0u32;
+            let mut prev_end = 0u32;
+            for i in 0..px {
+                let x0 = i * side / px;
+                let x1 = ((i + 1) * side / px).max(x0 + 1);
+                assert_eq!(x0, prev_end, "gap or overlap at px={px} block={i}");
+                covered += x1 - x0;
+                prev_end = x1;
+            }
+            assert_eq!(prev_end, side, "px={px} stops short of the tile");
+            assert_eq!(covered, side, "px={px} does not cover the tile exactly");
+        }
+    }
+
+    fn uniform_tile(discharge_milli: u32) -> AreaCells {
+        AreaCells::flat(cell(discharge_milli, TerrainKind::Land))
+    }
+
     fn pixel_at(png_bytes: &[u8], x: usize, y: usize) -> [u8; 3] {
         let Ok(mut reader) = png::Decoder::new(png_bytes).read_info() else {
             panic!("invalid PNG header");
@@ -394,46 +442,62 @@ mod tests {
     }
 
     #[test]
-    fn widen_pass_lets_the_higher_band_win_regardless_of_push_order() {
-        // feature 03 §Q8, round-3 review fix: the widen pass used to just
-        // overwrite pixels in `wide`'s push order, so whichever band was
-        // pushed LAST at a shared target pixel won -- not the more
-        // prominent one, unlike the base classification pass's
-        // `best.max(f)` above. A Dark tile widening DOWN and a Mid tile
-        // widening RIGHT can land on the very same target pixel at a
-        // junction. `areas`' own slice order controls `wide`'s push order
-        // directly -- each area's whole px*px block is scanned before the
-        // next area starts -- independent of that area's own (ax, ay)
-        // position, so swapping the two source tiles' order in the slice
-        // flips push order without touching the geometry at all, isolating
-        // push order as the only variable.
-        let dark_tile = uniform_tile(7); // >= RIVER_BAND_MAX: Dark
-        let mid_tile = uniform_tile(5); // >= RIVER_BAND_MID, < RIVER_BAND_MAX: Mid
-        let target_tile = uniform_tile(0); // plain land, no river at all
+    fn the_strongest_band_in_a_block_wins_it() {
+        let dark = uniform_tile(RIVER_Q_MAX);
+        let light = uniform_tile(RIVER_Q_MIN);
+        let dry = uniform_tile(0);
+        let areas = [(0, 0, &dark), (1, 0, &light), (0, 1, &dry)];
+        let Ok(png) = render_overview_png(&areas, 2, 2, 1) else {
+            panic!("render_overview_png failed");
+        };
+        assert_eq!(pixel_at(&png, 0, 0), river_band_colour(RiverBand::Dark));
+        assert_eq!(pixel_at(&png, 1, 0), river_band_colour(RiverBand::Light));
+        assert_ne!(pixel_at(&png, 0, 1), river_band_colour(RiverBand::Light));
+    }
 
-        // px = 1: one output pixel per area tile, so (ax, ay) addresses
-        // the output pixel directly. Dark at (1, 0) widens its (0, 1)
-        // offset onto (1, 1); Mid at (0, 1) widens its (1, 0) offset onto
-        // that very same (1, 1) -- itself plain land, so the "never paint
-        // over a real river/lake pixel" guard blocks neither write.
-        let dark_entry = (1, 0, &dark_tile);
-        let mid_entry = (0, 1, &mid_tile);
-        let target_entry = (1, 1, &target_tile);
-        let dark_colour = river_band_colour(RiverBand::Dark);
+    #[test]
+    fn rendering_is_byte_identical_on_repeat() {
+        // logic/04: re-export must produce the same bytes.
+        let t = uniform_tile(RIVER_Q_MID);
+        let areas = [(0, 0, &t)];
+        let (Ok(a), Ok(b)) = (
+            render_overview_png(&areas, 1, 1, 8),
+            render_overview_png(&areas, 1, 1, 8),
+        ) else {
+            panic!("render failed");
+        };
+        assert_eq!(a, b);
+    }
 
-        for areas in [
-            [dark_entry, mid_entry, target_entry], // Dark pushed to `wide` first
-            [mid_entry, dark_entry, target_entry], // Mid pushed to `wide` first
-        ] {
+    #[test]
+    fn the_dark_band_widens_and_the_light_band_does_not() {
+        // Hierarchy has to come from the data now that no continent
+        // course is drawn: a trunk gets an extra pixel, a stream does not.
+        for (q, widens) in [(RIVER_Q_MAX, true), (RIVER_Q_MIN, false)] {
+            let wet = uniform_tile(q);
+            let dry = uniform_tile(0);
+            let areas = [(0, 0, &wet), (1, 0, &dry), (0, 1, &dry), (1, 1, &dry)];
             let Ok(png) = render_overview_png(&areas, 2, 2, 1) else {
-                panic!("render_overview_png failed");
+                panic!("render failed");
             };
-            assert_eq!(
-                pixel_at(&png, 1, 1),
-                dark_colour,
-                "Dark must win the shared target pixel regardless of which \
-                 source tile was pushed to `wide` first"
-            );
+            let spread = pixel_at(&png, 1, 0) == river_band_colour(RiverBand::Dark);
+            assert_eq!(spread, widens, "band at discharge {q} widened: {spread}");
         }
     }
+
+    #[test]
+    fn a_lake_outranks_a_river_in_the_same_block() {
+        let mut cells = AreaCells::flat(cell(RIVER_Q_MAX, TerrainKind::Land));
+        let Some(at) = CellCoord::new(0, 0) else {
+            panic!("0,0 is in range");
+        };
+        cells.set(at, cell(0, TerrainKind::Lake));
+        let areas = [(0, 0, &cells)];
+        let Ok(png) = render_overview_png(&areas, 1, 1, 1) else {
+            panic!("render_overview_png failed");
+        };
+        assert_eq!(pixel_at(&png, 0, 0), LAKE_FILL);
+    }
+
+
 }
