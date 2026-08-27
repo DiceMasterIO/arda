@@ -260,6 +260,19 @@ fn strahler(
     let mut max_in = vec![0u8; count];
     let mut max_count = vec![0u16; count];
 
+    // Round-1 review note (no behavior change): this floor only ever takes
+    // effect below, where a cell becomes a channel — the loop `continue`s
+    // past any cell under `CHANNEL_THRESHOLD_L_S` without ever reading
+    // `max_in`/`max_count`. So when an entering river's own seed cell
+    // carries < 40 L/s, the seed here is written but never consumed: the
+    // seed cell is not a channel, order stays 0 there, and if the river
+    // regains enough discharge further downstream it restarts at order 1
+    // rather than continuing from `e.order`. That is an accepted
+    // consequence of discharge-driven initiation, not a bug to route
+    // around — an arid crossing genuinely is not a channel at the seed
+    // (feature 03 §Q4), and §Q4's climate-driven initiation is deliberately
+    // allowed to override §Q3's order-continuity guarantee when the two
+    // disagree.
     for e in entering {
         let i = e.cell.index();
         max_in[i] = max_in[i].max(e.order);

@@ -56,12 +56,22 @@ fn coord(x: i32, y: i32) -> Option<CellCoord> {
 
 /// Height above the nearest downstream watercourse, in millimetres.
 ///
-/// Found by following the drainage tree, per the artifact. Cells whose path
-/// leaves the tile without meeting a channel, and channel cells themselves,
-/// return 0.
+/// Found by following the drainage tree, per the artifact. A channel cell
+/// is itself at the watercourse and stores 0. A cell whose path leaves the
+/// tile, or cycles, before meeting a channel stores [`u32::MAX`] — feature
+/// 01 spec R9: "A cell whose path leaves the tile before meeting a channel
+/// stores `u16::MAX`" (the `u32` here is millimetres, downshifted to
+/// decimetres and clamped to `u16` at `compose`). Before discharge-driven
+/// initiation (feature 03) this branch was unreachable in practice —
+/// 300-cell channels made every tile dense with channels — so it returned
+/// 0 like a channel cell; a genuinely arid tile can now have no channel at
+/// all, and every one of its cells hit this path, so the distinction from
+/// an actual channel cell (also 0) now matters: conflating the two made
+/// `floodplain` classify boundless dry land as `Marsh`.
 ///
-/// Clamped at zero: routing happens on the filled surface while heights are
-/// raw, so a cell inside a basin can sit *below* the channel it drains to.
+/// Clamped at zero when found: routing happens on the filled surface while
+/// heights are raw, so a cell inside a basin can sit *below* the channel it
+/// drains to.
 #[must_use]
 pub fn hand(heights: &[i32], water: &WaterGrid) -> Vec<u32> {
     let count = (N * N) as usize;
@@ -90,10 +100,12 @@ pub fn hand(heights: &[i32], water: &WaterGrid) -> Vec<u32> {
                     None => break false,
                 }
             };
-            if found {
+            out[at.index()] = if found {
                 let diff = i64::from(heights[at.index()]) - i64::from(heights[cursor.index()]);
-                out[at.index()] = u32::try_from(diff.max(0)).unwrap_or(u32::MAX);
-            }
+                u32::try_from(diff.max(0)).unwrap_or(u32::MAX)
+            } else {
+                u32::MAX
+            };
         }
     }
     out
@@ -200,6 +212,9 @@ mod tests {
         assert_eq!(floodplain(2_500), Floodplain::Terrace);
         assert_eq!(floodplain(15_000), Floodplain::Terrace);
         assert_eq!(floodplain(15_001), Floodplain::Dry);
+        // Fix 1 (round-1 review): `hand`'s no-channel-below sentinel must
+        // fall through every band into `Dry`, not wrap or land in `Marsh`.
+        assert_eq!(floodplain(u32::MAX), Floodplain::Dry);
     }
 
     #[test]
@@ -242,5 +257,63 @@ mod tests {
     fn wetness_survives_a_flat_cell() {
         // Slope zero must not divide by zero.
         let _ = wetness(1_000, 0);
+    }
+
+    #[test]
+    fn hand_stores_the_sentinel_when_no_cell_ever_reaches_a_channel() {
+        // Fix 1 (round-1 review of feature 03): before discharge-driven
+        // initiation, "path never meets a channel" was unreachable in
+        // practice (300-cell channels made every tile dense with them), so
+        // `hand` returning 0 for it was indistinguishable from a real
+        // channel cell. Discharge-driven initiation (§Q4) makes a
+        // channel-less tile possible by design (an arid tile with
+        // `discharge < 40` L/s everywhere) — synthesized here by reusing a
+        // real seed's relief and drainage tree (not hand-rolled) but
+        // zeroing its rainfall patch and dropping any entering river, so
+        // no cell anywhere in the tile ever reaches the 40 L/s threshold.
+        use crate::area::{area_rainfall, fill, water};
+        use crate::continent::build_continent;
+        use crate::continent::bundles::{bundle_for, PATCH_KM};
+        use arda_core::{AreaCoord, GenerateConfig};
+
+        let c = build_continent(42, GenerateConfig::MICRO, 0);
+        let mut b = bundle_for(42, &c, AreaCoord::new(0, 1));
+        b.entering.clear();
+        b.rainfall_km = vec![0u16; PATCH_KM * PATCH_KM];
+
+        let r = crate::area::relief::relief(42, &c.grid, &b);
+        let heights: Vec<i32> = (0..(N * N) as usize)
+            .filter_map(|i| {
+                let i = i32::try_from(i).ok()?;
+                Some(r.get(coord(i % N, i / N)?))
+            })
+            .collect();
+        assert!(heights.iter().any(|&h| h > 0), "fixture must have land");
+
+        let filled = fill::fill(&heights, &b);
+        let rain = area_rainfall(&b);
+        assert!(
+            rain.iter().all(|&mm| mm == 0),
+            "a zeroed rainfall patch must resample to zero everywhere"
+        );
+        let w = water::water(&filled, &b, &rain);
+        assert!(
+            (0..N)
+                .flat_map(|y| (0..N).map(move |x| (x, y)))
+                .filter_map(|(x, y)| coord(x, y))
+                .all(|at| !w.is_channel(at)),
+            "zero rainfall and no entering river must leave the whole tile without a channel"
+        );
+
+        let out = hand(&heights, &w);
+        assert!(
+            out.iter().all(|&mm| mm == u32::MAX),
+            "every cell's path leaves the tile without meeting a channel, so every cell — \
+             channel or not — must store the sentinel, never the old 0"
+        );
+
+        // And the consequence this fix restores: such a cell must not be
+        // misclassified as Marsh.
+        assert_eq!(floodplain(out[0]), Floodplain::Dry);
     }
 }
