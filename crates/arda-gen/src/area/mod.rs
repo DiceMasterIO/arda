@@ -251,23 +251,18 @@ fn near_rim(c: CellCoord) -> bool {
 /// its own (locally wrong) spill has no business being reported as a
 /// lake the neighbouring tile disagrees exists.
 ///
-/// Basins are processed in `filled.basins`'s own deterministic order
-/// (sorted by first cell) while threading one `claimed` grid through
-/// every basin's clamp: `fill::fill` guarantees basins start disjoint,
-/// but two independently-clamped near-rim basins can expand into the
-/// same low-lying land (measured on real fixtures, not hypothetical —
-/// see task-5-report.md), and without this a cell could end up listed in
-/// two different `Lake.cells`. Earlier basins win; a later basin's
-/// expansion simply cannot cross into cells an earlier one already
-/// claimed.
+/// `clamp_near_rim` never changes a basin's membership (§Q5's "minimal
+/// blast radius" decision — see its own doc comment), so `fill::fill`'s
+/// basins — already pairwise disjoint by construction
+/// (`fill::tests::basins_are_disjoint`) — stay disjoint here too. No
+/// cross-basin claiming is needed to keep a cell out of two `Lake`s.
 fn collect_lakes(heights: &[i32], filled: &Filled, bundle: &TileBundle) -> Vec<Lake> {
-    let mut claimed = vec![false; (N * N) as usize];
     filled
         .basins
         .iter()
         .map(|b| {
-            let (surface_mm, depth_mm, cells) = clamp_near_rim(b, heights, bundle, &mut claimed);
-            (surface_mm, depth_mm, cells, b.outlet)
+            let (surface_mm, depth_mm) = clamp_near_rim(b, heights, bundle);
+            (surface_mm, depth_mm, b.cells.clone(), b.outlet)
         })
         .filter(|(_, depth_mm, cells, _)| {
             cells.len() >= LAKE_MIN_CELLS && *depth_mm >= LAKE_MIN_DEPTH_MM
@@ -283,66 +278,30 @@ fn collect_lakes(heights: &[i32], filled: &Filled, bundle: &TileBundle) -> Vec<L
         .collect()
 }
 
-/// A basin's lake surface, depth, and membership after the seam clamp.
+/// A basin's lake surface and depth after the seam clamp.
+///
+/// feature 03 §Q5: both sides of a seam sample the same continent
+/// surface, so the recorded level agrees. Membership stays local —
+/// flooding every connected cell under the clamped surface drowned up
+/// to 88% of a tile in measurement, which the "minimal blast radius"
+/// decision excludes.
 ///
 /// Interior basins (no cell within one cell of the rim) pass through
-/// unchanged. A near-rim basin's surface becomes the MAX, over its
-/// ORIGINAL near-rim cells (as `fill::fill` reported them), of the
-/// smoothstep-bilinear sample of `bundle.filled_km` — the same
-/// interpolation `area_rainfall` uses, shared via `sample_km_patch`
-/// rather than duplicated a third time. When that clamp surface differs
-/// from the basin's own local spill, depth and membership are
-/// recomputed against it; when it matches, nothing changes.
-///
-/// One BFS pass only, not a fixed point: growing membership can uncover
-/// NEW near-rim cells whose own sample is higher still, and iterating
-/// until that stops moving was tried and rejected — on real fixture data
-/// it does not settle nearby, it runs the lake from a few hundred cells
-/// to the majority of the tile before it stabilises, chasing a single
-/// coarse km cell along the whole rim band. The brief's own fallback for
-/// this ("clamp at the basin's lowest boundary cell") is deliberately
-/// deferred to Task 8's invariant check rather than built speculatively
-/// here; see task-5-report.md.
-///
-/// Depth and the "floor" (lowest submerged cell) are computed over the
-/// basin's ORIGINAL (unclaimed) cells, per the brief's literal ordering
-/// ("recompute depth_mm ... AND expand membership", depth first):
-/// `fill::fill` already found this basin's true lowest point, and every
-/// 4-neighbour of a submerged cell that is itself lower is already
-/// submerged (the priority-flood invariant), so a newly-flooded
-/// land-bridge cell sits at or above that floor in every fixture
-/// measured for this task. Using the pre-expansion floor also keeps
-/// `depth_mm` meaningful when `expand_lake` reaches far beyond the
-/// original pit (see task-5-report.md): the reported depth stays
-/// anchored to the basin `fill::fill` actually found, rather than
-/// collapsing toward `clamp_surface` because the flood reached all the
-/// way down to present-but-shallow land near sea level.
-///
-/// `claimed` tracks every cell already spoken for by an earlier-processed
-/// basin this tile (see `collect_lakes`): cells already claimed are
-/// dropped from this basin's own starting cells before anything else, so
-/// two basins can never end up both listing the same `CellCoord`.
-fn clamp_near_rim(
-    b: &Basin,
-    heights: &[i32],
-    bundle: &TileBundle,
-    claimed: &mut [bool],
-) -> (i32, u32, Vec<CellCoord>) {
-    let free: Vec<CellCoord> = b
-        .cells
-        .iter()
-        .copied()
-        .filter(|c| !claimed[c.index()])
-        .collect();
-
-    if !free.iter().any(|&c| near_rim(c)) {
-        for c in &free {
-            claimed[c.index()] = true;
-        }
-        return (b.surface_mm, b.depth_mm, free);
+/// unchanged: `(b.surface_mm, b.depth_mm)`. A near-rim basin's surface
+/// becomes the MAX, over its near-rim cells, of the smoothstep-bilinear
+/// sample of `bundle.filled_km` — the same interpolation `area_rainfall`
+/// uses, shared via `sample_km_patch` rather than duplicated a third
+/// time. Depth is then recomputed as `surface` minus the basin's own
+/// floor (its lowest cell's height), saturating (floored) at 0. Cell
+/// membership does not appear in this function's signature at all: the
+/// caller keeps exactly the cells `fill::fill` gave the basin.
+fn clamp_near_rim(b: &Basin, heights: &[i32], bundle: &TileBundle) -> (i32, u32) {
+    if !b.cells.iter().any(|&c| near_rim(c)) {
+        return (b.surface_mm, b.depth_mm);
     }
 
-    let clamp_mm = free
+    let surface_mm = b
+        .cells
         .iter()
         .filter(|&&c| near_rim(c))
         .map(|c| {
@@ -357,70 +316,14 @@ fn clamp_near_rim(
         .and_then(|v| i32::try_from(v).ok())
         .unwrap_or(b.surface_mm);
 
-    if clamp_mm == b.surface_mm {
-        for c in &free {
-            claimed[c.index()] = true;
-        }
-        return (b.surface_mm, b.depth_mm, free);
-    }
-
-    // feature 03 §Q5: both sides sample the same continent surface
-    let floor = free
+    let floor = b
+        .cells
         .iter()
         .map(|c| heights[c.index()])
         .min()
-        .unwrap_or(clamp_mm);
-    let depth_mm = u32::try_from(clamp_mm.saturating_sub(floor)).unwrap_or(0);
-    let cells = expand_lake(&free, heights, clamp_mm, claimed);
-    (clamp_mm, depth_mm, cells)
-}
-
-/// Grows a basin's membership by 4-connected BFS from its existing
-/// cells, adding land cells with `0 < height < surface` (feature 03
-/// §Q5): once the lake's reported surface rises to the continent clamp,
-/// any newly-submerged land between the old shoreline and the new one
-/// belongs to the lake too. Never crosses into a cell `claimed` already
-/// marks true (an earlier basin's territory); every cell this call adds,
-/// including the seed, is marked claimed before returning so a later
-/// basin cannot re-claim it either.
-///
-/// Driven by a plain queue and a `Vec<bool>` visited flag, never a
-/// `HashSet` — its iteration order is randomized per process and would
-/// make the push order (and so, were it ever order-sensitive) vary
-/// between runs. The final list is sorted ascending row-major, same as
-/// every other basin's cells.
-fn expand_lake(
-    seed: &[CellCoord],
-    heights: &[i32],
-    surface: i32,
-    claimed: &mut [bool],
-) -> Vec<CellCoord> {
-    let mut member = vec![false; (N * N) as usize];
-    for &c in seed {
-        member[c.index()] = true;
-        claimed[c.index()] = true;
-    }
-    let mut queue: std::collections::VecDeque<CellCoord> = seed.iter().copied().collect();
-    let mut cells = seed.to_vec();
-
-    while let Some(cur) = queue.pop_front() {
-        let (x, y) = (i32::from(cur.x()), i32::from(cur.y()));
-        for (dx, dy) in [(1, 0), (-1, 0), (0, 1), (0, -1)] {
-            let Some(nb) = coord(x + dx, y + dy) else {
-                continue;
-            };
-            let ni = nb.index();
-            if !member[ni] && !claimed[ni] && heights[ni] > 0 && heights[ni] < surface {
-                member[ni] = true;
-                claimed[ni] = true;
-                cells.push(nb);
-                queue.push_back(nb);
-            }
-        }
-    }
-
-    cells.sort_unstable();
-    cells
+        .unwrap_or(surface_mm);
+    let depth_mm = u32::try_from(surface_mm.saturating_sub(floor)).unwrap_or(0);
+    (surface_mm, depth_mm)
 }
 
 /// Whether a channel cell begins a segment: a head, or just below a
@@ -731,89 +634,97 @@ mod tests {
 
     #[test]
     fn edge_touching_basins_take_the_continent_spill_level() {
-        // Feature 03 spec R9 (closes open-items #12): a basin whose cells
+        // Feature 03 spec R9 (closes open-items #12), corrected per §Q5's
+        // recorded decision ("minimal blast radius"): a basin whose cells
         // sit within one cell of the tile rim must report the SAME surface
         // the neighbouring tile would compute for the same shared data,
         // because both sample `bundle.filled_km` instead of each tile's own
-        // (possibly different) local spill.
+        // (possibly different) local spill — and cell membership must stay
+        // exactly what `fill::fill` found. Because membership no longer
+        // moves, both properties are now checked directly against
+        // `objects.lakes` rather than against basins one step removed from
+        // it: a lake's own near-rim cells are the same cells
+        // `clamp_near_rim` sampled to produce its surface, and the lake's
+        // full cell set is checked against its originating basin.
         //
-        // Checked against `fill::fill`'s own basins (replicating
-        // `generate_area`'s pipeline up to that point, as
-        // `drainage_invariants.rs` and `fill::tests::setup` already do),
-        // not `objects.lakes`: `clamp_near_rim` samples a basin's ORIGINAL
-        // near-rim cells, and the BFS expansion below it can uncover
-        // further-out near-rim cells with their own (possibly higher)
-        // sample — a real basin in this fixture does exactly that, and
-        // checking a lake's *final*, expanded cells against this same
-        // oracle would demand a fixed-point clamp that was tried and
-        // rejected (see `clamp_near_rim`'s doc comment and
-        // task-5-report.md). Scans all 8 MICRO tiles rather than just
-        // (0, 1): the brief's fallback ("if tile (0,1) has none, scan all
-        // 8") collapses to this single unconditional scan, which gives the
-        // same guarantee more simply.
+        // Seed 123 tile (1, 0): the 12-seed/8-tile MICRO survey in
+        // task-5-report.md found exactly one near-rim lake there; seed 42,
+        // used elsewhere in this file, has none.
         let ctx = fixture_ctx();
-        let mut checked = 0u32;
-        for area in GenerateConfig::MICRO.area_coords() {
-            let b = bundle_for(SEAM_LAKE_SEED, &ctx, area);
-            let r = relief(SEAM_LAKE_SEED, &ctx.grid, &b);
-            let mut heights: Vec<i32> = (0..(N * N) as usize)
-                .filter_map(|i| {
-                    let i = i32::try_from(i).ok()?;
-                    Some(r.get(coord(i % N, i / N)?))
-                })
-                .collect();
-            let uplift: Vec<i32> = (0..(N * N) as usize)
-                .filter_map(|i| {
-                    let i = i32::try_from(i).ok()?;
-                    let (ax, ay) = crate::continent::bundles::abs_cell(
-                        area,
-                        u16::try_from(i % N).ok()?,
-                        u16::try_from(i / N).ok()?,
-                    );
-                    Some(crate::continent::bundles::coarse_height(&ctx.grid, ax, ay))
-                })
-                .collect();
-            erosion::erode(&mut heights, &uplift, &b);
-            let filled = fill::fill(&heights, &b);
+        let area = AreaCoord::new(1, 0);
+        let b = bundle_for(SEAM_LAKE_SEED, &ctx, area);
+        let (_, objects) = generate_area(SEAM_LAKE_SEED, &ctx, &b);
 
-            // Same claiming state `collect_lakes` threads through, in the
-            // same basin order, so this reproduces exactly what the real
-            // pipeline computes for each basin (mirroring `clamp_near_rim`'s
-            // own claimed-filter so the two can never disagree about which
-            // basin is near-rim).
-            let mut claimed = vec![false; (N * N) as usize];
-            for basin in &filled.basins {
-                let free: Vec<CellCoord> = basin
-                    .cells
-                    .iter()
-                    .copied()
-                    .filter(|c| !claimed[c.index()])
-                    .collect();
-                let expected = free
-                    .iter()
-                    .any(|&c| near_rim(c))
-                    .then(|| continent_surface_at(&b, &free))
-                    .flatten();
-                let (surface_mm, _, _) = clamp_near_rim(basin, &heights, &b, &mut claimed);
-                if let Some(expected) = expected {
-                    checked += 1;
-                    assert_eq!(
-                        surface_mm, expected,
-                        "basin on tile {area:?} did not take the continent spill"
-                    );
-                }
+        // Independent re-derivation of `fill::fill`'s basins (mirrors
+        // `drainage_invariants.rs`'s and `fill::tests::setup`'s existing
+        // pattern of replaying the pipeline up to that point), so each
+        // lake's cell set can be checked against the basin it came from.
+        let r = relief(SEAM_LAKE_SEED, &ctx.grid, &b);
+        let mut heights: Vec<i32> = (0..(N * N) as usize)
+            .filter_map(|i| {
+                let i = i32::try_from(i).ok()?;
+                Some(r.get(coord(i % N, i / N)?))
+            })
+            .collect();
+        let uplift: Vec<i32> = (0..(N * N) as usize)
+            .filter_map(|i| {
+                let i = i32::try_from(i).ok()?;
+                let (ax, ay) = crate::continent::bundles::abs_cell(
+                    area,
+                    u16::try_from(i % N).ok()?,
+                    u16::try_from(i / N).ok()?,
+                );
+                Some(crate::continent::bundles::coarse_height(&ctx.grid, ax, ay))
+            })
+            .collect();
+        erosion::erode(&mut heights, &uplift, &b);
+        let filled = fill::fill(&heights, &b);
+
+        let mut checked = 0u32;
+        for lake in &objects.lakes {
+            if !lake.cells.iter().any(|&c| near_rim(c)) {
+                continue;
             }
+            checked += 1;
+
+            let expected = continent_surface_at(&b, &lake.cells)
+                .expect("a near-rim lake must have at least one near-rim cell");
+            assert_eq!(
+                lake.surface.raw(),
+                expected,
+                "lake {} on tile {area:?} did not take the continent spill",
+                lake.id
+            );
+
+            // Basins are disjoint and non-empty, so the first cell
+            // (ascending row-major, per `fill::fill`) identifies the basin
+            // this lake came from.
+            let basin = filled
+                .basins
+                .iter()
+                .find(|basin| basin.cells.first() == lake.cells.first())
+                .unwrap_or_else(|| {
+                    panic!(
+                        "lake {} has no fill::fill basin starting at the same cell",
+                        lake.id
+                    )
+                });
+            assert_eq!(
+                &basin.cells, &lake.cells,
+                "lake {} cell set drifted from fill::fill's basin — membership must \
+                 stay local to the tile (§Q5)",
+                lake.id
+            );
         }
         assert!(
             checked > 0,
-            "no near-rim basin exists on any of the 8 MICRO tiles at seed \
-             {SEAM_LAKE_SEED} — this test cannot exercise the clamp; \
-             see task-5-report.md"
+            "no near-rim lake exists on tile {area:?} at seed {SEAM_LAKE_SEED} — \
+             this test cannot exercise the clamp; see task-5-report.md"
         );
     }
 
     #[test]
-    fn clamp_near_rim_replaces_local_spill_and_grows_membership() {
+    fn clamp_near_rim_replaces_local_spill_but_not_membership() {
         // Feature 03 §Q5, non-vacuous regardless of whether any generated
         // MICRO tile happens to carry a near-rim lake: a synthetic basin
         // touching the rim, clamped against a `filled_km` patch flattened
@@ -824,21 +735,12 @@ mod tests {
         let flat = 12_345i32;
         b.filled_km = vec![flat; PATCH_KM * PATCH_KM];
 
-        // Sea everywhere except a 10x10 dry patch straddling the rim
-        // (x in 0..10, y in 195..205), height 100 mm throughout: well
-        // under both the (deliberately different) local spill and the
-        // continent clamp, so BFS should flood the whole connected patch
-        // and nothing beyond it.
-        let mut heights = vec![0i32; (N * N) as usize];
-        for y in 195..205 {
-            for x in 0..10 {
-                let c = coord(x, y).unwrap();
-                heights[c.index()] = 100;
-            }
-        }
         let rim_cell = coord(0, 200).unwrap();
         let inner_cell = coord(5, 200).unwrap();
         assert!(near_rim(rim_cell) && !near_rim(inner_cell));
+        let mut heights = vec![0i32; (N * N) as usize];
+        heights[rim_cell.index()] = 100;
+        heights[inner_cell.index()] = 300;
 
         let basin = Basin {
             cells: vec![inner_cell, rim_cell],
@@ -846,34 +748,11 @@ mod tests {
             depth_mm: 400,
             outlet: None,
         };
-
-        let mut claimed = vec![false; (N * N) as usize];
-        let (surface_mm, depth_mm, cells) = clamp_near_rim(&basin, &heights, &b, &mut claimed);
-        assert_eq!(surface_mm, flat, "clamp did not take the continent surface");
-        assert_eq!(depth_mm, u32::try_from(flat - 100).unwrap());
-        assert_eq!(cells.len(), 100, "BFS should flood the whole dry patch");
-        assert!(
-            cells.windows(2).all(|w| w[0] < w[1]),
-            "cells must stay sorted ascending row-major"
-        );
-        assert!(
-            cells.iter().all(|c| claimed[c.index()]),
-            "every flooded cell must be marked claimed"
-        );
-
-        // A second basin whose only cell sits inside territory the first
-        // basin's expansion already claimed must come back empty, never
-        // re-listing a cell another `Lake` already owns.
-        let overlapping = Basin {
-            cells: vec![coord(3, 199).unwrap()],
-            surface_mm: 500,
-            depth_mm: 400,
-            outlet: None,
-        };
-        let (_, _, dup_cells) = clamp_near_rim(&overlapping, &heights, &b, &mut claimed);
-        assert!(
-            dup_cells.is_empty(),
-            "a basin entirely inside claimed territory must contribute no cells"
+        assert_eq!(
+            clamp_near_rim(&basin, &heights, &b),
+            (flat, u32::try_from(flat - 100).unwrap()),
+            "clamp must take the continent surface and recompute depth against \
+             it and the basin's own floor, without touching membership"
         );
 
         // An interior basin (no near-rim cell) must pass through exactly
@@ -884,9 +763,6 @@ mod tests {
             depth_mm: 400,
             outlet: None,
         };
-        assert_eq!(
-            clamp_near_rim(&interior, &heights, &b, &mut claimed),
-            (500, 400, interior.cells.clone())
-        );
+        assert_eq!(clamp_near_rim(&interior, &heights, &b), (500, 400));
     }
 }
