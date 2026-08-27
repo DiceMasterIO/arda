@@ -80,6 +80,25 @@ const OVERVIEW_SEA: [u8; 3] = [10, 30, 78];
 /// and a lake were literally the same colour on the page.
 const LAKE_FILL: [u8; 3] = [132, 176, 205];
 
+/// A lake claims an overview pixel only once it covers at least `1 /
+/// LAKE_MIN_BLOCK_DEN` of that pixel's block.
+///
+/// Letting any single lake cell win the block is the same dilation the
+/// discharge cuts above exist to undo, just for water bodies: one 100 m
+/// cell claiming a 1.1 km² pixel is a 110x inflation, and it is what
+/// fringes a lake with detached specks a pixel or two across. Measured
+/// on the DEFAULT continent, whose 129 lakes total 1,714 km² and are all
+/// at least 1 km²: any-cell paints 2,705 km² (1.58x), a quarter-block
+/// paints 2,022 km² (1.18x), and a majority paints 1,667 km² (0.97x).
+///
+/// A majority is the most accurate by area and is still wrong, because
+/// it erases 18 lakes outright — the largest 1.8 km², a real feature —
+/// when their cells land near a block boundary and no single block holds
+/// half of them. Dropping a lake the world has is a worse error than
+/// drawing one slightly large, so the floor sits at a quarter, which
+/// loses none of the 129.
+const LAKE_MIN_BLOCK_DEN: u32 = 4;
+
 /// Discharge cuts that place a watercourse in a render band, in
 /// thousandth-cumecs (`DischargeMilli`, so 4_000 = 4 m³/s).
 ///
@@ -249,9 +268,13 @@ pub fn render_overview_png(
                 let y0 = py * side / px;
                 let y1 = ((py + 1) * side / px).max(y0 + 1);
 
+                // `best` ranks only sea, land and river. A lake is
+                // decided by area below, not by winning a max.
                 let mut best = Feature::Sea;
                 let mut height_sum: i64 = 0;
                 let mut land_count: i64 = 0;
+                let mut lake_cells: u32 = 0;
+                let mut block_cells: u32 = 0;
 
                 for sy in y0..y1 {
                     for sx in x0..x1 {
@@ -262,20 +285,25 @@ pub fn render_overview_png(
                             continue;
                         };
                         let cell = cells.get(at);
-                        let f = match cell.terrain {
-                            TerrainKind::Lake => Feature::Lake,
-                            TerrainKind::Sea => Feature::Sea,
+                        block_cells += 1;
+                        match cell.terrain {
+                            TerrainKind::Lake => lake_cells += 1,
+                            // Feature::Sea is already the floor.
+                            TerrainKind::Sea => {}
                             TerrainKind::Land => {
                                 height_sum += i64::from(cell.height.raw());
                                 land_count += 1;
-                                match river_band(cell.discharge.raw()) {
+                                let f = match river_band(cell.discharge.raw()) {
                                     Some(band) => Feature::River(band),
                                     None => Feature::Land,
-                                }
+                                };
+                                best = best.max(f);
                             }
-                        };
-                        best = best.max(f);
+                        }
                     }
+                }
+                if lake_cells * LAKE_MIN_BLOCK_DEN >= block_cells {
+                    best = Feature::Lake;
                 }
 
                 let colour = match best {
@@ -486,7 +514,30 @@ mod tests {
     }
 
     #[test]
-    fn a_lake_outranks_a_river_in_the_same_block() {
+    fn a_lake_covering_the_block_outranks_a_river_in_it() {
+        // px = 1 makes the whole tile one block, so `side` lake cells
+        // square is exactly the share of it the rule is given.
+        let mut cells = AreaCells::flat(cell(RIVER_Q_MAX, TerrainKind::Land));
+        let side = AREA_CELLS / 2; // a quarter of the tile by area
+        for y in 0..side {
+            for x in 0..side {
+                let Some(at) = CellCoord::new(x, y) else {
+                    panic!("{x},{y} is in range");
+                };
+                cells.set(at, cell(0, TerrainKind::Lake));
+            }
+        }
+        let areas = [(0, 0, &cells)];
+        let Ok(png) = render_overview_png(&areas, 1, 1, 1) else {
+            panic!("render_overview_png failed");
+        };
+        assert_eq!(pixel_at(&png, 0, 0), LAKE_FILL);
+    }
+
+    #[test]
+    fn one_lake_cell_does_not_claim_a_whole_block() {
+        // The defect this rule fixes: a single 100 m cell used to win a
+        // 1.1 km² pixel, which fringed every lake with detached specks.
         let mut cells = AreaCells::flat(cell(RIVER_Q_MAX, TerrainKind::Land));
         let Some(at) = CellCoord::new(0, 0) else {
             panic!("0,0 is in range");
@@ -494,6 +545,26 @@ mod tests {
         cells.set(at, cell(0, TerrainKind::Lake));
         let areas = [(0, 0, &cells)];
         let Ok(png) = render_overview_png(&areas, 1, 1, 1) else {
+            panic!("render_overview_png failed");
+        };
+        assert_eq!(
+            pixel_at(&png, 0, 0),
+            river_band_colour(RiverBand::Dark),
+            "one lake cell in 262,144 must not paint the block as lake"
+        );
+    }
+
+    #[test]
+    fn a_lake_still_wins_a_block_it_genuinely_fills() {
+        // px = AREA_CELLS puts one cell in each block, so a lake cell
+        // covers its block entirely and must survive the area floor.
+        let mut cells = AreaCells::flat(cell(0, TerrainKind::Land));
+        let Some(at) = CellCoord::new(0, 0) else {
+            panic!("0,0 is in range");
+        };
+        cells.set(at, cell(0, TerrainKind::Lake));
+        let areas = [(0, 0, &cells)];
+        let Ok(png) = render_overview_png(&areas, 1, 1, u32::from(AREA_CELLS)) else {
             panic!("render_overview_png failed");
         };
         assert_eq!(pixel_at(&png, 0, 0), LAKE_FILL);
