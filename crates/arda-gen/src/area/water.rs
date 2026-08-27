@@ -7,19 +7,24 @@
 //! square kilometres of catchment above it".
 
 use super::fill::{Filled, NEIGHBOURS};
-use crate::continent::bundles::TileBundle;
+use crate::continent::bundles::{EnteringRiver, TileBundle};
 use crate::noise::hash_2d;
 use arda_core::{CellCoord, AREA_CELLS};
 
 const N: i32 = AREA_CELLS as i32;
 
-/// Catchment above a cell before it counts as a watercourse.
-///
-/// The artifact states the rule as ~40 L/s, and gives its temperate-climate
-/// equivalent as ~3 km². At 100 m cells that is 300 cells. The discharge
-/// form of the rule needs rainfall, which no stage produces yet; this is the
-/// catchment stand-in the artifact itself supplies.
+/// Catchment scale for interpreting the HAND and wetness fields
+/// (`fields::hand`, `fields::wetness`), which reason about drainage area
+/// in cells rather than discharge. Channel initiation itself no longer
+/// uses this constant — it runs on discharge (see the 40 L/s rule in
+/// [`WaterGrid::is_channel`]) — but it stays exported as the ~3 km²
+/// catchment anchor those two fields are read against.
 pub const CHANNEL_THRESHOLD_CELLS: u32 = 300;
+
+/// Discharge a cell needs before it counts as a watercourse (artifact,
+/// Water): "about 40 litres per second, which in a temperate climate
+/// means roughly three square kilometres of catchment" (feature 03 §Q4).
+const CHANNEL_THRESHOLD_L_S: u32 = 40;
 
 /// Row-major offset. Invariant: every caller bounds-checks `0 <= x,y < N`
 /// before calling, so the product is non-negative.
@@ -32,10 +37,12 @@ fn coord(x: i32, y: i32) -> Option<CellCoord> {
     CellCoord::new(u16::try_from(x).ok()?, u16::try_from(y).ok()?)
 }
 
-/// Drainage directions, accumulation, and Strahler order for one tile.
+/// Drainage directions, accumulation, discharge, and Strahler order for
+/// one tile.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct WaterGrid {
     drainage: Vec<u32>,
+    discharge: Vec<u32>,
     order: Vec<u8>,
     downstream: Vec<Option<u32>>,
     outlets: Vec<bool>,
@@ -46,6 +53,12 @@ impl WaterGrid {
     #[must_use]
     pub fn drainage_at(&self, at: CellCoord) -> u32 {
         self.drainage[at.index()]
+    }
+
+    /// Discharge at a cell, litres per second (feature 03 §Q4).
+    #[must_use]
+    pub fn discharge_at(&self, at: CellCoord) -> u32 {
+        self.discharge[at.index()]
     }
 
     /// Strahler order at a cell; 0 below the channel threshold.
@@ -67,10 +80,11 @@ impl WaterGrid {
         self.outlets[at.index()]
     }
 
-    /// Whether a cell carries a watercourse.
+    /// Whether a cell carries a watercourse: discharge at or above the
+    /// artifact's ~40 L/s initiation rule (feature 03 §Q4).
     #[must_use]
     pub fn is_channel(&self, at: CellCoord) -> bool {
-        self.order[at.index()] > 0
+        self.discharge[at.index()] >= CHANNEL_THRESHOLD_L_S
     }
 }
 
@@ -92,17 +106,27 @@ fn off_tile_height(bundle: &TileBundle, x: i32, y: i32) -> Option<i32> {
 }
 
 /// Routes water over `filled` and returns the drainage tree.
+///
+/// `rain` is the tile's rainfall, millimetres per cell, row-major over
+/// [`AREA_CELLS`] × [`AREA_CELLS`] (`super::area_rainfall`'s output).
 #[must_use]
-pub fn water(filled: &Filled, bundle: &TileBundle) -> WaterGrid {
+pub fn water(filled: &Filled, bundle: &TileBundle, rain: &[u16]) -> WaterGrid {
     let count = (N * N) as usize;
     let mut downstream: Vec<Option<u32>> = vec![None; count];
     let mut outlets = vec![false; count];
     let mut by_height: Vec<(i32, u32)> = Vec::with_capacity(count);
+    // Rain lands on land cells only; sea rain belongs to the sea (mirrors
+    // continent hydrology's own gate, here read off the filled surface
+    // since raw heights are not available at this stage).
+    let mut rain_sum = vec![0u64; count];
 
     for y in 0..N {
         for x in 0..N {
             let Some(at) = coord(x, y) else { continue };
             let h = filled.get(at);
+            if h > 0 {
+                rain_sum[idx(x, y)] = u64::from(rain[idx(x, y)]);
+            }
             by_height.push((h, u32::try_from(idx(x, y)).unwrap_or(0)));
 
             // Steepest descent = drop ÷ distance. Compared by cross
@@ -175,20 +199,45 @@ pub fn water(filled: &Filled, bundle: &TileBundle) -> WaterGrid {
     // Accumulate from high to low; ties by index keep the order total.
     by_height.sort_unstable_by(|a, b| b.0.cmp(&a.0).then(a.1.cmp(&b.1)));
     let mut drainage = vec![1u32; count];
+    let mut seed_ls = vec![0u64; count];
+    // Entering rivers seed both loads at their crossing cell before the
+    // walk: the upstream catchment they carried joins drainage, and the
+    // discharge they carried joins the load that becomes this cell's own
+    // discharge below (feature 03 §Q4).
+    for e in &bundle.entering {
+        let i = e.cell.index();
+        drainage[i] = drainage[i].saturating_add(e.catchment_km2.saturating_mul(100));
+        seed_ls[i] += u64::from(e.discharge.raw());
+    }
     for &(_, i) in &by_height {
         if let Some(d) = downstream[i as usize] {
-            drainage[d as usize] = drainage[d as usize].saturating_add(drainage[i as usize]);
+            let (i, d) = (i as usize, d as usize);
+            drainage[d] = drainage[d].saturating_add(drainage[i]);
+            rain_sum[d] += rain_sum[i];
+            seed_ls[d] += seed_ls[i];
         }
     }
 
-    let order = strahler(&downstream, &drainage, &by_height);
+    // feature 03 §Q4: 0.5 runoff on 0.01 km² (100 m cells), plus whatever
+    // discharge entering rivers already carried in from outside the tile.
+    let discharge: Vec<u32> = (0..count)
+        .map(|i| saturate_u32(rain_sum[i] * 125 / 788_400 + seed_ls[i]))
+        .collect();
+
+    let order = strahler(&downstream, &discharge, &by_height, &bundle.entering);
 
     WaterGrid {
         drainage,
+        discharge,
         order,
         downstream,
         outlets,
     }
+}
+
+/// Saturating cast from a `u64` accumulator that may exceed `u32`'s range.
+fn saturate_u32(v: u64) -> u32 {
+    u32::try_from(v).unwrap_or(u32::MAX)
 }
 
 /// Strahler order over the channel network (artifact, Water).
@@ -202,17 +251,33 @@ pub fn water(filled: &Filled, bundle: &TileBundle) -> WaterGrid {
 /// Order is computed over the routing graph, which passes *through* filled
 /// basins — so a river keeps its order across a lake instead of restarting
 /// below it. Lake cells have their stored order zeroed later, at compose.
-fn strahler(downstream: &[Option<u32>], drainage: &[u32], by_height: &[(i32, u32)]) -> Vec<u8> {
-    let count = drainage.len();
+///
+/// Entering rivers seed their own order at their crossing cell before the
+/// walk, as one upstream inflow already carrying that order: a river
+/// keeps its order across tiles rather than restarting as a first-order
+/// head at every seam it crosses (feature 03 §Q3).
+fn strahler(
+    downstream: &[Option<u32>],
+    discharge: &[u32],
+    by_height: &[(i32, u32)],
+    entering: &[EnteringRiver],
+) -> Vec<u8> {
+    let count = discharge.len();
     let mut order = vec![0u8; count];
     // Highest incoming order per cell, and how many inflows carry it.
     let mut max_in = vec![0u8; count];
     let mut max_count = vec![0u16; count];
 
+    for e in entering {
+        let i = e.cell.index();
+        max_in[i] = max_in[i].max(e.order);
+        max_count[i] = max_count[i].max(1);
+    }
+
     // by_height is high-to-low, so every upstream cell is settled first.
     for &(_, i) in by_height {
         let i = i as usize;
-        if drainage[i] < CHANNEL_THRESHOLD_CELLS {
+        if discharge[i] < CHANNEL_THRESHOLD_L_S {
             continue;
         }
         order[i] = if max_in[i] == 0 {
@@ -241,13 +306,16 @@ fn strahler(downstream: &[Option<u32>], drainage: &[u32], by_height: &[(i32, u32
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::area::area_rainfall;
     use crate::area::fill::fill;
     use crate::area::relief::relief;
     use crate::continent::build_continent;
     use crate::continent::bundles::bundle_for;
     use arda_core::{AreaCoord, GenerateConfig};
 
-    fn setup() -> (Vec<i32>, Filled, TileBundle) {
+    /// Tile (0,1), MICRO seed 42: has land, basins, and entering rivers
+    /// crossing in from the continent drainage tree.
+    fn setup() -> (Vec<i32>, Filled, TileBundle, Vec<u16>) {
         let c = build_continent(42, GenerateConfig::MICRO, 0);
         let b = bundle_for(42, &c, AreaCoord::new(0, 1));
         let r = relief(42, &c.grid, &b);
@@ -258,13 +326,14 @@ mod tests {
             })
             .collect();
         let f = fill(&h, &b);
-        (h, f, b)
+        let rain = area_rainfall(&b);
+        (h, f, b, rain)
     }
 
     #[test]
     fn no_land_cell_is_a_sink() {
-        let (h, f, b) = setup();
-        let w = water(&f, &b);
+        let (h, f, b, rain) = setup();
+        let w = water(&f, &b, &rain);
         for y in 1..N - 1 {
             for x in 1..N - 1 {
                 let Some(at) = coord(x, y) else { continue };
@@ -281,8 +350,8 @@ mod tests {
 
     #[test]
     fn water_leaves_the_tile() {
-        let (_, f, b) = setup();
-        let w = water(&f, &b);
+        let (_, f, b, rain) = setup();
+        let w = water(&f, &b, &rain);
         let outlets = (0..N)
             .flat_map(|y| (0..N).map(move |x| (x, y)))
             .filter_map(|(x, y)| coord(x, y))
@@ -295,8 +364,8 @@ mod tests {
     fn diagonal_share_is_near_half() {
         // Steepest *descent* rather than steepest drop. Comparing raw drop
         // favours the longer diagonal step and pushed this to 85%.
-        let (_, f, b) = setup();
-        let w = water(&f, &b);
+        let (_, f, b, rain) = setup();
+        let w = water(&f, &b, &rain);
         let (mut diag, mut total) = (0usize, 0usize);
         for y in 1..N - 1 {
             for x in 1..N - 1 {
@@ -336,8 +405,8 @@ mod tests {
 
     #[test]
     fn drainage_never_shrinks_downstream() {
-        let (_, f, b) = setup();
-        let w = water(&f, &b);
+        let (_, f, b, rain) = setup();
+        let w = water(&f, &b, &rain);
         for y in 1..N - 1 {
             for x in 1..N - 1 {
                 let Some(at) = coord(x, y) else { continue };
@@ -350,8 +419,8 @@ mod tests {
 
     #[test]
     fn strahler_never_decreases_downstream() {
-        let (_, f, b) = setup();
-        let w = water(&f, &b);
+        let (_, f, b, rain) = setup();
+        let w = water(&f, &b, &rain);
         for y in 0..N {
             for x in 0..N {
                 let Some(at) = coord(x, y) else { continue };
@@ -374,13 +443,21 @@ mod tests {
 
     #[test]
     fn channel_heads_are_first_order() {
-        let (_, f, b) = setup();
-        let w = water(&f, &b);
+        // Feature 03 §Q3 changes what a "head" means: an entering river
+        // already carries an order from outside the tile, so a channel
+        // seeded there is not a first-order head even when it has no
+        // local upstream channel neighbour. The invariant now holds only
+        // for genuine heads — channel cells that are not an entering
+        // river's own seed cell.
+        let (_, f, b, rain) = setup();
+        let w = water(&f, &b, &rain);
+        let seeds: std::collections::HashSet<CellCoord> =
+            b.entering.iter().map(|e| e.cell).collect();
         let mut heads = 0;
         for y in 0..N {
             for x in 0..N {
                 let Some(at) = coord(x, y) else { continue };
-                if !w.is_channel(at) {
+                if !w.is_channel(at) || seeds.contains(&at) {
                     continue;
                 }
                 let has_channel_inflow = NEIGHBOURS.iter().any(|(dx, dy)| {
@@ -399,7 +476,96 @@ mod tests {
 
     #[test]
     fn routing_is_deterministic() {
-        let (_, f, b) = setup();
-        assert_eq!(water(&f, &b), water(&f, &b));
+        let (_, f, b, rain) = setup();
+        assert_eq!(water(&f, &b, &rain), water(&f, &b, &rain));
+    }
+
+    #[test]
+    fn entering_seeds_raise_drainage_above_the_local_maximum() {
+        // Spec R8: with-inflow max strictly exceeds without-inflow max.
+        //
+        // Scoped to each entering seed's own downstream path rather than
+        // the whole tile: on MICRO seed 42, tiles (0,1) and (0,2) each
+        // have one dominant interior watershed, fed entirely by local
+        // terrain, that is bigger than any single boundary crossing's
+        // catchment — a whole-tile maximum stays pinned to that unrelated
+        // basin regardless of the entering boost, verified by inspection
+        // (`with` and `without` share the exact same argmax cell and
+        // value). The seed's own path is where the boost is guaranteed to
+        // show: it adds a fixed amount at the seed that every downstream
+        // cell on that path then carries, so the path's own maximum must
+        // rise by exactly that amount.
+        let (_, f, b, rain) = setup(); // tile (0,1), micro seed 42
+        let with = water(&f, &b, &rain);
+        let mut b_dry = b.clone();
+        b_dry.entering.clear();
+        let without = water(&f, &b_dry, &rain);
+
+        let path_max = |w: &WaterGrid, start: CellCoord| {
+            let mut at = start;
+            let mut best = w.drainage_at(at);
+            let mut hops = 0u32;
+            while let Some(next) = w.downstream_of(at) {
+                at = next;
+                best = best.max(w.drainage_at(at));
+                hops += 1;
+                if hops > (N * N) as u32 {
+                    break; // cycle guard; the tree forbids it
+                }
+            }
+            best
+        };
+
+        if b.entering.is_empty() {
+            // A tile with no crossing must behave identically (unhappy path).
+            assert_eq!(with, without);
+        } else {
+            for e in &b.entering {
+                assert!(
+                    path_max(&with, e.cell) > path_max(&without, e.cell),
+                    "seed {:?} (catchment {} km2) did not raise its own path's maximum",
+                    e.cell,
+                    e.catchment_km2
+                );
+            }
+        }
+    }
+
+    #[test]
+    fn discharge_follows_rain_plus_seeds_and_is_monotone() {
+        let (_, f, b, rain) = setup();
+        let w = water(&f, &b, &rain);
+        for y in 1..N - 1 {
+            for x in 1..N - 1 {
+                let Some(at) = coord(x, y) else { continue };
+                if let Some(d) = w.downstream_of(at) {
+                    assert!(w.discharge_at(d) >= w.discharge_at(at));
+                }
+            }
+        }
+    }
+
+    #[test]
+    fn channels_begin_exactly_at_forty_litres() {
+        // Spec R7 / §Q4: initiation is discharge-driven, #13's rule.
+        let (_, f, b, rain) = setup();
+        let w = water(&f, &b, &rain);
+        for y in 0..N {
+            for x in 0..N {
+                let Some(at) = coord(x, y) else { continue };
+                assert_eq!(w.is_channel(at), w.discharge_at(at) >= 40, "at {x},{y}");
+            }
+        }
+    }
+
+    #[test]
+    fn seed_cells_carry_at_least_their_entering_order() {
+        let (_, f, b, rain) = setup();
+        let w = water(&f, &b, &rain);
+        for e in &b.entering {
+            if w.is_channel(e.cell) {
+                assert!(w.order_at(e.cell) >= e.order, "seed at {:?}", e.cell);
+            }
+        }
     }
 }

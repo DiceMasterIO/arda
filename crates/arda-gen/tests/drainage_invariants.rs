@@ -60,8 +60,9 @@ fn tiles() -> &'static Vec<Tile> {
                     .collect();
                 erosion::erode(&mut heights, &uplift, &b);
                 let filled = fill::fill(&heights, &b);
-                let water = arda_gen::area::water(&filled, &b);
-                let (cells, objects) = compose(&heights, &filled, &water);
+                let rain = arda_gen::area::area_rainfall(&b);
+                let water = arda_gen::area::water(&filled, &b, &rain);
+                let (cells, objects) = compose(&heights, &filled, &water, &rain, &b);
                 Tile {
                     coord,
                     cells,
