@@ -739,21 +739,31 @@ fn climate_rules_hold_on_composed_cells() {
 
 /// Spec R12 (d): seam lakes.
 ///
-/// Seed 42's accepted (attempt-2) MICRO world has no near-rim lake on any
-/// of its 8 tiles (surveyed for this task: zero across all 8). Falling
-/// back to the existing suite's known-good fixture instead: seed 123,
-/// tile (1,0), attempt 0 —
-/// `area::tests::edge_touching_basins_take_the_continent_spill_level`
-/// established this tile is the only near-rim lake found in a 12-seed x
-/// 8-tile MICRO survey at feature-03 §Q5's plan time (task-5-report.md);
-/// seed 99 tile (1,1) is the other on-file alternative.
+/// Synthetic. This used to scan seed 123 tile (1,0), the one near-rim lake
+/// a 12-seed x 8-tile MICRO survey turned up at feature-03 §Q5's plan time
+/// (task-5-report.md). Raising `LAKE_MIN_CELLS` to 300 and
+/// `LAKE_MIN_DEPTH_MM` to 4 m leaves no near-rim lake anywhere in a MICRO
+/// world — re-surveyed 12 seeds x 8 tiles
+/// (`area::tests::survey_near_rim_lakes`), zero hits, because a MICRO tile
+/// is too small to hold a 3 km² lake against its own rim. Rather than let
+/// the loop find nothing and pass, the fixture now builds its own
+/// rim-touching lake and runs it through the real
+/// `fill` -> `water` -> `compose` path.
 #[test]
 fn seam_lakes_take_the_shared_surface_and_trim_below_it() {
     const SEAM_LAKE_SEED: u64 = 123;
     let area = AreaCoord::new(1, 0);
     let lake_ctx = build_continent(SEAM_LAKE_SEED, GenerateConfig::MICRO, 0);
     let bundle = bundle_for(SEAM_LAKE_SEED, &lake_ctx, area);
-    let (cells, objects) = arda_gen::area::generate_area(SEAM_LAKE_SEED, &lake_ctx, &bundle);
+
+    // Touches the near-rim column x=1 (x=0 is a `fill::fill` border seed
+    // and can never be submerged), 11 x 30 = 330 cells, over
+    // `LAKE_MIN_CELLS`.
+    let heights = walled_pit(1..12, 200..230);
+    let filled = fill::fill(&heights, &bundle);
+    let rain = area_rainfall(&bundle);
+    let water = arda_gen::area::water(&filled, &bundle, &rain);
+    let (cells, objects) = compose(&heights, &filled, &water, &rain, &bundle);
 
     let near_rim = |c: CellCoord| {
         c.x() <= 1 || c.y() <= 1 || c.x() >= AREA_CELLS - 2 || c.y() >= AREA_CELLS - 2
@@ -791,8 +801,7 @@ fn seam_lakes_take_the_shared_surface_and_trim_below_it() {
     }
     assert!(
         checked > 0,
-        "no near-rim lake on seed {SEAM_LAKE_SEED} tile {area:?} — the fixture drifted; \
-         re-survey MICRO seeds (099, 123 known to have one per task-5-report.md)"
+        "the synthetic rim-touching pit must yield a near-rim lake for this to check anything"
     );
 }
 
@@ -1001,11 +1010,13 @@ fn straddling_basins_agree_on_their_surface_across_the_seam() {
     let q_bundle = bundle_for(42, ctx(), q_coord);
 
     // P's fragment touches the seam (its own near-rim column, x=510) at
-    // local y in [425,437); Q's fragment touches ITS near-rim column
-    // (x=1) at local y in [429,441) -- overlapping on [429,437) (8 of 12
-    // cells) but not identical spans.
-    let p_heights = walled_pit(500..511, 425..437);
-    let q_heights = walled_pit(1..12, 429..441);
+    // local y in [425,455); Q's fragment touches ITS near-rim column
+    // (x=1) at local y in [429,459) -- overlapping on [429,455) (26 of 30
+    // cells) but not identical spans. 11 columns x 30 rows = 330 cells,
+    // over `LAKE_MIN_CELLS`; the span was 12 rows until that floor rose,
+    // which is why phase 1's pinned surfaces were re-derived.
+    let p_heights = walled_pit(500..511, 425..455);
+    let q_heights = walled_pit(1..12, 429..459);
 
     let p_filled = fill::fill(&p_heights, &p_bundle);
     let q_filled = fill::fill(&q_heights, &q_bundle);
@@ -1048,27 +1059,27 @@ fn straddling_basins_agree_on_their_surface_across_the_seam() {
         })
     };
     assert!(
-        seam_sees_no_basin(&p_bundle, 510, 425..437),
+        seam_sees_no_basin(&p_bundle, 510, 425..455),
         "P's near-rim cells unexpectedly see a continent depression; the fixture drifted -- \
          re-derive phase 1's pinned numbers"
     );
     assert!(
-        seam_sees_no_basin(&q_bundle, 1, 429..441),
+        seam_sees_no_basin(&q_bundle, 1, 429..459),
         "Q's near-rim cells unexpectedly see a continent depression; the fixture drifted -- \
          re-derive phase 1's pinned numbers"
     );
 
     assert_eq!(
         (p_lake.surface.raw(), q_lake.surface.raw()),
-        (246_383, 245_660),
+        (306_426, 308_937),
         "the measured pair drifted; re-derive the pinned numbers (see this test's doc comment \
          and .superpowers/sdd/straddling-lakes-report.md)"
     );
     let gap = p_lake.surface.raw().abs_diff(q_lake.surface.raw());
     assert_eq!(
-        gap, 723,
-        "the fallback-path gap drifted from the measured 723 mm -- #12 stays open for a basin \
-         with no continent-tier depression backing it; re-derive the pinned number"
+        gap, 2_511,
+        "the fallback-path gap drifted from the measured 2,511 mm -- #12 stays open for a \
+         basin with no continent-tier depression backing it; re-derive the pinned number"
     );
 
     // Phase 2: construct the fix's actual precondition -- both fragments'

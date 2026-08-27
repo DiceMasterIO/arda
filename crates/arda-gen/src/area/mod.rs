@@ -25,9 +25,26 @@ pub use water::{water, WaterGrid};
 const N: i32 = AREA_CELLS as i32;
 
 /// Smallest submerged extent that is recorded as a lake, in cells.
-pub const LAKE_MIN_CELLS: usize = 100;
+///
+/// Priority-flood finds every closed depression the height field happens
+/// to contain, and most of those are not landforms — a fluvial landscape
+/// drains its own hollows. Recording all of them made the map a speckle
+/// of ponds: at 100 cells (1 km²) and 2 m, seed 436342 carried 206 lakes,
+/// one per 1,149 km² of land, of which 85 were 1-2 km². For scale,
+/// Poland runs about one lake per 312 km², Germany one per 4,000, France
+/// one per 25,000.
+///
+/// Raising the floors barely touches how much water the map holds,
+/// because area lives in the big lakes: 300 cells with a 4 m floor keeps
+/// 2,462 km² of the original 2,712 (91%) while cutting the count to 79,
+/// one per 2,995 km². It is the specks that go, not the lakes.
+pub const LAKE_MIN_CELLS: usize = 300;
 /// Smallest maximum depth that is recorded as a lake, in millimetres.
-pub const LAKE_MIN_DEPTH_MM: u32 = 2_000;
+///
+/// See [`LAKE_MIN_CELLS`] for the calibration. A basin shallower than
+/// this is not open water — it is wet ground, and `compose` stores it as
+/// land, where the marsh rule judges it on its own terms.
+pub const LAKE_MIN_DEPTH_MM: u32 = 4_000;
 
 fn coord(x: i32, y: i32) -> Option<CellCoord> {
     CellCoord::new(u16::try_from(x).ok()?, u16::try_from(y).ok()?)
@@ -210,15 +227,23 @@ pub fn compose(
                 DischargeMilli::new(0)
             };
             let order = if land { water.order_at(at) } else { 0 };
-            let hand_mm = if land { hand[at.index()] } else { 0 };
+            let hand_mm = if land { hand.above_mm[at.index()] } else { 0 };
             let rainfall = if land {
                 RainfallMm::new(rain[at.index()])
             } else {
                 RainfallMm::new(0)
             };
 
+            // Marsh is flat ground a river floods, so it takes both a low
+            // stand above the watercourse and a watercourse worth
+            // flooding — see `fields::MARSH_MIN_DISCHARGE_MILLI`.
+            let carried = if land { hand.carried_milli[at.index()] } else { 0 };
             let cover = match (terrain, fields::floodplain(hand_mm)) {
-                (TerrainKind::Land, Floodplain::Marsh) if order == 0 => Cover::Marsh,
+                (TerrainKind::Land, Floodplain::Marsh)
+                    if order == 0 && carried >= fields::MARSH_MIN_DISCHARGE_MILLI =>
+                {
+                    Cover::Marsh
+                }
                 (TerrainKind::Land, _) => Cover::Grass,
                 _ => Cover::Bare,
             };
@@ -860,60 +885,30 @@ mod tests {
         assert!(wet > 10_000, "only {wet} land cells got rain");
     }
 
+    /// A rim-touching basin takes the continent's spill level, and its
+    /// membership stays exactly what `fill::fill` found (feature 03 §Q5,
+    /// closes open-items #12).
+    ///
+    /// Built from a synthetic pit rather than generated relief. It used to
+    /// scan seed 123 tile (1, 0), the single near-rim lake a 12-seed
+    /// survey turned up; raising `LAKE_MIN_CELLS`/`LAKE_MIN_DEPTH_MM`
+    /// leaves no near-rim lake anywhere in a MICRO world (re-surveyed 12
+    /// seeds x 8 tiles with `survey_near_rim_lakes`: zero hits — a MICRO
+    /// tile is too small to hold a 3 km2 lake against its own rim). A test
+    /// that quietly finds nothing to check is worse than one that builds
+    /// its own case, so it now builds one.
     #[test]
     fn edge_touching_basins_take_the_continent_spill_level() {
-        // Feature 03 spec R9 (closes open-items #12), corrected per §Q5's
-        // recorded decision ("minimal blast radius") and sharpened by
-        // feature 02 §Q1's continent-tier lake identity (`basin_surface`),
-        // added to close #12 EXACTLY rather than only "materially improve"
-        // it: a basin whose cells sit within one cell of the tile rim must
-        // report the SAME surface the neighbouring tile would compute for
-        // the same shared data, because both prefer the constant-per-depression
-        // `bundle.basin_km` (falling back to `bundle.filled_km` only where
-        // the continent tier sees no depression) instead of each tile's own
-        // (possibly different) local spill — and cell membership must stay
-        // exactly what `fill::fill` found. Because membership no longer
-        // moves, both properties are now checked directly against
-        // `objects.lakes` rather than against basins one step removed from
-        // it: a lake's own near-rim cells are the same cells
-        // `clamp_near_rim` sampled to produce its surface, and the lake's
-        // full cell set is checked against its originating basin.
-        //
-        // Seed 123 tile (1, 0): the 12-seed/8-tile MICRO survey in
-        // task-5-report.md found exactly one near-rim lake there; seed 42,
-        // used elsewhere in this file, has none.
         let ctx = fixture_ctx();
-        let area = AreaCoord::new(1, 0);
-        let b = bundle_for(SEAM_LAKE_SEED, &ctx, area);
-        let (_, objects) = generate_area(SEAM_LAKE_SEED, &ctx, &b);
+        let mut b = bundle_for(SEAM_LAKE_SEED, &ctx, AreaCoord::new(0, 1));
+        b.filled_km = vec![DIAG_CLAMP_MM; PATCH_KM * PATCH_KM];
 
-        // Independent re-derivation of `fill::fill`'s basins (mirrors
-        // `drainage_invariants.rs`'s and `fill::tests::setup`'s existing
-        // pattern of replaying the pipeline up to that point), so each
-        // lake's cell set can be checked against the basin it came from.
-        let r = relief(SEAM_LAKE_SEED, &ctx.grid, &b);
-        let mut heights: Vec<i32> = (0..(N * N) as usize)
-            .filter_map(|i| {
-                let i = i32::try_from(i).ok()?;
-                Some(r.get(coord(i % N, i / N)?))
-            })
-            .collect();
-        let uplift: Vec<i32> = (0..(N * N) as usize)
-            .filter_map(|i| {
-                let i = i32::try_from(i).ok()?;
-                let (ax, ay) = crate::continent::bundles::abs_cell(
-                    area,
-                    u16::try_from(i % N).ok()?,
-                    u16::try_from(i / N).ok()?,
-                );
-                Some(crate::continent::bundles::coarse_height(&ctx.grid, ax, ay))
-            })
-            .collect();
-        erosion::erode(&mut heights, &uplift, &b);
+        let heights = rim_touching_pit();
         let filled = fill::fill(&heights, &b);
+        let lakes = collect_lakes(&heights, &filled, &b);
 
         let mut checked = 0u32;
-        for lake in &objects.lakes {
+        for lake in &lakes {
             if !lake.cells.iter().any(|&c| near_rim(c)) {
                 continue;
             }
@@ -924,7 +919,7 @@ mod tests {
             assert_eq!(
                 lake.surface.raw(),
                 expected,
-                "lake {} on tile {area:?} did not take the continent spill",
+                "lake {} did not take the continent spill",
                 lake.id
             );
 
@@ -943,16 +938,44 @@ mod tests {
                 });
             assert_eq!(
                 &basin.cells, &lake.cells,
-                "lake {} cell set drifted from fill::fill's basin — membership must \
-                 stay local to the tile (§Q5)",
+                "lake {} cell set drifted from fill::fill's basin \u{2014} membership must \
+                 stay local to the tile (\u{a7}Q5)",
                 lake.id
             );
         }
         assert!(
             checked > 0,
-            "no near-rim lake exists on tile {area:?} at seed {SEAM_LAKE_SEED} — \
-             this test cannot exercise the clamp; see task-5-report.md"
+            "the synthetic rim basin must yield a near-rim lake for this to check anything"
         );
+    }
+
+    /// A pit pressed against the tile's west rim, sized to clear both lake
+    /// floors.
+    ///
+    /// Column 0 stays wall: `fill::fill` seeds the border at its own
+    /// height, so a cell ON the edge is never submerged and could not form
+    /// a depression. `near_rim` reaches x <= 1, so column 1 is what makes
+    /// this basin near-rim.
+    fn rim_touching_pit() -> Vec<i32> {
+        const WALL_BASE: i32 = 10_000;
+        const WALL_STEP: i32 = 100;
+        let mut heights = vec![0i32; usize::try_from(N * N).unwrap_or(0)];
+        for y in 0..N {
+            for x in 0..N {
+                let dist = x.min(y).min(N - 1 - x).min(N - 1 - y);
+                let i = usize::try_from(y * N + x).unwrap_or(0);
+                heights[i] = WALL_BASE + dist * WALL_STEP;
+            }
+        }
+        // 4 columns x 100 rows = 400 cells, over LAKE_MIN_CELLS, and
+        // DIAG_CLAMP_MM - DIAG_LOW_MM = 4.5 m clears LAKE_MIN_DEPTH_MM.
+        for y in 100..=199 {
+            for x in 1..=4 {
+                let i = usize::try_from(y * N + x).unwrap_or(0);
+                heights[i] = DIAG_LOW_MM;
+            }
+        }
+        heights
     }
 
     #[test]
@@ -1152,7 +1175,7 @@ mod tests {
     /// Heights used only by
     /// `diagonally_adjacent_basins_do_not_exclude_each_others_released_cells`
     /// below.
-    const DIAG_LOW_MM: i32 = 3_000;
+    const DIAG_LOW_MM: i32 = 1_000;
     const DIAG_HIGH_MM: i32 = 9_000;
     const DIAG_CLAMP_MM: i32 = 5_500;
 
@@ -1206,19 +1229,57 @@ mod tests {
             let i = usize::try_from(y * N + x).unwrap_or(0);
             heights[i] = h;
         };
+        // Two submerged columns per basin, 150 rows: 300 cells each,
+        // which is `LAKE_MIN_CELLS`. Column 1 stays high in both so each
+        // basin keeps a sacrificial tail the clamp trims. `DIAG_LOW_MM`
+        // sits 4.5 m under `DIAG_CLAMP_MM` so both clear
+        // `LAKE_MIN_DEPTH_MM` as well; the test asserts both floors are
+        // met so a future retune fails here with a readable message
+        // rather than as a bare count mismatch.
         for y in 2..=151 {
             set(1, y, DIAG_HIGH_MM);
-            set(2, y, DIAG_HIGH_MM);
+            set(2, y, DIAG_LOW_MM);
             set(3, y, DIAG_LOW_MM);
         }
         set(4, 152, DIAG_HIGH_MM);
         for y in 153..=302 {
             set(1, y, DIAG_HIGH_MM);
             set(2, y, DIAG_HIGH_MM);
-            set(3, y, DIAG_HIGH_MM);
+            set(3, y, DIAG_LOW_MM);
             set(4, y, DIAG_LOW_MM);
         }
         heights
+    }
+
+
+    /// Survey helper: finds a (seed, tile) whose MICRO generation carries
+    /// a near-rim lake under the CURRENT thresholds. Run manually when
+    /// `LAKE_MIN_CELLS` / `LAKE_MIN_DEPTH_MM` change and
+    /// `edge_touching_basins_take_the_continent_spill_level` loses its
+    /// fixture.
+    #[test]
+    #[ignore = "near-rim lake survey, run manually after retuning the lake thresholds"]
+    fn survey_near_rim_lakes() {
+        for seed in [123u64, 42, 7, 1, 2, 3, 5, 11, 17, 99, 436_342, 2024] {
+            let ctx = build_continent(seed, GenerateConfig::MICRO, 0);
+            for ay in 0..4 {
+                for ax in 0..2 {
+                    let area = AreaCoord::new(ax, ay);
+                    let b = bundle_for(seed, &ctx, area);
+                    let (_, objects) = generate_area(seed, &ctx, &b);
+                    for l in &objects.lakes {
+                        if l.cells.iter().any(|&c| near_rim(c)) {
+                            println!(
+                                "HIT seed {seed} tile ({ax},{ay}) lake {} cells {} depth_mm {}",
+                                l.id,
+                                l.cells.len(),
+                                l.depth_mm
+                            );
+                        }
+                    }
+                }
+            }
+        }
     }
 
     #[test]
@@ -1252,7 +1313,21 @@ mod tests {
         assert_eq!((i32::from(x_touch.x()) - i32::from(y_touch.x())).abs(), 1);
         assert_eq!((i32::from(x_touch.y()) - i32::from(y_touch.y())).abs(), 1);
 
+        assert!(
+            DIAG_CLAMP_MM - DIAG_LOW_MM >= i32::try_from(LAKE_MIN_DEPTH_MM).unwrap_or(i32::MAX),
+            "fixture drifted: the synthetic pits are shallower than LAKE_MIN_DEPTH_MM \
+             ({LAKE_MIN_DEPTH_MM} mm), so collect_lakes will discard them"
+        );
         assert_eq!(lakes.len(), 2, "expected exactly the two synthetic lakes");
+        for l in &lakes {
+            assert!(
+                l.cells.len() >= LAKE_MIN_CELLS,
+                "fixture drifted: synthetic lake {} has {} cells, under LAKE_MIN_CELLS ({})",
+                l.id,
+                l.cells.len(),
+                LAKE_MIN_CELLS
+            );
+        }
         let x_lake = lakes
             .iter()
             .find(|l| l.cells.contains(&x_touch))

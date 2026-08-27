@@ -33,6 +33,21 @@ pub enum Floodplain {
 
 /// Millimetres above the watercourse at each band edge.
 const MARSH_MM: u32 = 1_000;
+
+/// Flow the watercourse must carry, in thousandth-cumecs, before the flat
+/// ground beside it is marsh rather than meadow.
+///
+/// `MARSH_MM` alone puts a wetland belt around every rill. A floodplain
+/// marsh is ground a river floods laterally, and the width of that belt
+/// scales with the river; a channel carrying a few litres a second has no
+/// floodplain at all. Measured on seed 436342 before this gate, marsh
+/// covered 9.47% of land (22,415 km²) against the 2-6% real temperate
+/// landscapes carry, and the median marsh cell sat beside a channel
+/// moving 0.114 m³/s — a ditch. Sampling 20,000 marsh cells by the
+/// discharge of their nearest channel: a floor of 0.05 m³/s leaves 7.7%
+/// of land marsh, 0.2 leaves 3.4%, 1.0 leaves 1.4%. 0.2 m³/s lands
+/// inside the real band.
+pub const MARSH_MIN_DISCHARGE_MILLI: u32 = 200;
 const FLOODS_MM: u32 = 2_500;
 const TERRACE_MM: u32 = 15_000;
 
@@ -54,6 +69,22 @@ fn coord(x: i32, y: i32) -> Option<CellCoord> {
     CellCoord::new(u16::try_from(x).ok()?, u16::try_from(y).ok()?)
 }
 
+/// Height above the nearest downstream watercourse, plus how much water
+/// that watercourse carries.
+///
+/// The second field exists so `Cover::Marsh` can ask not just "how far
+/// above a channel is this?" but "is that channel a river?" — see
+/// [`MARSH_MIN_DISCHARGE_MILLI`].
+pub struct Hand {
+    /// Millimetres above the channel this cell drains to; `u32::MAX`
+    /// where the path leaves the tile before meeting one.
+    pub above_mm: Vec<u32>,
+    /// Discharge of that channel in thousandth-cumecs, 0 where none was
+    /// reached. A channel cell carries 0 here: it is the watercourse, not
+    /// beside one.
+    pub carried_milli: Vec<u32>,
+}
+
 /// Height above the nearest downstream watercourse, in millimetres.
 ///
 /// Found by following the drainage tree, per the artifact. A channel cell
@@ -73,9 +104,10 @@ fn coord(x: i32, y: i32) -> Option<CellCoord> {
 /// heights are raw, so a cell inside a basin can sit *below* the channel it
 /// drains to.
 #[must_use]
-pub fn hand(heights: &[i32], water: &WaterGrid) -> Vec<u32> {
+pub fn hand(heights: &[i32], water: &WaterGrid) -> Hand {
     let count = (N * N) as usize;
     let mut out = vec![0u32; count];
+    let mut carried = vec![0u32; count];
 
     for y in 0..N {
         for x in 0..N {
@@ -101,6 +133,7 @@ pub fn hand(heights: &[i32], water: &WaterGrid) -> Vec<u32> {
                 }
             };
             out[at.index()] = if found {
+                carried[at.index()] = water.discharge_at(cursor);
                 let diff = i64::from(heights[at.index()]) - i64::from(heights[cursor.index()]);
                 u32::try_from(diff.max(0)).unwrap_or(u32::MAX)
             } else {
@@ -108,7 +141,10 @@ pub fn hand(heights: &[i32], water: &WaterGrid) -> Vec<u32> {
             };
         }
     }
-    out
+    Hand {
+        above_mm: out,
+        carried_milli: carried,
+    }
 }
 
 /// Topographic wetness index, 0-255.
@@ -305,7 +341,7 @@ mod tests {
             "zero rainfall and no entering river must leave the whole tile without a channel"
         );
 
-        let out = hand(&heights, &w);
+        let out = hand(&heights, &w).above_mm;
         assert!(
             out.iter().all(|&mm| mm == u32::MAX),
             "every cell's path leaves the tile without meeting a channel, so every cell — \
