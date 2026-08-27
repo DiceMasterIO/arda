@@ -245,24 +245,28 @@ fn near_rim(c: CellCoord) -> bool {
 /// `area_rainfall` already does for rainfall (§Q4).
 ///
 /// The size/depth thresholds (`LAKE_MIN_CELLS`, `LAKE_MIN_DEPTH_MM`) are
-/// applied AFTER the clamp, not before: a basin that only clears
-/// `LAKE_MIN_DEPTH_MM` once the continent surface raises it should still
-/// be promoted to a lake, and a basin that only cleared the threshold at
-/// its own (locally wrong) spill has no business being reported as a
-/// lake the neighbouring tile disagrees exists.
+/// applied AFTER the clamp and trim (see [`clamp_and_trim`]), not before:
+/// a basin that only clears `LAKE_MIN_DEPTH_MM` once the continent
+/// surface raises it should still be promoted to a lake, and a basin
+/// that only cleared the threshold at its own (locally wrong) spill has
+/// no business being reported as a lake the neighbouring tile disagrees
+/// exists.
 ///
-/// `clamp_near_rim` never changes a basin's membership (§Q5's "minimal
-/// blast radius" decision — see its own doc comment), so `fill::fill`'s
+/// `clamp_and_trim` only ever removes cells from a basin, never adds any
+/// — a review measured 27 of 63 near-rim basins clamped DOWN across a
+/// 5-seed x 8-tile MICRO sweep (task-5-report.md), so the trim path is
+/// exercised, not speculative. Because it is a pure shrink, `fill::fill`'s
 /// basins — already pairwise disjoint by construction
-/// (`fill::tests::basins_are_disjoint`) — stay disjoint here too. No
-/// cross-basin claiming is needed to keep a cell out of two `Lake`s.
+/// (`fill::tests::basins_are_disjoint`) — stay disjoint here too: a
+/// subset of a disjoint set is still disjoint. No cross-basin claiming is
+/// needed to keep a cell out of two `Lake`s.
 fn collect_lakes(heights: &[i32], filled: &Filled, bundle: &TileBundle) -> Vec<Lake> {
     filled
         .basins
         .iter()
-        .map(|b| {
-            let (surface_mm, depth_mm) = clamp_near_rim(b, heights, bundle);
-            (surface_mm, depth_mm, b.cells.clone(), b.outlet)
+        .filter_map(|b| {
+            let (surface_mm, depth_mm, cells) = clamp_and_trim(b, heights, bundle)?;
+            Some((surface_mm, depth_mm, cells, b.outlet))
         })
         .filter(|(_, depth_mm, cells, _)| {
             cells.len() >= LAKE_MIN_CELLS && *depth_mm >= LAKE_MIN_DEPTH_MM
@@ -324,6 +328,38 @@ fn clamp_near_rim(b: &Basin, heights: &[i32], bundle: &TileBundle) -> (i32, u32)
         .unwrap_or(surface_mm);
     let depth_mm = u32::try_from(surface_mm.saturating_sub(floor)).unwrap_or(0);
     (surface_mm, depth_mm)
+}
+
+/// A basin's cells, surface, and depth once cells the shared surface
+/// leaves dry are trimmed out (feature 03 §Q5).
+///
+/// `clamp_near_rim` alone can move a near-rim basin's surface DOWN — even
+/// below the basin's own floor — so a cell `fill::fill` recorded as
+/// submerged at the basin's local spill can end up sitting at or above
+/// the shared surface (measured: 27 of 63 near-rim basins clamped DOWN
+/// across a 5-seed x 8-tile MICRO sweep; see task-5-report.md). Depth is
+/// then recomputed against the *surviving* cells' own floor, not the
+/// original basin's — `clamp_near_rim`'s own depth is discarded here.
+/// Returns `None` when every cell is trimmed: a basin with no submerged
+/// cell left is not a lake.
+fn clamp_and_trim(
+    b: &Basin,
+    heights: &[i32],
+    bundle: &TileBundle,
+) -> Option<(i32, u32, Vec<CellCoord>)> {
+    let (surface_mm, _) = clamp_near_rim(b, heights, bundle);
+    // feature 03 §Q5: the shared surface governs; a cell above it is not
+    // submerged, so it leaves the lake. Trim only — never flood (see the
+    // ballooning measured at plan time).
+    let cells: Vec<CellCoord> = b
+        .cells
+        .iter()
+        .copied()
+        .filter(|c| heights[c.index()] < surface_mm)
+        .collect();
+    let floor = cells.iter().map(|c| heights[c.index()]).min()?;
+    let depth_mm = u32::try_from(surface_mm.saturating_sub(floor)).unwrap_or(0);
+    Some((surface_mm, depth_mm, cells))
 }
 
 /// Whether a channel cell begins a segment: a head, or just below a
@@ -764,5 +800,123 @@ mod tests {
             outlet: None,
         };
         assert_eq!(clamp_near_rim(&interior, &heights, &b), (500, 400));
+    }
+
+    /// Replays relief through fill (mirrors `fill::tests::setup` and
+    /// `edge_touching_basins_take_the_continent_spill_level`'s own replay)
+    /// so a test can inspect the basins `collect_lakes` will clamp and
+    /// trim, for one seed/tile.
+    fn heights_and_filled(
+        seed: u64,
+        ctx: &crate::continent::Continent,
+        area: AreaCoord,
+    ) -> (Vec<i32>, TileBundle, Filled) {
+        let b = bundle_for(seed, ctx, area);
+        let r = relief(seed, &ctx.grid, &b);
+        let mut heights: Vec<i32> = (0..(N * N) as usize)
+            .filter_map(|i| {
+                let i = i32::try_from(i).ok()?;
+                Some(r.get(coord(i % N, i / N)?))
+            })
+            .collect();
+        let uplift: Vec<i32> = (0..(N * N) as usize)
+            .filter_map(|i| {
+                let i = i32::try_from(i).ok()?;
+                let (ax, ay) = crate::continent::bundles::abs_cell(
+                    area,
+                    u16::try_from(i % N).ok()?,
+                    u16::try_from(i / N).ok()?,
+                );
+                Some(crate::continent::bundles::coarse_height(&ctx.grid, ax, ay))
+            })
+            .collect();
+        erosion::erode(&mut heights, &uplift, &b);
+        let filled = fill::fill(&heights, &b);
+        (heights, b, filled)
+    }
+
+    #[test]
+    fn seam_clamp_trims_cells_the_shared_surface_leaves_dry() {
+        // Feature 03 §Q5, a real down-clamp found by task-5's 5-seed x
+        // 8-tile MICRO sweep (27 of 63 near-rim basins clamped DOWN; see
+        // task-5-report.md): the shared continent surface can land BELOW
+        // a near-rim basin's own local spill. Seed 99, tile (1, 1), the
+        // basin starting at (113, 507): `fill::fill` gives it 50 cells at
+        // a local spill of 44449 mm; the continent clamp pulls the
+        // surface down to 44169 mm, which still clears the basin's own
+        // floor (so it is not dropped outright) but sits below 15 of its
+        // 50 cells. Those 15 must leave the lake.
+        let ctx = build_continent(99, GenerateConfig::MICRO, 0);
+        let area = AreaCoord::new(1, 1);
+        let (heights, b, filled) = heights_and_filled(99, &ctx, area);
+
+        let target = coord(113, 507).unwrap();
+        let basin = filled
+            .basins
+            .iter()
+            .find(|basin| basin.cells.first() == Some(&target))
+            .expect("seed 99 tile (1, 1) must still hold the basin at (113, 507)");
+        assert_eq!(
+            (basin.cells.len(), basin.surface_mm),
+            (50, 44449),
+            "basin shape drifted from the pinned survey; task-5-report.md needs a re-run"
+        );
+
+        let (surface_mm, depth_mm, cells) =
+            clamp_and_trim(basin, &heights, &b).expect("the clamp does not empty this basin");
+        assert!(
+            surface_mm < basin.surface_mm,
+            "this case is meant to pin a DOWN clamp"
+        );
+        assert_eq!((surface_mm, depth_mm, cells.len()), (44169, 3343, 35));
+
+        for &c in &cells {
+            assert!(
+                heights[c.index()] < surface_mm,
+                "cell {c:?} survived the trim but sits at or above the clamped surface"
+            );
+        }
+        for &c in &basin.cells {
+            if !cells.contains(&c) {
+                assert!(
+                    heights[c.index()] >= surface_mm,
+                    "cell {c:?} was trimmed despite sitting below the clamped surface"
+                );
+            }
+        }
+    }
+
+    #[test]
+    fn seam_clamp_drops_a_basin_the_trim_empties() {
+        // Feature 03 §Q5: task-5's sweep found this is the DOMINANT
+        // down-clamp outcome (26 of 27 cases) — the shared continent
+        // surface lands BELOW every one of the basin's own cells, not
+        // just some. Seed 42, tile (0, 1), the 2-cell basin starting at
+        // (509, 426): local spill 120218 mm, continent clamp 119745 mm,
+        // and both cells sit at or above that clamped surface. Trimming
+        // leaves nothing, so the basin is dropped rather than kept as a
+        // "lake" with zero surviving cells.
+        let ctx = build_continent(42, GenerateConfig::MICRO, 0);
+        let area = AreaCoord::new(0, 1);
+        let (heights, b, filled) = heights_and_filled(42, &ctx, area);
+
+        let target = coord(509, 426).unwrap();
+        let basin = filled
+            .basins
+            .iter()
+            .find(|basin| basin.cells.first() == Some(&target))
+            .expect("seed 42 tile (0, 1) must still hold the basin at (509, 426)");
+        assert_eq!(
+            (basin.cells.len(), basin.surface_mm),
+            (2, 120218),
+            "basin shape drifted from the pinned survey; task-5-report.md needs a re-run"
+        );
+
+        assert_eq!(
+            clamp_and_trim(basin, &heights, &b),
+            None,
+            "every cell in this basin sits at or above the clamped surface, so trimming \
+             must empty it and the basin must not become a lake"
+        );
     }
 }
