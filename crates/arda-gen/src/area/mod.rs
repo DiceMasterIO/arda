@@ -19,7 +19,7 @@ use arda_core::{
 use fields::Floodplain;
 use fill::Filled;
 pub use relief::{relief, ReliefGrid};
-pub use water::{water, WaterGrid, CHANNEL_THRESHOLD_CELLS};
+pub use water::{water, WaterGrid};
 
 const N: i32 = AREA_CELLS as i32;
 
