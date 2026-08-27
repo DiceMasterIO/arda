@@ -13,14 +13,6 @@ use arda_core::{CellCoord, AREA_CELLS};
 
 const N: i32 = AREA_CELLS as i32;
 
-/// Catchment scale for interpreting the HAND and wetness fields
-/// (`fields::hand`, `fields::wetness`), which reason about drainage area
-/// in cells rather than discharge. Channel initiation itself no longer
-/// uses this constant — it runs on discharge (see the 40 L/s rule in
-/// [`WaterGrid::is_channel`]) — but it stays exported as the ~3 km²
-/// catchment anchor those two fields are read against.
-pub const CHANNEL_THRESHOLD_CELLS: u32 = 300;
-
 /// Discharge a cell needs before it counts as a watercourse (artifact,
 /// Water): "about 40 litres per second, which in a temperate climate
 /// means roughly three square kilometres of catchment" (feature 03 §Q4).
