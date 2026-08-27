@@ -11,7 +11,7 @@ use arda_core::{CellCoord, AREA_CELLS};
 use std::cmp::Reverse;
 use std::collections::BinaryHeap;
 
-/// A filled depression: the cells under water, how deep, and where it spills.
+/// A filled depression: the cells under water and how deep.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct Basin {
     /// Submerged cells, ascending row-major.
@@ -20,8 +20,6 @@ pub struct Basin {
     pub surface_mm: i32,
     /// Surface minus the lowest submerged cell, millimetres.
     pub depth_mm: u32,
-    /// The cell water leaves through; `None` when it spills off-tile.
-    pub outlet: Option<CellCoord>,
 }
 
 /// The routing surface plus the basins that produced it.
@@ -160,43 +158,15 @@ fn find_basins(heights: &[i32], surface: &[i32], _bundle: &TileBundle) -> Vec<Ba
             }
 
             cells.sort_unstable();
-            let outlet = spill_cell(&cells, surface, heights);
             basins.push(Basin {
                 cells,
                 surface_mm: spill,
                 depth_mm: u32::try_from(spill.saturating_sub(floor)).unwrap_or(0),
-                outlet,
             });
         }
     }
     basins.sort_by_key(|b| b.cells.first().copied());
     basins
-}
-
-/// The dry neighbour a basin spills through: the lowest cell adjacent to the
-/// basin that is not itself submerged. `None` when the basin only touches
-/// the tile edge.
-fn spill_cell(cells: &[CellCoord], surface: &[i32], heights: &[i32]) -> Option<CellCoord> {
-    let mut best: Option<(i32, CellCoord)> = None;
-    for c in cells {
-        let (x, y) = (i32::from(c.x()), i32::from(c.y()));
-        for (dx, dy) in NEIGHBOURS {
-            let (nx, ny) = (x + dx, y + dy);
-            if nx < 0 || ny < 0 || nx >= N || ny >= N {
-                continue;
-            }
-            let ni = idx(nx, ny);
-            if surface[ni] > heights[ni] {
-                continue; // still inside the basin
-            }
-            let Some(nc) = coord(nx, ny) else { continue };
-            let h = surface[ni];
-            if best.is_none_or(|(bh, bc)| h < bh || (h == bh && nc < bc)) {
-                best = Some((h, nc));
-            }
-        }
-    }
-    best.map(|(_, c)| c)
 }
 
 #[cfg(test)]
@@ -251,19 +221,19 @@ mod tests {
     }
 
     #[test]
-    fn basins_record_depth_and_an_outlet() {
+    fn basins_record_cells_and_depth() {
+        // `Basin` no longer tracks an outlet (round-3 review fix): every
+        // `fill()` call recomputed one via `spill_cell` for every basin, but
+        // production code never read it — `collect_lakes` always
+        // recomputes the outlet itself, in a second pass, once the final
+        // lake set is known (see `area::recompute_outlet`'s doc). What
+        // survives here is basin shape, which is still live behaviour.
         let (h, b) = setup();
         let f = fill(&h, &b);
         assert!(!f.basins.is_empty(), "the noise surface should hold basins");
         for basin in &f.basins {
             assert!(!basin.cells.is_empty());
             assert!(basin.depth_mm > 0, "a basin with no depth is not a basin");
-            if let Some(o) = basin.outlet {
-                assert!(
-                    !basin.cells.contains(&o),
-                    "outlet must be outside the basin"
-                );
-            }
         }
     }
 

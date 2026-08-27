@@ -21,6 +21,15 @@ fn cc(x: i32, y: i32) -> CellCoord {
     CellCoord::new(u16::try_from(x).unwrap(), u16::try_from(y).unwrap()).unwrap()
 }
 
+/// Fallible sibling of [`cc`]: `None` for a coordinate that falls off the
+/// tile instead of panicking, for walking a lake cell's 8-neighbours where
+/// some may be off-tile. Mirrors the private `coord` helper `arda-gen`
+/// keeps in `fill`, `water`, and `area::mod` itself — duplicated here
+/// because this suite, as an external integration test, cannot see it.
+fn opt_cc(x: i32, y: i32) -> Option<CellCoord> {
+    CellCoord::new(u16::try_from(x).ok()?, u16::try_from(y).ok()?)
+}
+
 /// Tiles carrying enough land to be worth asserting against.
 const LAND_TILES: [(i32, i32); 3] = [(0, 1), (0, 2), (1, 3)];
 
@@ -291,5 +300,124 @@ fn h_tile_seams_are_no_rougher_than_the_interior() {
     assert!(
         s90 <= c90.max(1) * 3,
         "seam roughness p90 {s90} mm is far above the interior control {c90} mm"
+    );
+}
+
+/// Checks every surviving lake in `objects` against the outlet contract
+/// `arda_gen::area`'s private `recompute_outlet` promises: `Some` only
+/// ever names a cell outside the lake itself, 8-adjacent to it, and not
+/// submerged by any surviving lake — this one or another; `None` only
+/// when no such free neighbour exists anywhere around the lake at all.
+///
+/// The free-neighbour condition is derived independently here, over
+/// `objects.lakes` alone, rather than by calling `recompute_outlet`
+/// itself (which this external test cannot see anyway, being private) —
+/// so a regression that quietly turns a real outlet into `None` has no
+/// shared code to hide behind.
+///
+/// Returns how many lakes were checked, so callers can guard against a
+/// vacuous sweep.
+fn assert_lake_outlets_are_sound(objects: &AreaObjects) -> u32 {
+    // Every surviving lake's cells, unioned tile-wide: an outlet must sit
+    // outside all of them, not just its own lake's.
+    let submerged: std::collections::HashSet<CellCoord> = objects
+        .lakes
+        .iter()
+        .flat_map(|l| l.cells.iter().copied())
+        .collect();
+    const OFFSETS: [(i32, i32); 8] = [
+        (-1, -1),
+        (-1, 0),
+        (-1, 1),
+        (0, -1),
+        (0, 1),
+        (1, -1),
+        (1, 0),
+        (1, 1),
+    ];
+
+    for l in &objects.lakes {
+        if let Some(out) = l.outlet {
+            assert!(
+                !l.cells.contains(&out),
+                "lake {} outlet {out:?} is one of its own cells",
+                l.id
+            );
+            assert!(
+                !submerged.contains(&out),
+                "lake {} outlet {out:?} is submerged by a surviving lake",
+                l.id
+            );
+            assert!(
+                l.cells.iter().any(|c| {
+                    (i32::from(c.x()) - i32::from(out.x())).abs() <= 1
+                        && (i32::from(c.y()) - i32::from(out.y())).abs() <= 1
+                }),
+                "lake {} outlet {out:?} is not 8-adjacent to any of its cells",
+                l.id
+            );
+        }
+
+        // Independently derive whether a free (in-tile, not submerged by
+        // any surviving lake) 8-neighbour exists anywhere around the
+        // lake's own cells — the exact condition `recompute_outlet`'s own
+        // doc names for when it must return `None`.
+        let has_free_neighbour = l.cells.iter().any(|c| {
+            let (x, y) = (i32::from(c.x()), i32::from(c.y()));
+            OFFSETS
+                .iter()
+                .any(|(dx, dy)| opt_cc(x + dx, y + dy).is_some_and(|nb| !submerged.contains(&nb)))
+        });
+        assert_eq!(
+            l.outlet.is_some(),
+            has_free_neighbour,
+            "lake {}: outlet is {:?} but a free neighbour {}exists — `None` \
+             must mean genuinely no free neighbour, not a missed one",
+            l.id,
+            l.outlet,
+            if has_free_neighbour { "" } else { "does not " }
+        );
+    }
+
+    u32::try_from(objects.lakes.len()).unwrap_or(0)
+}
+
+#[test]
+fn i_lake_outlets_are_geometrically_sound() {
+    // `Lake.outlet` has needed two geometry-specific bugfixes (round-1 and
+    // round-2 review), each caught only by a single hand-built synthetic
+    // fixture. This sweeps every surviving lake across several REAL MICRO
+    // tiles instead, checking the contract `assert_lake_outlets_are_sound`
+    // documents.
+    let mut lakes_checked = 0u32;
+
+    for t in tiles() {
+        lakes_checked += assert_lake_outlets_are_sound(&t.objects);
+    }
+
+    // A couple of extra (seed, tile) pairs on top of this file's own three
+    // MICRO tiles — cheap to add because they are already known-good from
+    // `arda-gen`'s own test suite rather than found by trial and error:
+    // seed 123 tile (1, 0) and seed 99 tile (1, 1) each hold a near-rim
+    // lake that survives the seam clamp (`area::mod`'s
+    // `edge_touching_basins_take_the_continent_spill_level` and
+    // `cross_tile.rs`'s
+    // `seam_lakes_take_the_shared_surface_and_trim_below_it` both pin
+    // "seed 099, 123 known to have one [a near-rim lake] per
+    // task-5-report.md") — exactly the clamped/trimmed geometry both
+    // historical outlet bugs lived in, so this is the coverage most
+    // likely to catch a third one.
+    let extra: [(u64, AreaCoord); 2] = [(123, AreaCoord::new(1, 0)), (99, AreaCoord::new(1, 1))];
+    for (seed, coord) in extra {
+        let c = build_continent(seed, GenerateConfig::MICRO, 0);
+        let b = bundle_for(seed, &c, coord);
+        let (_, objects) = arda_gen::area::generate_area(seed, &c, &b);
+        lakes_checked += assert_lake_outlets_are_sound(&objects);
+    }
+
+    assert!(
+        lakes_checked > 0,
+        "no lakes were checked across any fixture -- a fixture drift that \
+         silently removed every lake must fail loudly, not pass empty"
     );
 }

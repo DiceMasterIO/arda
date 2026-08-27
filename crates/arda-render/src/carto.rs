@@ -260,7 +260,22 @@ pub fn render_overview_png(
 
     // feature 03 §Q8: banded trunks instead of confetti. Mid widens one
     // pixel right, Dark widens right and down, but only onto land or sea —
-    // never over a lake — and never past the canvas edge.
+    // never over a lake or an actual river pixel — and never past the
+    // canvas edge.
+    //
+    // Round-3 review fix: two DIFFERENT source pixels can widen onto the
+    // SAME target at a diagonal junction (one widening down, another
+    // widening right into the cell below-and-right of it). Writing
+    // straight to `rgb` in `wide`'s push order let whichever entry came
+    // last win, independent of prominence — inconsistent with the base
+    // classification pass above, which resolves the same kind of overlap
+    // with `best.max(f)` so Dark always wins there. `widened` tracks the
+    // most prominent band each target pixel has been painted with so far
+    // during this pass, so a later, LESS prominent band can never
+    // overwrite an earlier, more prominent one — deterministic and
+    // independent of `wide`'s scan order, matching the base pass's rule
+    // (Dark > Mid > Light).
+    let mut widened: Vec<Option<RiverBand>> = vec![None; features.len()];
     for (x, y, band) in wide {
         let colour = river_band_colour(band);
         for &(dx, dy) in widen_offsets(band) {
@@ -272,8 +287,12 @@ pub fn render_overview_png(
                 continue;
             };
             if !matches!(features[pixel], Feature::Land | Feature::Sea) {
-                continue;
+                continue; // never paint over an actual river/lake pixel
             }
+            if widened[pixel].is_some_and(|w| w >= band) {
+                continue; // an equally or more prominent band already won here
+            }
+            widened[pixel] = Some(band);
             rgb[pixel * 3..pixel * 3 + 3].copy_from_slice(&colour);
         }
     }
@@ -307,6 +326,7 @@ fn widen_offsets(band: RiverBand) -> &'static [(u32, u32)] {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use arda_core::Cell;
 
     #[test]
     fn river_bands_map_orders_to_the_three_colours() {
@@ -346,5 +366,74 @@ mod tests {
         assert_eq!(widen_offsets(RiverBand::Light), &[] as &[(u32, u32)]);
         assert_eq!(widen_offsets(RiverBand::Mid), &[(1, 0)]);
         assert_eq!(widen_offsets(RiverBand::Dark), &[(1, 0), (0, 1)]);
+    }
+
+    /// A tile with every cell identical, so the whole tile downsamples to
+    /// one uniform classification no matter the block size.
+    fn uniform_tile(order: u8) -> AreaCells {
+        AreaCells::flat(Cell {
+            terrain: TerrainKind::Land,
+            watercourse_order: order,
+            ..Cell::default()
+        })
+    }
+
+    /// Decodes a PNG produced by [`render_overview_png`] and returns the
+    /// RGB bytes at `(x, y)`.
+    fn pixel_at(png_bytes: &[u8], x: usize, y: usize) -> [u8; 3] {
+        let Ok(mut reader) = png::Decoder::new(png_bytes).read_info() else {
+            panic!("invalid PNG header");
+        };
+        let mut buf = vec![0u8; reader.output_buffer_size()];
+        let Ok(info) = reader.next_frame(&mut buf) else {
+            panic!("invalid PNG frame");
+        };
+        let row = y * info.line_size;
+        let col = x * 3;
+        [buf[row + col], buf[row + col + 1], buf[row + col + 2]]
+    }
+
+    #[test]
+    fn widen_pass_lets_the_higher_band_win_regardless_of_push_order() {
+        // feature 03 §Q8, round-3 review fix: the widen pass used to just
+        // overwrite pixels in `wide`'s push order, so whichever band was
+        // pushed LAST at a shared target pixel won -- not the more
+        // prominent one, unlike the base classification pass's
+        // `best.max(f)` above. A Dark tile widening DOWN and a Mid tile
+        // widening RIGHT can land on the very same target pixel at a
+        // junction. `areas`' own slice order controls `wide`'s push order
+        // directly -- each area's whole px*px block is scanned before the
+        // next area starts -- independent of that area's own (ax, ay)
+        // position, so swapping the two source tiles' order in the slice
+        // flips push order without touching the geometry at all, isolating
+        // push order as the only variable.
+        let dark_tile = uniform_tile(7); // >= RIVER_BAND_MAX: Dark
+        let mid_tile = uniform_tile(5); // >= RIVER_BAND_MID, < RIVER_BAND_MAX: Mid
+        let target_tile = uniform_tile(0); // plain land, no river at all
+
+        // px = 1: one output pixel per area tile, so (ax, ay) addresses
+        // the output pixel directly. Dark at (1, 0) widens its (0, 1)
+        // offset onto (1, 1); Mid at (0, 1) widens its (1, 0) offset onto
+        // that very same (1, 1) -- itself plain land, so the "never paint
+        // over a real river/lake pixel" guard blocks neither write.
+        let dark_entry = (1, 0, &dark_tile);
+        let mid_entry = (0, 1, &mid_tile);
+        let target_entry = (1, 1, &target_tile);
+        let dark_colour = river_band_colour(RiverBand::Dark);
+
+        for areas in [
+            [dark_entry, mid_entry, target_entry], // Dark pushed to `wide` first
+            [mid_entry, dark_entry, target_entry], // Mid pushed to `wide` first
+        ] {
+            let Ok(png) = render_overview_png(&areas, 2, 2, 1) else {
+                panic!("render_overview_png failed");
+            };
+            assert_eq!(
+                pixel_at(&png, 1, 1),
+                dark_colour,
+                "Dark must win the shared target pixel regardless of which \
+                 source tile was pushed to `wide` first"
+            );
+        }
     }
 }
