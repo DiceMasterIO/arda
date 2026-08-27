@@ -241,14 +241,15 @@ fn independent_entering(
         .collect()
 }
 
-/// Feature 03 §Q5 test oracle, ported from
-/// `area::tests::continent_surface_at`: the max smoothstep-bilinear
-/// sample of `bundle.filled_km` over the near-rim cells among `cells`,
-/// reimplemented independently of `sample_km_patch` / `clamp_near_rim` —
-/// both private to `arda-gen::area` — so this check cannot pass merely by
-/// calling back into the code under test. `None` when `cells` has no
-/// near-rim cell.
-fn independent_filled_km_surface(b: &TileBundle, cells: &[CellCoord]) -> Option<i32> {
+/// Independent smoothstep-bilinear sample of a bundle's `filled_km` patch
+/// at one local cell offset — `local_x`/`local_y` may equal [`AREA_CELLS`]
+/// itself, naming the neighbour's first row/column, the same convention
+/// [`abs_cell`] uses. Same interpolation as `arda_gen::area`'s private
+/// `sample_km_patch`, reimplemented here rather than calling into it — both
+/// it and `clamp_near_rim` are private to `arda-gen::area` — so a check
+/// built on this cannot pass merely by calling back into the code under
+/// test.
+fn independent_filled_km_sample(b: &TileBundle, local_x: i32, local_y: i32) -> i64 {
     let km0x = (b.area.x * 512).div_euclid(10);
     let km0y = (b.area.y * 512).div_euclid(10);
     let side = i32::try_from(PATCH_KM).unwrap_or(0);
@@ -260,22 +261,32 @@ fn independent_filled_km_surface(b: &TileBundle, cells: &[CellCoord]) -> Option<
         (3 * t2 - 2 * t3).clamp(0, 65536)
     };
 
+    let (ax, ay) = abs_cell(
+        b.area,
+        u16::try_from(local_x).unwrap_or(0),
+        u16::try_from(local_y).unwrap_or(0),
+    );
+    let (kx, ky) = (ax.div_euclid(10) - km0x, ay.div_euclid(10) - km0y);
+    let (fx, fy) = (smooth(ax.rem_euclid(10)), smooth(ay.rem_euclid(10)));
+    let at = |dx: i32, dy: i32| -> i64 {
+        let px = usize::try_from((kx + dx).clamp(0, side - 1)).unwrap_or(0);
+        let py = usize::try_from((ky + dy).clamp(0, side - 1)).unwrap_or(0);
+        i64::from(b.filled_km[py * PATCH_KM + px])
+    };
+    let top = at(0, 0) + (((at(1, 0) - at(0, 0)) * fx) >> 16);
+    let bottom = at(0, 1) + (((at(1, 1) - at(0, 1)) * fx) >> 16);
+    top + (((bottom - top) * fy) >> 16)
+}
+
+/// Feature 03 §Q5 test oracle, ported from
+/// `area::tests::continent_surface_at`: the max
+/// [`independent_filled_km_sample`] over the near-rim cells among `cells`.
+/// `None` when `cells` has no near-rim cell.
+fn independent_filled_km_surface(b: &TileBundle, cells: &[CellCoord]) -> Option<i32> {
     let best = cells
         .iter()
         .filter(|c| c.x() <= 1 || c.y() <= 1 || c.x() >= AREA_CELLS - 2 || c.y() >= AREA_CELLS - 2)
-        .map(|c| {
-            let (ax, ay) = abs_cell(b.area, c.x(), c.y());
-            let (kx, ky) = (ax.div_euclid(10) - km0x, ay.div_euclid(10) - km0y);
-            let (fx, fy) = (smooth(ax.rem_euclid(10)), smooth(ay.rem_euclid(10)));
-            let at = |dx: i32, dy: i32| -> i64 {
-                let px = usize::try_from((kx + dx).clamp(0, side - 1)).unwrap_or(0);
-                let py = usize::try_from((ky + dy).clamp(0, side - 1)).unwrap_or(0);
-                i64::from(b.filled_km[py * PATCH_KM + px])
-            };
-            let top = at(0, 0) + (((at(1, 0) - at(0, 0)) * fx) >> 16);
-            let bottom = at(0, 1) + (((at(1, 1) - at(0, 1)) * fx) >> 16);
-            top + (((bottom - top) * fy) >> 16)
-        })
+        .map(|c| independent_filled_km_sample(b, i32::from(c.x()), i32::from(c.y())))
         .max()?;
     Some(i32::try_from(best).unwrap_or(i32::MAX))
 }
@@ -377,6 +388,182 @@ fn seam_entries_match_independent_hydrology_and_the_upstream_outlet() {
         ge_holds >= 27,
         "only {ge_holds} of 31 crossings had B's seeded drainage >= A's exit drainage \
          (measured baseline 27/31)"
+    );
+}
+
+/// Distance, in local cells along a shared boundary line, from `pos` to
+/// the window `[lo, hi)` — 0 when `pos` already sits inside it.
+fn distance_to_window(pos: i32, lo: i32, hi: i32) -> i32 {
+    if pos >= lo && pos < hi {
+        0
+    } else if pos < lo {
+        lo - pos
+    } else {
+        pos - hi + 1
+    }
+}
+
+/// The MICRO tile in compass direction `edge` from `coord`, or `None` past
+/// the grid's own edge (`GenerateConfig::MICRO`'s real extent, not a
+/// hardcoded 2x4).
+fn neighbour_area(coord: AreaCoord, edge: char) -> Option<AreaCoord> {
+    let (nx, ny) = match edge {
+        'N' => (coord.x, coord.y - 1),
+        'S' => (coord.x, coord.y + 1),
+        'E' => (coord.x + 1, coord.y),
+        _ => (coord.x - 1, coord.y), // 'W'
+    };
+    let cfg = GenerateConfig::MICRO;
+    let in_range = (0..cfg.areas_wide()).contains(&nx) && (0..cfg.areas_high()).contains(&ny);
+    in_range.then_some(AreaCoord::new(nx, ny))
+}
+
+/// Spec R12 (a), task-8 fix-wave-1 item 1: root-causing the low seam
+/// outlet-match rate.
+///
+/// Task 8's per-seam survey (task-8-report.md) found that for 7 of 8
+/// surveyed seam/direction pairs, an entering river's boundary window
+/// contains a matching upstream outlet only 0-61% of the time; only
+/// (0,2)/(0,3) north matched 31/31. The worry: a low match rate could mean
+/// water enters B where A never actually sends any out — rivers
+/// materialising at seams from nothing.
+///
+/// Measured across every MICRO seed-42 attempt-2 interior seam, all four
+/// edge kinds (128 entering crossings total — cross-checked cell-for-cell
+/// against task-8-report.md's per-seam table: exact agreement), bucketed
+/// by the crossing's own `catchment_km2`:
+///
+/// | catchment_km2 | total | matched | pct |
+/// |---|---|---|---|
+/// | 3-10 | 34 | 18 | 53% |
+/// | 10-30 | 70 | 53 | 76% |
+/// | 30-100 | 17 | 16 | 94% |
+/// | >=100 | 7 | 5 | 71% (n=7; the one real miss is 109 km2 at 41 cells; \
+///   the other "miss", 146 km2, is 1 cell off) |
+///
+/// For the 36 non-matches, distance (local cells) to the nearest actual
+/// upstream outlet: median 8, p90 61, max 80. 33 of 36 (92%) non-matches
+/// are catchment < 30 km2.
+///
+/// Verdict: **approximation, not defect**. Match rate rises sharply with
+/// catchment size, the typical miss is a small jog (median 8 cells = 0.8
+/// km, well under a single 1 km coarse-tree cell), and misses are
+/// overwhelmingly small tributaries. The tail (up to 80 cells) sits on
+/// three specific seams ((1,1)->(1,2) north 0/3, (0,2)->(1,2) east 0/2,
+/// (0,3)->(1,3) east 0/5) where a handful of small (<=16 km2, bar one)
+/// coarse-tree crossings cluster near where the fine 100 m terrain
+/// consolidates them into one real valley; within each cluster the
+/// distances move in lockstep with position along the boundary (e.g.
+/// (0,3)/(1,3) east: 71,61,51,41,21 cells at local y=264,274,284,294,315)
+/// — the signature of one true valley pulling in several coarse crossings,
+/// not a fixed code-level offset (no constant stride; the very same
+/// "north" direction is 100% on one seam and 0% on another, ruling out a
+/// uniform axis bug). Only 1 of 128 crossings combines a large catchment
+/// (>=100 km2) with a large miss (>10 cells). No fix shipped — see
+/// task-8-report.md "Fix wave 1" for the full reasoning.
+///
+/// Kept with headroom below every measured number above, so an unrelated
+/// terrain tweak does not flip this red.
+#[test]
+fn seam_crossings_align_with_upstream_outlets() {
+    const MIN_CATCHMENT_KM2: u32 = 30;
+    const MIN_MATCH_PCT_ABOVE_MIN_CATCHMENT: u32 = 70; // measured 87% (21/24)
+    const MAX_MEDIAN_NONMATCH_DIST: i32 = 20; // measured 8 cells
+
+    let mut total = 0u32;
+    let mut big_total = 0u32;
+    let mut big_matched = 0u32;
+    let mut nonmatch_dists: Vec<i32> = Vec::new();
+
+    for t in tiles() {
+        for e in &t.bundle.entering {
+            // Which edge this crossing sits on — always exactly one, by
+            // construction of `entering_rivers`' fixed_x/fixed_y windows.
+            // Horizontal wins a literal corner cell, matching that same
+            // tie rule (§Q3).
+            let edge = if e.cell.y() == 0 {
+                'N'
+            } else if e.cell.y() == AREA_CELLS - 1 {
+                'S'
+            } else if e.cell.x() == 0 {
+                'W'
+            } else {
+                'E'
+            };
+            let Some(up_coord) = neighbour_area(t.coord, edge) else {
+                continue; // the continent rim is forced ocean, so a real
+                          // fixture never hits this; skip rather than
+                          // panic if that ever changes
+            };
+            let up = tile(up_coord);
+
+            let (ax, ay) = abs_cell(t.coord, e.cell.x(), e.cell.y());
+            let (win_abs_lo, up_origin, x_axis) = match edge {
+                'N' | 'S' => (ax.div_euclid(10) * 10, up_coord.x * N, true),
+                _ => (ay.div_euclid(10) * 10, up_coord.y * N, false),
+            };
+            let win_lo = (win_abs_lo - up_origin).clamp(0, N - 1);
+            let win_hi = (win_abs_lo + 10 - up_origin).clamp(0, N);
+            let fixed = match edge {
+                'N' => N - 1, // upstream sits north: check its south row
+                'S' => 0,     // upstream sits south: check its north row
+                'W' => N - 1, // upstream sits west: check its east column
+                _ => 0,       // upstream sits east: check its west column
+            };
+            let at_of = |j: i32| if x_axis { cc(j, fixed) } else { cc(fixed, j) };
+
+            let is_match = (win_lo..win_hi).any(|j| up.water.is_outlet(at_of(j)));
+            let is_big = e.catchment_km2 >= MIN_CATCHMENT_KM2;
+
+            total += 1;
+            big_total += u32::from(is_big);
+            if is_match {
+                big_matched += u32::from(is_big);
+            } else {
+                let d = (0..N)
+                    .filter(|&j| up.water.is_outlet(at_of(j)))
+                    .map(|j| distance_to_window(j, win_lo, win_hi))
+                    .min()
+                    .unwrap_or_else(|| {
+                        panic!(
+                            "tile {:?} seed {:?}: upstream tile {up_coord:?} marks no outlet \
+                             at all on the shared boundary line",
+                            t.coord, e.cell
+                        )
+                    });
+                nonmatch_dists.push(d);
+            }
+        }
+    }
+
+    assert!(
+        total >= 100,
+        "only {total} entering crossings surveyed; the MICRO seed-42 attempt-2 fixture drifted \
+         (measured baseline 128) — re-survey before trusting the bucketed rate below"
+    );
+    assert!(
+        big_total >= 10,
+        "only {big_total} crossings have catchment >= {MIN_CATCHMENT_KM2} km2; too few to judge \
+         a match rate (measured baseline 24)"
+    );
+    let big_pct = big_matched * 100 / big_total;
+    assert!(
+        big_pct >= MIN_MATCH_PCT_ABOVE_MIN_CATCHMENT,
+        "only {big_pct}% of the {big_total} crossings with catchment >= {MIN_CATCHMENT_KM2} km2 \
+         land an outlet in the upstream window (measured baseline 87%, 21/24)"
+    );
+
+    nonmatch_dists.sort_unstable();
+    assert!(
+        !nonmatch_dists.is_empty(),
+        "no non-matching crossing found — fixture drifted; this test needs a fresh non-vacuous \
+         distance sample"
+    );
+    let median = nonmatch_dists[nonmatch_dists.len() / 2];
+    assert!(
+        median <= MAX_MEDIAN_NONMATCH_DIST,
+        "median non-match distance is {median} cells, past the {MAX_MEDIAN_NONMATCH_DIST}-cell \
+         approximation bar (measured baseline 8)"
     );
 }
 
@@ -555,6 +742,105 @@ fn seam_lakes_take_the_shared_surface_and_trim_below_it() {
         checked > 0,
         "no near-rim lake on seed {SEAM_LAKE_SEED} tile {area:?} — the fixture drifted; \
          re-survey MICRO seeds (099, 123 known to have one per task-5-report.md)"
+    );
+}
+
+/// Spec R12 (d), task-8 fix-wave-1 item 2: a real pairwise cross-tile
+/// comparison, not only a same-tile oracle.
+///
+/// `seam_lakes_take_the_shared_surface_and_trim_below_it` above checks one
+/// tile's lake against a same-tile independent recomputation; the brief's
+/// actual requirement is that TWO ADJACENT tiles agree. This test builds
+/// both.
+///
+/// P = tile (0,0), Q = tile (1,0), seed 123 attempt 0 — chosen because
+/// Q's own near-rim lake (the fixture the test above uses) sits on Q's
+/// WEST edge (local x in {0,1}, y in [236,237]), i.e. exactly on the P/Q
+/// seam, making this the pair most likely to exercise a straddling lake,
+/// not an arbitrary choice.
+///
+/// First, the shared-data property directly (feature 03 §Q5): every one
+/// of the 512 absolute 100 m positions along the seam samples the
+/// identical smoothstep-bilinear `filled_km` value from P's own bundle
+/// (its east edge) and from Q's own bundle (its west edge). This holds by
+/// construction — both edges name the same absolute cells
+/// (`abs_cell`'s pinned-edge guarantee) and both patches sample the same
+/// underlying `continent.hydrology.filled` grid — and it is testable
+/// regardless of whether either side actually has a lake; it is WHY a
+/// straddling lake's surface would agree.
+///
+/// Second, the straddling-lake case itself, written generically (not
+/// hardcoded to "none found", so it would catch a real disagreement if the
+/// fixture ever grows one): at seed 123 attempt 0, P has 3 lakes, none
+/// near-rim at all; Q has exactly 1 near-rim lake, only on its west
+/// (seam-facing) side, and nothing on P's matching east-facing side
+/// overlaps it. **No straddling pair exists in this fixture** — checked
+/// below, not assumed; documented rather than faked (task-8-report.md
+/// "Fix wave 1").
+#[test]
+fn adjacent_tiles_agree_on_the_shared_seam_surface() {
+    const SEAM_SEED: u64 = 123;
+    let p_coord = AreaCoord::new(0, 0);
+    let q_coord = AreaCoord::new(1, 0);
+    let seam_ctx = build_continent(SEAM_SEED, GenerateConfig::MICRO, 0);
+    let p_bundle = bundle_for(SEAM_SEED, &seam_ctx, p_coord);
+    let q_bundle = bundle_for(SEAM_SEED, &seam_ctx, q_coord);
+    let (_, p_objects) = arda_gen::area::generate_area(SEAM_SEED, &seam_ctx, &p_bundle);
+    let (_, q_objects) = arda_gen::area::generate_area(SEAM_SEED, &seam_ctx, &q_bundle);
+
+    // The shared-data property: P's east edge (local x = N) and Q's west
+    // edge (local x = 0) name the same absolute cells, so sampling either
+    // bundle's `filled_km` patch at the seam must agree exactly.
+    for local_y in 0..N {
+        let p_sample = independent_filled_km_sample(&p_bundle, N, local_y);
+        let q_sample = independent_filled_km_sample(&q_bundle, 0, local_y);
+        assert_eq!(
+            p_sample, q_sample,
+            "seam local_y={local_y}: P's east-edge filled_km sample disagrees with \
+             Q's west-edge sample"
+        );
+    }
+
+    // The straddling-lake case: relevant only where a lake's near-rim
+    // cells sit on the seam-facing side of BOTH tiles at an overlapping
+    // absolute y.
+    let mut straddling_pairs = 0u32;
+    for pl in &p_objects.lakes {
+        let p_seam_ys: Vec<u16> = pl
+            .cells
+            .iter()
+            .filter(|c| c.x() >= AREA_CELLS - 2)
+            .map(|c| c.y())
+            .collect();
+        if p_seam_ys.is_empty() {
+            continue;
+        }
+        for ql in &q_objects.lakes {
+            let overlaps = ql
+                .cells
+                .iter()
+                .any(|c| c.x() <= 1 && p_seam_ys.contains(&c.y()));
+            if !overlaps {
+                continue;
+            }
+            straddling_pairs += 1;
+            assert_eq!(
+                pl.surface.raw(),
+                ql.surface.raw(),
+                "straddling lakes P#{} / Q#{} disagree on their shared surface",
+                pl.id,
+                ql.id
+            );
+        }
+    }
+    // Measured: 0 (see this test's doc comment). Asserted, not just
+    // claimed, so a future fixture change that grows a straddling pair
+    // forces this comment to be revisited rather than silently going
+    // vacuously true forever.
+    assert_eq!(
+        straddling_pairs, 0,
+        "a straddling lake pair now exists on seed {SEAM_SEED} tiles {p_coord:?}/{q_coord:?} — \
+         update this test's doc comment, it no longer describes the fixture"
     );
 }
 
