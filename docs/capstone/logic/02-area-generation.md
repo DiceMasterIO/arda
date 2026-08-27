@@ -3,7 +3,7 @@ generated_date: 2026-08-27
 scenario: area-generation
 traces: [Q7, Q8, Q11]
 artifact: ../mockup-artifact.md
-generated_at_commit: 8be0a0a
+generated_at_commit: b0ce261
 absorbed_from: features/03-climate-driven-refinement@2026-08-27
 ---
 
@@ -82,9 +82,14 @@ remain unbuilt.
 
 **Amendment to the Invariants section.** "Edge agreement with all four
 neighbours" now covers entering rivers and the shared climate/routing patches,
-not just edge heights. The straddling-lake case is *improved but not exact*:
-both sides read the same continent surface, but each takes the maximum over
-its own rim cells, so fragments with different contact spans can still differ.
-No natural straddling pair exists in 4,280 surveyed (seed, seam) combinations;
-a synthetic case measures a 723 mm gap. Exact agreement needs continent-tier
-lake identity, which `logic/01` does not yet produce.
+not just edge heights. For straddling lakes the continent tier now supplies
+**lake identity**: `basin_surface` gives every 1 km cell inside a filled
+depression that depression's single surface, and a near-rim basin reads it by
+nearest cell (never interpolated — the field is piecewise constant). Two
+fragments of one depression therefore take the identical number whatever
+their contact spans, measured at exactly 0 mm on a constructed two-tile case.
+Two residues stay recorded in `open-items.md` #12 rather than guarded: no
+fixture has yet produced a straddling basin that sees a continent depression
+at all, so the exact path is proven on constructed input; and a rim abutting
+two different depressions takes a max of two constants. Where the continent
+tier sees no depression, the older bilinear rule still applies.

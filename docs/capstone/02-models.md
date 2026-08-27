@@ -2,7 +2,7 @@
 mode: prescriptive
 generated_date: 2026-08-27
 paths_covered: ["crates/arda-core/**"]
-generated_at_commit: 8be0a0a
+generated_at_commit: b0ce261
 ---
 
 > Prescriptive — written from the design interview, not from code.
@@ -113,3 +113,14 @@ overview record are untouched).
 - `height_above_river_dm` stores `u16::MAX` for a cell with no watercourse below it, which is what `logic/02`'s floodplain bands already implied; before feature 03 such cells stored 0 and were misclassified as marsh.
 - `TileBundle` reaches its full `logic/01` step-10 shape: `entering: Vec<EnteringRiver>` (seed cell, catchment, discharge, Strahler floor), 53×53 `rainfall_km`/`regime_km`/`filled_km` patches, a `wind` octant, and a `west_moisture` column. `regime_km`, `wind`, and `west_moisture` are written but not yet read — their consumer is the vegetation stage (build step 5), recorded here so they are not mistaken for dead code.
 - `Lake.outlet` is derived from the final lake set (after clamping, trimming and the size/depth filter), so it never names a cell that another recorded lake submerges. The intermediate `Basin.outlet` was deleted.
+
+## Observed — continent lake identity (2026-08-27)
+
+`ContinentHydrology` gained `basin_surface: Vec<i32>`: for every 1 km cell
+inside a filled depression, that depression's single shared surface;
+`NO_BASIN` (`i32::MIN`) outside. Components are grouped with the same
+8-connectivity `erode::fill` spills through, so grouping can never split a
+plateau the flood treated as one water body. `TileBundle` carries it as the
+`basin_km` patch. Nothing here is persisted — `overview.bin`'s 18-byte record
+is unchanged and `FORMAT_VERSION` stays 3 — it is an in-process handoff that
+gives seam-straddling lakes one shared level (`open-items.md` #12).
