@@ -860,3 +860,142 @@ fn the_seeded_pipeline_is_deterministic() {
     };
     assert_eq!(run(), run());
 }
+
+/// Hand-built `heights` for the synthetic straddling-basin test below: dry
+/// everywhere except one solid rectangular pit. Every dry ("wall") cell
+/// sits at `WALL_BASE + (chebyshev distance to the nearest tile edge) *
+/// WALL_STEP` -- a genuine (non-flat) ramp descending to the rim on every
+/// side, so `fill::fill`'s priority-flood can never raise a wall cell
+/// above its own height: walking straight from any wall cell to its
+/// nearest edge is already a non-increasing path, which is the best any
+/// path can do, so the priority-flood (a min-max-path algorithm) assigns
+/// that cell exactly its own height. The pit is therefore the only basin
+/// `fill::fill` can find; its near-rim contact is exactly the pit cells
+/// whose `x`/`y` falls in `near_rim`'s band. `x_range`/`y_range` are
+/// tile-local, end-exclusive.
+fn walled_pit(x_range: std::ops::Range<i32>, y_range: std::ops::Range<i32>) -> Vec<i32> {
+    const WALL_BASE: i32 = 10_000;
+    const WALL_STEP: i32 = 100;
+    const PIT_HEIGHT: i32 = 5_000;
+    let mut heights = vec![0i32; usize::try_from(N * N).unwrap_or(0)];
+    for y in 0..N {
+        for x in 0..N {
+            let dist = x.min(y).min(N - 1 - x).min(N - 1 - y);
+            let in_pit = x_range.contains(&x) && y_range.contains(&y);
+            let i = usize::try_from(y * N + x).unwrap_or(0);
+            heights[i] = if in_pit {
+                PIT_HEIGHT
+            } else {
+                WALL_BASE + dist * WALL_STEP
+            };
+        }
+    }
+    heights
+}
+
+/// SYNTHETIC regression test for feature 03 §Q5 (open-items #12) --
+/// verification-gap task.
+///
+/// The branch review: the feature claims #12 closed (a basin straddling a
+/// tile seam reaching different spill levels on each side), but no
+/// fixture ever produced a straddling lake pair, so the shipped rule
+/// (`clamp_near_rim`'s doc comment names the risk directly: "two
+/// fragments of one straddling basin touch the seam over different
+/// contact spans, so their maxima can differ") was never observed
+/// working on the real scenario. A documented sweep of 4,280 (seed, seam)
+/// combinations -- 300 MICRO seeds x 10 seam-pairs, plus 40 seeds of a
+/// 200x400 km continent x 32 seam-pairs -- found zero natural fixtures
+/// where both sides of a seam independently grow a large-enough lake
+/// touching it (see `.superpowers/sdd/straddling-lakes-report.md`), so
+/// this test is synthetic: two real `TileBundle`s (`ctx()`'s seed 42
+/// attempt 2, tiles (0,1)/(1,1), so `filled_km` is real, non-flat
+/// continent data), each fed a `walled_pit` `heights` array that forces
+/// exactly one basin reaching the shared seam -- at a DIFFERENT (only
+/// partially overlapping) span of local y on each side, the exact risk
+/// under test.
+///
+/// Measured (via the real `fill::fill` -> `water::water` -> `compose`
+/// path, i.e. the real `collect_lakes`, on both sides): even at the
+/// smallest gap found by hand-probing this fixture's real `filled_km`
+/// profile for a stretch where P and Q's near-rim columns happen to track
+/// each other closely, the two sides' MAX-sampled surfaces do NOT agree
+/// exactly -- P samples its near-rim band at absolute x 2-3 cells away
+/// from where Q samples its own (`near_rim`'s two-cell width sits on each
+/// tile's OWN side of the seam, never the literal shared boundary column,
+/// which `fill::fill`'s rim-seeded priority-flood can never submerge), so
+/// a real x-gradient in the continent surface leaves a residual gap
+/// before the y-span difference is even added. This test pins that
+/// measured gap (723 mm on 245-246 KM of elevation, ~0.3%) and asserts it
+/// stays within a stated, generous headroom rather than claiming the
+/// exact agreement the shipped MAX rule does not, in general, provide.
+///
+/// The spec's pre-approved fallback (clamp at the LOWEST near-rim sample
+/// rather than the MAX) was measured on this exact scenario too and is
+/// NOT adopted: it gives a gap of 901 mm here -- WORSE than the shipped
+/// MAX rule's 723 mm, not better -- and on two other probed regions of
+/// this same seam it was sometimes better and sometimes worse than MAX
+/// (never exactly zero either), confirming the spec's own warning that it
+/// is "equally span-dependent." Per the task's instruction not to invent
+/// a third rule when neither pre-approved one demonstrably wins, the
+/// shipped MAX rule is left as-is; the residual gap is flagged in the
+/// report for a maintainer decision rather than silently absorbed into a
+/// wide tolerance.
+#[test]
+fn straddling_basins_agree_on_their_surface_across_the_seam() {
+    let p_coord = AreaCoord::new(0, 1);
+    let q_coord = AreaCoord::new(1, 1);
+    let p_bundle = bundle_for(42, ctx(), p_coord);
+    let q_bundle = bundle_for(42, ctx(), q_coord);
+
+    // P's fragment touches the seam (its own near-rim column, x=510) at
+    // local y in [425,437); Q's fragment touches ITS near-rim column
+    // (x=1) at local y in [429,441) -- overlapping on [429,437) (8 of 12
+    // cells) but not identical spans.
+    let p_heights = walled_pit(500..511, 425..437);
+    let q_heights = walled_pit(1..12, 429..441);
+
+    let p_filled = fill::fill(&p_heights, &p_bundle);
+    let q_filled = fill::fill(&q_heights, &q_bundle);
+    let p_rain = area_rainfall(&p_bundle);
+    let q_rain = area_rainfall(&q_bundle);
+    let p_water = arda_gen::area::water(&p_filled, &p_bundle, &p_rain);
+    let q_water = arda_gen::area::water(&q_filled, &q_bundle, &q_rain);
+    let (_, p_objects) = compose(&p_heights, &p_filled, &p_water, &p_rain, &p_bundle);
+    let (_, q_objects) = compose(&q_heights, &q_filled, &q_water, &q_rain, &q_bundle);
+
+    assert_eq!(
+        p_objects.lakes.len(),
+        1,
+        "P's walled pit must produce exactly the one synthetic lake"
+    );
+    assert_eq!(
+        q_objects.lakes.len(),
+        1,
+        "Q's walled pit must produce exactly the one synthetic lake"
+    );
+    let p_lake = &p_objects.lakes[0];
+    let q_lake = &q_objects.lakes[0];
+    assert!(
+        p_lake.cells.iter().any(|c| c.x() == 510),
+        "P's lake must actually touch the seam-facing near-rim column"
+    );
+    assert!(
+        q_lake.cells.iter().any(|c| c.x() == 1),
+        "Q's lake must actually touch the seam-facing near-rim column"
+    );
+
+    assert_eq!(
+        (p_lake.surface.raw(), q_lake.surface.raw()),
+        (246_383, 245_660),
+        "the measured pair drifted; re-derive the pinned numbers (see this test's doc comment \
+         and .superpowers/sdd/straddling-lakes-report.md)"
+    );
+
+    let gap = p_lake.surface.raw().abs_diff(q_lake.surface.raw());
+    assert!(
+        gap <= 1_500,
+        "straddling fragments with different contact spans disagree by {gap} mm, past the \
+         1,500 mm headroom over the measured 723 mm gap -- #12 is not exactly closed for \
+         differing spans; see .superpowers/sdd/straddling-lakes-report.md"
+    );
+}
