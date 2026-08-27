@@ -148,6 +148,14 @@ pub struct TileBundle {
     /// Routing-surface patch, same footprint as
     /// [`TileBundle::rainfall_km`].
     pub filled_km: Vec<i32>,
+    /// Continent-tier lake-identity patch (feature 02 §Q1 deferred this;
+    /// added to close open-items #12 exactly — see
+    /// `continent::hydrology::ContinentHydrology::basin_surface`), same
+    /// footprint as [`TileBundle::rainfall_km`], copied with the same
+    /// clamped indexing as [`TileBundle::filled_km`].
+    /// `continent::hydrology::NO_BASIN` marks a patch cell outside any
+    /// continent depression.
+    pub basin_km: Vec<i32>,
     /// Prevailing wind for this tile.
     pub wind: CompassOctant,
     /// Final advection moisture store along the tile's western patch
@@ -204,6 +212,7 @@ pub fn bundle_for(seed: u64, continent: &Continent, area: AreaCoord) -> TileBund
     let mut rainfall_km = Vec::with_capacity(PATCH_KM * PATCH_KM);
     let mut regime_km = Vec::with_capacity(PATCH_KM * PATCH_KM);
     let mut filled_km = Vec::with_capacity(PATCH_KM * PATCH_KM);
+    let mut basin_km = Vec::with_capacity(PATCH_KM * PATCH_KM);
     for py in 0..PATCH_KM {
         let py = i32::try_from(py).unwrap_or(0);
         for px in 0..PATCH_KM {
@@ -212,6 +221,7 @@ pub fn bundle_for(seed: u64, continent: &Continent, area: AreaCoord) -> TileBund
             rainfall_km.push(continent.climate.rainfall[i]);
             regime_km.push(continent.climate.regime[i]);
             filled_km.push(continent.hydrology.filled[i]);
+            basin_km.push(continent.hydrology.basin_surface[i]);
         }
     }
     let west_moisture = (0..PATCH_KM)
@@ -235,6 +245,7 @@ pub fn bundle_for(seed: u64, continent: &Continent, area: AreaCoord) -> TileBund
         rainfall_km,
         regime_km,
         filled_km,
+        basin_km,
         wind: CompassOctant::West,
         west_moisture,
     }
@@ -465,6 +476,7 @@ mod tests {
         assert_eq!(b.rainfall_km.len(), 53 * 53);
         assert_eq!(b.regime_km.len(), 53 * 53);
         assert_eq!(b.filled_km.len(), 53 * 53);
+        assert_eq!(b.basin_km.len(), 53 * 53);
         assert_eq!(b.west_moisture.len(), 53);
         // The patch matches a direct climate lookup at a spot inside.
         let (kx0, ky0) = (0i32, 51i32); // tile (0,1) starts at abs cell 512 → km 51
@@ -472,6 +484,7 @@ mod tests {
         let i_grid = usize::try_from((ky0 + 2) * ctx.grid.width() + (kx0 + 3)).unwrap();
         assert_eq!(b.rainfall_km[i_patch], ctx.climate.rainfall[i_grid]);
         assert_eq!(b.filled_km[i_patch], ctx.hydrology.filled[i_grid]);
+        assert_eq!(b.basin_km[i_patch], ctx.hydrology.basin_surface[i_grid]);
     }
 
     #[test]

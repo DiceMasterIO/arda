@@ -9,11 +9,42 @@ use super::erode::{accumulate, fill, NEIGHBOURS};
 use super::ContinentGrid;
 use arda_core::ContinentRiver;
 
+/// Sentinel for [`ContinentHydrology::basin_surface`]: this cell is not
+/// inside any filled depression. Heights are millimetres in an `i32` well
+/// clear of this value (real terrain never approaches ±2.1 billion mm), so
+/// it cannot collide with a genuine surface.
+pub const NO_BASIN: i32 = i32::MIN;
+
 /// The continent drainage tree and its per-cell loads.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct ContinentHydrology {
     /// Priority-flood routing surface (basin spill levels for 03).
     pub filled: Vec<i32>,
+    /// Continent-tier lake identity (feature 02 §Q1 deferred this: "`logic/01`
+    /// step 6 does not emit lake objects" — added here to close open-items
+    /// #12 EXACTLY, not just "materially improve" it).
+    ///
+    /// For every cell inside a filled depression (`filled[i] > raw
+    /// height[i]`), the value is that depression's own spill surface: the
+    /// MAX `filled` over every cell of its connected component (mirroring
+    /// how `area::fill::find_basins` derives a `Basin::surface_mm`) — one
+    /// number shared by the WHOLE component, not `filled[i]` itself, which
+    /// the priority-flood's 1 mm anti-tie ramp can leave slightly different
+    /// cell to cell within the same depression. [`NO_BASIN`] marks a cell
+    /// outside any depression.
+    ///
+    /// Components are grouped 4-connected, deliberately matching
+    /// `area::fill::find_basins`'s connectivity (not this module's own
+    /// 8-directional [`NEIGHBOURS`], which is for steepest-descent routing,
+    /// a different concept) so a continent depression and the area-tile
+    /// basins that sit inside it describe the same shape.
+    ///
+    /// Because the value is constant per depression rather than per cell,
+    /// two area-tile fragments of the SAME continent-tier depression read
+    /// back the identical number near a shared seam regardless of which
+    /// cells each fragment happens to own — see `area::clamp_near_rim`,
+    /// which is what this field exists for.
+    pub basin_surface: Vec<i32>,
     /// Row-major downstream index per cell.
     pub downstream: Vec<Option<u32>>,
     /// Downstream as a fixed-neighbour-order index;
@@ -42,6 +73,7 @@ pub fn hydrology(grid: &ContinentGrid, climate: &ContinentClimate) -> ContinentH
         .collect();
 
     let filled = fill(&heights, w, h);
+    let basin_surface = basin_components(&heights, &filled, w, h);
     let (downstream, area) = accumulate(&filled, w, h);
 
     // High-to-low walk, the same order accumulate() uses internally.
@@ -93,11 +125,71 @@ pub fn hydrology(grid: &ContinentGrid, climate: &ContinentClimate) -> ContinentH
 
     ContinentHydrology {
         filled,
+        basin_surface,
         downstream,
         downstream_dir,
         catchment_km2,
         discharge_l_s,
     }
+}
+
+/// Groups every filled-depression cell into its 4-connected component and
+/// gives each cell that component's shared spill surface — see
+/// [`ContinentHydrology::basin_surface`] for the full rationale.
+///
+/// Deterministic by construction: seeds are found by a plain row-major
+/// scan, each component is flooded with an explicit `Vec` stack in a
+/// fixed neighbour order, and membership lives in a row-major `Vec<bool>`
+/// — no `HashMap`/`HashSet`, so iteration order can never perturb the
+/// result.
+fn basin_components(heights: &[i32], filled: &[i32], w: i32, h: i32) -> Vec<i32> {
+    // 4-connected: `area::fill::find_basins`'s own NEIGHBOURS list (right,
+    // left, down, up), not this module's 8-directional NEIGHBOURS used
+    // above for downstream direction.
+    const FOUR_NEIGHBOURS: [(i32, i32); 4] = [(1, 0), (-1, 0), (0, 1), (0, -1)];
+
+    let count = usize::try_from(w * h).unwrap_or(0);
+    let idx = |x: i32, y: i32| usize::try_from(y * w + x).unwrap_or(0);
+
+    let mut out = vec![NO_BASIN; count];
+    let mut seen = vec![false; count];
+
+    for y in 0..h {
+        for x in 0..w {
+            let i = idx(x, y);
+            if seen[i] || filled[i] <= heights[i] {
+                continue; // dry: not inside any filled depression
+            }
+
+            let mut stack = vec![(x, y)];
+            seen[i] = true;
+            let mut members = Vec::new();
+            let mut surface = i32::MIN;
+
+            while let Some((cx, cy)) = stack.pop() {
+                let ci = idx(cx, cy);
+                members.push(ci);
+                surface = surface.max(filled[ci]);
+                for (dx, dy) in FOUR_NEIGHBOURS {
+                    let (nx, ny) = (cx + dx, cy + dy);
+                    if nx < 0 || ny < 0 || nx >= w || ny >= h {
+                        continue;
+                    }
+                    let ni = idx(nx, ny);
+                    if seen[ni] || filled[ni] <= heights[ni] {
+                        continue;
+                    }
+                    seen[ni] = true;
+                    stack.push((nx, ny));
+                }
+            }
+
+            for &m in &members {
+                out[m] = surface;
+            }
+        }
+    }
+    out
 }
 
 /// Catchment a cell needs before it belongs to a continent river
@@ -334,6 +426,108 @@ mod tests {
         let g = dome();
         let c = climate(&g, LatitudeBand::new(35, 55));
         assert_eq!(hydrology(&g, &c), hydrology(&g, &c));
+    }
+
+    /// Two separate pits divided by a tall wall, each enclosed by a
+    /// DIFFERENTLY-heighted rim — so if the two components were ever
+    /// wrongly merged (or a bug just took one grid-wide maximum instead of
+    /// a per-component one), their surfaces would wrongly agree; this shape
+    /// forces them to differ when grouping is correct. 11×5: the literal
+    /// grid edge is the rim (h=100 for x<5, h=300 for x>5 — seeded
+    /// directly, so it is never raised regardless of anything interior),
+    /// a h=1_000 wall fills the whole x=5 column (far above anything the
+    /// flood front reaches from either rim, so it is never raised either),
+    /// and a h=10 pit sits on each side of the wall.
+    fn two_pits() -> (Vec<i32>, i32, i32) {
+        let (w, h) = (11, 5);
+        let mut heights = vec![0i32; usize::try_from(w * h).unwrap_or(0)];
+        for y in 0..h {
+            for x in 0..w {
+                let i = usize::try_from(y * w + x).unwrap_or(0);
+                let is_rim = x == 0 || x == w - 1 || y == 0 || y == h - 1;
+                heights[i] = if x == 5 {
+                    1_000 // dividing wall, far above either rim
+                } else if is_rim {
+                    if x <= 4 {
+                        100
+                    } else {
+                        300
+                    }
+                } else {
+                    10 // pit floor, both sides
+                };
+            }
+        }
+        (heights, w, h)
+    }
+
+    #[test]
+    fn basin_surface_is_constant_per_depression_and_sentinel_outside_it() {
+        let (heights, w, h) = two_pits();
+        let filled = fill(&heights, w, h);
+        let basins = basin_components(&heights, &filled, w, h);
+        let idx = |x: i32, y: i32| usize::try_from(y * w + x).unwrap_or(0);
+
+        // The wall and the rim are seeded directly and never raised, so
+        // they must read back the sentinel.
+        for y in 0..h {
+            for x in 0..w {
+                let i = idx(x, y);
+                let is_rim = x == 0 || x == w - 1 || y == 0 || y == h - 1;
+                if x == 5 || is_rim {
+                    assert_eq!(
+                        filled[i], heights[i],
+                        "wall/rim cell {x},{y} was unexpectedly raised — fixture drifted"
+                    );
+                    assert_eq!(
+                        basins[i], NO_BASIN,
+                        "dry cell {x},{y} did not get the sentinel"
+                    );
+                }
+            }
+        }
+
+        let left_cells: Vec<usize> = (1..=3)
+            .flat_map(|y| (1..=4).map(move |x| (x, y)))
+            .map(|(x, y)| idx(x, y))
+            .collect();
+        let right_cells: Vec<usize> = (1..=3)
+            .flat_map(|y| (6..=9).map(move |x| (x, y)))
+            .map(|(x, y)| idx(x, y))
+            .collect();
+
+        for &i in left_cells.iter().chain(&right_cells) {
+            assert!(filled[i] > heights[i], "pit cell {i} did not submerge");
+        }
+
+        // basin_surface must be the component's max `filled`, not
+        // `filled[i]` itself: the priority-flood's 1 mm anti-tie ramp can
+        // leave `filled` slightly different cell to cell within one
+        // physical depression, and every cell of it must still report the
+        // SAME basin_surface.
+        let left_expected = left_cells.iter().map(|&i| filled[i]).max().unwrap();
+        let right_expected = right_cells.iter().map(|&i| filled[i]).max().unwrap();
+        for &i in &left_cells {
+            assert_eq!(
+                basins[i], left_expected,
+                "left pit cell {i} off the component max"
+            );
+        }
+        for &i in &right_cells {
+            assert_eq!(
+                basins[i], right_expected,
+                "right pit cell {i} off the component max"
+            );
+        }
+
+        // Differently-enclosed pits must produce different surfaces: proof
+        // the two components were kept separate rather than merged into
+        // one basin (or one grid-wide constant).
+        assert_ne!(
+            left_expected, right_expected,
+            "two differently-enclosed pits produced the same surface — are they being merged \
+             into one component (or one global maximum)?"
+        );
     }
 
     /// A 40×40 south-sloping valley whose trench collects both flanks;
