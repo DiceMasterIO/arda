@@ -1,6 +1,6 @@
 ---
 generated_date: 2026-08-26
-generated_at_commit: 8be0a0a
+generated_at_commit: b0ce261
 ---
 
 # Open items
@@ -18,9 +18,31 @@ them are live.
 | 3 | **The relaxed-fallback ladder is unreachable.** Every tile is adjacency-compatible with itself, so any non-empty constraint set tiles trivially; only an empty set fires the fallback. `logic/03` §Q12 specifies a ladder that cannot trigger in practice. | Test `an_impossible_constraint_set_falls_back_to_a_marked_relaxed_fill` has to pass an empty set. | `arda-gen/src/block/wfc.rs` |
 | 4 | **Value noise is anisotropic.** Its gradients favour the square lattice's axes, so steepest descent does too and rivers tend to straight runs. | ~17% of flow directions diagonal against an isotropic ~50%, measured on raw relief before any erosion. | `arda-gen/src/noise.rs` |
 
-On (4): isotropic gradient noise is the fix. One attempt produced blocky
-rectangular coastlines and drove diagonal flow to 8%; it was reverted rather
-than shipped. Domain rotation per octave is the untried alternative.
+On (4): **the recorded diagnosis was wrong, and is corrected here.** A
+measured sweep (2026-08-27) found the diagonal-flow share is 23.2%
+post-erosion / 38.1% pre-erosion, not the "~17%" recorded — and zeroing the
+value-noise detail term entirely barely moves it (21.3%), which proves the
+detail noise is **not** the dominant source. The axis bias comes from
+`coarse_height`'s own separable smoothstep-bilinear sample of the 1 km grid,
+which is what every area cell's regional trend is built on.
+
+Attempts, all measured: per-octave domain rotation (the previously "untried
+alternative") moves the share to 23.9% — the floor-then-lattice-lookup
+reconstructs an axis-aligned staircase, defeating the rotation; rotation plus
+per-octave offset, 23.8%; domain-warping the detail term alone, 23.4–24.0%.
+Warping `coarse_height`'s sample position as well reaches 28.6% and visibly
+reduces the combs at area zoom — **but it was rejected on the render**: at
+default size it speckles the coastline, scatters noise-like micro-lakes
+through the interior, and weakens the trunk hierarchy. That is the same class
+of regression that killed the first attempt, so it was reverted rather than
+shipped.
+
+What the evidence now points at: the combs are strongest on smooth mountain
+flanks, where a near-planar slope sends every cell the same way and no
+convergence forms. That is a *terrain-shape* problem (too little fine-scale
+valley structure for erosion to organise), not purely a noise-isotropy one.
+A real fix likely needs the erosion budget or the relief construction
+revisited, which is a feature with a spike, not a constant to tune.
 
 ## Stand-ins awaiting a producer
 
@@ -38,7 +60,7 @@ than shipped. Domain rotation per octave is the untried alternative.
 | 9 | **No statistical validation suite.** No Horton, Hack, rank-size, sinuosity, or farmland gate exists. | Erosion and lake constants are calibrated only against the artifact's two stated equilibrium anchors (1 km² → 9% slope, 100 km² → 1%) and against Earth's hypsometric curve — not against network statistics. Build-order step 12. |
 | 10 | **Lake thresholds** (100 cells, 2 m) were derived from basin distributions measured on **pre-erosion** relief. | Erosion reshapes that distribution; re-derive when (9) lands. |
 | 11 | **Tile-edge taper band.** Area erosion ramps to zero over 32 cells at the pinned rim, so the 35° repose rule is not enforced there (measured tan×1000 of 1,324 inside the band against exactly 700 at full strength). | Structural: per-tile erosion must freeze tile edges for neighbours to agree byte-for-byte. Seamless tiled erosion needs a global pass or a proven-decay overlap scheme. |
-| 12 | A basin straddling a tile seam: **materially improved, not exactly closed** (feature 03). Both sides now take the lake surface from the shared continent routing surface instead of independent local spills, and membership is trimmed to cells genuinely under that surface. | Each side still takes the max over *its own* rim cells, so fragments with different contact spans can differ (synthetic case: 723 mm; the spec's pre-approved fallback measured worse). **No natural straddling pair exists in 4,280 surveyed (seed, seam) combinations.** Exact agreement needs continent-tier lake identity — `logic/01` step 6 does not emit lake objects. |
+| 12 | A basin straddling a tile seam: **mechanism now exact, precondition unobserved** (2026-08-27). The continent tier emits lake identity — `ContinentHydrology.basin_surface` gives every 1 km cell inside a filled depression that depression's single surface — and a near-rim area basin takes its lake surface from a nearest-cell (never interpolated) lookup of that constant. Two fragments of one depression therefore agree **exactly**, verified at 0 mm on a constructed two-tile case against the real `compose` path. | Residues, both unobserved: no fixture has yet produced a straddling basin whose cells see a continent depression at all (0 in a 4,280 seed/seam sweep), so the exact path is proven on constructed input rather than natural data; and a fragment whose rim abuts two *different* depressions takes a max of two constants, which is span-dependent again. Where the continent tier sees no depression (sub-km pits invisible at 1 km) the old bilinear rule still applies, pinned at 723 mm on the synthetic case. |
 
 ## Groomed but not built
 
