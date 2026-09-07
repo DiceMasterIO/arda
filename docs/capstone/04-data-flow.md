@@ -1,89 +1,34 @@
 ---
-mode: prescriptive
-generated_date: 2026-08-27
-paths_covered: ["crates/arda-gen/**", "crates/arda-render/**", "crates/arda-cli/**"]
-generated_at_commit: 8be0a0a
+generated_at_commit: 987aeca04c77
+generated_date: 2026-09-07
+content_hash: b30247c202b0
+paths_covered: [":(top)crates/**"]
+capstone_version: 6.4
 ---
-
-> Prescriptive — written from the design interview, not from code.
 
 # Data flow
 
-Three lifecycles, fully specified in `logic/`; hop-level detail there,
-this chapter maps them onto the planned crates.
-
 ## Lifecycles
 
-1. **generate** (`logic/01→02→03`): `arda-cli` parses → `arda` facade → `arda-gen` orchestrator: continent stage (single-threaded, validate+reroll ≤5) → tile bundles → areas fan out on the thread pool (each: relief→water→climate→vegetation→settlement→land-use→roads, edges pinned) → blocks per land cell (WFC, ≤8 retries then relaxed) → `arda-core::formats` writes layers → manifest written last (completion stamp).
-2. **export** (`logic/04`): CLI/facade → `arda-core` loads manifest + needed layers (blocks decompressed on demand) → `arda-render` renders PNG (symbolic or tileset manifest; cartographic for area/continent) and serializes versioned JSON → whole-file writes to `--out`.
-3. **load-query** (`logic/05`): `World::load` reads manifest eagerly; areas lazy + cached; blocks lazy; typed errors (missing/partial, version skew, corruption, range).
-4. **serve** (`mockup/06`, build §Q1): `arda-cli` binds a synchronous listener → each request maps to a load-query read plus, where the path asks for an artifact, the same `arda-render` call `export` makes → response bytes. No request mutates anything; determinism makes the response a pure function of (seed, path), which is what the ETags are derived from.
-
-## Observed — area drainage rewrite (2026-08-26)
-
-The area stage now runs `relief → erosion → fill → water → compose`;
-climate, vegetation, settlement, land use, and roads remain unbuilt
-(step 5).
-
-- **Erosion** implements the artifact's four coupled processes over 40 iterations: uplift scaled by the coarse relief beneath each cell, stream-power incision (`K·sqrt(A)·S`, clamped so a channel never cuts below what it drains into), hillslope creep, and 35-degree talus collapse. The sea is the floor and sea cells never move.
-- **Filling** is priority-flood to a *routing* surface; stored `Cell.height` stays raw eroded relief, because the artifact keeps depressions as real terrain that rivers pass through. The heap key is `(height, y, x)` — `BinaryHeap` leaves equal keys unordered, and a bare height key would break the cross-platform golden gate while passing locally.
-- **Routing** is D8 by steepest *descent* (drop ÷ distance, compared by integer cross-multiplication), not steepest drop. `water` takes the `TileBundle` so boundary cells route against the neighbouring tile's real heights; a cell whose best descent leaves the tile becomes an **outlet**. Per the artifact the tree is rooted at "the sea and the low edges", so a rim cell with no downhill neighbour is an outlet rather than a sink.
-- Both erosion passes hold the pinned rim fixed and ramp their amplitude to zero over 32 cells approaching it, so the frozen edge does not leave a lip. Within that band the repose-angle rule is deliberately not enforced.
-- **Cross-tile inflow does not exist.** `logic/01` step 10's entering rivers still have no producer, so each tile drains independently and no river spans tiles. Outflow works; inflow waits on the continent drainage tree.
-
-## Observed — continent climate and hydrology (2026-08-26, feature 02)
-
-The continent stage now runs
-`plates → tectonics → coast → upsample → erode → climate → hydrology → rivers`,
-and the orchestrator persists `continent/overview.bin` (real 18 B/cell
-records) and `continent/objects.bin` (rivers) **before** the manifest,
-which stays last as the completion stamp — an interrupt still leaves no
-consumable partial world.
-
-- Climate and hydrology are pure functions (`continent::climate::climate`, `continent::hydrology::{hydrology, extract_rivers}`) over the accepted `ContinentGrid`; the orchestrator computes them after the area fan-out, at the write site. **Seam note for feature 03:** `generate_world` computes and then discards these structs after persisting — the area path does not receive them yet, so 03 must either thread them through or re-derive per world (one extra stage run).
-- The continent drainage tree exists (`ContinentHydrology`: routing surface, downstream tree, catchment km², discharge L/s) but **cross-tile inflow still does not** — `TileBundle` is untouched by design (feature 02 §Q1); rivers still stop at tile seams until feature 03 consumes the tree.
-- `Cell.rainfall` (area tier) still has no producer; continent rainfall exists per 1 km cell and awaits the 03 handoff.
+1. **Generate:** `crates/arda-cli/src/main.rs:100` → `crates/arda/src/lib.rs:22` → `crates/arda-gen/src/orchestrator.rs:137`. Up to five candidate attempts apply the 250–900‰ land gate, compute climate/hydrology/rivers, then require a river with `feeds: None`. The designed ≥1,500 m range gate is absent. An accepted `Continent` is shared across Rayon area workers.
+2. **Continent:** `crates/arda-gen/src/continent/mod.rs:115` runs seeded plates, 20 tectonic steps on a 4 km grid, shelf/coast construction, 1 km resampling and erosion. Climate and hydrology follow in the orchestrator, rather than feeding rainfall back into erosion. The original design called for roughly 100 tectonic steps and later human geography/naming (`logic/01-continent-generation.md`).
+3. **Area:** `crates/arda-gen/src/orchestrator.rs:96` → `bundle_for` → `crates/arda-gen/src/area/mod.rs:656`: relief, 40 erosion iterations, fill, rainfall sampling, water routing, composition. Erosion tapers to zero over 32 cells at the pinned rim (`crates/arda-gen/src/area/erosion.rs:24`). Water accumulates rainfall-driven discharge plus entering rivers and initiates channels at 40 L/s (`crates/arda-gen/src/area/water.rs:19`).
+4. **Lakes and cells:** `crates/arda-gen/src/area/mod.rs:321` clamps/trims basins, retains ≥300 cells and ≥4 m maximum depth, then computes outlets against the final surviving set. Selection has no evaporation or water-balance calculation. Stream incision skips every filled depression before final lake acceptance, while creep still runs (`crates/arda-gen/src/area/erosion.rs:109`). Stored heights remain raw; routing uses filled heights. `compose` writes rainfall and hydrology fields; temperature, moisture, forest density, road and built_by retain defaults (`crates/arda-gen/src/area/mod.rs:185`). Climate/vegetation/settlement/land-use/road stages remain planned.
+5. **Blocks:** `crates/arda-gen/src/orchestrator.rs:96` samples land cells every 64 cells in x and y → `constraints_for` → `fill_block` → one compressed archive per area. Constraints choose broad tile groups; river-bearing land excludes Water. Every square starts with the same allowed set, minimum-option ties use row order, a random choice restricts only undecided direct neighbors. There are no fixed shared crossings, count constraints or coherent building layouts (`crates/arda-gen/src/block/constraints.rs:17`, `crates/arda-gen/src/block/wfc.rs:54`). The designed 200+ vocabulary and full land-cell coverage remain pending; current vocabulary is 24.
+6. **Load/query:** `crates/arda/src/lib.rs:223` reads manifest, every area's cells and objects, and every block archive eagerly; lookups read BTreeMaps. This differs from the intended lazy O(accessed) cache and per-block decompression (`logic/05-load-query.md`). Continent layers are not read by `World::load`.
+7. **Export:** `crates/arda-cli/src/main.rs:157` → load world → create output directory → facade export → renderer/serializer → `std::fs::write`. Area PNG is one pixel per 100 m cell; every channel occupies that pixel irrespective of stored physical width (`crates/arda-render/src/carto.rs:184`). Overview is aggregated from loaded area cells, using discharge cuts 4/20/80 m³/s and a 25% lake-coverage threshold (`crates/arda-render/src/carto.rs:122`). Block PNG uses flat 8×8 pixel color squares (`crates/arda-render/src/symbolic.rs:30`).
+8. **Preview:** `crates/arda-cli/src/main.rs:129` creates `out/world`, generates there, eagerly loads it and renders `out/overview.png`. It executes the area/block batch too; it is not a continent-only shortcut. `logic/07-preview.md` owns this composed scenario.
 
 ## State
 
-The world directory is the only persistent state; immutable once the
-manifest is stamped (single writer: the batch). In-process state:
-orchestrator progress counters (for `mockup/01`'s progress rows) and
-the load-side area cache (`logic/05` step 2), bounded O(accessed).
-
-`serve` adds a process but no state class: it holds one loaded `World`
-and reuses that same area cache. There are no sessions, no cookies, and
-no server-side mutation — restarting it loses nothing.
+The directory stores completed layers; manifest presence/version is the load gate (`crates/arda-core/src/formats/manifest.rs:75`). Generation owns mutable candidate/area buffers, then writes independent paths. World owns all decoded areas and block archives in memory (`crates/arda/src/lib.rs:209`). No sessions, service state or UI stores exist. The planned 16 GB worker budget has no implemented enforcement in `crates/arda-gen/src/orchestrator.rs:137`.
 
 ## Side-effect boundaries
 
-All disk IO lives in `arda-core::formats` (world layers) and
-`arda-render` (export artifacts). `arda-gen` stages are pure —
-compute-only over in-memory inputs; the orchestrator alone invokes
-writes. The only network IO is `serve`'s inbound listener, confined to
-`arda-cli` (`01-architecture.md` Communication); nothing in the
-workspace makes an outbound connection.
+Generation writes directly through `crates/arda-gen/src/orchestrator.rs:84`; codecs encode/decode bytes while manifest helpers also perform IO. Facade and CLI perform export/load filesystem IO (`crates/arda/src/lib.rs:59`, `crates/arda-cli/src/main.rs:157`). No network side effects are implemented.
 
 ## Failure paths
 
-- Continent validation failure → deterministic subseed reroll ≤5 → hard error (`logic/01` §Q9).
-- WFC contradiction → subseeded refill ≤8 → relaxed fill, marked; never fails the batch (`logic/03` §Q12).
-- Tile panic → batch halts naming the tile (`logic/02`).
-- Batch interrupt/crash → manifest absent → loaders and export refuse the partial world; re-run restarts identically; partial dir left for inspection (`mockup/01` States).
-- Export: out-of-range/unmapped-tile/partial-world → typed refusals, no partial artifact files (`logic/04`).
-- Serve: partial world → refuses to start with export's message; unknown coordinates → 404 carrying the valid ranges, mirroring `logic/05`'s range errors (`mockup/06` States).
-- Memory budget (default 16 GB, configurable — §Q3) bounds areas in flight; the pool blocks rather than exceeding it.
+Generation rejects a nonempty output directory; failed IO can leave partial files, and retrying that same directory is refused. Manifest is written last but is not an atomic rename, so interruption during its write can leave malformed JSON; load reports it unreadable (`crates/arda-core/src/formats/manifest.rs:59`). No resume, rollback, output lock, cancellation handler or custom tile-panic recovery exists in the orchestrator. Concurrent writers are not coordinated.
 
-## Observed — climate-driven refinement (2026-08-27, feature 03)
-
-The generate lifecycle's continent tier now ends
-`… → erode → climate → hydrology → rivers → step-9 gate`, and the accepted
-attempt's results are packaged as a `Continent` context that flows into every
-tile. **The seam recorded above is closed**: nothing is computed twice, and
-area workers receive continent climate and drainage rather than the grid alone.
-
-- The step-9 gate ("≥1 river reaches the sea") runs inside the reroll ladder, after the cheap land-fraction gate so a rejected attempt never pays for climate and hydrology. Both gates share the ≤5 ladder and the same error shape.
-- Per tile: `bundle_for` derives entering rivers plus the climate/routing patches; the area stage samples rainfall, seeds each entering river's drainage/discharge/order at its boundary cell, accumulates rain down the routing tree, and initiates channels at 40 L/s.
-- **Cross-tile inflow now exists.** Catchment is no longer bounded by one tile: measured max area-cell catchment at the default 500×1000 km size is 50,070 km² against the old one-tile ceiling of 2,621 km².
-- Rendering reads the same cells: overview river blocks draw in three order bands with 1/2/3 px widths above a floor of order 3; the area map shades every channel by order.
-- `generate`'s footer and the manifest report the continent river count (4 on the default world at seed 42, 8 at seed 7).
+WFC tries attempts 0–7, then fills the block with its first allowed tile (ID 0 if empty) and marks it relaxed (`crates/arda-gen/src/block/wfc.rs:19`). Export load/render failures occur before writing the artifact, but a filesystem write can truncate an existing file or leave partial bytes; the earlier whole-file atomicity promise is not implemented (`crates/arda/src/lib.rs:59`). Overview drops area lookup errors via `filter_map` (`crates/arda/src/lib.rs:93`). JSON serializers return an empty string on serde failure (`crates/arda-render/src/json.rs:178`). CLI propagates `anyhow::Result` from main; no retries or timeout policy exists (`crates/arda-cli/src/main.rs:215`).

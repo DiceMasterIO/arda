@@ -1,14 +1,16 @@
 ---
-generated_date: 2026-08-24
+generated_date: 2026-09-07
 scenario: load-query
-traces: [Q16]
 generated_at_commit: 8d3c9d9
+capstone_version: 6.4
 ---
 
 # 05 — Load & query
 
+> Retained design and dated implementation history. Current implementation: `../01-architecture.md`, `../04-data-flow.md`.
+
 The crate's read path (`../mockup/04-crate-api.md`); the CLI's `export`
-consumes the same path. Confirmed at §Q16.
+consumes the same path.
 
 ## Trigger & preconditions
 
@@ -29,7 +31,7 @@ None beyond target scope — all reads are pure lookups.
 ## Unhappy paths
 
 - Missing/partial world: `load` returns a typed error naming the manifest problem.
-- Version skew (world written by an incompatible arda): typed error carrying both versions; remedy is regeneration from the seed (mockup Q9 — worlds are disposable).
+- Version skew (world written by an incompatible arda): typed error carrying both versions; remedy is regeneration from the seed (worlds are disposable).
 - Corrupt/truncated archive discovered lazily: typed error naming the file.
 - Out-of-range coordinates: typed range error carrying the valid ranges.
 
@@ -48,3 +50,7 @@ None — strictly read-only; no lock files, no metadata writes, ever. Concurrent
 
 - Success: typed world/area/cell/block views for the consumer; no side effects.
 - Failure: typed errors as above; the directory is untouched.
+
+## Dimensions not in play
+
+The retained design did not record a dimension-by-dimension exclusion list. This provenance repair leaves those exclusions unspecified rather than inventing decisions.

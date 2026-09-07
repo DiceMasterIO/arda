@@ -8,10 +8,18 @@ features/
 # Interview transcripts for every other stage
 *-interview.md
 
-# Local settings
-capstone.json
-
 # Opinionated and personal outputs
 review.md
 be-review.md
 fe-review.md
+
+# The uiux preview and raster brand assets; the SVG sources are committed
+uiux/preview.html
+uiux/assets/*.png
+uiux/assets/*.jpg
+uiux/assets/*.jpeg
+uiux/assets/*.webp
+uiux/assets/references/
+
+# User-requested local diagnosis; kept outside Git
+/generation-issues.md

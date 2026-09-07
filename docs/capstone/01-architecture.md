@@ -1,64 +1,61 @@
 ---
-mode: prescriptive
-generated_date: 2026-08-27
-paths_covered: ["crates/**", "Cargo.toml"]
-generated_at_commit: 8be0a0a
+generated_at_commit: 987aeca04c77
+generated_date: 2026-09-07
+content_hash: e87cc34b6692
+paths_covered: [":(top)Cargo.toml", ":(top)crates/**", ":(top)Dockerfile"]
+capstone_version: 6.4
 ---
-
-> Prescriptive — written from the design interview, not from code.
 
 # Architecture
 
 ## Layers
 
-Cargo workspace, one repo (`architecture-interview.md §Q2`). Crates and
-allowed dependency direction (enforced by the crate graph — a crate not
-in another's `Cargo.toml` cannot be imported):
+| Crate | Directory | Dependencies and responsibility |
+|---|---|---|
+| arda-core | `crates/arda-core/` | Types, deterministic PRNG, binary codecs and manifest; no internal dependencies. |
+| arda-gen | `crates/arda-gen/` | Continent → area → block generation; depends on arda-core. |
+| arda-render | `crates/arda-render/` | Stored cells/blocks → PNG or JSON; depends on arda-core, never arda-gen. |
+| arda | `crates/arda/` | Public generation, loading, query and export facade; depends on all three libraries. |
+| arda-cli | `crates/arda-cli/` | clap argument dispatch; depends on arda. |
 
-| Crate | Planned path | Contains | May depend on |
-|---|---|---|---|
-| `arda-core` | `crates/arda-core/` | Shared types (coords, cells, objects, tile IDs), the two-grid coordinate system, seed/subseed derivation (counter-based PRNG keyed (seed, tier, stage, coords, attempt) — §Q4), world formats read+write, manifest | nothing internal |
-| `arda-gen` | `crates/arda-gen/` | The three generation stages: continent (`logic/01`), area (`logic/02`), block (`logic/03`); the batch orchestrator with the rayon-style pool (§Q3) | `arda-core` |
-| `arda-render` | `crates/arda-render/` | Built-in symbolic style, tileset-manifest rendering, cartographic area/continent maps, JSON serialization (`logic/04` §Q14) | `arda-core` |
-| `arda` | `crates/arda/` | Facade: re-exports the public API (`World::load`, `World::generate`, query types, export calls). The crate consumers depend on | `arda-core`, `arda-gen`, `arda-render` |
-| `arda-cli` | `crates/arda-cli/` | The `arda` binary: `generate`/`export`/`preview`/`serve` subcommands; docker entrypoint. `serve` (build §Q1) is a synchronous read-only HTTP layer over the export renderers — it adds no generation path and no write path | `arda` |
-
-`arda-render` never depends on `arda-gen` — rendering reads stored
-worlds only (§Q2).
+Dependency direction is enforced by `crates/*/Cargo.toml`. The root package hosts golden tests only (`Cargo.toml:56`). The designed five-crate split is implemented; this keeps rendering independent of simulation.
 
 ## Module boundaries
 
-- Public surface = the `arda` facade crate; `arda-core`/`-gen`/`-render` are published but semver-internal (0.x, §Q6) — consumers are documented to use `arda` only.
-- Inside `arda-gen`, stage modules mirror the causal pipeline (`continent`, `area::{relief,water,climate,vegetation,settlement,landuse,roads}`, `block`); a stage module may read only prior stages' output types (`logic/02` invariant), enforced by review, not tooling (single-crate interior).
-- World formats live only in `arda-core::formats`; no other crate encodes/decodes bytes.
-- Observed (2026-08-27, feature 03): the continent stage is packaged as a `Continent { grid, climate, hydrology }` context, built once per accepted attempt in `orchestrator.rs` and passed to `bundle_for` and `generate_area` — the computes-and-discards seam feature 02 left is closed. `bundles.rs` gained the step-10 payload derivation (entering rivers from the continent tree, 53×53 climate/routing patches); `area/water.rs` consumes it. No dependency direction changed.
-- Observed (2026-08-26, feature 02): the continent stage grew `continent/{climate,hydrology}.rs` (steps 5–6 of `logic/01`, pure functions, no RNG) and `arda-core` grew `formats::overview` plus continent types in `continent.rs`; `erode.rs`'s `fill`/`accumulate` are `pub(crate)`, reused by hydrology so the tier has one routing rule.
+`arda-core::formats` owns byte encoding/decoding; filesystem writes also occur in the orchestrator and facade (`crates/arda-gen/src/orchestrator.rs:84`, `crates/arda/src/lib.rs:59`). `arda-gen::continent` owns coarse relief, climate, hydrology and bundles; `area` owns relief, erosion, fill, rainfall and water composition; `block` owns constraints and WFC. Interior stage ordering is observed in `crates/arda-gen/src/area/mod.rs:656`, not enforced by separate crates.
+
+The design's settlement, land-use, road, naming and society modules do not exist in `crates/arda-gen/src/`; their rules remain in `logic/`. `TileBundle` has climate and river inputs but no settlement-density or road-exit fields (`crates/arda-gen/src/continent/bundles.rs:127`).
 
 ## Entry points
 
-- `crates/arda-cli/src/main.rs` — the only process; subcommands `generate`, `export`, `preview`, `serve` (`mockup/01`, `mockup/03`, `mockup/06`). `preview` is generate-plus-overview in one step; `export` gained `--overview` (whole world) and `--block` (one tactical block).
-- Library entry: `arda::World` (`mockup/04`).
+| Entry | Dispatch / definition | Behavior |
+|---|---|---|
+| CLI generate | `crates/arda-cli/src/main.rs:100` | Config → generate → counts printed. |
+| CLI preview | `crates/arda-cli/src/main.rs:129` | Generate `out/world`, load it, export overview PNG. |
+| CLI export | `crates/arda-cli/src/main.rs:157` | Block first, otherwise overview, otherwise area; PNG or JSON for area/block. |
+| Library generation | `crates/arda/src/lib.rs:22` | Returns `Result<Manifest, GenError>`. |
+| Library loading and queries | `crates/arda/src/lib.rs:223` | Eager load into `World`; area/cell/block lookups. |
+| Library exports | `crates/arda/src/lib.rs:59`, `crates/arda/src/lib.rs:93`, `crates/arda/src/lib.rs:117` | Return written `PathBuf` or `ExportError`. |
+
+The complete command enum has Generate, Preview, Export; the designed synchronous `serve` command remains unimplemented (`crates/arda-cli/src/main.rs:23`).
 
 ## Communication
 
-No queues, no IPC: all communication is in-process calls plus the world
-directory on disk (`mockup/02`). The CLI↔library seam is plain function
-calls — the CLI is a thin wrapper (§D6, mockup 04).
+No HTTP listener, queue, event bus or outbound client is registered in `crates/arda-cli/src/main.rs:215`. CLI and libraries communicate through in-process calls:
 
-One network surface exists, added at the build gate: `serve`'s
-read-only HTTP endpoints (build §Q1, `mockup/06`). It lives entirely in
-`arda-cli` — no library crate opens a socket — and is synchronous, so
-architecture §Q3's no-async-runtime decision still holds. Generation
-remains fully offline.
+| Caller → receiver | Request payload | Return payload |
+|---|---|---|
+| CLI/facade → generate_world | seed: u64, config: GenerateConfig, out: &Path; all required | Manifest or GenError (`crates/arda-gen/src/orchestrator.rs:137`) |
+| orchestrator → bundle_for → generate_area | seed, Continent, AreaCoord → TileBundle; all required | (AreaCells, AreaObjects) (`crates/arda-gen/src/orchestrator.rs:96`) |
+| area/block data → renderer | AreaCells or Block; JSON also Manifest and area coordinates | PNG bytes / RenderError or JSON String (`crates/arda/src/lib.rs:59`, `crates/arda/src/lib.rs:117`) |
+| facade → codecs | path: &str, bytes: &[u8]; required | typed layer or FormatError (`crates/arda-core/src/formats/`) |
+
+Payload field tables are in `02-models.md`. Disk handoffs are manifest JSON, little-endian layers, and zstd block archives; no sibling-repository contract is identified in these entry points.
 
 ## Composition
 
-No DI container. `main()` parses args, builds a `Config`, calls facade
-functions; the batch orchestrator wires stages sequentially per tier
-and fans areas out over the thread pool (§Q3). Determinism forbids
-wiring that depends on execution order (§Q4).
+`crates/arda-cli/src/main.rs:215` parses clap and dispatches. `crates/arda-gen/src/orchestrator.rs:137` accepts a continent candidate, shares one immutable `Continent` among Rayon area workers, writes continent layers and stamps the manifest last. Dependencies are plain arguments, with no DI container. Areas need no neighboring area's output, preserving order-independent generation.
 
 ## Frontend
 
-No human-facing UI — surfaces are `[api, cli]`; design stage formalized
-`skipped: no-ui` (`design-interview.md`, `architecture-interview.md §D7`).
+No human-facing UI: the chosen surfaces are CLI and Rust API; generated PNGs are export artifacts, not application views (`crates/arda-cli/src/main.rs:23`).

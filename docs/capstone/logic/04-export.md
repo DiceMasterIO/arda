@@ -1,15 +1,17 @@
 ---
-generated_date: 2026-08-24
+generated_date: 2026-09-07
 scenario: export
-traces: [Q14, Q15]
 generated_at_commit: 8d3c9d9
+capstone_version: 6.4
 ---
 
 # 04 — Export
 
+> Retained design and dated implementation history. Current implementation: `../01-architecture.md`, `../04-data-flow.md`.
+
 Renders images and serializes JSON from a stored world on demand —
-never during the batch (mockup Q22). Surface mocked in
-`../mockup/03-export.md`; rules here are §Q14/§Q15 decisions.
+never during the batch. Surface mocked in
+`../mockup/03-export.md`; rules here are the confirmed design.
 
 ## Trigger & preconditions
 
@@ -20,11 +22,11 @@ never during the batch (mockup Q22). Surface mocked in
 
 1. **Resolve target** from `world.json` ranges: continent scope (no `--area`), area scope (`--area ax_ay`), or cell scope (`--area` + `--cell x,y`).
 2. **Load** only what the target needs; block tile-IDs are decompressed on demand from the area archive.
-3. **Render** (§Q14):
+3. **Render**:
    - Continent: cartographic overview PNG — hypsometric relief, water, cover, roads/corridors, settlement glyphs, names — plus regions/settlements/rivers JSON.
    - Area: area-map PNG at 1 px/cell (same cartographic style) + `cells.json` + `objects.json`.
    - Cell: block PNG at 8 px/square (resolution assumed, mockup 03) using the built-in symbolic style (flat colors + glyphs per tile kind, grid lines, contour shading) or a user tileset manifest mapping tile-ID → sprite; plus block JSON (tile-ID grid + tile-name legend).
-4. **Serialize** (§Q14): `cells.json` carries exactly the artifact's "what the finished map knows" fields — snake_case, SI units, one object per cell; `objects.json` lists river segments, lakes, settlements, roads, crossings, passes with courses as cell-coord arrays; every JSON file carries a top-level `schema_version`; evolution is additive-only.
+4. **Serialize**: `cells.json` carries exactly the artifact's "what the finished map knows" fields — snake_case, SI units, one object per cell; `objects.json` lists river segments, lakes, settlements, roads, crossings, passes with courses as cell-coord arrays; every JSON file carries a top-level `schema_version`; evolution is additive-only.
 5. **Write** to `--out`, overwriting; identical request → byte-identical files.
 
 ## Branches
@@ -44,8 +46,8 @@ None — export never mutates the world directory.
 
 ## Invariants
 
-- Read-only on the world; deterministic byte-identical outputs (mockup Q9).
-- JSON schema versioned, additive-only (§Q14).
+- Read-only on the world; deterministic byte-identical outputs.
+- JSON schema versioned, additive-only.
 - Every tile-ID in a block render resolves to art (built-in always total; manifests validated up front).
 
 ## Outcomes & side effects
@@ -55,7 +57,11 @@ None — export never mutates the world directory.
 
 ## Amendments (build gate, 2026-08-25)
 
-- Block JSON gains: `legend` entries carrying tile attributes (material, traversable, move_cost, cover, hazard tags — `../build-interview.md` §Q5), a `poi` list, and `buildings` present in the block (§Q3).
-- `objects.json` gains `buildings` (type, footprint, settlement, occupants) and `npcs` (notables with SRD 5.1-style sheets — §Q4); continent JSON gains `realms` (name, seat, members, border course — §Q2).
-- All additions are additive under `schema_version` 1 (§Q14 evolution rule).
+- Block JSON gains: `legend` entries carrying tile attributes (material, traversable, move_cost, cover, hazard tags), a `poi` list, and `buildings` present in the block.
+- `objects.json` gains `buildings` (type, footprint, settlement, occupants) and `npcs` (notables with SRD 5.1-style sheets); continent JSON gains `realms` (name, seat, members, border course).
+- All additions are additive under `schema_version` 1 (evolution rule).
 - New consumer: `arda serve` (`../mockup/06-serve.md`) reuses these serializers/renderers verbatim — one source of truth per representation.
+
+## Dimensions not in play
+
+The retained design did not record a dimension-by-dimension exclusion list. This provenance repair leaves those exclusions unspecified rather than inventing decisions.

@@ -1,18 +1,18 @@
 ---
-generated_date: 2026-08-24
+generated_date: 2026-09-07
 scenario: block-generation
-traces: [Q12, Q13]
 artifact: ../mockup-artifact.md
 generated_at_commit: 8d3c9d9
+capstone_version: 6.4
 ---
 
 # 03 — Block generation
 
-Third batch stage: materializes the tactical layer as tile-IDs (mockup
-Q22). Mechanism is the artifact's `Inside a cell: the D&D grid` section,
-confirmed verbatim; this file adds the §Q12 parameters. A block is
-64×64 five-ft squares (320 ft; the cell's "100 m" is nominal 97.5 m —
-§Q12). An ordinary battle map is a quarter block.
+> Retained design and dated implementation history. Current implementation: `../01-architecture.md`, `../04-data-flow.md`.
+
+Third batch stage: materializes the tactical layer as tile-IDs. Mechanism is the artifact's `Inside a cell: the D&D grid` section,
+confirmed verbatim; this file adds the chosen parameters. A block is
+64×64 five-ft squares (320 ft; the cell's "100 m" is nominal 97.5 m). An ordinary battle map is a quarter block.
 
 ## Trigger & preconditions
 
@@ -23,9 +23,9 @@ confirmed verbatim; this file adds the §Q12 parameters. A block is
 
 1. **Constraints from the cell** (artifact, binding): ground kind from cover; tree count from forest density (thinning across the block when neighbor density differs); contour steps from slope/aspect (hillside = terraces, valley floor = flat); pools/reeds/soft ground from height-above-river; water band of the cell's width/depth, hop-vs-swim by order; road band width by class; crossing record → bridge/ford/ferry-landing tiles; pass → road on highest ground; settlement footprint → buildings at tier density, church + inn + market at the centre cell, road becomes street; field hedges/walls on cell boundaries.
 2. **Edge fixing** (artifact, binding): every linear feature's entry/exit square is computed from the two cells' coordinates + seed alone; both sides of an edge compute the same point. Ground-cover changes straddle the boundary as transition zones.
-3. **WFC fill** (§Q12): tile set of 200+ tiles (semantic kinds plus variants — species, wear, furniture; transitions are explicit tiles, WFC cannot blend). Most-constrained-square-first with propagation; fixed entry/exit tiles; required paths connecting them per river/road; count constraints for trees and buildings; adjacency rules for the rest.
-4. **Contradiction handling** (§Q12): refill with border kept, subseeded per attempt `(seed, cell, attempt)`, ≤8 attempts; then a greedy constraint-relaxed fill that cannot fail, and the block is marked `relaxed` in metadata. The batch can never die inside WFC.
-5. **Write**: 2 bytes/square tile-IDs into the area's block archive, zstd-compressed (~0.4–0.8 GB per area compressed; ~80–160 GB continent default — the doubling over the mockup's 1-byte estimate was accepted at §Q12).
+3. **WFC fill**: tile set of 200+ tiles (semantic kinds plus variants — species, wear, furniture; transitions are explicit tiles, WFC cannot blend). Most-constrained-square-first with propagation; fixed entry/exit tiles; required paths connecting them per river/road; count constraints for trees and buildings; adjacency rules for the rest.
+4. **Contradiction handling**: refill with border kept, subseeded per attempt `(seed, cell, attempt)`, ≤8 attempts; then a greedy constraint-relaxed fill that cannot fail, and the block is marked `relaxed` in metadata. The batch can never die inside WFC.
+5. **Write**: 2 bytes/square tile-IDs into the area's block archive, zstd-compressed (~0.4–0.8 GB per area compressed; ~80–160 GB continent default — the doubling over the mockup's 1-byte estimate was accepted at).
 
 ## Branches
 
@@ -47,7 +47,7 @@ None — appends blocks to `blocks/<ax>_<ay>.tiles.zst`; never mutates cell or o
 - Same (seed, cell coords) → same block, every time it is drawn (artifact).
 - Linear features are continuous across every shared edge; a road or river followed 20 km never breaks (artifact).
 - A block reads only coarse data — never a neighbor's finished squares (artifact).
-- Tile count and adjacency constraints hold except in `relaxed` blocks, which are explicitly marked (§Q12).
+- Tile count and adjacency constraints hold except in `relaxed` blocks, which are explicitly marked.
 
 ## Outcomes & side effects
 
@@ -56,6 +56,10 @@ None — appends blocks to `blocks/<ax>_<ay>.tiles.zst`; never mutates cell or o
 
 ## Amendments (build gate, 2026-08-25)
 
-- **Tile attributes** (`../build-interview.md` §Q5): every tile kind in the vocabulary carries static attributes — material, traversable (yes/difficult/no), movement cost, cover, hazard tags (deep_water, thin_ice, bog, cliff, …). Squares remain 2-byte tile-IDs; attributes live once in the vocabulary and export via the JSON legend. Dynamic states (burning, frozen-now) are the consuming game's, not arda's.
-- **POI/items layer** (§Q5): a sparse seeded per-block object list (containers, campsites, shrines, hazard sources) generated with the block, stored as objects, exported in block JSON.
-- **Building layout** (§Q3): for settlement cells, the building-layout function is the single source of both `Building` objects (type, footprint squares, occupants — `06-society-generation.md`) and the block's building tiles.
+- **Tile attributes**: every tile kind in the vocabulary carries static attributes — material, traversable (yes/difficult/no), movement cost, cover, hazard tags (deep_water, thin_ice, bog, cliff, …). Squares remain 2-byte tile-IDs; attributes live once in the vocabulary and export via the JSON legend. Dynamic states (burning, frozen-now) are the consuming game's, not arda's.
+- **POI/items layer**: a sparse seeded per-block object list (containers, campsites, shrines, hazard sources) generated with the block, stored as objects, exported in block JSON.
+- **Building layout**: for settlement cells, the building-layout function is the single source of both `Building` objects (type, footprint squares, occupants — `06-society-generation.md`) and the block's building tiles.
+
+## Dimensions not in play
+
+The retained design did not record a dimension-by-dimension exclusion list. This provenance repair leaves those exclusions unspecified rather than inventing decisions.

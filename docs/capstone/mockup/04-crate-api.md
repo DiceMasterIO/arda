@@ -1,17 +1,18 @@
 ---
-generated_date: 2026-08-24
+generated_date: 2026-09-07
 scenarios: [load-query]
-implements: [Q1, Q5, Q11, Q17, Q19]
 generated_at_commit: 8d3c9d9
+capstone_version: 6.4
 ---
 
 # 04 — Crate API (Rust): load & query
 
-The library surface (§Q1, §Q5): game devs embed `arda` (crates.io,
-MIT/Apache-2.0 dual, §Q19) to load a generated world and read it.
+> Retained design and dated implementation history. Current implementation: `../01-architecture.md`, `../04-data-flow.md`.
+
+The library surface: game devs embed `arda` (crates.io,
+MIT/Apache-2.0 dual) to load a generated world and read it.
 Generation is also callable (the CLI is a thin wrapper — assumed). No
-runtime/streaming API commitment in v1 (§Q18). All identifiers below
-are assumed; the data they expose is §Q11's list verbatim.
+runtime/streaming API commitment in v1. All identifiers below are assumed; the data they expose is the artifact's field list verbatim.
 
 ## Layout
 
@@ -43,17 +44,17 @@ Element tree: `World` (manifest) → `Area` (cells + objects) → `Cell`
 
 ## Elements
 
-| Element | Does | Traces to |
-|---|---|---|
-| `World::load(dir)` | Opens a generated world; refuses partial ones (02 States) | Q17 "loading" |
-| `World::generate(seed, config)` | Library form of 01's batch | Q17 "pure script, a library" (assumed) |
-| `Area::cell(x, y)` | Every per-cell property from §Q11's "what the finished map knows" | Q11 |
-| `Area` object accessors | Settlements, river segments, lakes, roads, crossings, passes as typed lists | Q11 |
-| `World::block(..)` | Lazy read of the materialized tile-IDs; deterministic render | Q22, Q12 |
-| Property schema detail | Field-by-field types "drilled down later" | Q17 — deferred, logic stage |
+| Element | Does | Status / notes |
+| --- | --- | --- |
+| `World::load(dir)` | Opens a generated world; refuses partial ones (02 States) | "loading" |
+| `World::generate(seed, config)` | Library form of 01's batch | "pure script, a library" (assumed) |
+| `Area::cell(x, y)` | Every per-cell property from the artifact's "what the finished map knows" | Confirmed design |
+| `Area` object accessors | Settlements, river segments, lakes, roads, crossings, passes as typed lists | Confirmed design |
+| `World::block(..)` | Lazy read of the materialized tile-IDs; deterministic render | Confirmed design |
+| Property schema detail | Field-by-field types "drilled down later" | deferred, logic stage |
 
 ## States
 
 - **Success**: all reads are infallible after load except range errors (typed `Result`).
 - **Empty/missing world**: `load` returns a typed error naming the manifest problem.
-- **Version skew**: world written by a different arda version → typed error; regenerate from seed (§Q9) (assumed).
+- **Version skew**: world written by a different arda version → typed error; regenerate from seed (assumed).
