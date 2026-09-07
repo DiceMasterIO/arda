@@ -1,72 +1,45 @@
 ---
-mode: prescriptive
-generated_date: 2026-08-25
-paths_covered: ["Cargo.toml", "crates/*/Cargo.toml"]
-generated_at_commit: 8d3c9d9
+generated_at_commit: 987aeca04c77
+generated_date: 2026-09-07
+content_hash: fecfaee8f7ea
+paths_covered: [":(top)Cargo.toml", ":(top)Cargo.lock", ":(top)crates/*/Cargo.toml", ":(top)rust-toolchain.toml", ":(top)deny.toml", ":(top).github/**"]
+capstone_version: 6.4
 ---
-
-> Prescriptive — written from the design interview, not from code.
 
 # Dependencies
 
-Picks decided in `stack-interview.md` (§Q1–Q8), constrained by
-code-prefs §Q2 (sim = build, commodity = adopt; permissive license,
->1 yr maintained, no platform-variant arithmetic; ~40-crate soft cap)
-and architecture §Q4 (bit-exact determinism). Version floors are the
-latest stable at research time (2026-08); exact pins at build. Zero
-paid services.
-
 ## Runtime dependencies
 
-| Capability | Pick | Floor | License | Used by | Traces |
-|---|---|---|---|---|---|
-| zstd compression | `zstd` (C bindings) | 0.13 | MIT | `arda-core::formats` block archives | §Q1 |
-| PNG encoding | `png` | 0.17 | MIT/Apache-2.0 | `arda-render` | §Q2 |
-| JSON | `serde` + `serde_json` (derive; BTreeMap where maps unavoidable — byte-identity) | 1.0 | MIT/Apache-2.0 | manifest, export JSON | §Q3 |
-| Deterministic PRNG | `rand_chacha` ChaCha8, wrapped in `arda-core::rng` keyed (seed, tier, stage, coords, attempt) — no direct use outside the wrapper | 0.3 | MIT/Apache-2.0 | all sim stages | §Q4; arch §Q4 |
-| Data-parallel pool | `rayon` (order-independent reductions only) | 1.10 | MIT/Apache-2.0 | `arda-gen` orchestrator | §Q5; arch §Q3 |
-| CLI parsing | `clap` v4 derive | 4.5 | MIT/Apache-2.0 | `arda-cli` only | §Q6 |
-| HTTP server | `tiny_http` (synchronous, no async runtime) | 0.12 | MIT/Apache-2.0 | `arda-cli::serve` | build §Q1; arch §Q3 |
-| Error derives | `thiserror` | 1.0 | MIT/Apache-2.0 | every library crate | code-prefs §Q4 |
-| CLI error context | `anyhow` — `arda-cli` only, never a library crate | 1.0 | MIT/Apache-2.0 | `arda-cli` | code-prefs §Q4 |
-| Sim arithmetic | hand-rolled i32/i64 fixed-point Q-format newtypes (no dependency) | — | — | `arda-core`, `arda-gen` | §Q7; arch §Q4 |
-| Noise, erosion, hydrology, WFC | hand-rolled in `arda-gen` (no dependency) | — | — | sim stages | code-prefs §Q2 |
+Installed declarations come from `Cargo.toml:15` and `crates/*/Cargo.toml`; exact resolutions from `Cargo.lock`. License labels and the selection rationale are carried forward from the recorded August 2026 stack decisions, not newly researched or re-vetted here. No paid service was selected.
+
+| Package | Declared range / retained floor | Locked version | Recorded license | Role / status |
+|---|---|---|---|---|
+| `zstd` | 0.13 | 0.13.3 | MIT | Block compression; arda-core |
+| `png` | 0.17 | 0.17.16 | MIT/Apache-2.0 | PNG encoding; arda-render |
+| `serde` | 1.0 | 1.0.229 | MIT/Apache-2.0 | Derives for manifest/config and export DTOs |
+| `serde_json` | 1.0 | 1.0.151 | MIT/Apache-2.0 | JSON manifest and exports |
+| `rand_chacha` | 0.3 | 0.3.1 | MIT/Apache-2.0 | ChaCha8 behind keyed RNG; arda-core |
+| `rand_core` | 0.6 | 0.6.4 | MIT/Apache-2.0 | RNG traits; arda-core and arda-gen |
+| `rayon` | 1.10 | 1.12.0 | MIT/Apache-2.0 | Area fan-out; arda-gen |
+| `clap` | 4.5 | 4.6.6 | MIT/Apache-2.0 | CLI derive parsing |
+| `tiny_http` | 0.12 | Not installed | MIT/Apache-2.0 | Picked but not yet installed: planned synchronous serve |
+| `thiserror` | 1.0 | 1.0.69 | MIT/Apache-2.0 | Library error derives |
+| `anyhow` | 1.0 | 1.0.104 | MIT/Apache-2.0 | CLI context only |
+| `blake3` | 1.5 | 1.8.7 | CC0/Apache-2.0 | Runtime subseed derivation and dev golden hashing |
+
+`tiny_http` remains the chosen future HTTP dependency, with the synchronous design avoiding an async runtime (`mockup/06-serve.md`). Handwritten `Display`/`Error` was rejected in favor of thiserror derives; anyhow is restricted to the CLI by the crate manifests. BLAKE3 was promoted from dev-only hashing to runtime subseed derivation (`crates/arda-core/Cargo.toml`, `crates/arda-core/src/rng.rs:84`).
+
+Simulation arithmetic, noise, erosion, hydrology and WFC were selected for implementation under repository control to preserve bit-exact behavior. The `fixed` crate was rejected in favor of integer newtypes; current wrappers store scaled integers rather than generic Q formats (`crates/arda-core/src/fixed.rs`, `crates/arda-gen/src/`). The recorded adoption bar is permissive licensing, more than one year of maintenance, no platform-variant sim arithmetic and a roughly 40-crate soft cap (`standards.md`). That cap is a design constraint, not a claim about the full transitive lockfile count.
 
 ## Dev and tooling
 
-| Capability | Pick | License | Role | Traces |
-|---|---|---|---|---|
-| Benches | `criterion` | MIT/Apache-2.0 | enforce arch §Q7 export/load numbers; `crates/arda-gen/benches/area_erosion.rs` gates erosion at 30 s/tile | §Q8 |
-| Golden hashing | `blake3` — also a **runtime** dependency of `arda-core::rng`, which derives each ChaCha8 subseed key from `blake3(domain ‖ seed ‖ key)` | CC0/Apache-2.0 | per-stage world hashes, CI determinism gate; subseed derivation | §Q8; arch §Q4 |
-| Lint/format | clippy `-D warnings`, rustfmt defaults | toolchain | CI gates | code-prefs §Q7 |
-| Supply chain | `cargo-deny` | MIT/Apache-2.0 | license + advisory checks | code-prefs §Q7 |
+| Package | Role |
+|---|---|
+| criterion 0.5 (locked 0.5.1) | Area erosion and continent benchmarks; default features disabled, cargo_bench_support enabled (`Cargo.toml:29`, `crates/arda-gen/Cargo.toml`). |
+| blake3 | Golden file fingerprints as well as runtime RNG keys (`tests/golden_world.rs`, `crates/arda-core/Cargo.toml`). |
+| rustfmt / clippy | Stable toolchain components; default formatter and CI warning denial (`rust-toolchain.toml`, `.github/workflows/ci.yml`). |
+| cargo-deny | License/advisory check through CI action; policy in `deny.toml`. |
 
 ## External services
 
-None at runtime (fully local — arch §D4). Distribution/dev: GitHub +
-Actions (CI), crates.io (publish), GHCR (docker image) — arch §Q6;
-exit cost trivial for all three (standard registries), lock-in priced
-at §D9.
-
-Replaced from the architecture draft: every "stack stage" placeholder
-row above now carries its pick; the `fixed` crate option was rejected
-in favor of hand-rolled Q-format newtypes.
-
-Added after the stack stage closed, each traced to the decision that
-introduced it rather than to `stack-interview.md`:
-
-- `tiny_http` — the build gate's §Q1 serve decision. Flagged there as
-  "at the re-gate"; recorded here. Synchronous by choice: architecture
-  §Q3 rules out an async runtime.
-- `thiserror` — code-prefs §Q4 mandates thiserror-style derives; the
-  stack stage picked no error crate. Alternative considered and
-  rejected: hand-written `Display`/`Error` impls, about ten lines per
-  enum, which buys nothing over the derive.
-- `anyhow` — code-prefs §Q4 permits it in `arda-cli` only. The crate
-  graph enforces this: no library crate depends on it.
-- `blake3` promoted from dev/tooling to a runtime dependency of
-  `arda-core` (see its row above).
-
-All four clear code-prefs §Q2's vetting bar (permissive license,
-maintained > 1 year, no platform-variant arithmetic). Whole-tree count
-remains well inside the ~40-crate soft cap. Still open: none.
+No runtime API, database or broker connection is implemented in `crates/*/src/`. GitHub Actions supplies CI (`.github/workflows/ci.yml`); crates.io and GHCR remain the selected release destinations, but no release workflow exists. Standard registries were chosen for low exit cost; there is no service-specific data migration in the runtime design (`07-operations.md`).

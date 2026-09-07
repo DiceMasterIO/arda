@@ -1,15 +1,17 @@
 ---
-generated_date: 2026-08-24
+generated_date: 2026-09-07
 scenarios: [serve-vtt]
-implements: [build-interview §Q1]
 generated_at_commit: 8d3c9d9
+capstone_version: 6.4
 ---
 
 # 06 — `arda serve` (CLI/docker): read-only HTTP API
 
-Added at the build gate (§Q1): the user's VTT consumes areas/blocks
+> Retained design and dated implementation history. Current implementation: `../01-architecture.md`, `../04-data-flow.md`.
+
+Added at the build gate: the user's VTT consumes areas/blocks
 over HTTP instead of linking the crate. Read-only, synchronous server
-(no async runtime — architecture §Q3), same renderers/serializers as
+(no async runtime), same renderers/serializers as
 export. Endpoint paths assumed.
 
 ## Layout
@@ -17,7 +19,7 @@ export. Endpoint paths assumed.
 ```text
 $ docker run -p 8080:8080 -v $PWD/worlds:/worlds ghcr.io/<owner>/arda \
     serve /worlds/w42 --port 8080
-arda serve — world w42 (190 areas), listening on :8080  (read-only)
+arda serve — world w42 (190 areas), listening on:8080  (read-only)
 
 GET /manifest                            → world.json content
 GET /areas/03_11/cells.json              → area cell properties
@@ -31,11 +33,11 @@ GET /settlements/{id}/npcs.json          → notables; ?commoner=<n> derives on 
 
 ## Elements
 
-| Element | Does | Traces to |
-|---|---|---|
-| `serve` subcommand | Serves one world directory, read-only; renders on demand with the export code paths | §Q1 |
-| `--port` (default 8080) | Bind port; docker EXPOSEs it | §Q1 (assumed) |
-| Caching | Deterministic outputs → strong ETags from (seed, path) (assumed) | mockup Q9 |
+| Element | Does | Status / notes |
+| --- | --- | --- |
+| `serve` subcommand | Serves one world directory, read-only; renders on demand with the export code paths | Confirmed design |
+| `--port` (default 8080) | Bind port; docker EXPOSEs it | (assumed) |
+| Caching | Deterministic outputs → strong ETags from (seed, path) (assumed) | Deterministic design |
 
 ## States
 

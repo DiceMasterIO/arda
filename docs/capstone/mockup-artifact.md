@@ -1,12 +1,12 @@
 ---
-generated_date: 2026-08-24
+generated_date: 2026-09-07
 generated_at_commit: 8d3c9d9
+capstone_version: 6.4
 ---
 
 # Artifact — "Local area generator: the logic"
 
-Provided verbatim by the user during the mockup interview (Q6),
-2026-08-24. Seeds the mockup and, later, the logic stage.
+Provided verbatim by the user on 2026-08-24. Source artifact for the product mockup and business logic.
 
 ---
 

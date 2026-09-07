@@ -2,6 +2,84 @@
 generated_date: 2026-08-24
 ---
 
+## 2026-09-07 - map: local report policy
+key: map/local-report-policy@987aeca04c77
+
+- `docs/capstone/.gitignore`: ignore only the local generation-issues.md report at the user’s request; retain the file on disk.
+- `docs/capstone/00-index.md`: mark the report optional and local only, without a link implying it ships in Git.
+- User authorized committing the documentation refresh and version metadata, excluding the issue report; no push requested.
+
+## 2026-09-07 - map: version metadata
+key: map/version-metadata@987aeca04c77-6.4
+
+- `docs/capstone/01-architecture.md`: stamped capstone_version 6.4, supplied by the user.
+- `docs/capstone/02-models.md`: stamped capstone_version 6.4, supplied by the user.
+- `docs/capstone/03-conventions.md`: stamped capstone_version 6.4, supplied by the user.
+- `docs/capstone/04-data-flow.md`: stamped capstone_version 6.4, supplied by the user.
+- `docs/capstone/05-dependencies.md`: stamped capstone_version 6.4, supplied by the user.
+- `docs/capstone/06-testing.md`: stamped capstone_version 6.4, supplied by the user.
+- `docs/capstone/07-operations.md`: stamped capstone_version 6.4, supplied by the user.
+- `docs/capstone/08-glossary.md`: stamped capstone_version 6.4, supplied by the user.
+- `docs/capstone/standards.md`: stamped capstone_version 6.4, supplied by the user.
+- `docs/capstone/implementation.md`: stamped capstone_version 6.4, supplied by the user.
+- `docs/capstone/open-items.md`: stamped capstone_version 6.4, supplied by the user.
+- `docs/capstone/mockup-artifact.md`: stamped capstone_version 6.4, supplied by the user.
+- `docs/capstone/generation-issues.md`: stamped capstone_version 6.4, supplied by the user.
+- `docs/capstone/logic/01-continent-generation.md`: stamped capstone_version 6.4, supplied by the user.
+- `docs/capstone/logic/02-area-generation.md`: stamped capstone_version 6.4, supplied by the user.
+- `docs/capstone/logic/03-block-generation.md`: stamped capstone_version 6.4, supplied by the user.
+- `docs/capstone/logic/04-export.md`: stamped capstone_version 6.4, supplied by the user.
+- `docs/capstone/logic/05-load-query.md`: stamped capstone_version 6.4, supplied by the user.
+- `docs/capstone/logic/06-society-generation.md`: stamped capstone_version 6.4, supplied by the user.
+- `docs/capstone/logic/07-preview.md`: stamped capstone_version 6.4, supplied by the user.
+- `docs/capstone/mockup/01-generate.md`: stamped capstone_version 6.4, supplied by the user.
+- `docs/capstone/mockup/02-world-layout.md`: stamped capstone_version 6.4, supplied by the user.
+- `docs/capstone/mockup/03-export.md`: stamped capstone_version 6.4, supplied by the user.
+- `docs/capstone/mockup/04-crate-api.md`: stamped capstone_version 6.4, supplied by the user.
+- `docs/capstone/mockup/05-docker.md`: stamped capstone_version 6.4, supplied by the user.
+- `docs/capstone/mockup/06-serve.md`: stamped capstone_version 6.4, supplied by the user.
+- `docs/capstone/mockup/README.md`: stamped capstone_version 6.4, supplied by the user.
+- User supplied the installed version, resolving the prior missing-version warning without changing the skill installation.
+
+## 2026-09-07 - map: all
+key: map/all@987aeca04c77
+
+- `docs/capstone/01-architecture.md`: Prescriptive-to-observed refresh: crate boundaries, complete command inventory and actual communication; planned serve retained.
+- `docs/capstone/02-models.md`: Prescriptive-to-observed refresh: domain/working-state/DTO field tables, formats and validation; absent society types and unimplemented fields retained explicitly.
+- `docs/capstone/03-conventions.md`: Prescriptive-to-observed refresh: enforced lints, counted casts/allow attributes, deterministic inputs and observed error fallbacks.
+- `docs/capstone/04-data-flow.md`: Prescriptive-to-observed refresh: full batch, eager load and rendering paths; lake/WFC behavior and planned-vs-built divergences.
+- `docs/capstone/05-dependencies.md`: Prescriptive-to-observed refresh: manifest/lockfile resolutions; tiny_http kept as picked but not installed, with original rationale.
+- `docs/capstone/06-testing.md`: Prescriptive-to-observed refresh: structural/golden suites and ignored probes; planned statistical acceptance gates distinguished.
+- `docs/capstone/07-operations.md`: Prescriptive-to-observed refresh: actual CLI, container, config and CI; serve/release automation retained as plans.
+- `docs/capstone/08-glossary.md`: Prescriptive-to-observed refresh: current scales, hydrology, block sampling, vocabulary and format semantics.
+- `docs/capstone/standards.md`: Migrated code-prefs.md and removed working-record provenance; preserved normative rules and left undecided domains explicit.
+- `docs/capstone/implementation.md`: Repointed renamed standard and removed working-record provenance; retained build plan, status history, assumptions and constraints.
+- `docs/capstone/open-items.md`: Removed working-record provenance only; existing diagnosis and deferred items were not re-reviewed.
+- `docs/capstone/mockup-artifact.md`: Removed provenance from the generated wrapper; user-provided artifact body retained verbatim.
+- `docs/capstone/logic/07-preview.md`: Filled the only missing implemented scenario: preview generation, eager load, overview rendering and partial-failure behavior.
+- `docs/capstone/generation-issues.md`: User-requested separate diagnosis record: source behavior, two saved seed-436342 samples, earlier anisotropy measurements, unknown causes and planned society.
+- `docs/capstone/.gitignore`: Initializer removed obsolete project-config ignore and added current UI preview/raster ignore rules.
+- `docs/capstone/00-index.md`: Migrated root DESIGN.md, rebuilt module/topic/companion tables, indexed every final output and removed freshness columns.
+- `docs/capstone/logic/01-continent-generation.md`: Removed working-record provenance; retained chosen design and dated implementation history, with current-code pointers and unspecified exclusion metadata.
+- `docs/capstone/logic/02-area-generation.md`: Removed working-record provenance; retained chosen design and dated implementation history, with current-code pointers and unspecified exclusion metadata.
+- `docs/capstone/logic/03-block-generation.md`: Removed working-record provenance; retained chosen design and dated implementation history, with current-code pointers and unspecified exclusion metadata.
+- `docs/capstone/logic/04-export.md`: Removed working-record provenance; retained chosen design and dated implementation history, with current-code pointers and unspecified exclusion metadata.
+- `docs/capstone/logic/05-load-query.md`: Removed working-record provenance; retained chosen design and dated implementation history, with current-code pointers and unspecified exclusion metadata.
+- `docs/capstone/logic/06-society-generation.md`: Removed working-record provenance; retained chosen design and dated implementation history, with current-code pointers and unspecified exclusion metadata.
+- `docs/capstone/mockup/01-generate.md`: Removed working-record provenance while retaining designed surfaces, rationale and assumptions; distinguished them from current CLI/API behavior.
+- `docs/capstone/mockup/02-world-layout.md`: Removed working-record provenance while retaining designed surfaces, rationale and assumptions; distinguished them from current CLI/API behavior.
+- `docs/capstone/mockup/03-export.md`: Removed working-record provenance while retaining designed surfaces, rationale and assumptions; distinguished them from current CLI/API behavior.
+- `docs/capstone/mockup/04-crate-api.md`: Removed working-record provenance while retaining designed surfaces, rationale and assumptions; distinguished them from current CLI/API behavior.
+- `docs/capstone/mockup/05-docker.md`: Removed working-record provenance while retaining designed surfaces, rationale and assumptions; distinguished them from current CLI/API behavior.
+- `docs/capstone/mockup/06-serve.md`: Removed working-record provenance while retaining designed surfaces, rationale and assumptions; distinguished them from current CLI/API behavior.
+- `docs/capstone/mockup/README.md`: Removed working-record provenance while retaining designed surfaces, rationale and assumptions; distinguished them from current CLI/API behavior.
+- Refresh triggers: all eight topic chapters were prescriptive with tracked source present; final-output provenance and the index/standards shape also required migration. No topic chapter skipped as current.
+- Absent: interfaces (no implemented sibling-repository contract) and uiux extraction (no frontend); CLI/API retained mockups remain indexed.
+- Preserved decisions: synchronous future HTTP, handmade deterministic simulation, lazy future loading, full tactical continuity, future society and researched dependency choices.
+- Unknown: installed skill manifest unavailable, so capstone_version omitted rather than guessed; project config personal keys left unchanged, ignored for expertise resolution.
+- Validation: documentation schema/link/source-pointer checks only; no world generation, Rust-suite run, statistical sweep, source change or golden re-blessing.
+- Cleanup: reused five verified draft chapters from the stopped rejected copy, then removed only /home/gent/.codex/worktrees/0a95/arda; saved checkout remains on main.
+
 # Changelog
 
 ## 2026-08-27 — fix: open-items #12 and #4 investigation

@@ -1,0 +1,10 @@
+{
+  "expertise": 4,
+  "docs_dir": "docs/capstone",
+  "index_file": "docs/capstone/00-index.md",
+  "subagent_threshold": 150,
+  "docs_in_git": "commit",
+  "language": "en",
+  "pipeline": null,
+  "workspaces": null
+}

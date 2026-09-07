@@ -1,25 +1,27 @@
 ---
-generated_date: 2026-08-24
+generated_date: 2026-09-07
 scenarios: [batch-generate, inspect-volume, export-vtt]
-implements: [Q17, Q19]
 generated_at_commit: 8d3c9d9
+capstone_version: 6.4
 ---
 
 # 05 — Docker container
 
-Third delivery form (§Q17: "a docker container (with a volume where you
+> Retained design and dated implementation history. Current implementation: `../01-architecture.md`, `../04-data-flow.md`.
+
+Third delivery form ("a docker container (with a volume where you
 can look at or import or copy the maps generated)"). Same binary and
 commands as 01/03; the volume is the interface. Registry GHCR assumed
-(§Q19 left it unspecified).
+(no registry was specified).
 
 ## Layout
 
 ```text
 $ docker run -v $PWD/worlds:/worlds ghcr.io/<owner>/arda \
     generate --seed 42 --out /worlds/w42
-... identical output to 01 ...
+... identical output to 01...
 
-$ ls worlds/w42          # inspect/copy from the host — the §Q17 scenario
+$ ls worlds/w42          # inspect/copy from the host — the volume-inspection scenario
 world.json  continent/  areas/  blocks/
 
 $ docker run -v $PWD/worlds:/worlds -v $PWD/maps:/maps ghcr.io/<owner>/arda \
@@ -31,11 +33,11 @@ Element tree: image → entrypoint (the CLI) → mounted volume(s) holding
 
 ## Elements
 
-| Element | Does | Traces to |
-|---|---|---|
-| Image `ghcr.io/<owner>/arda` | Ships the CLI; no daemon, no ports — runs to completion and exits | Q17, Q18 (registry assumed) |
-| `/worlds` volume | Host-visible world directories (02); the "look at or import or copy" surface | Q17 |
-| Entrypoint = `arda` | Any 01/03 subcommand passes through verbatim | Q17 (assumed) |
+| Element | Does | Status / notes |
+| --- | --- | --- |
+| Image `ghcr.io/<owner>/arda` | Ships the CLI; no daemon, no ports — runs to completion and exits | (registry assumed) |
+| `/worlds` volume | Host-visible world directories (02); the "look at or import or copy" surface | Confirmed design |
+| Entrypoint = `arda` | Any 01/03 subcommand passes through verbatim | (assumed) |
 
 ## States
 
