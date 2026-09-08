@@ -42,13 +42,21 @@ world configuration. Source:
 | --size | 500x1000 km | generate/preview | `crates/arda-cli/src/main.rs:23` |
 | --micro | false; selects 102×204 km MICRO, overriding --size | generate/preview | `crates/arda-cli/src/main.rs:23` |
 | latitude / density | 35–55°N / 15 people per km² | CLI construction; other values through library config | `crates/arda-core/src/config.rs:68` |
-| --px | 48 per area | preview overview | `crates/arda-cli/src/main.rs:23` |
+| --quality | 8192 (8K); any integer 512–32768 pixels or integer k/K suffix, where 1K = 1024 | preview overview; export area/overview PNG | `crates/arda-cli/src/main.rs`, `crates/arda-render/src/quality.rs` |
+| --px | absent; legacy 1–512 pixels per area when supplied | preview overview; conflicts with --quality | `crates/arda-cli/src/main.rs` |
 | --area | 0,0 | export area, unless block/overview | `crates/arda-cli/src/main.rs:23` |
 | --format | png; choices png/json | export area/block | `crates/arda-cli/src/main.rs:85` |
-| --detail | false; 4096×4096 area PNG instead of 512×512 | export; rejected with JSON, overview or block | `crates/arda-cli/src/main.rs:164` |
+| --detail | false; legacy 4096×4096 area PNG with the `_detail` filename | export; rejected with JSON, overview, block or --quality | `crates/arda-cli/src/main.rs` |
 | --overview | false | export saved world overview | `crates/arda-cli/src/main.rs:23` |
 | --block | absent; ax,ay,cx,cy | export one saved sampled land block | `crates/arda-cli/src/main.rs:23` |
 | --out / --world | required where applicable | command enum | `crates/arda-cli/src/main.rs:23` |
+
+Area PNGs use the selected quality for both axes. Overview PNGs use it for the
+long edge and round the shorter edge to the nearest pixel from the saved area-grid
+aspect ratio. Preview also defaults to an 8192-pixel long edge; explicit `--px`
+selects the older per-area sizing. Explicit `--quality` is rejected with JSON or
+blocks before world loading/output creation; ordinary JSON exports without it
+retain their existing behavior.
 
 Valid sizes are 64–4000 km per axis; latitude lies within −80° to 80° with south
 strictly below north; density is 1–200 people/km². Loading revalidates the saved
@@ -167,15 +175,40 @@ Overview export propagates a failed area read. Source:
 [world.rs:203](../../crates/arda/src/world.rs:203),
 [lib.rs:144](../../crates/arda/src/lib.rs:144).
 
-The default 512 PNG includes a faint mark for subpixel streams; `--detail` renders
-4096 pixels from the same 100 m terrain and physical saved channel geometry.
-It does not generate finer terrain. Saved global IDs, crossings and per-area
+Area and overview PNG export default to 8K (8192 pixels); `--quality 512`,
+`--quality 16k` and `--quality 32K` select other validated sizes. Area output is
+square; overview output preserves the area-grid aspect ratio. The 512-pixel area
+mode retains a faint mark for subpixel streams. Larger quality sizes and legacy
+`--detail` (4096 pixels, `_detail` filename) show physical channel coverage alone.
+All use the same saved 100 m terrain. Saved global IDs, crossings and per-area
 context preserve shared topology; rendering does not recalculate river widths
-from local fragments. Invalid geometry or rendering-work caps return typed
-errors. Source: [channels.rs:11](../../crates/arda-render/src/channels.rs:11),
-[channels.rs:90](../../crates/arda-render/src/channels.rs:90).
+from local fragments. Invalid geometry or rendering-work caps return typed errors.
+Sources: [quality.rs](../../crates/arda-render/src/quality.rs),
+[channels.rs](../../crates/arda-render/src/channels.rs),
+[export_quality.rs](../../crates/arda/src/export_quality.rs).
 
-The saved-world 16K exporter is a workspace example:
+Quality exports, including the default area/overview CLI paths, stream into an
+exclusive temporary sibling file and rename it to the final filename only after
+encoding and flushing succeed. A failed render/write preserves any previous
+completed PNG and attempts to remove its temporary file on ordinary error return.
+This does not promise cleanup after abrupt process termination or power-loss
+durability. Legacy `--detail`, block and JSON exports, and explicit preview `--px`,
+retain their completed-buffer writes; an I/O failure in those paths can leave a
+partial destination. Source:
+[export_quality.rs](../../crates/arda/src/export_quality.rs),
+[lib.rs](../../crates/arda/src/lib.rs).
+
+The streaming overview renderer, `write_overview_png`, uses bounded bands and
+supports square 32K output. Area streaming uses reusable rows and bounded channel
+geometry/candidate storage. The buffered `OverviewRaster::new_exact` accepts at
+most 32,768 pixels per axis and retains its 134,217,728-pixel total limit; square
+16K and 32K images exceed that buffered budget. The regular buffered constructor's
+512-pixels-per-area and 64-million-pixel limits remain unchanged. Sources:
+[overview.rs](../../crates/arda-render/src/overview.rs),
+[streaming.rs](../../crates/arda-render/src/overview/streaming.rs),
+[carto.rs](../../crates/arda-render/src/carto.rs).
+
+The earlier saved-world 16K exporter remains available as a workspace example:
 
 ```sh
 cargo run -p arda --release --example export_world_16k -- worlds/w42 world-16k.png
@@ -184,12 +217,9 @@ cargo run -p arda --release --example export_world_16k -- worlds/w42 world-16k.p
 It follows the manifest's area aspect ratio, rounds the shorter axis and uses
 16,384 pixels on the long edge. A 9×19 world renders at 7,761×16,384. It refuses
 an existing output and reads areas one at a time without generating terrain.
-`OverviewRaster::new_exact` accepts at most 16,384 pixels per axis and 134,217,728
-pixels total; square 16K images exceed that budget. The regular constructor's
-512-pixels-per-area and 64-million-pixel limits remain unchanged. The
-[map legend](../map-legend.md) explains both overview and area colours.
-Source: [export_world_16k.rs](../../crates/arda/examples/export_world_16k.rs),
-[overview.rs](../../crates/arda-render/src/overview.rs).
+The CLI now supports this size directly with `export --overview --quality 16k`.
+The [map legend](../map-legend.md) explains overview and area colours.
+Source: [export_world_16k.rs](../../crates/arda/examples/export_world_16k.rs).
 
 Tactical generation currently samples land cells at stride 64 in both area axes;
 it does not materialize a block at every 100 m cell. Each current WFC block is
@@ -252,7 +282,9 @@ Linux/WSL host, so these are observed runs rather than isolated benchmark promis
 These timings used the native renderer adapter from candidate05. Its exact-size
 capability now lives in the canonical renderer and the workspace example above;
 the migrated example reproduced the C05 PNG byte for byte in 3.718 s. The public
-CLI's size/limit contract is unchanged. The finer raster does not refine the
+CLI size/limit contract was unchanged at that measurement; the subsequent
+`--quality` change described above adds the current 8K default and 32K maximum.
+These measurements do not establish timings for that new path. The finer raster does not refine the
 underlying 100 m terrain. The current saved format and JSON schema are unchanged;
 old worlds still load and require regeneration to obtain the corrected terrain.
 Exact commands, times and output hashes:
@@ -288,8 +320,9 @@ and [current gallery](features/2026-09-07-area-water-terrain-realism/output/prev
 The additional world-only 16K export is 7761×16384 (127,156,224 pixels),
 12,392,185 bytes, and took 3.670 s with 556,592 KiB peak RSS. It uses an isolated
 copy of the native Rust overview renderer with exact dimensions and a bounded
-134,217,728-pixel allocation. This does not extend the production API's 64-million
-pixel limit. Saved 100 m cells are sampled directly and repeated where necessary;
+134,217,728-pixel allocation. At the time, this did not extend the production API's
+64-million-pixel limit; the current buffered and streaming limits are described
+above. Saved 100 m cells are sampled directly and repeated where necessary;
 the palette, river thresholds and physical terrain resolution are unchanged.
 All 523 saved-world files and 157 production source files retain their hashes.
 The four area renders remain 4096². See the local [16K receipt](features/2026-09-07-area-water-terrain-realism/verification/terrain-correction/render-16k/receipt.json).

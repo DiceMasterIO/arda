@@ -7,6 +7,9 @@ use crate::carto::{
 use crate::RenderError;
 use arda_core::{AreaCells, AreaCoord, CellCoord, TerrainKind, AREA_CELLS};
 
+mod streaming;
+pub use streaming::write_overview_png;
+
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord)]
 enum Feature {
     Sea,
@@ -50,10 +53,11 @@ impl OverviewRaster {
 
     /// Allocates an exact-size overview, repeating saved cells when enlarged.
     ///
-    /// Each axis supports 1–16,384 pixels, with at most 134,217,728 pixels
+    /// Each axis supports 1–32,768 pixels, with at most 134,217,728 pixels
     /// total. There must be at least one pixel per area along each axis;
     /// unequal area pixel widths or heights cover the image without gaps.
     /// This changes image resolution, not the saved terrain resolution.
+    /// Use [`write_overview_png`] for larger images without a full raster buffer.
     ///
     /// # Errors
     /// Returns a typed error for invalid dimensions or the pixel budget.
@@ -63,14 +67,8 @@ impl OverviewRaster {
         width: u32,
         height: u32,
     ) -> Result<Self, RenderError> {
-        if !(1..=78).contains(&areas_wide)
-            || !(1..=78).contains(&areas_high)
-            || !(1..=16_384).contains(&width)
-            || !(1..=16_384).contains(&height)
-            || i64::from(width) < i64::from(areas_wide)
-            || i64::from(height) < i64::from(areas_high)
-            || u64::from(width) * u64::from(height) > 134_217_728
-        {
+        validate_exact_dimensions(areas_wide, areas_high, width, height)?;
+        if u64::from(width) * u64::from(height) > 134_217_728 {
             return Err(RenderError::ExactOverviewDimensions);
         }
         Self::allocate(areas_wide, areas_high, width, height)
@@ -122,7 +120,7 @@ impl OverviewRaster {
             u32::try_from(self.areas_wide).map_err(|_| RenderError::OverviewDimensions)?;
         let areas_high =
             u32::try_from(self.areas_high).map_err(|_| RenderError::OverviewDimensions)?;
-        let (width, side) = (self.width, u32::from(AREA_CELLS));
+        let width = self.width;
         let output_x0 = ox * width / areas_wide;
         let output_x1 = (ox + 1) * width / areas_wide;
         let output_y0 = oy * self.height / areas_high;
@@ -131,67 +129,7 @@ impl OverviewRaster {
         let tile_height = output_y1 - output_y0;
         for py in 0..tile_height {
             for pxi in 0..tile_width {
-                // Half-open bounds retain the rightmost/bottom cells even
-                // when 512 is not divisible by the output tile size. On
-                // enlargement each source cell repeats without new terrain.
-                let x0 = pxi * side / tile_width;
-                let x1 = ((pxi + 1) * side / tile_width).max(x0 + 1);
-                let y0 = py * side / tile_height;
-                let y1 = ((py + 1) * side / tile_height).max(y0 + 1);
-
-                // `best` ranks only sea, land and river. A lake is
-                // decided by area below, not by winning a max.
-                let mut best = Feature::Sea;
-                let mut height_sum: i64 = 0;
-                let mut land_count: i64 = 0;
-                let mut lake_cells: u32 = 0;
-                let mut block_cells: u32 = 0;
-
-                for sy in y0..y1 {
-                    for sx in x0..x1 {
-                        let (Ok(sxu), Ok(syu)) = (u16::try_from(sx), u16::try_from(sy)) else {
-                            continue;
-                        };
-                        let Some(at) = CellCoord::new(sxu, syu) else {
-                            continue;
-                        };
-                        let cell = cells.get(at);
-                        block_cells += 1;
-                        match cell.terrain {
-                            TerrainKind::Lake => lake_cells += 1,
-                            // Feature::Sea is already the floor.
-                            TerrainKind::Sea => {}
-                            TerrainKind::Land => {
-                                height_sum += i64::from(cell.height.raw());
-                                land_count += 1;
-                                let f = match river_band(cell.discharge.raw()) {
-                                    Some(band) => Feature::River(band),
-                                    None => Feature::Land,
-                                };
-                                best = best.max(f);
-                            }
-                        }
-                    }
-                }
-                if lake_cells * LAKE_MIN_BLOCK_DEN >= block_cells {
-                    best = Feature::Lake;
-                }
-
-                let colour = match best {
-                    Feature::Sea => OVERVIEW_SEA,
-                    // Mean over every land cell in the block, including
-                    // the channel cells: excluding them made the tint jump
-                    // wherever a river crossed a block.
-                    Feature::Land | Feature::River(_) => {
-                        let mean = height_sum / land_count.max(1);
-                        let base = land_colour(i32::try_from(mean).unwrap_or(0));
-                        match best {
-                            Feature::River(band) => river_band_colour(band),
-                            _ => base,
-                        }
-                    }
-                    Feature::Lake => LAKE_FILL,
-                };
+                let (colour, best) = sample_pixel(cells, tile_width, tile_height, pxi, py);
 
                 let x = output_x0 + pxi;
                 let y = output_y0 + py;
@@ -254,6 +192,82 @@ impl OverviewRaster {
 
         crate::encode_png(width, height, &self.rgb)
     }
+}
+
+fn validate_exact_dimensions(
+    areas_wide: i32,
+    areas_high: i32,
+    width: u32,
+    height: u32,
+) -> Result<(), RenderError> {
+    if !(1..=78).contains(&areas_wide)
+        || !(1..=78).contains(&areas_high)
+        || !(1..=32_768).contains(&width)
+        || !(1..=32_768).contains(&height)
+        || i64::from(width) < i64::from(areas_wide)
+        || i64::from(height) < i64::from(areas_high)
+    {
+        return Err(RenderError::ExactOverviewDimensions);
+    }
+    Ok(())
+}
+
+fn sample_pixel(
+    cells: &AreaCells,
+    tile_width: u32,
+    tile_height: u32,
+    x: u32,
+    y: u32,
+) -> ([u8; 3], Feature) {
+    // Half-open bounds retain the rightmost/bottom cells even when 512 is
+    // not divisible by the output tile size. Enlarging repeats saved cells.
+    let side = u32::from(AREA_CELLS);
+    let x0 = x * side / tile_width;
+    let x1 = ((x + 1) * side / tile_width).max(x0 + 1);
+    let y0 = y * side / tile_height;
+    let y1 = ((y + 1) * side / tile_height).max(y0 + 1);
+    // Lake coverage, rather than feature precedence, determines lake fill.
+    let mut best = Feature::Sea;
+    let mut height_sum: i64 = 0;
+    let mut land_count: i64 = 0;
+    let mut lake_cells: u32 = 0;
+    let mut block_cells: u32 = 0;
+    for sy in y0..y1 {
+        for sx in x0..x1 {
+            let (Ok(sxu), Ok(syu)) = (u16::try_from(sx), u16::try_from(sy)) else {
+                continue;
+            };
+            let Some(at) = CellCoord::new(sxu, syu) else {
+                continue;
+            };
+            let cell = cells.get(at);
+            block_cells += 1;
+            match cell.terrain {
+                TerrainKind::Lake => lake_cells += 1,
+                TerrainKind::Sea => {}
+                TerrainKind::Land => {
+                    height_sum += i64::from(cell.height.raw());
+                    land_count += 1;
+                    let feature = match river_band(cell.discharge.raw()) {
+                        Some(band) => Feature::River(band),
+                        None => Feature::Land,
+                    };
+                    best = best.max(feature);
+                }
+            }
+        }
+    }
+    if lake_cells * LAKE_MIN_BLOCK_DEN >= block_cells {
+        best = Feature::Lake;
+    }
+    let colour = match best {
+        Feature::Sea => OVERVIEW_SEA,
+        // Include channel cells in the land mean to preserve the ground tint.
+        Feature::Land => land_colour(i32::try_from(height_sum / land_count.max(1)).unwrap_or(0)),
+        Feature::River(band) => river_band_colour(band),
+        Feature::Lake => LAKE_FILL,
+    };
+    (colour, best)
 }
 
 /// Renders supplied areas as one overview, preserving the borrowed batch API.
@@ -338,7 +352,7 @@ mod tests {
             (1, -1, 1, 1),
             (79, 1, 79, 1),
             (1, 1, 0, 1),
-            (1, 1, 1, 16_385),
+            (1, 1, 1, 32_769),
             (1, 1, u32::MAX, 1),
             (3, 1, 2, 1),
             (1, 3, 1, 2),
@@ -349,6 +363,12 @@ mod tests {
                 Err(RenderError::ExactOverviewDimensions)
             ));
         }
+    }
+
+    #[test]
+    fn exact_long_axis_supports_32k_within_the_buffer_budget() {
+        let raster = OverviewRaster::new_exact(1, 1, 32_768, 1).unwrap();
+        assert_eq!((raster.width, raster.height), (32_768, 1));
     }
 
     #[test]

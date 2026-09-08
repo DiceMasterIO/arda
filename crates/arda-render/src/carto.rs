@@ -144,6 +144,26 @@ pub fn render_area_png(
     origin: GlobalCell,
     scale: AreaImageScale,
 ) -> Result<Vec<u8>, RenderError> {
+    let mut output = Vec::new();
+    render_area_png_to(cells, objects, origin, scale, &mut output)?;
+    Ok(output)
+}
+
+/// Streams an area PNG to a writer using one reusable RGB row.
+///
+/// Geometry and candidate limits are independent of the output size, including
+/// 32K images. The caller owns output storage; an encoding or geometry failure
+/// may leave a partial PNG in the supplied writer.
+///
+/// # Errors
+/// Returns typed geometry/resource refusals or PNG encoding failure.
+pub fn render_area_png_to<W: std::io::Write>(
+    cells: &AreaCells,
+    objects: &AreaObjects,
+    origin: GlobalCell,
+    scale: AreaImageScale,
+    writer: W,
+) -> Result<(), RenderError> {
     let inputs = objects.channel_edges.iter().map(|edge| ChannelInput {
         from: edge.from,
         to: edge.to,
@@ -175,14 +195,21 @@ pub fn render_area_png(
                 discharge: r.mean_discharge.raw(),
             })
         });
-    let rgb = crate::channels::raster_results(
+    let mut raster = crate::channels::AreaRaster::new(
         cells,
         inputs.map(Ok).chain(points),
         origin,
         scale,
         &objects.lakes,
     )?;
-    crate::encode_png(scale.side(), scale.side(), &rgb)
+    crate::encode_png_rows(scale.side(), scale.side(), writer, |output| {
+        for y in 0..scale.side() as usize {
+            output
+                .write_all(raster.row(y)?)
+                .map_err(|_| RenderError::Png)?;
+        }
+        Ok(())
+    })
 }
 
 #[cfg(test)]
@@ -241,6 +268,38 @@ mod tests {
             watercourse_order: u8::from(discharge_milli > 0),
             ..Cell::default()
         }
+    }
+
+    #[test]
+    fn streamed_area_png_matches_collected_pixels_and_propagates_writer_errors() {
+        let cells = uniform_tile(0);
+        let objects = AreaObjects::empty();
+        let origin = GlobalCell { x: 0, y: 0 };
+        for scale in [
+            AreaImageScale::Preview,
+            AreaImageScale::Custom(crate::ImageQuality::new(513).unwrap()),
+        ] {
+            let mut streamed = Vec::new();
+            render_area_png_to(&cells, &objects, origin, scale, &mut streamed).unwrap();
+            assert_eq!(
+                streamed,
+                render_area_png(&cells, &objects, origin, scale).unwrap()
+            );
+            let expected = crate::channels::raster_results(&cells, [], origin, scale, &[]).unwrap();
+            let mut reader = png::Decoder::new(streamed.as_slice()).read_info().unwrap();
+            assert_eq!(reader.info().width, scale.side());
+            assert_eq!(reader.info().height, scale.side());
+            let mut decoded = vec![0; reader.output_buffer_size()];
+            reader.next_frame(&mut decoded).unwrap();
+            assert_eq!(decoded, expected);
+        }
+        // A real filesystem writer failure exercises the PNG error boundary.
+        let readonly =
+            std::fs::File::open(concat!(env!("CARGO_MANIFEST_DIR"), "/Cargo.toml")).unwrap();
+        assert!(matches!(
+            render_area_png_to(&cells, &objects, origin, AreaImageScale::Preview, readonly),
+            Err(RenderError::Png)
+        ));
     }
 
     #[test]

@@ -4,10 +4,11 @@ use crate::carto::{lake_colour, land_colour, sea_colour, LAKE_FILL};
 use crate::channel_geometry::{
     coverage, hull, strip, terminal_footprint, Point, Polygon, WorkBudget, Q,
 };
-use crate::{GlobalCell, RenderError};
+use crate::{GlobalCell, ImageQuality, RenderError};
 use arda_core::{AreaCells, CellCoord, Lake, TerrainKind};
+use std::collections::BTreeSet;
 
-/// Resolution of an area image; both scales use the same 100 m terrain.
+/// Resolution of an area image; every scale uses the same 100 m terrain.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
 pub enum AreaImageScale {
     /// 512 square pixels with a faint mark for subpixel streams.
@@ -15,6 +16,8 @@ pub enum AreaImageScale {
     Preview,
     /// 4096 square pixels, showing physical channel coverage only.
     Detail,
+    /// An exact image side, showing physical channel coverage only.
+    Custom(ImageQuality),
 }
 
 impl AreaImageScale {
@@ -24,6 +27,7 @@ impl AreaImageScale {
         match self {
             Self::Preview => 512,
             Self::Detail => 4096,
+            Self::Custom(quality) => quality.pixels(),
         }
     }
 }
@@ -54,7 +58,6 @@ struct Cap {
 const MAX_EDGES: usize = 262_144;
 const MAX_SHAPES: usize = 1_048_576;
 const MAX_VERTICES: usize = 4_194_304;
-const MAX_ROW_REFERENCES: usize = 4_194_304;
 const MAX_PIXEL_CAPACITY: usize = 1_048_576;
 const MAX_PIXEL_CANDIDATES: usize = 4096;
 const MAX_COVERAGE_WORK: u64 = 250_000_000;
@@ -91,7 +94,9 @@ fn shapes_results(
     scale: AreaImageScale,
 ) -> Result<Vec<Shape>, RenderError> {
     let side = scale.side() as usize;
-    let ppc = i64::from(scale.side() / 512);
+    // Q is divisible by 512, so arbitrary integer image sizes retain exact D8
+    // steps. With u32 endpoints and widths these products stay below 2^60.
+    let ppc_q = i64::from(scale.side()) * (Q / 512);
     let mut edges = Vec::new();
     for edge in inputs {
         let edge = edge?;
@@ -123,8 +128,8 @@ fn shapes_results(
     }
     let point = |node: GlobalCell| -> Point {
         (
-            ((i64::from(node.x) - i64::from(origin.x)) * 2 + 1) * ppc * Q / 2,
-            ((i64::from(node.y) - i64::from(origin.y)) * 2 + 1) * ppc * Q / 2,
+            ((i64::from(node.x) - i64::from(origin.x)) * 2 + 1) * ppc_q / 2,
+            ((i64::from(node.y) - i64::from(origin.y)) * 2 + 1) * ppc_q / 2,
         )
     };
     let mut out = Vec::new();
@@ -143,8 +148,8 @@ fn shapes_results(
         Ok(())
     };
     for edge in edges {
-        let wa = i64::from(edge.from_width_dm) * ppc * Q / 1000;
-        let wb = i64::from(edge.to_width_dm) * ppc * Q / 1000;
+        let wa = i64::from(edge.from_width_dm) * ppc_q / 1000;
+        let wb = i64::from(edge.to_width_dm) * ppc_q / 1000;
         let marker = scale == AreaImageScale::Preview && wa < Q && wb < Q;
         for is_marker in [false, true] {
             if is_marker && !marker {
@@ -256,6 +261,7 @@ fn raster_limited(
     )
 }
 
+#[cfg(test)]
 pub(crate) fn raster_results(
     cells: &AreaCells,
     inputs: impl IntoIterator<Item = Result<ChannelInput, RenderError>>,
@@ -306,6 +312,209 @@ fn lake_colours(cells: &AreaCells, lakes: &[Lake]) -> Result<Vec<Option<[u8; 3]>
     Ok(colours)
 }
 
+/// Prepared geometry and a single reusable scanline. Shape event indexes are
+/// O(shapes), rather than O(shapes × image height); candidate storage has a
+/// fixed independent cap. No RGB image, mask, or per-image pixel array exists.
+pub(crate) struct AreaRaster<'a> {
+    cells: &'a AreaCells,
+    lake_colours: Vec<Option<[u8; 3]>>,
+    shapes: Vec<Shape>,
+    starts: Vec<usize>,
+    ends: Vec<usize>,
+    next_start: usize,
+    next_end: usize,
+    active: BTreeSet<usize>,
+    pixels: Vec<Vec<usize>>,
+    pixel_capacity: usize,
+    base_row: Vec<u8>,
+    base_cell_y: Option<usize>,
+    rgb: Vec<u8>,
+    last_y: Option<usize>,
+    side: usize,
+    work: WorkBudget,
+}
+
+fn coverage_work_limit(side: u32) -> u64 {
+    // Preserve the preview/detail budget and grow with actual output work.
+    // At 32K the limit is 16 billion units, still a finite resource refusal.
+    let factor = u64::from(side).div_ceil(4096);
+    MAX_COVERAGE_WORK * factor * factor
+}
+
+impl<'a> AreaRaster<'a> {
+    pub(crate) fn new(
+        cells: &'a AreaCells,
+        inputs: impl IntoIterator<Item = Result<ChannelInput, RenderError>>,
+        origin: GlobalCell,
+        scale: AreaImageScale,
+        lakes: &[Lake],
+    ) -> Result<Self, RenderError> {
+        Self::with_work_limit(
+            cells,
+            inputs,
+            origin,
+            scale,
+            lakes,
+            coverage_work_limit(scale.side()),
+        )
+    }
+
+    fn with_work_limit(
+        cells: &'a AreaCells,
+        inputs: impl IntoIterator<Item = Result<ChannelInput, RenderError>>,
+        origin: GlobalCell,
+        scale: AreaImageScale,
+        lakes: &[Lake],
+        work_limit: u64,
+    ) -> Result<Self, RenderError> {
+        let lake_colours = lake_colours(cells, lakes)?;
+        let shapes = shapes_results(inputs, origin, scale)?;
+        let mut starts: Vec<_> = (0..shapes.len()).collect();
+        let mut ends = starts.clone();
+        starts.sort_unstable_by_key(|&i| (shapes[i].bounds[2], i));
+        ends.sort_unstable_by_key(|&i| (shapes[i].bounds[3], i));
+        let side = scale.side() as usize;
+        Ok(Self {
+            cells,
+            lake_colours,
+            shapes,
+            starts,
+            ends,
+            next_start: 0,
+            next_end: 0,
+            active: BTreeSet::new(),
+            pixels: vec![Vec::new(); side],
+            pixel_capacity: 0,
+            base_row: vec![0; side * 3],
+            base_cell_y: None,
+            rgb: vec![0; side * 3],
+            last_y: None,
+            side,
+            work: WorkBudget::new(work_limit),
+        })
+    }
+
+    fn base(&mut self, cell_y: usize) -> Result<(), RenderError> {
+        if self.base_cell_y == Some(cell_y) {
+            return Ok(());
+        }
+        for cell_x in 0..512 {
+            let at = CellCoord::new(
+                u16::try_from(cell_x).map_err(|_| invalid("raster cell leaves area"))?,
+                u16::try_from(cell_y).map_err(|_| invalid("raster cell leaves area"))?,
+            )
+            .ok_or_else(|| invalid("raster cell leaves area"))?;
+            let cell = self.cells.get(at);
+            let colour = match cell.terrain {
+                TerrainKind::Lake => self
+                    .lake_colours
+                    .get(cell_y * 512 + cell_x)
+                    .copied()
+                    .flatten()
+                    .unwrap_or(LAKE_FILL),
+                TerrainKind::Sea => sea_colour(cell.height.raw()),
+                TerrainKind::Land => land_colour(cell.height.raw()),
+            };
+            // Inverse of floor(pixel * 512 / side), including nonmultiples.
+            let start = (cell_x * self.side).div_ceil(512);
+            let end = ((cell_x + 1) * self.side).div_ceil(512);
+            for pixel in self.base_row[start * 3..end * 3].chunks_exact_mut(3) {
+                pixel.copy_from_slice(&colour);
+            }
+        }
+        self.base_cell_y = Some(cell_y);
+        Ok(())
+    }
+
+    /// Rows may be skipped, but must be requested in increasing order. This
+    /// also allows small-window verification at the largest supported size.
+    pub(crate) fn row(&mut self, y: usize) -> Result<&[u8], RenderError> {
+        if y >= self.side || self.last_y.is_some_and(|last| y <= last) {
+            return Err(invalid("area rows must advance within the raster"));
+        }
+        self.last_y = Some(y);
+        while let Some(&i) = self.ends.get(self.next_end) {
+            if self.shapes[i].bounds[3] >= y {
+                break;
+            }
+            self.active.remove(&i);
+            self.next_end += 1;
+        }
+        while let Some(&i) = self.starts.get(self.next_start) {
+            if self.shapes[i].bounds[2] > y {
+                break;
+            }
+            if self.shapes[i].bounds[3] >= y {
+                self.active.insert(i);
+            }
+            self.next_start += 1;
+        }
+        self.work.charge(self.active.len() as u64)?;
+        for p in &mut self.pixels {
+            p.clear();
+        }
+        // Stable shape order retains fixed-point union/rounding behavior.
+        for &i in &self.active {
+            let bounds = self.shapes[i].bounds;
+            for p in &mut self.pixels[bounds[0]..=bounds[1]] {
+                if p.len() == MAX_PIXEL_CANDIDATES {
+                    return Err(invalid("pixel exceeds 4096 candidate channel polygons"));
+                }
+                self.work.charge(1)?;
+                let before = p.capacity();
+                p.push(i);
+                self.pixel_capacity += p.capacity() - before;
+                if self.pixel_capacity > MAX_PIXEL_CAPACITY {
+                    return Err(invalid(
+                        "channel raster exceeds pixel-reference memory budget",
+                    ));
+                }
+            }
+        }
+        let cell_y = y * 512 / self.side;
+        self.base(cell_y)?;
+        self.rgb.copy_from_slice(&self.base_row);
+        for (x, ids) in self.pixels.iter().enumerate() {
+            if ids.is_empty() {
+                continue;
+            }
+            let cell_x = x * 512 / self.side;
+            let at = CellCoord::new(
+                u16::try_from(cell_x).map_err(|_| invalid("raster cell leaves area"))?,
+                u16::try_from(cell_y).map_err(|_| invalid("raster cell leaves area"))?,
+            )
+            .ok_or_else(|| invalid("raster cell leaves area"))?;
+            if self.cells.get(at).terrain != TerrainKind::Land {
+                continue;
+            }
+            let shape_slice = self.shapes.as_slice();
+            let select = |marker| {
+                ids.iter().filter_map(move |&i| {
+                    let s = &shape_slice[i];
+                    (s.marker == marker).then_some((&s.polygon, s.discharge))
+                })
+            };
+            let pixel_x = u32::try_from(x).map_err(|_| invalid("pixel exceeds raster"))?;
+            let pixel_y = u32::try_from(y).map_err(|_| invalid("pixel exceeds raster"))?;
+            let physical = coverage(select(false), pixel_x, pixel_y, &mut self.work)?;
+            let marker = coverage(select(true), pixel_x, pixel_y, &mut self.work)?;
+            self.work.charge(
+                physical.roundings + marker.roundings + (physical.pieces + marker.pieces) as u64,
+            )?;
+            let alpha = visual_alpha(physical.alpha, marker.alpha);
+            let water = channel_colour(physical.maximum_discharge.max(marker.maximum_discharge));
+            for (value, water) in self.rgb[x * 3..x * 3 + 3].iter_mut().zip(water) {
+                let blended =
+                    (u32::from(*value) * (65_535 - alpha) + u32::from(water) * alpha + 32_767)
+                        / 65_535;
+                *value = u8::try_from(blended).map_err(|_| invalid("invalid colour blend"))?;
+            }
+        }
+        Ok(&self.rgb)
+    }
+}
+
+#[cfg(test)]
 fn raster_limited_results(
     cells: &AreaCells,
     inputs: impl IntoIterator<Item = Result<ChannelInput, RenderError>>,
@@ -314,371 +523,14 @@ fn raster_limited_results(
     work_limit: u64,
     lakes: &[Lake],
 ) -> Result<Vec<u8>, RenderError> {
-    let lake_colours = lake_colours(cells, lakes)?;
-    let shapes = shapes_results(inputs, origin, scale)?;
+    let mut raster = AreaRaster::with_work_limit(cells, inputs, origin, scale, lakes, work_limit)?;
     let side = scale.side() as usize;
-    let ppc = side / 512;
-    let references: usize = shapes.iter().map(|s| s.bounds[3] - s.bounds[2] + 1).sum();
-    if references > MAX_ROW_REFERENCES {
-        return Err(invalid("channel raster exceeds 4194304 row references"));
-    }
-    let mut work = WorkBudget::new(work_limit);
-    let mut rows = vec![Vec::new(); side];
-    for (i, s) in shapes.iter().enumerate() {
-        for row in &mut rows[s.bounds[2]..=s.bounds[3]] {
-            work.charge(1)?;
-            row.push(i);
-        }
-    }
-    let mut pixels = vec![Vec::new(); side];
-    let mut pixel_capacity = 0;
-    let mut rgb = vec![0; side * side * 3];
-    for (y, row) in rows.iter().enumerate() {
-        for p in &mut pixels {
-            p.clear();
-        }
-        for &i in row {
-            for p in &mut pixels[shapes[i].bounds[0]..=shapes[i].bounds[1]] {
-                if p.len() == MAX_PIXEL_CANDIDATES {
-                    return Err(invalid("pixel exceeds 4096 candidate channel polygons"));
-                }
-                work.charge(1)?;
-                let before = p.capacity();
-                p.push(i);
-                pixel_capacity += p.capacity() - before;
-                if pixel_capacity > MAX_PIXEL_CAPACITY {
-                    return Err(invalid(
-                        "channel raster exceeds pixel-reference memory budget",
-                    ));
-                }
-            }
-        }
-        for (x, ids) in pixels.iter().enumerate() {
-            let cell_x = u16::try_from(x / ppc).map_err(|_| invalid("raster cell leaves area"))?;
-            let cell_y = u16::try_from(y / ppc).map_err(|_| invalid("raster cell leaves area"))?;
-            let at =
-                CellCoord::new(cell_x, cell_y).ok_or_else(|| invalid("raster cell leaves area"))?;
-            let cell = cells.get(at);
-            let mut colour = match cell.terrain {
-                TerrainKind::Lake => lake_colours
-                    .get(usize::from(cell_y) * 512 + usize::from(cell_x))
-                    .copied()
-                    .flatten()
-                    .unwrap_or(LAKE_FILL),
-                TerrainKind::Sea => sea_colour(cell.height.raw()),
-                TerrainKind::Land => land_colour(cell.height.raw()),
-            };
-            if cell.terrain == TerrainKind::Land && !ids.is_empty() {
-                let shape_slice = shapes.as_slice();
-                let select = |marker| {
-                    ids.iter().filter_map(move |&i| {
-                        let s = &shape_slice[i];
-                        (s.marker == marker).then_some((&s.polygon, s.discharge))
-                    })
-                };
-                let pixel_x = u32::try_from(x).map_err(|_| invalid("pixel exceeds raster"))?;
-                let pixel_y = u32::try_from(y).map_err(|_| invalid("pixel exceeds raster"))?;
-                let physical = coverage(select(false), pixel_x, pixel_y, &mut work)?;
-                let marker = coverage(select(true), pixel_x, pixel_y, &mut work)?;
-                work.charge(
-                    physical.roundings
-                        + marker.roundings
-                        + (physical.pieces + marker.pieces) as u64,
-                )?;
-                let alpha = visual_alpha(physical.alpha, marker.alpha);
-                let water =
-                    channel_colour(physical.maximum_discharge.max(marker.maximum_discharge));
-                for k in 0..3 {
-                    let blended = (u32::from(colour[k]) * (65_535 - alpha)
-                        + u32::from(water[k]) * alpha
-                        + 32_767)
-                        / 65_535;
-                    colour[k] =
-                        u8::try_from(blended).map_err(|_| invalid("invalid colour blend"))?;
-                }
-            }
-            rgb[(y * side + x) * 3..(y * side + x) * 3 + 3].copy_from_slice(&colour);
-        }
+    let mut rgb = Vec::with_capacity(side * side * 3);
+    for y in 0..side {
+        rgb.extend_from_slice(raster.row(y)?);
     }
     Ok(rgb)
 }
 
 #[cfg(test)]
-mod tests {
-    use super::*;
-    use arda_core::{Cell, HeightMm};
-
-    fn land() -> AreaCells {
-        AreaCells::flat(Cell {
-            terrain: TerrainKind::Land,
-            height: HeightMm::new(180_000),
-            ..Cell::default()
-        })
-    }
-    fn edge(a: (u32, u32), b: (u32, u32), width: u32) -> ChannelInput {
-        ChannelInput {
-            from: GlobalCell { x: a.0, y: a.1 },
-            to: GlobalCell { x: b.0, y: b.1 },
-            from_width_dm: width,
-            to_width_dm: width,
-            discharge: 1000,
-        }
-    }
-    fn pixel(rgb: &[u8], side: usize, x: usize, y: usize) -> [u8; 3] {
-        rgb[(y * side + x) * 3..(y * side + x) * 3 + 3]
-            .try_into()
-            .unwrap()
-    }
-
-    fn lake(id: u32, at: CellCoord, depth: i32) -> Lake {
-        Lake {
-            global_id: arda_core::hydrology::BasinId(u64::from(id)),
-            id,
-            surface: HeightMm::new(depth),
-            depth_mm: u32::try_from(depth).unwrap(),
-            outlet: None,
-            cells: vec![at],
-        }
-    }
-
-    #[test]
-    fn supplied_depth_changes_only_saved_lake_pixels_at_both_scales() {
-        let mut cells = land();
-        let positions = [(0, 0, 13), (10, 10, 28), (511, 511, 3000)];
-        let lakes: Vec<_> = positions
-            .iter()
-            .enumerate()
-            .map(|(i, &(x, y, depth))| {
-                let at = CellCoord::new(x, y).unwrap();
-                cells.set(
-                    at,
-                    Cell {
-                        terrain: TerrainKind::Lake,
-                        height: HeightMm::new(0),
-                        ..Cell::default()
-                    },
-                );
-                lake(u32::try_from(i + 1).unwrap(), at, depth)
-            })
-            .collect();
-        let saved = lakes.clone();
-        let inputs = [edge((10, 11), (10, 10), 141), edge((10, 10), (10, 9), 141)];
-        let origin = GlobalCell { x: 0, y: 0 };
-        for scale in [AreaImageScale::Preview, AreaImageScale::Detail] {
-            let old =
-                raster_results(&cells, inputs.into_iter().map(Ok), origin, scale, &[]).unwrap();
-            let new =
-                raster_results(&cells, inputs.into_iter().map(Ok), origin, scale, &lakes).unwrap();
-            let side = scale.side() as usize;
-            let ppc = side / 512;
-            let mut changed = 0;
-            for (i, (a, b)) in old.chunks_exact(3).zip(new.chunks_exact(3)).enumerate() {
-                let x = i % side / ppc;
-                let y = i / side / ppc;
-                if let Some(&(_, _, depth)) = positions
-                    .iter()
-                    .find(|&&(lx, ly, _)| usize::from(lx) == x && usize::from(ly) == y)
-                {
-                    assert_eq!(a, LAKE_FILL);
-                    assert_eq!(b, lake_colour(u32::try_from(depth).unwrap()));
-                    assert_ne!(a, b);
-                    changed += 1;
-                } else {
-                    assert_eq!(a, b, "nonlake pixel changed at {i}");
-                }
-            }
-            assert_eq!(changed, 3 * ppc * ppc);
-        }
-        assert_eq!(lakes, saved);
-        let mut reversed = lakes.clone();
-        reversed.reverse();
-        assert_eq!(
-            lake_colours(&cells, &lakes).unwrap(),
-            lake_colours(&cells, &reversed).unwrap()
-        );
-    }
-
-    #[test]
-    fn supplied_lake_surface_and_membership_are_checked_before_raster() {
-        let mut cells = land();
-        let at = CellCoord::new(1, 1).unwrap();
-        let mut record = lake(1, at, 1);
-        assert!(lake_colours(&cells, &[record.clone()]).is_err());
-        cells.set(
-            at,
-            Cell {
-                terrain: TerrainKind::Lake,
-                height: HeightMm::new(0),
-                ..Cell::default()
-            },
-        );
-        assert!(lake_colours(&cells, &[record.clone()]).is_ok());
-        record.surface = HeightMm::new(0);
-        assert!(lake_colours(&cells, &[record.clone()]).is_err());
-        record.surface = HeightMm::new(-1);
-        assert!(lake_colours(&cells, &[record.clone()]).is_err());
-        record.surface = HeightMm::new(1);
-        assert!(lake_colours(&cells, &[record.clone(), record.clone()]).is_err());
-        record.cells = vec![at; 512 * 512 + 1];
-        assert!(lake_colours(&cells, &[record]).is_err());
-        assert!(lake_colours(&cells, &[]).unwrap().is_empty());
-    }
-
-    #[test]
-    fn terminal_point_halo_coverage_preview_and_union_are_canonical() {
-        let point = edge((511, 10), (511, 10), 2000);
-        let origin = GlobalCell { x: 512, y: 0 };
-        let rgb = raster(&land(), [point], origin, AreaImageScale::Preview).unwrap();
-        assert_ne!(pixel(&rgb, 512, 0, 10), land_colour(180_000));
-        assert_eq!(pixel(&rgb, 512, 1, 10), land_colour(180_000));
-        let duplicated = raster(&land(), [point, point], origin, AreaImageScale::Preview).unwrap();
-        assert_eq!(rgb, duplicated);
-        // Translation to the same local center preserves every physical coverage bit.
-        let moved = edge((0, 10), (0, 10), 2000);
-        let left = shapes(
-            [point],
-            GlobalCell { x: 511, y: 0 },
-            AreaImageScale::Preview,
-        )
-        .unwrap();
-        let right = shapes([moved], GlobalCell { x: 0, y: 0 }, AreaImageScale::Preview).unwrap();
-        assert_eq!(left[0].polygon, right[0].polygon);
-        let small = edge((10, 10), (10, 10), 8);
-        let preview = shapes([small], GlobalCell { x: 0, y: 0 }, AreaImageScale::Preview).unwrap();
-        assert_eq!(preview.len(), 2);
-        assert_eq!(preview.iter().filter(|p| p.marker).count(), 1);
-        let detail = shapes([small], GlobalCell { x: 0, y: 0 }, AreaImageScale::Detail).unwrap();
-        assert_eq!(detail.len(), 1);
-        assert!(!detail[0].marker);
-        for terrain in [TerrainKind::Sea, TerrainKind::Lake] {
-            let cells = AreaCells::flat(Cell {
-                terrain,
-                ..Cell::default()
-            });
-            let plain = raster(&cells, [], origin, AreaImageScale::Preview).unwrap();
-            assert_eq!(
-                raster(&cells, [point], origin, AreaImageScale::Preview).unwrap(),
-                plain
-            );
-        }
-        assert!(raster_results(
-            &land(),
-            [Err(invalid("input failure"))],
-            origin,
-            AreaImageScale::Preview,
-            &[]
-        )
-        .is_err());
-    }
-
-    #[test]
-    fn preview_mark_is_faint_separate_and_bounded() {
-        assert_eq!(visual_alpha(0, 0), 0);
-        assert_eq!(visual_alpha(0, 65_535), 11_822);
-        assert_eq!(visual_alpha(65_535, 65_535), 65_535);
-        let inputs = [edge((10, 10), (11, 10), 10)];
-        let preview = raster(
-            &land(),
-            inputs,
-            GlobalCell { x: 0, y: 0 },
-            AreaImageScale::Preview,
-        )
-        .unwrap();
-        let detail_shapes =
-            shapes(inputs, GlobalCell { x: 0, y: 0 }, AreaImageScale::Detail).unwrap();
-        assert!(detail_shapes.iter().all(|s| !s.marker));
-        let colour = pixel(&preview, 512, 10, 10);
-        assert_ne!(colour, land_colour(180_000));
-        assert_ne!(colour, channel_colour(1000));
-        assert_eq!(pixel(&preview, 512, 10, 11), land_colour(180_000));
-    }
-
-    #[test]
-    fn saved_water_classification_wins_over_channel_geometry() {
-        for terrain in [TerrainKind::Sea, TerrainKind::Lake] {
-            let mut cells = land();
-            let at = CellCoord::new(10, 10).unwrap();
-            cells.set(
-                at,
-                Cell {
-                    terrain,
-                    height: HeightMm::new(-2000),
-                    ..Cell::default()
-                },
-            );
-            let rgb = raster(
-                &cells,
-                [edge((10, 10), (11, 10), 230_650)],
-                GlobalCell { x: 0, y: 0 },
-                AreaImageScale::Preview,
-            )
-            .unwrap();
-            assert_eq!(
-                pixel(&rgb, 512, 10, 10),
-                if terrain == TerrainKind::Sea {
-                    sea_colour(-2000)
-                } else {
-                    [132, 176, 205]
-                }
-            );
-        }
-    }
-
-    #[test]
-    fn halo_edge_outside_the_area_can_cover_its_pixels() {
-        let rgb = raster(
-            &land(),
-            [edge((511, 10), (511, 11), 2000)],
-            GlobalCell { x: 512, y: 0 },
-            AreaImageScale::Preview,
-        )
-        .unwrap();
-        assert_ne!(pixel(&rgb, 512, 0, 10), land_colour(180_000));
-        assert_eq!(pixel(&rgb, 512, 2, 10), land_colour(180_000));
-    }
-
-    #[test]
-    fn reversed_input_order_and_exact_duplicates_do_not_change_raster() {
-        let a = edge((10, 10), (11, 10), 10);
-        let b = edge((11, 10), (12, 11), 20);
-        let run = |edges| {
-            raster(
-                &land(),
-                edges,
-                GlobalCell { x: 0, y: 0 },
-                AreaImageScale::Preview,
-            )
-            .unwrap()
-        };
-        assert_eq!(run(vec![a, b]), run(vec![b, a, a]));
-        let mut conflicting = a;
-        conflicting.discharge += 1;
-        assert!(raster(
-            &land(),
-            [a, conflicting],
-            GlobalCell { x: 0, y: 0 },
-            AreaImageScale::Preview
-        )
-        .is_err());
-    }
-    #[test]
-    fn wide_halo_candidates_over_water_still_consume_work_budget() {
-        for terrain in [TerrainKind::Sea, TerrainKind::Lake] {
-            let cells = AreaCells::flat(Cell {
-                terrain,
-                ..Cell::default()
-            });
-            let edges = [edge((255, 255), (256, 256), 200_000)];
-            let origin = GlobalCell { x: 0, y: 0 };
-            assert!(raster_limited(&cells, edges, origin, AreaImageScale::Preview, 1000).is_err());
-            assert!(raster_limited(
-                &cells,
-                edges,
-                origin,
-                AreaImageScale::Preview,
-                MAX_COVERAGE_WORK
-            )
-            .is_ok());
-        }
-    }
-}
+mod tests;
