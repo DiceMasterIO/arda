@@ -5,6 +5,7 @@
 #![allow(clippy::unwrap_used, clippy::expect_used)]
 
 use std::process::Command;
+use std::sync::LazyLock;
 
 fn bin() -> &'static str {
     env!("CARGO_BIN_EXE_arda")
@@ -53,10 +54,62 @@ fn generate_micro(dir: &std::path::Path) -> std::process::Output {
         .unwrap()
 }
 
+struct MicroFixture {
+    output: std::process::Output,
+    files: Vec<(std::path::PathBuf, Vec<u8>)>,
+}
+
+fn micro_fixture() -> &'static MicroFixture {
+    static FIXTURE: LazyLock<MicroFixture> = LazyLock::new(|| {
+        let dir = TempDir::new("fixture");
+        let output = generate_micro(dir.path());
+        assert!(
+            output.status.success(),
+            "stderr: {}",
+            String::from_utf8_lossy(&output.stderr)
+        );
+
+        fn snapshot(
+            root: &std::path::Path,
+            dir: &std::path::Path,
+            files: &mut Vec<(std::path::PathBuf, Vec<u8>)>,
+        ) {
+            for entry in std::fs::read_dir(dir).unwrap() {
+                let path = entry.unwrap().path();
+                if path.is_dir() {
+                    snapshot(root, &path, files);
+                } else {
+                    files.push((
+                        path.strip_prefix(root).unwrap().to_path_buf(),
+                        std::fs::read(path).unwrap(),
+                    ));
+                }
+            }
+        }
+
+        let mut files = Vec::new();
+        snapshot(dir.path(), dir.path(), &mut files);
+        MicroFixture { output, files }
+    });
+    &FIXTURE
+}
+
+fn micro_world(tag: &str) -> TempDir {
+    let dir = TempDir::new(tag);
+    // Share immutable file bytes, so destructive tests keep their own world and
+    // every on-disk directory is still cleaned up when its owner is dropped.
+    for (relative_path, bytes) in &micro_fixture().files {
+        let path = dir.path().join(relative_path);
+        std::fs::create_dir_all(path.parent().unwrap()).unwrap();
+        std::fs::write(path, bytes).unwrap();
+    }
+    dir
+}
+
 #[test]
 fn generate_writes_a_world_and_exits_zero() {
-    let dir = TempDir::new("gen");
-    let out = generate_micro(dir.path());
+    let dir = micro_world("gen");
+    let out = &micro_fixture().output;
     assert!(
         out.status.success(),
         "stderr: {}",
@@ -71,8 +124,7 @@ fn generate_writes_a_world_and_exits_zero() {
 
 #[test]
 fn generate_into_an_occupied_directory_exits_non_zero() {
-    let dir = TempDir::new("occupied");
-    generate_micro(dir.path());
+    let dir = micro_world("occupied");
     let out = generate_micro(dir.path());
     assert!(!out.status.success());
     assert!(String::from_utf8_lossy(&out.stderr).contains("not empty"));
@@ -92,9 +144,8 @@ fn invalid_config_exits_non_zero_naming_the_field() {
 
 #[test]
 fn export_writes_a_png_for_an_area() {
-    let world = TempDir::new("exp-world");
+    let world = micro_world("exp-world");
     let out = TempDir::new("exp-out");
-    generate_micro(world.path());
 
     let res = Command::new(bin())
         .args(["export", "--world"])
@@ -137,9 +188,8 @@ fn export_writes_a_png_for_an_area() {
 
 #[test]
 fn export_writes_json_when_asked() {
-    let world = TempDir::new("exp-json-world");
+    let world = micro_world("exp-json-world");
     let out = TempDir::new("exp-json-out");
-    generate_micro(world.path());
 
     let res = Command::new(bin())
         .args(["export", "--world"])
@@ -155,9 +205,8 @@ fn export_writes_json_when_asked() {
 
 #[test]
 fn export_refuses_a_partial_world() {
-    let world = TempDir::new("exp-partial");
+    let world = micro_world("exp-partial");
     let out = TempDir::new("exp-partial-out");
-    generate_micro(world.path());
     std::fs::remove_file(world.path().join("world.json")).unwrap();
 
     let res = Command::new(bin())
@@ -200,9 +249,8 @@ fn preview_generates_a_world_and_one_overview_image() {
 
 #[test]
 fn export_overview_renders_an_existing_world() {
-    let world = TempDir::new("ov-world");
+    let world = micro_world("ov-world");
     let out = TempDir::new("ov-out");
-    generate_micro(world.path());
 
     let res = Command::new(bin())
         .args(["export", "--world"])
@@ -230,9 +278,8 @@ fn export_renders_a_tactical_block() {
     // Which cells carry a block depends on where the land falls, so this
     // walks the stride rather than pinning one coordinate — an earlier
     // version hard-coded a cell that later became sea.
-    let world = TempDir::new("blk-world");
+    let world = micro_world("blk-world");
     let out = TempDir::new("blk-out");
-    generate_micro(world.path());
 
     let mut rendered = None;
     'search: for ay in 0..4 {
@@ -259,9 +306,8 @@ fn export_renders_a_tactical_block() {
 
 #[test]
 fn export_block_names_the_stride_when_there_is_none() {
-    let world = TempDir::new("blk-miss");
+    let world = micro_world("blk-miss");
     let out = TempDir::new("blk-miss-out");
-    generate_micro(world.path());
 
     let res = Command::new(bin())
         .args(["export", "--world"])

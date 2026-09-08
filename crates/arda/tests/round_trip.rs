@@ -5,7 +5,55 @@
 //! does not reach here; `code-prefs.md` §Q1 permits unwrap in tests.
 #![allow(clippy::unwrap_used, clippy::expect_used)]
 
-use arda::{generate, GenerateConfig, World};
+use arda::{generate, GenerateConfig, Manifest, World};
+use std::path::{Path, PathBuf};
+use std::sync::LazyLock;
+
+struct MicroWorld {
+    manifest: Manifest,
+    directories: Vec<PathBuf>,
+    files: Vec<(PathBuf, Vec<u8>)>,
+}
+
+impl MicroWorld {
+    fn capture(&mut self, root: &Path, dir: &Path) {
+        for entry in std::fs::read_dir(dir).unwrap() {
+            let entry = entry.unwrap();
+            let path = entry.path();
+            let relative = path.strip_prefix(root).unwrap().to_path_buf();
+            if entry.file_type().unwrap().is_dir() {
+                self.directories.push(relative);
+                self.capture(root, &path);
+            } else {
+                self.files.push((relative, std::fs::read(path).unwrap()));
+            }
+        }
+    }
+}
+
+// Generate once per test process; keep only immutable bytes so mutations in a
+// test cannot affect another test, and the source directory is always cleaned up.
+static MICRO_WORLD: LazyLock<MicroWorld> = LazyLock::new(|| {
+    let dir = TempDir::new("shared-micro");
+    let mut snapshot = MicroWorld {
+        manifest: generate(42, GenerateConfig::MICRO, dir.path()).unwrap(),
+        directories: Vec::new(),
+        files: Vec::new(),
+    };
+    snapshot.capture(dir.path(), dir.path());
+    snapshot
+});
+
+fn micro_world(tag: &str) -> TempDir {
+    let dir = TempDir::new(tag);
+    for relative in &MICRO_WORLD.directories {
+        std::fs::create_dir_all(dir.path().join(relative)).unwrap();
+    }
+    for (relative, bytes) in &MICRO_WORLD.files {
+        std::fs::write(dir.path().join(relative), bytes).unwrap();
+    }
+    dir
+}
 
 struct TempDir(std::path::PathBuf);
 
@@ -33,8 +81,8 @@ impl Drop for TempDir {
 
 #[test]
 fn generate_then_load_round_trips() {
-    let dir = TempDir::new("round-trip");
-    let manifest = generate(42, GenerateConfig::MICRO, dir.path()).unwrap();
+    let dir = micro_world("round-trip");
+    let manifest = &MICRO_WORLD.manifest;
     assert_eq!(manifest.seed, 42);
     assert_eq!(manifest.stats.area_count, 8);
 
@@ -47,8 +95,7 @@ fn generate_then_load_round_trips() {
 #[test]
 fn world_directory_matches_the_mockup_layout() {
     // mockup/02: world.json, continent/, areas/<ax>_<ay>/, blocks/.
-    let dir = TempDir::new("layout");
-    generate(42, GenerateConfig::MICRO, dir.path()).unwrap();
+    let dir = micro_world("layout");
 
     assert!(dir.path().join("world.json").is_file());
     assert!(dir.path().join("areas").is_dir());
@@ -60,8 +107,7 @@ fn world_directory_matches_the_mockup_layout() {
 
 #[test]
 fn cells_survive_the_disk_round_trip() {
-    let dir = TempDir::new("cells");
-    generate(42, GenerateConfig::MICRO, dir.path()).unwrap();
+    let dir = micro_world("cells");
     let world = World::load(dir.path()).unwrap();
 
     let area = world.area(1, 1).unwrap();
@@ -75,8 +121,7 @@ fn cells_survive_the_disk_round_trip() {
 
 #[test]
 fn out_of_range_area_returns_a_range_error_carrying_the_bounds() {
-    let dir = TempDir::new("range");
-    generate(42, GenerateConfig::MICRO, dir.path()).unwrap();
+    let dir = micro_world("range");
     let world = World::load(dir.path()).unwrap();
 
     let err = world.area(9, 9).unwrap_err();
@@ -87,8 +132,7 @@ fn out_of_range_area_returns_a_range_error_carrying_the_bounds() {
 #[test]
 fn a_partial_world_is_refused() {
     // 04-data-flow.md: manifest absent means loaders refuse the directory.
-    let dir = TempDir::new("partial");
-    generate(42, GenerateConfig::MICRO, dir.path()).unwrap();
+    let dir = micro_world("partial");
     std::fs::remove_file(dir.path().join("world.json")).unwrap();
 
     let err = World::load(dir.path()).unwrap_err();
@@ -98,8 +142,7 @@ fn a_partial_world_is_refused() {
 #[test]
 fn generating_into_a_non_empty_directory_is_refused() {
     // mockup/01 States: refuse rather than overwrite.
-    let dir = TempDir::new("occupied");
-    generate(42, GenerateConfig::MICRO, dir.path()).unwrap();
+    let dir = micro_world("occupied");
     let err = generate(42, GenerateConfig::MICRO, dir.path()).unwrap_err();
     assert!(err.to_string().contains("not empty"));
 }
@@ -107,9 +150,9 @@ fn generating_into_a_non_empty_directory_is_refused() {
 #[test]
 fn the_same_seed_produces_byte_identical_worlds() {
     // architecture-interview.md §Q4, the one-way door.
-    let a = TempDir::new("det-a");
+    let a = micro_world("det-a");
     let b = TempDir::new("det-b");
-    generate(42, GenerateConfig::MICRO, a.path()).unwrap();
+    // Keep an independent generation to exercise determinism against the fixture.
     generate(42, GenerateConfig::MICRO, b.path()).unwrap();
 
     for rel in [
@@ -128,9 +171,8 @@ fn the_same_seed_produces_byte_identical_worlds() {
 
 #[test]
 fn different_seeds_produce_different_worlds() {
-    let a = TempDir::new("seed-42");
+    let a = micro_world("seed-42");
     let b = TempDir::new("seed-43");
-    generate(42, GenerateConfig::MICRO, a.path()).unwrap();
     generate(43, GenerateConfig::MICRO, b.path()).unwrap();
     assert_ne!(
         std::fs::read(a.path().join("areas/00_00/cells.bin")).unwrap(),
@@ -142,8 +184,7 @@ fn different_seeds_produce_different_worlds() {
 fn every_area_materialises_blocks_where_it_has_sampled_land() {
     // Guards the block stride: identical block archives across tiles are only
     // legitimate when both are genuinely empty.
-    let dir = TempDir::new("blocks-present");
-    generate(42, GenerateConfig::MICRO, dir.path()).unwrap();
+    let dir = micro_world("blocks-present");
     let world = World::load(dir.path()).unwrap();
 
     let mut report = Vec::new();
