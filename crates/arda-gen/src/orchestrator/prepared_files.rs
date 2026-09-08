@@ -316,12 +316,10 @@ impl PreparedReader {
             return Err(PreparedError::Invalid("index geometry"));
         }
         let checksums = bytes[32..]
-            .chunks_exact(8)
-            .map(|row| {
-                u64::from_le_bytes([
-                    row[0], row[1], row[2], row[3], row[4], row[5], row[6], row[7],
-                ])
-            })
+            .as_chunks::<8>()
+            .0
+            .iter()
+            .map(|row| u64::from_le_bytes(*row))
             .collect();
         Self::from_parts(directory.to_path_buf(), domain, checksums, meter)
     }

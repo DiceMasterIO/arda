@@ -83,7 +83,7 @@ impl OverviewRaster {
         let pixels = usize::try_from(u64::from(width) * u64::from(height))
             .map_err(|_| RenderError::ExactOverviewDimensions)?;
         let mut rgb = vec![0; pixels * 3];
-        for pixel in rgb.chunks_exact_mut(3) {
+        for pixel in rgb.as_chunks_mut::<3>().0 {
             pixel.copy_from_slice(&OVERVIEW_SEA);
         }
         Ok(Self {

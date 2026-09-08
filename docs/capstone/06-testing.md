@@ -53,6 +53,18 @@ Source: [ci.yml:5](../../.github/workflows/ci.yml:5),
 [Cargo.toml:49](../../Cargo.toml:49) (`profile.test` uses optimization
 level 2), [deny.toml](../../deny.toml).
 
+A local `stable` alias does not update an installed toolchain automatically.
+Before local verification, run `rustup update stable` and check `rustc --version`
+and `cargo clippy --version` against CI. The 2026-09-08 push exposed Clippy
+diagnostics on CI's Rust 1.98 that the local Rust 1.91 installation did not report.
+An isolated installation of the same CI version is also suitable for verification.
+
+Filesystem regressions compare native paths rather than assuming `/` separators.
+The oversized-area-layer test uses real files with small injected byte caps:
+exactly-at-cap valid layers load, and one additional byte triggers the same
+metadata admission check used with production caps. It does not depend on sparse
+file allocation or create a terabyte-sized file on Windows.
+
 The golden test has an explicit `ARDA_BLESS` write path. Running ordinary checks
 does not authorize replacing expected bytes. Candidate05 and the subsequent
 regional-detail candidate06 baseline were separately approved and committed.

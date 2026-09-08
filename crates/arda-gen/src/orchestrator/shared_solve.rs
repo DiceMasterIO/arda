@@ -360,11 +360,8 @@ impl Bridge {
             self.io(n)?;
             let n = usize::try_from(n).map_err(|_| SharedError::Limit("child chunk"))?;
             file.read_exact(&mut buffer[..n])?;
-            for b in buffer[..n].chunks_exact(8) {
-                rows.push(BasinId(u64::from_le_bytes(
-                    b.try_into()
-                        .map_err(|_| SharedError::Invalid("child row"))?,
-                )));
+            for b in buffer[..n].as_chunks::<8>().0 {
+                rows.push(BasinId(u64::from_le_bytes(*b)));
             }
             left -= u64::try_from(n).map_err(|_| SharedError::Limit("child chunk"))?;
         }

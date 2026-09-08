@@ -418,7 +418,7 @@ impl<'a> AreaRaster<'a> {
             // Inverse of floor(pixel * 512 / side), including nonmultiples.
             let start = (cell_x * self.side).div_ceil(512);
             let end = ((cell_x + 1) * self.side).div_ceil(512);
-            for pixel in self.base_row[start * 3..end * 3].chunks_exact_mut(3) {
+            for pixel in self.base_row[start * 3..end * 3].as_chunks_mut::<3>().0 {
                 pixel.copy_from_slice(&colour);
             }
         }

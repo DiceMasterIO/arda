@@ -146,8 +146,10 @@ fn physical_disk_pipeline_produces_one_supported_nested_lake_and_exact_outward_f
     let raw_children = fs::read(hierarchy_dir.0.join(CHILD_FILE)).unwrap();
     assert_eq!(raw_children.len(), 32);
     let children: Vec<_> = raw_children
-        .chunks_exact(8)
-        .map(|b| BasinId(u64::from_le_bytes(b.try_into().unwrap())))
+        .as_chunks::<8>()
+        .0
+        .iter()
+        .map(|b| BasinId(u64::from_le_bytes(*b)))
         .collect();
     let rows: Vec<_> = (0..5).map(|i| hierarchy.output_node(i).unwrap()).collect();
     let topology = annual_topology::adapt(

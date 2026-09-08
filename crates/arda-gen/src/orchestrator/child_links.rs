@@ -643,7 +643,7 @@ impl DiskChildLinks {
             self.budget.io(bytes)?;
             file.read_exact(&mut self.cache[..bytes])?;
             let mut previous = None;
-            for row in self.cache[..bytes].chunks_exact(24) {
+            for row in self.cache[..bytes].as_chunks::<24>().0 {
                 let (p, s) = decode_span(row, self.count)?;
                 if let Some((old, prior)) = previous {
                     if self.budget.compare(&old, &p)? != Ordering::Less || prior != s.offset {
