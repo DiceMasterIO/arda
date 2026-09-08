@@ -98,7 +98,7 @@ acceptance; the authorized terrain correction requires fresh integrated evidence
 At that checkpoint, golden replacement and final checks were still pending.
 The later C05/C06 sections record their completion; the overall feature remains
 open for visual acceptance. The dated execution and review history is retained
-in [implementation progress](features/2026-09-07-area-water-terrain-realism/implementation-progress.md)
+in [implementation progress](features/2026-09-07-area-water-terrain-realism/history/implementation-progress.md)
 and [review ledger](features/2026-09-07-area-water-terrain-realism/review-ledger.md).
 
 ## Earlier terrain correction verification — candidate04
@@ -132,7 +132,7 @@ fingerprints from candidate04. Historical legacy seam statistics drifted with th
 changed continent; their independently rederived fixtures pass while preserving
 the flow, surface, merger and outlet assertions. Golden hashes are unchanged.
 Evidence is retained under
-[terrain correction](features/2026-09-07-area-water-terrain-realism/verification/terrain-correction/).
+[terrain correction](features/2026-09-07-area-water-terrain-realism/).
 
 ### Candidate05 integration — source and saved-data checks complete
 
@@ -158,7 +158,7 @@ match all34 saved-file fingerprints. All five frozen cases have completed
 repeat exports and unchanged-world checks: 38 selected JSONs and 243 commands.
 Visual acceptance remains open for regional lake shape and repetitive ravines.
 See [current suite summary](features/2026-09-07-area-water-terrain-realism/verification/terrain-correction/workspace-c05-final-summary.json),
-[source review](features/2026-09-07-area-water-terrain-realism/verification/terrain-correction/c05-root-review.md)
+[source review](features/2026-09-07-area-water-terrain-realism/reviews/terrain-correction--c05-root-review.md)
 and [saved-world equality](features/2026-09-07-area-water-terrain-realism/verification/terrain-correction/micro42-c05-neighbor-equality.json).
 
 On 2026-09-08 the user explicitly approved the exact candidate05 golden update:
@@ -225,8 +225,8 @@ All five annual balances close exactly. Across the three default worlds, all
 The reported seed changes from 2,653 to 186 lakes, with its repeated pond patterns
 visibly removed. The native 16K world and four 4096² area maps are retained.
 Parallel drainage and large regional basin geometry remain separate open findings.
-Evidence: [correction verification](features/2026-09-07-area-water-terrain-realism/verification/lake-district-correction/),
-[fixture derivation](features/2026-09-07-area-water-terrain-realism/verification/lake-district-correction/cross-tile-c06-fixtures.md).
+Evidence: [correction verification](features/2026-09-07-area-water-terrain-realism/),
+[fixture derivation](features/2026-09-07-area-water-terrain-realism/reports/lake-district-correction--cross-tile-c06-fixtures.md).
 
 ## Coverage shape
 
@@ -240,8 +240,8 @@ against 6.45% interior, with matching shared lake IDs/surfaces across wet border
 pairs. Repetitive drainage and rectangular coarse basins remain unresolved visual
 findings; numerical passes do not close their acceptance. Evidence:
 [current panel](features/2026-09-07-area-water-terrain-realism/verification/terrain-correction/candidate05-summary.json),
-[reported-area review](features/2026-09-07-area-water-terrain-realism/verification/terrain-correction/visual-default436342-c05.md),
-[seed42 geometry](features/2026-09-07-area-water-terrain-realism/verification/terrain-correction/visual-default42-c05.md).
+[reported-area review](features/2026-09-07-area-water-terrain-realism/reports/terrain-correction--visual-default436342-c05.md),
+[seed42 geometry](features/2026-09-07-area-water-terrain-realism/reports/terrain-correction--visual-default42-c05.md).
 
 The earlier design's Horton/Hack/settlement rank-size/road sinuosity/farmland
 statistical suite, a sustained load/export latency suite and full tactical
