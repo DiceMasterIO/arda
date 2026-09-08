@@ -1,9 +1,9 @@
 ---
-generated_at_commit: 987aeca04c77
-generated_date: 2026-09-07
-content_hash: 0056a4cd273f
+generated_at_commit: 311829e4e5c9
+generated_date: 2026-09-08
+content_hash: e41d87afe4ae
 paths_covered: [":(top)crates/*/src/**"]
-capstone_version: 6.4
+absorbed_from: features/2026-09-07-area-water-terrain-realism@2026-09-08
 ---
 
 # Models
@@ -12,8 +12,8 @@ capstone_version: 6.4
 
 | Name | Definition site | Storage | Purpose |
 |---|---|---|---|
-| Area | `crates/arda/src/lib.rs:146` | in-memory | Loaded cell and object layers |
-| World | `crates/arda/src/lib.rs:209` | in-memory | Loaded directory, manifest and eager caches |
+| Area | `crates/arda/src/world.rs:15` | in-memory | Owned cell and object layers for one requested area |
+| World | `crates/arda/src/world.rs:73` | in-memory | Manifest-first directory handle with separate lazy area/block caches |
 | Cell | `crates/arda-core/src/cell.rs:103` | areas/*/cells.bin | 100 m terrain and hydrology facts |
 | SizeKm | `crates/arda-core/src/config.rs:17` | world.json.config | Requested extent |
 | LatitudeBand | `crates/arda-core/src/config.rs:34` | world.json.config | Latitude interval |
@@ -32,41 +32,78 @@ capstone_version: 6.4
 | DischargeMilli | `crates/arda-core/src/fixed.rs:78` | in-memory | Litre-per-second discharge wrapper |
 | Block | `crates/arda-core/src/formats/blocks.rs:24` | blocks/*.tiles.zst | 64² tile grid and relaxed flag |
 | BlockArchive | `crates/arda-core/src/formats/blocks.rs:67` | blocks/*.tiles.zst | Area block map in (y,x) order |
-| AreaCells | `crates/arda-core/src/formats/cells.rs:21` | areas/*/cells.bin | 512² row-major cells |
+| AreaCells | `crates/arda-core/src/formats/cells.rs:24` | areas/*/cells.bin | 512² row-major cells |
 | ValidationStats | `crates/arda-core/src/formats/manifest.rs:15` | world.json.stats | Reported batch counts and land fraction |
 | Manifest | `crates/arda-core/src/formats/manifest.rs:31` | world.json | World identity, configuration and counts |
-| RiverSegment | `crates/arda-core/src/objects.rs:42` | areas/*/objects.bin | Channel reach and downstream link |
-| Lake | `crates/arda-core/src/objects.rs:61` | areas/*/objects.bin | Retained basin surface, depth and cells |
-| AreaObjects | `crates/arda-core/src/objects.rs:77` | areas/*/objects.bin | Area river/lake collections |
+| RiverSegment | `crates/arda-core/src/objects.rs:49` | areas/*/objects.bin | Tile-local channel fragment linked to a stable global reach |
+| Lake | `crates/arda-core/src/objects.rs:70` | areas/*/objects.bin | Tile-local cells/depth/outlet of one connected representative lake |
+| AreaObjects | `crates/arda-core/src/objects.rs:90` | areas/*/objects.bin | Local fragments, physical channel halo and copied global authority |
 | SeedKey | `crates/arda-core/src/rng.rs:50` | in-memory | Subseed domain coordinates |
 | TileId | `crates/arda-core/src/tiles.rs:9` | in-memory | u16 vocabulary identifier |
 | TileDef | `crates/arda-core/src/tiles.rs:44` | in-memory | Static tile name and adjacency group |
-| Hand | `crates/arda-gen/src/area/fields.rs:78` | in-memory | Height and discharge of downstream channel |
-| Basin | `crates/arda-gen/src/area/fill.rs:16` | in-memory | Transient depression before lake filtering |
-| Filled | `crates/arda-gen/src/area/fill.rs:27` | in-memory | Area routing surface and basins |
-| ReliefGrid | `crates/arda-gen/src/area/relief.rs:12` | in-memory | Area heights |
-| WaterGrid | `crates/arda-gen/src/area/water.rs:35` | in-memory | Area routing and loads |
+| Hand | `crates/arda-gen/src/area/fields.rs:78` | in-memory; local diagnostic path | Local downstream-channel height and discharge vectors |
+| Basin | `crates/arda-gen/src/area/fill.rs:16` | in-memory; local diagnostic path | Local filled depression; not the published global basin identity |
+| Filled | `crates/arda-gen/src/area/fill.rs:27` | in-memory; local diagnostic helper | Temporary area routing surface and local basins; not the published shared evolution scratch |
+| ReliefGrid | `crates/arda-gen/src/area/relief.rs:12` | in-memory; local diagnostic helper | Area heights |
+| WaterGrid | `crates/arda-gen/src/area/water.rs:35` | in-memory; local diagnostic path | Retained local routing/loads; not published shared-flow authority |
 | BlockConstraints | `crates/arda-gen/src/block/constraints.rs:8` | in-memory | Allowed tile set and neighbor wetness |
-| EnteringRiver | `crates/arda-gen/src/continent/bundles.rs:101` | in-memory | Cross-boundary upstream load |
-| TileBundle | `crates/arda-gen/src/continent/bundles.rs:127` | in-memory | In-process area boundary and climate inputs |
+| EnteringRiver | `crates/arda-gen/src/continent/bundles.rs:78` | in-memory; local diagnostic path | Coarse boundary load retained for local diagnostic generation |
+| TileBundle | `crates/arda-gen/src/continent/bundles.rs` | in-memory | Raw edge samples, climate and diagnostic water patches; no production erosion boundary authority |
 | ContinentClimate | `crates/arda-gen/src/continent/climate.rs:12` | in-memory | 1 km climate vectors |
 | ContinentHydrology | `crates/arda-gen/src/continent/hydrology.rs:20` | in-memory | 1 km routing and basin vectors |
-| ContinentGrid | `crates/arda-gen/src/continent/mod.rs:31` | in-memory | 1 km relief working grid |
-| Continent | `crates/arda-gen/src/continent/mod.rs:81` | in-memory | Accepted relief/climate/hydrology context |
+| ContinentGrid | `crates/arda-gen/src/continent/mod.rs:34` | in-memory | 1 km relief working grid |
+| Continent | `crates/arda-gen/src/continent/mod.rs:84` | in-memory | Accepted relief/climate/hydrology context |
 | SimExtent | `crates/arda-gen/src/continent/plates.rs:8` | in-memory | 4 km simulation extent |
 | Plate | `crates/arda-gen/src/continent/plates.rs:31` | in-memory | Transient plate crust, site and drift |
-| CellOut | `crates/arda-render/src/json.rs:16` | export JSON | Area JSON cell subset |
-| RiverOut | `crates/arda-render/src/json.rs:31` | export JSON | Area JSON river |
-| LakeOut | `crates/arda-render/src/json.rs:42` | export JSON | Area JSON lake |
-| AreaOut | `crates/arda-render/src/json.rs:60` | export JSON | Versioned area JSON payload |
-| LegendEntry | `crates/arda-render/src/json.rs:73` | export JSON | Block JSON tile legend |
-| BlockOut | `crates/arda-render/src/json.rs:79` | export JSON | Versioned block JSON payload |
+| CellOut | `crates/arda-render/src/json.rs:18` | export JSON | Area JSON cell subset |
+| RiverOut | `crates/arda-render/src/json.rs:33` | export JSON | Area JSON river |
+| LakeOut | `crates/arda-render/src/json.rs:45`; `crates/arda-render/src/hydrology_json.rs:49` | export JSON | Local area lake DTO and module-scoped copied global lake DTO |
+| AreaOut | `crates/arda-render/src/json.rs:66` | export JSON | Versioned area JSON payload |
+| LegendEntry | `crates/arda-render/src/json.rs:90` | export JSON | Block JSON tile legend |
+| BlockOut | `crates/arda-render/src/json.rs:96` | export JSON | Versioned block JSON payload |
+| GlobalCell | `crates/arda-core/src/coords.rs:169` | global hydrology and area geometry | Absolute 100 m coordinate across the modeled domain |
+| TerminalId | `crates/arda-core/src/hydrology.rs:20` | typed in-memory identity | Stable physical terminal namespace |
+| BasinId | `crates/arda-core/src/hydrology.rs:24` | global/area records and child table | Stable physical basin or connected-lake namespace |
+| ReachId | `crates/arda-core/src/hydrology.rs:28` | global/area records | Canonical directed start/step or tagged physical point identity |
+| JunctionId | `crates/arda-core/src/hydrology.rs:32` | receiving-account records | Packed actual dry junction coordinate; no separate junction table |
+| CatchmentId | `crates/arda-core/src/hydrology.rs:103` | global/area records | Immutable contributing-owner namespace |
+| Litres | `crates/arda-core/src/hydrology.rs:109` | annual hydrology records | Exact nonnegative whole annual water volume |
+| HydrologyDomain | `crates/arda-core/src/hydrology.rs:130` | hydrology/metadata.bin; World | Modeled request/export union and final-area dimensions |
+| CrossingId | `crates/arda-core/src/hydrology.rs:144` | global/area crossing records | Canonical undirected cross-area D8 endpoint pair |
+| ReceivingAccount | `crates/arda-core/src/hydrology.rs:153` | global/area water records | Exclusive immediate destination of a transfer |
+| SpillConnection | `crates/arda-core/src/hydrology.rs:168` | basin/lake/catchment records | Actual neighboring physical spill witness or real rim export |
+| BasinNode | `crates/arda-core/src/hydrology.rs:184` | bounded in-memory API view | Logical physical hierarchy node with owned child IDs |
+| TableSpan | `crates/arda-core/src/formats/hydrology.rs:343` | hydrology/basins.bin | Record offset/count into the separate child-ID table |
+| BasinNodeRow | `crates/arda-core/src/formats/hydrology.rs:365` | hydrology/basins.bin | Fixed hierarchy row used by the production writer |
+| AnnualWaterBalance | `crates/arda-core/src/hydrology.rs:202` | hydrology/metadata.bin | Whole-domain annual ledger after internal transfers cancel |
+| GlobalLake | `crates/arda-core/src/hydrology.rs:221` | hydrology/lakes.bin; area context | Connected positive-depth representative lake authority |
+| AnnualCatchment | `crates/arda-core/src/hydrology.rs:240` | hydrology/catchments.bin; area context | Original contributing cells, physical terminal and annual destination |
+| GlobalReach | `crates/arda-core/src/hydrology.rs:259` | hydrology/reaches.bin; area context | Directed annual flow, drainage and downstream identity |
+| SharedCrossing | `crates/arda-core/src/hydrology.rs:281` | hydrology/crossings.bin; area context | One canonical directed transfer across an area boundary |
+| ChannelEdge | `crates/arda-core/src/hydrology.rs:305` | area objects channel section | Saved adjacent centerline endpoints and physical widths |
+| AreaHydrologyReferences | `crates/arda-core/src/hydrology.rs:320` | bounded in-memory API view | Relevant identities for one area; not a separate published table |
+| AreaHydrologyContext | `crates/arda-core/src/hydrology.rs:333` | area objects global section | Exact relevant global copies for independent area reads |
+| HydrologyMetadata | `crates/arda-core/src/hydrology.rs:359` | hydrology/metadata.bin | Model revision, domain, global row counts and annual ledger |
+| TableHeader | `crates/arda-core/src/formats/hydrology.rs:500` | each hydrology/*.bin table | Explicit tag, fixed row size and checked table payload length |
+| MarineBoundary | `crates/arda-gen/src/hydrology/types.rs:8` | prepared in-memory/private files | Which cropped tile sides meet the actual modeled rim |
+| PreparedExtent | `crates/arda-gen/src/hydrology/types.rs:20` | prepared in-memory/private files | Valid 1–512 rows/columns and real outer boundary sides |
+| SharedTerrain | `crates/arda-gen/src/area/prepare.rs` | private in-memory preparation owner | Complete modeled fine surface after shared evolution; released after immutable slices are persisted |
+| PreparedTerrain | `crates/arda-gen/src/hydrology/types.rs:31` | in-memory; cropped private prepared files | Immutable slice of evolved physical heights, rain and unlapsed temperature arrays |
+| HydrologyLimits | `crates/arda-gen/src/hydrology/types.rs:84` | in-memory generation API | Explicit whole-generation resource and feature capacities |
+| SolvedCell | `crates/arda-gen/src/area/shared_compose.rs:15` | in-memory composition handoff | Immutable shared marine/lake, drainage, flow/order and HAND facts |
+| ChannelEdgeOut | `crates/arda-render/src/json.rs:81` | export JSON | Global centerline endpoints, widths and mean discharge |
+| AccountOut | `crates/arda-render/src/hydrology_json.rs:7` | export JSON | Tagged immediate receiving account with decimal identity payload |
+| SpillOut | `crates/arda-render/src/hydrology_json.rs:32` | export JSON | Physical spill geometry and receiving account |
+| CatchmentOut | `crates/arda-render/src/hydrology_json.rs:71` | export JSON | Copied immutable catchment and annual lake association |
+| ReachOut | `crates/arda-render/src/hydrology_json.rs:93` | export JSON | Copied global reach, point flag and exact annual amount |
+| CrossingOut | `crates/arda-render/src/hydrology_json.rs:119` | export JSON | Copied cross-area transfer geometry and exact annual amount |
+| HydrologyOut | `crates/arda-render/src/hydrology_json.rs:145` | export JSON | Explicit annual semantics and relevant global records |
 
-Enums used by these fields are documented with accepted values below; error and CLI dispatch enums are covered in `03-conventions.md` and `01-architecture.md`.
+Enums used by fields list accepted variants below. Error and CLI dispatch enums remain covered by `03-conventions.md` and `01-architecture.md`; private routing/cache records belong to their stage modules rather than the saved-world entity schema.
 
 ## Fields and types
 
-Each section follows its definition site in Entities. `Required: no` means an Option value or a serde-defaulted input; an Option field in exported JSON is still emitted as a key, with null when absent. Private fields are included because they determine storage and handoffs.
+Definition sites are in Entities. Required `no` denotes an optional field or serde default. Option fields in JSON remain keys with null values. `AccountOut` lists its serialized tagged-union fields: the selected identity payload is a String; other variants omit it. `ReceivingAccount` rows describe exclusive enum alternatives. The two module-scoped `LakeOut` types share a heading but have separate tables.
 
 ### Area
 
@@ -81,8 +118,9 @@ Each section follows its definition site in Entities. `Required: no` means an Op
 |---|---|---|---|
 | dir | `PathBuf` | yes | — |
 | manifest | `Manifest` | yes | — |
-| areas | `BTreeMap<(i32, i32), Area>` | yes | — |
-| blocks | `BTreeMap<(i32, i32), arda_core::BlockArchive>` | yes | — |
+| domain | `HydrologyDomain` | yes | Reconstructed from validated manifest configuration and exported dimensions |
+| areas | `BTreeMap<AreaCoord, OnceLock<Area>>` | yes | Empty OnceLock slots at load; area() retains only successfully requested areas |
+| blocks | `BTreeMap<AreaCoord, OnceLock<BlockArchive>>` | yes | Independent requested-area archive cache; first block query decodes that whole archive |
 
 ### Cell
 
@@ -93,14 +131,14 @@ Each section follows its definition site in Entities. `Required: no` means an Op
 | cover | `Cover` | yes | accepted: Bare, Grass, Scrub, Forest, Marsh, Rock, Ice |
 | slope_milli_deg | `u16` | yes | — |
 | aspect_deg | `u16` | yes | — |
-| temperature | `TempCentiC` | yes | Generation retains default; producer not built |
+| temperature | `TempCentiC` | yes | Produced from prepared reference and final signed physical-altitude lapse; marine altitude is zero |
 | rainfall | `RainfallMm` | yes | — |
 | moisture | `u8` | yes | Generation retains default; producer not built |
 | forest_density | `u8` | yes | Generation retains default; producer not built |
 | drainage_area_cells | `u32` | yes | — |
 | discharge | `DischargeMilli` | yes | — |
 | watercourse_order | `u8` | yes | — |
-| watercourse_width_dm | `u16` | yes | — |
+| watercourse_width_dm | `u32` | yes | — |
 | height_above_river_dm | `u16` | yes | u16::MAX where no downstream channel |
 | wetness | `u8` | yes | — |
 | road | `RoadClass` | yes | accepted: None, Track, Road, Highway; Generation retains default; producer not built |
@@ -214,7 +252,7 @@ Each section follows its definition site in Entities. `Required: no` means an Op
 
 | Field | Type | Required | Notes |
 |---|---|---|---|
-| 0 | `u32` | yes | — |
+| 0 | `u64` | yes | Whole L/s, equivalent to thousandths of a cubic metre per second |
 
 ### Block
 
@@ -261,28 +299,32 @@ Each section follows its definition site in Entities. `Required: no` means an Op
 
 | Field | Type | Required | Notes |
 |---|---|---|---|
-| id | `u16` | yes | 1-based; 0 reserved for absent feeds on wire |
+| global_id | `ReachId` | yes | Stable identity of the containing global reach |
+| id | `u32` | yes | 1-based; 0 reserved for absent feeds on wire |
 | order | `u8` | yes | — |
-| width_dm | `u16` | yes | — |
+| width_dm | `u32` | yes | — |
 | discharge | `DischargeMilli` | yes | — |
-| feeds | `Option<u16>` | no | — |
-| ends | `Terminus` | yes | accepted: Junction, Sea, Lake, OffTile |
+| feeds | `Option<u32>` | no | Only Junction has one local downstream segment; divergence uses global junction identity |
+| ends | `Terminus` | yes | accepted: Junction, Sea, Lake, OffTile, Basin, Divergence |
 | course | `CellCoord[]` | yes | — |
 
 ### Lake
 
 | Field | Type | Required | Notes |
 |---|---|---|---|
-| id | `u16` | yes | — |
-| surface | `HeightMm` | yes | — |
-| depth_mm | `u32` | yes | — |
-| outlet | `Option<CellCoord>` | no | — |
+| global_id | `BasinId` | yes | Stable identity shared across all local fragments of the connected lake |
+| id | `u32` | yes | — |
+| surface | `HeightMm` | yes | Exact global representative annual surface, whole millimetres |
+| depth_mm | `u32` | yes | Greatest local positive depth |
+| outlet | `Option<CellCoord>` | no | Local source of supported annual outflow; absent if dry outflow or outlet belongs to another area |
 | cells | `CellCoord[]` | yes | — |
 
 ### AreaObjects
 
 | Field | Type | Required | Notes |
 |---|---|---|---|
+| channel_edges | `ChannelEdge[]` | yes | Neighbor halo included when a physical envelope touches the area |
+| global | `AreaHydrologyContext` | yes | Relevant global copies; no recursive neighbor reads |
 | rivers | `RiverSegment[]` | yes | — |
 | lakes | `Lake[]` | yes | — |
 
@@ -315,7 +357,7 @@ Each section follows its definition site in Entities. `Required: no` means an Op
 | Field | Type | Required | Notes |
 |---|---|---|---|
 | above_mm | `u32[]` | yes | — |
-| carried_milli | `u32[]` | yes | — |
+| carried_milli | `u64[]` | yes | — |
 
 ### Basin
 
@@ -343,9 +385,9 @@ Each section follows its definition site in Entities. `Required: no` means an Op
 | Field | Type | Required | Notes |
 |---|---|---|---|
 | drainage | `u32[]` | yes | — |
-| discharge | `u32[]` | yes | — |
+| discharge | `u64[]` | yes | — |
 | order | `u8[]` | yes | — |
-| downstream | `Vec<Option<u32>>` | yes | — |
+| downstream | `Option<u32>[]` | no | — |
 | outlets | `bool[]` | yes | — |
 
 ### BlockConstraints
@@ -369,10 +411,13 @@ Each section follows its definition site in Entities. `Required: no` means an Op
 | Field | Type | Required | Notes |
 |---|---|---|---|
 | area | `AreaCoord` | yes | — |
-| north | `i32[]` | yes | — |
-| south | `i32[]` | yes | — |
-| east | `i32[]` | yes | — |
-| west | `i32[]` | yes | — |
+| north | `i32[]` | yes | Unevolved absolute-coordinate relief samples; retained for the local diagnostic path |
+| south | `i32[]` | yes | Unevolved samples at the next area's first row |
+| east | `i32[]` | yes | Unevolved samples at the next area's first column |
+| west | `i32[]` | yes | Unevolved absolute-coordinate relief samples |
+| north_outside | `i32[]` | yes | 512 actual adjacent samples at local y=-1; legacy routing only |
+| west_outside | `i32[]` | yes | 512 actual adjacent samples at local x=-1; legacy routing only |
+| outside_corners | `[i32; 4]` | yes | Adjacent NW, NE, SW, SE at (-1,-1), (512,-1), (-1,512), (512,512) |
 | mean_height_mm | `i32` | yes | — |
 | entering | `EnteringRiver[]` | yes | — |
 | rainfall_km | `u16[]` | yes | — |
@@ -390,6 +435,8 @@ Each section follows its definition site in Entities. `Required: no` means an Op
 | rainfall | `u16[]` | yes | — |
 | regime | `ClimateRegime[]` | yes | — |
 | moisture | `u16[]` | yes | — |
+| ocean | `bool[]` | yes | D8-connected nonpositive coarse cells touching the domain rim |
+| ocean_distance_km | `u16[]` | yes | Cardinal distance to connected ocean, capped at 300 km |
 
 ### ContinentHydrology
 
@@ -397,10 +444,10 @@ Each section follows its definition site in Entities. `Required: no` means an Op
 |---|---|---|---|
 | filled | `i32[]` | yes | — |
 | basin_surface | `i32[]` | yes | NO_BASIN = i32::MIN outside filled depression; 8-connected components |
-| downstream | `Vec<Option<u32>>` | yes | — |
+| downstream | `Option<u32>[]` | no | — |
 | downstream_dir | `u8[]` | yes | NO_DOWNSTREAM = 255 |
 | catchment_km2 | `u32[]` | yes | — |
-| discharge_l_s | `u32[]` | yes | — |
+| discharge_l_s | `u64[]` | yes | — |
 
 ### ContinentGrid
 
@@ -415,8 +462,8 @@ Each section follows its definition site in Entities. `Required: no` means an Op
 | Field | Type | Required | Notes |
 |---|---|---|---|
 | grid | `ContinentGrid` | yes | — |
-| climate | `climate::ContinentClimate` | yes | — |
-| hydrology | `hydrology::ContinentHydrology` | yes | — |
+| climate | `ContinentClimate` | yes | — |
+| hydrology | `ContinentHydrology` | yes | — |
 
 ### SimExtent
 
@@ -441,14 +488,14 @@ Each section follows its definition site in Entities. `Required: no` means an Op
 | Field | Type | Required | Notes |
 |---|---|---|---|
 | height_mm | `i32` | yes | — |
-| terrain | `&'static str` | yes | — |
-| cover | `&'static str` | yes | — |
+| terrain | `&'static str` | yes | accepted: sea, land, lake |
+| cover | `&'static str` | yes | accepted: bare, grass, scrub, forest, marsh, rock, ice |
 | slope_milli_deg | `u16` | yes | — |
 | aspect_deg | `u16` | yes | — |
 | drainage_area_cells | `u32` | yes | — |
-| discharge_milli_cumecs | `u32` | yes | — |
+| discharge_milli_cumecs | `u64` | yes | — |
 | watercourse_order | `u8` | yes | — |
-| watercourse_width_dm | `u16` | yes | — |
+| watercourse_width_dm | `u32` | yes | — |
 | height_above_river_dm | `u16` | yes | — |
 | wetness | `u8` | yes | — |
 
@@ -456,30 +503,46 @@ Each section follows its definition site in Entities. `Required: no` means an Op
 
 | Field | Type | Required | Notes |
 |---|---|---|---|
-| id | `u16` | yes | — |
+| id | `u32` | yes | — |
+| global_reach_id | `String` | yes | Decimal string preserves exact global integer identity |
 | order | `u8` | yes | — |
-| width_dm | `u16` | yes | — |
-| discharge_milli_cumecs | `u32` | yes | — |
-| feeds | `Option<u16>` | no | — |
-| ends | `&'static str` | yes | — |
-| course | `Vec<[u16; 2]>` | yes | — |
+| width_dm | `u32` | yes | — |
+| discharge_milli_cumecs | `u64` | yes | — |
+| feeds | `Option<u32>` | no | — |
+| ends | `&'static str` | yes | accepted: junction, sea, lake, off_tile, basin, divergence |
+| course | `[u16; 2][]` | yes | — |
 
 ### LakeOut
 
+Local area fragment (`crates/arda-render/src/json.rs:45`):
+
 | Field | Type | Required | Notes |
 |---|---|---|---|
-| id | `u16` | yes | — |
+| id | `u32` | yes | — |
+| global_basin_id | `String` | yes | Decimal string preserves exact global integer identity |
 | surface_mm | `i32` | yes | — |
 | depth_mm | `u32` | yes | — |
 | outlet | `Option<[u16; 2]>` | no | — |
-| cells | `Vec<[u16; 2]>` | yes | — |
+| cells | `[u16; 2][]` | yes | — |
+
+Copied global lake (`crates/arda-render/src/hydrology_json.rs:49`):
+
+| Field | Type | Required | Notes |
+|---|---|---|---|
+| global_basin_id | `String` | yes | Decimal string preserves exact global integer identity |
+| surface_mm | `i32` | yes | — |
+| deepest_bed_mm | `i32` | yes | — |
+| submerged_cells | `u32` | yes | — |
+| outlet | `Option<SpillOut>` | no | — |
+| annual_outflow_litres | `String` | yes | Exact whole litres encoded as a decimal string |
+| mean_outflow_milli_cumecs | `u64` | yes | — |
 
 ### AreaOut
 
 | Field | Type | Required | Notes |
 |---|---|---|---|
-| schema_version | `u32` | yes | — |
-| format_version | `u32` | yes | — |
+| schema_version | `u32` | yes | 2; separate from stored-world format major |
+| format_version | `u32` | yes | 4 for current generated worlds |
 | seed | `u64` | yes | — |
 | area_x | `i32` | yes | — |
 | area_y | `i32` | yes | — |
@@ -487,6 +550,8 @@ Each section follows its definition site in Entities. `Required: no` means an Op
 | cells | `CellOut[]` | yes | — |
 | rivers | `RiverOut[]` | yes | — |
 | lakes | `LakeOut[]` | yes | — |
+| channel_edges | `ChannelEdgeOut[]` | yes | — |
+| hydrology | `HydrologyOut` | yes | — |
 
 ### LegendEntry
 
@@ -499,7 +564,7 @@ Each section follows its definition site in Entities. `Required: no` means an Op
 
 | Field | Type | Required | Notes |
 |---|---|---|---|
-| schema_version | `u32` | yes | — |
+| schema_version | `u32` | yes | 2; block keys and tactical semantics are retained |
 | format_version | `u32` | yes | — |
 | seed | `u64` | yes | — |
 | squares_per_side | `u8` | yes | — |
@@ -507,37 +572,436 @@ Each section follows its definition site in Entities. `Required: no` means an Op
 | legend | `LegendEntry[]` | yes | — |
 | squares | `u16[]` | yes | — |
 
+### GlobalCell
+
+| Field | Type | Required | Notes |
+|---|---|---|---|
+| x | `u32` | yes | — |
+| y | `u32` | yes | — |
+
+### TerminalId
+
+| Field | Type | Required | Notes |
+|---|---|---|---|
+| 0 | `u64` | yes | Type-specific namespace; physical terminal/leaf anchors use packed (y,x) coordinates |
+
+### BasinId
+
+| Field | Type | Required | Notes |
+|---|---|---|---|
+| 0 | `u64` | yes | Type-specific namespace; physical terminal/leaf anchors use packed (y,x) coordinates |
+
+### ReachId
+
+| Field | Type | Required | Notes |
+|---|---|---|---|
+| 0 | `u64` | yes | Directed start/first D8 step; bit 63 distinguishes physical point records |
+
+### JunctionId
+
+| Field | Type | Required | Notes |
+|---|---|---|---|
+| 0 | `u64` | yes | (y << 32) \| x; separate namespace from reaches; no junction table |
+
+### CatchmentId
+
+| Field | Type | Required | Notes |
+|---|---|---|---|
+| 0 | `u64` | yes | Type-specific namespace; physical terminal/leaf anchors use packed (y,x) coordinates |
+
+### Litres
+
+| Field | Type | Required | Notes |
+|---|---|---|---|
+| 0 | `u128` | yes | Exact nonnegative whole volume; 1 mm over a 100 m cell = 10,000 L |
+
+### HydrologyDomain
+
+| Field | Type | Required | Notes |
+|---|---|---|---|
+| width_cells | `u32` | yes | — |
+| height_cells | `u32` | yes | — |
+| exported_areas_wide | `u32` | yes | — |
+| exported_areas_high | `u32` | yes | — |
+
+### CrossingId
+
+| Field | Type | Required | Notes |
+|---|---|---|---|
+| low | `GlobalCell` | yes | Lower endpoint under GlobalCell ordering (x,y), unlike packed terminal ordering (y,x) |
+| high | `GlobalCell` | yes | Higher endpoint under GlobalCell ordering (x,y) |
+
+### ReceivingAccount
+
+| Field | Type | Required | Notes |
+|---|---|---|---|
+| Reach | `ReachId` | no | Exclusive enum alternative; accepted: Reach, Lake, Junction, Sea, DomainExport |
+| Lake | `BasinId` | no | Exclusive enum alternative; accepted: Reach, Lake, Junction, Sea, DomainExport |
+| Junction | `JunctionId` | no | Exclusive enum alternative; accepted: Reach, Lake, Junction, Sea, DomainExport |
+| Sea | `()` | no | Exclusive enum alternative; accepted: Reach, Lake, Junction, Sea, DomainExport |
+| DomainExport | `()` | no | Exclusive enum alternative; accepted: Reach, Lake, Junction, Sea, DomainExport |
+
+### SpillConnection
+
+| Field | Type | Required | Notes |
+|---|---|---|---|
+| from | `GlobalCell` | yes | — |
+| to | `Option<GlobalCell>` | no | — |
+| sill | `HeightMm` | yes | — |
+| receiving | `ReceivingAccount` | yes | accepted: Reach(ReachId), Lake(BasinId), Junction(JunctionId), Sea, DomainExport |
+
+### BasinNode
+
+| Field | Type | Required | Notes |
+|---|---|---|---|
+| id | `BasinId` | yes | — |
+| parent | `Option<BasinId>` | no | — |
+| anchor | `GlobalCell` | yes | — |
+| floor | `HeightMm` | yes | — |
+| children | `BasinId[]` | yes | — |
+| spill | `Option<SpillConnection>` | no | — |
+
+### TableSpan
+
+| Field | Type | Required | Notes |
+|---|---|---|---|
+| offset | `u64` | yes | Record index, not a byte offset; zero for an empty span |
+| count | `u64` | yes | Checked against the linked table count |
+
+### BasinNodeRow
+
+| Field | Type | Required | Notes |
+|---|---|---|---|
+| id | `BasinId` | yes | — |
+| parent | `Option<BasinId>` | no | — |
+| anchor | `GlobalCell` | yes | — |
+| floor | `HeightMm` | yes | — |
+| children | `TableSpan` | yes | Span into hydrology/children.bin, not an inline vector |
+| spill | `Option<SpillConnection>` | no | — |
+
+### AnnualWaterBalance
+
+| Field | Type | Required | Notes |
+|---|---|---|---|
+| land_precipitation | `Litres` | yes | — |
+| land_loss | `Litres` | yes | — |
+| lake_precipitation | `Litres` | yes | — |
+| lake_evaporation | `Litres` | yes | — |
+| marginal_evaporation | `Litres` | yes | Separately paid unsupported-band adjustment; that marginal band stays geometrically dry |
+| sea_outflow | `Litres` | yes | — |
+| domain_outflow | `Litres` | yes | — |
+
+### GlobalLake
+
+| Field | Type | Required | Notes |
+|---|---|---|---|
+| basin | `BasinId` | yes | — |
+| surface | `HeightMm` | yes | Positive depth means physical bed < surface |
+| deepest_bed | `HeightMm` | yes | — |
+| submerged_cells | `u32` | yes | — |
+| outlet | `Option<SpillConnection>` | no | Potential witness retained when nonspilling; canonical active witness when annual_outflow > 0 |
+| annual_outflow | `Litres` | yes | Whole litres/year; can be positive when mean_outflow rounds to zero |
+| mean_outflow | `DischargeMilli` | yes | Whole annual litres / 31,536,000, rounded down to L/s |
+
+### AnnualCatchment
+
+| Field | Type | Required | Notes |
+|---|---|---|---|
+| catchment | `CatchmentId` | yes | — |
+| terminal | `GlobalCell` | yes | — |
+| contributing_cells | `u32` | yes | — |
+| basin | `Option<BasinId>` | no | — |
+| representative_lake | `Option<BasinId>` | no | — |
+| potential_spill | `Option<SpillConnection>` | no | — |
+| receiving | `ReceivingAccount` | yes | accepted: Reach(ReachId), Lake(BasinId), Junction(JunctionId), Sea, DomainExport |
+
+### GlobalReach
+
+| Field | Type | Required | Notes |
+|---|---|---|---|
+| id | `ReachId` | yes | — |
+| from | `GlobalCell` | yes | — |
+| to | `GlobalCell` | yes | — |
+| receiving | `ReceivingAccount` | yes | accepted: Reach(ReachId), Lake(BasinId), Junction(JunctionId), Sea, DomainExport |
+| catchment | `CatchmentId` | yes | — |
+| drainage_cells | `u32` | yes | — |
+| annual_volume | `Litres` | yes | — |
+| mean_discharge | `DischargeMilli` | yes | Whole annual litres / 31,536,000, rounded down to L/s |
+
+### SharedCrossing
+
+| Field | Type | Required | Notes |
+|---|---|---|---|
+| id | `CrossingId` | yes | — |
+| from | `GlobalCell` | yes | — |
+| to | `GlobalCell` | yes | — |
+| reach | `ReachId` | yes | — |
+| catchment | `CatchmentId` | yes | — |
+| drainage_cells | `u32` | yes | — |
+| annual_volume | `Litres` | yes | — |
+| mean_discharge | `DischargeMilli` | yes | Whole annual litres / 31,536,000, rounded down to L/s |
+| receiving | `ReceivingAccount` | yes | accepted: Reach(ReachId), Lake(BasinId), Junction(JunctionId), Sea, DomainExport |
+
+### ChannelEdge
+
+| Field | Type | Required | Notes |
+|---|---|---|---|
+| from | `GlobalCell` | yes | — |
+| to | `GlobalCell` | yes | — |
+| from_width_dm | `u32` | yes | — |
+| to_width_dm | `u32` | yes | — |
+| discharge | `DischargeMilli` | yes | — |
+
+### AreaHydrologyReferences
+
+| Field | Type | Required | Notes |
+|---|---|---|---|
+| area | `AreaCoord` | yes | — |
+| lakes | `BasinId[]` | yes | — |
+| reaches | `ReachId[]` | yes | — |
+| crossings | `CrossingId[]` | yes | — |
+
+### AreaHydrologyContext
+
+| Field | Type | Required | Notes |
+|---|---|---|---|
+| model_revision | `u32` | yes | 2; representative annual model |
+| reaches | `GlobalReach[]` | yes | — |
+| lakes | `GlobalLake[]` | yes | — |
+| catchments | `AnnualCatchment[]` | yes | — |
+| crossings | `SharedCrossing[]` | yes | — |
+
+### HydrologyMetadata
+
+| Field | Type | Required | Notes |
+|---|---|---|---|
+| model_revision | `u32` | yes | 2; representative annual model |
+| domain | `HydrologyDomain` | yes | — |
+| basin_count | `u64` | yes | — |
+| lake_count | `u64` | yes | — |
+| reach_count | `u64` | yes | — |
+| crossing_count | `u64` | yes | — |
+| catchment_count | `u64` | yes | — |
+| budget | `AnnualWaterBalance` | yes | — |
+
+### TableHeader
+
+| Field | Type | Required | Notes |
+|---|---|---|---|
+| kind | `TableKind` | yes | accepted: Metadata=1, Basins=2, Children=3, Lakes=4, Reaches=5, Crossings=6, Channels=11, Catchments=12 |
+| record_bytes | `u32` | yes | — |
+| count | `u64` | yes | — |
+| payload_bytes | `u64` | yes | — |
+
+### MarineBoundary
+
+| Field | Type | Required | Notes |
+|---|---|---|---|
+| north | `bool` | yes | — |
+| east | `bool` | yes | — |
+| south | `bool` | yes | — |
+| west | `bool` | yes | — |
+
+### PreparedExtent
+
+| Field | Type | Required | Notes |
+|---|---|---|---|
+| width | `u16` | yes | — |
+| height | `u16` | yes | — |
+| boundary | `MarineBoundary` | yes | — |
+
+### SharedTerrain
+
+| Field | Type | Required | Notes |
+|---|---|---|---|
+| width | `usize` | yes | Modeled union width in 100 m cells |
+| height | `usize` | yes | Modeled union height in 100 m cells |
+| heights | `i32[]` | yes | Row-major evolved physical millimetres; includes publication areas and modeled fringe |
+
+### PreparedTerrain
+
+| Field | Type | Required | Notes |
+|---|---|---|---|
+| area | `AreaCoord` | yes | — |
+| valid | `PreparedExtent` | yes | — |
+| heights | `HeightMm[]` | yes | Full 512² container; valid cells copy SharedTerrain exactly, outside-valid zero padding is never serialized |
+| annual_rain | `RainfallMm[]` | yes | — |
+| temperature_base_centi | `i32[]` | yes | Unclamped reference with coarse lapse removed; not a final persisted temperature |
+
+### HydrologyLimits
+
+| Field | Type | Required | Notes |
+|---|---|---|---|
+| max_closed_leaves | `u64` | yes | — |
+| max_bands | `u64` | yes | — |
+| max_feature_records | `u64` | yes | — |
+| max_area_references | `u64` | yes | — |
+| max_lake_boundary_edges | `u64` | yes | — |
+| global_io_operations | `u64` | yes | — |
+| ram_bytes | `u64` | yes | Owned-payload admission ceiling, including dense terrain and water-stage reservations; default 16 GiB |
+| spatial_scratch_bytes | `u64` | yes | — |
+| combined_scratch_bytes | `u64` | yes | — |
+| global_event_operations | `u64` | yes | — |
+| global_io_bytes | `u128` | yes | — |
+
+### SolvedCell
+
+| Field | Type | Required | Notes |
+|---|---|---|---|
+| marine | `bool` | yes | — |
+| lake | `Option<BasinId>` | no | — |
+| drainage_cells | `u32` | yes | — |
+| discharge | `DischargeMilli` | yes | — |
+| order | `u8` | yes | Zero below 40 L/s channel initiation |
+| hand_mm | `u32` | yes | u32::MAX when no downstream channel exists |
+| hand_discharge | `DischargeMilli` | yes | — |
+
+### ChannelEdgeOut
+
+| Field | Type | Required | Notes |
+|---|---|---|---|
+| from_global_cell | `[u32; 2]` | yes | — |
+| to_global_cell | `[u32; 2]` | yes | — |
+| from_width_dm | `u32` | yes | — |
+| to_width_dm | `u32` | yes | — |
+| discharge_milli_cumecs | `u64` | yes | — |
+
+### AccountOut
+
+| Field | Type | Required | Notes |
+|---|---|---|---|
+| kind | `&'static str` | yes | accepted: reach, lake, junction, sea, domain_export; exactly one enum variant |
+| global_reach_id | `String` | no | Decimal identity payload; emitted only for kind=reach |
+| global_basin_id | `String` | no | Decimal identity payload; emitted only for kind=lake |
+| global_junction_id | `String` | no | Decimal identity payload; emitted only for kind=junction |
+
+### SpillOut
+
+| Field | Type | Required | Notes |
+|---|---|---|---|
+| from_global_cell | `[u32; 2]` | yes | — |
+| to_global_cell | `Option<[u32; 2]>` | no | — |
+| sill_mm | `i32` | yes | — |
+| receiving | `AccountOut` | yes | — |
+
+### CatchmentOut
+
+| Field | Type | Required | Notes |
+|---|---|---|---|
+| catchment_id | `String` | yes | Decimal string preserves exact global integer identity |
+| terminal_global_cell | `[u32; 2]` | yes | — |
+| contributing_cells | `u32` | yes | — |
+| physical_basin_id | `Option<String>` | no | Decimal string preserves exact global integer identity |
+| representative_lake_id | `Option<String>` | no | Decimal string preserves exact global integer identity |
+| potential_spill | `Option<SpillOut>` | no | — |
+| receiving | `AccountOut` | yes | — |
+
+### ReachOut
+
+| Field | Type | Required | Notes |
+|---|---|---|---|
+| global_reach_id | `String` | yes | Decimal string preserves exact global integer identity |
+| is_point | `bool` | yes | Physical terminal with equal endpoints; no invented directed step |
+| from_global_cell | `[u32; 2]` | yes | — |
+| to_global_cell | `[u32; 2]` | yes | — |
+| receiving | `AccountOut` | yes | — |
+| catchment_id | `String` | yes | Decimal string preserves exact global integer identity |
+| drainage_cells | `u32` | yes | — |
+| annual_volume_litres | `String` | yes | Exact whole litres encoded as a decimal string |
+| mean_discharge_milli_cumecs | `u64` | yes | — |
+
+### CrossingOut
+
+| Field | Type | Required | Notes |
+|---|---|---|---|
+| id | `[[u32; 2]; 2]` | yes | — |
+| from_global_cell | `[u32; 2]` | yes | — |
+| to_global_cell | `[u32; 2]` | yes | — |
+| global_reach_id | `String` | yes | Decimal string preserves exact global integer identity |
+| catchment_id | `String` | yes | Decimal string preserves exact global integer identity |
+| drainage_cells | `u32` | yes | — |
+| annual_volume_litres | `String` | yes | Exact whole litres encoded as a decimal string |
+| mean_discharge_milli_cumecs | `u64` | yes | — |
+| receiving | `AccountOut` | yes | — |
+
+### HydrologyOut
+
+| Field | Type | Required | Notes |
+|---|---|---|---|
+| model_revision | `u32` | yes | 2; representative annual model |
+| representative | `&'static str` | yes | accepted: representative_annual_balance |
+| flow_semantics | `&'static str` | yes | accepted: mean_annual_discharge |
+| annual_seconds | `u32` | yes | 31,536,000 seconds per representative 365-day year |
+| lake_membership | `&'static str` | yes | accepted: physical_bed_mm < surface_mm |
+| lakes | `LakeOut[]` | yes | — |
+| reaches | `ReachOut[]` | yes | — |
+| catchments | `CatchmentOut[]` | yes | — |
+| crossings | `CrossingOut[]` | yes | — |
+
 ## Relationships
 
-`World` owns `Manifest`, `(ax,ay) → Area`, and `(ax,ay) → BlockArchive`; each archive maps `(cy,cx) → Block` (`crates/arda/src/lib.rs:209`, `crates/arda-core/src/formats/blocks.rs:67`). `AreaObjects` contains only rivers and lakes. Segment ids are tile-local; continent river ids are continent-local. Thus the original no-synthetic-IDs design is not the current object representation (`crates/arda-core/src/objects.rs:42`, `crates/arda-core/src/continent.rs:70`).
+`World` owns its `Manifest`, derived `HydrologyDomain`, and independent `BTreeMap<AreaCoord, OnceLock<...>>` caches. `World::load` fills empty slots only; `area()` caches a requested `Area`, `read_area()` returns owned uncached data, and the first `block()` request decodes that area's complete `BlockArchive`. Each `Area` owns cells and objects; each archive maps `(cy,cx)` to a `Block` (`crates/arda/src/world.rs:73`, `crates/arda/src/world.rs:187`, `crates/arda/src/world.rs:203`, `crates/arda/src/world.rs:257`, `crates/arda-core/src/formats/blocks.rs:67`).
 
-`Continent → bundle_for → TileBundle → generate_area` is an in-process handoff; bundles and basin identity are not persisted, and areas never read neighboring area outputs (`crates/arda-gen/src/orchestrator.rs:96`). `Plate` exists only during generation, not in continent objects. The designed `Range`, `Region`, `Sea`, `Settlement`, `Road`, `Crossing`, `Pass`, `Realm`, `Building`, `Npc`, and `Poi` have no current struct/storage producer. Their decisions remain in `logic/01-continent-generation.md`, `logic/02-area-generation.md`, `logic/03-block-generation.md`, and `logic/06-society-generation.md`: named regions/rivers, society partitions, shared building layouts, notable NPC sheets, on-demand commoners, and sparse block POIs are retained plans.
+Published generation runs accepted `Continent` → one evolved `SharedTerrain` across the modeled union → immutable `PreparedTerrain` slices → shared fine ocean/routing/MST/hierarchy → representative annual support → signed fine flow and final metrics → immutable per-area composition. Shared terrain is released after slice persistence and before annual-water solving. Preparation/composition are sequential; final workers do not open another area's final files. `TileBundle` supplies climate patches for prepared cells; its raw edge samples and entering loads, local `WaterGrid`, `Basin`, and the local `generate_area` route remain diagnostic data rather than production boundary or published water authority (`crates/arda-gen/src/area/prepare.rs`, `crates/arda-gen/src/orchestrator.rs:416`, `crates/arda-gen/src/orchestrator/shared_solve.rs:385`, `crates/arda-gen/src/hydrology/area_output.rs:251`, `crates/arda-gen/src/area/mod.rs:1`).
+
+Shared preparation uses the normalized radial continent mask and bounded affine regional interpolation plus four aligned area-detail octave lattice spacings, 40/20/10/5 cells. Forty evolution iterations use whole-domain fractional MFD contributing area and a shared regional uplift maximum. Implicit downstream-first incision uses each receiver's updated bed while protecting actual submerged depressions; creep and collapse also cross area cuts. Only the actual modeled outer rim is fixed. Publication-area indices affect slicing, not the physical boundary conditions (`crates/arda-gen/src/continent/coast.rs`, `crates/arda-gen/src/continent/area_detail.rs`, `crates/arda-gen/src/area/evolution.rs`).
+
+`BasinNodeRow.parent` and child-table spans describe physical containment, independently of annual wet occupancy. `GlobalLake.basin` is shared by all its local `Lake.global_id` fragments; `GlobalReach.id` is shared by `RiverSegment.global_id` and crossings. `AnnualCatchment` keeps original contributing ownership separate from final drainage. `ReceivingAccount::Lake` can identify a dry physical basin; `representative_lake` identifies actual positive-depth water. `SharedCrossing` is an actual directed D8 adjacency across areas; its undirected key sorts endpoints by `(x,y)`. A public multi-cell reach can contain an internal crossing. `JunctionId` names an actual dry coordinate without a separate table; tagged point reaches represent physical terminals without an invented step (`crates/arda-core/src/hydrology.rs:54`, `crates/arda-core/src/hydrology.rs:141`, `crates/arda-core/src/hydrology.rs:240`, `crates/arda-core/src/formats/hydrology.rs:789`).
+
+`AreaHydrologyContext` carries the global records needed for that area's water and geometry, including neighboring channel halos. Referenced downstream identities may be outside that bounded copy; reading an area does not recursively fetch them. Local fragment IDs are `u32`; continent river IDs remain continent-local `u16` (`crates/arda-core/src/objects.rs:49`, `crates/arda-core/src/continent.rs:70`, `crates/arda-gen/src/hydrology/area_output.rs:155`, `crates/arda-core/src/formats/hydrology.rs:810`).
+
+`Plate` remains transient generation state. Designed `Range`, `Region`, `Sea`, `Settlement`, `Road`, society/road `Crossing`, `Pass`, `Realm`, `Building`, `Npc`, and `Poi` still have no current struct/storage producer. Water `SharedCrossing` does not implement the designed road crossing. Named regions/rivers, society partitions, shared building layouts, notable NPC sheets, on-demand commoners and sparse block POIs remain plans in `logic/01-continent-generation.md`, `logic/02-area-generation.md`, `logic/03-block-generation.md` and `logic/06-society-generation.md`.
 
 ## Boundaries
 
-Codecs in `arda-core::formats` convert typed layers to little-endian bytes; manifest is serde JSON. Renderer DTOs explicitly convert core records to exports (`crates/arda-render/src/json.rs:118`). `CellOut` omits temperature, rainfall, moisture, forest_density, road and built_by, so the designed complete-cell JSON contract is not implemented. Area cells/objects share one AreaOut file, rather than the planned separate cells.json/objects.json. BlockOut carries ids/names, without the planned material/traversal/movement/cover/hazard attributes, POIs or buildings (`crates/arda-render/src/json.rs:16`, `crates/arda-render/src/json.rs:79`).
+The five-crate boundary remains: `arda-core` owns typed records/codecs; `arda-gen` owns continent, prepared/shared hydrology, immutable area composition and block generation; `arda-render` reads stored PNG/JSON inputs without a generator dependency; `arda` provides generation/load/export APIs; `arda-cli` dispatches Generate/Preview/Export. Golden-world tests are in the root workspace (`crates/arda-core/src/lib.rs:1`, `crates/arda-gen/src/lib.rs:1`, `crates/arda-render/src/lib.rs:1`, `crates/arda/src/lib.rs:1`, `crates/arda-cli/src/main.rs:26`, `tests/golden_world.rs:69`).
 
-Climate, hydrology and basin patches are simulation state; `World::load` reads area/block layers but never reads the persisted continent layers (`crates/arda/src/lib.rs:223`). The design's loaded continent queries and lazy per-block frames remain planned. The chosen binary layout avoids a database and keeps deterministic bytes; world-format major is independent of crate semver (`crates/arda-core/src/formats/mod.rs:15`).
+Core codecs explicitly write little-endian fields; Rust padding is not persisted. The owned logical `BasinNode` view is distinct from the fixed `BasinNodeRow` plus streamed child table. JSON DTOs convert global IDs and `u128` annual litres to decimal strings; mean discharge keeps the existing `*_milli_cumecs` names and whole L/s units. Account JSON uses a snake_case `kind` discriminator and the corresponding identity field. There is no simulated month/calendar reservoir state (`crates/arda-core/src/formats/hydrology.rs:365`, `crates/arda-render/src/hydrology_json.rs:7`, `crates/arda-render/src/hydrology_json.rs:145`).
+
+`CellOut` still omits temperature, rainfall, moisture, forest_density, road and built_by; area JSON combines cells, objects, physical channel edges and hydrology in one document. `BlockOut` retains tile IDs/names without material/traversal/movement/cover/hazard attributes, POIs or buildings. Loaded continent-object queries and independently framed lazy block decoding remain unimplemented; `World::load` reads the manifest without loading continent or global hydrology tables (`crates/arda-render/src/json.rs:18`, `crates/arda-render/src/json.rs:66`, `crates/arda-render/src/json.rs:96`, `crates/arda/src/world.rs:88`).
+
+Area Preview is 512² pixels with faint marks for subpixel streams; Detail is 4096² with physical channel coverage only. Both use the same 100 m cells and saved geometry. Supplied lake surfaces determine a disclosed integer blue-to-blue depth ramp; overview and direct fixtures without surface context retain categorical fill. These are display choices, not changed wet membership or finer terrain (`crates/arda-render/src/channels.rs:12`, `crates/arda-render/src/channels.rs:268`, `crates/arda-render/src/carto.rs:60`).
 
 ## Validation
 
-`GenerateConfig::new` accepts axes 64–4000 km inclusive, density 1–200 inclusive and ordered latitudes within −80..80; serde loading does not rerun that constructor (`crates/arda-core/src/config.rs:73`, `crates/arda-core/src/formats/manifest.rs:75`). Area counts divide each axis by the integer 51 km constant, truncating; spatial area coordinates still use 512×100 m = 51.2 km (`crates/arda-core/src/config.rs:8`, `crates/arda-core/src/config.rs:133`, `crates/arda-core/src/coords.rs:7`). Default config therefore gives 9×19 = 171 areas, whereas earlier mockups estimated 190.
+`GenerateConfig::new` accepts axes 64–4000 km, density 1–200 and ordered latitudes within −80..80. Serde construction alone bypasses that constructor; both generation admission and `World::load` explicitly revalidate it. The loader also requires manifest area dimensions to match configuration before creating caches. Area counts retain integer division by 51 km while physical tiles span 51.2 km; default remains 9×19 = 171 areas. Each modeled axis is `max(requested_km × 10, exported_areas × 512)`, retaining requested fringe and any existing export overshoot (`crates/arda-core/src/config.rs:73`, `crates/arda-core/src/config.rs:133`, `crates/arda-gen/src/hydrology/prepared_domain.rs:40`, `crates/arda/src/world.rs:88`).
 
-The batch accepts land fraction 250–900 per mille and at least one sea-reaching major river within five attempts; the designed mountain-range gate and per-area statistical acceptance suite are absent (`crates/arda-gen/src/orchestrator.rs:61`). Lake retention is ≥300 cells and ≥4,000 mm maximum depth after trimming, without rainfall/evaporation balance (`crates/arda-gen/src/area/mod.rs:321`). Area basin grouping is 4-connected; continent basin identity uses the eight routing neighbors (`crates/arda-gen/src/area/fill.rs:123`, `crates/arda-gen/src/continent/hydrology.rs:145`). The latter type's leading doc comment still says four, but the implementation iterates all eight.
+The continent acceptance gate remains 250–900 per mille land and at least one sea-reaching major river within five attempts; the designed mountain-range gate remains absent. Published sea membership is the D8-connected nonpositive fine component touching the real modeled rim; enclosed negative land is not automatically marine (`crates/arda-gen/src/orchestrator.rs:369`, `crates/arda-gen/src/hydrology/ocean.rs:108`).
 
-Manifest load requires format major exactly 3, refusing older and newer worlds. Codecs check magic, truncated records, closed discriminants and coordinate ranges; overview dimensions use checked arithmetic and reject values beyond i32 (`crates/arda-core/src/formats/overview.rs:58`, `crates/arda-core/src/formats/objects.rs:136`). Block decoding stores any u16 TileId; symbolic rendering reports unknown IDs rather than validating vocabulary during load (`crates/arda-core/src/formats/blocks.rs:133`, `crates/arda-render/src/symbolic.rs:30`).
+For each 100 m cell, annual precipitation `P = rain_mm × 10,000 L`, evaporation `E = sum(monthly_evap_um) × 10 L`, land loss `A = min(P/2,E)`, runoff `R = P−A`, and additional wet-support cost `D = E−A`. Nested support/fill/spill operates on real physical bands and witnesses. Wet membership is strictly `bed < surface`; partially supported bands retain separately accounted marginal evaporation while remaining dry at their bed. This representative annual approximation makes no dated, seasonal-minimum or perennial claim. The former published 300-cell/4 m lake-retention filter and coarse seam-level substitution were replaced on 2026-09-08 (`crates/arda-gen/src/hydrology/annual_aggregation.rs:53`, `crates/arda-gen/src/hydrology/annual.rs:540`, `crates/arda-gen/src/area/shared_compose.rs:79`).
+
+Annual source and fine-flow passes require exact canonical coverage and actual spill ownership; whole-domain outflow is reconciled before composition. Final metrics verify lake membership, use the final directed graph for drainage/Strahler and HAND, and admit resource bounds independently of timing. Supported size validation does not constitute a measured maximum-world runtime guarantee (`crates/arda-gen/src/orchestrator/annual_source.rs:313`, `crates/arda-gen/src/hydrology/fine_flow.rs:447`, `crates/arda-gen/src/hydrology/flow_metrics.rs:155`, `crates/arda-gen/src/orchestrator/generation_limits.rs:161`).
+
+Resource admission includes two `i32` terrain inputs plus the shared kernel's scratch: 53 bytes per fine cell and container headers on the current 64-bit layout, in addition to coarse and water-stage reservations. This conservative sum admits MICRO and default sizes under 16 GiB; maximum 4000×4000 km refuses default RAM before output creation and needs explicitly larger limits. Capacity validation and arithmetic correctness do not close the reopened natural-realism acceptance; the full corrected candidate remains under verification (`crates/arda-gen/src/area/evolution.rs`, `crates/arda-gen/src/orchestrator/generation_limits.rs`, `crates/arda-gen/src/orchestrator/generation_limits_tests.rs`).
+
+Current reads require format major exactly 4; preserved format-3 worlds are refused and no migration is implemented. Fixed codecs reject invalid tags, wrong lengths, noncanonical order, invalid mean/annual pairs, impossible physical spill/crossing geometry and unsupported model revision. Area objects enforce local identity/course, feeds-cycle and disjoint lake-member constraints. `World::read_area` bounds requested cells/objects bytes before allocation and validates copied global geometry against the manifest-derived domain. Block decoding still accepts any `u16` TileId; symbolic rendering reports unknown vocabulary IDs (`crates/arda-core/src/formats/manifest.rs:75`, `crates/arda-core/src/formats/hydrology.rs:486`, `crates/arda-core/src/formats/area_objects_v4.rs:290`, `crates/arda/src/world.rs:203`, `crates/arda/src/world.rs:306`, `crates/arda-render/src/symbolic.rs:30`).
 
 ## Schema
 
-No database or migrations exist. All integer fields below are little-endian; format major 3 is checked in world.json (`crates/arda-core/src/formats/mod.rs:15`).
+No database or migration layer exists. World major 4, hydrology model revision 2 and export schema 2 are separate version authorities. Binary integer widths below come from the explicit codecs, not Rust memory layout; the earlier format-3/JSON-1 layouts are historical as of 2026-09-08 (`crates/arda-core/src/formats/mod.rs:17`, `crates/arda-core/src/formats/hydrology.rs:12`, `crates/arda-render/src/json.rs:15`).
 
 | File | Layout | Codec |
 |---|---|---|
-| world.json | Manifest with fixed serde field order, written last; river_count defaults to 0 on read | `crates/arda-core/src/formats/manifest.rs:59` |
-| areas/AX_AY/cells.bin | No header: exactly 262,144 rows of 33 bytes in Cell field order | `crates/arda-core/src/formats/cells.rs:132` |
-| areas/AX_AY/objects.bin | ARDAOBJ\0, tagged length-delimited river/lake sections; coordinates and courses explicit | `crates/arda-core/src/formats/objects.rs:76` |
-| continent/overview.bin | ARDAOVR\0, u32 width/height, 18-byte ContinentCell rows | `crates/arda-core/src/formats/overview.rs:27` |
-| continent/objects.bin | ARDACOB\0, tagged continent-river section | `crates/arda-core/src/formats/objects.rs:260` |
-| blocks/AX_AY.tiles.zst | One zstd level-3 frame per area: ARDABLK\0, u32 count, each block cx:u16, cy:u16, relaxed:u8, 4,096 u16 tile ids | `crates/arda-core/src/formats/blocks.rs:100` |
+| world.json | Manifest in fixed serde field order; river_count defaults to 0 on read; published last by same-directory rename after successful writes/flushes | `crates/arda-core/src/formats/manifest.rs:59`; `crates/arda-gen/src/orchestrator/publication.rs:126` |
+| areas/AX_AY/cells.bin | No header; exactly 262,144 rows × 39 bytes = 10,223,616 bytes. Cell field order, including rainfall u16, discharge u64 and width u32 | `crates/arda-core/src/formats/cells.rs:17`; `crates/arda-core/src/formats/cells.rs:135` |
+| areas/AX_AY/objects.bin | ARDAOBJ\0, u16 section count; four required increasing tags: rivers=1, lakes=2, channels=3, global=4. Each header is tag:u16, count:u32, payload_bytes:u32. River prefix 34 bytes plus 4 bytes/cell; lake prefix 29 plus 4 bytes/member; ChannelEdge 32 bytes | `crates/arda-core/src/formats/area_objects_v4.rs:17`; `crates/arda-core/src/formats/area_objects_v4.rs:539` |
+| area objects global context | ARDACTX4, model_revision:u32, four u32 counts (lakes, catchments, crossings, reaches): 28-byte header, then fixed record rows in that order. Default limit 1,048,576 records; full objects container capped at 128 MiB before count-driven allocation | `crates/arda-core/src/formats/hydrology.rs:814`; `crates/arda-core/src/formats/area_objects_v4.rs:135` |
+| continent/overview.bin | ARDAOVR\0, width:u32, height:u32, then 22-byte ContinentCell rows | `crates/arda-core/src/formats/overview.rs:21`; `crates/arda-core/src/formats/overview.rs:30` |
+| continent/objects.bin | ARDACOB\0 and tagged continent-river section; widened u64 discharge, retained u16 continent-local IDs/courses | `crates/arda-core/src/formats/objects.rs:69` |
+| blocks/AX_AY.tiles.zst | Retained zstd level-3 frame per area: ARDABLK\0, count:u32; each block cx:u16, cy:u16, relaxed:u8, 4,096 u16 tile IDs | `crates/arda-core/src/formats/blocks.rs:100` |
 
-Export schema_version is 1, distinct from format_version 3; additive evolution remains the selected contract (`crates/arda-render/src/json.rs:13`). The designed 200+ vocabulary is presently 24 TileDef entries, with only id/name/group; a TileSet wrapper is not defined (`crates/arda-core/src/tiles.rs:44`).
+Every published `hydrology/*.bin` below begins with the 32-byte header `ARDAHYD4`, kind:u32, record_bytes:u32, count:u64, payload_bytes:u64. Complete keyed tables require unique ascending keys; child IDs are ordered within each parent span. Optional fields use an explicit presence tag and canonical zero payload when absent. `global_output::write` streams these seven files; channels remain in area objects, with no standalone channels or junctions table (`crates/arda-core/src/formats/hydrology.rs:166`, `crates/arda-core/src/formats/hydrology.rs:383`, `crates/arda-core/src/formats/hydrology.rs:500`, `crates/arda-gen/src/orchestrator/global_output.rs:65`).
+
+| Table | Kind | Fixed row bytes | Row / ordering |
+|---|---|---|---|
+| hydrology/basins.bin | 2 | 76 | BasinNodeRow; BasinId |
+| hydrology/children.bin | 3 | 8 | BasinId; each parent TableSpan |
+| hydrology/lakes.bin | 4 | 75 | GlobalLake; BasinId |
+| hydrology/reaches.bin | 5 | 69 | GlobalReach; ReachId |
+| hydrology/crossings.bin | 6 | 85 | SharedCrossing; (low.x, low.y, high.x, high.y) |
+| hydrology/catchments.bin | 12 | 78 | AnnualCatchment; CatchmentId |
+| hydrology/metadata.bin | 1 | 172 | One HydrologyMetadata row |
+
+Field sequences and byte widths are defined by `structure!` and `FixedRecord` (`crates/arda-core/src/formats/hydrology.rs:293`, `crates/arda-core/src/formats/hydrology.rs:337`, `crates/arda-core/src/formats/hydrology.rs:379`, `crates/arda-core/src/formats/hydrology.rs:441`). Metadata's seven `Litres` ledger fields are each u128; global identities are u64 except CrossingId's two GlobalCells. Saved rates round annual litres down by 31,536,000 seconds, so positive annual overflow can have a zero whole-L/s mean (`crates/arda-core/src/hydrology.rs:202`, `crates/arda-core/src/hydrology.rs:221`).
+
+Schema-2 area JSON retains existing field names/units where meanings are unchanged and adds global IDs, channel edges and annual hydrology semantics; large identity/volume strings remain lossless in consumers without exact u64/u128 number support. The designed 200+ vocabulary remains 24 TileDef entries with id/name/group; no TileSet wrapper exists (`crates/arda-render/src/json.rs:33`, `crates/arda-render/src/hydrology_json.rs:145`, `crates/arda-core/src/tiles.rs:44`).

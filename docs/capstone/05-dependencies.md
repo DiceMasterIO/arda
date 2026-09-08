@@ -1,9 +1,9 @@
 ---
-generated_at_commit: 987aeca04c77
-generated_date: 2026-09-07
-content_hash: fecfaee8f7ea
+generated_at_commit: 311829e4e5c9
+generated_date: 2026-09-08
+content_hash: 7a6fb14e7e94
 paths_covered: [":(top)Cargo.toml", ":(top)Cargo.lock", ":(top)crates/*/Cargo.toml", ":(top)rust-toolchain.toml", ":(top)deny.toml", ":(top).github/**"]
-capstone_version: 6.4
+absorbed_from: features/2026-09-07-area-water-terrain-realism@2026-09-08
 ---
 
 # Dependencies
@@ -20,7 +20,7 @@ Installed declarations come from `Cargo.toml:15` and `crates/*/Cargo.toml`; exac
 | `serde_json` | 1.0 | 1.0.151 | MIT/Apache-2.0 | JSON manifest and exports |
 | `rand_chacha` | 0.3 | 0.3.1 | MIT/Apache-2.0 | ChaCha8 behind keyed RNG; arda-core |
 | `rand_core` | 0.6 | 0.6.4 | MIT/Apache-2.0 | RNG traits; arda-core and arda-gen |
-| `rayon` | 1.10 | 1.12.0 | MIT/Apache-2.0 | Area fan-out; arda-gen |
+| `rayon` | 1.10 | 1.12.0 | MIT/Apache-2.0 | Retained generator dependency; the shared world pipeline currently prepares/composes sequentially |
 | `clap` | 4.5 | 4.6.6 | MIT/Apache-2.0 | CLI derive parsing |
 | `tiny_http` | 0.12 | Not installed | MIT/Apache-2.0 | Picked but not yet installed: planned synchronous serve |
 | `thiserror` | 1.0 | 1.0.69 | MIT/Apache-2.0 | Library error derives |
@@ -36,10 +36,27 @@ Simulation arithmetic, noise, erosion, hydrology and WFC were selected for imple
 | Package | Role |
 |---|---|
 | criterion 0.5 (locked 0.5.1) | Area erosion and continent benchmarks; default features disabled, cargo_bench_support enabled (`Cargo.toml:29`, `crates/arda-gen/Cargo.toml`). |
+| serde_json | Existing workspace dependency newly used by generator dev fixtures; no runtime dependency added (`crates/arda-gen/Cargo.toml`). |
 | blake3 | Golden file fingerprints as well as runtime RNG keys (`tests/golden_world.rs`, `crates/arda-core/Cargo.toml`). |
 | rustfmt / clippy | Stable toolchain components; default formatter and CI warning denial (`rust-toolchain.toml`, `.github/workflows/ci.yml`). |
 | cargo-deny | License/advisory check through CI action; policy in `deny.toml`. |
 
+The forcing lookup tables and MFD numerical data are checked in under generator modules; `tools/generate_water_forcing_tables.py` is an offline standard-library maintenance tool, not a runtime service. Rust1.96.1 now supplies the explicit latest-stable-minus-two CI check (`.github/workflows/ci.yml:18`). No dependency version or new runtime package was introduced by the area-water change.
+
 ## External services
 
 No runtime API, database or broker connection is implemented in `crates/*/src/`. GitHub Actions supplies CI (`.github/workflows/ci.yml`); crates.io and GHCR remain the selected release destinations, but no release workflow exists. Standard registries were chosen for low exit cost; there is no service-specific data migration in the runtime design (`07-operations.md`).
+
+## Forcing data provenance
+
+The checked-in forcing tables use five observed monthly profiles as procedural climate analogs. The offline generator preserves their reported rounding, apportions rainfall with exact integer totals, and supplies temperature anomalies and astronomical daylength; normal builds and generation do not fetch these sources. These inputs support the chosen static annual convention, not a claim of global calibration. The runtime annual rule and its omitted seasons/snow/groundwater are documented in the area-generation scenario.
+
+| Profile | Source and period | Input limitation retained |
+|---|---|---|
+| Singapore, Changi | [Meteorological Service Singapore, 1991–2020](https://www.weather.gov.sg/climate-climate-of-singapore/) | An equatorial maritime analog, not every tropical climate. |
+| Valencia | [AEMET, 1981–2010](https://www.aemet.es/es/serviciosclimaticos/datosclimatologicos/valoresclimatologicos?l=8414A) | Rounded monthly precipitation sums to 459 mm; the separately rounded annual page total is 461 mm. |
+| Heathrow | [Met Office, 1991–2020](https://www.metoffice.gov.uk/research/climate/maps-and-data/location-specific-long-term-averages/gcpsvg3nc) | Monthly temperature is the midpoint of reported mean daily maximum/minimum. |
+| Ottawa | [ECCC, 1991–2020](https://climate.weather.gc.ca/climate_normals/results_1991_2020_e.html?climate_id=6105976&dispBack=0&lstProvince=ON&searchType=stnProv) | Total monthly precipitation is used; runtime snow storage is not modeled. |
+| Yellowknife Hydro | [ECCC, 1971–2000, climate ID 2204200](https://climate.weather.gc.ca/climate_normals/results_e.html?climate_id=2204200) | Older class-C normals with poorer coverage; a dry-cold analog, not current weather. |
+
+The evaporation expression follows Hamon 1961 as used in [USGS Open-File Report 2025-1021, equations 4–5](https://pubs.usgs.gov/publication/ofr20251021/full). That report uses it as a lower estimate alongside a radiation method; it does not establish universal accuracy. The astronomical daylength formula is explicit in `tools/generate_water_forcing_tables.py`; consumers and integer table values are in `crates/arda-gen/src/hydrology/{forcing.rs,forcing_tables.rs}`. Scientific alternatives investigated before the final static scope do not add runtime snow, leakage or subsurface stores.

@@ -2,6 +2,115 @@
 generated_date: 2026-08-24
 ---
 
+## 2026-09-08 - snapshot: area-water-terrain implementation
+key: snapshot/2026-09-07-area-water-terrain-realism@candidate05-approved-golden
+
+- Committed the coordinated shared terrain, annual hydrology, format-4 storage, lazy readers and physical PNG/JSON exports as `2e79ca6`; kept the toolchain CI gate and reference documentation separate.
+- `tests/golden/micro-42.txt`: user explicitly approved the verified candidate05 baseline, adding seven records and changing 26; three independent saved worlds match, and the fresh golden comparison passes in 43.82 s.
+- `06-testing.md`: recorded 583 passing workspace checks plus the separately passing approved golden; retained ignored controls, verification scope and open visual acceptance.
+- `07-operations.md`: recorded the world-only 7761×16384 PNG, 12.39 MB, 3.670 s, and 556,592 KiB peak RSS from the isolated native renderer; production render limits and all source-world hashes remain unchanged.
+- `tools/generate_water_forcing_tables.py`: offline generation reproduces checked-in Rust constants; Python is not a production build or runtime dependency.
+- Folded accumulated ledger fragments on main and refreshed factual source stamps against the committed implementation.
+- Documentation check reports zero source-file drift and zero unfolded fragments; retained nine missing-version metadata warnings and eight scenario-heading false positives for the logic index, with the raw report preserved locally.
+- Preserved the feature folder, rendered maps, review records and prior candidate evidence locally under the existing ignore rules.
+- Natural visual acceptance remains open for repetitive ravines and regional lake shapes; tactical assets and NPC generation remain deferred. This commit records current work without marking the feature complete.
+
+## 2026-09-08 - plan: 2026-09-07-area-water-terrain-realism
+key: plan/2026-09-07-area-water-terrain-realism@Q15
+
+- `features/2026-09-07-area-water-terrain-realism/plan.md`: user approved the reviewed26-task static terrain/water implementation plan with “ok then start implementing”.
+- File map: core formats and identities; terrain/shared hydrology and generation; persisted global/area data; lazy facade loading; PNG/JSON renderer and CLI; existing regression tests and required evidence tools.
+- Approved specification checksum: `126d6cc76437bb6590d84d095d7ec823b5c64328`; coverage includes12 requirements and13 behavior rules.
+- Task1: Install one format-4 core and annual public schema.
+- Task2: Install static hydrology types and annual support kernel.
+- Task3: Correct regional interpolation and coastline signs.
+- Task4: Correct incision and conserve hillslope contributions.
+- Task5: Supply valid canonical annual climate inputs.
+- Task6: Prepare and page the complete physical domain.
+- Task7: Resolve fine ocean, flats, owners and actual saddles.
+- Task8: Build and sort the witnessed physical MST.
+- Task9: Persist the coalesced physical hierarchy.
+- Task10: Bind spills to real source membership and receiving cells.
+- Task11: Aggregate canonical cells into annual physical bands.
+- Task12: Normalize supported physical transfers and global lake records.
+- Task13: Route exact annual balances on the fine physical tree.
+- Task14: Derive catchment, channel order, drainage and HAND.
+- Task15: Extract real reaches, divergent endpoints and crossings.
+- Task16: Build bounded global and exported-area record indices.
+- Task17: Stream the canonical prepared annual source.
+- Task18: Connect the actual shared solve.
+- Task19: Compose one area from immutable shared state.
+- Task20: Build standalone saved area contexts.
+- Task21: Stream global tables and publish only completed output.
+- Task22: Admit resources and wire the real public generator.
+- Task23: Load saved layers only when requested.
+- Task24: Render saved physical channels and expose explicit detail exports.
+- Task25: Verify the integrated candidate and frozen natural panel.
+- Task26: Absorb verified contracts and retain the feature evidence.
+- Preserve original main checkout and pinned geography, deterministic integer results, read-only saved exports and clean-rerun failures.
+- Preserve the entire feature folder, research, prototypes and baseline permanently; no feature cleanup deletion.
+- Tactical assets/WFC/gameplay schemas remain separate; no seasonal simulation or groundwater programme is introduced.
+- Required integrated natural/world/project checks remain pending; golden expectations have no new modification authorization.
+- Execute locally with focused independent subagents where dependencies permit; retain usage checkpoints and all evidence.
+
+## 2026-09-08 - fix verification: area water and terrain realism
+key: fix/2026-09-07-area-water-terrain-realism@terrain-correction-verification
+
+- Installed shared rectangular terrain evolution, implicit downstream-first incision, four resolved detail octaves and a radial coast mask; retained exact controlled regressions and all previous feature evidence.
+- Added conservative terrain work to generation admission; current source has two consecutive dry review rounds and 567 passing workspace tests with the protected golden expectation excluded. Golden hashes remain unchanged.
+- Completed five fixed worlds, 38 selected area JSON checks and 238 saved export commands; repeat exports match and saved worlds remain unchanged. The final binary independently reproduces candidate04 MICRO42's 34 saved-file fingerprints.
+- Original reported area's wet rim falls from 50.10% to 4.89%, against 4.95% current interior; 87 wet border pairs share lake IDs and levels. The continuous water-square artifact is absent in the inspected current image.
+- Default global lake totals change from 11,523/8,829/13,782 to 1,298/825/2,249 for seeds 42/7/436342; all three annual budget residuals are zero. These numerical observations do not establish natural abundance or morphology.
+- Updated testing, operations and open-items references; retained current world/two-area/three-tactical gallery and PNG/JSON evidence under the preserved feature folder.
+- Current default driver times are 45–50 minutes under three-world concurrency, with approximately 1.762 GiB peak RSS per process. Saved default area previews/details/JSON complete below one second each; future tactical assets and browser/network delivery are not measured.
+- Feature remains incomplete: repetitive drainage, rectangular coarse basins, protected golden approval and final wrap remain open. This fragment is verification history, not an implement completion marker.
+
+## 2026-09-08 - candidate05 correction verification and detailed renders
+key: fix/2026-09-07-area-water-terrain-realism@candidate05-verification
+
+- Corrected tectonic boundary classification using widened moved-center-normal motion and incident-kind union; preserved unrelated forcing, belt profiles and the documented warped-interface approximation.
+- Corrected the legacy area water helper to read actual north/west outside neighbors and all four diagonal corners while preserving canonical edge identities; fixed three-context survey retains original thresholds and measures 11/13 large matches, median mismatch two cells.
+- Verified primary shared prepared data and all 34 saved MICRO42 fingerprints are unchanged by the legacy-neighbor repair; added bundle samples fit existing admitted memory/work bounds.
+- Completed 583 passing workspace tests with zero failures, eight ignored controls and only the protected golden expectation filtered. Formatting, strict Clippy, isolated official Rust 1.96.1 and both existing benchmark workloads pass; two current-source review rounds are dry.
+- Completed all five frozen worlds, 38 selected area JSONs and 243 generation/export commands; repeated exports agree and source worlds remain unchanged. All three default annual budgets balance exactly.
+- Audited all 513 published default areas; all 21,772 adjacent pairs wet on both sides match lake ID and surface. Reported area 3,10 now has 6.51% wet rim versus 6.45% interior, compared with the prior 50.10% rim concentration.
+- Recorded default driver generation times of 36m52s, 43m07s and 47m26s under concurrent load, around 1.762 GiB RSS per process. Separate terrain/water/area/export stages are retained; the host clock discrepancy is disclosed.
+- Produced a detailed 4608×9728 world PNG in 2.134s through the existing renderer, verifying all 523 saved-world file hashes unchanged. Delivery contains four 4096² area renders and excludes tactical images per the latest user instruction; earlier tactical artifacts remain preserved.
+- Refreshed models, testing, operations, logic and open-items references. Preserved the complete feature folder, all prior candidates, failures and rejected experiments.
+- Natural visual acceptance remains open for repetitive ravines, regional rectangular lakes and tiny-stream readability; the original area 6,13 is ocean in this candidate. Goldens remain unchanged and implemented remains false. This is a verification record, not a completed-feature marker.
+
+## 2026-09-07 - groom: 2026-09-07-area-water-terrain-realism
+key: groom/2026-09-07-area-water-terrain-realism@Q12
+
+- `docs/capstone/features/2026-09-07-area-water-terrain-realism/spec.md`: approved twelve requirements for physical channel rendering, terrain/erosion diagnosis and correction, connected lake/river accounting, deterministic persistence and measured verification.
+- Approved architecture amendment: prepare detailed terrain, resolve shared hydrology, then compose independent final areas; replaces the coarse-only single-pass input contract while retaining pinned terrain and deterministic outputs.
+- Approved area output choice: add 4096×4096 detail with physical channel widths and retain 512×512 previews with separately measured readability marks.
+- Physical-model scope: seasonal and subsurface comparisons are required planning investigations; the production model follows their demonstrated effect and supported inputs, without preselecting added simulation complexity.
+- Fixed comparison panel: default seeds 436342, 42 and 7 plus MICRO 42 and 99, with 38 area cases frozen before tuning and identical-scale overview/area evidence.
+- Rejected: renderer/threshold-only completion, coarse masks as proof of fine-scale continuity, regional warping or blanket breaching as assumed remedies, and universal lake-fraction/diagonal-flow targets.
+- Verification requirements: physical units, connected basin membership and mass balance, actual tile rims/corners, deterministic order independence, required project checks, and measured shared-stage scaling before plan approval.
+- Out of scope: tactical and society generation, unrelated rewrites, new checkout/branch; preserve the local ignored generation-issues.md and baseline artifacts.
+- Compatibility follows the concrete persistence design; incompatible changes require format major 4. Explain intended golden-output changes before updating expectations; implementation still requires plan approval.
+
+## 2026-09-07 - groom: 2026-09-07-area-water-terrain-realism
+key: groom/2026-09-07-area-water-terrain-realism@Q14
+
+- `features/2026-09-07-area-water-terrain-realism/spec.md`: replace the earlier scientific investigation obligations with the user's clarified static VTT terrain/water scope; retain fine topology, shared identity/flux, physical exports, determinism and required project checks.
+- `features/2026-09-07-area-water-terrain-realism/spec-scientific-scope-history.md`: preserve the original approved specification as superseded history.
+- `features/2026-09-07-area-water-terrain-realism/PAUSED.md` and `planning-progress.md`: record explicit resume and preserve the previous research checkpoint.
+- Select representative annual water semantics; seasonal persistence, dated snapshots and periodic-state accuracy are not claims of the current feature.
+- Exclude scientific seasonal calendars, dynamic groundwater reservoirs, litre-level return proofs and billion-cell convergence research from required completion.
+- Keep tactical WFC/assets, gameplay collision/NPC schemas and society implementation for subsequent features.
+- Reuse tested terrain, topology, climate, format, loader and renderer payloads where they support the revised scope.
+- Retain Capstone task-based execution and usage checks, with a review point around 50% total account usage from the observed 33% starting point.
+- Implementation-plan approval remains outstanding; production code and golden expectations remain unchanged.
+
+## 2026-09-07 - feature: 2026-09-07-area-water-terrain-realism
+key: feature/2026-09-07-area-water-terrain-realism@Q15
+
+- `features/2026-09-07-area-water-terrain-realism/`: preserve the entire feature folder and all contents after completion, as explicitly required by the user.
+- Override Capstone implement Phase D step 6 and completed-folder cleanup; completion does not authorize deleting or moving this directory.
+
 ## 2026-09-07 - map: local report policy
 key: map/local-report-policy@987aeca04c77
 

@@ -1,9 +1,9 @@
 ---
-generated_at_commit: 987aeca04c77
-generated_date: 2026-09-07
-content_hash: 6aba3102ce8f
+generated_at_commit: 311829e4e5c9
+generated_date: 2026-09-08
+content_hash: 6daa467229ef
 paths_covered: [":(top)crates/**", ":(top)tests/**"]
-capstone_version: 6.4
+absorbed_from: features/2026-09-07-area-water-terrain-realism@2026-09-08
 ---
 
 # Glossary
@@ -12,23 +12,48 @@ capstone_version: 6.4
 
 | Term | Meaning in Arda | Implementation |
 |---|---|---|
-| World | A seed/config manifest, area layers and sampled block archives on disk | `crates/arda-gen/src/orchestrator.rs:154` |
-| Continent | 4 km tectonic simulation resampled to a 1 km relief/climate/hydrology grid | `crates/arda-gen/src/continent/mod.rs:115` |
-| Area / cell | 512² cells of 100 m, a 51.2 km square; unit of Rayon generation | `crates/arda-core/src/coords.rs:7` |
-| Block / square | 64² tile IDs; each square is 1,524 mm (five feet). Total 97.536 m is distinct from the nominal 100 m cell. | `crates/arda-core/src/coords.rs:9` |
-| TileId | u16 ID into the current 24-entry skeleton vocabulary; not an area coordinate | `crates/arda-core/src/tiles.rs:9` |
-| TileBundle | Shared-continent-derived edge heights, entering rivers and 53² climate/routing/basin patches | `crates/arda-gen/src/continent/bundles.rs:127` |
-| EnteringRiver | Upstream catchment, discharge and order floor seeded at an area boundary cell | `crates/arda-gen/src/continent/bundles.rs:101` |
-| Routing surface | Priority-filled relief used for drainage; stored terrain keeps raw depressions | `crates/arda-gen/src/area/fill.rs` |
-| Lake | Filled basin retained after seam adjustment and ≥300 cells / ≥4 m maximum-depth filtering; no water-budget test | `crates/arda-gen/src/area/mod.rs:41` |
-| Basin identity | Piecewise-constant continent depression surface used to coordinate seam-lake levels | `crates/arda-gen/src/continent/hydrology.rs:16` |
-| Strahler order | Channel hierarchy; equal maximum incoming orders raise the rank, with entering-river floors | `crates/arda-gen/src/area/water.rs` |
-| Reach / RiverSegment | Channel link between source/junction and junction/sea/lake/tile edge | `crates/arda-core/src/objects.rs:42` |
-| HAND | Height above downstream drainage; no downstream channel stores saturated height-above-river | `crates/arda-gen/src/area/fields.rs:78` |
-| Wetness | Integer drainage/slope-derived cell index, distinct from block neighbor wet_fraction | `crates/arda-gen/src/area/fields.rs`, `crates/arda-gen/src/block/constraints.rs:17` |
-| Edge taper | 32-cell ramp suppressing erosion at the pinned rim | `crates/arda-gen/src/area/erosion.rs:54` |
-| Relaxed block | Eight WFC attempts failed; first allowed tile (or ID 0) fills the block, flagged relaxed | `crates/arda-gen/src/block/wfc.rs:19` |
-| Subseed | BLAKE3 key over world seed plus tier/stage/coordinates/attempt, driving ChaCha8 | `crates/arda-core/src/rng.rs:84` |
-| format_version | Stored-world compatibility major, currently 3; load requires exact match | `crates/arda-core/src/formats/mod.rs:15` |
-| Golden world | MICRO seed fixture with per-file fingerprints used for byte-reproducibility tests | `tests/golden_world.rs:69` |
-| Trunk corridor / realm | Designed society/road constructs; no generation implementation yet | `logic/01-continent-generation.md`, `logic/06-society-generation.md`, `crates/arda-gen/src/` |
+| World | Seed/config manifest, continent layers, shared hydrology tables, area layers and sampled block archives on disk. The manifest is the completion stamp. | `crates/arda-gen/src/orchestrator.rs:338`; `crates/arda-gen/src/orchestrator/publication.rs:126` |
+| Manifest-first load | Validates the manifest/configuration and creates empty area/block cache slots. Requested reads can subsequently fail on missing, corrupt or inaccessible layers. | `crates/arda/src/world.rs:88` |
+| Owned area read | read_area() returns one area without retaining it in the query cache, allowing bounded saved-export passes. Borrowed area() retains successfully requested areas. | `crates/arda/src/world.rs:187`; `crates/arda/src/world.rs:203` |
+| Continent | 4 km tectonic simulation resampled to a 1 km relief/climate/hydrology grid; accepted coarse context supplies preparation. | `crates/arda-gen/src/continent/mod.rs:118` |
+| Area / cell | 512² cells of 100 m, a 51.2 km square. Published preparation and final composition are sequential; shared water is solved between them. | `crates/arda-core/src/coords.rs:7`; `crates/arda-gen/src/orchestrator.rs:416` |
+| Block / square | 64² tile IDs; each square is 1,524 mm (five feet). Total 97.536 m is distinct from the nominal 100 m cell. The first block query decodes its complete area's archive. | `crates/arda-core/src/coords.rs:9`; `crates/arda/src/world.rs:257` |
+| TileId | u16 ID into the current 24-entry skeleton vocabulary; not a coordinate. | `crates/arda-core/src/tiles.rs:9` |
+| TileBundle | Coarse-derived pinned edge heights, entering rivers and 53² climate/routing/basin patches. The terrain-preparation path uses it; coarse entering loads are not the published fine-water authority. | `crates/arda-gen/src/continent/bundles.rs:104`; `crates/arda-gen/src/area/prepare.rs:14` |
+| EnteringRiver | Coarse upstream catchment, discharge and order floor retained for local diagnostic generation. Published generation computes flow from shared fine terrain and annual sources. | `crates/arda-gen/src/continent/bundles.rs:78`; `crates/arda-gen/src/orchestrator/shared_solve.rs:519` |
+| Modeled union / fringe | Each fine axis is max(requested kilometres × 10, exported areas × 512). Requested fringe is modeled even without a final area file; existing exported overshoot is preserved. The modeled rim, rather than each tile rim, is the exterior. | `crates/arda-gen/src/hydrology/prepared_domain.rs:40` |
+| PreparedTerrain | Canonical physical heights, annual rainfall and unlapsed temperature reference arrays. Shared water consumes completed private prepared files before final area composition. | `crates/arda-gen/src/hydrology/types.rs:31`; `crates/arda-gen/src/orchestrator.rs:416` |
+| Physical bed / routing surface | Bed is stored terrain. Erosion's temporary filled surface supports routing; epsilon-free physical spill heights determine depression protection. Published lake membership uses physical bed, not routing epsilon. | `crates/arda-gen/src/area/erosion.rs:87`; `crates/arda-gen/src/area/physical_spill.rs:1`; `crates/arda-gen/src/area/shared_compose.rs:79` |
+| Fractional hillslope drainage | Deterministic fixed-point multiple-flow accumulation used for erosion incision; published channel flow later follows the solved fine graph. | `crates/arda-gen/src/area/mfd.rs:1`; `crates/arda-gen/src/area/erosion.rs:92` |
+| Connected ocean | D8-connected cells at or below zero elevation touching the real modeled rim. An enclosed negative basin is not automatically sea. | `crates/arda-gen/src/hydrology/ocean.rs:108` |
+| Signed atmospheric altitude | Final nonmarine temperature uses signed physical height, including negative inland terrain; marine temperature uses zero atmospheric altitude. | `crates/arda-gen/src/area/temperature.rs:1`; `crates/arda-gen/src/area/shared_compose.rs:193` |
+| Basin identity | Stable physical hierarchy identity, based on canonical anchors with equal-height zero-capacity joins coalesced. It survives whether a representative lake is wet, dry or spilling. The coarse basin_surface patch remains a diagnostic helper. | `crates/arda-core/src/hydrology.rs:179`; `crates/arda-gen/src/hydrology/hierarchy.rs:1`; `crates/arda-gen/src/continent/hydrology.rs:20` |
+| Spill witness | Actual adjacent source/target cells and their physical sill, with resolved receiving ownership. to=None identifies a real outer-boundary export. | `crates/arda-core/src/hydrology.rs:168`; `crates/arda-gen/src/hydrology/witness_binding.rs:212` |
+| Potential spill / supported outflow | Physical exit geometry is retained even when no annual overflow occurs. A spilling lake names a canonical active witness; all actual carrying edges remain in the flow graph. | `crates/arda-core/src/hydrology.rs:221`; `crates/arda-gen/src/hydrology/annual_records.rs:51` |
+| Representative annual balance | Deterministic static annual support from climatological precipitation, effective land loss, upstream flow and summed monthly open-water evaporation. It is not a dated snapshot, seasonal minimum, spin-up or perennial-water prediction. | `crates/arda-gen/src/hydrology/annual_aggregation.rs:53`; `crates/arda-gen/src/hydrology/annual.rs:540`; `crates/arda-render/src/hydrology_json.rs:145` |
+| P / A / E / R / D | For one 100 m cell: P=rain_mm×10,000 L; E=sum(monthly evaporation_um)×10 L; A=min(P/2,E); runoff R=P−A; added wet-support cost D=E−A. Wet-cell evaporation replaces that cell's land loss. | `crates/arda-gen/src/hydrology/annual_aggregation.rs:53`; `crates/arda-gen/src/hydrology/annual.rs:568` |
+| Marginal evaporation | Separately accounted partial payment for an unsupported raster-height band. That band remains geometrically dry at its bed; the fine source applies its debit once at the original terminal. | `crates/arda-gen/src/hydrology/annual.rs:766`; `crates/arda-gen/src/orchestrator/annual_source.rs:327` |
+| Lake / positive-depth membership | One connected representative component with whole-mm surface and strict bed<surface membership. Local fragments share GlobalLake identity and level. The former ≥300-cell/≥4 m published lake filter was replaced on 2026-09-08. | `crates/arda-core/src/hydrology.rs:221`; `crates/arda-gen/src/area/shared_compose.rs:79` |
+| Litres / DischargeMilli | Litres is exact nonnegative u128 annual volume. DischargeMilli is u64 whole L/s, also thousandths of m³/s. Annual means divide by 31,536,000 seconds and round down; positive annual transport can have a zero mean. | `crates/arda-core/src/hydrology.rs:109`; `crates/arda-core/src/fixed.rs:78`; `crates/arda-core/src/hydrology.rs:233` |
+| Catchment / drainage | AnnualCatchment retains original terminal ownership and distinct contributing cells. Drainage metrics instead follow the final directed graph, including original zero-flow drainage edges and collapsed connected lakes. | `crates/arda-core/src/hydrology.rs:240`; `crates/arda-gen/src/hydrology/flow_metrics.rs:564` |
+| Signed fine flow | Annual net sources flow over the actual receiver forest plus accepted physical spill edges. Signs determine directed transport; internal same-lake transfers are omitted from visible geometry, and actual exterior totals reconcile with the annual ledger. | `crates/arda-gen/src/hydrology/fine_flow.rs:376`; `crates/arda-gen/src/orchestrator/shared_solve.rs:574` |
+| Strahler order | Final channel hierarchy: equal maximum incoming qualifying orders raise the rank. Connected lakes collapse before propagation; initiation is 40 L/s. Coarse entering-river floors are not the published metric authority. | `crates/arda-gen/src/hydrology/flow_metrics.rs:9`; `crates/arda-gen/src/hydrology/flow_metrics.rs:557` |
+| Global reach / RiverSegment | GlobalReach owns annual flow and downstream identity; RiverSegment is a tile-local fragment with its own u32 ID and stable global_reach_id. A public reach can span multiple cells. | `crates/arda-core/src/hydrology.rs:259`; `crates/arda-core/src/objects.rs:49` |
+| Point reach | Tagged ReachId with equal physical endpoints for a terminal that has no directed cell step. It adds no invented channel step or separate point table. | `crates/arda-core/src/hydrology.rs:79` |
+| JunctionId / divergence | Packed actual dry junction coordinate. A divergence references multiple real outgoing reaches; there is no synthetic reach or separate junction table. | `crates/arda-core/src/hydrology.rs:32`; `crates/arda-core/src/objects.rs:24`; `crates/arda-core/src/formats/area_objects_v4.rs:378` |
+| SharedCrossing | Canonical directed D8 water transfer across an area boundary, copied consistently into relevant areas. CrossingId orders its undirected endpoints by (x,y); terminal IDs use packed (y,x). This is separate from the planned society/road Crossing. | `crates/arda-core/src/hydrology.rs:141`; `crates/arda-core/src/hydrology.rs:281` |
+| Area hydrology context / halo | Bounded copies of global water authority and physical channel edges needed to interpret/rasterize an area, including neighboring envelopes touching it. External downstream identities do not trigger recursive loads. | `crates/arda-core/src/hydrology.rs:333`; `crates/arda-gen/src/hydrology/area_output.rs:155`; `crates/arda-core/src/formats/hydrology.rs:810` |
+| HAND | Height above a downstream channel chosen along final directed flow, with deterministic shortest-distance/anchor ties. Search stops at standing water/exterior. A channel has zero height; absent targets saturate the saved height-above-river value. | `crates/arda-gen/src/hydrology/flow_metrics.rs:489`; `crates/arda-gen/src/area/shared_compose.rs:193` |
+| Wetness | Integer drainage/slope-derived cell index, distinct from block-neighbor wet_fraction. | `crates/arda-gen/src/area/fields.rs:1`; `crates/arda-gen/src/block/constraints.rs:17` |
+| Edge taper | 32-cell smoothstep ramp suppressing erosion at the pinned rim. | `crates/arda-gen/src/area/erosion.rs:47` |
+| Physical width / channel footprint | One shared integer discharge-to-decimetre helper sets physical widths. Saved adjacent centerline strips, terminal footprints and junction joins determine raster coverage. | `crates/arda-core/src/hydrology.rs:117`; `crates/arda-render/src/channels.rs:87`; `crates/arda-render/src/channel_geometry.rs:1` |
+| Preview / Detail | Area Preview is 512² with faint subpixel stream marks; Detail is 4096² with physical coverage only. Both depict the same 100 m terrain and saved water decisions. | `crates/arda-render/src/channels.rs:12` |
+| Lake depth palette | Supplied physical bed/surface depth drives an integer blue-to-blue shade ramp in area images. It is cartographic shading, not calibrated optics or transparency; overview and missing direct-fixture surface context use categorical fill. | `crates/arda-render/src/carto.rs:60`; `crates/arda-render/src/channels.rs:268` |
+| Resource admission | Explicit RAM, simultaneous scratch, logical-work and I/O capacity checks precede generation writes. Later observed excess returns a typed error; limits never select a different water result. Payload admission is not a process-RSS measurement or maximum-world runtime claim. | `crates/arda-gen/src/hydrology/types.rs:84`; `crates/arda-gen/src/orchestrator/generation_limits.rs:145` |
+| Partial world / clean rerun | Failed or interrupted generation retains partial files without a completion manifest. A nonempty output is refused; successful publication removes runtime scratch and renames the manifest last. This is process-interruption completion, not power-loss durability. | `crates/arda-gen/src/orchestrator/publication.rs:42`; `crates/arda-gen/src/orchestrator/publication.rs:126` |
+| Relaxed block | Eight WFC attempts failed; first allowed tile (or ID 0) fills the block, flagged relaxed. Tactical rules are unchanged by the shared-water model. | `crates/arda-gen/src/block/wfc.rs:19` |
+| Subseed | BLAKE3 key over world seed plus tier/stage/coordinates/attempt, driving ChaCha8. | `crates/arda-core/src/rng.rs:84` |
+| format_version | Stored-world compatibility major, currently 4. Current loads require exact match; existing format-3 worlds are preserved and refused, with no migration. | `crates/arda-core/src/formats/mod.rs:17`; `crates/arda-core/src/formats/manifest.rs:75` |
+| model_revision / schema_version | Hydrology model 2 denotes representative annual semantics. JSON schema 2 carries those records and decimal-string global IDs/u128 amounts; it is independent of world-format and crate versions. | `crates/arda-core/src/formats/hydrology.rs:12`; `crates/arda-render/src/json.rs:15`; `crates/arda-render/src/hydrology_json.rs:145` |
+| Golden world | MICRO seed fixture with per-file fingerprints in root workspace tests; updating expected fingerprints requires explicit authorization. A source review does not substitute for this determinism gate. | `tests/golden_world.rs:69`; `standards.md` |
+| Trunk corridor / realm | Designed society/road constructs; no generation implementation yet. | `logic/01-continent-generation.md`; `logic/06-society-generation.md`; `crates/arda-gen/src/` |

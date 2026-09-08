@@ -1,14 +1,49 @@
 ---
-generated_date: 2026-09-07
-generated_at_commit: b0ce261
-capstone_version: 6.4
+generated_date: 2026-09-08
+generated_at_commit: 311829e4e5c9
+absorbed_from: features/2026-09-07-area-water-terrain-realism@2026-09-08
 ---
 
 # Open items
 
-Everything known-incomplete, with the evidence and the code that owns it.
-Deferred build-order steps are listed last; the defects and limitations above
-them are live.
+Current implementation status comes first. The older issue inventory below is retained as dated evidence; its former runtime claims are not current contracts.
+
+## Current status — 2026-09-08
+
+The area-water-terrain implementation is installed. The user's first-look review
+reopened natural/visual acceptance after candidate02; its earlier dry source reviews
+and passing numerical checks do not close the reported realism issues. The authorized
+terrain correction is installed and all five candidate04 worlds have completed
+their saved-data/export checks. Visual inspection still finds repetitive drainage
+and rectangular regional basins. The user approved updating the deterministic
+golden baseline to candidate05 on 2026-09-08; the feature remains incomplete
+because natural visual acceptance is still open.
+
+Candidate05 additionally corrects tangential plate-motion classification and
+order-dependent junction overwrites. The legacy north/west outside-neighbor and
+D8-corner fix is installed; direct regressions and unchanged statistical thresholds
+pass, with exact shared preparation/saved-world equality. Current source passes583
+workspace tests, strict tooling and two dry review rounds. All five natural cases and their repeated exports are
+complete. Current MICRO and default visual
+reviews retain conspicuous repetitive ravines and regional lake geometry; source
+correctness does not close those realism issues.
+
+| Item | Current evidence and disposition |
+|---|---|
+| Terrain shape and incision (old #4) | Candidate04 evolves one physical rectangle, applies implicit downstream-first incision, removes the unresolved two-cell detail octave and uses a radial coast mask. A frozen-input replay reproduced the numerical pit defect exactly and the implicit update removed it while controlled physical bowls survived. The radial mask removes a verified planar coarse flank; current default and MICRO images still show regular parallel drainage. The large rectangular seed42 lake follows an existing coarse basin. No target direction percentage or arbitrary river-count reduction is used; overall visual acceptance remains open. |
+| Lazy loading (old #8) | Implemented: manifest-only `World::load`, requested area/archive caches, uncached owned area reads for exports. Actual missing/corrupt/sparse-file fixtures verify later I/O failures and admission checks. |
+| Lake thresholds (old #10) | Canonical generation uses fine-grid depressions and an annual water-support calculation, including positive-depth physical storage, rainfall, runoff and evaporation. The historical 100-cell/2 m rule no longer controls final world lakes. |
+| Cross-area lake authority (old #12) | Shared fine topology, global IDs, physical surfaces and copied feature records replace nearest-coarse-basin/max-surface reconciliation. Constructed boundary/corner controls and all 38 selected natural record comparisons pass. |
+| Tactical noise and fallback (old #2, #3, #7) | Remain open. Existing 24-tile WFC, permissive adjacency and 64-cell sampling stride are unchanged. Detailed assets, movement/collision geometry, NPCs and server/browser transport require later work. |
+| Erosion rim (old #11) | Candidate02 seed436342 area3,10 had 50.1% wet rim cells versus 6.2% wet interior. Production now evolves terrain across publication boundaries without pins or taper. Candidate04 gives 4.89% wet rim versus 4.95% interior; candidate05 gives 6.51% versus 6.45%. Across all 513 current default areas, every one of 21,772 adjacent pairs wet on both sides has matching IDs/surfaces. The continuous water square is absent in the current preview. Only the true modeled outer rim remains fixed. See `features/2026-09-07-area-water-terrain-realism/verification/terrain-correction/visual-default436342-c05.md`. |
+| Statistical calibration (old #9) | Existing drainage, cross-tile, terrain and determinism suites run. This work adds controlled physical/annual/resource/geometry checks and a frozen natural panel; it does not supply the full proposed Horton/Hack/rank-size/sinuosity/farmland calibration suite. |
+| Cell producers | Temperature, rainfall, wetness, water and terrain metrics now have producers. Cell.moisture, full vegetation, human geography, roads, buildings and society remain deferred. |
+
+Accepted physical/rendering limits are the 100 m terrain lattice, quantized pond footprints, thin channels rendered with physical area coverage, coarse angular shorelines, sequential world preparation/composition, and a representative static annual balance. Snow storage, groundwater, seasons and dynamic floods are absent. Full area JSON is intentionally explicit and can be tens of megabytes; no browser parse or network-loading budget has been demonstrated. See the current [models](02-models.md), [testing](06-testing.md), [operations](07-operations.md) and [export behavior](logic/04-export.md).
+
+## Historical inventory — through 2026-08-27
+
+The entries below preserve the diagnosis and measurements that motivated later work. The current table above supersedes their implementation-status claims.
 
 ## Blocking realism
 
