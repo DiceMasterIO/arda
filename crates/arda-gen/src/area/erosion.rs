@@ -26,17 +26,16 @@ pub const ITERATIONS: u32 = 40;
 /// Uplift at the highest coarse relief, millimetres per iteration.
 const UPLIFT_PEAK_MM: i64 = 900;
 
-/// Incision coefficient, calibrated against the artifact's equilibrium
-/// targets: "a mountain stream draining a single square kilometre settles
-/// near a 9% slope, a river draining a hundred near 1%".
-///
-/// At equilibrium uplift balances incision, `U = K·sqrt(A)·S`. Both anchor
-/// points give the same `K`, which is the check that `m/n = 0.5` is right:
-/// A=100 cells with S=90‰ and A=10,000 with S=10‰ both need incision to
-/// equal `UPLIFT_PEAK_MM`. Solving with area in cells and slope in per-mille
-/// gives `K_NUM/K_DEN = 100`.
-const K_NUM: i64 = 100;
-const K_DEN: i64 = 1;
+// Incision coefficient, calibrated against the artifact's equilibrium
+// targets: "a mountain stream draining a single square kilometre settles
+// near a 9% slope, a river draining a hundred near 1%".
+//
+// At equilibrium uplift balances incision, `U = K·sqrt(A)·S`. Both anchor
+// points give the same `K`, which is the check that `m/n = 0.5` is right:
+// A=100 cells with S=90‰ and A=10,000 with S=10‰ both need incision to
+// equal `UPLIFT_PEAK_MM`. Solving with area in cells and slope in per-mille
+// gives `K_NUM/K_DEN = 100`.
+// K/(100 * K_DEN) = 1 in these units; mfd::incision preserves this value.
 
 /// Hillslope creep coefficient, as a fraction of the five-point Laplacian.
 const CREEP_NUM: i64 = 3;
@@ -89,8 +88,10 @@ pub fn erode(heights: &mut [i32], coarse: &[i32], bundle: &TileBundle) {
         let filled = fill(heights, bundle);
 
         // Drainage area over the filled surface, high cells first.
-        let (downstream, area) = accumulate(&filled);
+        let (downstream, _legacy_area) = accumulate(&filled);
+        let fractional_area = super::mfd::accumulate(&filled);
 
+        let physical_spill = super::physical_spill::surface(heights, N as usize);
         let mut next = heights.to_vec();
 
         for y in 1..N - 1 {
@@ -100,7 +101,6 @@ pub fn erode(heights: &mut [i32], coarse: &[i32], bundle: &TileBundle) {
                 if h <= 0 {
                     continue; // the sea is the floor; sea cells never move
                 }
-                let Some(here) = coord(x, y) else { continue };
                 let ramp = taper(x, y);
                 let mut dz: i64 = 0;
 
@@ -108,18 +108,12 @@ pub fn erode(heights: &mut [i32], coarse: &[i32], bundle: &TileBundle) {
                 dz += UPLIFT_PEAK_MM * i64::from(coarse[i]).max(0) / i64::from(peak);
 
                 // 2. Stream-power incision, skipped inside lakes.
-                let submerged = filled.get(here) > h;
+                let submerged = physical_spill[i] > h;
                 if !submerged {
                     if let Some(d) = downstream[i] {
-                        let drop = i64::from(h - heights[d as usize]).max(0);
-                        let dist = if is_diagonal(i, d as usize) {
-                            1414
-                        } else {
-                            1000
-                        };
-                        // slope in 1/1000 units; A in cells
-                        let slope = drop * 1000 / dist;
-                        let incision = K_NUM * isqrt(i64::from(area[i])) * slope / (K_DEN * 100);
+                        let drop = (i64::from(h) - i64::from(heights[d as usize])).max(0);
+                        let incision =
+                            incision_mm(fractional_area[i], drop, is_diagonal(i, d as usize));
                         // A channel may not cut below what it drains into.
                         // Without this the calibrated K digs a pit at every
                         // cell and the basins all become lakes.
@@ -156,6 +150,13 @@ pub fn erode(heights: &mut [i32], coarse: &[i32], bundle: &TileBundle) {
     }
 }
 
+// Fixed 100 m cell runs are expressed in millimetres, matching physical heights.
+fn incision_mm(area_q32: u64, physical_drop_mm: i64, diagonal: bool) -> i64 {
+    let run_mm = if diagonal { 141_400 } else { 100_000 };
+    let slope_permille = physical_drop_mm.max(0) * 1000 / run_mm;
+    super::mfd::incision(area_q32, slope_permille, 1)
+}
+
 fn is_diagonal(a: usize, b: usize) -> bool {
     let (Ok(a), Ok(b)) = (i32::try_from(a), i32::try_from(b)) else {
         return false;
@@ -164,6 +165,7 @@ fn is_diagonal(a: usize, b: usize) -> bool {
 }
 
 /// Integer square root.
+#[cfg(test)]
 fn isqrt(v: i64) -> i64 {
     if v <= 0 {
         return 0;
@@ -195,7 +197,7 @@ fn accumulate(filled: &super::fill::Filled) -> (Vec<Option<u32>>, Vec<u32>) {
                     continue;
                 }
                 let Some(nb) = coord(nx, ny) else { continue };
-                let drop = i64::from(h - filled.get(nb));
+                let drop = i64::from(h) - i64::from(filled.get(nb));
                 if drop <= 0 {
                     continue;
                 }
@@ -239,7 +241,7 @@ fn collapse(heights: &mut [i32]) {
                 for (dx, dy) in NEIGHBOURS {
                     let (nx, ny) = (x + dx, y + dy);
                     let j = idx(nx, ny);
-                    let drop = i64::from(heights[i] - heights[j]);
+                    let drop = i64::from(heights[i]) - i64::from(heights[j]);
                     if drop <= 0 {
                         continue;
                     }
@@ -261,7 +263,10 @@ fn collapse(heights: &mut [i32]) {
                         heights[j] <= 0 || nx == 0 || ny == 0 || nx == N - 1 || ny == N - 1;
                     if frozen {
                         // Cannot raise the sea or the pinned rim; shed it all.
-                        heights[i] -= i32::try_from(excess).unwrap_or(0);
+                        heights[i] = i32::try_from(
+                            (i64::from(heights[i]) - excess).clamp(1, i64::from(i32::MAX)),
+                        )
+                        .unwrap_or(i32::MAX);
                     } else {
                         let half = i32::try_from(excess / 2).unwrap_or(0);
                         heights[i] -= half;
@@ -355,7 +360,12 @@ mod tests {
                         continue;
                     }
                     for (dx, dy) in NEIGHBOURS {
-                        let drop = i64::from(e[idx(x, y)] - e[idx(x + dx, y + dy)]);
+                        // A fixed ocean floor can form a coastal cliff. The land-only
+                        // repose law cannot be satisfied by erasing positive coast.
+                        if e[idx(x + dx, y + dy)] <= 0 {
+                            continue;
+                        }
+                        let drop = i64::from(e[idx(x, y)]) - i64::from(e[idx(x + dx, y + dy)]);
                         let run = if dx != 0 && dy != 0 { 141_400 } else { 100_000 };
                         w = w.max(drop * 1000 / run);
                     }
@@ -405,5 +415,52 @@ mod tests {
         ] {
             assert_eq!(isqrt(v), want, "isqrt({v})");
         }
+    }
+    #[test]
+    fn positive_coast_survives_collapse_against_fixed_deep_water() {
+        let mut heights = vec![-1_000_000; (N * N) as usize];
+        heights[idx(256, 256)] = 10;
+        collapse(&mut heights);
+        assert_eq!(heights[idx(256, 256)], 1);
+        assert!(heights
+            .iter()
+            .enumerate()
+            .all(|(i, &h)| i == idx(256, 256) || h == -1_000_000));
+    }
+    #[test]
+    fn physical_incision_run_is_millimetres_for_both_directions() {
+        let a = super::super::mfd::ONE * 100;
+        assert_eq!(incision_mm(a, 9_000, false), 900);
+        assert_eq!(incision_mm(a, 12_726, true), 900);
+        assert_eq!(incision_mm(a, 1_000, false), 100);
+        assert_eq!(incision_mm(a, 1_414, true), 100);
+        assert_eq!(
+            incision_mm(super::super::mfd::ONE * 9 / 4, 6_000, false),
+            90
+        );
+    }
+    #[test]
+    fn routing_epsilon_does_not_make_a_physical_flat_submerged() {
+        let (_, _, mut bundle) = setup();
+        for edge in [
+            &mut bundle.north,
+            &mut bundle.east,
+            &mut bundle.south,
+            &mut bundle.west,
+        ] {
+            edge.fill(100);
+        }
+        let mut h = vec![100; (N * N) as usize];
+        let original = h.clone();
+        let routed = fill(&h, &bundle);
+        let physical = super::super::physical_spill::surface(&h, N as usize);
+        assert!(routed.get(coord(256, 256).unwrap()) > 100);
+        assert_eq!(physical[idx(256, 256)], 100);
+        assert_eq!(h, original);
+        h[idx(256, 256)] = 30;
+        assert_eq!(
+            super::super::physical_spill::surface(&h, N as usize)[idx(256, 256)],
+            100
+        );
     }
 }

@@ -18,6 +18,10 @@ pub struct ContinentClimate {
     pub regime: Vec<ClimateRegime>,
     /// Final advection moisture store, 0..=M_SAT (feature 03 §Q6).
     pub moisture: Vec<u16>,
+    /// D8 component of nonpositive coarse cells connected to the domain rim.
+    pub ocean: Vec<bool>,
+    /// Cardinal distance to that ocean, capped at the 300 km climate limit.
+    pub ocean_distance_km: Vec<u16>,
 }
 
 /// Continentality cap: −1 centi-°C per km inland up to 300 km
@@ -27,35 +31,6 @@ const CONTINENTALITY_CAP_KM: u32 = 300;
 /// Km distance to the nearest sea cell; 4-connected BFS from every
 /// sea cell. Deterministic: BFS level order fixes each cell's value
 /// regardless of intra-level ordering.
-fn distance_to_sea_km(grid: &ContinentGrid) -> Vec<u32> {
-    let (w, h) = (grid.width(), grid.height());
-    let count = usize::try_from(w * h).unwrap_or(0);
-    let idx = |x: i32, y: i32| usize::try_from(y * w + x).unwrap_or(0);
-    let mut dist = vec![u32::MAX; count];
-    let mut queue = VecDeque::new();
-    for y in 0..h {
-        for x in 0..w {
-            if grid.get(x, y).raw() <= 0 {
-                dist[idx(x, y)] = 0;
-                queue.push_back((x, y));
-            }
-        }
-    }
-    while let Some((x, y)) = queue.pop_front() {
-        let d = dist[idx(x, y)];
-        for (nx, ny) in [(x, y - 1), (x + 1, y), (x, y + 1), (x - 1, y)] {
-            if nx < 0 || ny < 0 || nx >= w || ny >= h {
-                continue;
-            }
-            if dist[idx(nx, ny)] == u32::MAX {
-                dist[idx(nx, ny)] = d.saturating_add(1);
-                queue.push_back((nx, ny));
-            }
-        }
-    }
-    dist
-}
-
 /// Latitude of a row in millidegrees; row 0 is the band's north edge.
 fn latitude_millideg(band: LatitudeBand, y: i32, height: i32) -> i64 {
     let north = i64::from(band.north_deg) * 1_000;
@@ -67,7 +42,86 @@ fn latitude_millideg(band: LatitudeBand, y: i32, height: i32) -> i64 {
 /// Sea-level mean annual temperature, centi-°C: 18 °C at 35°N to
 /// 6 °C at 55°N, linear, extrapolated outside (feature 02 §Q5).
 fn sea_level_centi(lat_mdeg: i64) -> i64 {
-    1_800 - (lat_mdeg - 35_000) * 6 / 100
+    let a = lat_mdeg.abs();
+    if a <= 35_000 {
+        1800 + (35_000 - a) * 979 / 35_000
+    } else {
+        1800 - (a - 35_000) * 6 / 100
+    }
+}
+
+#[allow(clippy::cast_sign_loss)] // ContinentGrid has positive, bounded dimensions.
+pub(crate) fn ocean_mask(grid: &ContinentGrid) -> Vec<bool> {
+    let w = grid.width as usize;
+    let h = grid.height as usize;
+    let mut ocean = vec![false; grid.height_mm.len()];
+    let mut queue = VecDeque::new();
+    for y in 0..h {
+        for x in 0..w {
+            let i = y * w + x;
+            if (x == 0 || y == 0 || x + 1 == w || y + 1 == h) && grid.height_mm[i] <= 0 {
+                ocean[i] = true;
+                queue.push_back(i);
+            }
+        }
+    }
+    while let Some(i) = queue.pop_front() {
+        let (x, y) = (i % w, i / w);
+        for ny in y.saturating_sub(1)..=(y + 1).min(h - 1) {
+            for nx in x.saturating_sub(1)..=(x + 1).min(w - 1) {
+                let j = ny * w + nx;
+                if !ocean[j] && grid.height_mm[j] <= 0 {
+                    ocean[j] = true;
+                    queue.push_back(j);
+                }
+            }
+        }
+    }
+    ocean
+}
+
+#[allow(clippy::cast_sign_loss)] // Same validated grid dimensions as ocean_mask.
+fn distance_to_sea_km(grid: &ContinentGrid, ocean: &[bool]) -> Vec<u32> {
+    let w = grid.width as usize;
+    let h = grid.height as usize;
+    let mut dist = vec![u32::MAX; grid.height_mm.len()];
+    let mut queue = VecDeque::new();
+    for (i, is_ocean) in ocean.iter().copied().enumerate() {
+        if is_ocean {
+            dist[i] = 0;
+            queue.push_back(i);
+        }
+    }
+    while let Some(i) = queue.pop_front() {
+        let (x, y) = (i % w, i / w);
+        for candidate in [
+            y.checked_sub(1).map(|ny| ny * w + x),
+            (x + 1 < w).then_some(i + 1),
+            (y + 1 < h).then_some(i + w),
+            x.checked_sub(1).map(|nx| y * w + nx),
+        ]
+        .into_iter()
+        .flatten()
+        {
+            if dist[candidate] == u32::MAX {
+                dist[candidate] = dist[i] + 1;
+                queue.push_back(candidate);
+            }
+        }
+    }
+    dist
+}
+
+fn exchange(m: u64, climb_mm: u64, ocean: bool) -> (u64, u64, u64) {
+    let factor = (F_BASE + F_ORO * climb_mm / 100_000).min(F_MAX);
+    let rain = (m * factor) >> 16;
+    let remaining = m - rain;
+    let recharge = if ocean {
+        (M_SAT - remaining) / RECHARGE_DIV
+    } else {
+        0
+    };
+    (remaining + recharge, rain, recharge)
 }
 
 /// Moisture-store saturation, dimensionless fixed point (§Q4 table).
@@ -93,7 +147,7 @@ const C_NORM: u64 = 153;
 /// exchanges with the surface (feature 02 §Q4). Pass count is fixed at
 /// 1.5 × width — never a convergence test, so determinism holds.
 /// Returns (rainfall, moisture).
-fn rainfall_field(grid: &ContinentGrid) -> (Vec<u16>, Vec<u16>) {
+fn rainfall_field(grid: &ContinentGrid, ocean: &[bool]) -> (Vec<u16>, Vec<u16>) {
     let (w, h) = (grid.width(), grid.height());
     let count = usize::try_from(w * h).unwrap_or(0);
     let idx = |x: i32, y: i32| usize::try_from(y * w + x).unwrap_or(0);
@@ -131,18 +185,11 @@ fn rainfall_field(grid: &ContinentGrid) -> (Vec<u16>, Vec<u16>) {
         for y in 0..h {
             for x in 0..w {
                 let i = idx(x, y);
-                if height(x, y) <= 0 {
-                    m[i] += (M_SAT.saturating_sub(m[i])) / RECHARGE_DIV;
-                } else {
-                    // Climb along the wind, floored at sea level so a
-                    // deep offshore shelf does not fabricate a cliff.
-                    let west = if x == 0 { 0 } else { height(x - 1, y).max(0) };
-                    let climb = u64::try_from((height(x, y) - west).max(0)).unwrap_or(0);
-                    let f = (F_BASE + F_ORO * climb / 100_000).min(F_MAX);
-                    let rain = (m[i] * f) >> 16;
-                    accum[i] += rain;
-                    m[i] -= rain;
-                }
+                let west = if x == 0 { 0 } else { height(x - 1, y).max(0) };
+                let climb = (height(x, y).max(0) - west).max(0).unsigned_abs();
+                let (after, rain, _recharge) = exchange(m[i], climb, ocean[i]);
+                m[i] = after;
+                accum[i] += rain;
             }
         }
     }
@@ -159,12 +206,18 @@ fn rainfall_field(grid: &ContinentGrid) -> (Vec<u16>, Vec<u16>) {
     (rainfall, moisture)
 }
 
+#[allow(clippy::cast_possible_truncation)]
+fn capped_distance(d: u32) -> u16 {
+    d.min(300) as u16
+}
+
 /// Computes temperature and regime; rainfall is computed via advection-diffusion.
 #[must_use]
 pub fn climate(grid: &ContinentGrid, band: LatitudeBand) -> ContinentClimate {
     let (w, h) = (grid.width(), grid.height());
     let count = usize::try_from(w * h).unwrap_or(0);
-    let dist = distance_to_sea_km(grid);
+    let ocean = ocean_mask(grid);
+    let dist = distance_to_sea_km(grid, &ocean);
 
     let mut temperature = Vec::with_capacity(count);
     let mut regime = Vec::with_capacity(count);
@@ -172,7 +225,12 @@ pub fn climate(grid: &ContinentGrid, band: LatitudeBand) -> ContinentClimate {
         let lat = latitude_millideg(band, y, h);
         for x in 0..w {
             let i = usize::try_from(y * w + x).unwrap_or(0);
-            let elev = i64::from(grid.get(x, y).raw().max(0));
+            let elev = if ocean[i] {
+                0
+            } else {
+                i64::from(grid.get(x, y).raw())
+            };
+
             // logic/01 §Q6: latitude + 6.5 °C/km lapse + continentality.
             let t = sea_level_centi(lat)
                 - elev * 650 / 1_000_000
@@ -180,23 +238,26 @@ pub fn climate(grid: &ContinentGrid, band: LatitudeBand) -> ContinentClimate {
             let t = i16::try_from(t.clamp(-30_000, 30_000)).unwrap_or(0);
             temperature.push(t);
             // Feature 02 §Q5: band position and elevation, in order.
-            regime.push(if lat < 23_500 {
-                ClimateRegime::Tropical
-            } else if lat < 42_000 && elev < 1_000_000 {
-                ClimateRegime::Mediterranean
-            } else if t < 300 {
+            regime.push(if t < 300 {
                 ClimateRegime::Boreal
+            } else if lat.abs() < 23_500 {
+                ClimateRegime::Tropical
+            } else if lat.abs() < 42_000 && elev < 1_000_000 {
+                ClimateRegime::Mediterranean
             } else {
                 ClimateRegime::Temperate
             });
         }
     }
-    let (rainfall, moisture) = rainfall_field(grid);
+    let (rainfall, moisture) = rainfall_field(grid, &ocean);
+    let ocean_distance_km = dist.into_iter().map(capped_distance).collect();
     ContinentClimate {
         temperature,
         rainfall,
         regime,
         moisture,
+        ocean,
+        ocean_distance_km,
     }
 }
 
@@ -283,13 +344,13 @@ mod tests {
     }
 
     #[test]
-    fn sea_cells_get_no_rainfall() {
+    fn sea_cells_receive_precipitation() {
         let g = grid(|x, _| if x >= 4 { 400_000 } else { -1_000 });
         let c = climate(&g, BAND);
         for y in 0..10 {
             for x in 0..4 {
                 let i = usize::try_from(y * 10 + x).unwrap();
-                assert_eq!(c.rainfall[i], 0, "sea cell {x},{y}");
+                assert!(c.rainfall[i] > 0, "sea cell {x},{y}");
             }
         }
     }
@@ -334,5 +395,53 @@ mod tests {
             "sea {sea} not wetter than far land {far_land}"
         );
         assert!(u64::from(sea) <= M_SAT);
+    }
+    #[test]
+    fn annual_temperature_is_symmetric_and_tropical_bound_is_grounded() {
+        assert_eq!(sea_level_centi(-55_000), 600);
+        assert_eq!(sea_level_centi(55_000), 600);
+        assert_eq!(sea_level_centi(35_000), 1800);
+        assert_eq!(sea_level_centi(0), 2779);
+    }
+    #[test]
+    fn precipitation_is_available_over_ocean_and_enclosed_negative_land() {
+        let sea = grid(|_, _| -100_000);
+        let c = climate(&sea, BAND);
+        assert!(c.rainfall.iter().all(|p| *p > 0));
+        let bowl = grid(|x, y| {
+            if x == 0 || x == 9 || y == 0 || y == 9 {
+                -100_000
+            } else if (3..=6).contains(&x) && (3..=6).contains(&y) {
+                -50_000
+            } else {
+                100_000
+            }
+        });
+        let c = climate(&bowl, BAND);
+        assert!(!c.ocean[5 * 10 + 5]);
+        assert!(c.ocean_distance_km[5 * 10 + 5] > 0);
+        assert!(c.rainfall[5 * 10 + 5] > 0);
+    }
+    #[test]
+    fn diagonal_ocean_contact_matches_the_shared_d8_convention() {
+        let g = grid(|x, y| if x == y { -1 } else { 1 });
+        let ocean = ocean_mask(&g);
+        assert!(ocean[5 * 10 + 5]);
+        assert!(!ocean[5 * 10 + 4]);
+    }
+    #[test]
+    fn condensation_is_removed_once_before_ocean_recharge() {
+        for m in [0, M_SAT / 2, M_SAT] {
+            for climb in [0, 100_000, 1_000_000] {
+                for ocean in [false, true] {
+                    let (after, p, recharge) = exchange(m, climb, ocean);
+                    assert_eq!(m + recharge, after + p);
+                    assert!(after <= M_SAT);
+                    if !ocean {
+                        assert_eq!(recharge, 0);
+                    }
+                }
+            }
+        }
     }
 }

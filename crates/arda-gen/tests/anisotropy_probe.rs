@@ -33,7 +33,9 @@
     clippy::cast_sign_loss
 )]
 
-use arda_core::{AreaCoord, CellCoord, GenerateConfig, LatitudeBand, SizeKm, TerrainKind, AREA_CELLS};
+use arda_core::{
+    AreaCoord, CellCoord, GenerateConfig, LatitudeBand, SizeKm, TerrainKind, AREA_CELLS,
+};
 use arda_gen::area::water::WaterGrid;
 use arda_gen::area::{area_rainfall, compose, erosion, fill::fill, relief::relief, water::water};
 use arda_gen::continent::bundles::{abs_cell, bundle_for, coarse_height};
@@ -242,7 +244,7 @@ fn measure_tile(seed: u64, ctx: &Continent, area: AreaCoord) -> TileDiag {
     let (diag_post_land, total_post_land) = diagonal_share_land(&water_post, &eroded);
     let (channel_cells, convergent_cells) = convergence(&water_post);
 
-    let (cells, objects) = compose(&eroded, &filled_post, &water_post, &rain, &bundle);
+    let (cells, objects) = compose(&eroded, &filled_post, &water_post, &rain, &bundle).unwrap();
     let mut land_cells = 0usize;
     let mut coastal_edges = 0usize;
     let mut coastal_cells = 0usize;

@@ -4,6 +4,7 @@
 //! 1 km upsample. Climate, hydrology, human geography, and naming arrive at
 //! build-order step 4.
 
+mod area_detail;
 pub mod bundles;
 pub mod climate;
 pub mod coast;
@@ -11,6 +12,9 @@ pub mod erode;
 pub mod hydrology;
 pub mod plates;
 pub mod tectonics;
+
+#[cfg(test)]
+mod terrain_tests;
 
 use crate::noise::fbm;
 use arda_core::{GenerateConfig, HeightMm};
@@ -309,3 +313,10 @@ mod tests {
         assert!(max > 400_000, "highest point is only {max} mm");
     }
 }
+
+#[cfg(test)]
+#[path = "../orchestrator/annual_source_tests.rs"]
+mod annual_source_tests;
+#[cfg(test)]
+#[path = "../orchestrator/shared_solve_tests.rs"]
+mod shared_solve_tests;

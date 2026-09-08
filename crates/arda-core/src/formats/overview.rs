@@ -1,12 +1,15 @@
 //! `continent/overview.bin` — the persisted 1 km grid (feature 02 §Q6).
 //!
 //! Header: magic, `u32` width, `u32` height. Then `width × height`
-//! fixed 18-byte little-endian records, row-major:
+//! fixed 22-byte little-endian records, row-major:
 //! `height_mm: i32`, `temperature: i16`, `rainfall_mm: u16`,
 //! `regime: u8`, `downstream: u8` (0–7 fixed neighbour order,
-//! 255 = none), `catchment_km2: u32`, `discharge_l_s: u32`.
+//! 255 = none), `catchment_km2: u32`, `discharge_l_s: u64`.
 
-use super::{put_i16, put_i32, put_u16, put_u32, take_i16, take_i32, take_u16, take_u32, take_u8};
+use super::{
+    put_i16, put_i32, put_u16, put_u32, put_u64, take_i16, take_i32, take_u16, take_u32, take_u64,
+    take_u8,
+};
 use crate::continent::{ClimateRegime, ContinentCell, ContinentOverview};
 use crate::error::FormatError;
 use crate::fixed::{DischargeMilli, HeightMm, RainfallMm, TempCentiC};
@@ -15,7 +18,7 @@ use crate::fixed::{DischargeMilli, HeightMm, RainfallMm, TempCentiC};
 pub const OVERVIEW_MAGIC: &[u8; 8] = b"ARDAOVR\0";
 
 /// Bytes per cell record.
-pub const OVERVIEW_CELL_BYTES: usize = 18;
+pub const OVERVIEW_CELL_BYTES: usize = 22;
 
 /// Stored value for "no downstream" in `ContinentCell.downstream` and in
 /// `arda-gen`'s direction vectors — shared so the sentinel cannot desync
@@ -42,7 +45,7 @@ pub fn encode_overview(overview: &ContinentOverview) -> Vec<u8> {
         out.push(c.regime as u8);
         out.push(c.downstream.unwrap_or(NO_DOWNSTREAM));
         put_u32(&mut out, c.catchment_km2);
-        put_u32(&mut out, c.discharge.raw());
+        put_u64(&mut out, c.discharge.raw());
     }
     out
 }
@@ -129,7 +132,7 @@ pub fn decode_overview(path: &str, bytes: &[u8]) -> Result<ContinentOverview, Fo
             }
         };
         let catchment_km2 = take_u32(bytes, &mut at);
-        let discharge = DischargeMilli::new(take_u32(bytes, &mut at));
+        let discharge = DischargeMilli::new(take_u64(bytes, &mut at));
         cells.push(ContinentCell {
             height: HeightMm::new(h),
             temperature: TempCentiC::new(t),
@@ -174,7 +177,7 @@ mod tests {
             regime: ClimateRegime::Mediterranean,
             downstream: Some(6),
             catchment_km2: 4_211,
-            discharge: DischargeMilli::new(66_000),
+            discharge: DischargeMilli::new(u64::from(u32::MAX) + 19),
         };
         cells[1] = ContinentCell {
             height: HeightMm::new(-2_400_000),
@@ -224,8 +227,8 @@ mod tests {
     #[test]
     fn an_unknown_regime_discriminant_is_refused() {
         let mut bytes = encode_overview(&sample());
-        // Record 4, regime byte: header 16 + 4*18 + offset 8 (i32+i16+u16).
-        bytes[16 + 4 * 18 + 8] = 9;
+        // Record 4, regime byte: header 16 + 4*22 + offset 8 (i32+i16+u16).
+        bytes[16 + 4 * OVERVIEW_CELL_BYTES + 8] = 9;
         let err = decode_overview("overview.bin", &bytes).unwrap_err();
         assert!(matches!(
             err,
@@ -253,17 +256,12 @@ mod tests {
 
     #[test]
     fn dims_at_the_exact_wrap_window_are_refused_not_panicked() {
-        // floor(u64::MAX / 18) == 1_024_819_115_206_086_200 is the one count
-        // value where `count * 18` fits in u64 (it lands 15 bytes short of
-        // u64::MAX) but `count * 18 + 16` (the header) wraps past it. That
-        // count factors into two u32s — 238_795_480 * 4_291_618_565 — so a
-        // real width/height header can reach the wrap window. This must be
-        // refused as UnexpectedEof, not panic (debug) or wrap past the EOF
-        // guard into a capacity-overflow abort (release).
+        // 208189800*4027518961=floor(u64::MAX/22); records fit with15 bytes left,
+        // but adding the16-byte header overflows.
         let mut bytes = Vec::new();
         bytes.extend_from_slice(OVERVIEW_MAGIC);
-        put_u32(&mut bytes, 238_795_480);
-        put_u32(&mut bytes, 4_291_618_565);
+        put_u32(&mut bytes, 208189800);
+        put_u32(&mut bytes, 4027518961);
         let err = decode_overview("overview.bin", &bytes).unwrap_err();
         assert!(matches!(
             err,
@@ -312,7 +310,7 @@ mod tests {
     #[test]
     fn an_invalid_downstream_direction_is_refused() {
         let mut bytes = encode_overview(&sample());
-        bytes[16 + 4 * 18 + 9] = 8; // valid values are 0–7 and 255
+        bytes[16 + 4 * OVERVIEW_CELL_BYTES + 9] = 8; // valid values are 0–7 and 255
         let err = decode_overview("overview.bin", &bytes).unwrap_err();
         assert!(matches!(
             err,

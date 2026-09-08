@@ -5,20 +5,36 @@
 //! and roads arrive at build-order step 5.
 
 pub mod erosion;
+pub(crate) mod evolution;
+pub mod local_objects;
+mod mfd;
+mod physical_spill;
+pub(crate) mod prepare;
+pub mod shared_compose;
+pub mod temperature;
+
 pub mod fields;
 pub mod fill;
 pub mod relief;
+#[cfg(test)]
+mod terrain_correction_probe;
+#[cfg(test)]
+mod terrain_tests;
 pub mod water;
 
 use crate::continent::bundles::{abs_cell, TileBundle, PATCH_KM};
 use crate::continent::hydrology::NO_BASIN;
 use crate::continent::Continent;
+use crate::hydrology::budget::BudgetError;
 use arda_core::{
-    AreaCells, AreaObjects, Cell, CellCoord, Cover, DischargeMilli, HeightMm, Lake, RainfallMm,
-    RiverSegment, Terminus, TerrainKind, AREA_CELLS,
+    AreaCells, Cell, CellCoord, Cover, DischargeMilli, HeightMm, RainfallMm, Terminus, TerrainKind,
+    AREA_CELLS,
 };
 use fields::Floodplain;
 use fill::{Basin, Filled};
+use local_objects::{
+    LocalAreaObjects as AreaObjects, LocalLake as Lake, LocalRiverSegment as RiverSegment,
+};
 pub use relief::{relief, ReliefGrid};
 pub use water::{water, WaterGrid};
 
@@ -156,39 +172,19 @@ pub fn area_rainfall(bundle: &TileBundle) -> Vec<u16> {
 /// cubic metre a second is about four metres wide, a river carrying
 /// twenty-five is twenty." So `w = 4 * sqrt(Q)` metres, returned in
 /// decimetres.
-#[must_use]
-pub fn channel_width_dm(discharge: DischargeMilli) -> u16 {
-    let q_milli = i64::from(discharge.raw());
-    if q_milli == 0 {
-        return 0;
-    }
-    // w_dm = 40 * sqrt(Q_m3s) = 40 * sqrt(q_milli / 1000)
-    let scaled = isqrt(q_milli * 1000); // sqrt(q_milli)*1000 in milli units
-    u16::try_from(40 * scaled / 1000).unwrap_or(u16::MAX)
-}
-
-fn isqrt(v: i64) -> i64 {
-    if v <= 0 {
-        return 0;
-    }
-    let mut x = v;
-    let mut y = (x + 1) / 2;
-    while y < x {
-        x = y;
-        y = (x + v / x) / 2;
-    }
-    x
+pub fn channel_width_dm(discharge: DischargeMilli) -> Result<u32, BudgetError> {
+    arda_core::hydrology::channel_width_dm(discharge)
+        .ok_or(BudgetError::Overflow("physical channel width"))
 }
 
 /// Builds the stored cell grid and object lists.
-#[must_use]
 pub fn compose(
     heights: &[i32],
     filled: &Filled,
     water: &WaterGrid,
     rain: &[u16],
     bundle: &TileBundle,
-) -> (AreaCells, AreaObjects) {
+) -> Result<(AreaCells, AreaObjects), BudgetError> {
     let mut cells = AreaCells::flat(Cell::default());
 
     // Which cells belong to a lake big enough to record.
@@ -237,7 +233,11 @@ pub fn compose(
             // Marsh is flat ground a river floods, so it takes both a low
             // stand above the watercourse and a watercourse worth
             // flooding — see `fields::MARSH_MIN_DISCHARGE_MILLI`.
-            let carried = if land { hand.carried_milli[at.index()] } else { 0 };
+            let carried = if land {
+                hand.carried_milli[at.index()]
+            } else {
+                0
+            };
             let cover = match (terrain, fields::floodplain(hand_mm)) {
                 (TerrainKind::Land, Floodplain::Marsh)
                     if order == 0 && carried >= fields::MARSH_MIN_DISCHARGE_MILLI =>
@@ -261,7 +261,7 @@ pub fn compose(
                     discharge,
                     watercourse_order: order,
                     watercourse_width_dm: if order > 0 {
-                        channel_width_dm(discharge)
+                        channel_width_dm(discharge)?
                     } else {
                         0
                     },
@@ -277,8 +277,8 @@ pub fn compose(
         }
     }
 
-    let rivers = collect_segments(&cells, water, &lake_cell);
-    (cells, AreaObjects { rivers, lakes })
+    let rivers = collect_segments(&cells, water, &lake_cell)?;
+    Ok((cells, AreaObjects { rivers, lakes }))
 }
 
 /// A basin cell within one cell of the tile rim (feature 03 §Q5).
@@ -318,6 +318,7 @@ fn near_rim(c: CellCoord) -> bool {
 /// fix): [`recompute_outlet`] needs to know the FINAL surviving lake set
 /// tile-wide, not just this one basin's own before/after, so it cannot
 /// run until every basin here has already been decided.
+#[allow(clippy::cast_possible_truncation)] // At most512² disjoint fragments.
 fn collect_lakes(heights: &[i32], filled: &Filled, bundle: &TileBundle) -> Vec<Lake> {
     // Pass 1: clamp, trim, and threshold-filter every basin. Outlets wait
     // for pass 2 — computing one here could only consult this basin's own
@@ -350,7 +351,7 @@ fn collect_lakes(heights: &[i32], filled: &Filled, bundle: &TileBundle) -> Vec<L
         .map(|(i, (surface_mm, depth_mm, cells))| {
             let outlet = recompute_outlet(&cells, &submerged, filled);
             Lake {
-                id: u16::try_from(i + 1).unwrap_or(u16::MAX),
+                id: (i + 1) as u32,
                 surface: HeightMm::new(surface_mm),
                 depth_mm,
                 outlet,
@@ -568,7 +569,12 @@ fn is_segment_start(cells: &AreaCells, water: &WaterGrid, at: CellCoord) -> bool
 
 /// Breaks the network into segments, each knowing what it feeds and how it
 /// ends (artifact, Water).
-fn collect_segments(cells: &AreaCells, water: &WaterGrid, lake_cell: &[bool]) -> Vec<RiverSegment> {
+#[allow(clippy::cast_possible_truncation)] // At most512² channel starts.
+fn collect_segments(
+    cells: &AreaCells,
+    water: &WaterGrid,
+    lake_cell: &[bool],
+) -> Result<Vec<RiverSegment>, BudgetError> {
     // Pass 1: walk each segment, recording its cells and where it stopped.
     let mut starts = Vec::new();
     for y in 0..N {
@@ -580,11 +586,11 @@ fn collect_segments(cells: &AreaCells, water: &WaterGrid, lake_cell: &[bool]) ->
         }
     }
 
-    let mut owner = vec![0u16; (N * N) as usize]; // segment id per channel cell
+    let mut owner = vec![0u32; (N * N) as usize]; // segment id per channel cell
     let mut drafts = Vec::new();
 
     for (i, &start) in starts.iter().enumerate() {
-        let id = u16::try_from(i + 1).unwrap_or(u16::MAX);
+        let id = (i + 1) as u32;
         let mut course = vec![start];
         owner[start.index()] = id;
         let mut cursor = start;
@@ -638,26 +644,25 @@ fn collect_segments(cells: &AreaCells, water: &WaterGrid, lake_cell: &[bool]) ->
             } else {
                 None
             };
-            RiverSegment {
+            Ok(RiverSegment {
                 id,
                 order,
-                width_dm: channel_width_dm(discharge),
+                width_dm: channel_width_dm(discharge)?,
                 discharge,
                 feeds,
                 ends,
                 course,
-            }
+            })
         })
         .collect()
 }
 
 /// Runs the area stage for one tile: relief, erosion, filling, routing.
-#[must_use]
 pub fn generate_area(
     seed: u64,
     continent: &Continent,
     bundle: &TileBundle,
-) -> (AreaCells, AreaObjects) {
+) -> Result<(AreaCells, AreaObjects), BudgetError> {
     let r = relief(seed, &continent.grid, bundle);
     let mut heights: Vec<i32> = (0..(N * N) as usize)
         .filter_map(|i| {
@@ -701,7 +706,7 @@ mod tests {
     fn world(area: AreaCoord) -> (AreaCells, AreaObjects) {
         let c = build_continent(42, GenerateConfig::MICRO, 0);
         let b = bundle_for(42, &c, area);
-        generate_area(42, &c, &b)
+        generate_area(42, &c, &b).unwrap()
     }
 
     /// `build_continent(123, MICRO, 0)`, memoized: the seam-lake tests
@@ -784,11 +789,19 @@ mod tests {
     }
 
     #[test]
+    fn physical_width_supports_the_maximum_world_and_rejects_unrepresentable_inputs() {
+        let width = channel_width_dm(DischargeMilli::new(33_249_619_483)).unwrap();
+        assert!(width > u32::from(u16::MAX));
+        assert_eq!(width, 230_649);
+        assert!(channel_width_dm(DischargeMilli::new(u64::MAX)).is_err());
+    }
+
+    #[test]
     fn width_follows_the_artifact_relation() {
         // "one cubic metre a second is about four metres wide, a river
         // carrying twenty-five is twenty"
-        let four_m = channel_width_dm(DischargeMilli::new(1_000));
-        let twenty_m = channel_width_dm(DischargeMilli::new(25_000));
+        let four_m = channel_width_dm(DischargeMilli::new(1_000)).unwrap();
+        let twenty_m = channel_width_dm(DischargeMilli::new(25_000)).unwrap();
         assert!((38..=42).contains(&four_m), "1 m3/s gave {four_m} dm");
         assert!(
             (190..=210).contains(&twenty_m),
@@ -1019,65 +1032,44 @@ mod tests {
         assert_eq!(clamp_near_rim(&interior, &heights, &b), (500, 400));
     }
 
-    /// Replays relief through fill (mirrors `fill::tests::setup` and
-    /// `edge_touching_basins_take_the_continent_spill_level`'s own replay)
-    /// so a test can inspect the basins `collect_lakes` will clamp and
-    /// trim, for one seed/tile.
-    fn heights_and_filled(
-        seed: u64,
-        ctx: &crate::continent::Continent,
-        area: AreaCoord,
-    ) -> (Vec<i32>, TileBundle, Filled) {
-        let b = bundle_for(seed, ctx, area);
-        let r = relief(seed, &ctx.grid, &b);
-        let mut heights: Vec<i32> = (0..(N * N) as usize)
-            .filter_map(|i| {
-                let i = i32::try_from(i).ok()?;
-                Some(r.get(coord(i % N, i / N)?))
-            })
-            .collect();
-        let uplift: Vec<i32> = (0..(N * N) as usize)
-            .filter_map(|i| {
-                let i = i32::try_from(i).ok()?;
-                let (ax, ay) = crate::continent::bundles::abs_cell(
-                    area,
-                    u16::try_from(i % N).ok()?,
-                    u16::try_from(i / N).ok()?,
-                );
-                Some(crate::continent::bundles::coarse_height(&ctx.grid, ax, ay))
-            })
-            .collect();
-        erosion::erode(&mut heights, &uplift, &b);
+    /// A west-rim physical basin with 100 high bank cells and 300 low cells.
+    /// Both controls pass this terrain through the real local priority flood.
+    /// A constant coarse clamp makes trim expectations analytic; no natural
+    /// erosion pit or sampled continent-depression location is required.
+    fn explicit_seam_basin() -> (Vec<i32>, TileBundle, Filled) {
+        let ctx = fixture_ctx();
+        let mut b = bundle_for(SEAM_LAKE_SEED, &ctx, AreaCoord::new(0, 1));
+        b.basin_km.fill(NO_BASIN);
+        b.filled_km.fill(DIAG_CLAMP_MM);
+        let mut heights = rim_touching_pit();
+        for y in 100..=199 {
+            heights[coord(1, y).unwrap().index()] = DIAG_HIGH_MM;
+        }
         let filled = fill::fill(&heights, &b);
+        assert_eq!(
+            filled.basins.len(),
+            1,
+            "only the physical pit may be submerged"
+        );
         (heights, b, filled)
     }
 
     #[test]
     fn seam_clamp_trims_cells_the_shared_surface_leaves_dry() {
-        // Feature 03 §Q5, a real down-clamp found by task-5's 5-seed x
-        // 8-tile MICRO sweep (27 of 63 near-rim basins clamped DOWN; see
-        // task-5-report.md): the shared continent surface can land BELOW
-        // a near-rim basin's own local spill. Seed 99, tile (1, 1), the
-        // basin starting at (113, 507): `fill::fill` gives it 50 cells at
-        // a local spill of 44449 mm; the continent clamp pulls the
-        // surface down to 44169 mm, which still clears the basin's own
-        // floor (so it is not dropped outright) but sits below 15 of its
-        // 50 cells. Those 15 must leave the lake.
-        let ctx = build_continent(99, GenerateConfig::MICRO, 0);
-        let area = AreaCoord::new(1, 1);
-        let (heights, b, filled) = heights_and_filled(99, &ctx, area);
-
-        let target = coord(113, 507).unwrap();
+        // The former seed 99 pit vanished under the approved physical erosion
+        // correction. Preserve the down-clamp/trim/outlet contract with a real
+        // explicit 400-cell pit: its 100 high bank cells become dry at 5.5 m,
+        // while 300 cells at 1 m remain submerged with 4.5 m depth.
+        let (heights, b, filled) = explicit_seam_basin();
+        let target = coord(1, 100).unwrap();
         let basin = filled
             .basins
             .iter()
             .find(|basin| basin.cells.first() == Some(&target))
-            .expect("seed 99 tile (1, 1) must still hold the basin at (113, 507)");
-        assert_eq!(
-            (basin.cells.len(), basin.surface_mm),
-            (50, 44449),
-            "basin shape drifted from the pinned survey; task-5-report.md needs a re-run"
-        );
+            .expect("the physical west-rim pit must be found by the real fill");
+        // Four cardinal steps from the 10 m physical rim give the legacy
+        // routing flood's 10,004 mm maximum; walls already descend without fill.
+        assert_eq!((basin.cells.len(), basin.surface_mm), (400, 10_004));
 
         let (surface_mm, depth_mm, cells) =
             clamp_and_trim(basin, &heights, &b).expect("the clamp does not empty this basin");
@@ -1085,7 +1077,7 @@ mod tests {
             surface_mm < basin.surface_mm,
             "this case is meant to pin a DOWN clamp"
         );
-        assert_eq!((surface_mm, depth_mm, cells.len()), (44169, 3343, 35));
+        assert_eq!((surface_mm, depth_mm, cells.len()), (5_500, 4_500, 300));
 
         for &c in &cells {
             assert!(
@@ -1114,15 +1106,12 @@ mod tests {
         }
         let outlet = recompute_outlet(&cells, &submerged, &filled);
 
-        // Round-1 review fix, still true under round-2's reshuffle: the
-        // outlet must move with the trim rather than stay pinned at
-        // `fill::fill`'s pre-clamp answer, which here is one of the 15
-        // cells the trim just released (the basin's own pre-clamp outlet —
-        // back when `Basin` still carried one, before round-3 deleted the
-        // dead field — would have failed the very assertion below if
-        // reused unchanged).
-        let out = outlet.expect(
-            "a basin the trim leaves with 35 surviving cells must still have a valid outlet",
+        // The outlet moves to a released bank cell, remains outside surviving
+        // membership, and still physically touches the trimmed lake.
+        let out = outlet.expect("the 300 surviving cells have a released adjacent bank");
+        assert!(
+            basin.cells.contains(&out),
+            "the outlet uses the released bank"
         );
         assert!(
             !cells.contains(&out),
@@ -1140,29 +1129,22 @@ mod tests {
 
     #[test]
     fn seam_clamp_drops_a_basin_the_trim_empties() {
-        // Feature 03 §Q5: task-5's sweep found this is the DOMINANT
-        // down-clamp outcome (26 of 27 cases) — the shared continent
-        // surface lands BELOW every one of the basin's own cells, not
-        // just some. Seed 42, tile (0, 1), the 2-cell basin starting at
-        // (509, 426): local spill 120218 mm, continent clamp 119745 mm,
-        // and both cells sit at or above that clamped surface. Trimming
-        // leaves nothing, so the basin is dropped rather than kept as a
-        // "lake" with zero surviving cells.
-        let ctx = build_continent(42, GenerateConfig::MICRO, 0);
-        let area = AreaCoord::new(0, 1);
-        let (heights, b, filled) = heights_and_filled(42, &ctx, area);
-
-        let target = coord(509, 426).unwrap();
+        // At the 1 m floor, every cell in the explicit physical basin becomes
+        // dry (equality is not submerged). This replaces the vanished seed 42
+        // two-cell natural pit without weakening the empty-trim contract.
+        let (heights, mut b, filled) = explicit_seam_basin();
+        b.filled_km.fill(DIAG_LOW_MM);
+        let target = coord(1, 100).unwrap();
         let basin = filled
             .basins
             .iter()
             .find(|basin| basin.cells.first() == Some(&target))
-            .expect("seed 42 tile (0, 1) must still hold the basin at (509, 426)");
-        assert_eq!(
-            (basin.cells.len(), basin.surface_mm),
-            (2, 120218),
-            "basin shape drifted from the pinned survey; task-5-report.md needs a re-run"
-        );
+            .expect("the physical west-rim pit must be found by the real fill");
+        assert_eq!((basin.cells.len(), basin.surface_mm), (400, 10_004));
+        assert!(basin
+            .cells
+            .iter()
+            .all(|c| heights[c.index()] >= DIAG_LOW_MM));
 
         assert_eq!(
             clamp_and_trim(basin, &heights, &b),
@@ -1170,6 +1152,7 @@ mod tests {
             "every cell in this basin sits at or above the clamped surface, so trimming \
              must empty it and the basin must not become a lake"
         );
+        assert!(collect_lakes(&heights, &filled, &b).is_empty());
     }
 
     /// Heights used only by
@@ -1251,7 +1234,6 @@ mod tests {
         heights
     }
 
-
     /// Survey helper: finds a (seed, tile) whose MICRO generation carries
     /// a near-rim lake under the CURRENT thresholds. Run manually when
     /// `LAKE_MIN_CELLS` / `LAKE_MIN_DEPTH_MM` change and
@@ -1266,7 +1248,7 @@ mod tests {
                 for ax in 0..2 {
                     let area = AreaCoord::new(ax, ay);
                     let b = bundle_for(seed, &ctx, area);
-                    let (_, objects) = generate_area(seed, &ctx, &b);
+                    let (_, objects) = generate_area(seed, &ctx, &b).unwrap();
                     for l in &objects.lakes {
                         if l.cells.iter().any(|&c| near_rim(c)) {
                             println!(

@@ -6,11 +6,7 @@
 //! invariant).
 
 use super::{Continent, ContinentGrid};
-use crate::noise::fbm;
 use arda_core::{AreaCoord, CellCoord, ClimateRegime, DischargeMilli, AREA_CELLS};
-
-/// Area cells per continent kilometre: cells are 100 m, so ten.
-const CELLS_PER_KM: i32 = 10;
 
 /// Absolute cell coordinates of a tile-local offset.
 ///
@@ -24,16 +20,20 @@ pub fn abs_cell(area: AreaCoord, local_x: u16, local_y: u16) -> (i32, i32) {
     )
 }
 
-/// Terrain elevation at an absolute cell, in millimetres.
+/// Initial terrain elevation at an absolute cell, in millimetres.
 ///
-/// This is the single source of area relief. Because it takes absolute
-/// coordinates, two tiles sharing an edge call it with identical arguments
-/// and get identical answers — the pinned-edge guarantee
-/// (`implementation.md` "Pinned edges", `logic/02` amendment 3).
+/// Shared preparation and the local diagnostic API use the same initial relief.
+/// Absolute coordinates identify the same sample from any tile. Production
+/// subsequently evolves the whole modeled rectangle before slicing it; internal
+/// publication edges do not pin the final bed (`logic/02`, shared terrain).
 #[must_use]
 pub fn boundary_height(seed: u64, continent: &ContinentGrid, abs_x: i32, abs_y: i32) -> i32 {
     let coarse = coarse_height(continent, abs_x, abs_y);
+    refine_height(seed, coarse, abs_x, abs_y)
+}
 
+/// Add bounded area detail to an already sampled regional elevation.
+pub(crate) fn refine_height(seed: u64, coarse: i32, abs_x: i32, abs_y: i32) -> i32 {
     // Area-scale detail, keyed by absolute position so it is edge-safe.
     // Amplitude scales with elevation, so detail never manufactures coastline
     // the continent stage did not put there (§Q8: area detail refines coarse
@@ -43,15 +43,21 @@ pub fn boundary_height(seed: u64, continent: &ContinentGrid, abs_x: i32, abs_y: 
     } else {
         1_500
     };
-    let detail = i64::from(fbm(seed ^ 0x00A1_2EA5, abs_x, abs_y, 40, 5));
+    let detail = i64::from(super::area_detail::sample(seed ^ 0x00A1_2EA5, abs_x, abs_y));
 
     #[allow(clippy::cast_possible_truncation)]
     {
-        (i64::from(coarse) + ((detail * i64::from(amplitude)) >> 15)) as i32
+        let detailed = i64::from(coarse) + ((detail * i64::from(amplitude)) >> 15);
+        let bounded = if coarse > 0 {
+            detailed.max(1)
+        } else {
+            detailed.min(0)
+        };
+        bounded.clamp(i64::from(i32::MIN), i64::from(i32::MAX)) as i32
     }
 }
 
-/// The smooth regional surface under a cell: a bilinear sample of the 1 km
+/// The bounded affine-preserving regional surface sampled from the 1 km
 /// continent grid, with no area-scale detail added.
 ///
 /// This is the uplift pattern. The artifact raises land "fastest near the
@@ -60,33 +66,7 @@ pub fn boundary_height(seed: u64, continent: &ContinentGrid, abs_x: i32, abs_y: 
 /// the whole run, and the bumps grow into dams that close off basins.
 #[must_use]
 pub fn coarse_height(continent: &ContinentGrid, abs_x: i32, abs_y: i32) -> i32 {
-    // Bilinear sample of the 1 km continent grid at 100 m resolution.
-    let km_x = abs_x.div_euclid(CELLS_PER_KM);
-    let km_y = abs_y.div_euclid(CELLS_PER_KM);
-    // Smoothstep weights, not linear.
-    //
-    // Straight bilinear leaves a crease along every 1 km cell edge, and those
-    // creases are axis-aligned, so steepest descent follows them: the
-    // diagonal share of flow directions fell to 14% and rivers were drawn as
-    // straight combs. Smoothstep makes the interpolated surface C1 across
-    // cell boundaries, so the gradient direction is free to point anywhere.
-    let smooth = |v: i32| -> i64 {
-        let t = i64::from(v) * 65536 / i64::from(CELLS_PER_KM);
-        let t2 = (t * t) >> 16;
-        let t3 = (t2 * t) >> 16;
-        (3 * t2 - 2 * t3).clamp(0, 65536)
-    };
-    let fx = smooth(abs_x.rem_euclid(CELLS_PER_KM));
-    let fy = smooth(abs_y.rem_euclid(CELLS_PER_KM));
-
-    let at = |x: i32, y: i32| i64::from(continent.get(x, y).raw());
-    let top = at(km_x, km_y) + (((at(km_x + 1, km_y) - at(km_x, km_y)) * fx) >> 16);
-    let bottom = at(km_x, km_y + 1) + (((at(km_x + 1, km_y + 1) - at(km_x, km_y + 1)) * fx) >> 16);
-
-    #[allow(clippy::cast_possible_truncation)]
-    {
-        (top + (((bottom - top) * fy) >> 16)) as i32
-    }
+    crate::terrain_interpolation::sample(abs_x, abs_y, |x, y| continent.get(x, y).raw())
 }
 
 /// Prevailing wind octant (uniform westerlies today — logic/01 §Q6).
@@ -135,6 +115,15 @@ pub struct TileBundle {
     pub east: Vec<i32>,
     /// Heights along the tile's western edge column, north to south.
     pub west: Vec<i32>,
+    /// Heights one cell north of the tile, at local y=-1, west to east.
+    /// Unlike `north`, these are actual outside neighbors for legacy routing.
+    pub north_outside: Vec<i32>,
+    /// Heights one cell west of the tile, at local x=-1, north to south.
+    /// Unlike `west`, these are actual outside neighbors for legacy routing.
+    pub west_outside: Vec<i32>,
+    /// Outside diagonal heights in northwest, northeast, southwest, southeast
+    /// order: local (-1,-1), (512,-1), (-1,512), (512,512).
+    pub outside_corners: [i32; 4],
     /// Mean elevation across the sampled edges, for cheap summaries.
     pub mean_height_mm: i32,
     /// Watercourses crossing into the tile from the continent drainage
@@ -194,6 +183,23 @@ pub fn bundle_for(seed: u64, continent: &Continent, area: AreaCoord) -> TileBund
     let west = column(0);
     let east = column(n);
 
+    // Logic/02 "Legacy outside-neighbor correction": legacy routing needs
+    // actual adjacent cells. Preserve existing shared-edge identities.
+    let (x0, y0) = abs_cell(area, 0, 0);
+    let north_outside = (0..n)
+        .map(|x| boundary_height(seed, &continent.grid, x0 + i32::from(x), y0 - 1))
+        .collect();
+    let west_outside = (0..n)
+        .map(|y| boundary_height(seed, &continent.grid, x0 - 1, y0 + i32::from(y)))
+        .collect();
+    let outside_corners = [
+        (-1, -1),
+        (i32::from(n), -1),
+        (-1, i32::from(n)),
+        (i32::from(n), i32::from(n)),
+    ]
+    .map(|(x, y)| boundary_height(seed, &continent.grid, x0 + x, y0 + y));
+
     let sum: i64 = north
         .iter()
         .chain(south.iter())
@@ -240,6 +246,9 @@ pub fn bundle_for(seed: u64, continent: &Continent, area: AreaCoord) -> TileBund
         south,
         east,
         west,
+        north_outside,
+        west_outside,
+        outside_corners,
         mean_height_mm,
         entering,
         rainfall_km,
@@ -357,7 +366,7 @@ fn entering_rivers(seed: u64, continent: &Continent, area: AreaCoord) -> Vec<Ent
             };
             let entry = seeds.entry(cell).or_insert((0, 0, 0));
             entry.0 += u64::from(c_km2);
-            entry.1 += u64::from(continent.hydrology.discharge_l_s[i]);
+            entry.1 += continent.hydrology.discharge_l_s[i];
             entry.2 = entry.2.max(entering_order(c_km2));
         }
     }
@@ -367,7 +376,7 @@ fn entering_rivers(seed: u64, continent: &Continent, area: AreaCoord) -> Vec<Ent
         .map(|(cell, (c, q, order))| EnteringRiver {
             cell,
             catchment_km2: u32::try_from(c).unwrap_or(u32::MAX),
-            discharge: DischargeMilli::new(u32::try_from(q).unwrap_or(u32::MAX)),
+            discharge: DischargeMilli::new(q),
             order,
         })
         .collect()
@@ -426,6 +435,76 @@ mod tests {
         let top = bundle_for(42, &c, AreaCoord::new(1, 1));
         let bottom = bundle_for(42, &c, AreaCoord::new(1, 2));
         assert_eq!(top.south, bottom.north);
+    }
+
+    #[test]
+    fn outside_samples_add_the_missing_ring_without_changing_existing_edges_or_mean() {
+        let c = fixture_ctx();
+        let area = AreaCoord::new(1, 2);
+        let b = bundle_for(42, &c, area);
+        let (x0, y0) = abs_cell(area, 0, 0);
+        let n = i32::from(AREA_CELLS);
+        assert_eq!(b.north_outside.len(), usize::from(AREA_CELLS));
+        assert_eq!(b.west_outside.len(), usize::from(AREA_CELLS));
+        let mut old_edge_sum = 0_i64;
+        for j in 0..n {
+            let i = usize::try_from(j).unwrap();
+            let old_samples = [(j, 0), (j, n), (n, j), (0, j)]
+                .map(|(x, y)| boundary_height(42, &c.grid, x0 + x, y0 + y));
+            assert_eq!([b.north[i], b.south[i], b.east[i], b.west[i]], old_samples);
+            old_edge_sum += old_samples.into_iter().map(i64::from).sum::<i64>();
+            assert_eq!(
+                b.north_outside[i],
+                boundary_height(42, &c.grid, x0 + j, y0 - 1)
+            );
+            assert_eq!(
+                b.west_outside[i],
+                boundary_height(42, &c.grid, x0 - 1, y0 + j)
+            );
+        }
+        assert_eq!(
+            i64::from(b.mean_height_mm),
+            old_edge_sum / (4 * i64::from(n))
+        );
+        assert_ne!(b.north_outside, b.north);
+        assert_ne!(b.west_outside, b.west);
+        let expected = [(-1, -1), (n, -1), (-1, n), (n, n)]
+            .map(|(x, y)| boundary_height(42, &c.grid, x0 + x, y0 + y));
+        assert_eq!(b.outside_corners, expected);
+        println!("outside allocation: samples={}, vector_payload_bytes={}, corner_bytes={}, vector_headers_bytes={}, bundle_size={}",
+            b.north_outside.len() + b.west_outside.len() + b.outside_corners.len(),
+            (b.north_outside.len() + b.west_outside.len()) * std::mem::size_of::<i32>(),
+            std::mem::size_of_val(&b.outside_corners), 2 * std::mem::size_of::<Vec<i32>>(), std::mem::size_of::<TileBundle>());
+    }
+
+    #[test]
+    fn legacy_outside_samples_cannot_change_shared_prepared_terrain() {
+        use crate::area::prepare::{prepare_area_terrain, SharedTerrain};
+        use crate::hydrology::prepared_domain::PreparedDomain;
+        use arda_core::SizeKm;
+
+        // A bounded real shared preparation, without a world solve or export.
+        // Its evolved terrain has no TileBundle input; every field that its
+        // immutable area slice does consume must be independent of this halo.
+        let c = fixture_ctx();
+        let config = GenerateConfig::new(
+            SizeKm::new(64, 64),
+            GenerateConfig::MICRO.latitude_band(),
+            15,
+        )
+        .unwrap();
+        let domain = PreparedDomain::for_config(config).unwrap();
+        let terrain = SharedTerrain::build(42, &c, domain).unwrap();
+        let entry = domain.entry(0).unwrap();
+        let b = bundle_for(42, &c, entry.area);
+        let before = prepare_area_terrain(&terrain, &c, &b, entry.valid).unwrap();
+        let mut changed = b.clone();
+        changed.north_outside.fill(i32::MIN);
+        changed.west_outside.fill(i32::MAX);
+        changed.outside_corners = [i32::MIN, i32::MAX, 0, 1];
+        let after = prepare_area_terrain(&terrain, &c, &changed, entry.valid).unwrap();
+        assert_eq!(before, after);
+        println!("shared preparation unchanged by outside samples: domain={}x{}, area={:?}, exact_cells={}, compared=height/rain/temperature/extent/identity", domain.width(), domain.height(), entry.area, before.heights.len());
     }
 
     #[test]
@@ -530,14 +609,14 @@ mod tests {
                     });
                     if any_land {
                         catchment += u64::from(ctx.hydrology.catchment_km2[i]);
-                        discharge += u64::from(ctx.hydrology.discharge_l_s[i]);
+                        discharge += ctx.hydrology.discharge_l_s[i];
                     }
                 }
             }
         }
         // Bundle-side sums over west entries whose window was not all-sea.
         let got_c: u64 = west.iter().map(|e| u64::from(e.catchment_km2)).sum();
-        let got_d: u64 = west.iter().map(|e| u64::from(e.discharge.raw())).sum();
+        let got_d: u64 = west.iter().map(|e| e.discharge.raw()).sum();
         if west.is_empty() {
             // Legal only when the seam genuinely has no qualifying land
             // crossing; the independent sum must then be 0 too, or every
@@ -687,29 +766,105 @@ mod tests {
 
     #[test]
     fn a_merged_seed_keeps_the_max_part_order_not_the_summed_order() {
-        // Feature 03 §Q3: `entering_order` is not additive, so merging must
-        // take the max over contributing edges, never recompute from the
-        // summed catchment. Seed 42's only merge site (see
-        // `merged_seeds_take_the_max_order_not_the_summed_order`) can't tell
-        // the two rules apart — max(order(207), order(148)) and
-        // entering_order(355) both land on 4. Seed 362's merge site can:
-        // tile (1,3) merges two edges of 4 km² and 8 km² (entering_order 1
-        // each, so max = 1) into a summed catchment of 12 km², and
-        // entering_order(12) = 2 — a different bucket, so an inverted rule
-        // is caught by value alone.
-        let ctx = crate::continent::build_continent(362, GenerateConfig::MICRO, 0);
-        let b = bundle_for(362, &ctx, AreaCoord::new(1, 3));
-        let divergent: Vec<_> = b
+        // Feature 03 §Q3: merged order is max(per-edge order), not order(sum).
+        // Corrected tectonic classification removed seed 362's tile (0,0)
+        // merger. A coarse-only re-survey found this natural merger on tile
+        // (0,2)'s north edge. The three possible D8 origins are independently
+        // inspected below; the bundle cannot define its own expected parts.
+        // See verification/terrain-correction/merger-c05-fixture.md.
+        const SEED: u64 = 362;
+        let ctx = crate::continent::build_continent(SEED, GenerateConfig::MICRO, 0);
+        let area = AreaCoord::new(0, 2);
+        let b = bundle_for(SEED, &ctx, area);
+        let w = ctx.grid.width();
+        let downstream = usize::try_from(102 * w + 37).unwrap();
+        let mut parts = Vec::new();
+        for kx in 36..=38 {
+            let source = usize::try_from(101 * w + kx).unwrap();
+            if ctx.hydrology.downstream[source] != Some(u32::try_from(downstream).unwrap()) {
+                continue;
+            }
+            let catchment = ctx.hydrology.catchment_km2[source];
+            if catchment < 3 {
+                continue;
+            }
+            assert!(ctx.grid.get(kx, 101).raw() > 0, "source must be land");
+            assert!(
+                ctx.hydrology.filled[source] >= ctx.hydrology.filled[downstream],
+                "the contributor must descend to the receiving coarse cell"
+            );
+            parts.push((catchment, ctx.hydrology.discharge_l_s[source]));
+            println!("merged seed contributor: coarse=({kx},101)->(37,102), catchment_km2={catchment}, discharge_l_s={}, order={}", ctx.hydrology.discharge_l_s[source], entering_order(catchment));
+        }
+        assert_eq!(
+            parts.len(),
+            2,
+            "the fixture must exercise two real contributors"
+        );
+
+        assert_eq!(
+            parts,
+            vec![(28, 1_132), (43, 2_041)],
+            "the independently measured contributors drifted"
+        );
+
+        // Tile (0,2)'s north line is absolute y=1024. Coarse source centres
+        // at y=1015 lie outside, and destination centre (375,1025) lies inside.
+        // Its independent ten-cell landing window is x=370..380 at local
+        // y=0. Find its lowest land cell with the documented low-x tie rule.
+        let (_, landing_x) = (370_u16..380)
+            .map(|x| (boundary_height(SEED, &ctx.grid, i32::from(x), 1024), x))
+            .filter(|&(height, _)| height > 0)
+            .min()
+            .expect("the merger's receiving window must contain land");
+        let landing = CellCoord::new(landing_x, 0).unwrap();
+        assert_eq!(landing_x, 370, "the measured landing window drifted");
+        let entries: Vec<_> = b
             .entering
             .iter()
-            .filter(|e| e.order < entering_order(e.catchment_km2))
+            .filter(|entry| entry.cell == landing)
             .collect();
-        assert!(
-            !divergent.is_empty(),
-            "seed 362 tile (1,3) no longer has a divergent merge"
+        assert_eq!(
+            entries.len(),
+            1,
+            "the two contributors must become one entry"
         );
-        // Exact pin so an inverted rule fails loudly.
-        let e = divergent[0];
-        assert_eq!((e.catchment_km2, e.order), (12, 1));
+        let entry = entries[0];
+        let catchment_sum: u32 = parts.iter().map(|&(catchment, _)| catchment).sum();
+        let discharge_sum: u64 = parts.iter().map(|&(_, discharge)| discharge).sum();
+        let max_part_order = parts
+            .iter()
+            .map(|&(catchment, _)| entering_order(catchment))
+            .max()
+            .unwrap();
+        assert_eq!(
+            (catchment_sum, max_part_order),
+            (71, 2),
+            "the measured parts drifted"
+        );
+        assert_eq!(
+            entering_order(catchment_sum),
+            3,
+            "the control must distinguish the wrong summed-order rule"
+        );
+        assert_eq!(
+            entry.catchment_km2, catchment_sum,
+            "merge must sum contributing catchments"
+        );
+        assert_eq!(
+            entry.discharge.raw(),
+            discharge_sum,
+            "merge must sum contributing discharge"
+        );
+        assert_eq!(
+            entry.order, max_part_order,
+            "merge must retain max(per-edge order)"
+        );
+        assert_ne!(
+            entry.order,
+            entering_order(entry.catchment_km2),
+            "recomputing order from the sum is the regression under test"
+        );
+        println!("merged seed result: area={area:?}, cell={landing:?}, contributors={}, catchment_km2={}, discharge_l_s={}, max_part_order={}, incorrect_summed_order={}", parts.len(), entry.catchment_km2, entry.discharge.raw(), entry.order, entering_order(entry.catchment_km2));
     }
 }

@@ -126,7 +126,7 @@ pub struct Cell {
     /// Strahler order; 0 when no watercourse.
     pub watercourse_order: u8,
     /// Channel width in decimetres; 0 when no watercourse.
-    pub watercourse_width_dm: u16,
+    pub watercourse_width_dm: u32,
     /// Height above the nearest downstream channel, decimetres.
     pub height_above_river_dm: u16,
     /// Standing-water tendency, 0-255.

@@ -4,14 +4,17 @@
 //! transmute (`code-prefs.md` §Q1), so the layout is host-independent by
 //! construction. Row layout is documented in `02-models.md`.
 
-use super::{put_i16, put_i32, put_u16, put_u32, take_i16, take_i32, take_u16, take_u32, take_u8};
+use super::{
+    put_i16, put_i32, put_u16, put_u32, put_u64, take_i16, take_i32, take_u16, take_u32, take_u64,
+    take_u8,
+};
 use crate::cell::{Cell, Cover, RoadClass, TerrainKind};
 use crate::coords::{CellCoord, AREA_CELLS};
 use crate::error::FormatError;
 use crate::fixed::{DischargeMilli, HeightMm, RainfallMm, TempCentiC};
 
 /// Bytes per stored cell row.
-pub const CELL_BYTES: usize = 33;
+pub const CELL_BYTES: usize = 39;
 
 /// Cells in one area layer.
 const CELL_COUNT: usize = AREA_CELLS as usize * AREA_CELLS as usize;
@@ -63,9 +66,9 @@ pub(crate) fn put_cell(out: &mut Vec<u8>, c: &Cell) {
     out.push(c.moisture);
     out.push(c.forest_density);
     put_u32(out, c.drainage_area_cells);
-    put_u32(out, c.discharge.raw());
+    put_u64(out, c.discharge.raw());
     out.push(c.watercourse_order);
-    put_u16(out, c.watercourse_width_dm);
+    put_u32(out, c.watercourse_width_dm);
     put_u16(out, c.height_above_river_dm);
     out.push(c.wetness);
     out.push(c.road as u8);
@@ -97,9 +100,9 @@ pub(crate) fn take_cell(path: &str, src: &[u8], at: &mut usize) -> Result<Cell, 
     let moisture = take_u8(src, at);
     let forest_density = take_u8(src, at);
     let drainage_area_cells = take_u32(src, at);
-    let discharge = DischargeMilli::new(take_u32(src, at));
+    let discharge = DischargeMilli::new(take_u64(src, at));
     let watercourse_order = take_u8(src, at);
-    let watercourse_width_dm = take_u16(src, at);
+    let watercourse_width_dm = take_u32(src, at);
     let height_above_river_dm = take_u16(src, at);
     let wetness = take_u8(src, at);
     let road_raw = take_u8(src, at);
@@ -176,9 +179,9 @@ mod tests {
             moisture: 199,
             forest_density: 7,
             drainage_area_cells: 4_000_000_009,
-            discharge: DischargeMilli::new(3_141_592),
+            discharge: DischargeMilli::new(u64::from(u32::MAX) + 17),
             watercourse_order: 6,
-            watercourse_width_dm: 65_530,
+            watercourse_width_dm: u32::from(u16::MAX) + 17,
             height_above_river_dm: 12_345,
             wetness: 254,
             road: RoadClass::Highway,
@@ -191,7 +194,7 @@ mod tests {
     }
 
     #[test]
-    fn row_is_thirty_three_bytes() {
+    fn row_is_thirty_nine_bytes() {
         let mut out = Vec::new();
         put_cell(&mut out, &distinctive());
         assert_eq!(out.len(), CELL_BYTES);

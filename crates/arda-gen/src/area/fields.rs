@@ -47,7 +47,7 @@ const MARSH_MM: u32 = 1_000;
 /// discharge of their nearest channel: a floor of 0.05 m³/s leaves 7.7%
 /// of land marsh, 0.2 leaves 3.4%, 1.0 leaves 1.4%. 0.2 m³/s lands
 /// inside the real band.
-pub const MARSH_MIN_DISCHARGE_MILLI: u32 = 200;
+pub const MARSH_MIN_DISCHARGE_MILLI: u64 = 200;
 const FLOODS_MM: u32 = 2_500;
 const TERRACE_MM: u32 = 15_000;
 
@@ -82,7 +82,7 @@ pub struct Hand {
     /// Discharge of that channel in thousandth-cumecs, 0 where none was
     /// reached. A channel cell carries 0 here: it is the watercourse, not
     /// beside one.
-    pub carried_milli: Vec<u32>,
+    pub carried_milli: Vec<u64>,
 }
 
 /// Height above the nearest downstream watercourse, in millimetres.
@@ -107,7 +107,7 @@ pub struct Hand {
 pub fn hand(heights: &[i32], water: &WaterGrid) -> Hand {
     let count = (N * N) as usize;
     let mut out = vec![0u32; count];
-    let mut carried = vec![0u32; count];
+    let mut carried = vec![0u64; count];
 
     for y in 0..N {
         for x in 0..N {
@@ -180,7 +180,7 @@ pub fn slope_and_aspect(heights: &[i32], x: i32, y: i32) -> (u16, u16) {
         if nx < 0 || ny < 0 || nx >= N || ny >= N {
             continue;
         }
-        let drop = i64::from(here - heights[usize::try_from(ny * N + nx).unwrap_or(0)]);
+        let drop = i64::from(here) - i64::from(heights[usize::try_from(ny * N + nx).unwrap_or(0)]);
         if drop <= 0 {
             continue;
         }

@@ -12,6 +12,7 @@ pub mod coords;
 pub mod error;
 pub mod fixed;
 pub mod formats;
+pub mod hydrology;
 pub mod objects;
 pub mod rng;
 pub mod tiles;
@@ -22,7 +23,7 @@ pub use continent::{
     ClimateRegime, ContinentCell, ContinentObjects, ContinentOverview, ContinentRiver,
 };
 pub use coords::{
-    AreaCoord, CellCoord, KmCoord, SquareCoord, AREA_CELLS, BLOCK_SQUARES, CELL_SIZE_M,
+    AreaCoord, CellCoord, GlobalCell, KmCoord, SquareCoord, AREA_CELLS, BLOCK_SQUARES, CELL_SIZE_M,
     SQUARE_SIZE_MM,
 };
 pub use error::{ConfigError, FormatError, LoadError};
@@ -40,6 +41,10 @@ pub use formats::overview::{
     decode_overview, encode_overview, NO_DOWNSTREAM, OVERVIEW_CELL_BYTES, OVERVIEW_MAGIC,
 };
 pub use formats::FORMAT_VERSION;
+pub use hydrology::{BasinId, Litres};
 pub use objects::{AreaObjects, Lake, RiverSegment, Terminus};
 pub use rng::{derive, rng, SeedKey, Stage, Tier};
 pub use tiles::{may_adjoin, tile_def, tiles_in_group, TileDef, TileGroup, TileId, SKELETON_TILES};
+
+#[cfg(test)]
+mod foundation_tests;

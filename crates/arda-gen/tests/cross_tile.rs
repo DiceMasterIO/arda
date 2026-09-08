@@ -1,21 +1,21 @@
-//! Feature 03 spec R12: cross-tile continuity, inflow, seam lakes.
+//! Feature 03 spec R12: retained local-API continuity, inflow and seam lakes.
 //!
-//! Fixture choice: `ctx()` builds MICRO seed 42 at **attempt 2**, not
-//! attempt 0 like most of the unit-test fixtures elsewhere in this crate.
-//! Attempts 0 and 1 fail the step-9 land-fraction gate for this seed
-//! (measured: land = 231, 157, 487 per mille for attempts 0/1/2 — only
-//! 487 clears the 250..=900 gate), so attempt 2 is the world the
-//! orchestrator, the CLI, and the golden fixture (`tests/golden_world.rs`
-//! via `arda::generate`) actually produce for "MICRO seed 42". Using it
-//! here means these integration invariants exercise the real shipped
-//! world rather than an attempt the batch would itself reroll past.
+//! `ctx()` retains MICRO seed 42, attempt 2: still accepted at 381 per mille
+//! land after corrected tectonic classification, although production now
+//! accepts attempt 0 first. The outlet survey additionally uses first accepted
+//! MICRO seed 99 / attempt 0 and seed 42 / attempt 0. Together with the retained
+//! historical seed-42 sample, this fixed panel was selected before measuring
+//! its corrected routing scores. These tests exercise the legacy
+//! local area APIs; the shared fine-world solver has separate checks.
 //!
-//! Because of that switch, the entering-river layout differs sharply from
-//! the attempt-0 numbers pinned in unit tests elsewhere (e.g.
-//! `continent::bundles::tests`): at attempt 2, tile (0,1) alone has 23
-//! entering crossings, all on its south edge. Every seam and tile choice
-//! below is picked from a fresh survey of attempt 2's actual layout, not
-//! copied from those attempt-0 fixtures.
+//! Measured fixtures were re-derived after the terrain correction in
+//! `docs/capstone/features/2026-09-07-area-water-terrain-realism/verification/
+//! terrain-correction/cross-tile-c05-fixtures.md`. Candidate-04 measurements
+//! remain in `cross-tile-c04-fixtures.md`. Older surveys cited below are
+//! historical context, not current physical measurements. The independent
+//! catchment, outlet, inflow, surface and determinism invariants remain binding.
+//! Actual outside-neighbor routing and the fixed three-context survey are
+//! recorded in `terrain-correction/legacy-neighbor-fix-report.md`.
 #![allow(clippy::unwrap_used, clippy::expect_used)]
 
 use arda_core::{AreaCells, AreaCoord, CellCoord, GenerateConfig, TerrainKind, AREA_CELLS};
@@ -41,12 +41,24 @@ fn ctx() -> &'static Continent {
     CTX.get_or_init(|| build_continent(42, GenerateConfig::MICRO, 2))
 }
 
+/// Predetermined additional accepted context for non-vacuous survey coverage.
+fn survey_ctx() -> &'static Continent {
+    static CTX: OnceLock<Continent> = OnceLock::new();
+    CTX.get_or_init(|| build_continent(99, GenerateConfig::MICRO, 0))
+}
+
+/// First accepted seed-42 context completes the fixed current two-MICRO panel.
+fn first_accepted_ctx() -> &'static Continent {
+    static CTX: OnceLock<Continent> = OnceLock::new();
+    CTX.get_or_init(|| build_continent(42, GenerateConfig::MICRO, 0))
+}
+
 /// One tile's full pipeline output, with the intermediates kept so
 /// invariant (b) can derive an "entering cleared" run without repeating
 /// the expensive erosion pass (heights/filled/rain do not depend on
 /// `bundle.entering` — only `water()`'s accumulation does, since routing
-/// direction is decided from the filled surface and the bundle's
-/// north/south/east/west edges alone).
+/// direction is decided from the filled surface and the bundle's actual
+/// outside-neighbor strips and corners).
 struct Tile {
     coord: AreaCoord,
     bundle: TileBundle,
@@ -76,7 +88,7 @@ fn build(seed: u64, ctx: &Continent, coord: AreaCoord) -> Tile {
     let filled = fill::fill(&heights, &bundle);
     let rain = area_rainfall(&bundle);
     let water = arda_gen::area::water(&filled, &bundle, &rain);
-    let (cells, _objects) = compose(&heights, &filled, &water, &rain, &bundle);
+    let (cells, _objects) = compose(&heights, &filled, &water, &rain, &bundle).unwrap();
     Tile {
         coord,
         bundle,
@@ -100,8 +112,34 @@ fn tiles() -> &'static Vec<Tile> {
     })
 }
 
+/// The additional survey sample, retaining seed 42's existing tile set.
+fn survey_tiles() -> &'static Vec<Tile> {
+    static TILES: OnceLock<Vec<Tile>> = OnceLock::new();
+    TILES.get_or_init(|| {
+        GenerateConfig::MICRO
+            .area_coords()
+            .map(|a| build(99, survey_ctx(), a))
+            .collect()
+    })
+}
+
+fn first_accepted_tiles() -> &'static Vec<Tile> {
+    static TILES: OnceLock<Vec<Tile>> = OnceLock::new();
+    TILES.get_or_init(|| {
+        GenerateConfig::MICRO
+            .area_coords()
+            .map(|a| build(42, first_accepted_ctx(), a))
+            .collect()
+    })
+}
+
 fn tile(coord: AreaCoord) -> &'static Tile {
-    tiles()
+    tile_in(tiles(), coord)
+}
+
+/// Counterparts always come from the same seed and attempt as the entry.
+fn tile_in(sample: &[Tile], coord: AreaCoord) -> &Tile {
+    sample
         .iter()
         .find(|t| t.coord == coord)
         .unwrap_or_else(|| panic!("tile {coord:?} was not built"))
@@ -115,7 +153,7 @@ fn without_entering(t: &Tile) -> (WaterGrid, AreaCells) {
     let mut dry = t.bundle.clone();
     dry.entering.clear();
     let water = arda_gen::area::water(&t.filled, &dry, &t.rain);
-    let (cells, _objects) = compose(&t.heights, &t.filled, &water, &t.rain, &dry);
+    let (cells, _objects) = compose(&t.heights, &t.filled, &water, &t.rain, &dry).unwrap();
     (water, cells)
 }
 
@@ -159,7 +197,7 @@ fn independent_entering(
         i64::from(area.y) * i64::from(N),
     );
     let (x1, y1) = (x0 + i64::from(N), y0 + i64::from(N));
-    let mut groups: BTreeMap<CellCoord, Vec<(u32, u32)>> = BTreeMap::new();
+    let mut groups: BTreeMap<CellCoord, Vec<(u32, u64)>> = BTreeMap::new();
 
     for ky in 0..h {
         for kx in 0..w {
@@ -230,7 +268,7 @@ fn independent_entering(
         .into_iter()
         .map(|(cell, parts)| {
             let catchment: u64 = parts.iter().map(|&(c, _)| u64::from(c)).sum();
-            let discharge: u64 = parts.iter().map(|&(_, d)| u64::from(d)).sum();
+            let discharge: u64 = parts.iter().map(|&(_, d)| d).sum();
             let order = parts
                 .iter()
                 .map(|&(c, _)| entering_order(c))
@@ -340,17 +378,16 @@ fn independent_lake_surface_at(b: &TileBundle, cells: &[CellCoord]) -> Option<i3
     independent_filled_km_surface(b, cells)
 }
 
-/// Spec R12 (a): seam continuity.
+/// Spec R12 (a): seam continuity on tile (0,2) -> tile (0,3).
 ///
-/// Seam chosen: tile (0,2) -> tile (0,3), (0,3)'s NORTH edge (31
-/// crossings, attempt-2 fixture). A fresh survey of every MICRO seam
-/// (all four column-adjacent pairs plus all six row-adjacent pairs, both
-/// directions) found this the only seam where 100% of crossings land an
-/// outlet in the upstream tile's matching 10-cell window: the brief's own
-/// example pair, (0,1)/(1,1), only matches 7 of 9; the other vertical
-/// candidate, (1,2)->(1,3), matches all 29 but holds the drainage
-/// inequality on fewer of them (24/29 vs this seam's 27/31). See
-/// task-8-report.md for the full per-seam survey.
+/// The original fixture had 31 north-edge crossings, all with an upstream
+/// outlet in the matching absolute 10-cell window. Candidate 04 had 12
+/// crossings; corrected tectonic classification leaves four on that same
+/// seam, still all matched. Their entering fields are checked independently,
+/// together with every other MICRO tile's entries. Three of the four receiving
+/// drainage values exceed or equal the upstream window maximum; this count is
+/// a measured local-API diagnostic, not an equality between independently computed coarse
+/// and fine catchments. Derivation: `cross-tile-c05-fixtures.md`.
 #[test]
 fn seam_entries_match_independent_hydrology_and_the_upstream_outlet() {
     let a_coord = AreaCoord::new(0, 2);
@@ -358,32 +395,33 @@ fn seam_entries_match_independent_hydrology_and_the_upstream_outlet() {
     let a = tile(a_coord);
     let b = tile(b_coord);
 
-    // Every entering entry on B (both its edges: north from A, east from
-    // tile (1,3)) equals an independent re-derivation from ctx.hydrology
-    // alone.
-    let want = independent_entering(42, ctx(), b_coord);
-    assert_eq!(
-        b.bundle.entering.len(),
-        want.len(),
-        "tile (0,3) entering count drifted from the independent re-derivation"
-    );
-    for e in &b.bundle.entering {
-        let got = (
-            u64::from(e.catchment_km2),
-            u64::from(e.discharge.raw()),
-            e.order,
-        );
-        let expected = want.get(&e.cell).unwrap_or_else(|| {
-            panic!(
-                "independent re-derivation has no entry at seed {:?}",
-                e.cell
-            )
-        });
+    // Every entering entry on every MICRO tile equals an independent
+    // re-derivation from ctx.hydrology and the shared boundary surface.
+    // This remains an invariant when corrected terrain moves crossings.
+    let mut independent_entries = 0;
+    for t in tiles() {
+        let want = independent_entering(42, ctx(), t.coord);
         assert_eq!(
-            got, *expected,
-            "seed {:?}: (catchment, discharge, order) diverges from the independent re-derivation",
-            e.cell
+            t.bundle.entering.len(),
+            want.len(),
+            "tile {:?} entering count drifted from the independent re-derivation",
+            t.coord
         );
+        for e in &t.bundle.entering {
+            let got = (u64::from(e.catchment_km2), e.discharge.raw(), e.order);
+            let expected = want.get(&e.cell).unwrap_or_else(|| {
+                panic!(
+                    "independent re-derivation has no entry at seed {:?}",
+                    e.cell
+                )
+            });
+            assert_eq!(
+                got, *expected,
+                "tile {:?} seed {:?}: (catchment, discharge, order) diverges from the independent re-derivation",
+                t.coord, e.cell
+            );
+            independent_entries += 1;
+        }
     }
 
     // A's water grid marks an outlet within the same absolute-aligned
@@ -395,12 +433,6 @@ fn seam_entries_match_independent_hydrology_and_the_upstream_outlet() {
         .iter()
         .filter(|e| e.cell.y() == 0)
         .collect();
-    assert_eq!(
-        north.len(),
-        31,
-        "tile (0,3) north-edge entering count drifted; re-survey MICRO seams (task-8-report.md)"
-    );
-
     let origin_x = a_coord.x * N;
     let mut ge_holds = 0u32;
     for e in &north {
@@ -427,16 +459,26 @@ fn seam_entries_match_independent_hydrology_and_the_upstream_outlet() {
         if b.water.drainage_at(e.cell) >= outlet_drainage {
             ge_holds += 1;
         }
+        println!(
+            "legacy seam entry {:?}: catchment_km2={}, discharge_l_s={}, order={}, upstream_outlet_drainage={}, receiving_drainage={}",
+            e.cell, e.catchment_km2, e.discharge.raw(), e.order, outlet_drainage, b.water.drainage_at(e.cell)
+        );
     }
-    // Measured baseline: 27 of 31. The continent-tier catchment (1 km,
-    // coarse fill/accumulate) and the area-tier accumulation (100 m,
-    // erosion-refined) are independent computations and are not expected
-    // to agree in magnitude for every crossing — only that inflow is
-    // real and roughly matched, which a comfortable majority confirms.
-    assert!(
-        ge_holds >= 27,
-        "only {ge_holds} of 31 crossings had B's seeded drainage >= A's exit drainage \
-         (measured baseline 27/31)"
+    println!("legacy seam totals: independently_checked_entries={independent_entries}, north_entries={}, matched_outlets={}, receiving_ge_upstream={ge_holds}", north.len(), north.len());
+    assert_eq!(
+        north.len(),
+        4,
+        "tile (0,3) north-edge entering count drifted; re-derive cross-tile-c05-fixtures.md"
+    );
+    // Seed-specific drift guard, separate from the independent equalities
+    // and every matching outlet window above. Coarse 1 km catchments and
+    // local 100 m catchments are independent in this retained API, so their
+    // magnitude comparison is not the shared model's conservation equation.
+    // Historical counts were 27/31, 23/31, then 10/12; candidate 05 is 3/4.
+    assert_eq!(
+        ge_holds, 3,
+        "the corrected legacy drainage comparison drifted from 3/4; \
+         re-derive cross-tile-c05-fixtures.md"
     );
 }
 
@@ -467,128 +509,142 @@ fn neighbour_area(coord: AreaCoord, edge: char) -> Option<AreaCoord> {
     in_range.then_some(AreaCoord::new(nx, ny))
 }
 
-/// Spec R12 (a), task-8 fix-wave-1 item 1: root-causing the low seam
-/// outlet-match rate.
+/// Spec R12 (a): the retained coarse/fine outlet-window approximation.
 ///
-/// Task 8's per-seam survey (task-8-report.md) found that for 7 of 8
-/// surveyed seam/direction pairs, an entering river's boundary window
-/// contains a matching upstream outlet only 0-61% of the time; only
-/// (0,2)/(0,3) north matched 31/31. The worry: a low match rate could mean
-/// water enters B where A never actually sends any out — rivers
-/// materialising at seams from nothing.
+/// Every interior seam of the three predetermined MICRO contexts is surveyed.
+/// A crossing matches when the
+/// upstream local water grid has an outlet inside its absolute-aligned
+/// ten-cell coarse window. For non-matches, distance is measured to the
+/// nearest actual upstream outlet on that same boundary.
 ///
-/// Measured across every MICRO seed-42 attempt-2 interior seam, all four
-/// edge kinds (128 entering crossings total — cross-checked cell-for-cell
-/// against task-8-report.md's per-seam table: exact agreement), bucketed
-/// by the crossing's own `catchment_km2`:
-///
-/// | catchment_km2 | total | matched | pct |
-/// |---|---|---|---|
-/// | 3-10 | 34 | 18 | 53% |
-/// | 10-30 | 70 | 53 | 76% |
-/// | 30-100 | 17 | 16 | 94% |
-/// | >=100 | 7 | 5 | 71% (n=7; the one real miss is 109 km2 at 41 cells; \
-///   the other "miss", 146 km2, is 1 cell off) |
-///
-/// For the 36 non-matches, distance (local cells) to the nearest actual
-/// upstream outlet: median 8, p90 61, max 80. 33 of 36 (92%) non-matches
-/// are catchment < 30 km2.
-///
-/// Verdict: **approximation, not defect**. Match rate rises sharply with
-/// catchment size, the typical miss is a small jog (median 8 cells = 0.8
-/// km, well under a single 1 km coarse-tree cell), and misses are
-/// overwhelmingly small tributaries. The tail (up to 80 cells) sits on
-/// three specific seams ((1,1)->(1,2) north 0/3, (0,2)->(1,2) east 0/2,
-/// (0,3)->(1,3) east 0/5) where a handful of small (<=16 km2, bar one)
-/// coarse-tree crossings cluster near where the fine 100 m terrain
-/// consolidates them into one real valley; within each cluster the
-/// distances move in lockstep with position along the boundary (e.g.
-/// (0,3)/(1,3) east: 71,61,51,41,21 cells at local y=264,274,284,294,315)
-/// — the signature of one true valley pulling in several coarse crossings,
-/// not a fixed code-level offset (no constant stride; the very same
-/// "north" direction is 100% on one seam and 0% on another, ruling out a
-/// uniform axis bug). Only 1 of 128 crossings combines a large catchment
-/// (>=100 km2) with a large miss (>10 cells). No fix shipped — see
-/// task-8-report.md "Fix wave 1" for the full reasoning.
-///
-/// Kept with headroom below every measured number above, so an unrelated
-/// terrain tweak does not flip this red.
+/// With the actual outside-neighbor correction, the fixed panel has 119
+/// crossings, 14 non-matches, and 11/13 large matches (84%), with median
+/// non-match distance 2 cells. Seed 42's first accepted attempt still matches
+/// only 2/4 large crossings; passing the aggregate gate does not imply exact
+/// local continuity. Before the fix, the two-context candidate-05 sample had
+/// 91 crossings, 33 non-matches, 6/9 large matches (66%) and a 50-cell median.
+/// The added first-accepted seed-42 context was selected before scoring it;
+/// no replacement sample was searched. Candidate 04's 107 crossings,
+/// 43 non-matches, 15/21 large matches (71%) and 20-cell median remain recorded
+/// in `cross-tile-c04-fixtures.md`. Older measurements and interpretation are
+/// in `.superpowers/sdd/task-8-report.md`; current derivation is in
+/// `legacy-neighbor-fix-report.md`. The public shared fine solver does not use
+/// these independently generated local outlet guesses.
 #[test]
 fn seam_crossings_align_with_upstream_outlets() {
     const MIN_CATCHMENT_KM2: u32 = 30;
-    const MIN_MATCH_PCT_ABOVE_MIN_CATCHMENT: u32 = 70; // measured 87% (21/24)
-    const MAX_MEDIAN_NONMATCH_DIST: i32 = 20; // measured 8 cells
+    const MIN_MATCH_PCT_ABOVE_MIN_CATCHMENT: u32 = 70; // current 84% (11/13); gate retained
+    const MAX_MEDIAN_NONMATCH_DIST: i32 = 20; // current 2 cells; gate retained
 
     let mut total = 0u32;
     let mut big_total = 0u32;
     let mut big_matched = 0u32;
     let mut nonmatch_dists: Vec<i32> = Vec::new();
 
-    for t in tiles() {
-        for e in &t.bundle.entering {
-            // Which edge this crossing sits on — always exactly one, by
-            // construction of `entering_rivers`' fixed_x/fixed_y windows.
-            // Horizontal wins a literal corner cell, matching that same
-            // tie rule (§Q3).
-            let edge = if e.cell.y() == 0 {
-                'N'
-            } else if e.cell.y() == AREA_CELLS - 1 {
-                'S'
-            } else if e.cell.x() == 0 {
-                'W'
-            } else {
-                'E'
-            };
-            let Some(up_coord) = neighbour_area(t.coord, edge) else {
-                continue; // the continent rim is forced ocean, so a real
-                          // fixture never hits this; skip rather than
-                          // panic if that ever changes
-            };
-            let up = tile(up_coord);
+    for (seed, attempt, continent, sample) in [
+        (42, 2, ctx(), tiles()),
+        (99, 0, survey_ctx(), survey_tiles()),
+        (42, 0, first_accepted_ctx(), first_accepted_tiles()),
+    ] {
+        let before = (total, big_total, big_matched, nonmatch_dists.len());
+        assert!(
+            (250..=900).contains(&continent.grid.land_fraction_permille()),
+            "seed {seed} attempt {attempt} must retain an accepted land fraction"
+        );
+        for t in sample {
+            let expected = independent_entering(seed, continent, t.coord);
+            assert_eq!(
+                t.bundle.entering.len(),
+                expected.len(),
+                "seed {seed} tile {:?}: entering count disagrees with the independent oracle",
+                t.coord
+            );
+            for e in &t.bundle.entering {
+                assert_eq!(
+                expected.get(&e.cell),
+                Some(&(u64::from(e.catchment_km2), e.discharge.raw(), e.order)),
+                "seed {seed} tile {:?} entry {:?}: independent catchment, discharge or order differs",
+                t.coord,
+                e.cell
+            );
+                // Which edge this crossing sits on — always exactly one, by
+                // construction of `entering_rivers`' fixed_x/fixed_y windows.
+                // Horizontal wins a literal corner cell, matching that same
+                // tie rule (§Q3).
+                let edge = if e.cell.y() == 0 {
+                    'N'
+                } else if e.cell.y() == AREA_CELLS - 1 {
+                    'S'
+                } else if e.cell.x() == 0 {
+                    'W'
+                } else {
+                    'E'
+                };
+                let Some(up_coord) = neighbour_area(t.coord, edge) else {
+                    continue; // the continent rim is forced ocean, so a real
+                              // fixture never hits this; skip rather than
+                              // panic if that ever changes
+                };
+                let up = tile_in(sample, up_coord);
 
-            let (ax, ay) = abs_cell(t.coord, e.cell.x(), e.cell.y());
-            let (win_abs_lo, up_origin, x_axis) = match edge {
-                'N' | 'S' => (ax.div_euclid(10) * 10, up_coord.x * N, true),
-                _ => (ay.div_euclid(10) * 10, up_coord.y * N, false),
-            };
-            let win_lo = (win_abs_lo - up_origin).clamp(0, N - 1);
-            let win_hi = (win_abs_lo + 10 - up_origin).clamp(0, N);
-            let fixed = match edge {
-                'N' => N - 1, // upstream sits north: check its south row
-                'S' => 0,     // upstream sits south: check its north row
-                'W' => N - 1, // upstream sits west: check its east column
-                _ => 0,       // upstream sits east: check its west column
-            };
-            let at_of = |j: i32| if x_axis { cc(j, fixed) } else { cc(fixed, j) };
+                let (ax, ay) = abs_cell(t.coord, e.cell.x(), e.cell.y());
+                let (win_abs_lo, up_origin, x_axis) = match edge {
+                    'N' | 'S' => (ax.div_euclid(10) * 10, up_coord.x * N, true),
+                    _ => (ay.div_euclid(10) * 10, up_coord.y * N, false),
+                };
+                let win_lo = (win_abs_lo - up_origin).clamp(0, N - 1);
+                let win_hi = (win_abs_lo + 10 - up_origin).clamp(0, N);
+                let fixed = match edge {
+                    'N' => N - 1, // upstream sits north: check its south row
+                    'S' => 0,     // upstream sits south: check its north row
+                    'W' => N - 1, // upstream sits west: check its east column
+                    _ => 0,       // upstream sits east: check its west column
+                };
+                let at_of = |j: i32| if x_axis { cc(j, fixed) } else { cc(fixed, j) };
 
-            let is_match = (win_lo..win_hi).any(|j| up.water.is_outlet(at_of(j)));
-            let is_big = e.catchment_km2 >= MIN_CATCHMENT_KM2;
+                let is_match = (win_lo..win_hi).any(|j| up.water.is_outlet(at_of(j)));
+                let is_big = e.catchment_km2 >= MIN_CATCHMENT_KM2;
 
-            total += 1;
-            big_total += u32::from(is_big);
-            if is_match {
-                big_matched += u32::from(is_big);
-            } else {
-                let d = (0..N)
-                    .filter(|&j| up.water.is_outlet(at_of(j)))
-                    .map(|j| distance_to_window(j, win_lo, win_hi))
-                    .min()
-                    .unwrap_or_else(|| {
-                        panic!(
-                            "tile {:?} seed {:?}: upstream tile {up_coord:?} marks no outlet \
+                total += 1;
+                big_total += u32::from(is_big);
+                if is_match {
+                    big_matched += u32::from(is_big);
+                } else {
+                    let d = (0..N)
+                        .filter(|&j| up.water.is_outlet(at_of(j)))
+                        .map(|j| distance_to_window(j, win_lo, win_hi))
+                        .min()
+                        .unwrap_or_else(|| {
+                            panic!(
+                                "tile {:?} seed {:?}: upstream tile {up_coord:?} marks no outlet \
                              at all on the shared boundary line",
-                            t.coord, e.cell
-                        )
-                    });
-                nonmatch_dists.push(d);
+                                t.coord, e.cell
+                            )
+                        });
+                    nonmatch_dists.push(d);
+                }
             }
         }
+        let mut sample_dists = nonmatch_dists[before.3..].to_vec();
+        sample_dists.sort_unstable();
+        println!(
+            "legacy survey sample: seed={seed}, attempt={attempt}, land_permille={}, total={}, large={}, large_matched={}, large_match_percent={:?}, nonmatches={}, median_nonmatch_distance={:?}",
+            continent.grid.land_fraction_permille(), total - before.0, big_total - before.1,
+            big_matched - before.2, ((big_matched - before.2) * 100).checked_div(big_total - before.1),
+            sample_dists.len(), sample_dists.get(sample_dists.len() / 2)
+        );
     }
+
+    nonmatch_dists.sort_unstable();
+    println!(
+        "legacy combined survey before gates: total={total}, large={big_total}, large_matched={big_matched}, large_match_percent={:?}, nonmatches={}, median_nonmatch_distance={:?}",
+        (big_matched * 100).checked_div(big_total), nonmatch_dists.len(), nonmatch_dists.get(nonmatch_dists.len() / 2)
+    );
 
     assert!(
         total >= 100,
-        "only {total} entering crossings surveyed; the MICRO seed-42 attempt-2 fixture drifted \
-         (measured baseline 128) — re-survey before trusting the bucketed rate below"
+        "only {total} entering crossings surveyed across MICRO seed-42 attempt-2 and both \
+         first-accepted seed-42/99 attempt-0 contexts; re-survey before trusting the bucketed rate below"
     );
     assert!(
         big_total >= 10,
@@ -602,13 +658,13 @@ fn seam_crossings_align_with_upstream_outlets() {
          land an outlet in the upstream window (measured baseline 87%, 21/24)"
     );
 
-    nonmatch_dists.sort_unstable();
     assert!(
         !nonmatch_dists.is_empty(),
         "no non-matching crossing found — fixture drifted; this test needs a fresh non-vacuous \
          distance sample"
     );
     let median = nonmatch_dists[nonmatch_dists.len() / 2];
+    println!("legacy all-seam survey: total={total}, large={big_total}, large_matched={big_matched}, large_match_percent={big_pct}, nonmatches={}, median_nonmatch_distance={median}", nonmatch_dists.len());
     assert!(
         median <= MAX_MEDIAN_NONMATCH_DIST,
         "median non-match distance is {median} cells, past the {MAX_MEDIAN_NONMATCH_DIST}-cell \
@@ -763,7 +819,7 @@ fn seam_lakes_take_the_shared_surface_and_trim_below_it() {
     let filled = fill::fill(&heights, &bundle);
     let rain = area_rainfall(&bundle);
     let water = arda_gen::area::water(&filled, &bundle, &rain);
-    let (cells, objects) = compose(&heights, &filled, &water, &rain, &bundle);
+    let (cells, objects) = compose(&heights, &filled, &water, &rain, &bundle).unwrap();
 
     let near_rim = |c: CellCoord| {
         c.x() <= 1 || c.y() <= 1 || c.x() >= AREA_CELLS - 2 || c.y() >= AREA_CELLS - 2
@@ -845,8 +901,8 @@ fn adjacent_tiles_agree_on_the_shared_seam_surface() {
     let seam_ctx = build_continent(SEAM_SEED, GenerateConfig::MICRO, 0);
     let p_bundle = bundle_for(SEAM_SEED, &seam_ctx, p_coord);
     let q_bundle = bundle_for(SEAM_SEED, &seam_ctx, q_coord);
-    let (_, p_objects) = arda_gen::area::generate_area(SEAM_SEED, &seam_ctx, &p_bundle);
-    let (_, q_objects) = arda_gen::area::generate_area(SEAM_SEED, &seam_ctx, &q_bundle);
+    let (_, p_objects) = arda_gen::area::generate_area(SEAM_SEED, &seam_ctx, &p_bundle).unwrap();
+    let (_, q_objects) = arda_gen::area::generate_area(SEAM_SEED, &seam_ctx, &q_bundle).unwrap();
 
     // The shared-data property: P's east edge (local x = N) and Q's west
     // edge (local x = 0) name the same absolute cells, so sampling either
@@ -916,7 +972,7 @@ fn the_seeded_pipeline_is_deterministic() {
     let run = || {
         let c = build_continent(42, GenerateConfig::MICRO, 2);
         let b = bundle_for(42, &c, area);
-        arda_gen::area::generate_area(42, &c, &b)
+        arda_gen::area::generate_area(42, &c, &b).unwrap()
     };
     assert_eq!(run(), run());
 }
@@ -975,20 +1031,15 @@ fn walled_pit(x_range: std::ops::Range<i32>, y_range: std::ops::Range<i32>) -> V
 ///
 /// Two phases:
 ///
-/// Phase 1, unchanged from the original verification-gap task: measured
-/// (via the real `fill::fill` -> `water::water` -> `compose` path, i.e.
-/// the real `collect_lakes`, on both sides, with the bundles' REAL
-/// `basin_km`) a 723 mm gap between P's and Q's surfaces -- confirmed
-/// (not assumed) to sit ENTIRELY on the fallback path: every near-rim
-/// cell either fragment samples reads `NO_BASIN` from the real seed-42
-/// continent data here, so this particular synthetic pit has no
-/// continent-tier depression underneath it at all, and the new
-/// depression-preference rule this task adds cannot engage. That is
-/// expected, not a defect: the fix's precondition -- both fragments
-/// mapping into the SAME continent-tier depression -- genuinely does not
-/// hold for a pit that exists only in the area tier's own synthetic
-/// heights. This phase's numbers are pinned exactly as before, now
-/// understood rather than merely tolerated.
+/// Phase 1 uses the real `fill` -> `water` -> `compose` path with each
+/// bundle's real `basin_km`. Neither near-rim contact sees a continent
+/// depression, so the bilinear fallback applies. Independent bundle sampling
+/// derives surfaces 118,943 and 118,625 mm, a 318 mm gap. Candidate 04 measured
+/// 299,106 / 300,786 mm (1,680 mm gap); the earlier physical fixture was
+/// 306,426 / 308,937 mm (2,511 mm gap). This is the documented
+/// limitation of the retained local API: a synthetic fine-only pit has no
+/// shared continent depression to make both contact spans choose one level.
+/// The exact fixture is kept as a diagnostic alongside the independent oracle.
 ///
 /// Phase 2, new: the identical P/Q fragments (same heights, same
 /// differing contact spans), but with `basin_km` overridden on both
@@ -1024,8 +1075,8 @@ fn straddling_basins_agree_on_their_surface_across_the_seam() {
     let q_rain = area_rainfall(&q_bundle);
     let p_water = arda_gen::area::water(&p_filled, &p_bundle, &p_rain);
     let q_water = arda_gen::area::water(&q_filled, &q_bundle, &q_rain);
-    let (_, p_objects) = compose(&p_heights, &p_filled, &p_water, &p_rain, &p_bundle);
-    let (_, q_objects) = compose(&q_heights, &q_filled, &q_water, &q_rain, &q_bundle);
+    let (_, p_objects) = compose(&p_heights, &p_filled, &p_water, &p_rain, &p_bundle).unwrap();
+    let (_, q_objects) = compose(&q_heights, &q_filled, &q_water, &q_rain, &q_bundle).unwrap();
 
     assert_eq!(
         p_objects.lakes.len(),
@@ -1039,6 +1090,16 @@ fn straddling_basins_agree_on_their_surface_across_the_seam() {
     );
     let p_lake = &p_objects.lakes[0];
     let q_lake = &q_objects.lakes[0];
+    assert_eq!(
+        p_lake.cells.len(),
+        330,
+        "P must retain the entire synthetic pit"
+    );
+    assert_eq!(
+        q_lake.cells.len(),
+        330,
+        "Q must retain the entire synthetic pit"
+    );
     assert!(
         p_lake.cells.iter().any(|c| c.x() == 510),
         "P's lake must actually touch the seam-facing near-rim column"
@@ -1069,18 +1130,22 @@ fn straddling_basins_agree_on_their_surface_across_the_seam() {
          re-derive phase 1's pinned numbers"
     );
 
+    let p_expected = independent_lake_surface_at(&p_bundle, &p_lake.cells)
+        .expect("P's synthetic lake must touch the near rim");
+    let q_expected = independent_lake_surface_at(&q_bundle, &q_lake.cells)
+        .expect("Q's synthetic lake must touch the near rim");
     assert_eq!(
-        (p_lake.surface.raw(), q_lake.surface.raw()),
-        (306_426, 308_937),
-        "the measured pair drifted; re-derive the pinned numbers (see this test's doc comment \
-         and .superpowers/sdd/straddling-lakes-report.md)"
+        p_lake.surface.raw(),
+        p_expected,
+        "P must use the independently sampled fallback surface"
+    );
+    assert_eq!(
+        q_lake.surface.raw(),
+        q_expected,
+        "Q must use the independently sampled fallback surface"
     );
     let gap = p_lake.surface.raw().abs_diff(q_lake.surface.raw());
-    assert_eq!(
-        gap, 2_511,
-        "the fallback-path gap drifted from the measured 2,511 mm -- #12 stays open for a \
-         basin with no continent-tier depression backing it; re-derive the pinned number"
-    );
+    println!("legacy straddling fallback: independently_sampled_mm=({p_expected},{q_expected}), composed_mm=({},{}), gap_mm={gap}, lake_cell_counts=({},{})", p_lake.surface.raw(), q_lake.surface.raw(), p_lake.cells.len(), q_lake.cells.len());
 
     // Phase 2: construct the fix's actual precondition -- both fragments'
     // near-rim cells mapping into ONE shared continent depression -- and
@@ -1094,8 +1159,8 @@ fn straddling_basins_agree_on_their_surface_across_the_seam() {
     p_shared.basin_km = vec![SHARED_DEPRESSION_MM; PATCH_KM * PATCH_KM];
     q_shared.basin_km = vec![SHARED_DEPRESSION_MM; PATCH_KM * PATCH_KM];
 
-    let (_, p_objects2) = compose(&p_heights, &p_filled, &p_water, &p_rain, &p_shared);
-    let (_, q_objects2) = compose(&q_heights, &q_filled, &q_water, &q_rain, &q_shared);
+    let (_, p_objects2) = compose(&p_heights, &p_filled, &p_water, &p_rain, &p_shared).unwrap();
+    let (_, q_objects2) = compose(&q_heights, &q_filled, &q_water, &q_rain, &q_shared).unwrap();
     assert_eq!(
         p_objects2.lakes.len(),
         1,
@@ -1124,5 +1189,19 @@ fn straddling_basins_agree_on_their_surface_across_the_seam() {
         q_lake2.surface.raw(),
         "straddling fragments of the SAME continent depression must agree EXACTLY, whatever \
          their differing contact spans -- this is what closes open-items #12 exactly"
+    );
+    println!(
+        "legacy straddling shared depression: composed_mm=({},{}), gap_mm=0",
+        p_lake2.surface.raw(),
+        q_lake2.surface.raw()
+    );
+    assert_eq!(
+        (p_lake.surface.raw(), q_lake.surface.raw()),
+        (118_943, 118_625),
+        "the corrected fallback pair drifted; re-derive cross-tile-c05-fixtures.md"
+    );
+    assert_eq!(
+        gap, 318,
+        "the legacy fallback gap drifted from 318 mm; re-derive cross-tile-c05-fixtures.md"
     );
 }

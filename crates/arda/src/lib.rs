@@ -6,14 +6,16 @@
 // `code-prefs.md` §Q1 bans unwrap/expect *outside* `#[cfg(test)]`.
 #![cfg_attr(test, allow(clippy::unwrap_used, clippy::expect_used))]
 
-use std::collections::BTreeMap;
 use std::path::{Path, PathBuf};
 
 pub use arda_core::{
     AreaCells, AreaObjects, Block, Cell, Cover, GenerateConfig, Lake, LatitudeBand, LoadError,
     Manifest, RiverSegment, RoadClass, SizeKm, TerrainKind, TileId, ValidationStats,
 };
-pub use arda_gen::GenError;
+pub use arda_gen::{GenError, HydrologyLimits};
+pub use arda_render::AreaImageScale;
+mod world;
+pub use world::{Area, World};
 
 /// Runs the batch, writing a world directory (`mockup/01`).
 ///
@@ -21,6 +23,20 @@ pub use arda_gen::GenError;
 /// See [`GenError`].
 pub fn generate(seed: u64, config: GenerateConfig, out: &Path) -> Result<Manifest, GenError> {
     arda_gen::generate_world(seed, config, out)
+}
+
+/// Runs offline world generation with explicit resource limits.
+/// Limits admit or reject work without changing the generated physical state.
+///
+/// # Errors
+/// See [`GenError`]. Insufficient admission leaves the output path untouched.
+pub fn generate_with_limits(
+    seed: u64,
+    config: GenerateConfig,
+    out: &Path,
+    limits: HydrologyLimits,
+) -> Result<Manifest, GenError> {
+    arda_gen::generate_world_with_limits(seed, config, out, limits)
 }
 
 /// Output format for `export` (`mockup/03`).
@@ -41,6 +57,9 @@ pub enum ExportError {
     /// The renderer refused.
     #[error(transparent)]
     Render(#[from] arda_render::RenderError),
+    /// Detailed raster scale is meaningful only for area PNGs.
+    #[error("detailed image scale is valid only for area PNG exports")]
+    InvalidImageScale,
     /// The artifact could not be written.
     #[error("failed writing {path}: {source}")]
     Write {
@@ -63,16 +82,48 @@ pub fn export_area(
     out: &Path,
     format: ExportFormat,
 ) -> Result<PathBuf, ExportError> {
-    let area = world.area(ax, ay)?;
+    export_area_with_scale(world, ax, ay, out, format, AreaImageScale::Preview)
+}
+
+/// Exports an area at an explicit image scale without retaining it in memory.
+///
+/// # Errors
+/// Detailed scale with JSON is refused. Other failures propagate through
+/// [`ExportError`], including stored-layer and physical geometry errors.
+pub fn export_area_with_scale(
+    world: &World,
+    ax: i32,
+    ay: i32,
+    out: &Path,
+    format: ExportFormat,
+    scale: AreaImageScale,
+) -> Result<PathBuf, ExportError> {
+    if format == ExportFormat::Json && scale == AreaImageScale::Detail {
+        return Err(ExportError::InvalidImageScale);
+    }
+    let area = world.read_area(ax, ay)?;
+    let coordinate = |v| {
+        u32::try_from(v).map_err(|_| arda_render::RenderError::ChannelGeometry {
+            reason: "area origin has a negative global coordinate",
+        })
+    };
+    let origin = arda_core::GlobalCell {
+        x: coordinate(ax)? * 512,
+        y: coordinate(ay)? * 512,
+    };
     let name = format!("area_{ax:02}_{ay:02}");
     let (path, bytes) = match format {
         ExportFormat::Png => (
-            out.join(format!("{name}.png")),
-            arda_render::render_area_png(area.cells())?,
+            out.join(if scale == AreaImageScale::Detail {
+                format!("{name}_detail.png")
+            } else {
+                format!("{name}.png")
+            }),
+            arda_render::render_area_png(area.cells(), area.objects(), origin, scale)?,
         ),
         ExportFormat::Json => (
             out.join(format!("{name}.json")),
-            arda_render::area_json(world.manifest(), ax, ay, area.cells(), area.objects())
+            arda_render::area_json(world.manifest(), ax, ay, area.cells(), area.objects())?
                 .into_bytes(),
         ),
     };
@@ -91,16 +142,16 @@ pub const OVERVIEW_PX_PER_AREA: u32 = 48;
 /// # Errors
 /// Propagates render and write failures.
 pub fn export_overview(world: &World, out: &Path, px: u32) -> Result<PathBuf, ExportError> {
-    let areas: Vec<(i32, i32, &AreaCells)> = world
-        .area_coords()
-        .filter_map(|(x, y)| world.area(x, y).ok().map(|a| (x, y, a.cells())))
-        .collect();
-    let bytes = arda_render::render_overview_png(
-        &areas,
+    let mut raster = arda_render::OverviewRaster::new(
         world.manifest().areas_wide,
         world.manifest().areas_high,
         px,
     )?;
+    for (x, y) in world.area_coords() {
+        let area = world.read_area(x, y)?;
+        raster.push(arda_core::AreaCoord::new(x, y), area.cells())?;
+    }
+    let bytes = raster.finish()?;
     let path = out.join("overview.png");
     std::fs::write(&path, bytes).map_err(|e| ExportError::Write {
         path: path.display().to_string(),
@@ -140,212 +191,4 @@ pub fn export_block(
         source: e,
     })?;
     Ok(path)
-}
-
-/// One loaded area tile.
-pub struct Area {
-    cells: AreaCells,
-    objects: AreaObjects,
-}
-
-impl Area {
-    /// Reads one cell.
-    ///
-    /// # Errors
-    /// [`LoadError::OutOfRange`] when the coordinates leave the tile.
-    pub fn cell(&self, x: u16, y: u16) -> Result<&Cell, LoadError> {
-        let at = arda_core::CellCoord::new(x, y).ok_or(LoadError::OutOfRange {
-            what: "cell",
-            x: i32::from(x),
-            y: i32::from(y),
-            max_x: i32::from(arda_core::AREA_CELLS) - 1,
-            max_y: i32::from(arda_core::AREA_CELLS) - 1,
-        })?;
-        Ok(self.cells.get(at))
-    }
-
-    /// River segments in this tile.
-    #[must_use]
-    pub fn rivers(&self) -> &[RiverSegment] {
-        &self.objects.rivers
-    }
-
-    /// Lakes in this tile.
-    #[must_use]
-    pub fn lakes(&self) -> &[Lake] {
-        &self.objects.lakes
-    }
-
-    /// The raw cell grid, for renderers.
-    #[must_use]
-    pub const fn cells(&self) -> &AreaCells {
-        &self.cells
-    }
-
-    /// The raw object lists, for renderers.
-    #[must_use]
-    pub const fn objects(&self) -> &AreaObjects {
-        &self.objects
-    }
-}
-
-impl std::fmt::Debug for Area {
-    /// Summary only — an area holds 262,144 cells, so the full grid is never
-    /// formatted.
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        f.debug_struct("Area")
-            .field("rivers", &self.objects.rivers.len())
-            .field("lakes", &self.objects.lakes.len())
-            .finish_non_exhaustive()
-    }
-}
-
-/// A loaded world (`logic/05`).
-///
-/// `ponytail:` areas and blocks are read eagerly at `load`. `logic/05` wants
-/// them lazy with an O(accessed) cache; the upgrade is to keep the directory
-/// path and populate these maps on first access behind a `OnceLock`. The
-/// skeleton's eight tiles fit in memory, so laziness is not yet earned.
-pub struct World {
-    dir: PathBuf,
-    manifest: Manifest,
-    areas: BTreeMap<(i32, i32), Area>,
-    blocks: BTreeMap<(i32, i32), arda_core::BlockArchive>,
-}
-
-impl World {
-    /// Opens a generated world.
-    ///
-    /// # Errors
-    /// [`LoadError::ManifestMissing`] for a partial world,
-    /// [`LoadError::VersionSkew`] for an incompatible format,
-    /// [`LoadError::Corrupt`] for a bad layer.
-    pub fn load(dir: &Path) -> Result<Self, LoadError> {
-        let manifest = arda_core::read_manifest(dir)?;
-
-        let mut areas = BTreeMap::new();
-        let mut blocks = BTreeMap::new();
-        for ay in 0..manifest.areas_high {
-            for ax in 0..manifest.areas_wide {
-                let name = arda_core::AreaCoord::new(ax, ay).dir_name();
-
-                let cells_path = dir.join("areas").join(&name).join("cells.bin");
-                let cells = arda_core::decode_cells(
-                    &cells_path.display().to_string(),
-                    &read(&cells_path)?,
-                )?;
-
-                let obj_path = dir.join("areas").join(&name).join("objects.bin");
-                let objects =
-                    arda_core::decode_objects(&obj_path.display().to_string(), &read(&obj_path)?)?;
-
-                areas.insert((ax, ay), Area { cells, objects });
-
-                let blk_path = dir.join("blocks").join(format!("{name}.tiles.zst"));
-                blocks.insert(
-                    (ax, ay),
-                    arda_core::decode_blocks(&blk_path.display().to_string(), &read(&blk_path)?)?,
-                );
-            }
-        }
-
-        Ok(Self {
-            dir: dir.to_path_buf(),
-            manifest,
-            areas,
-            blocks,
-        })
-    }
-
-    /// The seed this world was generated from.
-    #[must_use]
-    pub const fn seed(&self) -> u64 {
-        self.manifest.seed
-    }
-
-    /// Continent extent.
-    #[must_use]
-    pub const fn size_km(&self) -> SizeKm {
-        self.manifest.config.size_km()
-    }
-
-    /// Number of area tiles.
-    #[must_use]
-    pub fn areas(&self) -> usize {
-        self.areas.len()
-    }
-
-    /// The directory this world was loaded from.
-    #[must_use]
-    pub fn dir(&self) -> &Path {
-        &self.dir
-    }
-
-    /// The manifest.
-    #[must_use]
-    pub const fn manifest(&self) -> &Manifest {
-        &self.manifest
-    }
-
-    /// Every area coordinate in this world, row-major.
-    pub fn area_coords(&self) -> impl Iterator<Item = (i32, i32)> + '_ {
-        let (w, h) = (self.manifest.areas_wide, self.manifest.areas_high);
-        (0..h).flat_map(move |y| (0..w).map(move |x| (x, y)))
-    }
-
-    /// Reads one area tile.
-    ///
-    /// # Errors
-    /// [`LoadError::OutOfRange`] when the tile is outside the continent.
-    pub fn area(&self, x: i32, y: i32) -> Result<&Area, LoadError> {
-        self.areas.get(&(x, y)).ok_or(LoadError::OutOfRange {
-            what: "area",
-            x,
-            y,
-            max_x: self.manifest.areas_wide - 1,
-            max_y: self.manifest.areas_high - 1,
-        })
-    }
-
-    /// Reads one block.
-    ///
-    /// # Errors
-    /// [`LoadError::OutOfRange`] when the tile or cell is outside the world,
-    /// or no block was materialised for that cell.
-    pub fn block(&self, ax: i32, ay: i32, cx: u16, cy: u16) -> Result<&Block, LoadError> {
-        let out_of_range = || LoadError::OutOfRange {
-            what: "block",
-            x: i32::from(cx),
-            y: i32::from(cy),
-            max_x: i32::from(arda_core::AREA_CELLS) - 1,
-            max_y: i32::from(arda_core::AREA_CELLS) - 1,
-        };
-        let archive = self.blocks.get(&(ax, ay)).ok_or(LoadError::OutOfRange {
-            what: "area",
-            x: ax,
-            y: ay,
-            max_x: self.manifest.areas_wide - 1,
-            max_y: self.manifest.areas_high - 1,
-        })?;
-        let at = arda_core::CellCoord::new(cx, cy).ok_or_else(out_of_range)?;
-        archive.get(at).ok_or_else(out_of_range)
-    }
-}
-
-impl std::fmt::Debug for World {
-    /// Summary only — see [`Area`]'s note.
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        f.debug_struct("World")
-            .field("dir", &self.dir)
-            .field("seed", &self.manifest.seed)
-            .field("areas", &self.areas.len())
-            .finish_non_exhaustive()
-    }
-}
-
-fn read(path: &Path) -> Result<Vec<u8>, LoadError> {
-    std::fs::read(path).map_err(|e| LoadError::ManifestUnreadable {
-        dir: path.display().to_string(),
-        reason: e.to_string(),
-    })
 }

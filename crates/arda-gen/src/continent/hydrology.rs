@@ -53,7 +53,7 @@ pub struct ContinentHydrology {
     /// Drainage area, km²; zero on sea cells (§D9 hygiene).
     pub catchment_km2: Vec<u32>,
     /// Discharge, L/s; zero on sea cells.
-    pub discharge_l_s: Vec<u32>,
+    pub discharge_l_s: Vec<u64>,
 }
 
 /// Runoff conversion: `rainfall_mm × 0.5` on 1 km² is
@@ -61,6 +61,11 @@ pub struct ContinentHydrology {
 /// `Σrain × 125 / 7,884` L/s (§D9 — the artifact's "roughly half").
 const RUNOFF_NUM: u64 = 125;
 const RUNOFF_DEN: u64 = 7_884;
+
+// At most4000² validated coarse cells and65535mm/year: the product is<2^47.
+fn coarse_discharge_l_s(rain_sum_mm: u64) -> u64 {
+    rain_sum_mm * RUNOFF_NUM / RUNOFF_DEN
+}
 
 /// Routes the final surface and accumulates both loads.
 #[must_use]
@@ -102,7 +107,7 @@ pub fn hydrology(grid: &ContinentGrid, climate: &ContinentClimate) -> ContinentH
 
     let mut downstream_dir = vec![arda_core::NO_DOWNSTREAM; count];
     let mut catchment_km2 = vec![0u32; count];
-    let mut discharge_l_s = vec![0u32; count];
+    let mut discharge_l_s = vec![0u64; count];
     let w_usize = usize::try_from(w).unwrap_or(1);
     for i in 0..count {
         if let Some(d) = downstream[i] {
@@ -118,8 +123,7 @@ pub fn hydrology(grid: &ContinentGrid, climate: &ContinentClimate) -> ContinentH
         }
         if heights[i] > 0 {
             catchment_km2[i] = area[i];
-            discharge_l_s[i] =
-                u32::try_from(rain_sum[i] * RUNOFF_NUM / RUNOFF_DEN).unwrap_or(u32::MAX);
+            discharge_l_s[i] = coarse_discharge_l_s(rain_sum[i]);
         }
     }
 
@@ -331,6 +335,12 @@ mod tests {
         let c = climate(&g, LatitudeBand::new(35, 55));
         let hy = hydrology(&g, &c);
         (g, hy)
+    }
+
+    #[test]
+    fn maximum_coarse_catchment_does_not_saturate_at_u32() {
+        assert_eq!(coarse_discharge_l_s(16_000_000 * 65_535), 16_624_809_741);
+        assert!(coarse_discharge_l_s(16_000_000 * 19_584) > u64::from(u32::MAX));
     }
 
     #[test]
