@@ -1,16 +1,18 @@
 //! The versioned JSON export schema (`logic/04` §Q14).
 //!
-//! snake_case SI keys, additive-only. Field order is fixed by the struct
+//! snake_case SI keys with explicit major schema versions. Field order is fixed by the struct
 //! definitions, so repeated exports are byte-identical.
 
+use crate::hydrology_json::{hydrology, HydrologyOut};
+use crate::RenderError;
 use arda_core::{
     AreaCells, AreaObjects, Block, CellCoord, Cover, Manifest, SquareCoord, TerrainKind,
     AREA_CELLS, BLOCK_SQUARES, SKELETON_TILES,
 };
 use serde::Serialize;
 
-/// Export schema version, additive-only (`logic/04` §Q14).
-pub const SCHEMA_VERSION: u32 = 1;
+/// Schema 2 adds connected hydrology and representative-state semantics.
+pub const SCHEMA_VERSION: u32 = 2;
 
 #[derive(Serialize)]
 struct CellOut {
@@ -20,27 +22,29 @@ struct CellOut {
     slope_milli_deg: u16,
     aspect_deg: u16,
     drainage_area_cells: u32,
-    discharge_milli_cumecs: u32,
+    discharge_milli_cumecs: u64,
     watercourse_order: u8,
-    watercourse_width_dm: u16,
+    watercourse_width_dm: u32,
     height_above_river_dm: u16,
     wetness: u8,
 }
 
 #[derive(Serialize)]
 struct RiverOut {
-    id: u16,
+    id: u32,
+    global_reach_id: String,
     order: u8,
-    width_dm: u16,
-    discharge_milli_cumecs: u32,
-    feeds: Option<u16>,
+    width_dm: u32,
+    discharge_milli_cumecs: u64,
+    feeds: Option<u32>,
     ends: &'static str,
     course: Vec<[u16; 2]>,
 }
 
 #[derive(Serialize)]
 struct LakeOut {
-    id: u16,
+    id: u32,
+    global_basin_id: String,
     surface_mm: i32,
     depth_mm: u32,
     outlet: Option<[u16; 2]>,
@@ -53,6 +57,8 @@ const fn terminus_name(t: arda_core::Terminus) -> &'static str {
         arda_core::Terminus::Sea => "sea",
         arda_core::Terminus::Lake => "lake",
         arda_core::Terminus::OffTile => "off_tile",
+        arda_core::Terminus::Basin => "basin",
+        arda_core::Terminus::Divergence => "divergence",
     }
 }
 
@@ -67,6 +73,17 @@ struct AreaOut {
     cells: Vec<CellOut>,
     rivers: Vec<RiverOut>,
     lakes: Vec<LakeOut>,
+    channel_edges: Vec<ChannelEdgeOut>,
+    hydrology: HydrologyOut,
+}
+
+#[derive(Serialize)]
+struct ChannelEdgeOut {
+    from_global_cell: [u32; 2],
+    to_global_cell: [u32; 2],
+    from_width_dm: u32,
+    to_width_dm: u32,
+    discharge_milli_cumecs: u64,
 }
 
 #[derive(Serialize)]
@@ -106,15 +123,17 @@ const fn cover_name(c: Cover) -> &'static str {
     }
 }
 
-/// Serialises one area tile.
-#[must_use]
+/// Serialises one area tile and its saved connected-water diagnostics.
+///
+/// # Errors
+/// Returns a JSON serialization error rather than an empty export.
 pub fn area_json(
     manifest: &Manifest,
     ax: i32,
     ay: i32,
     cells: &AreaCells,
     objects: &AreaObjects,
-) -> String {
+) -> Result<String, RenderError> {
     let mut out_cells = Vec::with_capacity(usize::from(AREA_CELLS) * usize::from(AREA_CELLS));
     for y in 0..AREA_CELLS {
         for x in 0..AREA_CELLS {
@@ -143,6 +162,7 @@ pub fn area_json(
         .iter()
         .map(|r| RiverOut {
             id: r.id,
+            global_reach_id: r.global_id.0.to_string(),
             order: r.order,
             width_dm: r.width_dm,
             discharge_milli_cumecs: r.discharge.raw(),
@@ -157,6 +177,7 @@ pub fn area_json(
         .iter()
         .map(|l| LakeOut {
             id: l.id,
+            global_basin_id: l.global_id.0.to_string(),
             surface_mm: l.surface.raw(),
             depth_mm: l.depth_mm,
             outlet: l.outlet.map(|c| [c.x(), c.y()]),
@@ -174,8 +195,22 @@ pub fn area_json(
         cells: out_cells,
         rivers,
         lakes,
+        channel_edges: objects
+            .channel_edges
+            .iter()
+            .map(|e| ChannelEdgeOut {
+                from_global_cell: [e.from.x, e.from.y],
+                to_global_cell: [e.to.x, e.to.y],
+                from_width_dm: e.from_width_dm,
+                to_width_dm: e.to_width_dm,
+                discharge_milli_cumecs: e.discharge.raw(),
+            })
+            .collect(),
+        hydrology: hydrology(&objects.global),
     };
-    serde_json::to_string_pretty(&doc).unwrap_or_default()
+    serde_json::to_string_pretty(&doc).map_err(|e| RenderError::Json {
+        reason: e.to_string(),
+    })
 }
 
 /// Serialises one block, legend included.
@@ -210,4 +245,16 @@ pub fn block_json(manifest: &Manifest, block: &Block) -> String {
         squares,
     };
     serde_json::to_string_pretty(&doc).unwrap_or_default()
+}
+
+#[cfg(test)]
+mod annual_endpoint_tests {
+    #[test]
+    fn dry_physical_basin_has_an_honest_json_terminus() {
+        assert_eq!(super::terminus_name(arda_core::Terminus::Basin), "basin");
+        assert_eq!(
+            super::terminus_name(arda_core::Terminus::Divergence),
+            "divergence"
+        );
+    }
 }

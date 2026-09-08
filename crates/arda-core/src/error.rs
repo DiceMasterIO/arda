@@ -44,6 +44,24 @@ pub enum ConfigError {
 /// A byte-level problem inside `arda-core::formats`.
 #[derive(Debug, Error)]
 pub enum FormatError {
+    /// A malformed shared-hydrology record or table.
+    #[error("{path}: {source}")]
+    Hydrology {
+        /// File being encoded or decoded.
+        path: String,
+        /// Checked record, resource-limit, or I/O failure.
+        #[source]
+        source: crate::formats::hydrology::HydrologyFormatError,
+    },
+    /// A format-4 area object container or copied authority is invalid.
+    #[error("{path}: {source}")]
+    Objects {
+        /// File being encoded or decoded.
+        path: String,
+        /// Checked structural, resource-limit, or hydrology failure.
+        #[source]
+        source: crate::formats::area_objects_v4::ObjectsFormatError,
+    },
     /// The underlying reader or writer failed.
     #[error("io error on {path}: {source}")]
     Io {

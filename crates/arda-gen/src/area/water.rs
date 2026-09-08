@@ -16,7 +16,7 @@ const N: i32 = AREA_CELLS as i32;
 /// Discharge a cell needs before it counts as a watercourse (artifact,
 /// Water): "about 40 litres per second, which in a temperate climate
 /// means roughly three square kilometres of catchment" (feature 03 §Q4).
-const CHANNEL_THRESHOLD_L_S: u32 = 40;
+const CHANNEL_THRESHOLD_L_S: u64 = 40;
 
 /// Row-major offset. Invariant: every caller bounds-checks `0 <= x,y < N`
 /// before calling, so the product is non-negative.
@@ -34,7 +34,7 @@ fn coord(x: i32, y: i32) -> Option<CellCoord> {
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct WaterGrid {
     drainage: Vec<u32>,
-    discharge: Vec<u32>,
+    discharge: Vec<u64>,
     order: Vec<u8>,
     downstream: Vec<Option<u32>>,
     outlets: Vec<bool>,
@@ -49,7 +49,7 @@ impl WaterGrid {
 
     /// Discharge at a cell, litres per second (feature 03 §Q4).
     #[must_use]
-    pub fn discharge_at(&self, at: CellCoord) -> u32 {
+    pub fn discharge_at(&self, at: CellCoord) -> u64 {
         self.discharge[at.index()]
     }
 
@@ -82,17 +82,21 @@ impl WaterGrid {
 
 /// Height just outside the tile, from the neighbour's own edge cells.
 ///
-/// The bundle's arrays are the neighbouring tile's first row or column, so a
-/// boundary cell can be compared against real terrain rather than dammed by
-/// its own edge.
+/// Logic/02 "Legacy outside-neighbor correction": north/west own-edge
+/// samples retain their seam contract; routing uses the separate actual
+/// outside samples, including all four D8 corners. Only the one-cell ring
+/// is an adjacent neighbor.
 fn off_tile_height(bundle: &TileBundle, x: i32, y: i32) -> Option<i32> {
-    let last = N - 1;
     let i = |v: i32| usize::try_from(v).ok();
     match (x, y) {
-        (_, -1) => bundle.north.get(i(x)?).copied(),
-        (_, yy) if yy > last => bundle.south.get(i(x)?).copied(),
-        (-1, _) => bundle.west.get(i(y)?).copied(),
-        (xx, _) if xx > last => bundle.east.get(i(y)?).copied(),
+        (-1, -1) => Some(bundle.outside_corners[0]),
+        (N, -1) => Some(bundle.outside_corners[1]),
+        (-1, N) => Some(bundle.outside_corners[2]),
+        (N, N) => Some(bundle.outside_corners[3]),
+        (xx, -1) if (0..N).contains(&xx) => bundle.north_outside.get(i(x)?).copied(),
+        (xx, N) if (0..N).contains(&xx) => bundle.south.get(i(x)?).copied(),
+        (-1, yy) if (0..N).contains(&yy) => bundle.west_outside.get(i(y)?).copied(),
+        (N, yy) if (0..N).contains(&yy) => bundle.east.get(i(y)?).copied(),
         _ => None,
     }
 }
@@ -199,7 +203,7 @@ pub fn water(filled: &Filled, bundle: &TileBundle, rain: &[u16]) -> WaterGrid {
     for e in &bundle.entering {
         let i = e.cell.index();
         drainage[i] = drainage[i].saturating_add(e.catchment_km2.saturating_mul(100));
-        seed_ls[i] += u64::from(e.discharge.raw());
+        seed_ls[i] += e.discharge.raw();
     }
     for &(_, i) in &by_height {
         if let Some(d) = downstream[i as usize] {
@@ -212,8 +216,8 @@ pub fn water(filled: &Filled, bundle: &TileBundle, rain: &[u16]) -> WaterGrid {
 
     // feature 03 §Q4: 0.5 runoff on 0.01 km² (100 m cells), plus whatever
     // discharge entering rivers already carried in from outside the tile.
-    let discharge: Vec<u32> = (0..count)
-        .map(|i| saturate_u32(rain_sum[i] * 125 / 788_400 + seed_ls[i]))
+    let discharge: Vec<u64> = (0..count)
+        .map(|i| rain_sum[i] * 125 / 788_400 + seed_ls[i])
         .collect();
 
     let order = strahler(&downstream, &discharge, &by_height, &bundle.entering);
@@ -225,11 +229,6 @@ pub fn water(filled: &Filled, bundle: &TileBundle, rain: &[u16]) -> WaterGrid {
         downstream,
         outlets,
     }
-}
-
-/// Saturating cast from a `u64` accumulator that may exceed `u32`'s range.
-fn saturate_u32(v: u64) -> u32 {
-    u32::try_from(v).unwrap_or(u32::MAX)
 }
 
 /// Strahler order over the channel network (artifact, Water).
@@ -250,7 +249,7 @@ fn saturate_u32(v: u64) -> u32 {
 /// head at every seam it crosses (feature 03 §Q3).
 fn strahler(
     downstream: &[Option<u32>],
-    discharge: &[u32],
+    discharge: &[u64],
     by_height: &[(i32, u32)],
     entering: &[EnteringRiver],
 ) -> Vec<u8> {
@@ -307,6 +306,10 @@ fn strahler(
     }
     order
 }
+
+#[cfg(test)]
+#[path = "water_neighbor_tests.rs"]
+mod neighbor_tests;
 
 #[cfg(test)]
 mod tests {

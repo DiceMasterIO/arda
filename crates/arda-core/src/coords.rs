@@ -160,3 +160,15 @@ mod tests {
         assert_eq!(s.index(), 4 * 64 + 5);
     }
 }
+
+/// Absolute coordinate on the shared 100 m terrain grid.
+///
+/// Domain-specific bounds are checked against `HydrologyDomain`; this type
+/// keeps global coordinates distinct from area-local and kilometre indices.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
+pub struct GlobalCell {
+    /// Column from the modeled domain's west edge.
+    pub x: u32,
+    /// Row from the modeled domain's north edge.
+    pub y: u32,
+}

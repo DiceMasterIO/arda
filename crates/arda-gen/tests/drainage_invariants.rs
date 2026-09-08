@@ -7,8 +7,9 @@
 #![allow(clippy::unwrap_used, clippy::expect_used)]
 
 use arda_core::{
-    AreaCells, AreaCoord, AreaObjects, CellCoord, GenerateConfig, Terminus, TerrainKind, AREA_CELLS,
+    AreaCells, AreaCoord, CellCoord, GenerateConfig, Terminus, TerrainKind, AREA_CELLS,
 };
+use arda_gen::area::local_objects::LocalAreaObjects as AreaObjects;
 use arda_gen::area::water::WaterGrid;
 use arda_gen::area::{compose, erosion, fill, relief};
 use arda_gen::continent::build_continent;
@@ -71,7 +72,7 @@ fn tiles() -> &'static Vec<Tile> {
                 let filled = fill::fill(&heights, &b);
                 let rain = arda_gen::area::area_rainfall(&b);
                 let water = arda_gen::area::water(&filled, &b, &rain);
-                let (cells, objects) = compose(&heights, &filled, &water, &rain, &b);
+                let (cells, objects) = compose(&heights, &filled, &water, &rain, &b).unwrap();
                 Tile {
                     coord,
                     cells,
@@ -80,6 +81,50 @@ fn tiles() -> &'static Vec<Tile> {
                 }
             })
             .collect()
+    })
+}
+
+/// A physical bowl guarantees nonempty local-lake coverage without depending on
+/// erosion leaving a particular natural pit above the legacy size/depth floors.
+/// The surrounding ramp has a strictly downhill route to the physical rim, so
+/// only the explicit 20×20 positive bowl can be filled as a depression.
+fn synthetic_lake() -> &'static Tile {
+    static TILE: OnceLock<Tile> = OnceLock::new();
+    TILE.get_or_init(|| {
+        let c = build_continent(42, GenerateConfig::MICRO, 0);
+        let coord = AreaCoord::new(0, 1);
+        let b = bundle_for(42, &c, coord);
+        let heights: Vec<i32> = (0..N * N)
+            .map(|i| {
+                let (x, y) = (i % N, i / N);
+                if (200..220).contains(&x) && (200..220).contains(&y) {
+                    5_000
+                } else {
+                    10_000 + x.min(y).min(N - 1 - x).min(N - 1 - y) * 100
+                }
+            })
+            .collect();
+        let filled = fill::fill(&heights, &b);
+        assert_eq!(
+            filled.basins.len(),
+            1,
+            "only the explicit bowl is submerged"
+        );
+        assert_eq!(filled.basins[0].cells.len(), 400);
+        let rain = arda_gen::area::area_rainfall(&b);
+        let water = arda_gen::area::water(&filled, &b, &rain);
+        let (cells, objects) = compose(&heights, &filled, &water, &rain, &b).unwrap();
+        assert_eq!(
+            objects.lakes.len(),
+            1,
+            "the physical bowl must survive composition"
+        );
+        Tile {
+            coord,
+            cells,
+            objects,
+            water,
+        }
     })
 }
 
@@ -135,7 +180,7 @@ fn b_lakes_are_emitted_and_have_substance() {
     // Guards against the filter silently removing every basin: a stage that
     // emits no lakes would leave `Lake` producer-less again.
     let mut total_lakes = 0;
-    for t in tiles() {
+    for t in tiles().iter().chain(std::iter::once(synthetic_lake())) {
         let (cells, objects) = (&t.cells, &t.objects);
         total_lakes += objects.lakes.len();
         for l in &objects.lakes {
@@ -159,7 +204,10 @@ fn b_lakes_are_emitted_and_have_substance() {
             }
         }
     }
-    assert!(total_lakes > 0, "no lakes were emitted across three tiles");
+    assert!(
+        total_lakes > 0,
+        "no lakes were emitted across the natural tiles and physical bowl"
+    );
 }
 
 #[test]
@@ -208,7 +256,7 @@ fn d_segments_partition_the_channel_network() {
 fn e_strahler_never_decreases_downstream() {
     for t in tiles() {
         let objects = &t.objects;
-        let by_id: std::collections::HashMap<u16, u8> =
+        let by_id: std::collections::HashMap<u32, u8> =
             objects.rivers.iter().map(|s| (s.id, s.order)).collect();
         for s in &objects.rivers {
             if let Some(f) = s.feeds {
@@ -231,7 +279,7 @@ fn f_the_same_seed_yields_the_same_lakes_and_reaches() {
     let c = build_continent(42, GenerateConfig::MICRO, 0);
     for t in tiles() {
         let b = bundle_for(42, &c, t.coord);
-        let again = arda_gen::area::generate_area(42, &c, &b);
+        let again = arda_gen::area::generate_area(42, &c, &b).unwrap();
         assert_eq!(again.1.lakes, t.objects.lakes, "lakes differ on rerun");
         assert_eq!(again.1.rivers, t.objects.rivers, "reaches differ on rerun");
     }
@@ -386,20 +434,20 @@ fn assert_lake_outlets_are_sound(objects: &AreaObjects) -> u32 {
 fn i_lake_outlets_are_geometrically_sound() {
     // `Lake.outlet` has needed two geometry-specific bugfixes (round-1 and
     // round-2 review), each caught only by a single hand-built synthetic
-    // fixture. This sweeps every surviving lake across several REAL MICRO
-    // tiles instead, checking the contract `assert_lake_outlets_are_sound`
-    // documents.
+    // fixture. This retains every natural MICRO
+    // fixture and adds an explicit physical bowl, checking the same contract
+    // even when corrected erosion removes all the old-threshold natural lakes.
     let mut lakes_checked = 0u32;
 
-    for t in tiles() {
+    for t in tiles().iter().chain(std::iter::once(synthetic_lake())) {
         lakes_checked += assert_lake_outlets_are_sound(&t.objects);
     }
 
     // A couple of extra (seed, tile) pairs on top of this file's own three
     // MICRO tiles — cheap to add because they are already known-good from
     // `arda-gen`'s own test suite rather than found by trial and error:
-    // seed 123 tile (1, 0) and seed 99 tile (1, 1) each hold a near-rim
-    // lake that survives the seam clamp (`area::mod`'s
+    // seed 123 tile (1, 0) and seed 99 tile (1, 1) historically held a near-rim
+    // lake that survived the seam clamp (`area::mod`'s
     // `edge_touching_basins_take_the_continent_spill_level` and
     // `cross_tile.rs`'s
     // `seam_lakes_take_the_shared_surface_and_trim_below_it` both pin
@@ -411,7 +459,7 @@ fn i_lake_outlets_are_geometrically_sound() {
     for (seed, coord) in extra {
         let c = build_continent(seed, GenerateConfig::MICRO, 0);
         let b = bundle_for(seed, &c, coord);
-        let (_, objects) = arda_gen::area::generate_area(seed, &c, &b);
+        let (_, objects) = arda_gen::area::generate_area(seed, &c, &b).unwrap();
         lakes_checked += assert_lake_outlets_are_sound(&objects);
     }
 

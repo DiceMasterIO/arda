@@ -1,22 +1,47 @@
 //! The batch orchestrator (`04-data-flow.md` lifecycle 1).
 //!
-//! Stages run sequentially per tier; areas fan out on the rayon pool. The
-//! orchestrator is the only thing here that touches disk — the stages
-//! themselves are pure.
+//! One modeled rectangle evolves before sequential preparation slices feed the
+//! shared annual solve and immutable area composition. Publication boundaries
+//! do not constrain terrain evolution; slicing order never changes its physical
+//! state. Manifest publication is the final successful operation.
 
-use crate::area::generate_area;
+pub(crate) mod annual_source;
+pub(crate) mod child_links;
+#[cfg(test)]
+mod entrypoint_tests;
+#[cfg(test)]
+mod error_chain_tests;
+pub(crate) mod flow_disk;
+mod generation_limits;
+#[cfg(test)]
+mod generation_limits_tests;
+pub(crate) mod global_output;
+pub(crate) mod prepared_files;
+pub(crate) mod publication;
+pub(crate) mod routing_disk;
+pub(crate) mod shared_solve;
+
+use crate::area::prepare::{prepare_area_terrain, SharedTerrain};
 use crate::block::{constraints_for, fill_block};
 use crate::continent::bundles::bundle_for;
 use crate::continent::climate::climate;
 use crate::continent::hydrology::{extract_rivers, hydrology};
 use crate::continent::{generate_continent_attempt, Continent};
+use crate::hydrology::fine_flow::FlowStore;
+use crate::hydrology::routing::RoutingStore;
+pub use crate::hydrology::types::HydrologyLimits;
+use crate::hydrology::{area_output, final_index, prepared_codec, prepared_domain, routing, types};
+use arda_core::formats::hydrology::{BasinNodeRow, FixedRecord, TABLE_HEADER_BYTES};
+use arda_core::hydrology::{
+    AnnualCatchment, BasinId, GlobalLake, GlobalReach, HydrologyMetadata, SharedCrossing,
+};
 use arda_core::{
     encode_blocks, encode_cells, encode_continent_objects, encode_objects, encode_overview,
-    write_manifest, AreaCoord, BlockArchive, CellCoord, ContinentCell, ContinentObjects,
+    AreaCells, AreaCoord, AreaObjects, BlockArchive, CellCoord, ContinentCell, ContinentObjects,
     ContinentOverview, ContinentRiver, DischargeMilli, GenerateConfig, Manifest, RainfallMm,
     TempCentiC, TerrainKind, ValidationStats, AREA_CELLS, FORMAT_VERSION,
 };
-use rayon::prelude::*;
+use publication::{PublicationError, WorldOutput};
 use std::path::{Path, PathBuf};
 use thiserror::Error;
 
@@ -53,6 +78,46 @@ pub enum GenError {
         #[source]
         source: arda_core::FormatError,
     },
+    /// Public resource admission failed before creating output files.
+    #[error(transparent)]
+    Admission(#[from] generation_limits::AdmissionError),
+    /// A completed solver changed the domain admitted before output creation.
+    #[error("completed hydrology domain differs from the admitted domain")]
+    AdmittedDomain,
+    /// A final output would exceed its separately admitted write/read envelope.
+    #[error("final output {resource} requires {required}, admitted {limit}")]
+    ResourceEnvelope {
+        /// Requested bytes or counted file operations.
+        resource: &'static str,
+        /// Total attempted requirement, including this operation.
+        required: u128,
+        /// Admitted total for the complete final output.
+        limit: u128,
+    },
+    /// Canonical terrain preparation failed.
+    #[error(transparent)]
+    Prepare(#[from] types::HydrologyError),
+    /// Prepared private storage failed.
+    #[error(transparent)]
+    Prepared(#[from] prepared_files::PreparedError),
+    /// The shared physical annual solve failed.
+    #[error(transparent)]
+    Shared(#[from] shared_solve::SharedError),
+    /// Final saved feature indexing failed.
+    #[error("final hydrology indexing failed: {0}")]
+    Index(#[source] final_index::IndexError<routing_disk::DiskError, flow_disk::FlowDiskError>),
+    /// Final immutable area composition failed.
+    #[error("shared area composition failed: {0}")]
+    Area(#[source] area_output::AreaError<routing_disk::DiskError, flow_disk::FlowDiskError>),
+    /// A complete area object's canonical encoder rejected its input.
+    #[error("area object encoding failed: {0}")]
+    Objects(#[from] arda_core::formats::area_objects_v4::ObjectsFormatError),
+    /// A global identity/annual layer failed before publication.
+    #[error(transparent)]
+    Global(#[from] global_output::GlobalOutputError),
+    /// Internal generated output names violated the publication contract.
+    #[error("invalid generated world output path")]
+    InvalidOutputPath,
     /// The manifest could not be stamped.
     #[error("failed stamping the manifest: {0}")]
     Manifest(#[from] arda_core::LoadError),
@@ -81,30 +146,156 @@ fn river_gate(rivers: &[ContinentRiver]) -> Result<(), String> {
     }
 }
 
-fn write_file(path: &Path, bytes: &[u8]) -> Result<(), GenError> {
-    let fail = |e: std::io::Error| GenError::Write {
-        path: path.display().to_string(),
-        source: e,
-    };
-    if let Some(parent) = path.parent() {
-        std::fs::create_dir_all(parent).map_err(fail)?;
+fn publication_error(error: PublicationError) -> GenError {
+    match error {
+        PublicationError::Occupied(path) => GenError::OutputNotEmpty {
+            dir: path.display().to_string(),
+        },
+        PublicationError::Io { path, source } => GenError::Write {
+            path: path.display().to_string(),
+            source,
+        },
+        PublicationError::Manifest(source) => GenError::Manifest(source),
+        PublicationError::InvalidLayer => GenError::InvalidOutputPath,
     }
-    std::fs::write(path, bytes).map_err(fail)
+}
+// This receipt only covers final layer writes and the repeated private child read.
+// Mutable backend I/O remains charged by the already-admitted backend owners.
+struct FinalWrites {
+    bytes: u128,
+    operations: u128,
+    byte_limit: u128,
+    operation_limit: u128,
+}
+impl FinalWrites {
+    fn charge(&mut self, bytes: u128, operations: u128) -> Result<(), GenError> {
+        let next_bytes = self
+            .bytes
+            .checked_add(bytes)
+            .ok_or(GenError::ResourceEnvelope {
+                resource: "requested bytes",
+                required: u128::MAX,
+                limit: self.byte_limit,
+            })?;
+        let next_operations =
+            self.operations
+                .checked_add(operations)
+                .ok_or(GenError::ResourceEnvelope {
+                    resource: "file operations",
+                    required: u128::MAX,
+                    limit: self.operation_limit,
+                })?;
+        for (resource, required, limit) in [
+            ("requested bytes", next_bytes, self.byte_limit),
+            ("file operations", next_operations, self.operation_limit),
+        ] {
+            if required > limit {
+                return Err(GenError::ResourceEnvelope {
+                    resource,
+                    required,
+                    limit,
+                });
+            }
+        }
+        self.bytes = next_bytes;
+        self.operations = next_operations;
+        Ok(())
+    }
+    fn global(
+        &mut self,
+        shared: &shared_solve::SharedArtifacts,
+        index: &final_index::FinalIndex,
+    ) -> Result<(), GenError> {
+        let children = shared.nodes.iter().try_fold(0_u128, |sum, node| {
+            sum.checked_add(node.children.len() as u128)
+                .ok_or(GenError::ResourceEnvelope {
+                    resource: "requested bytes",
+                    required: u128::MAX,
+                    limit: self.byte_limit,
+                })
+        })?;
+        let tables = [
+            (shared.nodes.len() as u128, BasinNodeRow::WIDTH),
+            (children, BasinId::WIDTH),
+            (shared.lakes.len() as u128, GlobalLake::WIDTH),
+            (index.reaches.len() as u128, GlobalReach::WIDTH),
+            (index.crossings.len() as u128, SharedCrossing::WIDTH),
+            (index.catchments.len() as u128, AnnualCatchment::WIDTH),
+            (1, HydrologyMetadata::WIDTH),
+        ];
+        // One requested payload operation per record, one extra read per child,
+        // and64 fixed header/create/flush/open/metadata operations. Buffered calls
+        // may coalesce these; no cache-hit or syscall-count assumption is made.
+        let mut bytes =
+            children
+                .checked_mul(BasinId::WIDTH as u128)
+                .ok_or(GenError::ResourceEnvelope {
+                    resource: "requested bytes",
+                    required: u128::MAX,
+                    limit: self.byte_limit,
+                })?;
+        let mut operations = children.checked_add(64).ok_or(GenError::ResourceEnvelope {
+            resource: "file operations",
+            required: u128::MAX,
+            limit: self.operation_limit,
+        })?;
+        for (count, width) in tables {
+            bytes = count
+                .checked_mul(width as u128)
+                .and_then(|v| v.checked_add(u128::from(TABLE_HEADER_BYTES)))
+                .and_then(|v| v.checked_add(bytes))
+                .ok_or(GenError::ResourceEnvelope {
+                    resource: "requested bytes",
+                    required: u128::MAX,
+                    limit: self.byte_limit,
+                })?;
+            operations = operations
+                .checked_add(count)
+                .ok_or(GenError::ResourceEnvelope {
+                    resource: "file operations",
+                    required: u128::MAX,
+                    limit: self.operation_limit,
+                })?;
+        }
+        self.charge(bytes, operations)
+    }
+}
+fn write_file(
+    output: &WorldOutput,
+    relative: &Path,
+    bytes: &[u8],
+    writes: &mut FinalWrites,
+) -> Result<(), GenError> {
+    // create_dir_all, create_new open, write_all and flush: attempted API calls.
+    writes.charge(bytes.len() as u128, 4)?;
+    output
+        .write_layer(relative, bytes)
+        .map_err(publication_error)
+}
+fn create_private(path: &Path) -> Result<(), GenError> {
+    std::fs::create_dir(path).map_err(|source| GenError::Write {
+        path: path.display().to_string(),
+        source,
+    })
 }
 
-/// Generates and writes one area tile, blocks included.
+/// Writes already composed cells/objects and the unchanged sampled tactical skeleton.
 fn write_area(
     seed: u64,
-    continent: &Continent,
     area: AreaCoord,
-    out: &Path,
+    cells: &AreaCells,
+    objects: &AreaObjects,
+    output: &WorldOutput,
+    writes: &mut FinalWrites,
 ) -> Result<(), GenError> {
-    let bundle = bundle_for(seed, continent, area);
-    let (cells, objects) = generate_area(seed, continent, &bundle);
-
-    let dir: PathBuf = out.join("areas").join(area.dir_name());
-    write_file(&dir.join("cells.bin"), &encode_cells(&cells))?;
-    write_file(&dir.join("objects.bin"), &encode_objects(&objects))?;
+    let dir: PathBuf = Path::new("areas").join(area.dir_name());
+    write_file(output, &dir.join("cells.bin"), &encode_cells(cells), writes)?;
+    write_file(
+        output,
+        &dir.join("objects.bin"),
+        &encode_objects(objects)?,
+        writes,
+    )?;
 
     let mut archive = BlockArchive::default();
     let mut y = 0u16;
@@ -113,7 +304,7 @@ fn write_area(
         while x < AREA_CELLS {
             if let Some(at) = CellCoord::new(x, y) {
                 if cells.get(at).terrain == TerrainKind::Land {
-                    let c = constraints_for(&cells, at);
+                    let c = constraints_for(cells, at);
                     archive.insert(at, fill_block(seed, area, at, &c));
                 }
             }
@@ -127,7 +318,7 @@ fn write_area(
         path: format!("blocks/{name}"),
         source: e,
     })?;
-    write_file(&out.join("blocks").join(name), &blocks)
+    write_file(output, &Path::new("blocks").join(name), &blocks, writes)
 }
 
 /// Runs the whole batch and stamps the manifest.
@@ -135,15 +326,33 @@ fn write_area(
 /// # Errors
 /// See [`GenError`].
 pub fn generate_world(seed: u64, config: GenerateConfig, out: &Path) -> Result<Manifest, GenError> {
-    let occupied = out
-        .read_dir()
-        .map(|mut d| d.next().is_some())
-        .unwrap_or(false);
-    if occupied {
-        return Err(GenError::OutputNotEmpty {
-            dir: out.display().to_string(),
-        });
-    }
+    generate_world_with_limits(seed, config, out, HydrologyLimits::default())
+}
+
+/// Runs the same deterministic batch with explicit offline-generation resource limits.
+/// Limits only admit work or return an error; they never change the physical result.
+///
+/// # Errors
+/// See [`GenError`]. Admission happens before output creation; later failures leave
+/// an incomplete output without its manifest, requiring the existing clean rerun.
+pub fn generate_world_with_limits(
+    seed: u64,
+    config: GenerateConfig,
+    out: &Path,
+    limits: HydrologyLimits,
+) -> Result<Manifest, GenError> {
+    let admission = generation_limits::admit(config, &WorldOutput::scratch_path(out), limits)?;
+    let mut writes = FinalWrites {
+        bytes: 0,
+        operations: 0,
+        byte_limit: admission.reservations.final_io_bytes,
+        operation_limit: u128::from(admission.reservations.final_io_operations),
+    };
+    // The fixed-size manifest and transaction names have a conservative1MiB
+    // payload allowance;16 requested API calls cover reservation and publication.
+    // This is admitted before creating output and retained through the final commit.
+    writes.charge(1 << 20, 16)?;
+    let output = WorldOutput::begin(out).map_err(publication_error)?;
 
     // Tier 1: continent, single-threaded, with the step-9 validation gates
     // — land fraction, then a sea-reaching river — and their deterministic
@@ -194,13 +403,79 @@ pub fn generate_world(seed: u64, config: GenerateConfig, out: &Path) -> Result<M
         });
     };
 
-    // Tiers 2 and 3: areas fan out, each writing its own keyed outputs. The
-    // work is order-free because every tile depends only on its bundle.
+    // Prepare every modeled cell, including cropped physical fringe tiles. Final
+    // workers consume the completed shared state and never read another area's output.
+    let prepared_dir = output.scratch().join("prepared");
+    let solve_dir = output.scratch().join("solve");
+    create_private(&prepared_dir)?;
+    create_private(&solve_dir)?;
+    let terrain = SharedTerrain::build(seed, &continent, admission.domain)?;
+    let mut writer =
+        prepared_files::PreparedWriter::new(&prepared_dir, admission.domain, admission.prepared)?;
+    for entry in admission.domain.entries() {
+        let bundle = bundle_for(seed, &continent, entry.area);
+        let prepared = prepare_area_terrain(&terrain, &continent, &bundle, entry.valid)?;
+        writer.write(&prepared)?;
+    }
+    drop(terrain);
+    let mut prepared = writer.finish()?;
+    let mut shared = shared_solve::solve(
+        &mut prepared,
+        &continent.grid,
+        &continent.climate,
+        config,
+        &solve_dir,
+        admission.shared,
+    )?;
+    if shared.routing.extent() != admission.extent || shared.flow.extent() != admission.extent {
+        return Err(GenError::AdmittedDomain);
+    }
+    let domain = arda_core::hydrology::HydrologyDomain {
+        width_cells: admission.domain.width(),
+        height_cells: admission.domain.height(),
+        exported_areas_wide: u32::try_from(config.areas_wide())
+            .map_err(|_| GenError::InvalidOutputPath)?,
+        exported_areas_high: u32::try_from(config.areas_high())
+            .map_err(|_| GenError::InvalidOutputPath)?,
+    };
+    let index = final_index::build(
+        &mut shared.routing,
+        &mut shared.flow,
+        domain,
+        &shared.nodes,
+        &shared.solution.leaf_net,
+        admission.index,
+    )
+    .map_err(GenError::Index)?;
     let coords: Vec<AreaCoord> = config.area_coords().collect();
-    coords
-        .par_iter()
-        .map(|&area| write_area(seed, &continent, area, out))
-        .collect::<Result<Vec<()>, GenError>>()?;
+    for &area in &coords {
+        let tile = prepared.tile(area)?;
+        let (cells, objects) = area_output::compose(
+            tile,
+            &mut shared.routing,
+            &mut shared.flow,
+            &index,
+            &shared.lakes,
+            admission.area,
+        )
+        .map_err(GenError::Area)?;
+        write_area(seed, area, &cells, &objects, &output, &mut writes)?;
+    }
+    writes.global(&shared, &index)?;
+    global_output::write(&output, &mut shared, &index)?;
+    // Completed flow/receiver caches and all file readers must close before scratch
+    // cleanup and the final manifest rename, including on Windows hosts.
+    shared
+        .routing
+        .flush()
+        .map_err(shared_solve::SharedError::Routing)?;
+    shared
+        .flow
+        .flush()
+        .map_err(shared_solve::SharedError::FlowStore)?;
+    drop(shared);
+    drop(prepared);
+    drop(index);
 
     // Continent layer (feature 02): rivers were already extracted above,
     // during the step-9 gate, and are reused here, not recomputed. The
@@ -230,12 +505,16 @@ pub fn generate_world(seed: u64, config: GenerateConfig, out: &Path) -> Result<M
         cells,
     };
     write_file(
-        &out.join("continent").join("overview.bin"),
+        &output,
+        &Path::new("continent").join("overview.bin"),
         &encode_overview(&overview),
+        &mut writes,
     )?;
     write_file(
-        &out.join("continent").join("objects.bin"),
+        &output,
+        &Path::new("continent").join("objects.bin"),
         &encode_continent_objects(&ContinentObjects { rivers }),
+        &mut writes,
     )?;
 
     let manifest = Manifest {
@@ -253,7 +532,7 @@ pub fn generate_world(seed: u64, config: GenerateConfig, out: &Path) -> Result<M
             river_count,
         },
     };
-    write_manifest(out, &manifest)?;
+    output.commit(&manifest).map_err(publication_error)?;
     Ok(manifest)
 }
 

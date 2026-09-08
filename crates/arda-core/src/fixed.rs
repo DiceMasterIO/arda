@@ -75,18 +75,18 @@ impl RainfallMm {
 
 /// River discharge in thousandths of a cubic metre per second.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash, Default)]
-pub struct DischargeMilli(u32);
+pub struct DischargeMilli(u64);
 
 impl DischargeMilli {
     /// Wraps a raw thousandth-cumec count.
     #[must_use]
-    pub const fn new(milli: u32) -> Self {
+    pub const fn new(milli: u64) -> Self {
         Self(milli)
     }
 
     /// The raw thousandth-cumec count.
     #[must_use]
-    pub const fn raw(self) -> u32 {
+    pub const fn raw(self) -> u64 {
         self.0
     }
 }

@@ -2,8 +2,8 @@
 
 use anyhow::{bail, Context, Result};
 use arda::{
-    export_area, export_block, export_overview, generate, ExportFormat, GenerateConfig,
-    LatitudeBand, SizeKm, World,
+    export_area_with_scale, export_block, export_overview, generate, AreaImageScale, ExportFormat,
+    GenerateConfig, LatitudeBand, SizeKm, World,
 };
 use clap::{Parser, Subcommand, ValueEnum};
 use std::path::{Path, PathBuf};
@@ -38,8 +38,7 @@ enum Command {
     },
     /// Generate a world and render one overview image of it.
     ///
-    /// The quickest way to look at a seed: the default continent takes
-    /// well under a minute and lands as a single PNG.
+    /// Writes a generated world and its cartographic overview.
     Preview {
         /// The sole source of nondeterminism.
         #[arg(long)]
@@ -75,6 +74,9 @@ enum Command {
         /// `<ax>,<ay>,<cx>,<cy>`. Blocks exist on a 64-cell stride.
         #[arg(long)]
         block: Option<String>,
+        /// Export an area PNG at 4096×4096 pixels; the terrain remains 100 m.
+        #[arg(long, conflicts_with_all = ["overview", "block"])]
+        detail: bool,
         /// Directory to write into.
         #[arg(long)]
         out: PathBuf,
@@ -111,9 +113,7 @@ fn run_generate(seed: u64, size: &str, micro: bool, out: &Path) -> Result<()> {
         config.size_km().height,
         config.areas_wide() * config.areas_high()
     );
-    println!("[1/3] continent   relief · coast");
-    println!("[2/3] areas       relief → water");
-    println!("[3/3] blocks      64x64 tile-ID grids, zstd-compressed");
+    println!("stages: continent → prepared terrain → shared water → areas → blocks");
 
     let manifest = generate(seed, config, out)?;
     println!(
@@ -161,7 +161,11 @@ fn run_export(
     overview: bool,
     block: Option<&str>,
     out: &Path,
+    detail: bool,
 ) -> Result<()> {
+    if detail && (overview || block.is_some() || matches!(format, Format::Json)) {
+        bail!("--detail is valid only for area PNG exports");
+    }
     if let Some(spec) = block {
         let parts: Vec<&str> = spec.split(',').map(str::trim).collect();
         let [ax, ay, cx, cy] = parts.as_slice() else {
@@ -207,7 +211,12 @@ fn run_export(
         Format::Png => ExportFormat::Png,
         Format::Json => ExportFormat::Json,
     };
-    let path = export_area(&world, ax, ay, out, format)?;
+    let scale = if detail {
+        AreaImageScale::Detail
+    } else {
+        AreaImageScale::Preview
+    };
+    let path = export_area_with_scale(&world, ax, ay, out, format, scale)?;
     println!("wrote {}", path.display());
     Ok(())
 }
@@ -234,6 +243,64 @@ fn main() -> Result<()> {
             overview,
             block,
             out,
-        } => run_export(&world, &area, format, overview, block.as_deref(), &out),
+            detail,
+        } => run_export(
+            &world,
+            &area,
+            format,
+            overview,
+            block.as_deref(),
+            &out,
+            detail,
+        ),
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn detail_conflicts_with_overview_and_blocks() {
+        for extra in [vec!["--overview"], vec!["--block", "0,0,0,0"]] {
+            let mut args = vec![
+                "arda", "export", "--world", "missing", "--out", "unused", "--detail",
+            ];
+            args.extend(extra);
+            assert!(Cli::try_parse_from(args).is_err());
+        }
+    }
+
+    #[test]
+    fn detail_json_reports_the_invalid_mode_before_reading_the_world() {
+        let error = run_export(
+            Path::new("missing-world"),
+            "0,0",
+            Format::Json,
+            false,
+            None,
+            Path::new("unused-export"),
+            true,
+        );
+        assert!(
+            error.is_err_and(|e| e.to_string() == "--detail is valid only for area PNG exports")
+        );
+    }
+
+    #[test]
+    fn detail_is_an_explicit_area_png_option() {
+        let cli = Cli::try_parse_from([
+            "arda", "export", "--world", "saved", "--out", "exports", "--detail",
+        ]);
+        assert!(matches!(
+            cli,
+            Ok(Cli {
+                command: Command::Export {
+                    detail: true,
+                    format: Format::Png,
+                    ..
+                }
+            })
+        ));
     }
 }

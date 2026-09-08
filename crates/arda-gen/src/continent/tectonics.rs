@@ -30,12 +30,56 @@ const RIFT_BELT: i32 = 14;
 const DIFFUSE_EVERY: u16 = 4;
 
 /// What kind of boundary a cell sits on.
-#[derive(Clone, Copy, PartialEq, Eq)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
 enum Boundary {
-    None,
-    Collision,
-    Arc,
-    Rift,
+    None = 0,
+    Collision = 1,
+    Arc = 2,
+    Rift = 4,
+}
+
+/// A junction can source several belts; none may replace another.
+#[derive(Debug, Default, Clone, Copy, PartialEq, Eq)]
+struct BoundaryMask(u8);
+
+impl BoundaryMask {
+    fn contains(self, kind: Boundary) -> bool {
+        self.0 & kind as u8 != 0
+    }
+}
+
+/// `logic/01` §Authorized boundary-classification correction: use the moved
+/// plate-center normal and retain all incident kinds independently of order.
+fn boundary_kinds<'a>(a: &Plate, neighbours: impl IntoIterator<Item = &'a Plate>) -> BoundaryMask {
+    let mut result = BoundaryMask::default();
+    for b in neighbours {
+        if a.id == b.id {
+            continue;
+        }
+        // Center separation is normal to the underlying unwarped Voronoi
+        // interface. It approximates the existing warped interface; using a
+        // cardinal raster face instead can turn tangential motion into both
+        // collision and rift along one staircase. Only the sign is needed,
+        // so no normalization or rounding can turn exact tangency into uplift.
+        let nx = i128::from(b.centre_x) - i128::from(a.centre_x);
+        let ny = i128::from(b.centre_y) - i128::from(a.centre_y);
+        let vx = i128::from(b.drift_x) - i128::from(a.drift_x);
+        let vy = i128::from(b.drift_y) - i128::from(a.drift_y);
+        let closing = vx * nx + vy * ny;
+        let kind = match (a.crust, b.crust, closing) {
+            (CrustType::Continental, CrustType::Continental, c) if c < 0 => Boundary::Collision,
+            (CrustType::Continental, CrustType::Oceanic, c)
+            | (CrustType::Oceanic, CrustType::Continental, c)
+                if c < 0 =>
+            {
+                Boundary::Arc
+            }
+            (_, _, c) if c > 0 => Boundary::Rift,
+            _ => Boundary::None,
+        };
+        result.0 |= kind as u8;
+    }
+    result
 }
 
 /// Accumulated uplift in millimetres per 4 km cell.
@@ -75,7 +119,7 @@ pub fn run_tectonics(seed: u64, plates: &[Plate], sim: SimExtent, steps: u16) ->
         // re-rolled inside `seed_plates`, so the belts shift a little as the
         // run proceeds and the ranges gain structure rather than being one
         // straight ridge.
-        let mut kind = vec![Boundary::None; count];
+        let mut kind = vec![BoundaryMask::default(); count];
         for y in 1..h - 1 {
             for x in 1..w - 1 {
                 let i = idx(x, y);
@@ -83,33 +127,18 @@ pub fn run_tectonics(seed: u64, plates: &[Plate], sim: SimExtent, steps: u16) ->
                 let Some(a) = plates.iter().find(|p| p.id == mine) else {
                     continue;
                 };
-                for (dx, dy) in [(1, 0), (-1, 0), (0, 1), (0, -1)] {
-                    let theirs = owner[idx(x + dx, y + dy)];
-                    if theirs == mine {
-                        continue;
-                    }
-                    let Some(b) = plates.iter().find(|p| p.id == theirs) else {
-                        continue;
-                    };
-                    // Relative motion on the boundary normal; negative closes.
-                    let closing = (b.drift_x - a.drift_x) * dx + (b.drift_y - a.drift_y) * dy;
-                    let k = match (a.crust, b.crust, closing) {
-                        (CrustType::Continental, CrustType::Continental, c) if c < 0 => {
-                            Boundary::Collision
-                        }
-                        (CrustType::Continental, CrustType::Oceanic, c)
-                        | (CrustType::Oceanic, CrustType::Continental, c)
-                            if c < 0 =>
-                        {
-                            Boundary::Arc
-                        }
-                        (_, _, c) if c > 0 => Boundary::Rift,
-                        _ => Boundary::None,
-                    };
-                    if k != Boundary::None {
-                        kind[i] = k;
-                    }
-                }
+                kind[i] = boundary_kinds(
+                    a,
+                    [(1, 0), (-1, 0), (0, 1), (0, -1)]
+                        .into_iter()
+                        .filter_map(|(dx, dy)| {
+                            let theirs = owner[idx(x + dx, y + dy)];
+                            if theirs == mine {
+                                return None;
+                            }
+                            plates.iter().find(|p| p.id == theirs)
+                        }),
+                );
             }
         }
 
@@ -189,12 +218,12 @@ fn belt(dist: i32, width: i32) -> i64 {
 /// Chebyshev distance to the nearest cell of `kind`, capped at `limit`.
 ///
 /// Two-pass chamfer transform: deterministic, integer, and O(n).
-fn distance_to(kind: &[Boundary], want: Boundary, w: i32, h: i32, limit: i32) -> Vec<i32> {
+fn distance_to(kind: &[BoundaryMask], want: Boundary, w: i32, h: i32, limit: i32) -> Vec<i32> {
     let idx = |x: i32, y: i32| usize::try_from(y * w + x).unwrap_or(0);
     let cap = limit + 1;
     let mut d: Vec<i32> = kind
         .iter()
-        .map(|&k| if k == want { 0 } else { cap })
+        .map(|&k| if k.contains(want) { 0 } else { cap })
         .collect();
 
     for y in 0..h {
@@ -227,6 +256,10 @@ fn distance_to(kind: &[Boundary], want: Boundary, w: i32, h: i32, limit: i32) ->
     }
     d
 }
+
+#[cfg(test)]
+#[path = "tectonics_tests.rs"]
+mod classification_tests;
 
 /// One coarse erosion/isostasy pass: a fixed-weight five-point stencil.
 fn diffuse(field: &mut [i32], w: i32, h: i32) {

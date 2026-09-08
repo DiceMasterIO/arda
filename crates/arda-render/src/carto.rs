@@ -1,31 +1,11 @@
-//! Cartographic area rendering (`logic/04`).
-//!
-//! Everything drawn here comes from the 100 m cell tier. The continent
-//! tier stores a gated river list in `continent/objects.bin` — four
-//! rivers on the DEFAULT continent, each validated to reach the sea —
-//! and using it for the overview's trunk line work is the obvious move,
-//! since those courses are guaranteed continuous where the cell tier's
-//! channels are severed at tile seams. It was tried and reverted: the
-//! two tiers do not agree about where the water is. Within 0.5 km of
-//! river 2's stored course the cell tier's median peak discharge is
-//! 0.06 m³/s, against the 239 m³/s that river carries at its mouth, and
-//! plotting the course over the cell network shows a straight 45°
-//! diagonal running *across* the drainage, perpendicular to the real
-//! channels and over the divides between them. Drawing it would paint
-//! rivers through country the detailed data says is dry. The
-//! disagreement is recorded in `open-items.md`; until it is resolved the
-//! map draws only what the cell tier actually holds.
+//! Saved-data cartographic palettes and area export.
 
+use crate::channels::{AreaImageScale, ChannelInput};
+pub use crate::overview::render_overview_png;
 use crate::RenderError;
-use arda_core::{AreaCells, CellCoord, TerrainKind, AREA_CELLS};
+use arda_core::{AreaCells, AreaObjects, GlobalCell};
 
-/// Hypsometric palette: elevation in millimetres to RGB.
-///
-/// Stops follow the convention of physical atlases — lowland green, upland
-/// tan, montane brown, then rock and snow. A single linear ramp was tried
-/// first and is useless: it saturated to white above 2,040 m and showed no
-/// variation at all below that, which hid the fact that the whole continent
-/// was a 118 m plateau.
+/// Hypsometric palette: millimetres of elevation to RGB.
 #[must_use]
 pub fn land_colour(height_mm: i32) -> [u8; 3] {
     const STOPS: [(i32, [u8; 3]); 7] = [
@@ -59,7 +39,7 @@ pub fn land_colour(height_mm: i32) -> [u8; 3] {
 /// Sea colour by depth: shelf is lighter than abyss.
 #[must_use]
 pub fn sea_colour(height_mm: i32) -> [u8; 3] {
-    let depth = (-height_mm).clamp(0, 3_000_000);
+    let depth = (-i64::from(height_mm)).clamp(0, 3_000_000);
     let t = u8::try_from(depth / 14_000).unwrap_or(214);
     [
         26u8.saturating_sub(t / 8),
@@ -68,69 +48,54 @@ pub fn sea_colour(height_mm: i32) -> [u8; 3] {
     ]
 }
 
-/// Overview sea fill, flat: the depth ramp is an area-map affordance and
-/// only adds noise at 1 km per pixel.
-const OVERVIEW_SEA: [u8; 3] = [10, 30, 78];
+/// Uniform ocean tint at overview scale.
+pub(crate) const OVERVIEW_SEA: [u8; 3] = [10, 30, 78];
 
-/// Lake fill.
-///
-/// Deliberately much lighter than every river band. The previous value
-/// `[58, 110, 190]` sat at ΔE00 2.02 from the mid river band `[60, 105,
-/// 185]` — below the ~2.3 just-noticeable difference, so a mid-size river
-/// and a lake were literally the same colour on the page.
-const LAKE_FILL: [u8; 3] = [132, 176, 205];
+/// Categorical standing-water tint for overview and missing surface context.
+pub(crate) const LAKE_FILL: [u8; 3] = [132, 176, 205];
 
-/// A lake claims an overview pixel only once it covers at least `1 /
-/// LAKE_MIN_BLOCK_DEN` of that pixel's block.
+/// A readable blue area-water palette with deeper water shaded darker.
 ///
-/// Letting any single lake cell win the block is the same dilation the
-/// discharge cuts above exist to undo, just for water bodies: one 100 m
-/// cell claiming a 1.1 km² pixel is a 110x inflation, and it is what
-/// fringes a lake with detached specks a pixel or two across. Measured
-/// on the DEFAULT continent, whose 129 lakes total 1,714 km² and are all
-/// at least 1 km²: any-cell paints 2,705 km² (1.58x), a quarter-block
-/// paints 2,022 km² (1.18x), and a majority paints 1,667 km² (0.97x).
-///
-/// A majority is the most accurate by area and is still wrong, because
-/// it erases 18 lakes outright — the largest 1.8 km², a real feature —
-/// when their cells land near a block boundary and no single block holds
-/// half of them. Dropping a lake the world has is a worse error than
-/// drawing one slightly large, so the floor sits at a quarter, which
-/// loses none of the 129.
-const LAKE_MIN_BLOCK_DEN: u32 = 4;
+/// This is cartographic depth shading, not calibrated water optics. Depths
+/// 0/50/250/1000/3000 mm interpolate 0/32/96/192/255 of the way from shallow
+/// blue to deep blue. Even the shallow endpoint is water-coloured; terrain
+/// colour and opacity do not enter this blend. Depth changes colour only.
+pub(crate) fn lake_colour(depth_mm: u32) -> [u8; 3] {
+    const RAMP: [(u32, u32); 5] = [(0, 0), (50, 32), (250, 96), (1000, 192), (3000, 255)];
+    const SHALLOW: [u8; 3] = [58, 137, 180];
+    const DEEP: [u8; 3] = [22, 68, 126];
+    let mut alpha = 255;
+    for pair in RAMP.windows(2) {
+        let [(lo, a), (hi, b)] = [pair[0], pair[1]];
+        if depth_mm < hi {
+            alpha = a + (b - a) * (depth_mm - lo) / (hi - lo);
+            break;
+        }
+    }
+    std::array::from_fn(|i| {
+        let blended =
+            (u32::from(SHALLOW[i]) * (255 - alpha) + u32::from(DEEP[i]) * alpha + 127) / 255;
+        // Convex combination of two bytes, rounded to the nearest byte.
+        u8::try_from(blended).unwrap_or(255)
+    })
+}
 
-/// Discharge cuts that place a watercourse in a render band, in
-/// thousandth-cumecs (`DischargeMilli`, so 4_000 = 4 m³/s).
-///
-/// Selection moved off Strahler order here, and that is the substance of
-/// this retouch rather than a tuning change. Order answers "how deep in
-/// the branching hierarchy is this?", which is scale-free: a first-order
-/// headwater in a 50,000 km² basin and a first-order rill on a coastal
-/// hillside score alike, and order >= 3 admits *both*. Measured on the
-/// DEFAULT continent (500x1000 km, seed 42): order >= 3 selects 217,636
-/// of 24,551,366 land cells, which the overview's block classification
-/// then inflates to 11.50% of the drawn landmass — and it leaves 471
-/// separate watercourses touching the sea, one river mouth per 3.8 km of
-/// the 1,789 km coastline. Earth averages one per 50-150 km.
-///
-/// Discharge is absolute, so a cut means the same size of river anywhere
-/// on the map. Block-max coverage of the drawn landmass, same world, by
-/// cut in m³/s: 2 gives 4.64%, 4 gives 2.31%, 5 gives 1.90%, 10 gives
-/// 0.88%, 20 gives 0.33%. Physical atlases carry 1-2% blue line work,
-/// and the trunk overlay below adds ~0.35% on top, so the floor sits at
-/// 4 m³/s.
-const RIVER_Q_MIN: u32 = 4_000;
+/// Minimum lake share of an overview block; retained cartographic rule.
+pub(crate) const LAKE_MIN_BLOCK_DEN: u32 = 4;
+
+/// Overview discharge bands in litres per second.
+const RIVER_Q_MIN: u64 = 4_000;
 /// Mid band floor — see [`RIVER_Q_MIN`] for the calibration.
-const RIVER_Q_MID: u32 = 20_000;
+const RIVER_Q_MID: u64 = 20_000;
 /// Dark band floor — see [`RIVER_Q_MIN`] for the calibration.
-const RIVER_Q_MAX: u32 = 80_000;
+const RIVER_Q_MAX: u64 = 80_000;
 
 /// A watercourse's render band, lightest to darkest.
 ///
 /// Declaration order matters: the derived `Ord` is what makes `Dark` win
 /// when one block spans several bands.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord)]
-enum RiverBand {
+pub(crate) enum RiverBand {
     /// `RIVER_Q_MIN..RIVER_Q_MID` — a stream.
     Light,
     /// `RIVER_Q_MID..RIVER_Q_MAX` — a river.
@@ -141,7 +106,7 @@ enum RiverBand {
 
 /// Maps a discharge to its render band, or `None` below the floor.
 #[must_use]
-fn river_band(discharge_milli: u32) -> Option<RiverBand> {
+pub(crate) fn river_band(discharge_milli: u64) -> Option<RiverBand> {
     if discharge_milli >= RIVER_Q_MAX {
         Some(RiverBand::Dark)
     } else if discharge_milli >= RIVER_Q_MID {
@@ -157,7 +122,7 @@ fn river_band(discharge_milli: u32) -> Option<RiverBand> {
 ///
 /// All three sit well clear of [`LAKE_FILL`] in lightness so line work
 /// never reads as a water body.
-const fn river_band_colour(band: RiverBand) -> [u8; 3] {
+pub(crate) const fn river_band_colour(band: RiverBand) -> [u8; 3] {
     match band {
         RiverBand::Light => [86, 130, 190],
         RiverBand::Mid => [46, 92, 170],
@@ -165,226 +130,150 @@ const fn river_band_colour(band: RiverBand) -> [u8; 3] {
     }
 }
 
-/// Per-cell channel colour for the area map, shaded by discharge.
+/// Renders saved physical geometry over the area grid at the selected scale.
 ///
-/// Unlike the overview, the area map is one pixel per 100 m cell, so a
-/// headwater stream is not confetti here — it is correctly one real
-/// pixel. Channels below the overview's render floor still get a colour,
-/// just the palest one, so the full network stays visible at area scale
-/// even where the overview hides it.
-#[must_use]
-fn area_channel_colour(discharge_milli: u32) -> [u8; 3] {
-    river_band(discharge_milli).map_or([140, 172, 210], river_band_colour)
-}
-
-/// Renders one area tile, one pixel per 100 m cell, hypsometrically tinted.
+/// `origin` is the global coordinate of local cell (0,0). The supplied object
+/// layer includes canonical neighboring channel edges whose envelopes touch
+/// this area. Rendering performs no hydrology or terrain generation.
 ///
 /// # Errors
-/// [`RenderError::Png`] when encoding fails.
-pub fn render_area_png(cells: &AreaCells) -> Result<Vec<u8>, RenderError> {
-    let side = u32::from(AREA_CELLS);
-    let mut rgb = vec![0u8; usize::try_from(side * side * 3).map_err(|_| RenderError::Png)?];
-
-    for y in 0..AREA_CELLS {
-        for x in 0..AREA_CELLS {
-            let at = CellCoord::new(x, y).ok_or(RenderError::Png)?;
-            let cell = cells.get(at);
-            let colour = if cell.terrain == TerrainKind::Lake {
-                LAKE_FILL
-            } else if cell.watercourse_order > 0 {
-                area_channel_colour(cell.discharge.raw())
-            } else if cell.terrain == TerrainKind::Land {
-                land_colour(cell.height.raw())
-            } else {
-                sea_colour(cell.height.raw())
-            };
-            let i = usize::try_from((u32::from(y) * side + u32::from(x)) * 3)
-                .map_err(|_| RenderError::Png)?;
-            rgb[i..i + 3].copy_from_slice(&colour);
-        }
-    }
-    crate::encode_png(side, side, &rgb)
-}
-
-/// What a downsampled block shows, in increasing order of prominence.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord)]
-enum Feature {
-    Sea,
-    Land,
-    River(RiverBand),
-    Lake,
-}
-
-/// Renders every area tile into one overview image.
-///
-/// Each area becomes a `px`-square block, classified from the 100 m cells
-/// beneath it. Classification takes the most prominent feature in the
-/// block rather than its centre cell: a channel is one cell wide out of
-/// 512 and would vanish under nearest-neighbour sampling, so water wins
-/// over land and a lake wins over a river.
-///
-/// `areas` holds `(area_x, area_y, cells)`; missing tiles render as ocean.
-///
-/// # Errors
-/// [`RenderError::Png`] when encoding fails.
-pub fn render_overview_png(
-    areas: &[(i32, i32, &AreaCells)],
-    areas_wide: i32,
-    areas_high: i32,
-    px: u32,
+/// Returns typed geometry/resource refusals or PNG encoding failure.
+pub fn render_area_png(
+    cells: &AreaCells,
+    objects: &AreaObjects,
+    origin: GlobalCell,
+    scale: AreaImageScale,
 ) -> Result<Vec<u8>, RenderError> {
-    let width = u32::try_from(areas_wide).map_err(|_| RenderError::Png)? * px;
-    let height = u32::try_from(areas_high).map_err(|_| RenderError::Png)? * px;
-    if width == 0 || height == 0 {
-        return Err(RenderError::Png);
-    }
-    let mut rgb = vec![0u8; usize::try_from(width * height * 3).map_err(|_| RenderError::Png)?];
-    for chunk in rgb.chunks_exact_mut(3) {
-        chunk.copy_from_slice(&OVERVIEW_SEA);
-    }
-    // Parallel classification grid, so the trunk pass can tell land and
-    // sea apart from lake without re-deriving it from RGB bytes.
-    let mut features =
-        vec![Feature::Sea; usize::try_from(width * height).map_err(|_| RenderError::Png)?];
-
-    let side = u32::from(AREA_CELLS);
-
-    for &(ax, ay, cells) in areas {
-        let (Ok(ox), Ok(oy)) = (u32::try_from(ax), u32::try_from(ay)) else {
-            continue;
-        };
-        for py in 0..px {
-            for pxi in 0..px {
-                // Half-open cell bounds, derived per pixel so the blocks
-                // tile the whole 512 exactly. The previous `block = side /
-                // px` was 512/48 = 10, and `pxi * block + cx` therefore
-                // topped out at 479: cells 480..=511 of every tile — a
-                // 3.2 km strip down the right edge and along the bottom of
-                // all 171 tiles — were never read, which truncated courses
-                // at tile edges. Uneven blocks (here 10 and 11 cells) are
-                // the correct answer when px does not divide 512.
-                let x0 = pxi * side / px;
-                let x1 = ((pxi + 1) * side / px).max(x0 + 1);
-                let y0 = py * side / px;
-                let y1 = ((py + 1) * side / px).max(y0 + 1);
-
-                // `best` ranks only sea, land and river. A lake is
-                // decided by area below, not by winning a max.
-                let mut best = Feature::Sea;
-                let mut height_sum: i64 = 0;
-                let mut land_count: i64 = 0;
-                let mut lake_cells: u32 = 0;
-                let mut block_cells: u32 = 0;
-
-                for sy in y0..y1 {
-                    for sx in x0..x1 {
-                        let (Ok(sxu), Ok(syu)) = (u16::try_from(sx), u16::try_from(sy)) else {
-                            continue;
-                        };
-                        let Some(at) = CellCoord::new(sxu, syu) else {
-                            continue;
-                        };
-                        let cell = cells.get(at);
-                        block_cells += 1;
-                        match cell.terrain {
-                            TerrainKind::Lake => lake_cells += 1,
-                            // Feature::Sea is already the floor.
-                            TerrainKind::Sea => {}
-                            TerrainKind::Land => {
-                                height_sum += i64::from(cell.height.raw());
-                                land_count += 1;
-                                let f = match river_band(cell.discharge.raw()) {
-                                    Some(band) => Feature::River(band),
-                                    None => Feature::Land,
-                                };
-                                best = best.max(f);
-                            }
-                        }
-                    }
-                }
-                if lake_cells * LAKE_MIN_BLOCK_DEN >= block_cells {
-                    best = Feature::Lake;
-                }
-
-                let colour = match best {
-                    Feature::Sea => OVERVIEW_SEA,
-                    // Mean over every land cell in the block, including
-                    // the channel cells: excluding them made the tint jump
-                    // wherever a river crossed a block.
-                    Feature::Land | Feature::River(_) => {
-                        let mean = height_sum / land_count.max(1);
-                        let base = land_colour(i32::try_from(mean).unwrap_or(0));
-                        match best {
-                            Feature::River(band) => river_band_colour(band),
-                            _ => base,
-                        }
-                    }
-                    Feature::Lake => LAKE_FILL,
-                };
-
-                let x = ox * px + pxi;
-                let y = oy * px + py;
-                let Ok(pixel) = usize::try_from(y * width + x) else {
-                    continue;
-                };
-                rgb[pixel * 3..pixel * 3 + 3].copy_from_slice(&colour);
-                features[pixel] = best;
+    let inputs = objects.channel_edges.iter().map(|edge| ChannelInput {
+        from: edge.from,
+        to: edge.to,
+        from_width_dm: edge.from_width_dm,
+        to_width_dm: edge.to_width_dm,
+        discharge: edge.discharge.raw(),
+    });
+    let points = objects
+        .global
+        .reaches
+        .iter()
+        .filter(|r| r.id.is_point() && r.mean_discharge.raw() >= 40)
+        .map(|r| {
+            if r.from != r.to || r.id.start() != r.from {
+                return Err(RenderError::ChannelGeometry {
+                    reason: "invalid saved terminal point",
+                });
             }
-        }
-    }
-
-    // The Dark band widens by one pixel so the few real trunks carry
-    // visible weight against the streams. Guarded both ways: never over a
-    // lake, and never over another river pixel, so the pass cannot change
-    // a classification the block pass already made.
-    let mut widened = vec![false; features.len()];
-    for y in 0..height {
-        for x in 0..width {
-            let Ok(src) = usize::try_from(y * width + x) else {
-                continue;
-            };
-            if features.get(src) != Some(&Feature::River(RiverBand::Dark)) {
-                continue;
-            }
-            for (dx, dy) in [(1u32, 0u32), (0, 1)] {
-                let (tx, ty) = (x + dx, y + dy);
-                if tx >= width || ty >= height {
-                    continue;
-                }
-                let Ok(dst) = usize::try_from(ty * width + tx) else {
-                    continue;
-                };
-                if !matches!(features.get(dst), Some(Feature::Land | Feature::Sea)) {
-                    continue;
-                }
-                if widened.get(dst) == Some(&true) {
-                    continue;
-                }
-                if let Some(slot) = widened.get_mut(dst) {
-                    *slot = true;
-                }
-                if let Some(slot) = rgb.get_mut(dst * 3..dst * 3 + 3) {
-                    slot.copy_from_slice(&river_band_colour(RiverBand::Dark));
-                }
-            }
-        }
-    }
-
-    crate::encode_png(width, height, &rgb)
+            let width = arda_core::hydrology::channel_width_dm(r.mean_discharge).ok_or(
+                RenderError::ChannelGeometry {
+                    reason: "terminal width overflow",
+                },
+            )?;
+            Ok(ChannelInput {
+                from: r.from,
+                to: r.to,
+                from_width_dm: width,
+                to_width_dm: width,
+                discharge: r.mean_discharge.raw(),
+            })
+        });
+    let rgb = crate::channels::raster_results(
+        cells,
+        inputs.map(Ok).chain(points),
+        origin,
+        scale,
+        &objects.lakes,
+    )?;
+    crate::encode_png(scale.side(), scale.side(), &rgb)
 }
 
 #[cfg(test)]
 mod tests {
     use super::*;
-    use arda_core::{Cell, DischargeMilli};
+    use arda_core::{Cell, CellCoord, DischargeMilli, TerrainKind, AREA_CELLS};
 
-    fn cell(discharge_milli: u32, terrain: TerrainKind) -> Cell {
+    #[test]
+    fn standing_water_depth_is_bounded_monotonic_and_visible() {
+        let shallow = [58, 137, 180];
+        let deep = [22, 68, 126];
+        let mut previous = shallow;
+        for depth in 0..=3100 {
+            let colour = lake_colour(depth);
+            assert!(colour[2] >= colour[1] + 40 && colour[1] > colour[0]);
+            for i in 0..3 {
+                assert!((deep[i]..=shallow[i]).contains(&colour[i]));
+                assert!(colour[i] <= previous[i]);
+            }
+            previous = colour;
+        }
+        for bed in [
+            i32::MIN,
+            0,
+            180_000,
+            500_000,
+            1_400_000,
+            2_800_000,
+            i32::MAX,
+        ] {
+            let land = land_colour(bed);
+            for depth in [1, 13, 28, 750, 3000, u32::MAX] {
+                let colour = lake_colour(depth);
+                let distance: u32 = colour
+                    .iter()
+                    .zip(land)
+                    .map(|(&a, b)| u32::from(a.abs_diff(b)))
+                    .sum();
+                assert!(
+                    distance >= 100,
+                    "water must remain distinct from the land palette"
+                );
+            }
+        }
+        assert_eq!(lake_colour(0), shallow);
+        assert_eq!(lake_colour(3000), deep);
+        assert_eq!(lake_colour(u32::MAX), deep);
+        assert_eq!(lake_colour(13), [57, 135, 178]);
+        assert_eq!(lake_colour(28), [56, 132, 176]);
+    }
+
+    fn cell(discharge_milli: u64, terrain: TerrainKind) -> Cell {
         Cell {
             terrain,
             discharge: DischargeMilli::new(discharge_milli),
             watercourse_order: u8::from(discharge_milli > 0),
             ..Cell::default()
         }
+    }
+
+    #[test]
+    fn terminal_point_saved_record_is_the_only_point_render_authority() {
+        use arda_core::hydrology::{
+            BasinId, CatchmentId, GlobalReach, Litres, ReachId, ReceivingAccount,
+        };
+        let cells = uniform_tile(0);
+        let origin = GlobalCell { x: 0, y: 0 };
+        let mut objects = AreaObjects::empty();
+        let plain = render_area_png(&cells, &objects, origin, AreaImageScale::Preview).unwrap();
+        let at = GlobalCell { x: 10, y: 10 };
+        objects.global.reaches.push(GlobalReach {
+            id: ReachId::point(at).unwrap(),
+            from: at,
+            to: at,
+            receiving: ReceivingAccount::Lake(BasinId(1)),
+            catchment: CatchmentId(1),
+            drainage_cells: 1,
+            annual_volume: Litres(40 * 31_536_000),
+            mean_discharge: DischargeMilli::new(40),
+        });
+        let visible = render_area_png(&cells, &objects, origin, AreaImageScale::Preview).unwrap();
+        assert_ne!(pixel_at(&plain, 10, 10), pixel_at(&visible, 10, 10));
+        assert_eq!(pixel_at(&plain, 11, 10), pixel_at(&visible, 11, 10));
+        let row = &mut objects.global.reaches[0];
+        row.receiving = ReceivingAccount::DomainExport;
+        row.annual_volume = Litres(1);
+        row.mean_discharge = DischargeMilli::new(0);
+        assert_eq!(
+            plain,
+            render_area_png(&cells, &objects, origin, AreaImageScale::Preview).unwrap()
+        );
     }
 
     #[test]
@@ -452,7 +341,7 @@ mod tests {
         }
     }
 
-    fn uniform_tile(discharge_milli: u32) -> AreaCells {
+    fn uniform_tile(discharge_milli: u64) -> AreaCells {
         AreaCells::flat(cell(discharge_milli, TerrainKind::Land))
     }
 
@@ -569,6 +458,4 @@ mod tests {
         };
         assert_eq!(pixel_at(&png, 0, 0), LAKE_FILL);
     }
-
-
 }

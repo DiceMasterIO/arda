@@ -40,11 +40,18 @@ pub const SHELF_RADIUS: i32 = 2;
 /// continental weight across the middle, falling to open ocean at the rim.
 #[must_use]
 pub fn continental_mask(x: i32, y: i32, w: i32, h: i32) -> i32 {
-    let nx = (i64::from(x) * 2 - i64::from(w)).abs() * 1024 / i64::from(w.max(1));
-    let ny = (i64::from(y) * 2 - i64::from(h)).abs() * 1024 / i64::from(h.max(1));
-    let r = nx.max(ny); // 0 at the centre, 1024 at the rim
-    const CORE: i64 = 80; // full weight inside this radius
-    const EDGE: i64 = 400; // open ocean beyond this
+    // logic/01 "Radial coast correction": use Euclidean distance in the
+    // normalized domain. A max-axis distance makes square contours whose
+    // straight flanks propagate into physical terrain and drainage.
+    // The widest i32 inputs produce normalized magnitudes below 2^43, so
+    // both squares and their sum are representable in u128.
+    let nx = (i128::from(x) * 2 - i128::from(w)).unsigned_abs() * 1024
+        / u128::try_from(w.max(1)).unwrap_or(1);
+    let ny = (i128::from(y) * 2 - i128::from(h)).unsigned_abs() * 1024
+        / u128::try_from(h.max(1)).unwrap_or(1);
+    let r = (nx * nx + ny * ny).isqrt();
+    const CORE: u128 = 80; // full weight inside this radius
+    const EDGE: u128 = 400; // open ocean beyond this
     if r <= CORE {
         return CONTINENTALITY_FULL;
     }
@@ -54,7 +61,8 @@ pub fn continental_mask(x: i32, y: i32, w: i32, h: i32) -> i32 {
     let t = 1024 - (r - CORE) * 1024 / (EDGE - CORE);
     let t2 = t * t / 1024;
     let t3 = t2 * t / 1024;
-    i32::try_from((3 * t2 - 2 * t3) * i64::from(CONTINENTALITY_FULL) / 1024).unwrap_or(0)
+    i32::try_from((3 * t2 - 2 * t3) * u128::from(CONTINENTALITY_FULL.unsigned_abs()) / 1024)
+        .unwrap_or(0)
 }
 
 /// Smooths a binary crust field into a continentality gradient in
@@ -158,4 +166,69 @@ pub fn graded_base_mm(continentality: i32) -> i32 {
 #[must_use]
 pub const fn rim_forced_ocean(x: i32, y: i32, width: i32, height: i32, margin: i32) -> bool {
     x < margin || y < margin || x >= width - margin || y >= height - margin
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn equal_euclidean_radii_have_equal_continental_weight() {
+        // The 3-4-5 triangle puts these points on the same contour. A
+        // max-axis distance instead produces square contours and fails here.
+        let axial = continental_mask(1024 + 250, 1024, 2048, 2048);
+        let oblique = continental_mask(1024 + 150, 1024 + 200, 2048, 2048);
+        assert_eq!(axial, oblique);
+        assert!(axial > 0 && axial < CONTINENTALITY_FULL);
+    }
+
+    #[test]
+    fn moving_tangentially_off_an_axis_changes_the_coastal_slope() {
+        let on_axis = continental_mask(1024 + 200, 1024, 2048, 2048);
+        let off_axis = continental_mask(1024 + 200, 1024 + 100, 2048, 2048);
+        assert!(off_axis < on_axis);
+
+        let mut previous = on_axis;
+        for y in 1..=250 {
+            let next = continental_mask(1024 + 200, 1024 + y, 2048, 2048);
+            assert!(next <= previous, "continental weight rose outward at {y}");
+            assert!(previous - next <= 12, "abrupt contour step at {y}");
+            previous = next;
+        }
+    }
+
+    #[test]
+    fn radial_mask_preserves_core_ocean_and_reflection_symmetry() {
+        assert_eq!(continental_mask(1024, 1024, 2048, 2048), 1000);
+        assert_eq!(continental_mask(1024 + 80, 1024, 2048, 2048), 1000);
+        assert_eq!(continental_mask(1024 + 400, 1024, 2048, 2048), 0);
+        for x in 0..=2048 {
+            assert_eq!(continental_mask(x, 0, 2048, 2048), 0);
+            assert_eq!(continental_mask(x, 2048, 2048, 2048), 0);
+            assert_eq!(continental_mask(0, x, 2048, 2048), 0);
+            assert_eq!(continental_mask(2048, x, 2048, 2048), 0);
+        }
+        for (dx, dy) in [(100, 200), (300, 50), (60, 70), (280, 290)] {
+            let weight = continental_mask(1024 + dx, 1024 + dy, 2048, 2048);
+            assert_eq!(weight, continental_mask(1024 - dx, 1024 + dy, 2048, 2048));
+            assert_eq!(weight, continental_mask(1024 + dx, 1024 - dy, 2048, 2048));
+            assert_eq!(weight, continental_mask(1024 + dy, 1024 + dx, 2048, 2048));
+        }
+        // Normalized distance remains independent of the map aspect ratio.
+        assert_eq!(
+            continental_mask(1024 + 200, 512 + 50, 2048, 1024),
+            continental_mask(512 + 50, 1024 + 200, 1024, 2048)
+        );
+    }
+
+    #[test]
+    fn radial_mask_is_bounded_for_extreme_integer_inputs() {
+        for x in [i32::MIN, -1, 0, 1, i32::MAX] {
+            for y in [i32::MIN, -1, 0, 1, i32::MAX] {
+                for (w, h) in [(0, 0), (-1, -1), (1, 1), (i32::MAX, i32::MAX)] {
+                    assert!((0..=1000).contains(&continental_mask(x, y, w, h)));
+                }
+            }
+        }
+    }
 }

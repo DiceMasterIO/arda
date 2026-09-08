@@ -3,12 +3,20 @@
 // `code-prefs.md` §Q1 bans unwrap/expect *outside* `#[cfg(test)]`.
 #![cfg_attr(test, allow(clippy::unwrap_used, clippy::expect_used))]
 
+mod channel_geometry;
+mod channels;
+mod hydrology_json;
+mod overview;
+use arda_core::GlobalCell;
+
 pub mod carto;
 pub mod json;
 pub mod symbolic;
 
 pub use carto::{render_area_png, render_overview_png};
+pub use channels::AreaImageScale;
 pub use json::{area_json, block_json, SCHEMA_VERSION};
+pub use overview::OverviewRaster;
 pub use symbolic::{render_block_png, SQUARE_PX};
 
 use thiserror::Error;
@@ -19,6 +27,35 @@ pub enum RenderError {
     /// The PNG encoder failed.
     #[error("png encoding failed")]
     Png,
+    /// Supplied standing-water surfaces or cell memberships are inconsistent.
+    #[error("invalid lake geometry: {reason}")]
+    LakeGeometry {
+        /// The failed surface, membership, or resource rule.
+        reason: &'static str,
+    },
+    /// Physical geometry, raster work or memory bounds were violated.
+    #[error("invalid channel geometry: {reason}")]
+    ChannelGeometry {
+        /// The failed physical or resource rule.
+        reason: &'static str,
+    },
+    /// Overview dimensions exceed supported ranges or the pixel budget.
+    #[error(
+        "overview requires 1–78 areas per axis, 1–512 pixels per area, and at most 64000000 pixels"
+    )]
+    OverviewDimensions,
+    /// An overview tile was supplied twice.
+    #[error("overview area {area:?} was supplied more than once")]
+    DuplicateOverviewArea {
+        /// Duplicate area coordinate.
+        area: arda_core::AreaCoord,
+    },
+    /// A JSON value could not be serialized.
+    #[error("JSON serialization failed: {reason}")]
+    Json {
+        /// Serializer failure.
+        reason: String,
+    },
     /// A square holds a tile id this build has no entry for.
     #[error("tile id {id} has no entry in the vocabulary")]
     UnmappedTile {
@@ -110,8 +147,20 @@ mod tests {
     #[test]
     fn area_png_is_byte_identical_on_repeat() {
         assert_eq!(
-            render_area_png(&cells()).unwrap(),
-            render_area_png(&cells()).unwrap()
+            render_area_png(
+                &cells(),
+                &arda_core::AreaObjects::empty(),
+                GlobalCell { x: 0, y: 0 },
+                AreaImageScale::Preview
+            )
+            .unwrap(),
+            render_area_png(
+                &cells(),
+                &arda_core::AreaObjects::empty(),
+                GlobalCell { x: 0, y: 0 },
+                AreaImageScale::Preview
+            )
+            .unwrap()
         );
     }
 
@@ -135,7 +184,8 @@ mod tests {
             1,
             &cells(),
             &arda_core::AreaObjects::empty(),
-        );
+        )
+        .unwrap();
         assert!(json.contains("\"schema_version\""));
         assert!(json.contains("\"area_x\""));
         assert!(json.contains("\"height_mm\""));
@@ -161,14 +211,16 @@ mod tests {
             1,
             &cells(),
             &arda_core::AreaObjects::empty(),
-        );
+        )
+        .unwrap();
         let b = area_json(
             &manifest(),
             1,
             1,
             &cells(),
             &arda_core::AreaObjects::empty(),
-        );
+        )
+        .unwrap();
         assert_eq!(a, b);
     }
 }

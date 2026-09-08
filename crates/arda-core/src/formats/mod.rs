@@ -3,16 +3,18 @@
 //! Layouts are hand-specified little-endian; each layer documents its own
 //! row format. No other crate encodes or decodes world bytes.
 
+pub mod area_objects_v4;
 pub mod blocks;
 pub mod cells;
+pub mod hydrology;
 pub mod manifest;
 pub mod objects;
 pub mod overview;
 
 /// The world-format major. Bumped only by a breaking layout change; loaders
 /// refuse any other major with the regenerate remedy (`logic/05`).
-/// 3: continent overview records + continent objects (feature 02).
-pub const FORMAT_VERSION: u32 = 3;
+/// 4: shared hydrology plus widened area records and discharge.
+pub const FORMAT_VERSION: u32 = 4;
 
 /// Writes a little-endian `u16` into `out`.
 pub(crate) fn put_u16(out: &mut Vec<u8>, v: u16) {
@@ -97,4 +99,24 @@ impl Drop for TempDir {
     fn drop(&mut self) {
         let _ = std::fs::remove_dir_all(&self.0);
     }
+}
+
+/// Writes a little-endian u64.
+pub(crate) fn put_u64(out: &mut Vec<u8>, v: u64) {
+    out.extend_from_slice(&v.to_le_bytes());
+}
+/// Reads a little-endian u64 after the caller checks its record length.
+pub(crate) fn take_u64(src: &[u8], at: &mut usize) -> u64 {
+    let v = u64::from_le_bytes([
+        src[*at],
+        src[*at + 1],
+        src[*at + 2],
+        src[*at + 3],
+        src[*at + 4],
+        src[*at + 5],
+        src[*at + 6],
+        src[*at + 7],
+    ]);
+    *at += 8;
+    v
 }
