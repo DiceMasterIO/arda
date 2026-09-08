@@ -13,7 +13,9 @@ pub use arda_core::{
     Manifest, RiverSegment, RoadClass, SizeKm, TerrainKind, TileId, ValidationStats,
 };
 pub use arda_gen::{GenError, HydrologyLimits};
-pub use arda_render::AreaImageScale;
+pub use arda_render::{AreaImageScale, ImageQuality};
+mod export_quality;
+pub use export_quality::{export_area_with_quality, export_overview_with_quality};
 mod world;
 pub use world::{Area, World};
 
@@ -98,7 +100,7 @@ pub fn export_area_with_scale(
     format: ExportFormat,
     scale: AreaImageScale,
 ) -> Result<PathBuf, ExportError> {
-    if format == ExportFormat::Json && scale == AreaImageScale::Detail {
+    if format == ExportFormat::Json && scale != AreaImageScale::Preview {
         return Err(ExportError::InvalidImageScale);
     }
     let area = world.read_area(ax, ay)?;

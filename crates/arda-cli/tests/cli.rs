@@ -10,6 +10,19 @@ fn bin() -> &'static str {
     env!("CARGO_BIN_EXE_arda")
 }
 
+fn png_dimensions(path: &std::path::Path) -> (u32, u32) {
+    use std::io::Read;
+    let mut header = [0u8; 24];
+    std::fs::File::open(path)
+        .unwrap()
+        .read_exact(&mut header)
+        .unwrap();
+    (
+        u32::from_be_bytes(header[16..20].try_into().unwrap()),
+        u32::from_be_bytes(header[20..24].try_into().unwrap()),
+    )
+}
+
 struct TempDir(std::path::PathBuf);
 
 impl TempDir {
@@ -96,6 +109,30 @@ fn export_writes_a_png_for_an_area() {
         String::from_utf8_lossy(&res.stderr)
     );
     assert!(out.path().join("area_01_01.png").is_file());
+    assert_eq!(
+        png_dimensions(&out.path().join("area_01_01.png")),
+        (8192, 8192)
+    );
+
+    for quality in ["512", "513"] {
+        let result = Command::new(bin())
+            .args(["export", "--world"])
+            .arg(world.path())
+            .args(["--area", "1,1", "--quality", quality, "--out"])
+            .arg(out.path())
+            .output()
+            .unwrap();
+        assert!(
+            result.status.success(),
+            "{}",
+            String::from_utf8_lossy(&result.stderr)
+        );
+        let side = quality.parse().unwrap();
+        assert_eq!(
+            png_dimensions(&out.path().join("area_01_01.png")),
+            (side, side)
+        );
+    }
 }
 
 #[test]
@@ -180,6 +217,10 @@ fn export_overview_renders_an_existing_world() {
         String::from_utf8_lossy(&res.stderr)
     );
     assert!(out.path().join("overview.png").is_file());
+    assert_eq!(
+        png_dimensions(&out.path().join("overview.png")),
+        (4096, 8192)
+    );
 }
 
 #[test]

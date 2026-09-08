@@ -185,7 +185,7 @@ fn coverage_limited<'a>(
     if limit == 0 || limit > MAX_PIECES {
         return Err(invalid("invalid polygon union budget"));
     }
-    if x >= 4096 || y >= 4096 {
+    if x >= crate::ImageQuality::MAX || y >= crate::ImageQuality::MAX {
         return Err(invalid("pixel leaves the maximum area raster"));
     }
     let (x, y) = (i64::from(x), i64::from(y));
@@ -529,6 +529,27 @@ mod tests {
         .unwrap();
         assert_eq!(c.maximum_discharge, 1000);
         assert_eq!(c.alpha, 32_768);
+    }
+
+    #[test]
+    fn last_32k_pixel_has_the_same_exact_coverage_as_the_origin() {
+        let low = rectangle(0, 0, Q / 2, Q);
+        let offset = 32_767 * Q;
+        let high: Polygon = low.iter().map(|&(x, y)| (x + offset, y + offset)).collect();
+        let base = coverage([(&low, 1000)], 0, 0, &mut WorkBudget::new(100_000)).unwrap();
+        let last = coverage(
+            [(&high, 1000)],
+            32_767,
+            32_767,
+            &mut WorkBudget::new(100_000),
+        )
+        .unwrap();
+        assert_eq!(last.alpha, 32_768);
+        assert_eq!(last.alpha, base.alpha);
+        assert_eq!(last.maximum_discharge, base.maximum_discharge);
+        for (x, y) in [(32_768, 0), (0, 32_768), (u32::MAX, u32::MAX)] {
+            assert!(coverage([(&high, 1000)], x, y, &mut WorkBudget::new(100_000)).is_err());
+        }
     }
 
     #[test]

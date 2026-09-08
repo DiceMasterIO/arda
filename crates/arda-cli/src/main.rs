@@ -2,8 +2,9 @@
 
 use anyhow::{bail, Context, Result};
 use arda::{
-    export_area_with_scale, export_block, export_overview, generate, AreaImageScale, ExportFormat,
-    GenerateConfig, LatitudeBand, SizeKm, World,
+    export_area_with_quality, export_area_with_scale, export_block, export_overview,
+    export_overview_with_quality, generate, AreaImageScale, ExportFormat, GenerateConfig,
+    ImageQuality, LatitudeBand, SizeKm, World,
 };
 use clap::{Parser, Subcommand, ValueEnum};
 use std::path::{Path, PathBuf};
@@ -49,9 +50,12 @@ enum Command {
         /// Use the 8-tile micro continent instead.
         #[arg(long)]
         micro: bool,
-        /// Pixels per area tile in the overview.
-        #[arg(long, default_value_t = arda::OVERVIEW_PX_PER_AREA)]
-        px: u32,
+        /// Legacy pixels per area tile; overrides the default 8K long edge.
+        #[arg(long, value_parser = clap::value_parser!(u32).range(1..=512), conflicts_with = "quality")]
+        px: Option<u32>,
+        /// PNG long edge: 512–32768 pixels, or 1k–32k (default: 8k).
+        #[arg(long)]
+        quality: Option<ImageQuality>,
         /// Directory to create; holds `world/` and `overview.png`.
         #[arg(long)]
         out: PathBuf,
@@ -75,8 +79,11 @@ enum Command {
         #[arg(long)]
         block: Option<String>,
         /// Export an area PNG at 4096×4096 pixels; the terrain remains 100 m.
-        #[arg(long, conflicts_with_all = ["overview", "block"])]
+        #[arg(long, conflicts_with_all = ["overview", "block", "quality"])]
         detail: bool,
+        /// PNG area side or overview long edge: 512–32768, or 1k–32k (default: 8k).
+        #[arg(long, conflicts_with = "block")]
+        quality: Option<ImageQuality>,
         /// Directory to write into.
         #[arg(long)]
         out: PathBuf,
@@ -87,6 +94,31 @@ enum Command {
 enum Format {
     Png,
     Json,
+}
+
+#[derive(Clone, Copy, Default)]
+struct ImageOptions {
+    detail: bool,
+    quality: Option<ImageQuality>,
+}
+
+impl ImageOptions {
+    fn validate(self, format: Format, overview: bool, block: Option<&str>) -> Result<()> {
+        if self.detail && (overview || block.is_some() || matches!(format, Format::Json)) {
+            bail!("--detail is valid only for area PNG exports");
+        }
+        if self.quality.is_some() && (block.is_some() || matches!(format, Format::Json)) {
+            bail!("--quality is valid only for area or overview PNG exports");
+        }
+        if self.detail && self.quality.is_some() {
+            bail!("--detail cannot be combined with --quality");
+        }
+        Ok(())
+    }
+
+    fn quality(self) -> ImageQuality {
+        self.quality.unwrap_or_default()
+    }
 }
 
 fn parse_size(text: &str) -> Result<SizeKm> {
@@ -126,7 +158,14 @@ fn run_generate(seed: u64, size: &str, micro: bool, out: &Path) -> Result<()> {
     Ok(())
 }
 
-fn run_preview(seed: u64, size: &str, micro: bool, px: u32, out: &Path) -> Result<()> {
+fn run_preview(
+    seed: u64,
+    size: &str,
+    micro: bool,
+    px: Option<u32>,
+    quality: Option<ImageQuality>,
+    out: &Path,
+) -> Result<()> {
     let config = if micro {
         GenerateConfig::MICRO
     } else {
@@ -149,7 +188,10 @@ fn run_preview(seed: u64, size: &str, micro: bool, px: u32, out: &Path) -> Resul
     );
 
     let world = World::load(&world_dir)?;
-    let path = export_overview(&world, out, px)?;
+    let path = match px {
+        Some(px) => export_overview(&world, out, px)?,
+        None => export_overview_with_quality(&world, out, quality.unwrap_or_default())?,
+    };
     println!("wrote {}", path.display());
     Ok(())
 }
@@ -161,11 +203,9 @@ fn run_export(
     overview: bool,
     block: Option<&str>,
     out: &Path,
-    detail: bool,
+    image: ImageOptions,
 ) -> Result<()> {
-    if detail && (overview || block.is_some() || matches!(format, Format::Json)) {
-        bail!("--detail is valid only for area PNG exports");
-    }
+    image.validate(format, overview, block)?;
     if let Some(spec) = block {
         let parts: Vec<&str> = spec.split(',').map(str::trim).collect();
         let [ax, ay, cx, cy] = parts.as_slice() else {
@@ -195,7 +235,7 @@ fn run_export(
     if overview {
         let world = World::load(world)?;
         std::fs::create_dir_all(out).context("cannot create the output directory")?;
-        let path = export_overview(&world, out, arda::OVERVIEW_PX_PER_AREA)?;
+        let path = export_overview_with_quality(&world, out, image.quality())?;
         println!("wrote {}", path.display());
         return Ok(());
     }
@@ -211,12 +251,19 @@ fn run_export(
         Format::Png => ExportFormat::Png,
         Format::Json => ExportFormat::Json,
     };
-    let scale = if detail {
-        AreaImageScale::Detail
-    } else {
-        AreaImageScale::Preview
+    let path = match format {
+        ExportFormat::Png if !image.detail => {
+            export_area_with_quality(&world, ax, ay, out, image.quality())?
+        }
+        _ => {
+            let scale = if image.detail {
+                AreaImageScale::Detail
+            } else {
+                AreaImageScale::Preview
+            };
+            export_area_with_scale(&world, ax, ay, out, format, scale)?
+        }
     };
-    let path = export_area_with_scale(&world, ax, ay, out, format, scale)?;
     println!("wrote {}", path.display());
     Ok(())
 }
@@ -234,8 +281,9 @@ fn main() -> Result<()> {
             size,
             micro,
             px,
+            quality,
             out,
-        } => run_preview(seed, &size, micro, px, &out),
+        } => run_preview(seed, &size, micro, px, quality, &out),
         Command::Export {
             world,
             area,
@@ -244,6 +292,7 @@ fn main() -> Result<()> {
             block,
             out,
             detail,
+            quality,
         } => run_export(
             &world,
             &area,
@@ -251,13 +300,15 @@ fn main() -> Result<()> {
             overview,
             block.as_deref(),
             &out,
-            detail,
+            ImageOptions { detail, quality },
         ),
     }
 }
 
 #[cfg(test)]
 mod tests {
+    #![allow(clippy::unwrap_used)]
+
     use super::*;
 
     #[test]
@@ -280,7 +331,10 @@ mod tests {
             false,
             None,
             Path::new("unused-export"),
-            true,
+            ImageOptions {
+                detail: true,
+                quality: None,
+            },
         );
         assert!(
             error.is_err_and(|e| e.to_string() == "--detail is valid only for area PNG exports")
@@ -302,5 +356,120 @@ mod tests {
                 }
             })
         ));
+    }
+
+    #[test]
+    fn png_quality_defaults_to_8k_for_area_and_overview() {
+        for mode in [vec!["--area", "1,1"], vec!["--overview"]] {
+            let mut args = vec!["arda", "export", "--world", "saved", "--out", "exports"];
+            args.extend(mode);
+            let Cli {
+                command: Command::Export {
+                    detail, quality, ..
+                },
+            } = Cli::try_parse_from(args).unwrap()
+            else {
+                panic!("expected export")
+            };
+            assert_eq!(ImageOptions { detail, quality }.quality().pixels(), 8192);
+        }
+    }
+
+    #[test]
+    fn quality_accepts_pixels_and_k_suffixes_and_rejects_invalid_values() {
+        for (text, pixels) in [("512", 512), ("513", 513), ("8k", 8192), ("32k", 32768)] {
+            let cli = Cli::try_parse_from([
+                "arda",
+                "export",
+                "--world",
+                "saved",
+                "--out",
+                "exports",
+                "--quality",
+                text,
+            ])
+            .unwrap();
+            let Command::Export {
+                quality: Some(quality),
+                ..
+            } = cli.command
+            else {
+                panic!("missing quality")
+            };
+            assert_eq!(quality.pixels(), pixels);
+        }
+        for text in ["511", "32769", "33k", "bogus"] {
+            assert!(Cli::try_parse_from([
+                "arda",
+                "export",
+                "--world",
+                "saved",
+                "--out",
+                "exports",
+                "--quality",
+                text,
+            ])
+            .is_err());
+        }
+    }
+
+    #[test]
+    fn explicit_quality_rejects_non_png_modes_before_reading_the_world() {
+        let image = ImageOptions {
+            detail: false,
+            quality: Some(ImageQuality::DEFAULT),
+        };
+        for (format, overview, block) in [
+            (Format::Json, false, None),
+            (Format::Json, true, None),
+            (Format::Png, false, Some("0,0,0,0")),
+        ] {
+            let result = run_export(
+                Path::new("missing-world"),
+                "0,0",
+                format,
+                overview,
+                block,
+                Path::new("unused-export"),
+                image,
+            );
+            assert!(result.is_err_and(
+                |e| e.to_string() == "--quality is valid only for area or overview PNG exports"
+            ));
+        }
+        assert!(ImageOptions::default()
+            .validate(Format::Json, false, None)
+            .is_ok());
+    }
+
+    #[test]
+    fn explicit_quality_conflicts_with_legacy_resolution_flags_and_blocks() {
+        for extra in [vec!["--detail"], vec!["--block", "0,0,0,0"]] {
+            let mut args = vec![
+                "arda",
+                "export",
+                "--world",
+                "saved",
+                "--out",
+                "exports",
+                "--quality",
+                "8k",
+            ];
+            args.extend(extra);
+            assert!(Cli::try_parse_from(args).is_err());
+        }
+        assert!(Cli::try_parse_from([
+            "arda",
+            "preview",
+            "--seed",
+            "42",
+            "--out",
+            "exports",
+            "--quality",
+            "8k",
+            "--px",
+            "16",
+        ])
+        .is_err());
     }
 }

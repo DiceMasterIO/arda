@@ -51,6 +51,11 @@ impl Area {
         &self.cells
     }
 
+    /// Transfers the cell grid to an uncached streaming overview export.
+    pub(crate) fn into_cells(self) -> AreaCells {
+        self.cells
+    }
+
     /// The raw object lists, for renderers.
     #[must_use]
     pub const fn objects(&self) -> &AreaObjects {

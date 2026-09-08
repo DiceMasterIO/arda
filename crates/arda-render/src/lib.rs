@@ -7,16 +7,18 @@ mod channel_geometry;
 mod channels;
 mod hydrology_json;
 mod overview;
+mod quality;
 use arda_core::GlobalCell;
 
 pub mod carto;
 pub mod json;
 pub mod symbolic;
 
-pub use carto::{render_area_png, render_overview_png};
+pub use carto::{render_area_png, render_area_png_to, render_overview_png};
 pub use channels::AreaImageScale;
 pub use json::{area_json, block_json, SCHEMA_VERSION};
-pub use overview::OverviewRaster;
+pub use overview::{write_overview_png, OverviewRaster};
+pub use quality::ImageQuality;
 pub use symbolic::{render_block_png, SQUARE_PX};
 
 use thiserror::Error;
@@ -24,6 +26,9 @@ use thiserror::Error;
 /// An export failure (`logic/04` refusals).
 #[derive(Debug, Error)]
 pub enum RenderError {
+    /// A requested PNG edge length is outside the supported range.
+    #[error("PNG quality must be 512–32768 pixels (for example: 512, 8k, 32k)")]
+    InvalidImageQuality,
     /// The PNG encoder failed.
     #[error("png encoding failed")]
     Png,
@@ -46,7 +51,7 @@ pub enum RenderError {
     OverviewDimensions,
     /// Exact-size overview dimensions exceed axis or pixel limits.
     #[error(
-        "exact overview requires 1–78 areas per axis, at least one pixel per area per axis, 1–16384 pixels per axis, and at most 134217728 pixels"
+        "exact overview requires 1–78 areas per axis, at least one pixel per area per axis, and 1–32768 pixels per axis; buffered exports additionally allow at most 134217728 pixels"
     )]
     ExactOverviewDimensions,
     /// An overview tile was supplied twice.
@@ -88,6 +93,34 @@ pub(crate) fn encode_png(width: u32, height: u32, rgb: &[u8]) -> Result<Vec<u8>,
         writer.write_image_data(rgb).map_err(|_| RenderError::Png)?;
     }
     Ok(out)
+}
+
+/// Encodes rows without retaining the uncompressed image or final PNG.
+pub(crate) fn encode_png_rows<W, E>(
+    width: u32,
+    height: u32,
+    output: W,
+    write_rows: impl FnOnce(&mut dyn std::io::Write) -> Result<(), E>,
+) -> Result<(), E>
+where
+    W: std::io::Write,
+    E: From<RenderError>,
+{
+    let mut encoder = png::Encoder::new(output, width, height);
+    encoder.set_color(png::ColorType::Rgb);
+    encoder.set_depth(png::BitDepth::Eight);
+    encoder.set_compression(png::Compression::Default);
+    encoder.set_filter(png::FilterType::NoFilter);
+    let mut writer = encoder.write_header().map_err(|_| RenderError::Png)?;
+    {
+        let mut stream = writer
+            .stream_writer_with_size(64 * 1024)
+            .map_err(|_| RenderError::Png)?;
+        write_rows(&mut stream)?;
+        stream.finish().map_err(|_| RenderError::Png)?;
+    }
+    writer.finish().map_err(|_| RenderError::Png)?;
+    Ok(())
 }
 
 #[cfg(test)]

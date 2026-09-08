@@ -2,8 +2,8 @@
 #![allow(clippy::unwrap_used, clippy::expect_used)]
 
 use arda::{
-    export_area, export_area_with_scale, export_overview, AreaImageScale, ExportError,
-    ExportFormat, World,
+    export_area, export_area_with_quality, export_area_with_scale, export_overview,
+    export_overview_with_quality, AreaImageScale, ExportError, ExportFormat, ImageQuality, World,
 };
 use arda_core::hydrology::ChannelEdge;
 use arda_core::{
@@ -146,18 +146,49 @@ fn an_unreadable_overview_tile_fails_instead_of_becoming_ocean() {
 }
 
 #[test]
-fn detailed_json_is_refused_before_tile_reads_or_output_writes() {
+fn non_preview_json_is_refused_before_tile_reads_or_output_writes() {
     let fixture = Fixture::new();
     let world = World::load(&fixture.world()).unwrap();
-    let error = export_area_with_scale(
-        &world,
-        1,
-        3,
-        &fixture.exports(),
-        ExportFormat::Json,
+    for scale in [
         AreaImageScale::Detail,
-    )
-    .unwrap_err();
-    assert!(matches!(error, ExportError::InvalidImageScale));
+        AreaImageScale::Custom(ImageQuality::DEFAULT),
+    ] {
+        let error =
+            export_area_with_scale(&world, 1, 3, &fixture.exports(), ExportFormat::Json, scale)
+                .unwrap_err();
+        assert!(matches!(error, ExportError::InvalidImageScale));
+    }
     assert_eq!(std::fs::read_dir(fixture.exports()).unwrap().count(), 0);
+}
+
+#[test]
+fn custom_quality_stream_repeats_after_reload_without_changing_saved_layers() {
+    let fixture = Fixture::new();
+    let before = fixture.snapshot();
+    let world = World::load(&fixture.world()).unwrap();
+    let quality = ImageQuality::new(513).unwrap();
+    let path = export_area_with_quality(&world, 0, 0, &fixture.exports(), quality).unwrap();
+    assert_eq!(dimensions(&path), (513, 513));
+    let bytes = std::fs::read(&path).unwrap();
+    let reloaded = World::load(&fixture.world()).unwrap();
+    export_area_with_quality(&reloaded, 0, 0, &fixture.exports(), quality).unwrap();
+    assert_eq!(std::fs::read(path).unwrap(), bytes);
+    assert_eq!(fixture.snapshot(), before);
+    assert_eq!(std::fs::read_dir(fixture.exports()).unwrap().count(), 1);
+}
+
+#[test]
+fn failed_streamed_overview_preserves_a_completed_export() {
+    let fixture = Fixture::new();
+    let before = fixture.snapshot();
+    let world = World::load(&fixture.world()).unwrap();
+    let path = fixture.exports().join("overview.png");
+    std::fs::write(&path, b"previous complete PNG").unwrap();
+    let error =
+        export_overview_with_quality(&world, &fixture.exports(), ImageQuality::new(512).unwrap())
+            .unwrap_err();
+    assert!(error.to_string().contains("01_00/cells.bin"));
+    assert_eq!(std::fs::read(path).unwrap(), b"previous complete PNG");
+    assert_eq!(std::fs::read_dir(fixture.exports()).unwrap().count(), 1);
+    assert_eq!(fixture.snapshot(), before);
 }
