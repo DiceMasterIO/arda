@@ -1,6 +1,6 @@
 ---
 generated_date: 2026-09-08
-generated_at_commit: 311829e4e5c9
+generated_at_commit: b0f93f22b969
 absorbed_from: features/2026-09-07-area-water-terrain-realism@2026-09-08
 ---
 
@@ -10,23 +10,26 @@ Current implementation status comes first. The older issue inventory below is re
 
 ## Current status — 2026-09-08
 
-The area-water-terrain implementation is installed. The user's first-look review
-reopened natural/visual acceptance after candidate02; its earlier dry source reviews
-and passing numerical checks do not close the reported realism issues. The authorized
-terrain correction is installed and all five candidate04 worlds have completed
-their saved-data/export checks. Visual inspection still finds repetitive drainage
-and rectangular regional basins. The user approved updating the deterministic
-golden baseline to candidate05 on 2026-09-08; the feature remains incomplete
-because natural visual acceptance is still open.
+The area-water-terrain implementation is installed. Candidate06 corrects the
+altitude-dependent detail amplitude that repeatedly manufactured shallow basins
+on gentle high terrain. Detail now follows surrounding regional height differences,
+using the existing bounded sampler and noise. The annual water rules, saved format
+and renderer are unchanged.
 
-Candidate05 additionally corrects tangential plate-motion classification and
-order-dependent junction overwrites. The legacy north/west outside-neighbor and
-D8-corner fix is installed; direct regressions and unchanged statistical thresholds
-pass, with exact shared preparation/saved-world equality. Current source passes583
-workspace tests, strict tooling and two dry review rounds. All five natural cases and their repeated exports are
-complete. Current MICRO and default visual
-reviews retain conspicuous repetitive ravines and regional lake geometry; source
-correctness does not close those realism issues.
+The reported seed436342 changes from 2,653 to 186 lakes; fixed 50 km squares with
+at least 50 lake anchors fall from 18 to zero. Its former densest square changes
+from 158 to 3. These are measurements, not production quotas. The 16K comparison
+visibly removes the repeated pond patches. Total wet area changes from 5,028.39 to
+2,558.01 km²; substantial regional lakes remain.
+
+All five frozen worlds, 38 selected JSONs and 238 exports pass, including repeated
+bytes, unchanged saved worlds, exact annual balances and shared wet-boundary
+identity/surface checks. The combined workspace, focused repairs and fresh
+approved C06 golden comparison cover 590 passing tests. The terrain correction
+and its deterministic baseline are committed as `ed4875d`. Parallel ravines, angular shorelines and large
+rectangular regional basins remain open; the overall feature is not marked done.
+Evidence: [C06 comparison](features/2026-09-07-area-water-terrain-realism/verification/lake-district-correction/data-comparison/REPORT.md)
+and [maps](features/2026-09-07-area-water-terrain-realism/verification/lake-district-correction/gallery-c06.md).
 
 | Item | Current evidence and disposition |
 |---|---|
@@ -35,7 +38,7 @@ correctness does not close those realism issues.
 | Lake thresholds (old #10) | Canonical generation uses fine-grid depressions and an annual water-support calculation, including positive-depth physical storage, rainfall, runoff and evaporation. The historical 100-cell/2 m rule no longer controls final world lakes. |
 | Cross-area lake authority (old #12) | Shared fine topology, global IDs, physical surfaces and copied feature records replace nearest-coarse-basin/max-surface reconciliation. Constructed boundary/corner controls and all 38 selected natural record comparisons pass. |
 | Tactical noise and fallback (old #2, #3, #7) | Remain open. Existing 24-tile WFC, permissive adjacency and 64-cell sampling stride are unchanged. Detailed assets, movement/collision geometry, NPCs and server/browser transport require later work. |
-| Erosion rim (old #11) | Candidate02 seed436342 area3,10 had 50.1% wet rim cells versus 6.2% wet interior. Production now evolves terrain across publication boundaries without pins or taper. Candidate04 gives 4.89% wet rim versus 4.95% interior; candidate05 gives 6.51% versus 6.45%. Across all 513 current default areas, every one of 21,772 adjacent pairs wet on both sides has matching IDs/surfaces. The continuous water square is absent in the current preview. Only the true modeled outer rim remains fixed. See `features/2026-09-07-area-water-terrain-realism/verification/terrain-correction/visual-default436342-c05.md`. |
+| Erosion rim (old #11) | Candidate02 seed436342 area3,10 had 50.1% wet rim cells versus 6.2% wet interior. Production now evolves terrain across publication boundaries without pins or taper. Candidate04 gives 4.89% wet rim versus 4.95% interior; candidate05 gives 6.51% versus 6.45%. Across all 513 candidate05 default areas, every one of 21,772 adjacent pairs wet on both sides has matching IDs/surfaces; candidate06 checks 20,712 such pairs with no mismatch. The continuous water square is absent in the current preview. Only the true modeled outer rim remains fixed. See `features/2026-09-07-area-water-terrain-realism/verification/terrain-correction/visual-default436342-c05.md`. |
 | Statistical calibration (old #9) | Existing drainage, cross-tile, terrain and determinism suites run. This work adds controlled physical/annual/resource/geometry checks and a frozen natural panel; it does not supply the full proposed Horton/Hack/rank-size/sinuosity/farmland calibration suite. |
 | Cell producers | Temperature, rainfall, wetness, water and terrain metrics now have producers. Cell.moisture, full vegetation, human geography, roads, buildings and society remain deferred. |
 

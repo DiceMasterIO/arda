@@ -1,7 +1,7 @@
 ---
 generated_date: 2026-09-08
-generated_at_commit: 311829e4e5c9
-content_hash: 5c90b517b334
+generated_at_commit: b0f93f22b969
+content_hash: de2675f24dc3
 paths_covered: [":(top)crates/arda-cli/src/**", ":(top)crates/arda/src/**", ":(top)crates/arda-gen/src/orchestrator.rs", ":(top)crates/arda-gen/src/orchestrator/**", ":(top)crates/arda-core/src/config.rs", ":(top)crates/arda-core/src/formats/manifest.rs", ":(top)crates/arda-render/src/**"]
 absorbed_from: features/2026-09-07-area-water-terrain-realism@2026-09-08
 ---

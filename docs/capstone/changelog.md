@@ -2,6 +2,35 @@
 generated_date: 2026-08-24
 ---
 
+## 2026-09-08 - snapshot: C06 correction and feature-code cleanup
+key: snapshot/2026-09-07-area-water-terrain-realism@c06-committed-cleanup
+
+- `ed4875d`: committed the local-relief terrain correction, resource admission and regressions under the Regional detail correction rule in `logic/02-area-generation.md`.
+- `tests/golden/micro-42.txt`: user separately approved the exact C06 candidate; 24 fingerprints change, 10 remain, none are added/removed. Fresh comparison passes in 44.50 s; combined broad/focused/golden evidence covers 590 passing tests.
+- `b0f93f2`: preserved the 16K capability in canonical `arda-render::OverviewRaster::new_exact` and `crates/arda/examples/export_world_16k.rs`, removing the need for a copied renderer under feature docs.
+- Exact overview keeps the former adapter's 16,384-axis/134,217,728-total-pixel bounds; regular overview limits remain unchanged. The migrated example reproduces the C05 7,761×16,384 PNG byte for byte in 3.718 s.
+- The exporter move passes 49 renderer tests (four new), two dry code reviews, workspace formatting, strict all-target/all-feature Clippy and the official Rust 1.96.1 check. It changes no generation rule or dependency.
+- `docs/map-legend.html` and `docs/map-legend.md`: saved the accepted colour swatches as an offline standalone reference and documented elevation, depth and discharge semantics; linked from the reference index and operations.
+- User explicitly authorized removal of feature-local Rust and then Python. Dependency audit found no production/workspace/CI source dependency on that folder; the offline forcing-table generator already lives under `tools/`.
+- Removed 419 Rust source files, 70 Python scripts, 24 source patches, spike manifests, native helpers, bytecode and 16 Cargo build caches; removed 6,449,946,322 bytes. No Rust/Python source files remain under the feature folder.
+- Preserved the feature folder, all 860 PNGs and non-code evidence. The local cleanup receipt records removed paths/sizes/source hashes; the feature README marks old replay commands as historical. Unique ignored spike sources were not Git-backed.
+- Refreshed factual source stamps against `b0f93f22b969`, accepted-baseline status and the area/export scenarios; retained the earlier verification entries unchanged.
+- Parallel drainage, angular shorelines and large rectangular regional basins remain open. Tactical assets and NPCs remain deferred; this snapshot does not mark the overall feature complete.
+
+## 2026-09-08 - repeated lake-district correction verification
+key: fix/2026-09-07-area-water-terrain-realism@lake-district-c06-verification
+
+- Replaced absolute-altitude fine-detail amplitude with surrounding regional height differences, capped at 90 m; sea detail, noise octaves, annual water rules and rendering remain unchanged. Implements logic/02 Regional detail correction.
+- Reused the admitted regional/uplift cache with canonical outside sampling; increased initial logical-work admission from 256N to 512N without another dense allocation.
+- Added translation, flat/slope/bowl, continuity, numeric-bound, cache-equivalence and pre-output admission controls; retained real boundary fixtures and fixed statistical gates while replacing a diagnostic snapshot with independent exact inflow conservation.
+- Two production-source review rounds and a subsequent independent fixture review are dry. The broad run plus focused repairs cover 589 passing tests; formatting, strict Clippy, official Rust 1.96.1 and the erosion budget pass.
+- Completed five fixed worlds, 38 selected JSON checks and 238 exports; repeated exports match, saved worlds remain unchanged, all annual balances close exactly and all 20,712 both-wet adjacent pairs share IDs/surfaces.
+- Reported seed436342 changes from 2,653 to 186 lakes and from 5,028.39 to 2,558.01 km² wet area; fixed 50 km squares with at least 50 anchors change from 18 to zero. These observations are not lake-count quotas.
+- Preserved native 7,761×16,384 world and four 4096² area PNGs; default generation took 38–44 minutes, the reported 16K export 3.576 seconds and detailed areas 0.301–0.385 seconds each.
+- Refreshed architecture, models, data flow, testing, operations, open items and area-generation logic. Retained all feature state, old candidates, images and evidence by explicit user instruction.
+- Parallel drainage, angular shorelines, large rectangular regional basins and unmodeled geological/groundwater processes remain open. This is corrective verification, not the overall feature completion marker.
+- The separate C06 MICRO42 candidate changes 24 fingerprints, leaves 10 unchanged and adds/removes no files; exact SHA256 3e86ce4c247244b65a6aa8bb6682204b41fa91208ad18f3cd7da70f7cc04e2eb. Explicit approval, final golden test and commit remain pending; the approved C05 golden is untouched.
+
 ## 2026-09-08 - snapshot: area-water-terrain implementation
 key: snapshot/2026-09-07-area-water-terrain-realism@candidate05-approved-golden
 

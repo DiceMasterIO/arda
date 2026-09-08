@@ -39,6 +39,7 @@ Deterministic offline tabletop world generation in a Rust 2021 Cargo workspace: 
 
 | File | What it is |
 |---|---|
+| [Map legend](../map-legend.md) | Saved offline colour swatches and interpretation for world and detailed area PNGs. |
 | `generation-issues.md` (optional, local only) | User-requested diagnosis, ignored by Git; available only in checkouts where it was created. |
 | [standards.md](standards.md) | Normative coding rules, migrated from code-prefs.md. |
 | [implementation.md](implementation.md) | Approved build plan and dated implementation history; outstanding steps remain plans. |

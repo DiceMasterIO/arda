@@ -1,6 +1,6 @@
 ---
-generated_at_commit: 311829e4e5c9
-content_hash: efac7c44ca05
+generated_at_commit: b0f93f22b969
+content_hash: a66a5018cd60
 paths_covered: [":(top)Cargo.toml", ":(top)crates/**", ":(top)Dockerfile"]
 generated_date: 2026-09-08
 absorbed_from: features/2026-09-07-area-water-terrain-realism@2026-09-08
@@ -63,7 +63,7 @@ Payload fields and wire layouts are in `02-models.md`. Published disk handoffs a
 
 Preparation and composition currently execute sequentially. Uplift, fractional MFD contributing area, creep and collapse cross publication-area boundaries; only the real modeled outer rim remains fixed. Incision is solved implicitly downstream first against updated receiver beds. This bounded implementation does not use Rayon area fan-out; the dependency remains installed. No final area reads another final area file. Physical neighbor data comes from the shared prepared domain, so exact shared crossings do not require output-order dependence. Dependencies are plain arguments and real memory/file storage traits, with no DI container.
 
-Admission includes the dense terrain inputs and scratch, 53 bytes per modeled fine cell plus container headers on the current 64-bit layout, conservatively summed with water-stage reservations. Default and MICRO requests fit the default 16 GiB allowance; a 4000×4000 km request requires explicitly larger limits and is refused before output creation under the defaults. Visual acceptance of the current terrain correction remains open while its full candidate validation runs; earlier candidate02 results describe the preceding implementation (`crates/arda-gen/src/area/evolution.rs`, `crates/arda-gen/src/orchestrator/generation_limits.rs`, `crates/arda-gen/src/orchestrator/generation_limits_tests.rs`).
+Admission includes the dense terrain inputs and scratch, 53 bytes per modeled fine cell plus container headers on the current 64-bit layout, conservatively summed with water-stage reservations. Default and MICRO requests fit the default 16 GiB allowance; a 4000×4000 km request requires explicitly larger limits and is refused before output creation under the defaults. Candidate06 has completed five-world validation; repeated pond patterns improve, while parallel drainage and large regional basin geometry remain open. Earlier candidate02 results describe the preceding implementation (`crates/arda-gen/src/area/evolution.rs`, `crates/arda-gen/src/orchestrator/generation_limits.rs`, `crates/arda-gen/src/orchestrator/generation_limits_tests.rs`).
 
 ## Frontend
 
