@@ -11,9 +11,8 @@ jobs:
     steps:
       - uses: actions/checkout@v4
       - uses: dtolnay/rust-toolchain@stable
-      - run: cargo test --workspace --all-features
-      - name: Determinism gate
-        run: cargo test --test golden_world -- --nocapture
+      - name: Workspace tests, including determinism
+        run: cargo test --workspace --all-features
 
   msrv:
     runs-on: ubuntu-latest

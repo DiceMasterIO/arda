@@ -20,7 +20,7 @@ absorbed_from: features/2026-09-07-area-water-terrain-realism@2026-09-08
 | Continent hydrology | `crates/arda-gen/tests/continent_hydrology.rs` | Persistence, ocean-reaching paths, courses, catchment/discharge and determinism. |
 | Exploratory measurements | `crates/arda-gen/tests/continent_measures.rs`, `anisotropy_probe.rs` | Ignored rainfall/Horton and directional probes; not default statistical acceptance gates. |
 | Facade/CLI | `crates/arda/tests/round_trip.rs`, `area_exports.rs`, `crates/arda-cli/tests/cli.rs`, `crates/arda/src/world.rs` | Round trips, lazy bounded loading, exports, malformed dimensions/layers, partial-world refusal, sampling and command refusal paths. |
-| Golden world | `tests/golden_world.rs:69` | Fixed MICRO file fingerprint; a separate test at line 91 checks repeat-generation equality. |
+| Golden world | `tests/golden_world.rs:79` | Fixed MICRO file fingerprint; a separate test at line 99 checks repeat-generation equality. |
 | Release budgets | `crates/arda-gen/benches/area_erosion.rs:20`, `continent_stage.rs:17` | One area's erosion must fit 30 s; the default coarse continent stage must fit 60 s. These are not full-world deadlines. |
 
 The public generation authority is canonical terrain preparation followed by one
@@ -45,7 +45,8 @@ with the call sequence in
 | Erosion budget workload | `cargo bench -p arda-gen --bench area_erosion -- --test` |
 | Coarse continent budget workload | `cargo bench -p arda-gen --bench continent_stage -- --test` |
 
-CI runs workspace tests and the explicit golden gate on Linux, macOS and Windows.
+CI runs the full workspace suite on Linux, macOS and Windows. Both golden-world
+tests are included in that command; CI does not invoke them a second time.
 Ubuntu also runs the pinned Rust 1.96.1 MSRV check, formatting, strict Clippy and
 cargo-deny. The MSRV pin records the latest-stable-minus-two policy for this dated
 revision; it is not an automatically advancing expression.
@@ -69,7 +70,24 @@ The golden test has an explicit `ARDA_BLESS` write path. Running ordinary checks
 does not authorize replacing expected bytes. Candidate05 and the subsequent
 regional-detail candidate06 baseline were separately approved and committed.
 Reproducibility and geographic/visual acceptance remain separate checks.
-Source: [golden_world.rs:69](../../tests/golden_world.rs:69).
+Source: [golden_world.rs:79](../../tests/golden_world.rs:79).
+
+The facade and CLI integration suites each generate their seed-42 MICRO fixture
+once per test executable. They retain an immutable snapshot of its files in
+memory and restore separate temporary directories for consuming tests. Tests
+that remove manifests or attempt writes cannot alter another test's fixture.
+The snapshots are rebuilt on every test invocation, not read from a persistent
+cache. The facade repeat-generation test still creates an independent second
+world, the alternate-seed test generates seed 43, and CLI preview performs its
+own generation. The two golden tests share their first generated fingerprint
+and independently generate the comparison world for repeatability.
+
+For a completed unfiltered CI test job, this reduces successful full-world
+generations from 27 to 8 per platform (81 to 24 across the three-platform matrix):
+facade round-trip tests 11 to 3, CLI tests 9 to 2, golden tests 3 to 2, the unchanged
+continent persistence test 1, and removal of the extra three-generation golden
+invocation. These are execution counts, not a promised percentage reduction in
+CI wall time. Refusal tests, coarse/area-only tests and all test cases remain.
 
 ## Doubles
 

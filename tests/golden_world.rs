@@ -8,6 +8,7 @@
 
 use arda::{generate, GenerateConfig};
 use std::path::{Path, PathBuf};
+use std::sync::LazyLock;
 
 const GOLDEN: &str = "tests/golden/micro-42.txt";
 
@@ -65,15 +66,22 @@ fn collect(root: &Path, dir: &Path, out: &mut Vec<String>) {
     }
 }
 
+fn generated_fingerprint() -> &'static str {
+    static FIRST_RUN: LazyLock<String> = LazyLock::new(|| {
+        let dir = TempDir::new("micro-42");
+        generate(42, GenerateConfig::MICRO, dir.path()).expect("generation failed");
+        fingerprint(dir.path())
+    });
+    &FIRST_RUN
+}
+
 #[test]
 fn micro_world_matches_the_golden_fingerprint() {
-    let dir = TempDir::new("micro-42");
-    generate(42, GenerateConfig::MICRO, dir.path()).expect("generation failed");
-    let actual = fingerprint(dir.path());
+    let actual = generated_fingerprint();
 
     if std::env::var("ARDA_BLESS").is_ok() {
         std::fs::create_dir_all("tests/golden").expect("cannot create fixture dir");
-        std::fs::write(GOLDEN, &actual).expect("cannot write fixture");
+        std::fs::write(GOLDEN, actual).expect("cannot write fixture");
         return;
     }
 
@@ -89,9 +97,10 @@ fn micro_world_matches_the_golden_fingerprint() {
 
 #[test]
 fn regenerating_produces_the_same_fingerprint() {
-    let a = TempDir::new("repeat-a");
+    // Reuse the first actual generation, but always generate the comparison
+    // independently; comparing two copies would not test reproducibility.
+    let first = generated_fingerprint();
     let b = TempDir::new("repeat-b");
-    generate(42, GenerateConfig::MICRO, a.path()).expect("generation failed");
     generate(42, GenerateConfig::MICRO, b.path()).expect("generation failed");
-    assert_eq!(fingerprint(a.path()), fingerprint(b.path()));
+    assert_eq!(first, fingerprint(b.path()));
 }
