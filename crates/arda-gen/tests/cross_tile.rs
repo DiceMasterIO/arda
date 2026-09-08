@@ -16,6 +16,9 @@
 //! catchment, outlet, inflow, surface and determinism invariants remain binding.
 //! Actual outside-neighbor routing and the fixed three-context survey are
 //! recorded in `terrain-correction/legacy-neighbor-fix-report.md`.
+//! C06 retains that same panel and its quality gates; current measurements
+//! and the exact added-inflow oracle are recorded in
+//! `lake-district-correction/cross-tile-c06-fixtures.md`.
 #![allow(clippy::unwrap_used, clippy::expect_used)]
 
 use arda_core::{AreaCells, AreaCoord, CellCoord, GenerateConfig, TerrainKind, AREA_CELLS};
@@ -176,6 +179,22 @@ fn path_max(w: &WaterGrid, start: CellCoord) -> u32 {
         }
     }
     best
+}
+
+/// Independent source-provenance check: follow one source on the unseeded
+/// physical routing graph. This does not repeat water()'s sorted accumulation.
+fn path_reaches(w: &WaterGrid, start: CellCoord, target: CellCoord) -> bool {
+    let mut at = start;
+    for _ in 0..N * N {
+        if at == target {
+            return true;
+        }
+        let Some(next) = w.downstream_of(at) else {
+            return false;
+        };
+        at = next;
+    }
+    panic!("unseeded routing contains a cycle from {start:?}");
 }
 
 /// Independent, test-local re-derivation of `bundle_for`'s entering-river
@@ -384,10 +403,11 @@ fn independent_lake_surface_at(b: &TileBundle, cells: &[CellCoord]) -> Option<i3
 /// outlet in the matching absolute 10-cell window. Candidate 04 had 12
 /// crossings; corrected tectonic classification leaves four on that same
 /// seam, still all matched. Their entering fields are checked independently,
-/// together with every other MICRO tile's entries. Three of the four receiving
-/// drainage values exceed or equal the upstream window maximum; this count is
-/// a measured local-API diagnostic, not an equality between independently computed coarse
-/// and fine catchments. Derivation: `cross-tile-c05-fixtures.md`.
+/// together with every other MICRO tile's entries. The count of receiving
+/// drainage values exceeding the independently computed upstream local
+/// catchment is reported as a diagnostic. Conservation is instead checked
+/// exactly against the added coarse catchments/discharges whose unseeded
+/// routing paths reach each entry. Derivation: `cross-tile-c06-fixtures.md`.
 #[test]
 fn seam_entries_match_independent_hydrology_and_the_upstream_outlet() {
     let a_coord = AreaCoord::new(0, 2);
@@ -435,6 +455,8 @@ fn seam_entries_match_independent_hydrology_and_the_upstream_outlet() {
         .collect();
     let origin_x = a_coord.x * N;
     let mut ge_holds = 0u32;
+    let (unseeded, _) = without_entering(b);
+    let independent_sources = independent_entering(42, ctx(), b_coord);
     for e in &north {
         let (ax, _) = abs_cell(b_coord, e.cell.x(), e.cell.y());
         let win_abs_lo = ax.div_euclid(10) * 10;
@@ -459,26 +481,44 @@ fn seam_entries_match_independent_hydrology_and_the_upstream_outlet() {
         if b.water.drainage_at(e.cell) >= outlet_drainage {
             ge_holds += 1;
         }
+
+        // One km² contains exactly 100 of the 100 m terrain cells. Follow
+        // independently derived sources on the unseeded graph and sum their
+        // physical loads. Omitting or duplicating any contributing inflow
+        // violates this equality; a comparison to A's separately generated
+        // fine catchment cannot establish the retained coarse API's contract.
+        let mut added_cells = 0_u64;
+        let mut added_discharge = 0_u64;
+        for (&source, &(catchment_km2, discharge_l_s, _)) in &independent_sources {
+            if path_reaches(&unseeded, source, e.cell) {
+                added_cells += catchment_km2 * 100;
+                added_discharge += discharge_l_s;
+            }
+        }
+        assert!(added_cells > 0, "the entry's own inflow must contribute");
+        assert_eq!(
+            u64::from(b.water.drainage_at(e.cell)),
+            u64::from(unseeded.drainage_at(e.cell)) + added_cells,
+            "seed {:?}: entered catchment was omitted or counted more than once",
+            e.cell
+        );
+        assert_eq!(
+            b.water.discharge_at(e.cell),
+            unseeded.discharge_at(e.cell) + added_discharge,
+            "seed {:?}: entered discharge was omitted or counted more than once",
+            e.cell
+        );
         println!(
-            "legacy seam entry {:?}: catchment_km2={}, discharge_l_s={}, order={}, upstream_outlet_drainage={}, receiving_drainage={}",
-            e.cell, e.catchment_km2, e.discharge.raw(), e.order, outlet_drainage, b.water.drainage_at(e.cell)
+            "legacy seam entry {:?}: catchment_km2={}, discharge_l_s={}, order={}, upstream_outlet_drainage={}, receiving_drainage={}, unseeded_drainage={}, independently_added_cells={added_cells}, independently_added_discharge={added_discharge}",
+            e.cell, e.catchment_km2, e.discharge.raw(), e.order, outlet_drainage,
+            b.water.drainage_at(e.cell), unseeded.drainage_at(e.cell)
         );
     }
     println!("legacy seam totals: independently_checked_entries={independent_entries}, north_entries={}, matched_outlets={}, receiving_ge_upstream={ge_holds}", north.len(), north.len());
     assert_eq!(
         north.len(),
         4,
-        "tile (0,3) north-edge entering count drifted; re-derive cross-tile-c05-fixtures.md"
-    );
-    // Seed-specific drift guard, separate from the independent equalities
-    // and every matching outlet window above. Coarse 1 km catchments and
-    // local 100 m catchments are independent in this retained API, so their
-    // magnitude comparison is not the shared model's conservation equation.
-    // Historical counts were 27/31, 23/31, then 10/12; candidate 05 is 3/4.
-    assert_eq!(
-        ge_holds, 3,
-        "the corrected legacy drainage comparison drifted from 3/4; \
-         re-derive cross-tile-c05-fixtures.md"
+        "tile (0,3) north-edge entering count drifted; re-derive cross-tile-c06-fixtures.md"
     );
 }
 
@@ -517,24 +557,26 @@ fn neighbour_area(coord: AreaCoord, edge: char) -> Option<AreaCoord> {
 /// ten-cell coarse window. For non-matches, distance is measured to the
 /// nearest actual upstream outlet on that same boundary.
 ///
-/// With the actual outside-neighbor correction, the fixed panel has 119
-/// crossings, 14 non-matches, and 11/13 large matches (84%), with median
-/// non-match distance 2 cells. Seed 42's first accepted attempt still matches
-/// only 2/4 large crossings; passing the aggregate gate does not imply exact
-/// local continuity. Before the fix, the two-context candidate-05 sample had
+/// With candidate 06's regional detail correction, the same fixed panel has
+/// 119 crossings, 15 non-matches, and 12/13 large matches (92%), with median
+/// non-match distance 4 cells. Seed 42's first accepted attempt matches
+/// 3/4 large crossings; passing the aggregate gate does not imply exact
+/// local continuity. Candidate 05 with actual outside neighbors had 14
+/// non-matches, 11/13 large matches (84%), a 2-cell median and 2/4 large
+/// matches in first-accepted seed 42. Before the neighbor fix, its two-context sample had
 /// 91 crossings, 33 non-matches, 6/9 large matches (66%) and a 50-cell median.
 /// The added first-accepted seed-42 context was selected before scoring it;
 /// no replacement sample was searched. Candidate 04's 107 crossings,
 /// 43 non-matches, 15/21 large matches (71%) and 20-cell median remain recorded
 /// in `cross-tile-c04-fixtures.md`. Older measurements and interpretation are
 /// in `.superpowers/sdd/task-8-report.md`; current derivation is in
-/// `legacy-neighbor-fix-report.md`. The public shared fine solver does not use
+/// `lake-district-correction/cross-tile-c06-fixtures.md`. The public shared fine solver does not use
 /// these independently generated local outlet guesses.
 #[test]
 fn seam_crossings_align_with_upstream_outlets() {
     const MIN_CATCHMENT_KM2: u32 = 30;
-    const MIN_MATCH_PCT_ABOVE_MIN_CATCHMENT: u32 = 70; // current 84% (11/13); gate retained
-    const MAX_MEDIAN_NONMATCH_DIST: i32 = 20; // current 2 cells; gate retained
+    const MIN_MATCH_PCT_ABOVE_MIN_CATCHMENT: u32 = 70; // current 92% (12/13); gate retained
+    const MAX_MEDIAN_NONMATCH_DIST: i32 = 20; // current 4 cells; gate retained
 
     let mut total = 0u32;
     let mut big_total = 0u32;
