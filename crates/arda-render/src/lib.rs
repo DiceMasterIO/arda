@@ -44,6 +44,11 @@ pub enum RenderError {
         "overview requires 1–78 areas per axis, 1–512 pixels per area, and at most 64000000 pixels"
     )]
     OverviewDimensions,
+    /// Exact-size overview dimensions exceed axis or pixel limits.
+    #[error(
+        "exact overview requires 1–78 areas per axis, at least one pixel per area per axis, 1–16384 pixels per axis, and at most 134217728 pixels"
+    )]
+    ExactOverviewDimensions,
     /// An overview tile was supplied twice.
     #[error("overview area {area:?} was supplied more than once")]
     DuplicateOverviewArea {
