@@ -125,8 +125,8 @@ key: groom/2026-09-07-area-water-terrain-realism@Q12
 key: groom/2026-09-07-area-water-terrain-realism@Q14
 
 - `features/2026-09-07-area-water-terrain-realism/spec.md`: replace the earlier scientific investigation obligations with the user's clarified static VTT terrain/water scope; retain fine topology, shared identity/flux, physical exports, determinism and required project checks.
-- `features/2026-09-07-area-water-terrain-realism/spec-scientific-scope-history.md`: preserve the original approved specification as superseded history.
-- `features/2026-09-07-area-water-terrain-realism/PAUSED.md` and `planning-progress.md`: record explicit resume and preserve the previous research checkpoint.
+- `features/2026-09-07-area-water-terrain-realism/history/spec-scientific-scope-history.md`: preserve the original approved specification as superseded history.
+- `features/2026-09-07-area-water-terrain-realism/history/PAUSED.md` and `planning-progress.md`: record explicit resume and preserve the previous research checkpoint.
 - Select representative annual water semantics; seasonal persistence, dated snapshots and periodic-state accuracy are not claims of the current feature.
 - Exclude scientific seasonal calendars, dynamic groundwater reservoirs, litre-level return proofs and billion-cell convergence research from required completion.
 - Keep tactical WFC/assets, gameplay collision/NPC schemas and society implementation for subsequent features.

@@ -282,8 +282,8 @@ and browser/network performance is not inferred.
 
 The delivery also renders the saved world at4608×9728 through the existing public
 API, using512 pixels per area:2.134s and8.40MB. All523 saved-world files retain
-their hashes. The user excluded tactical images from final delivery. See [complete timing breakdown](features/2026-09-07-area-water-terrain-realism/verification/terrain-correction/timings-c05.md)
-and [current gallery](features/2026-09-07-area-water-terrain-realism/verification/terrain-correction/current-gallery-c05.md).
+their hashes. The user excluded tactical images from final delivery. See [complete timing breakdown](features/2026-09-07-area-water-terrain-realism/reports/terrain-correction--timings-c05.md)
+and [current gallery](features/2026-09-07-area-water-terrain-realism/output/previous/terrain-correction--current-gallery-c05.md).
 
 The additional world-only 16K export is 7761×16384 (127,156,224 pixels),
 12,392,185 bytes, and took 3.670 s with 556,592 KiB peak RSS. It uses an isolated
@@ -317,7 +317,7 @@ and both clocks are preserved in the evidence. Generation and memory cost
 increased with the whole-domain correction. This is not an isolated performance
 comparison, and no current per-stage profiler was enabled. The run does not
 measure an all-images export for every area and tactical block. See
-[full current comparison](features/2026-09-07-area-water-terrain-realism/verification/terrain-correction/candidate04-comparison.md).
+[full current comparison](features/2026-09-07-area-water-terrain-realism/reports/terrain-correction--candidate04-comparison.md).
 
 The three retained tactical timing controls have also been rerun against current
 candidate04 MICRO42 cells. Constraints plus the existing WFC took 6.72–9.23 ms;
@@ -357,8 +357,8 @@ In particular, per-area erosion is no longer a production generation phase.
 | Saved area JSON | 110–630 ms | Existing-world export. |
 | Saved tactical PNG / JSON CLI | 4–5 ms / 2–3 ms | Reads existing generated block; does not run WFC. |
 
-For historical candidate02, all three independent default generations and the complete 238-export frozen panel passed their numerical/export checks. Their shared solves took 22 min 36 s–23 min 52 s, preparation 8 min 38 s–8 min 43 s, and peak process RSS 300–643 MiB. MICRO peaks were about 84 MiB. Those passes did not settle the subsequently reopened visual-realism issues. Full values and scope are in [performance evidence](features/2026-09-07-area-water-terrain-realism/verification/performance.md). Evidence:
-[implementation progress](features/2026-09-07-area-water-terrain-realism/implementation-progress.md),
+For historical candidate02, all three independent default generations and the complete 238-export frozen panel passed their numerical/export checks. Their shared solves took 22 min 36 s–23 min 52 s, preparation 8 min 38 s–8 min 43 s, and peak process RSS 300–643 MiB. MICRO peaks were about 84 MiB. Those passes did not settle the subsequently reopened visual-realism issues. Full values and scope are in [performance evidence](features/2026-09-07-area-water-terrain-realism/reports/performance.md). Evidence:
+[implementation progress](features/2026-09-07-area-water-terrain-realism/history/implementation-progress.md),
 [candidate driver](features/2026-09-07-area-water-terrain-realism/verification/run_candidate.py),
 [shared replay](features/2026-09-07-area-water-terrain-realism/verification/shared-replay/validation.json).
 
