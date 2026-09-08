@@ -1,13 +1,13 @@
 ---
-generated_date: 2026-09-07
-generated_at_commit: 8d3c9d9
-capstone_version: 6.4
+generated_date: 2026-09-08
+generated_at_commit: 311829e4e5c9
+absorbed_from: features/2026-09-07-area-water-terrain-realism@2026-09-08
 ---
 
 # Mockup — arda
 
-One seed → one continent (default 500×1000 km) → 190 areas of 512²
-100 m cells → materialized 64² tactical blocks; images/JSON on demand.
+Original target: one seed → one continent (default 500×1000 km) → 190 areas of 512²
+100 m cells → materialized 64² tactical blocks. Current default exports 9×19 = 171 areas and samples blocks on a 64-cell stride; images/JSON are exported on demand.
 Surfaces: CLI + Rust crate (no UI), so screens are surface units with
 interaction transcripts. Source artifact: `../mockup-artifact.md`. These are retained product designs; implemented command forms and behavior are in `../01-architecture.md` and `../07-operations.md`.
 
@@ -15,7 +15,7 @@ interaction transcripts. Source artifact: `../mockup-artifact.md`. These are ret
 | --- | --- | --- |
 | `01-generate.md` — batch CLI | batch-generate | Confirmed design |
 | `02-world-layout.md` — output volume | batch-generate, inspect-volume | Confirmed design |
-| `03-export.md` — images/JSON CLI | export-vtt, inspect-volume | Confirmed design |
+| [03-export.md](03-export.md) — images/JSON CLI | export-vtt, inspect-volume | Current format-4/schema-2, 512/4096 area export; asset-rich tactical design deferred |
 | `04-crate-api.md` — load & query | load-query | Confirmed design |
 | `05-docker.md` — container | all | Confirmed design |
 | `06-serve.md` — read-only HTTP API | serve-vtt | (added at build gate) |

@@ -1,25 +1,206 @@
 ---
-generated_date: 2026-09-07
+generated_date: 2026-09-08
 scenario: continent-generation
-generated_at_commit: 8be0a0a
-absorbed_from: features/02-continent-climate-hydrology@2026-08-26, features/03-climate-driven-refinement@2026-08-27
-capstone_version: 6.4
+generated_at_commit: 311829e4e5c9
+absorbed_from: features/02-continent-climate-hydrology@2026-08-26, features/03-climate-driven-refinement@2026-08-27, features/2026-09-07-area-water-terrain-realism@2026-09-08
 ---
 
 # 01 — Continent generation
 
-> Retained design and dated implementation history. Current implementation: `../01-architecture.md`, `../04-data-flow.md`.
+## Radial coast correction — implemented 2026-09-08
+
+The first-look terrain correction traced a parallel river comb to the regional
+coast mask. Its former `max(nx, ny)` radius created identical height rows on a
+square flank. Use deterministic integer Euclidean distance in the normalized
+coordinate frame for this radial mask. Keep the mask's core, edge, blending
+weights and explicit ocean rim; verify existing land-fraction/river gates on the
+retained MICRO and default seeds. This changes regional geography and requires
+new overview checks; it is not a rendered river-path perturbation. Other broad
+tectonic flanks can still support parallel drainage.
+
+**Current implementation — 2026-09-08.**
+
+**Boundary-classification correction — installed; integrated acceptance open.**
+Relative plate motion is classified by its component along the normal between
+the moved plate centers, rather than a cardinal raster neighbor direction.
+This is the normal of the underlying unwarped Voronoi pair; the existing spatial
+warp remains an approximation and does not have its local derivative modeled.
+Tangential motion has zero normal component and adds no collision, arc or rift
+forcing. At junctions, retain every incident kind in an order-independent mask
+so visiting neighbors in a different order cannot replace collision with rift.
+Each existing belt still uses distance to its own kind; amplitudes, metric,
+drift, diffusion, coast and normalization are unchanged. Source and red/green
+evidence: `crates/arda-gen/src/continent/tectonics.rs` and
+`features/2026-09-07-area-water-terrain-realism/verification/terrain-correction/regional-relief-diagnostic/`.
+
+The continent stage supplies the accepted coarse relief, climate and overview
+rivers for a batch. Published area water is solved later over the complete
+prepared 100 m domain. This section's Steps and Invariants describe current
+behavior; the earlier design and observations below are retained history.
+This records implemented behavior, not completion of the pending natural-panel
+and golden acceptance gates.
+
+## Trigger & preconditions
+
+`arda generate`, `arda::generate`, or `generate_world_with_limits` receives a
+u64 seed, validated configuration and absent or empty output directory. The
+default is 500 × 1000 km, 35–55°N and 15 people/km². Supported requested axes
+are 64–4000 km. The explicit-limit API uses the same physical model as the
+default API. Source: [config.rs:83](../../../crates/arda-core/src/config.rs:83),
+[orchestrator.rs:338](../../../crates/arda-gen/src/orchestrator.rs:338).
+
+## Steps
+
+1. **Admit the complete batch before creating output.** Derive the modeled
+   domain and conservative stage reservations, including prepared files,
+   routing/hierarchy/flow scratch, annual bands, saved records and area
+   references. Reserve a fresh output transaction only after admission succeeds.
+   An existing nonempty world is never overwritten. Source:
+   [generation_limits.rs:156](../../../crates/arda-gen/src/orchestrator/generation_limits.rs:156),
+   [publication.rs:58](../../../crates/arda-gen/src/orchestrator/publication.rs:58).
+2. **Generate and validate the coarse continent.** Seeded plate/tectonic relief
+   produces the 4 km simulation and 1 km working surface, including coarse
+   erosion. Climate, coarse hydrology and rivers are retained from the
+   accepted attempt; the acceptance/retry branches are below. There is no implemented 1500 m range gate, human-geography
+   stage or naming stage. Source:
+   [continent/mod.rs:71](../../../crates/arda-gen/src/continent/mod.rs:71),
+   [orchestrator.rs:366](../../../crates/arda-gen/src/orchestrator.rs:366).
+3. **Classify coarse ocean and compute climate.** Ocean is the D8-connected
+   component of nonpositive heights reached from the coarse outer rim; a closed
+   negative depression is not an ocean moisture source. Mean annual temperature
+   uses absolute latitude symmetrically between hemispheres, a 6.5°C/km lapse
+   and the existing distance-to-sea continentality adjustment. Marine lapse
+   elevation is zero; nonmarine elevation is signed, including negative land.
+   Regime selection tests cold/boreal first, then tropical, Mediterranean and
+   temperate. Rainfall remains deterministic integer moisture advection over
+   coarse terrain. Source:
+   [climate.rs:42](../../../crates/arda-gen/src/continent/climate.rs:42),
+   [climate.rs:219](../../../crates/arda-gen/src/continent/climate.rs:219).
+4. **Provide canonical preparation inputs.** Tile bundles remain pure functions
+   of seed, accepted continent and absolute coordinates. They retain coarse
+   entering-river and routing fields for the older local diagnostic path;
+   those fields do not inject catchment or discharge into published shared
+   water. Preparation uses canonical relief, rainfall and a lapse-removed
+   annual temperature reference. Coarse samples outside its grid clamp at the
+   rim. Source:
+   [bundles.rs:149](../../../crates/arda-gen/src/continent/bundles.rs:149),
+   [prepare.rs:14](../../../crates/arda-gen/src/area/prepare.rs:14),
+   [temperature.rs:20](../../../crates/arda-gen/src/area/temperature.rs:20).
+5. **Prepare the entire modeled rectangle, then solve shared water.** Each axis
+   is `max(requested_km × 10, exported_area_count × 512)` fine cells. Full
+   512² tiles are evaluated; only private persistence crops the final fringe.
+   The default therefore models 5000 × 10000 cells in 200 prepared tiles while
+   preserving 171 exported areas. MICRO preserves its existing 1024 × 2048
+   exported cells even though its request is 102 × 204 km. Fringe cells can
+   contribute upstream water and allow a course to leave and reenter exported
+   areas; they do not create extra exported areas. Fine ocean, receivers,
+   actual saddles, nested basins, annual support and final flows are solved
+   before area composition, as specified in the current section of
+   [area generation](02-area-generation.md). Source:
+   [prepared_domain.rs:42](../../../crates/arda-gen/src/hydrology/prepared_domain.rs:42),
+   [orchestrator.rs:406](../../../crates/arda-gen/src/orchestrator.rs:406).
+6. **Complete the batch before publishing the continent/world.** The saved
+   format-4 continent overview and river objects accompany composed areas and
+   global hydrology records. Every required output must succeed and private
+   readers/stores must close before the final manifest rename. A continent
+   stage passing its gates alone does not make a loadable world. Source:
+   [orchestrator.rs:462](../../../crates/arda-gen/src/orchestrator.rs:462),
+   [publication.rs:118](../../../crates/arda-gen/src/orchestrator/publication.rs:118).
+
+## Branches
+
+A coarse candidate is accepted when 25–90% of its cells have positive elevation
+and at least one extracted continent river reaches the sea. A failed candidate
+uses the next deterministic attempt, up to five total. Accepted candidates
+proceed to full-domain preparation, including hydrology-only fringe cells where
+the requested extent exceeds exported areas; exported overshoot is retained.
+Source: [orchestrator.rs:366](../../../crates/arda-gen/src/orchestrator.rs:366),
+[prepared_domain.rs:42](../../../crates/arda-gen/src/hydrology/prepared_domain.rs:42).
+
+## Unhappy paths
+
+Config/resource rejection happens before output creation. Exhausted continent
+attempts name the failed land or sea-river gate. Later terrain, topology,
+forcing, arithmetic, storage and resource failures propagate as typed errors;
+partial output has no final manifest and cannot be loaded. Interruptions
+require a clean rerun: private scratch is not an automatic resume contract.
+Publication provides process-interruption completion semantics, not a promise
+of power-loss durability.
+
+Default capacities are 100,000 closed leaves, 6,000,000 annual support bands,
+4,000,000 feature records, 16,000,000 area references, 4,000,000 outward lake
+edges, 16 GiB owned-payload RAM, and 256 GiB each for spatial and combined
+scratch. Explicit logical-work, requested-I/O-byte and file-operation ceilings
+also apply. Owned-payload admission is not a process-RSS guarantee. Supporting
+a 4000 km axis does not guarantee that every possible terrain fits the default
+counts. Source:
+[types.rs:84](../../../crates/arda-gen/src/hydrology/types.rs:84),
+[generation_limits.rs:147](../../../crates/arda-gen/src/orchestrator/generation_limits.rs:147).
+
+## State transitions
+
+Validated request → admitted output transaction → coarse candidate → accepted
+coarse relief/climate/rivers → complete prepared fine domain → shared solution →
+final area/global/continent layers → published manifest. A rejected candidate
+returns to the coarse-candidate state within the attempt cap; a terminal failure
+leaves the transaction unpublished. Source:
+[orchestrator.rs:344](../../../crates/arda-gen/src/orchestrator.rs:344),
+[publication.rs:122](../../../crates/arda-gen/src/orchestrator/publication.rs:122).
+
+## Invariants
+
+- Identical seed/configuration and accepted inputs give identical generation,
+  including the retry sequence. Resource capacities may accept or refuse the
+  work; they never alter a supported physical result.
+- Coarse overview drainage and final 100 m water are distinct authorities. The
+  coarse filled routing surface is not a physical fine lake surface. Closed
+  fine basins may retain water or remain dry; published land is not required
+  to drain directly to sea.
+- Shared fine topology is available before composition. Exact crossings and
+  leave/reenter accounting require no reads of neighboring **final** area
+  files. The older claim that this would necessarily violate independence is
+  superseded.
+- A canonical tile preparation is independent of other prepared tiles. Final
+  area water also depends on the completed shared solution, not its bundle
+  alone. The current public batch prepares and composes sequentially.
+- No synthesized incoming river is counted a second time at an area boundary.
+  Actual adjacent fine cells and their global identities define crossings.
+
+## Outcomes & side effects
+
+The accepted coarse grid, climate, overview rivers and pure tile bundles feed the
+remaining batch. They become a loadable world only through Step 6's complete
+publication. The output directory and temporary scratch belong to that batch;
+there is no neighboring-final-area read or separately published coarse-only
+checkpoint. Source:
+[orchestrator.rs:398](../../../crates/arda-gen/src/orchestrator.rs:398).
+
+## Dimensions not in play
+
+Human geography, settlement density placement, trunk corridors, region/river
+naming and their richer object outputs remain deferred prescriptions. Current
+manifest settlement and named-river counts remain zero; the configured mean
+density is not evidence that those systems have run. Source:
+[orchestrator.rs:518](../../../crates/arda-gen/src/orchestrator.rs:518).
+
+## Retained earlier design and dated observations
+
+> History only: the prescriptions and measurements below describe earlier
+> designs or their stated observation dates. References to “Steps”, “Invariants”,
+> implemented behavior, unbuilt work or format versions are local to that history.
+> They do not override the current implementation above. Social, vegetation,
+> road and naming prescriptions that remain unbuilt are retained as deferred work.
 
 First stage of the batch (`mockup/01-generate.md` step [1/3]). Produces
 the continent grid, continent objects, and every area tile's input
 bundle. The Steps and Invariants sections retain the chosen design; dated observations record later implementation history. Named constants are tunable defaults. Current code behavior is mapped in `../04-data-flow.md`.
 
-## Trigger & preconditions
+### Trigger & preconditions
 
 - Trigger: `arda generate` batch start; also callable via the crate .
 - Preconditions: validated config (continent size, default 500×1000 km; latitude band, default 35–55°N; mean density, default 15 people/km²) and a u64 seed. Nothing else — no prior state exists.
 
-## Steps
+### Steps
 
 1. **Plate seeding**: on a domain ~2× the visible continent, seed 8–14 plates as Voronoi regions from the seed. Each plate gets a crust type (continental/oceanic) and a drift vector. The domain rim is forced oceanic so map edges are guaranteed ocean.
 2. **Time-stepped tectonics, coupled**: 4 km sim grid (125×250 cells), ~100 steps of ~1 Myr. Per step: plates move along drift vectors (vectors re-roll slightly every ~20 steps); boundary uplift applies by relative motion — cont-cont convergent → range, ocean-cont → subduction arc + volcanoes, divergent → rift, transform → fault zone; then coarse stream-power erosion and drainage respond, so rivers and valleys co-evolve with the ranges — the artifact's causality rule at continental scale.
@@ -32,7 +213,7 @@ bundle. The Steps and Invariants sections retain the chosen design; dated observ
 9. **Validation**: land fraction within 25–90%, ≥1 range above 1,500 m, ≥1 major river reaching the sea (all tunable).
 10. **Tile bundles**: for each 51.2 km tile, emit its input bundle — edge heights, entering rivers (edge position, catchment, discharge), climate regime + wind + edge moisture, settlement density, road-exit points where trunk corridors cross tile edges. Bundles are computed from coarse data + seed only, so adjacent tiles are mirror-consistent by construction.
 
-## Observed — continent rebuild (2026-08-26)
+### Observed — continent rebuild (2026-08-26)
 
 Built shape of steps 1-4. Steps 5-9 (climate, hydrology objects, human
 geography, naming, validation stats) remain unbuilt.
@@ -47,7 +228,7 @@ Measured against Earth (seeds 42 and 7, default size): median land elevation 303
 
 **Known limitation.** Terrain is built from value noise on a square lattice, which is anisotropic — its gradients favour the lattice axes, so steepest descent does too and only ~17% of flow directions are diagonal against an isotropic 50%. Isotropic gradient noise is the fix; one attempt produced blocky coastlines and was reverted.
 
-## Observed — climate and hydrology (2026-08-26, feature 02)
+### Observed — climate and hydrology (2026-08-26, feature 02)
 
 Built shape of steps 5–6 plus persistence (`continent/climate.rs`,
 `continent/hydrology.rs`, `arda-core::formats::overview`). Steps 7–9
@@ -99,22 +280,22 @@ stage bench gate the tier; climate realism is measured, never gated
 (spike report; Horton ratios were thin at default size — only seed 1
 yielded a measurable N1/N2 = 3.0, an R8 observation for step 12).
 
-## Branches
+### Branches
 
 - Boundary type (step 2) is decided solely by the two plates' crust types and relative motion.
 - Validation failure (step 9) → re-run steps 1–8 with derived subseed `(seed, attempt)`; attempt < 5 else hard error.
 
-## Unhappy paths
+### Unhappy paths
 
 - Degenerate continent: caught by step 9; ≤5 deterministic rerolls, then exit non-zero naming the failed check.
 - Invalid config (size/latitude/density out of range): refused before step 1 (mockup 01 States).
 - Interrupt mid-run: no partial continent is consumable; re-run restarts identically (determinism).
 
-## State transitions
+### State transitions
 
 None — this scenario has no persistent entities before it runs; it creates the world's first state (`continent/` layer + tile bundles, `mockup/02-world-layout.md`).
 
-## Invariants
+### Invariants
 
 - Same (seed, config) → identical continent, including reroll sequence.
 - Every map-edge cell is ocean.
@@ -122,12 +303,12 @@ None — this scenario has no persistent entities before it runs; it creates the
 - A tile bundle depends on coarse data + seed only — never on any area's fine output: areas may then generate in any order, independently.
 - Area-tier detail refines coarse features but never relocates them.
 
-## Outcomes & side effects
+### Outcomes & side effects
 
 - Success: `continent/` grid (1 km relief, climate, drainage, density) + objects (plates' final geometry, ranges, major rivers, regions, seas — all named) + one input bundle per tile; batch proceeds to area generation.
 - Failure: non-zero exit after reroll exhaustion or config refusal; nothing written beyond an inspectable partial directory.
 
-## Observed — step 10 built, step 9 partially gated (2026-08-27, feature 03)
+### Observed — step 10 built, step 9 partially gated (2026-08-27, feature 03)
 
 Step 10's tile bundles now carry their full payload, and step 9 gained the
 river half of its gate. Steps 7 (human geography) and 8 (naming) remain
@@ -147,6 +328,6 @@ inherent 1 km-vs-100 m tier gap, not a defect: closing it exactly would
 require reading the neighbour's fine output, which the order-independence
 invariant forbids.
 
-## Dimensions not in play
+### Dimensions not in play
 
 The retained design did not record a dimension-by-dimension exclusion list. This provenance repair leaves those exclusions unspecified rather than inventing decisions.
