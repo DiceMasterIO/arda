@@ -1,6 +1,6 @@
 # Arda — reference index
 
-Deterministic offline tabletop world generation in a Rust 2021 Cargo workspace: continent → 512² 100 m area cells → sampled 64² five-foot tactical blocks. CLI, reusable library and local Docker image; MIT/Apache-2.0. Topic chapters describe current code; retained product designs, standards and diagnosis reports are separate companions.
+Deterministic offline tabletop world generation in a Rust 2021 Cargo workspace: continent → 512² 100 m area cells → sampled 64² five-foot tactical blocks. CLI, reusable library and local Docker image; Apache-2.0. Topic chapters describe current code; retained product designs, standards and diagnosis reports are separate companions.
 
 ## Module map
 
