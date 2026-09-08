@@ -21,7 +21,6 @@ pub struct OverviewRaster {
     height: u32,
     areas_wide: i32,
     areas_high: i32,
-    px: u32,
     rgb: Vec<u8>,
     features: Vec<Feature>,
     supplied: Vec<bool>,
@@ -46,7 +45,45 @@ impl OverviewRaster {
         if pixels > 64_000_000 {
             return Err(invalid());
         }
-        let pixels = usize::try_from(pixels).map_err(|_| invalid())?;
+        Self::allocate(areas_wide, areas_high, width, height)
+    }
+
+    /// Allocates an exact-size overview, repeating saved cells when enlarged.
+    ///
+    /// Each axis supports 1–16,384 pixels, with at most 134,217,728 pixels
+    /// total. There must be at least one pixel per area along each axis;
+    /// unequal area pixel widths or heights cover the image without gaps.
+    /// This changes image resolution, not the saved terrain resolution.
+    ///
+    /// # Errors
+    /// Returns a typed error for invalid dimensions or the pixel budget.
+    pub fn new_exact(
+        areas_wide: i32,
+        areas_high: i32,
+        width: u32,
+        height: u32,
+    ) -> Result<Self, RenderError> {
+        if !(1..=78).contains(&areas_wide)
+            || !(1..=78).contains(&areas_high)
+            || !(1..=16_384).contains(&width)
+            || !(1..=16_384).contains(&height)
+            || i64::from(width) < i64::from(areas_wide)
+            || i64::from(height) < i64::from(areas_high)
+            || u64::from(width) * u64::from(height) > 134_217_728
+        {
+            return Err(RenderError::ExactOverviewDimensions);
+        }
+        Self::allocate(areas_wide, areas_high, width, height)
+    }
+
+    fn allocate(
+        areas_wide: i32,
+        areas_high: i32,
+        width: u32,
+        height: u32,
+    ) -> Result<Self, RenderError> {
+        let pixels = usize::try_from(u64::from(width) * u64::from(height))
+            .map_err(|_| RenderError::ExactOverviewDimensions)?;
         let mut rgb = vec![0; pixels * 3];
         for pixel in rgb.chunks_exact_mut(3) {
             pixel.copy_from_slice(&OVERVIEW_SEA);
@@ -56,10 +93,13 @@ impl OverviewRaster {
             height,
             areas_wide,
             areas_high,
-            px,
             rgb,
             features: vec![Feature::Sea; pixels],
-            supplied: vec![false; usize::try_from(areas_wide * areas_high).map_err(|_| invalid())?],
+            supplied: vec![
+                false;
+                usize::try_from(areas_wide * areas_high)
+                    .map_err(|_| RenderError::OverviewDimensions)?
+            ],
         })
     }
 
@@ -78,21 +118,26 @@ impl OverviewRaster {
         }
         let ox = u32::try_from(at.x).map_err(|_| RenderError::OverviewDimensions)?;
         let oy = u32::try_from(at.y).map_err(|_| RenderError::OverviewDimensions)?;
-        let (px, width, side) = (self.px, self.width, u32::from(AREA_CELLS));
-        for py in 0..px {
-            for pxi in 0..px {
-                // Half-open cell bounds, derived per pixel so the blocks
-                // tile the whole 512 exactly. The previous `block = side /
-                // px` was 512/48 = 10, and `pxi * block + cx` therefore
-                // topped out at 479: cells 480..=511 of every tile — a
-                // 3.2 km strip down the right edge and along the bottom of
-                // all 171 tiles — were never read, which truncated courses
-                // at tile edges. Uneven blocks (here 10 and 11 cells) are
-                // the correct answer when px does not divide 512.
-                let x0 = pxi * side / px;
-                let x1 = ((pxi + 1) * side / px).max(x0 + 1);
-                let y0 = py * side / px;
-                let y1 = ((py + 1) * side / px).max(y0 + 1);
+        let areas_wide =
+            u32::try_from(self.areas_wide).map_err(|_| RenderError::OverviewDimensions)?;
+        let areas_high =
+            u32::try_from(self.areas_high).map_err(|_| RenderError::OverviewDimensions)?;
+        let (width, side) = (self.width, u32::from(AREA_CELLS));
+        let output_x0 = ox * width / areas_wide;
+        let output_x1 = (ox + 1) * width / areas_wide;
+        let output_y0 = oy * self.height / areas_high;
+        let output_y1 = (oy + 1) * self.height / areas_high;
+        let tile_width = output_x1 - output_x0;
+        let tile_height = output_y1 - output_y0;
+        for py in 0..tile_height {
+            for pxi in 0..tile_width {
+                // Half-open bounds retain the rightmost/bottom cells even
+                // when 512 is not divisible by the output tile size. On
+                // enlargement each source cell repeats without new terrain.
+                let x0 = pxi * side / tile_width;
+                let x1 = ((pxi + 1) * side / tile_width).max(x0 + 1);
+                let y0 = py * side / tile_height;
+                let y1 = ((py + 1) * side / tile_height).max(y0 + 1);
 
                 // `best` ranks only sea, land and river. A lake is
                 // decided by area below, not by winning a max.
@@ -148,8 +193,8 @@ impl OverviewRaster {
                     Feature::Lake => LAKE_FILL,
                 };
 
-                let x = ox * px + pxi;
-                let y = oy * px + py;
+                let x = output_x0 + pxi;
+                let y = output_y0 + py;
                 let Ok(pixel) = usize::try_from(y * width + x) else {
                     continue;
                 };
@@ -284,5 +329,121 @@ mod tests {
             canvas.push(AreaCoord::new(1, 0), &cells),
             Err(RenderError::OverviewDimensions)
         ));
+    }
+
+    #[test]
+    fn exact_dimensions_refuse_invalid_axes_and_pixel_budgets() {
+        for (aw, ah, width, height) in [
+            (0, 1, 1, 1),
+            (1, -1, 1, 1),
+            (79, 1, 79, 1),
+            (1, 1, 0, 1),
+            (1, 1, 1, 16_385),
+            (1, 1, u32::MAX, 1),
+            (3, 1, 2, 1),
+            (1, 3, 1, 2),
+            (1, 1, 16_384, 16_384),
+        ] {
+            assert!(matches!(
+                OverviewRaster::new_exact(aw, ah, width, height),
+                Err(RenderError::ExactOverviewDimensions)
+            ));
+        }
+    }
+
+    #[test]
+    fn exact_uneven_aspect_covers_every_pixel_without_area_gaps() {
+        let mut canvas = OverviewRaster::new_exact(3, 2, 8, 5).unwrap();
+        let heights = [0, 200_000, 500_000, 900_000, 1_400_000, 2_800_000];
+        for (index, height) in heights.into_iter().enumerate().rev() {
+            let cells = AreaCells::flat(Cell {
+                height: HeightMm::new(height),
+                terrain: TerrainKind::Land,
+                ..Cell::default()
+            });
+            canvas
+                .push(
+                    AreaCoord::new(
+                        i32::try_from(index % 3).unwrap(),
+                        i32::try_from(index / 3).unwrap(),
+                    ),
+                    &cells,
+                )
+                .unwrap();
+        }
+        let png = canvas.finish().unwrap();
+        let mut reader = png::Decoder::new(png.as_slice()).read_info().unwrap();
+        let mut rgb = vec![0; reader.output_buffer_size()];
+        let info = reader.next_frame(&mut rgb).unwrap();
+        assert_eq!((info.width, info.height), (8, 5));
+        // Three areas occupy widths 2/3/3; two rows occupy heights 2/3.
+        let columns = [0, 0, 1, 1, 1, 2, 2, 2];
+        let rows = [0, 0, 1, 1, 1];
+        for (y, row) in rows.into_iter().enumerate() {
+            for (x, column) in columns.into_iter().enumerate() {
+                let pixel = (y * 8 + x) * 3;
+                assert_eq!(
+                    &rgb[pixel..pixel + 3],
+                    &land_colour(heights[row * 3 + column])
+                );
+            }
+        }
+    }
+
+    #[test]
+    fn exact_upscale_retains_last_source_row_and_column() {
+        let mut cells = AreaCells::flat(Cell {
+            height: HeightMm::new(200_000),
+            terrain: TerrainKind::Land,
+            ..Cell::default()
+        });
+        for offset in 0..AREA_CELLS {
+            cells.set(
+                CellCoord::new(AREA_CELLS - 1, offset).unwrap(),
+                Cell {
+                    terrain: TerrainKind::Lake,
+                    ..Cell::default()
+                },
+            );
+            cells.set(
+                CellCoord::new(offset, AREA_CELLS - 1).unwrap(),
+                Cell {
+                    terrain: TerrainKind::Sea,
+                    ..Cell::default()
+                },
+            );
+        }
+        let mut canvas = OverviewRaster::new_exact(1, 1, 513, 515).unwrap();
+        canvas.push(AreaCoord::new(0, 0), &cells).unwrap();
+        for y in 0..515 {
+            for x in 0..513 {
+                let want = if y == 514 {
+                    OVERVIEW_SEA
+                } else if x == 512 {
+                    LAKE_FILL
+                } else {
+                    land_colour(200_000)
+                };
+                let pixel = (y * 513 + x) * 3;
+                assert_eq!(&canvas.rgb[pixel..pixel + 3], &want);
+            }
+        }
+    }
+
+    #[test]
+    fn exact_uniform_scale_preserves_existing_png_bytes() {
+        let cells = AreaCells::flat(Cell {
+            height: HeightMm::new(321_000),
+            terrain: TerrainKind::Land,
+            discharge: DischargeMilli::new(80_000),
+            ..Cell::default()
+        });
+        let mut normal = OverviewRaster::new(2, 1, 48).unwrap();
+        let mut exact = OverviewRaster::new_exact(2, 1, 96, 48).unwrap();
+        for x in 0..2 {
+            normal.push(AreaCoord::new(x, 0), &cells).unwrap();
+            exact.push(AreaCoord::new(x, 0), &cells).unwrap();
+        }
+        assert_eq!(normal.finish().unwrap(), exact.finish().unwrap());
     }
 }
