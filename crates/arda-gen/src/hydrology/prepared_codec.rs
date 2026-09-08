@@ -166,7 +166,10 @@ pub fn decode_prepared(
         return Err(PreparedFormatError::Header);
     }
     let mut cells = Vec::with_capacity(usize::from(valid.width) * usize::from(valid.height));
-    for row in bytes[PREPARED_HEADER_BYTES..].chunks_exact(PREPARED_CELL_BYTES) {
+    for row in bytes[PREPARED_HEADER_BYTES..]
+        .as_chunks::<PREPARED_CELL_BYTES>()
+        .0
+    {
         cells.push(PreparedCell {
             height: HeightMm::new(i32::from_le_bytes([row[0], row[1], row[2], row[3]])),
             annual_rain: RainfallMm::new(u16::from_le_bytes([row[4], row[5]])),

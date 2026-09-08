@@ -206,6 +206,24 @@ impl World {
     /// # Errors
     /// Returns a coordinate error or the named layer's read/format error.
     pub fn read_area(&self, x: i32, y: i32) -> Result<Area, LoadError> {
+        let cell_bytes = usize::from(arda_core::AREA_CELLS)
+            * usize::from(arda_core::AREA_CELLS)
+            * arda_core::formats::cells::CELL_BYTES;
+        self.read_area_with_byte_limits(
+            x,
+            y,
+            cell_bytes,
+            arda_core::formats::area_objects_v4::ObjectsLimits::default().max_bytes,
+        )
+    }
+
+    fn read_area_with_byte_limits(
+        &self,
+        x: i32,
+        y: i32,
+        cell_bytes: usize,
+        object_bytes: usize,
+    ) -> Result<Area, LoadError> {
         let at = AreaCoord::new(x, y);
         if !self.areas.contains_key(&at) {
             return Err(self.area_range(x, y));
@@ -213,19 +231,13 @@ impl World {
         let dir = self.dir.join("areas").join(at.dir_name());
         let cells_path = dir.join("cells.bin");
         let objects_path = dir.join("objects.bin");
-        let cell_bytes = usize::from(arda_core::AREA_CELLS)
-            * usize::from(arda_core::AREA_CELLS)
-            * arda_core::formats::cells::CELL_BYTES;
         let cells = arda_core::decode_cells(
             &cells_path.display().to_string(),
             &read_bounded(&cells_path, cell_bytes)?,
         )?;
         let objects = arda_core::decode_objects(
             &objects_path.display().to_string(),
-            &read_bounded(
-                &objects_path,
-                arda_core::formats::area_objects_v4::ObjectsLimits::default().max_bytes,
-            )?,
+            &read_bounded(&objects_path, object_bytes)?,
         )?;
         arda_core::formats::hydrology::validate_area_context_domain(&objects.global, self.domain)
             .map_err(|source| hydrology_error(&objects_path, source))?;
@@ -423,8 +435,13 @@ mod tests {
                 (1, 3)
             ]
         );
-        let error = world.area(1, 2).unwrap_err().to_string();
-        assert!(error.contains("01_02/cells.bin"));
+        let error = world.area(1, 2).unwrap_err();
+        assert!(matches!(
+            error,
+            LoadError::Corrupt {
+                source: arda_core::FormatError::Io { path, .. }
+            } if Path::new(&path) == fixture.0.join("areas").join("01_02").join("cells.bin")
+        ));
         assert!(matches!(
             world.area(-1, 0),
             Err(LoadError::OutOfRange { what: "area", .. })
@@ -534,9 +551,14 @@ mod tests {
             ),
             spill_objects(GlobalCell { x: 20, y: 2048 }, None),
         ] {
-            let (_fixture, world) = saved_context(&objects);
+            let (fixture, world) = saved_context(&objects);
             let error = world.read_area(0, 0).unwrap_err();
-            assert!(error.to_string().contains("00_00/objects.bin"));
+            assert!(matches!(
+                error,
+                LoadError::Corrupt {
+                    source: arda_core::FormatError::Hydrology { path, .. }
+                } if Path::new(&path) == fixture.0.join("areas").join("00_00").join("objects.bin")
+            ));
         }
         // MICRO's exported overshoot is part of the physical domain.
         let (_fixture, world) =
@@ -668,21 +690,45 @@ mod tests {
 
     #[test]
     fn oversized_requested_layers_are_rejected_before_read_allocation() {
+        use std::io::Write;
+
         for name in ["cells.bin", "objects.bin"] {
             let fixture = Fixture::new();
             fixture.write_area(0, 0);
-            let path = fixture.0.join("areas/00_00").join(name);
-            // A sparse file exercises admission without allocating or writing its payload.
+            let dir = fixture.0.join("areas").join("00_00");
+            let layer_bytes =
+                |name| usize::try_from(std::fs::metadata(dir.join(name)).unwrap().len()).unwrap();
+            let cell_bytes = layer_bytes("cells.bin");
+            let object_bytes = layer_bytes("objects.bin");
+            let world = World::load(&fixture.0).unwrap();
+            assert!(world.read_area(0, 0).is_ok());
+            assert!(world
+                .read_area_with_byte_limits(0, 0, cell_bytes, object_bytes)
+                .is_ok());
+
+            // Small explicit caps exercise the same admission path on filesystems
+            // where extending a file allocates every byte rather than sparse space.
+            let path = dir.join(name);
             std::fs::OpenOptions::new()
-                .write(true)
+                .append(true)
                 .open(&path)
                 .unwrap()
-                .set_len(1_u64 << 40)
+                .write_all(&[0])
                 .unwrap();
-            let world = World::load(&fixture.0).unwrap();
-            let error = world.read_area(0, 0).unwrap_err();
-            assert!(error.to_string().contains(name));
-            assert!(error.to_string().contains("byte limit"));
+            let error = world
+                .read_area_with_byte_limits(0, 0, cell_bytes, object_bytes)
+                .unwrap_err();
+            assert!(matches!(
+                error,
+                LoadError::Corrupt {
+                    source: arda_core::FormatError::Hydrology {
+                        path: error_path,
+                        source: arda_core::formats::hydrology::HydrologyFormatError::Limit(
+                            "saved layer byte limit"
+                        ),
+                    }
+                } if Path::new(&error_path) == path
+            ));
         }
     }
 }

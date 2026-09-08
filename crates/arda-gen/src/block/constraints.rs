@@ -42,11 +42,8 @@ pub fn constraints_for(cells: &AreaCells, at: CellCoord) -> BlockConstraints {
             }
         }
     }
-    let wet_fraction = if counted == 0 {
-        0u8
-    } else {
-        u8::try_from(wet_neighbours * 255 / counted).unwrap_or(255)
-    };
+    let wet_fraction =
+        u8::try_from((wet_neighbours * 255).checked_div(counted).unwrap_or(0)).unwrap_or(255);
 
     let groups: &[TileGroup] = match here.terrain {
         // Open water: water and shore only, so a sea block cannot grow trees.

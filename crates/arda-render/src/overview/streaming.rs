@@ -121,12 +121,10 @@ impl RasterBand {
         for y in y0.max(self.y0)..y1.min(self.y1) {
             let row =
                 usize::try_from(y - self.y0).map_err(|_| RenderError::ExactOverviewDimensions)?;
-            let mut pixel = row * self.width + output_x0;
-            for x in 0..tile_width {
+            for (pixel, x) in (row * self.width + output_x0..).zip(0..tile_width) {
                 let (colour, feature) = sample_pixel(cells, tile_width, tile_height, x, y - y0);
                 self.rgb[pixel * 3..pixel * 3 + 3].copy_from_slice(&colour);
                 self.features[pixel] = feature;
-                pixel += 1;
             }
         }
         Ok(())

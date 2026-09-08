@@ -141,7 +141,9 @@ fn an_unreadable_overview_tile_fails_instead_of_becoming_ocean() {
     let fixture = Fixture::new();
     let world = World::load(&fixture.world()).unwrap();
     let error = export_overview(&world, &fixture.exports(), 48).unwrap_err();
-    assert!(error.to_string().contains("01_00/cells.bin"));
+    assert!(error
+        .to_string()
+        .contains(&Path::new("01_00").join("cells.bin").display().to_string()));
     assert!(!fixture.exports().join("overview.png").exists());
 }
 
@@ -187,7 +189,9 @@ fn failed_streamed_overview_preserves_a_completed_export() {
     let error =
         export_overview_with_quality(&world, &fixture.exports(), ImageQuality::new(512).unwrap())
             .unwrap_err();
-    assert!(error.to_string().contains("01_00/cells.bin"));
+    assert!(error
+        .to_string()
+        .contains(&Path::new("01_00").join("cells.bin").display().to_string()));
     assert_eq!(std::fs::read(path).unwrap(), b"previous complete PNG");
     assert_eq!(std::fs::read_dir(fixture.exports()).unwrap().count(), 1);
     assert_eq!(fixture.snapshot(), before);

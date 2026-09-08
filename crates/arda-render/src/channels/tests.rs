@@ -189,15 +189,21 @@ fn supplied_depth_changes_only_saved_lake_pixels_at_both_scales() {
         let side = scale.side() as usize;
         let ppc = side / 512;
         let mut changed = 0;
-        for (i, (a, b)) in old.chunks_exact(3).zip(new.chunks_exact(3)).enumerate() {
+        for (i, (a, b)) in old
+            .as_chunks::<3>()
+            .0
+            .iter()
+            .zip(new.as_chunks::<3>().0)
+            .enumerate()
+        {
             let x = i % side / ppc;
             let y = i / side / ppc;
             if let Some(&(_, _, depth)) = positions
                 .iter()
                 .find(|&&(lx, ly, _)| usize::from(lx) == x && usize::from(ly) == y)
             {
-                assert_eq!(a, LAKE_FILL);
-                assert_eq!(b, lake_colour(u32::try_from(depth).unwrap()));
+                assert_eq!(*a, LAKE_FILL);
+                assert_eq!(*b, lake_colour(u32::try_from(depth).unwrap()));
                 assert_ne!(a, b);
                 changed += 1;
             } else {

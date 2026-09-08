@@ -196,9 +196,7 @@ impl<'a> AnnualSource<'a> {
         let (x, y) = self.extent.coordinates(at);
         if y / 512 != self.tile_row {
             self.charge(u64::from(self.domain.columns()))?;
-            for window in &mut self.windows {
-                *window = None;
-            }
+            self.windows.fill(None);
             self.tile_row = y / 512;
         }
         self.charge(1)?;
