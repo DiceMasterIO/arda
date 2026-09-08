@@ -5,6 +5,25 @@ use crate::orchestrator::generation_limits::{admit, AdmissionError};
 use arda_core::{GenerateConfig, LatitudeBand, SizeKm};
 
 #[test]
+fn regional_detail_sampling_is_admitted_before_output_creation() {
+    let path = std::env::temp_dir().join(format!("arda-detail-admission-{}", std::process::id()));
+    assert!(!path.exists());
+    // Retain the actual C05 caller budget before neighborhood-based refinement.
+    let prior = HydrologyLimits {
+        global_event_operations: 84_297_105_428,
+        ..HydrologyLimits::default()
+    };
+    assert!(matches!(
+        admit(GenerateConfig::MICRO, &path, prior),
+        Err(AdmissionError::Limit {
+            resource: "logical operations",
+            ..
+        })
+    ));
+    assert!(!path.exists());
+}
+
+#[test]
 fn the_previous_water_only_work_allowance_refuses_shared_erosion() {
     let path = std::env::temp_dir().join(format!("arda-work-admission-{}", std::process::id()));
     assert!(!path.exists());

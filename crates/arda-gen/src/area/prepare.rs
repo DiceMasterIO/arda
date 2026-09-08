@@ -1,6 +1,6 @@
 //! Freeze one evolved physical domain, then slice its immutable prepared areas.
 use crate::continent::{
-    bundles::{abs_cell, coarse_height, refine_height, TileBundle},
+    bundles::{abs_cell, coarse_height, refine_height, refinement_relief, TileBundle},
     Continent,
 };
 use crate::hydrology::{
@@ -42,9 +42,23 @@ impl SharedTerrain {
                     .map_err(|_| HydrologyError::TerrainPreparation("terrain coordinate"))?;
                 let y = i32::try_from(y)
                     .map_err(|_| HydrologyError::TerrainPreparation("terrain coordinate"))?;
-                let coarse = coarse_height(&continent.grid, x, y);
-                heights.push(refine_height(seed, coarse, x, y));
-                uplift.push(coarse);
+                uplift.push(coarse_height(&continent.grid, x, y));
+            }
+        }
+        // logic/02 "Regional detail correction": immutable regional relief
+        // supplies detail amplitude. Reuse this already-admitted dense field
+        // instead of interpolating eight more times for every modeled cell.
+        for y in 0..domain.height() {
+            for x in 0..domain.width() {
+                let x = i32::try_from(x)
+                    .map_err(|_| HydrologyError::TerrainPreparation("terrain coordinate"))?;
+                let y = i32::try_from(y)
+                    .map_err(|_| HydrologyError::TerrainPreparation("terrain coordinate"))?;
+                let at = heights.len();
+                let relief = cached_relief(&uplift, width, height, x, y, |nx, ny| {
+                    coarse_height(&continent.grid, nx, ny)
+                });
+                heights.push(refine_height(seed, uplift[at], relief, x, y));
             }
         }
         super::evolution::evolve(&mut heights, &uplift, width, height)?;
@@ -54,6 +68,28 @@ impl SharedTerrain {
             heights,
         })
     }
+}
+
+// Coordinates and dimensions have passed the domain's i32/u32 checks. Outside
+// samples use the public sampler's regional surface; clamping to this cache
+// instead would create a different physical condition at the modeled rim.
+#[allow(clippy::cast_sign_loss)]
+fn cached_relief(
+    regional: &[i32],
+    width: usize,
+    height: usize,
+    x: i32,
+    y: i32,
+    outside: impl Fn(i32, i32) -> i32,
+) -> i64 {
+    refinement_relief(regional[y as usize * width + x as usize], |dx, dy| {
+        let (nx, ny) = (x.saturating_add(dx), y.saturating_add(dy));
+        if nx >= 0 && ny >= 0 && (nx as usize) < width && (ny as usize) < height {
+            regional[ny as usize * width + nx as usize]
+        } else {
+            outside(nx, ny)
+        }
+    })
 }
 
 /// Copy the modeled cells; padding outside `valid` is never serialized.
@@ -131,6 +167,26 @@ mod tests {
         hydrology::types::MarineBoundary,
     };
     use arda_core::{AreaCoord, GenerateConfig};
+
+    #[test]
+    fn cached_relief_matches_direct_sampling_at_cuts_and_partial_rims() {
+        // The nonlinear field makes a wrongly clamped outside sample visible.
+        // The cache crosses x=512 and ends with a partial publication area.
+        let (width, height) = (517, 23);
+        let field = |x: i32, y: i32| 300_000 + 7 * x * x + 3 * y * y + 5 * x * y;
+        let regional: Vec<_> = (0..height)
+            .flat_map(|y| {
+                (0..width).map(move |x| field(i32::try_from(x).unwrap(), i32::try_from(y).unwrap()))
+            })
+            .collect();
+        for y in 0..height {
+            for x in 0..width {
+                let (x, y) = (i32::try_from(x).unwrap(), i32::try_from(y).unwrap());
+                let direct = refinement_relief(field(x, y), |dx, dy| field(x + dx, y + dy));
+                assert_eq!(cached_relief(&regional, width, height, x, y, field), direct);
+            }
+        }
+    }
 
     #[test]
     fn neighboring_prepared_areas_slice_one_surface_in_either_order() {

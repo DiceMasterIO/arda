@@ -29,17 +29,49 @@ pub fn abs_cell(area: AreaCoord, local_x: u16, local_y: u16) -> (i32, i32) {
 #[must_use]
 pub fn boundary_height(seed: u64, continent: &ContinentGrid, abs_x: i32, abs_y: i32) -> i32 {
     let coarse = coarse_height(continent, abs_x, abs_y);
-    refine_height(seed, coarse, abs_x, abs_y)
+    let relief = refinement_relief(coarse, |dx, dy| {
+        coarse_height(
+            continent,
+            abs_x.saturating_add(dx),
+            abs_y.saturating_add(dy),
+        )
+    });
+    refine_height(seed, coarse, relief, abs_x, abs_y)
+}
+
+/// Regional detail correction (`logic/02`): the largest regional height
+/// change to a neighbor 1 km away. Sampling the same continuous surface at
+/// translated absolute coordinates avoids a new envelope jump at grid cuts.
+/// The full i32 height difference fits i64, including opposite extremes.
+pub(crate) fn refinement_relief(
+    coarse: i32,
+    mut sample_offset: impl FnMut(i32, i32) -> i32,
+) -> i64 {
+    const OFFSETS: [(i32, i32); 8] = [
+        (0, -10),
+        (10, -10),
+        (10, 0),
+        (10, 10),
+        (0, 10),
+        (-10, 10),
+        (-10, 0),
+        (-10, -10),
+    ];
+    OFFSETS
+        .into_iter()
+        .map(|(dx, dy)| (i64::from(sample_offset(dx, dy)) - i64::from(coarse)).abs())
+        .max()
+        .unwrap_or(0)
 }
 
 /// Add bounded area detail to an already sampled regional elevation.
-pub(crate) fn refine_height(seed: u64, coarse: i32, abs_x: i32, abs_y: i32) -> i32 {
-    // Area-scale detail, keyed by absolute position so it is edge-safe.
-    // Amplitude scales with elevation, so detail never manufactures coastline
-    // the continent stage did not put there (§Q8: area detail refines coarse
-    // features but never relocates them).
+pub(crate) fn refine_height(seed: u64, coarse: i32, relief: i64, abs_x: i32, abs_y: i32) -> i32 {
+    // Regional detail correction (`logic/02`): local relief sets roughness.
+    // Raising the same regional surface above sea level must not amplify
+    // its detail into closed depressions. Preserve the existing absolute
+    // amplitude cap and the regional land/sea sign below (§Q8).
     let amplitude = if coarse > 0 {
-        (coarse / 12).clamp(2_000, 90_000)
+        relief.clamp(0, 90_000)
     } else {
         1_500
     };
@@ -47,7 +79,7 @@ pub(crate) fn refine_height(seed: u64, coarse: i32, abs_x: i32, abs_y: i32) -> i
 
     #[allow(clippy::cast_possible_truncation)]
     {
-        let detailed = i64::from(coarse) + ((detail * i64::from(amplitude)) >> 15);
+        let detailed = i64::from(coarse) + ((detail * amplitude) >> 15);
         let bounded = if coarse > 0 {
             detailed.max(1)
         } else {

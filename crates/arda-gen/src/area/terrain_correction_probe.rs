@@ -2,7 +2,7 @@
 #![allow(clippy::unwrap_used, clippy::expect_used)]
 use crate::continent::{
     build_continent,
-    bundles::{coarse_height, refine_height},
+    bundles::{boundary_height, coarse_height},
 };
 use arda_core::{formats::cells::CELL_BYTES, GenerateConfig};
 use std::{
@@ -27,7 +27,7 @@ fn reported_boundary_patch() {
             let ax = 2 * 512 + i32::try_from(x).unwrap();
             let ay = 9 * 512 + i32::try_from(y).unwrap();
             let h = coarse_height(&continent.grid, ax, ay);
-            initial.push(refine_height(436342, h, ax, ay));
+            initial.push(boundary_height(436342, &continent.grid, ax, ay));
             coarse.push(h);
         }
     }

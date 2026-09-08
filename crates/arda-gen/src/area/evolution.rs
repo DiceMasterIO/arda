@@ -102,11 +102,12 @@ pub(crate) fn scratch_bytes(width: usize, height: usize) -> Result<u128, Hydrolo
 /// passes, and uplift/creep/incision visit each neighborhood once. Collapse makes
 /// at most eight nine-visit cell/neighbor passes. The fixed 256-unit cell allowance
 /// covers these scans and array passes; eight units per heap level cover both
-/// floods. A separate 256-unit initial allowance covers coarse/detail sampling,
-/// normalization, scratch initialization and the sequential bundle's outside
-/// samples. On admitted axes >=640 cells, its 1028 extra samples per tile cost
-/// at most 4.015625 units per modeled cell, within that initial allowance
-/// (`logic/02`, legacy outside-neighbor admission). The loops have no
+/// floods. A separate 512-unit initial allowance covers regional/detail sampling,
+/// normalization, scratch initialization and sequential bundle construction.
+/// Regional detail adds eight cache reads per cell. Its radius-ten fallbacks
+/// number at most 60*(width+height), or 0.1875 per cell on admitted axes >=640.
+/// Extra bundle interpolation also fits this allowance (`logic/02`, Regional
+/// detail correction). No additional dense field is retained. The loops have no
 /// data-dependent retry, so admission requires no runtime model-changing cap.
 pub(crate) fn work_operations(width: usize, height: usize) -> Result<u64, HydrologyError> {
     let grid = Grid::checked(width, height)?;
@@ -114,7 +115,7 @@ pub(crate) fn work_operations(width: usize, height: usize) -> Result<u64, Hydrol
     let heap_levels = u64::from(u64::BITS - (count - 1).leading_zeros());
     let per_step = 184 + COLLAPSE_PASSES * 9 + 8 * heap_levels;
     count
-        .checked_mul(256 + u64::from(ITERATIONS) * per_step)
+        .checked_mul(512 + u64::from(ITERATIONS) * per_step)
         .ok_or(HydrologyError::Overflow("shared terrain work"))
 }
 
