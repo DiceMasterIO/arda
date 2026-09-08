@@ -48,7 +48,38 @@ This section records the correction rule; completion is recorded only after veri
 
 **Current implementation — 2026-09-08.**
 
-**Legacy outside-neighbor correction — installed; final verification in progress.**
+### Regional detail correction
+
+Fine relief must follow local topographic variation rather than absolute altitude.
+Let C(x,y) be the existing bounded regional interpolation. Sample its eight D8
+neighbors at offsets of ±10 fine cells (1 km cardinal spacing), and let R be the
+maximum absolute difference from C(x,y), computed in i64. Land detail amplitude
+is min(R, 90,000 mm); sea amplitude remains 1,500 mm. Apply the existing four-octave
+noise and final regional land/sea sign clamp. This is a local-relief envelope,
+not a slope estimate: diagonal samples are not distance-normalized.
+
+Raising an all-land regional shape must not increase its added roughness. A flat
+regional surface adds no artificial hollows. Evaluating the same continuous
+surface at shifted absolute coordinates keeps the envelope continuous across
+1 km interpolation lines and 512-cell publication cuts, apart from existing
+millimetre quantization. Public coordinate offsets saturate at i32 limits.
+No lake count, minimum depth, regional quota, water forcing or display threshold
+is changed by this rule. Substantial regional bowls remain part of the terrain.
+
+Shared preparation first fills its existing regional/uplift array, then samples
+detail from that immutable cache. Samples beyond the true modeled rectangle use
+the canonical regional interpolator, not a clamped cache edge. No extra dense
+array is allocated. Radius-ten D8 fallbacks number 60(W+H)−400 for W,H≥10,
+bounded by 0.1875N for admitted axes W,H≥640. Eight cache reads per cell and
+fallback interpolation add under 16N bounded visits/evaluations. Public bundle
+sampling adds under 49N using the retained bound on tiles and entering-river
+windows. The initial work allowance increases from 256N to 512N; the forty-step
+evolution allowance and 53N dense owned-memory accounting are unchanged.
+This admission convention counts bounded source visits/cubic evaluations, not
+individual machine instructions. Sources: `continent/bundles.rs`,
+`continent/area_detail.rs`, `area/prepare.rs`, `area/evolution.rs`.
+
+**Legacy outside-neighbor correction — installed and verified in candidate05.**
 The area-only water API must read the physical cell at the requested adjacent
 absolute coordinate. Existing `TileBundle.north` and `.west` describe the area's
 own first row/column; they remain unchanged for canonical seam/pinning callers.
@@ -69,7 +100,7 @@ on the 64-bit target. These fit the existing 128 MiB preparation allowance;
 the writer does not retain the bundle and the samples add no persisted bytes.
 For modeled cells N and tiles T including fringe, supported axes W,H≥640 imply
 T≤N/65,536. Charging 256 bounded transitions for each of the 1,028 new samples
-costs at most 4.015625N, fitting the initial 256N work allowance after the existing
+costs at most 4.015625N, fitting the former initial 256N work allowance after the existing
 shared sampling/initialization bound of at most 240N. The fixed-loop derivation
 and unchanged-stage scope are retained in
 `features/2026-09-07-area-water-terrain-realism/verification/terrain-correction/legacy-neighbor-admission-review.md`.
@@ -104,6 +135,8 @@ orchestrator uses `SharedTerrain::build`, `prepare_area_terrain`, `shared_solve:
    terrain, water and catchments without adding final areas. Canonical samples
    use absolute coordinates and bounded, affine-preserving coarse interpolation;
    four detail octaves with 40/20/10/5-cell periods preserve the coarse sign.
+   Their amplitude follows the local regional relief rule above; height alone
+   does not increase roughness or prescribe a lake district.
    Neighbor bundle boundaries naming the same absolute sample agree, rather
    than forcing every pair of adjacent cell centers to have equal heights.
    Source: [prepared_domain.rs:42](../../../crates/arda-gen/src/hydrology/prepared_domain.rs:42),

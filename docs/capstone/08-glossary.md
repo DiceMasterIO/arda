@@ -1,7 +1,7 @@
 ---
-generated_at_commit: 311829e4e5c9
+generated_at_commit: b0f93f22b969
 generated_date: 2026-09-08
-content_hash: 6daa467229ef
+content_hash: ffb0f56190a7
 paths_covered: [":(top)crates/**", ":(top)tests/**"]
 absorbed_from: features/2026-09-07-area-water-terrain-realism@2026-09-08
 ---
@@ -48,6 +48,8 @@ absorbed_from: features/2026-09-07-area-water-terrain-realism@2026-09-08
 | Edge taper | 32-cell smoothstep ramp suppressing erosion at the pinned rim. | `crates/arda-gen/src/area/erosion.rs:47` |
 | Physical width / channel footprint | One shared integer discharge-to-decimetre helper sets physical widths. Saved adjacent centerline strips, terminal footprints and junction joins determine raster coverage. | `crates/arda-core/src/hydrology.rs:117`; `crates/arda-render/src/channels.rs:87`; `crates/arda-render/src/channel_geometry.rs:1` |
 | Preview / Detail | Area Preview is 512² with faint subpixel stream marks; Detail is 4096² with physical coverage only. Both depict the same 100 m terrain and saved water decisions. | `crates/arda-render/src/channels.rs:12` |
+| Exact-size overview | A bounded arbitrary raster size over saved area cells; the 16K example follows manifest aspect ratio. It increases output pixels without generating finer terrain. | `crates/arda-render/src/overview.rs`; `crates/arda/examples/export_world_16k.rs` |
+| Regional detail amplitude | Fine land noise scales with the largest regional height difference among eight offset samples, capped at 90 m; absolute altitude does not amplify it. | `crates/arda-gen/src/continent/bundles.rs`; `logic/02-area-generation.md` |
 | Lake depth palette | Supplied physical bed/surface depth drives an integer blue-to-blue shade ramp in area images. It is cartographic shading, not calibrated optics or transparency; overview and missing direct-fixture surface context use categorical fill. | `crates/arda-render/src/carto.rs:60`; `crates/arda-render/src/channels.rs:268` |
 | Resource admission | Explicit RAM, simultaneous scratch, logical-work and I/O capacity checks precede generation writes. Later observed excess returns a typed error; limits never select a different water result. Payload admission is not a process-RSS measurement or maximum-world runtime claim. | `crates/arda-gen/src/hydrology/types.rs:84`; `crates/arda-gen/src/orchestrator/generation_limits.rs:145` |
 | Partial world / clean rerun | Failed or interrupted generation retains partial files without a completion manifest. A nonempty output is refused; successful publication removes runtime scratch and renames the manifest last. This is process-interruption completion, not power-loss durability. | `crates/arda-gen/src/orchestrator/publication.rs:42`; `crates/arda-gen/src/orchestrator/publication.rs:126` |

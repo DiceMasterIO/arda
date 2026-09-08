@@ -1,7 +1,7 @@
 ---
-generated_at_commit: 311829e4e5c9
+generated_at_commit: b0f93f22b969
 generated_date: 2026-09-08
-content_hash: e41d87afe4ae
+content_hash: 157306309024
 paths_covered: [":(top)crates/*/src/**"]
 absorbed_from: features/2026-09-07-area-water-terrain-realism@2026-09-08
 ---
@@ -954,6 +954,13 @@ Shared preparation uses the normalized radial continent mask and bounded affine 
 
 ## Boundaries
 
+The in-memory `OverviewRaster` can use regular per-area scale or explicit image
+dimensions. Exact dimensions are bounded to 16,384 pixels per axis and
+134,217,728 pixels total, with at least one pixel per area per axis; the original
+constructor retains its 64-million-pixel cap. This is a rendering allocation
+contract, with no saved-format or terrain-resolution change
+(`crates/arda-render/src/overview.rs`).
+
 The five-crate boundary remains: `arda-core` owns typed records/codecs; `arda-gen` owns continent, prepared/shared hydrology, immutable area composition and block generation; `arda-render` reads stored PNG/JSON inputs without a generator dependency; `arda` provides generation/load/export APIs; `arda-cli` dispatches Generate/Preview/Export. Golden-world tests are in the root workspace (`crates/arda-core/src/lib.rs:1`, `crates/arda-gen/src/lib.rs:1`, `crates/arda-render/src/lib.rs:1`, `crates/arda/src/lib.rs:1`, `crates/arda-cli/src/main.rs:26`, `tests/golden_world.rs:69`).
 
 Core codecs explicitly write little-endian fields; Rust padding is not persisted. The owned logical `BasinNode` view is distinct from the fixed `BasinNodeRow` plus streamed child table. JSON DTOs convert global IDs and `u128` annual litres to decimal strings; mean discharge keeps the existing `*_milli_cumecs` names and whole L/s units. Account JSON uses a snake_case `kind` discriminator and the corresponding identity field. There is no simulated month/calendar reservoir state (`crates/arda-core/src/formats/hydrology.rs:365`, `crates/arda-render/src/hydrology_json.rs:7`, `crates/arda-render/src/hydrology_json.rs:145`).
@@ -972,7 +979,7 @@ For each 100 m cell, annual precipitation `P = rain_mm × 10,000 L`, evaporation
 
 Annual source and fine-flow passes require exact canonical coverage and actual spill ownership; whole-domain outflow is reconciled before composition. Final metrics verify lake membership, use the final directed graph for drainage/Strahler and HAND, and admit resource bounds independently of timing. Supported size validation does not constitute a measured maximum-world runtime guarantee (`crates/arda-gen/src/orchestrator/annual_source.rs:313`, `crates/arda-gen/src/hydrology/fine_flow.rs:447`, `crates/arda-gen/src/hydrology/flow_metrics.rs:155`, `crates/arda-gen/src/orchestrator/generation_limits.rs:161`).
 
-Resource admission includes two `i32` terrain inputs plus the shared kernel's scratch: 53 bytes per fine cell and container headers on the current 64-bit layout, in addition to coarse and water-stage reservations. This conservative sum admits MICRO and default sizes under 16 GiB; maximum 4000×4000 km refuses default RAM before output creation and needs explicitly larger limits. Capacity validation and arithmetic correctness do not close the reopened natural-realism acceptance; the full corrected candidate remains under verification (`crates/arda-gen/src/area/evolution.rs`, `crates/arda-gen/src/orchestrator/generation_limits.rs`, `crates/arda-gen/src/orchestrator/generation_limits_tests.rs`).
+Resource admission includes two `i32` terrain inputs plus the shared kernel's scratch: 53 bytes per fine cell and container headers on the current 64-bit layout, in addition to coarse and water-stage reservations. This conservative sum admits MICRO and default sizes under 16 GiB; maximum 4000×4000 km refuses default RAM before output creation and needs explicitly larger limits. Candidate06 completes the five-world saved-data checks and reduces repeated shallow pond patterns through local-relief detail. Capacity and arithmetic checks do not close remaining drainage and regional-basin realism issues (`crates/arda-gen/src/area/evolution.rs`, `crates/arda-gen/src/orchestrator/generation_limits.rs`, `crates/arda-gen/src/orchestrator/generation_limits_tests.rs`).
 
 Current reads require format major exactly 4; preserved format-3 worlds are refused and no migration is implemented. Fixed codecs reject invalid tags, wrong lengths, noncanonical order, invalid mean/annual pairs, impossible physical spill/crossing geometry and unsupported model revision. Area objects enforce local identity/course, feeds-cycle and disjoint lake-member constraints. `World::read_area` bounds requested cells/objects bytes before allocation and validates copied global geometry against the manifest-derived domain. Block decoding still accepts any `u16` TileId; symbolic rendering reports unknown vocabulary IDs (`crates/arda-core/src/formats/manifest.rs:75`, `crates/arda-core/src/formats/hydrology.rs:486`, `crates/arda-core/src/formats/area_objects_v4.rs:290`, `crates/arda/src/world.rs:203`, `crates/arda/src/world.rs:306`, `crates/arda-render/src/symbolic.rs:30`).
 

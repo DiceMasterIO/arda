@@ -1,8 +1,8 @@
 ---
-generated_at_commit: 311829e4e5c9
+generated_at_commit: b0f93f22b969
 generated_date: 2026-09-08
-content_hash: 846fd39319eb
-paths_covered: [":(top)Cargo.toml", ":(top)crates/*/Cargo.toml", ":(top)crates/*/src/**", ":(top)Dockerfile", ":(top).github/**", ":(top)rust-toolchain.toml", ":(top)deny.toml"]
+content_hash: 7284970e73e2
+paths_covered: [":(top)Cargo.toml", ":(top)crates/*/Cargo.toml", ":(top)crates/*/src/**", ":(top)Dockerfile", ":(top).github/**", ":(top)rust-toolchain.toml", ":(top)deny.toml", ":(top)crates/*/examples/**"]
 absorbed_from: features/2026-09-07-area-water-terrain-realism@2026-09-08
 ---
 
@@ -175,6 +175,22 @@ from local fragments. Invalid geometry or rendering-work caps return typed
 errors. Source: [channels.rs:11](../../crates/arda-render/src/channels.rs:11),
 [channels.rs:90](../../crates/arda-render/src/channels.rs:90).
 
+The saved-world 16K exporter is a workspace example:
+
+```sh
+cargo run -p arda --release --example export_world_16k -- worlds/w42 world-16k.png
+```
+
+It follows the manifest's area aspect ratio, rounds the shorter axis and uses
+16,384 pixels on the long edge. A 9×19 world renders at 7,761×16,384. It refuses
+an existing output and reads areas one at a time without generating terrain.
+`OverviewRaster::new_exact` accepts at most 16,384 pixels per axis and 134,217,728
+pixels total; square 16K images exceed that budget. The regular constructor's
+512-pixels-per-area and 64-million-pixel limits remain unchanged. The
+[map legend](../map-legend.md) explains both overview and area colours.
+Source: [export_world_16k.rs](../../crates/arda/examples/export_world_16k.rs),
+[overview.rs](../../crates/arda-render/src/overview.rs).
+
 Tactical generation currently samples land cells at stride 64 in both area axes;
 it does not materialize a block at every 100 m cell. Each current WFC block is
 64² squares with the 24-tile vocabulary. `--block 1,2,64,64` names a sampled
@@ -216,7 +232,34 @@ load. They are exploratory observations, not service-level or maximum-world
 guarantees. Saved export timings include CLI startup/read/write; the tactical
 probe below separates in-process work.
 
-### Current terrain correction: candidate05
+### Current regional-detail correction: candidate06
+
+The unprofiled five-world panel completed all 243 generation/export commands.
+World times include terrain, shared water, all published areas and sampled blocks;
+they exclude PNG rendering. The three default cases ran concurrently on this
+Linux/WSL host, so these are observed runs rather than isolated benchmark promises.
+
+| Operation | Observed wall time | Scope |
+|---|---:|---|
+| Complete default seed42 | 38 min 00 s | 500×1000 km, 171 areas |
+| Complete default seed7 | 43 min 50 s | Same dimensions |
+| Complete default seed436342 | 44 min 18 s | Same dimensions, reported world |
+| Complete MICRO panel worlds | 53.61–55.35 s | Eight areas each |
+| Initial independent MICRO42 | 45.99 s | Different concurrent host load |
+| Reported world 16K export | 3.576 s | Native saved-data renderer, 7,761×16,384 |
+| Four requested 4096² areas | 0.301–0.385 s each | Existing saved worlds, PNG only |
+
+These timings used the native renderer adapter from candidate05. Its exact-size
+capability now lives in the canonical renderer and the workspace example above;
+the migrated example reproduced the C05 PNG byte for byte in 3.718 s. The public
+CLI's size/limit contract is unchanged. The finer raster does not refine the
+underlying 100 m terrain. The current saved format and JSON schema are unchanged;
+old worlds still load and require regeneration to obtain the corrected terrain.
+Exact commands, times and output hashes:
+[C06 panel](features/2026-09-07-area-water-terrain-realism/verification/lake-district-correction/panel-and-seams-summary.json),
+[render receipt](features/2026-09-07-area-water-terrain-realism/verification/lake-district-correction/render-and-seams-receipt.json).
+
+### Previous terrain correction: candidate05
 
 All five frozen worlds and 243 generation/export commands completed. Generation
 writes saved terrain/water and sampled tactical blocks without PNGs. Default

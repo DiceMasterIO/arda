@@ -1,6 +1,6 @@
 ---
-generated_at_commit: 311829e4e5c9
-content_hash: 74eb99624adb
+generated_at_commit: b0f93f22b969
+content_hash: 874fba03af21
 paths_covered: [":(top)Cargo.toml", ":(top)crates/*/Cargo.toml", ":(top)crates/*/src/**", ":(top).github/**"]
 generated_date: 2026-09-08
 absorbed_from: features/2026-09-07-area-water-terrain-realism@2026-09-08
@@ -16,7 +16,7 @@ Data-oriented functions transform explicit owned or borrowed grids. Canonical pr
 
 Rust 2021 inherits workspace `unsafe_code = "deny"`, `missing_docs = "deny"`, Clippy `all`, `unwrap_used` and `expect_used` denials, plus selected cast/passing/semicolon warnings. CI promotes warnings to errors (`Cargo.toml:7`, `Cargo.toml:31`, `.github/workflows/ci.yml`). Scaled integer wrappers and distinct global/area/local coordinate and hydrology identifier types prevent accidental grid/account mixing (`crates/arda-core/src/fixed.rs:9`, `crates/arda-core/src/coords.rs:169`, `crates/arda-core/src/hydrology.rs:1`).
 
-The following reproducible text counts cover all 140 crate Rust source files, including test modules, integration tests and benches, after removing line comments. They count integer/floating `as` casts and explicit allow attributes, not compiler-inferred conversions; they are not production-only counts. The earlier 105-cast/17-allow counts had a different, narrower scope and are superseded.
+The following C05 snapshot covers the then-current 140 crate Rust source files, including test modules, integration tests and benches, after removing line comments. These historical counts precede C06 and the added 16K example; they count integer/floating `as` casts and explicit allow attributes, not compiler-inferred conversions. They are not production-only counts. The earlier 105-cast/17-allow counts had a different, narrower scope and are superseded.
 
 | Escape hatch / abstraction | Count | Example locations |
 |---|---|---|

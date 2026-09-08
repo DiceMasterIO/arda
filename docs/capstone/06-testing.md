@@ -1,8 +1,8 @@
 ---
-generated_at_commit: 311829e4e5c9
+generated_at_commit: b0f93f22b969
 generated_date: 2026-09-08
-content_hash: 79c148f86c7d
-paths_covered: [":(top)Cargo.toml", ":(top)crates/*/src/**", ":(top)crates/*/tests/**", ":(top)crates/*/benches/**", ":(top)tests/**", ":(top).github/**"]
+content_hash: cf6f8d42eb8e
+paths_covered: [":(top)Cargo.toml", ":(top)crates/*/src/**", ":(top)crates/*/tests/**", ":(top)crates/*/benches/**", ":(top)tests/**", ":(top).github/**", ":(top)crates/*/examples/**"]
 absorbed_from: features/2026-09-07-area-water-terrain-realism@2026-09-08
 ---
 
@@ -54,9 +54,9 @@ Source: [ci.yml:5](../../.github/workflows/ci.yml:5),
 level 2), [deny.toml](../../deny.toml).
 
 The golden test has an explicit `ARDA_BLESS` write path. Running ordinary checks
-does not authorize replacing expected bytes. The current format/physical changes
-have a proposed fingerprint, but explicit approval and replacement are still
-pending. Reproducibility and geographic/visual acceptance remain separate checks.
+does not authorize replacing expected bytes. Candidate05 and the subsequent
+regional-detail candidate06 baseline were separately approved and committed.
+Reproducibility and geographic/visual acceptance remain separate checks.
 Source: [golden_world.rs:69](../../tests/golden_world.rs:69).
 
 ## Doubles
@@ -89,18 +89,19 @@ Source: [forcing.rs](../../crates/arda-gen/src/hydrology/forcing.rs),
 | [Dependency policy](features/2026-09-07-area-water-terrain-realism/verification/tooling/cargo-deny-run.json) | cargo-deny 0.20.2 passed with four nonfatal existing warnings and no lockfile change. |
 | [Release budget gates](features/2026-09-07-area-water-terrain-realism/verification/release-budget-gates.log) | Both Criterion `--test` workloads and their explicit timing assertions passed. This is one-shot gate evidence, not a sampled benchmark distribution. |
 | [Full shared replay](features/2026-09-07-area-water-terrain-realism/verification/shared-replay/validation.json) | Default seed 42, 50 million prepared cells: complete shared solve passed, including annual ledger and actual sea/domain export reconciliation. Prepared inputs stayed byte-identical. Preparation and final area/publication stages were excluded. |
-| [Frozen candidate plan/driver](features/2026-09-07-area-water-terrain-realism/verification/run_candidate.py) | Five fixed configurations and 38 frozen areas, two read-only saved-export passes and 238 total export commands. All five worlds and 238 exports passed; all 38 selected area JSON files decoded, copied shared records matched, repeat exports were byte-identical, and source worlds stayed unchanged. No easier panel was substituted. |
+| [Frozen candidate panel](features/2026-09-07-area-water-terrain-realism/verification/candidate-02-summary.json) | Five fixed configurations and 38 frozen areas, two read-only saved-export passes and 238 total export commands. All five worlds and 238 exports passed; all 38 selected area JSON files decoded, copied shared records matched, repeat exports were byte-identical, and source worlds stayed unchanged. No easier panel was substituted. |
 | [Tactical probe](features/2026-09-07-area-water-terrain-realism/verification/tactical-timing/report.json) | Three actual sampled land blocks regenerated identically to saved blocks; PNG/JSON matched saved CLI exports. Exploratory timings separate load, current WFC, encode and serialize work. |
 
 These are local Linux results under concurrent host load. No new remote CI run
 or cross-platform pass is claimed. The user's first-look review reopened visual
 acceptance; the authorized terrain correction requires fresh integrated evidence.
-Explicit approval/replacement of the golden and the final project gate remain pending; this chapter does not
-mark the feature implemented. The dated execution and review history is retained
+At that checkpoint, golden replacement and final checks were still pending.
+The later C05/C06 sections record their completion; the overall feature remains
+open for visual acceptance. The dated execution and review history is retained
 in [implementation progress](features/2026-09-07-area-water-terrain-realism/implementation-progress.md)
 and [review ledger](features/2026-09-07-area-water-terrain-realism/review-ledger.md).
 
-## Terrain correction verification — in progress
+## Earlier terrain correction verification — candidate04
 
 The shared domain kernel has 12 passing controls, including a reproduced 28 mm
 incision-created pit, its implicit correction, crossing catchments, internal
@@ -172,13 +173,68 @@ exactly after formatting. The deterministic baseline is accepted; repetitive
 drainage and regional lake-shape acceptance remain open. The result is retained
 in the local [golden log](features/2026-09-07-area-water-terrain-realism/verification/terrain-correction/golden-c05-approved.log).
 
+## Regional-detail correction — candidate06 verified and committed
+
+Land detail now follows surrounding regional height differences rather than
+absolute altitude. Regression controls require vertical-translation invariance,
+a flat region without artificial hollows, retained downhill neighbors on gentle
+slopes, continuous amplitude across kilometre lines, full signed bounds and a
+substantial regional bowl. Cached preparation matches canonical direct sampling
+at publication cuts and the true partial rim. The former caller work ceiling
+fails admission before output creation under the newly accounted sampler cost.
+
+The first broad run passed 587 tests, failed two terrain-dependent legacy fixtures,
+and ignored 8 controls; only the protected golden expectation was filtered.
+After fixture correction, all 15 water and 8 cross-tile tests pass. The fixed
+three-context survey still covers 119 crossings: 12/13 large crossings match and
+the combined nonmatch median is 4 cells, under the unchanged 70%/20-cell gates.
+Exact independent source-path inflow equalities replace the obsolete 3/4
+coarse-versus-fine snapshot; the measured 2/4 comparison remains documented.
+These are combined run/rerun results, not one all-green invocation.
+
+Formatting, strict Clippy, official Rust 1.96.1 and the existing erosion budget
+workload pass. Two production-source review rounds and an independent subsequent
+fixture review found no actionable issues. At the generation verification
+checkpoint, production source, dependencies and renderer hashes matched the
+frozen binary; only the repaired test files differed.
+Two independently generated MICRO42 worlds match all 34 saved-file fingerprints.
+The user subsequently approved the exact C06 baseline: 24 changed fingerprints,
+10 unchanged and no added/removed files. The fresh golden comparison passes in
+44.50 s against SHA256 `3e86ce4c247244b65a6aa8bb6682204b41fa91208ad18f3cd7da70f7cc04e2eb`.
+Together with the broad run and focused repairs, this covers 590 passing tests.
+The correction and baseline are committed as `ed4875d`.
+
+The subsequent feature-folder cleanup moved the reusable exact-size renderer
+into the canonical crate and a workspace example. All 49 renderer tests pass,
+including four added checks for invalid dimensions, uneven pixel partitions,
+enlarged edge coverage and ordinary/exact PNG equivalence. The example also
+reproduces the retained C05 7,761×16,384 PNG byte for byte. Workspace formatting,
+strict all-target/all-feature Clippy and the official Rust 1.96.1 check pass
+after the move and cleanup. No generation rule changed during that move.
+
+The read-only Capstone check reports zero covered-source drift and no unfolded
+ledger fragments. Its existing nine missing-version metadata warnings and eight
+scenario-heading findings for the logic index remain; the plugin manifest is
+unreadable, so no version stamp was invented. See the retained
+[documentation check](features/2026-09-07-area-water-terrain-realism/verification/lake-district-correction/map-check-after-cleanup.txt).
+
+The complete five-world panel passed all 243 commands, including 238 exports and
+38 selected JSON comparisons. Repeat exports match and saved worlds are unchanged.
+All five annual balances close exactly. Across the three default worlds, all
+20,712 adjacent pairs wet on both sides have matching lake identities and surfaces.
+The reported seed changes from 2,653 to 186 lakes, with its repeated pond patterns
+visibly removed. The native 16K world and four 4096² area maps are retained.
+Parallel drainage and large regional basin geometry remain separate open findings.
+Evidence: [correction verification](features/2026-09-07-area-water-terrain-realism/verification/lake-district-correction/),
+[fixture derivation](features/2026-09-07-area-water-terrain-realism/verification/lake-district-correction/cross-tile-c06-fixtures.md).
+
 ## Coverage shape
 
 Implemented gates cover physical topology, exact annual accounting, storage
 refusal, deterministic output and saved rendering. Maximum-size admission tests
 check arithmetic/capacity contracts; they do not establish successful natural
-generation or a runtime bound for every 4000 × 4000 km terrain. The complete candidate05
-panel passes saved-data checks. Visual inspection and the direct boundary probe
+generation or a runtime bound for every 4000 × 4000 km terrain. Both the candidate05
+and subsequent candidate06 panels pass saved-data checks. Visual inspection and the direct boundary probe
 support the flooded-rim correction: the reported area now has 6.51% wet rim
 against 6.45% interior, with matching shared lake IDs/surfaces across wet border
 pairs. Repetitive drainage and rectangular coarse basins remain unresolved visual

@@ -6,7 +6,7 @@ absorbed_from: features/2026-09-07-area-water-terrain-realism@2026-09-08
 
 # 04 — Export
 
-Renders PNG and serializes JSON from saved world data on demand. The current CLI surface is documented in [export](../mockup/03-export.md); loading follows [load and query](05-load-query.md). This chapter describes the implemented consumer behavior as of 2026-09-08. Integrated natural-panel acceptance, golden approval and the remaining project verification gates are still pending.
+Renders PNG and serializes JSON from saved world data on demand. The current CLI surface is documented in [export](../mockup/03-export.md); loading follows [load and query](05-load-query.md). This chapter describes the implemented consumer behavior as of 2026-09-08. The five-world C06 data/export panel and approved golden pass; remaining visual realism findings are recorded in [open items](../open-items.md).
 
 ## Trigger & preconditions
 
@@ -26,6 +26,7 @@ Renders PNG and serializes JSON from saved world data on demand. The current CLI
 
 - Area: PNG Preview, PNG Detail, or combined JSON. Request PNG and JSON in separate calls.
 - Overview: always PNG. `--format` and `--area` do not change this branch. If both `--block` and `--overview` are supplied, the block branch takes precedence.
+- Exact-size overview: `OverviewRaster::new_exact` supports 1–78 areas per axis, at least one output pixel per area per axis, at most 16,384 pixels per axis and at most 134,217,728 pixels total. Uneven area pixel partitions cover the whole raster; enlargement repeats saved cells without adding terrain. The `export_world_16k` workspace example uses the manifest aspect ratio and refuses existing output via exclusive creation. It is separate from the regular CLI overview command and retains the same palette and feature rules.
 - Block: symbolic PNG or JSON for a materialized cell. Generation currently saves blocks only at a 64-cell stride over land; a valid in-range cell need not have a block.
 
 ## Unhappy paths
