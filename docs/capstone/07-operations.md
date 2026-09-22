@@ -1,9 +1,9 @@
 ---
-generated_at_commit: b0f93f22b969
-generated_date: 2026-09-08
-content_hash: 7284970e73e2
+generated_at_commit: 342d03e55120
+generated_date: 2026-09-22
+content_hash: 14d115361425
 paths_covered: [":(top)Cargo.toml", ":(top)crates/*/Cargo.toml", ":(top)crates/*/src/**", ":(top)Dockerfile", ":(top).github/**", ":(top)rust-toolchain.toml", ":(top)deny.toml", ":(top)crates/*/examples/**"]
-absorbed_from: features/2026-09-07-area-water-terrain-realism@2026-09-08
+absorbed_from: features/2026-09-07-area-water-terrain-realism@2026-09-08, features/2026-09-22-geographical-rendering-first-pass@2026-09-22
 ---
 
 # Operations
@@ -43,10 +43,11 @@ world configuration. Source:
 | --micro | false; selects 102×204 km MICRO, overriding --size | generate/preview | `crates/arda-cli/src/main.rs:23` |
 | latitude / density | 35–55°N / 15 people per km² | CLI construction; other values through library config | `crates/arda-core/src/config.rs:68` |
 | --quality | 8192 (8K); any integer 512–32768 pixels or integer k/K suffix, where 1K = 1024 | preview overview; export area/overview PNG | `crates/arda-cli/src/main.rs`, `crates/arda-render/src/quality.rs` |
-| --px | absent; legacy 1–512 pixels per area when supplied | preview overview; conflicts with --quality | `crates/arda-cli/src/main.rs` |
+| --style | omitted = Classic; explicit `classic` or `atlas` | preview and saved area/overview PNGs, including area `--detail` | `crates/arda-cli/src/main.rs:55` |
+| --px | absent; legacy 1–512 pixels per area when supplied | preview overview; conflicts with --quality and explicit --style | `crates/arda-cli/src/main.rs` |
 | --area | 0,0 | export area, unless block/overview | `crates/arda-cli/src/main.rs:23` |
 | --format | png; choices png/json | export area/block | `crates/arda-cli/src/main.rs:85` |
-| --detail | false; legacy 4096×4096 area PNG with the `_detail` filename | export; rejected with JSON, overview, block or --quality | `crates/arda-cli/src/main.rs` |
+| --detail | false; 4096×4096 area PNG; Classic uses `_detail`, Atlas uses the standard filename | export; rejected with JSON, overview, block or --quality | `crates/arda-cli/src/main.rs` |
 | --overview | false | export saved world overview | `crates/arda-cli/src/main.rs:23` |
 | --block | absent; ax,ay,cx,cy | export one saved sampled land block | `crates/arda-cli/src/main.rs:23` |
 | --out / --world | required where applicable | command enum | `crates/arda-cli/src/main.rs:23` |
@@ -56,7 +57,21 @@ long edge and round the shorter edge to the nearest pixel from the saved area-gr
 aspect ratio. Preview also defaults to an 8192-pixel long edge; explicit `--px`
 selects the older per-area sizing. Explicit `--quality` is rejected with JSON or
 blocks before world loading/output creation; ordinary JSON exports without it
-retain their existing behavior.
+retain their existing behavior. Explicit `--style` with JSON or a tactical block
+is rejected before world loading or output-directory creation. Preview `--px`
+conflicts with explicit `--style`; Atlas preview uses `--quality` or its default.
+Unknown style names fail CLI parsing. Source:
+[main.rs:55](../../crates/arda-cli/src/main.rs:55),
+[main.rs:123](../../crates/arda-cli/src/main.rs:123).
+
+For an existing world, append `--style atlas` to either
+`export --world /tmp/arda-world --overview --out /tmp/atlas-overview` or
+`export --world /tmp/arda-world --area 2,0 --quality 8k --out /tmp/atlas-area`.
+Use separate output directories to retain a Classic comparison: both styles
+use `overview.png` or `area_XX_YY.png` for quality exports. The retained
+[comparison panel](features/2026-09-22-geographical-rendering-first-pass/evidence/index.md)
+shows actual saved-world output; extra PNG pixels still interpolate the same
+100 m terrain and do not supply forests, roads or settlements.
 
 Valid sizes are 64–4000 km per axis; latitude lies within −80° to 80° with south
 strictly below north; density is 1–200 people/km². Loading revalidates the saved
@@ -178,11 +193,27 @@ Overview export propagates a failed area read. Source:
 Area and overview PNG export default to 8K (8192 pixels); `--quality 512`,
 `--quality 16k` and `--quality 32K` select other validated sizes. Area output is
 square; overview output preserves the area-grid aspect ratio. The 512-pixel area
-mode retains a faint mark for subpixel streams. Larger quality sizes and legacy
+mode retains a faint mark for subpixel streams. Larger quality sizes and Classic legacy
 `--detail` (4096 pixels, `_detail` filename) show physical channel coverage alone.
 All use the same saved 100 m terrain. Saved global IDs, crossings and per-area
 context preserve shared topology; rendering does not recalculate river widths
 from local fragments. Invalid geometry or rendering-work caps return typed errors.
+Atlas changes PNG presentation only: earthy height and sea-depth colors, fixed
+directional relief and pixel-center interpolation from saved cells. It reads
+the two nearest rows/columns and corners from existing in-world neighbors;
+missing or corrupt neighbors fail the export. Out-of-world edges use one-sided
+gradients. Atlas area PNGs keep physical lake depths and channel geometry;
+the overview keeps categorical lake fill and discharge-band river symbols.
+Classic remains the omitted-style behavior, including existing library entry
+points. The additive styled APIs are
+`export_area_with_quality_and_style` and
+`export_overview_with_quality_and_style`. `--detail --style atlas` writes the
+quality-path `area_XX_YY.png` at 4096 pixels; Classic `--detail` retains its
+legacy `_detail` name. Sources:
+[atlas.rs](../../crates/arda-render/src/atlas.rs),
+[atlas facade](../../crates/arda/src/atlas.rs),
+[export_quality.rs:27](../../crates/arda/src/export_quality.rs),
+[main.rs:290](../../crates/arda-cli/src/main.rs:290).
 Sources: [quality.rs](../../crates/arda-render/src/quality.rs),
 [channels.rs](../../crates/arda-render/src/channels.rs),
 [export_quality.rs](../../crates/arda/src/export_quality.rs).
@@ -207,6 +238,27 @@ most 32,768 pixels per axis and retains its 134,217,728-pixel total limit; squar
 [overview.rs](../../crates/arda-render/src/overview.rs),
 [streaming.rs](../../crates/arda-render/src/overview/streaming.rs),
 [carto.rs](../../crates/arda-render/src/carto.rs).
+
+Atlas area export retains a 514×514 derived palette/light/class grid and fixed
+516×516 height context. Neighbor area payloads are loaded one at a time while
+their two-cell strips or corners are copied. Atlas overview keeps the existing
+256-row output bands and can reread areas across bands; the cost therefore
+depends on output height and area layout even though raster memory stays bounded.
+The measured local Linux seed-42 200×300 km exports completed at 32K twice each:
+
+| Atlas 32K PNG | Pixels | Elapsed runs | Peak child RSS runs |
+|---|---:|---:|---:|
+| Area (2,0) | 32768×32768 | 31.06 / 31.35 s | 44,312 / 43,956 KiB |
+| Overview | 19661×32768 | 29.57 / 29.81 s | 66,604 / 66,204 KiB |
+
+Each repeat pair has identical PNG bytes. RSS is Linux `wait4` child rusage,
+not an all-platform or concurrent export budget. The saved input's 55 file
+hashes remained unchanged. Sources:
+[area run 1](features/2026-09-22-geographical-rendering-first-pass/evidence/atlas-area-32k-run1.time.txt),
+[area run 2](features/2026-09-22-geographical-rendering-first-pass/evidence/atlas-area-32k-run2.time.txt),
+[overview run 1](features/2026-09-22-geographical-rendering-first-pass/evidence/atlas-overview-32k-run1.time.txt),
+[overview run 2](features/2026-09-22-geographical-rendering-first-pass/evidence/atlas-overview-32k-run2.time.txt),
+[image hashes](features/2026-09-22-geographical-rendering-first-pass/evidence/images.json).
 
 The earlier saved-world 16K exporter remains available as a workspace example:
 
@@ -239,12 +291,24 @@ cache. Per-block archive decompression is not implemented. Source:
 
 The exact test/lint/MSRV/dependency commands and dated results are in
 [testing](06-testing.md).
-CI retains the three-platform test matrix and adds Ubuntu Rust 1.96.1 for the
+CI runs `cargo test --workspace --all-features` once per platform, including the
+workspace golden-world tests; the former second determinism invocation has been
+removed. It retains the three-platform matrix and Ubuntu Rust 1.96.1 for the
 dated latest-stable-minus-two target. Stable tooling includes rustfmt/Clippy;
 `cargo bench -p arda-gen` invokes the two declared benches. No database migration
 process or remote service is involved. Source:
 [ci.yml:18](../../.github/workflows/ci.yml:18),
 [rust-toolchain.toml](../../rust-toolchain.toml).
+
+The previous exact-HEAD run checked September 22 still has the recorded Windows
+golden-text LF/CRLF failure; Linux/macOS, lint, MSRV and dependency jobs passed.
+The run and fingerprint comparison are recorded in [current status](open-items.md).
+Configured gates and historical passing measurements do not imply a fresh green
+run. The Atlas feature's subsequent local Linux workspace, formatting, strict
+Clippy and Rust 1.96.1 checks passed at HEAD `342d03e55120`; the prior passing
+dependency check remains applicable with unchanged manifests, lockfile and
+policy. No new Windows run was made. See the dated [testing evidence](06-testing.md)
+and [gate results](features/2026-09-22-geographical-rendering-first-pass/evidence/gates/results.json).
 
 Forcing tables are checked-in runtime data. The explicit maintenance command
 `python3 tools/generate_water_forcing_tables.py /tmp/arda-forcing-tables.rs`

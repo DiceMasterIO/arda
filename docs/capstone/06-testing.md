@@ -1,12 +1,21 @@
 ---
-generated_at_commit: b0f93f22b969
-generated_date: 2026-09-08
-content_hash: cf6f8d42eb8e
+generated_at_commit: 342d03e55120
+generated_date: 2026-09-22
+content_hash: 909edd1f428c
 paths_covered: [":(top)Cargo.toml", ":(top)crates/*/src/**", ":(top)crates/*/tests/**", ":(top)crates/*/benches/**", ":(top)tests/**", ":(top).github/**", ":(top)crates/*/examples/**"]
-absorbed_from: features/2026-09-07-area-water-terrain-realism@2026-09-08
+absorbed_from: features/2026-09-07-area-water-terrain-realism@2026-09-08, features/2026-09-22-geographical-rendering-first-pass@2026-09-22
 ---
 
 # Testing
+
+> The previous exact-HEAD CI result is recorded in [current status](open-items.md). Linux/macOS,
+> lint, MSRV and dependency checks passed; Windows failed a golden-text
+> LF/CRLF comparison with matching normalized fingerprint entries. Historical
+> successful measurements below do not mean the latest CI run was fully green.
+> The current inventory was refreshed from source on September 22; no tests
+> or exports were rerun during that earlier documentation refresh. The Atlas
+> feature has fresh local Linux checks and real saved-world exports below;
+> no new Windows CI result is claimed.
 
 ## Layout
 
@@ -20,7 +29,9 @@ absorbed_from: features/2026-09-07-area-water-terrain-realism@2026-09-08
 | Continent hydrology | `crates/arda-gen/tests/continent_hydrology.rs` | Persistence, ocean-reaching paths, courses, catchment/discharge and determinism. |
 | Exploratory measurements | `crates/arda-gen/tests/continent_measures.rs`, `anisotropy_probe.rs` | Ignored rainfall/Horton and directional probes; not default statistical acceptance gates. |
 | Facade/CLI | `crates/arda/tests/round_trip.rs`, `area_exports.rs`, `crates/arda-cli/tests/cli.rs`, `crates/arda/src/world.rs` | Round trips, lazy bounded loading, exports, malformed dimensions/layers, partial-world refusal, sampling and command refusal paths. |
-| Golden world | `tests/golden_world.rs:79` | Fixed MICRO file fingerprint; a separate test at line 99 checks repeat-generation equality. |
+| Golden world | `tests/golden_world.rs:69` | Shared initial MICRO fingerprint, approved-file comparison and an independently generated second world for repeatability; root Cargo.toml declares the target explicitly. |
+| Image quality and streamed output | `crates/arda-render/src/quality.rs:84`, `crates/arda-render/src/overview/streaming.rs:205`, `crates/arda-render/src/channels/tests.rs:59`, `crates/arda/tests/area_exports.rs:100`, `crates/arda/src/export_quality.rs:124` | 512–32768 parsing/defaults/aspect ratio, arbitrary-size area coverage, decoded streamed/buffered pixel equality across area/band seams, 32K admission and selected coverage windows, unchanged saved input, repeat exports and failure-safe final PNG publication. |
+| Atlas presentation | `crates/arda-render/src/atlas/tests.rs`, `crates/arda-render/src/carto.rs`, `crates/arda-render/src/overview.rs`, `crates/arda-render/src/overview/streaming.rs`, `crates/arda/tests/area_exports.rs`, `crates/arda-cli/tests/cli.rs` | Exact pixel-center and mixed-axis kernels, planar eight-neighbor edge/corner relief, categorical water and physical channel precedence, streamed/buffered overview pixels across unequal partitions and 256-row bands, missing/corrupt neighbor refusal, Classic byte compatibility, CLI style routing and pre-I/O refusals. |
 | Release budgets | `crates/arda-gen/benches/area_erosion.rs:20`, `continent_stage.rs:17` | One area's erosion must fit 30 s; the default coarse continent stage must fit 60 s. These are not full-world deadlines. |
 
 The public generation authority is canonical terrain preparation followed by one
@@ -258,7 +269,50 @@ Parallel drainage and large regional basin geometry remain separate open finding
 Evidence: [correction verification](features/2026-09-07-area-water-terrain-realism/),
 [fixture derivation](features/2026-09-07-area-water-terrain-realism/reports/lake-district-correction--cross-tile-c06-fixtures.md).
 
+## Geographical rendering first pass — 2026-09-22
+
+The Atlas renderer tests cover exact integer lighting and sampling, 512/513 area
+scales, a 511×513 mixed-axis overview, adjacent interpolated rows, and continuous
+planar gradients across area edges and four-area corners. Area water tests retain
+validated lake depth and saved channel coverage; overview water remains categorical.
+The facade tests use encoded saved-area grids to exercise all eight halo directions,
+two-cell diagonal context, unavailable and corrupt in-world neighbors, repeat PNG
+bytes, unchanged saved layers, and failure-safe publication. CLI process tests
+cover area, overview, `--detail`, preview, Classic omission/equivalence and style
+refusals before output-directory creation. Sources:
+[atlas tests](../../crates/arda-render/src/atlas/tests.rs),
+[overview streaming tests](../../crates/arda-render/src/overview/streaming.rs),
+[facade export tests](../../crates/arda/tests/area_exports.rs),
+[CLI tests](../../crates/arda-cli/tests/cli.rs).
+
+The retained seed-42 200×300 km world has a 3×5 area grid. The fixed panel selects
+five areas for relief, coast, lake, channel and both seam orientations; its matched
+Classic/Atlas 8K overview is 4915×8192 pixels. Two Atlas 32K area exports are
+32768×32768, and two 32K overviews are 19661×32768. Each same-style 32K pair
+has an identical SHA-256; the three checked Classic 512-pixel exports also match
+their pre-feature bytes. All 55 saved-world file hashes and five selected area
+JSON files stayed unchanged across the exports. These results establish repeatable
+PNG export from this saved world, not additional generated terrain detail or
+cross-platform rendering. Evidence:
+[selection](features/2026-09-22-geographical-rendering-first-pass/evidence/selection.json),
+[image dimensions and hashes](features/2026-09-22-geographical-rendering-first-pass/evidence/images.json),
+[Classic comparisons](features/2026-09-22-geographical-rendering-first-pass/evidence/classic-compatibility.json),
+[world hashes](features/2026-09-22-geographical-rendering-first-pass/evidence/world-after.json).
+
+At source HEAD `342d03e55120`, the local Linux workspace tests, formatting,
+strict workspace Clippy and Rust 1.96.1 locked all-target/all-feature check exited
+zero. The dependency-policy check also exited zero before final integration;
+manifests, lockfile and policy file were unchanged afterward. Task receipts retain
+focused renderer, facade and CLI test runs. This is distinct from the previously
+recorded Windows CI golden-text LF/CRLF failure; no fresh Windows pass was run.
+Evidence: [gate results](features/2026-09-22-geographical-rendering-first-pass/evidence/gates/results.json),
+[task receipts](features/2026-09-22-geographical-rendering-first-pass/evidence/task-1.md).
+
 ## Coverage shape
+
+Image-quality controls validate 512–32768 edges, the 8192 default and area-grid aspect ratios. Streaming overview tests compare decoded pixels with buffered output at area and 256-row band seams; encoded byte equality between those two APIs is not required. The 32K unit admission check validates dimensions and bounded-band allocation without encoding a full image. Channel tests exercise selected rows/coverage at 32K, and facade tests use real saved-layer fixtures to check unchanged inputs, repeated exports and preservation of the prior PNG on failure (`crates/arda-render/src/quality.rs:84`, `crates/arda-render/src/overview/streaming.rs:205`, `crates/arda-render/src/channels/tests.rs:59`, `crates/arda/tests/area_exports.rs:100`, `crates/arda/src/export_quality.rs:124`).
+
+Commit `c577528` separately records completed local 32K area/world exports, 611 workspace tests and 74 final targeted checks; those counts can overlap. The historical record is not a new run or an exact-HEAD CI success; see [current status](open-items.md).
 
 Implemented gates cover physical topology, exact annual accounting, storage
 refusal, deterministic output and saved rendering. Maximum-size admission tests

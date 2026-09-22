@@ -200,14 +200,25 @@ Each row uses `arda export --world WORLD_DIR ... --out EXPORT_DIR`.
 PNG and JSON are separate exports. `--quality` applies to area and overview
 PNGs; it does not apply to JSON or tactical blocks.
 
+Choose `--style atlas` for earthy elevation colours, directional relief shading
+and sea-depth colours. Atlas interpolates terrain colour and lighting at every
+output pixel while keeping the saved land/water masks and channel geometry.
+Omitting `--style`, or choosing `--style classic`, retains the original render.
+Explicit styles apply only to area/overview PNGs, not JSON or tactical blocks.
+
+```sh
+arda export --world worlds/w42 --overview --style atlas --quality 8k --out exports/w42-atlas
+arda export --world worlds/w42 --area 1,1 --style atlas --quality 32k --out exports/w42-atlas
+```
+
 Quality accepts any whole-pixel size from **512 through 32768**, including
 `512`, `1k`, `2k`, `4k`, `8k`, `16k`, and `32k`. A `k` is 1024 pixels.
 The default is **8K**. Areas are square; overviews preserve the exported
 area grid's aspect ratio and use the selected quality for the long edge.
 
 Detailed area maps still use the same **100 m terrain grid**. Their
-additional pixels make channel geometry easier to inspect; they do not
-add finer terrain measurements. Overview river strokes are symbolic and
+additional pixels make channel geometry easier to inspect and smooth Atlas
+colour/lighting transitions; they do not add finer terrain measurements. Overview river strokes are symbolic and
 should not be read as physical channel widths. The
 [map legend](docs/map-legend.md) explains the terrain colours and water
 presentation.
@@ -235,10 +246,12 @@ whole uncompressed image in memory. Larger exports still require more
 rendering time and output space. Completed images replace the previous
 file only after rendering succeeds.
 
-For compatibility, `--detail` retains the older 4096 × 4096 area export
-and its `_detail.png` filename. It cannot be combined with `--quality`.
-The preview command also retains `--px` for pixels per area; choose
-either `--px` or `--quality`.
+For compatibility, Classic `--detail` retains the older 4096 × 4096 area
+export and its `_detail.png` filename. With `--style atlas`, `--detail` uses
+the streamed 4096 × 4096 path and the standard `area_XX_YY.png` filename.
+It cannot be combined with `--quality`. The preview command also retains
+`--px` for pixels per area; it conflicts with `--quality` and any explicit
+`--style`. Atlas preview uses `--style atlas --quality SIZE`.
 
 </details>
 
@@ -319,19 +332,42 @@ The container does not currently start an HTTP listener.
 
 ## Current status
 
-**Working, under active development.** Terrain and hydrology generation,
-binary world storage and loading, PNG/JSON exports, Docker execution,
-the CLI, and the Rust library are
-implemented. The project is still developing its geography and higher
-level world content.
+**Working physical-world generator, with further world content in development.**
+Status updated on 2026-09-22 against source commit `342d03e55120`.
 
-| Work still open | Current boundary |
+| Implemented | What is available now |
 | --- | --- |
-| Terrain realism | Some worlds retain repetitive parallel drainage, angular shorelines, and large rectangular regional basins |
-| Water simulation | A representative annual balance; no seasonal storage, groundwater, snowpack, or dynamic floods |
-| Vegetation and human geography | Full vegetation, settlements, roads, buildings, naming, realms, and NPC generation remain deferred |
+| Physical geography | Continental relief and climate; shared 100 m terrain evolution; connected drainage, rivers, lakes and representative annual water accounting |
+| Area data | Elevation, temperature, rainfall, slope, drainage, channel properties and wetness, plus basic Bare/Grass/Marsh ground cover |
+| Terrain corrections | Erosion across area boundaries and the regional-relief correction that removed the recorded repeated lake-district artifact |
+| Persistence and loading | Format-4 saved worlds, manifest-first loading, requested area/archive caches and bounded owned area reads for exports |
+| Maps and interchange | Classic and shaded Atlas PNGs; per-output-pixel Atlas colour/light interpolation; versioned JSON; area/world image quality 512–32K, default 8K, with streamed quality PNG publication |
+| Developer tools | `generate`, `preview` and `export` CLI commands, a reusable Rust API, Docker execution and regression/CI infrastructure |
+| Tactical prototype | Seeded, persisted 64×64 blocks with a preliminary 24-tile WFC vocabulary and symbolic exports |
+
+| Remaining work or model boundary | Current boundary |
+| --- | --- |
+| Terrain realism | First Atlas comparison shows smoother relief; straight/parallel drainage shapes and 100 m shoreline steps remain visible. Wider terrain acceptance and historical rectangular-basin diagnosis remain open |
+| Water model scope | Annual water is implemented; seasonal storage, groundwater, snowpack and dynamic floods are outside the current model |
+| Rich vegetation and human geography | Full vegetation/forest density, soil moisture, settlements, roads, buildings, naming, realms and NPC generation remain deferred |
 | Tactical maps | Sparse sampled blocks with a preliminary WFC tile set; detailed assets and gameplay geometry remain deferred |
 | Serving and integration | No `arda serve` command or browser application; consumers use saved exports or the Rust API |
+
+The Atlas first pass passed **648 workspace tests** on Linux (8 ignored),
+formatting, strict Clippy, Rust 1.96.1 checks and the dependency audit. Repeated
+32K area/overview exports were byte-identical; saved world files were unchanged.
+Three independent comparisons against the pre-change executable preserved Classic
+PNG bytes. The visual panel uses one retained seed-42 200 × 300 km world; it
+does not complete the broader terrain-realism acceptance.
+
+The earlier 32K export commit records 611 workspace tests and 74 targeted checks;
+these are historical verification results, not a fresh test run. The last checked
+[CI run for base commit `23dfb0999672`](https://github.com/DiceMasterIO/arda/actions/runs/34260968213)
+passed Linux/macOS tests, lint, MSRV and dependency checks, but failed the
+Windows golden-text comparison on LF versus CRLF line endings. Its 34 logged
+fingerprint entries match after normalization; that test failure remains open.
+The detailed [status audit](docs/capstone/open-items.md) separates implemented
+work, verification evidence and unresolved visual acceptance.
 
 Generation is an offline batch. Valid size inputs can still exceed
 resource limits. Failures after generation begins can leave partial output
