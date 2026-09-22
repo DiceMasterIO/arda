@@ -14,10 +14,24 @@ pub use arda_core::{
 };
 pub use arda_gen::{GenError, HydrologyLimits};
 pub use arda_render::{AreaImageScale, ImageQuality};
+mod atlas;
 mod export_quality;
-pub use export_quality::{export_area_with_quality, export_overview_with_quality};
+pub use export_quality::{
+    export_area_with_quality, export_area_with_quality_and_style, export_overview_with_quality,
+    export_overview_with_quality_and_style,
+};
 mod world;
 pub use world::{Area, World};
+
+/// Cartographic presentation applied to PNG exports.
+#[derive(Debug, Default, Clone, Copy, PartialEq, Eq)]
+pub enum MapStyle {
+    /// Existing categorical cartography.
+    #[default]
+    Classic,
+    /// Natural atlas terrain color and deterministic relief.
+    Atlas,
+}
 
 /// Runs the batch, writing a world directory (`mockup/01`).
 ///

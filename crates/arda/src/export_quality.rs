@@ -1,6 +1,6 @@
 //! High-resolution PNG exports with bounded raster memory and final publication.
 
-use crate::{AreaImageScale, ExportError, ImageQuality, World};
+use crate::{atlas::atlas_terrain, AreaImageScale, ExportError, ImageQuality, MapStyle, World};
 use std::{
     fs::{File, OpenOptions},
     io::{BufWriter, Write},
@@ -24,6 +24,22 @@ pub fn export_area_with_quality(
     out: &Path,
     quality: ImageQuality,
 ) -> Result<PathBuf, ExportError> {
+    export_area_with_quality_and_style(world, ax, ay, out, quality, MapStyle::Classic)
+}
+
+/// Exports an area PNG at a validated resolution and presentation.
+///
+/// # Errors
+/// Propagates target/neighbor loading, Atlas halo, saved geometry, PNG and
+/// write failures. A failed stream preserves an existing completed destination.
+pub fn export_area_with_quality_and_style(
+    world: &World,
+    ax: i32,
+    ay: i32,
+    out: &Path,
+    quality: ImageQuality,
+    style: MapStyle,
+) -> Result<PathBuf, ExportError> {
     let area = world.read_area(ax, ay)?;
     let coordinate = |value| {
         u32::try_from(value).map_err(|_| arda_render::RenderError::ChannelGeometry {
@@ -39,9 +55,29 @@ pub fn export_area_with_quality(
     } else {
         AreaImageScale::Custom(quality)
     };
+    let terrain = match style {
+        MapStyle::Classic => None,
+        MapStyle::Atlas => Some(atlas_terrain(world, ax, ay, area.cells())?),
+    };
     let path = out.join(format!("area_{ax:02}_{ay:02}.png"));
     publish_png(&path, |writer| {
-        arda_render::render_area_png_to(area.cells(), area.objects(), origin, scale, writer)?;
+        match terrain.as_ref() {
+            None => arda_render::render_area_png_to(
+                area.cells(),
+                area.objects(),
+                origin,
+                scale,
+                writer,
+            )?,
+            Some(terrain) => arda_render::render_area_png_to_atlas(
+                area.cells(),
+                area.objects(),
+                origin,
+                scale,
+                terrain,
+                writer,
+            )?,
+        }
         Ok(())
     })?;
     Ok(path)
@@ -60,18 +96,45 @@ pub fn export_overview_with_quality(
     out: &Path,
     quality: ImageQuality,
 ) -> Result<PathBuf, ExportError> {
+    export_overview_with_quality_and_style(world, out, quality, MapStyle::Classic)
+}
+
+/// Exports an overview PNG with the selected long edge and presentation.
+///
+/// # Errors
+/// Propagates dimension, target/neighbor loading, Atlas halo, render, PNG and
+/// write failures. A failed stream preserves an existing completed destination.
+pub fn export_overview_with_quality_and_style(
+    world: &World,
+    out: &Path,
+    quality: ImageQuality,
+    style: MapStyle,
+) -> Result<PathBuf, ExportError> {
     let manifest = world.manifest();
     let (width, height) = quality.overview_dimensions(manifest.areas_wide, manifest.areas_high)?;
     let path = out.join("overview.png");
-    publish_png(&path, |writer| {
-        arda_render::write_overview_png(
+    publish_png(&path, |writer| match style {
+        MapStyle::Classic => arda_render::write_overview_png(
             manifest.areas_wide,
             manifest.areas_high,
             width,
             height,
             writer,
             |at| Ok(world.read_area(at.x, at.y)?.into_cells()),
-        )
+        ),
+        MapStyle::Atlas => arda_render::write_atlas_overview_png(
+            manifest.areas_wide,
+            manifest.areas_high,
+            width,
+            height,
+            writer,
+            |at| {
+                let area = world.read_area(at.x, at.y)?;
+                let cells = area.into_cells();
+                let terrain = atlas_terrain(world, at.x, at.y, &cells)?;
+                Ok((cells, terrain))
+            },
+        ),
     })?;
     Ok(path)
 }
