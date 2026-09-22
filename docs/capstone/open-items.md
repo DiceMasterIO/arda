@@ -312,6 +312,8 @@ crossings, with consistent geometry and stable identities across areas.
 
 ### OI-12 — Substantially improve world-map geographical rendering
 
+**Active continuation:** the user requested continuing until the whole render meets the target. Colour/depth refinement `9a16883` passes 80 renderer tests and real-image compatibility checks. Stronger lighting was tested but not adopted because it accentuates saved straight gullies. A larger fixed seed-42 500×1000 km world was started for broader acceptance; no completion is claimed for that run or the overall visual goal. Local audit: `features/2026-09-22-atlas-visual-fidelity/goal-audit.md`.
+
 **Status:** first geographical rendering pass delivered September 22 at `342d03e55120`: earthy elevation palette, neighbor-aware shading, sea-depth colours and class-filtered per-output-pixel palette/light interpolation. The broader milestone remains open for ecological/human layers and multi-seed acceptance.
 **Depends on:** existing physical data to start; OI-08–OI-11 for ecological/human
 inputs; OI-13 to finalize published settlement extents; OI-02 for comparison. **Targets:**
