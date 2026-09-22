@@ -17,17 +17,21 @@ const MIN_LIGHT: i128 = 2_048;
 const MAX_LIGHT: i128 = 5_120;
 
 const LAND_STOPS: [(i32, [u8; 3]); 7] = [
-    (0, [104, 122, 77]),
-    (200_000, [126, 139, 91]),
-    (500_000, [148, 145, 104]),
-    (900_000, [160, 145, 112]),
-    (1_400_000, [149, 132, 112]),
-    (2_000_000, [142, 139, 134]),
+    (0, [104, 133, 68]),
+    (200_000, [132, 151, 78]),
+    (500_000, [165, 161, 97]),
+    (900_000, [182, 162, 116]),
+    (1_400_000, [167, 143, 109]),
+    (2_000_000, [146, 143, 133]),
     (2_800_000, [232, 232, 226]),
 ];
-const SEA_SHALLOW: [u8; 3] = [61, 121, 154];
-const SEA_DEEP: [u8; 3] = [12, 39, 78];
-const SEA_DEPTH_MAX_MM: i64 = 6_000_000;
+const SEA_STOPS: [(i64, [u8; 3]); 5] = [
+    (0, [103, 163, 168]),
+    (50_000, [43, 110, 141]),
+    (250_000, [20, 72, 110]),
+    (1_000_000, [12, 45, 80]),
+    (6_000_000, [7, 26, 51]),
+];
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 struct SourceSample {
@@ -550,8 +554,15 @@ fn land_palette(height_mm: i32) -> [u8; 3] {
 }
 
 fn sea_palette(height_mm: i32) -> [u8; 3] {
-    let depth = (-i64::from(height_mm)).clamp(0, SEA_DEPTH_MAX_MM);
-    interpolate(SEA_SHALLOW, SEA_DEEP, depth, SEA_DEPTH_MAX_MM)
+    let depth = (-i64::from(height_mm)).max(0);
+    for pair in SEA_STOPS.windows(2) {
+        let (lower, low) = pair[0];
+        let (upper, high) = pair[1];
+        if depth < upper {
+            return interpolate(low, high, depth - lower, upper - lower);
+        }
+    }
+    SEA_STOPS[SEA_STOPS.len() - 1].1
 }
 
 fn modulate(palette: [u8; 3], light: u16) -> [u8; 3] {

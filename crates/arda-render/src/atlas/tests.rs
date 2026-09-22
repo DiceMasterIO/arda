@@ -382,7 +382,18 @@ fn planar_gradients_continue_at_edges_and_four_area_corner() {
 
 #[test]
 fn outer_edges_clamp_each_axis_independently() {
-    let target = planar_area(0, 0);
+    let shifted_plane = |area_x, area_y| {
+        let mut area = planar_area(area_x, area_y);
+        for y in 0..512 {
+            for x in 0..512 {
+                let at = CellCoord::new(x, y).unwrap();
+                let height = area.get(at).height.raw();
+                area.set(at, cell(height - 10_000, TerrainKind::Land));
+            }
+        }
+        area
+    };
+    let target = shifted_plane(0, 0);
     let mut halo = AtlasHalo::new();
     for direction in DIRECTIONS {
         match direction {
@@ -392,7 +403,7 @@ fn outer_edges_clamp_each_axis_independently() {
                     AtlasNeighbor::SouthEast => (1, 1),
                     _ => (1, 0),
                 };
-                halo.copy_neighbor(direction, &planar_area(x, y)).unwrap();
+                halo.copy_neighbor(direction, &shifted_plane(x, y)).unwrap();
             }
             _ => halo.mark_world_edge(direction).unwrap(),
         }
@@ -446,18 +457,18 @@ fn diagonal_two_by_two_changes_only_its_corner_sampling() {
 fn flat_opposed_and_extreme_relief_have_exact_records() {
     assert_eq!(
         modulate(land_palette(500_000), relief_light(0, 0)),
-        [148, 145, 104]
+        [165, 161, 97]
     );
     assert_eq!(
         modulate(land_palette(500_000), relief_light(200_000, 0)),
-        [152, 149, 107]
+        [169, 165, 99]
     );
     assert_eq!(
         modulate(land_palette(500_000), relief_light(-200_000, 0)),
-        [109, 107, 77]
+        [121, 119, 71]
     );
-    assert_eq!(sea_palette(-3_000_000), [37, 80, 116]);
-    assert_eq!(sea_palette(-6_000_000), [12, 39, 78]);
+    assert_eq!(sea_palette(-3_000_000), [10, 37, 68]);
+    assert_eq!(sea_palette(-6_000_000), [7, 26, 51]);
     assert_eq!(land_palette(2_800_000), [232, 232, 226]);
     assert_eq!(
         modulate(land_palette(2_800_000), relief_light(-4_294_967_295, 0)),
@@ -478,18 +489,18 @@ fn flat_opposed_and_extreme_relief_have_exact_records() {
     let land = AtlasTerrain::new(&land_cells, edge_halo()).unwrap();
     let sea = AtlasTerrain::new(&filled(-3_000_000, TerrainKind::Sea), edge_halo()).unwrap();
     let lake = AtlasTerrain::new(&filled(500_000, TerrainKind::Lake), edge_halo()).unwrap();
-    assert_eq!(land.colour(CellCoord::new(0, 0).unwrap()), [148, 145, 104]);
+    assert_eq!(land.colour(CellCoord::new(0, 0).unwrap()), [165, 161, 97]);
     assert_eq!(
         land.colour(CellCoord::new(200, 200).unwrap()),
-        [152, 149, 107]
+        [169, 165, 99]
     );
     assert_eq!(
         land.colour(CellCoord::new(300, 300).unwrap()),
-        [109, 107, 77]
+        [121, 119, 71]
     );
     assert_eq!(record(&sea, 0, 0).1, 4096);
     assert_eq!(record(&lake, 0, 0).1, 4096);
-    assert_eq!(sea.colour(CellCoord::new(0, 0).unwrap()), [37, 80, 116]);
+    assert_eq!(sea.colour(CellCoord::new(0, 0).unwrap()), [10, 37, 68]);
     assert_eq!(
         lake.colour(CellCoord::new(0, 0).unwrap()),
         crate::carto::LAKE_FILL
@@ -518,6 +529,28 @@ fn flat_opposed_and_extreme_relief_have_exact_records() {
         extreme.colour(CellCoord::new(511, 511).unwrap()),
         [116, 116, 113]
     );
+}
+
+#[test]
+fn sea_palette_interpolates_depth_bands_without_seams_or_overflow() {
+    assert_eq!(sea_palette(1), [103, 163, 168]);
+    assert_eq!(sea_palette(0), [103, 163, 168]);
+    assert_eq!(sea_palette(-25_000), [73, 137, 155]);
+    assert_eq!(sea_palette(-50_000), [43, 110, 141]);
+    assert_eq!(sea_palette(-150_000), [32, 91, 126]);
+    assert_eq!(sea_palette(-249_999), [20, 72, 110]);
+    assert_eq!(sea_palette(-250_000), [20, 72, 110]);
+    assert_eq!(sea_palette(-250_001), [20, 72, 110]);
+    assert_eq!(sea_palette(-1_000_000), [12, 45, 80]);
+    assert_eq!(sea_palette(-6_000_000), [7, 26, 51]);
+    assert_eq!(sea_palette(i32::MIN), [7, 26, 51]);
+
+    let depths = [0, 25_000, 50_000, 150_000, 250_000, 1_000_000, 6_000_000];
+    for pair in depths.windows(2) {
+        let shallow = sea_palette(-pair[0]);
+        let deep = sea_palette(-pair[1]);
+        assert!(shallow.into_iter().zip(deep).all(|(a, b)| a >= b));
+    }
 }
 
 fn fixture() -> AtlasTerrain {
