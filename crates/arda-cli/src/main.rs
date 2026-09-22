@@ -2,9 +2,9 @@
 
 use anyhow::{bail, Context, Result};
 use arda::{
-    export_area_with_quality, export_area_with_scale, export_block, export_overview,
-    export_overview_with_quality, generate, AreaImageScale, ExportFormat, GenerateConfig,
-    ImageQuality, LatitudeBand, SizeKm, World,
+    export_area_with_quality_and_style, export_area_with_scale, export_block, export_overview,
+    export_overview_with_quality_and_style, generate, AreaImageScale, ExportFormat, GenerateConfig,
+    ImageQuality, LatitudeBand, MapStyle, SizeKm, World,
 };
 use clap::{Parser, Subcommand, ValueEnum};
 use std::path::{Path, PathBuf};
@@ -56,6 +56,9 @@ enum Command {
         /// PNG long edge: 512–32768 pixels, or 1k–32k (default: 8k).
         #[arg(long)]
         quality: Option<ImageQuality>,
+        /// Cartographic PNG presentation; omission preserves Classic.
+        #[arg(long, value_enum, conflicts_with = "px")]
+        style: Option<Style>,
         /// Directory to create; holds `world/` and `overview.png`.
         #[arg(long)]
         out: PathBuf,
@@ -84,6 +87,9 @@ enum Command {
         /// PNG area side or overview long edge: 512–32768, or 1k–32k (default: 8k).
         #[arg(long, conflicts_with = "block")]
         quality: Option<ImageQuality>,
+        /// Cartographic PNG presentation; omission preserves Classic.
+        #[arg(long, value_enum)]
+        style: Option<Style>,
         /// Directory to write into.
         #[arg(long)]
         out: PathBuf,
@@ -96,10 +102,26 @@ enum Format {
     Json,
 }
 
+#[derive(Debug, Clone, Copy, ValueEnum)]
+enum Style {
+    Classic,
+    Atlas,
+}
+
+impl From<Style> for MapStyle {
+    fn from(value: Style) -> Self {
+        match value {
+            Style::Classic => Self::Classic,
+            Style::Atlas => Self::Atlas,
+        }
+    }
+}
+
 #[derive(Clone, Copy, Default)]
 struct ImageOptions {
     detail: bool,
     quality: Option<ImageQuality>,
+    style: Option<Style>,
 }
 
 impl ImageOptions {
@@ -113,11 +135,18 @@ impl ImageOptions {
         if self.detail && self.quality.is_some() {
             bail!("--detail cannot be combined with --quality");
         }
+        if self.style.is_some() && (block.is_some() || matches!(format, Format::Json)) {
+            bail!("--style is valid only for area or overview PNG exports");
+        }
         Ok(())
     }
 
     fn quality(self) -> ImageQuality {
         self.quality.unwrap_or_default()
+    }
+
+    fn style(self) -> MapStyle {
+        self.style.map_or(MapStyle::Classic, Into::into)
     }
 }
 
@@ -164,6 +193,7 @@ fn run_preview(
     micro: bool,
     px: Option<u32>,
     quality: Option<ImageQuality>,
+    style: Option<Style>,
     out: &Path,
 ) -> Result<()> {
     let config = if micro {
@@ -190,7 +220,12 @@ fn run_preview(
     let world = World::load(&world_dir)?;
     let path = match px {
         Some(px) => export_overview(&world, out, px)?,
-        None => export_overview_with_quality(&world, out, quality.unwrap_or_default())?,
+        None => export_overview_with_quality_and_style(
+            &world,
+            out,
+            quality.unwrap_or_default(),
+            style.map_or(MapStyle::Classic, Into::into),
+        )?,
     };
     println!("wrote {}", path.display());
     Ok(())
@@ -235,7 +270,8 @@ fn run_export(
     if overview {
         let world = World::load(world)?;
         std::fs::create_dir_all(out).context("cannot create the output directory")?;
-        let path = export_overview_with_quality(&world, out, image.quality())?;
+        let path =
+            export_overview_with_quality_and_style(&world, out, image.quality(), image.style())?;
         println!("wrote {}", path.display());
         return Ok(());
     }
@@ -251,18 +287,35 @@ fn run_export(
         Format::Png => ExportFormat::Png,
         Format::Json => ExportFormat::Json,
     };
-    let path = match format {
-        ExportFormat::Png if !image.detail => {
-            export_area_with_quality(&world, ax, ay, out, image.quality())?
+    let path = match (format, image.detail, image.style()) {
+        (ExportFormat::Png, true, MapStyle::Classic) => export_area_with_scale(
+            &world,
+            ax,
+            ay,
+            out,
+            ExportFormat::Png,
+            AreaImageScale::Detail,
+        )?,
+        (ExportFormat::Png, true, MapStyle::Atlas) => export_area_with_quality_and_style(
+            &world,
+            ax,
+            ay,
+            out,
+            ImageQuality::new(4096)?,
+            MapStyle::Atlas,
+        )?,
+        (ExportFormat::Png, false, style) => {
+            export_area_with_quality_and_style(&world, ax, ay, out, image.quality(), style)?
         }
-        _ => {
-            let scale = if image.detail {
-                AreaImageScale::Detail
-            } else {
-                AreaImageScale::Preview
-            };
-            export_area_with_scale(&world, ax, ay, out, format, scale)?
-        }
+        (ExportFormat::Json, false, _) => export_area_with_scale(
+            &world,
+            ax,
+            ay,
+            out,
+            ExportFormat::Json,
+            AreaImageScale::Preview,
+        )?,
+        (ExportFormat::Json, true, _) => unreachable!("validated above"),
     };
     println!("wrote {}", path.display());
     Ok(())
@@ -282,8 +335,9 @@ fn main() -> Result<()> {
             micro,
             px,
             quality,
+            style,
             out,
-        } => run_preview(seed, &size, micro, px, quality, &out),
+        } => run_preview(seed, &size, micro, px, quality, style, &out),
         Command::Export {
             world,
             area,
@@ -293,6 +347,7 @@ fn main() -> Result<()> {
             out,
             detail,
             quality,
+            style,
         } => run_export(
             &world,
             &area,
@@ -300,7 +355,11 @@ fn main() -> Result<()> {
             overview,
             block.as_deref(),
             &out,
-            ImageOptions { detail, quality },
+            ImageOptions {
+                detail,
+                quality,
+                style,
+            },
         ),
     }
 }
@@ -310,6 +369,128 @@ mod tests {
     #![allow(clippy::unwrap_used)]
 
     use super::*;
+
+    #[test]
+    fn style_parses_and_omission_defaults_to_classic() {
+        for (text, expected) in [("classic", MapStyle::Classic), ("atlas", MapStyle::Atlas)] {
+            let cli = Cli::try_parse_from([
+                "arda", "export", "--world", "saved", "--out", "exports", "--style", text,
+            ])
+            .unwrap();
+            let Command::Export {
+                style,
+                detail,
+                quality,
+                ..
+            } = cli.command
+            else {
+                panic!("expected export")
+            };
+            assert_eq!(
+                ImageOptions {
+                    detail,
+                    quality,
+                    style
+                }
+                .style(),
+                expected
+            );
+        }
+        let cli = Cli::try_parse_from(["arda", "export", "--world", "saved", "--out", "exports"])
+            .unwrap();
+        let Command::Export {
+            style,
+            detail,
+            quality,
+            ..
+        } = cli.command
+        else {
+            panic!("expected export")
+        };
+        assert!(style.is_none());
+        assert_eq!(
+            ImageOptions {
+                detail,
+                quality,
+                style
+            }
+            .style(),
+            MapStyle::Classic
+        );
+    }
+
+    #[test]
+    fn unknown_style_is_a_parse_error() {
+        assert!(Cli::try_parse_from([
+            "arda", "export", "--world", "saved", "--out", "exports", "--style", "painted",
+        ])
+        .is_err());
+    }
+
+    #[test]
+    fn explicit_style_rejects_json_and_blocks_before_io() {
+        for (format, block) in [
+            (Format::Json, None),
+            (Format::Json, Some("0,0,0,0")),
+            (Format::Png, Some("0,0,0,0")),
+        ] {
+            let result = run_export(
+                Path::new("missing-world"),
+                "0,0",
+                format,
+                false,
+                block,
+                Path::new("must-not-exist"),
+                ImageOptions {
+                    detail: false,
+                    quality: None,
+                    style: Some(Style::Atlas),
+                },
+            );
+            assert!(result.is_err_and(|error| {
+                error.to_string() == "--style is valid only for area or overview PNG exports"
+            }));
+        }
+        assert!(ImageOptions::default()
+            .validate(Format::Json, false, None)
+            .is_ok());
+    }
+
+    #[test]
+    fn preview_legacy_px_conflicts_with_any_explicit_style() {
+        for style in ["classic", "atlas"] {
+            assert!(Cli::try_parse_from([
+                "arda", "preview", "--seed", "42", "--out", "unused", "--px", "16", "--style",
+                style,
+            ])
+            .is_err());
+        }
+        assert!(Cli::try_parse_from([
+            "arda", "preview", "--seed", "42", "--out", "unused", "--px", "16",
+        ])
+        .is_ok());
+    }
+
+    #[test]
+    fn detail_accepts_atlas_but_still_rejects_quality_overview_and_blocks() {
+        assert!(Cli::try_parse_from([
+            "arda", "export", "--world", "saved", "--out", "exports", "--detail", "--style",
+            "atlas",
+        ])
+        .is_ok());
+        for extra in [
+            vec!["--quality", "4k"],
+            vec!["--overview"],
+            vec!["--block", "0,0,0,0"],
+        ] {
+            let mut args = vec![
+                "arda", "export", "--world", "saved", "--out", "exports", "--detail", "--style",
+                "atlas",
+            ];
+            args.extend(extra);
+            assert!(Cli::try_parse_from(args).is_err());
+        }
+    }
 
     #[test]
     fn detail_conflicts_with_overview_and_blocks() {
@@ -334,6 +515,7 @@ mod tests {
             ImageOptions {
                 detail: true,
                 quality: None,
+                style: None,
             },
         );
         assert!(
@@ -371,7 +553,16 @@ mod tests {
             else {
                 panic!("expected export")
             };
-            assert_eq!(ImageOptions { detail, quality }.quality().pixels(), 8192);
+            assert_eq!(
+                ImageOptions {
+                    detail,
+                    quality,
+                    style: None,
+                }
+                .quality()
+                .pixels(),
+                8192
+            );
         }
     }
 
@@ -418,6 +609,7 @@ mod tests {
         let image = ImageOptions {
             detail: false,
             quality: Some(ImageQuality::DEFAULT),
+            style: None,
         };
         for (format, overview, block) in [
             (Format::Json, false, None),
