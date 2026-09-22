@@ -3,6 +3,7 @@
 // `code-prefs.md` §Q1 bans unwrap/expect *outside* `#[cfg(test)]`.
 #![cfg_attr(test, allow(clippy::unwrap_used, clippy::expect_used))]
 
+mod atlas;
 mod channel_geometry;
 mod channels;
 mod hydrology_json;
@@ -14,6 +15,7 @@ pub mod carto;
 pub mod json;
 pub mod symbolic;
 
+pub use atlas::{AtlasHalo, AtlasNeighbor, AtlasTerrain};
 pub use carto::{render_area_png, render_area_png_to, render_overview_png};
 pub use channels::AreaImageScale;
 pub use json::{area_json, block_json, SCHEMA_VERSION};
@@ -42,6 +44,12 @@ pub enum RenderError {
     #[error("invalid channel geometry: {reason}")]
     ChannelGeometry {
         /// The failed physical or resource rule.
+        reason: &'static str,
+    },
+    /// Neighbor context or exact resampling invariants were violated.
+    #[error("invalid atlas context: {reason}")]
+    AtlasContext {
+        /// The violated context or sampling rule.
         reason: &'static str,
     },
     /// Overview dimensions exceed supported ranges or the pixel budget.
