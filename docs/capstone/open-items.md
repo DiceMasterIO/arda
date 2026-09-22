@@ -141,7 +141,7 @@ fresh CI run passes every configured job. The approved hashes remain unchanged.
 
 ### OI-02 — Restore a reproducible visual and measurement baseline
 
-**Status:** partially evidenced by the September 22 Atlas panel: one retained seed-42 200×300 km world, five selected areas, matched styles and both seam directions. The multi-seed/default/MICRO/climate gallery below remains open. **Depends on:** current generator; OI-01 only
+**Status:** partially evidenced by two retained seed-42 worlds: the September 22 200×300 km panel has five selected areas, matched styles and both seam directions; the configured 500×1000 km default world has 171 areas, a real 8K overview and six selected 8K area views chosen from measured terrain/water coverage. The larger world reaches 3,801.251 m and exercises the high-elevation palette. Its gallery still shows repeated valleys, stepped shores and a large angular interior lake. Additional seeds, MICRO/climate coverage and final visual acceptance remain open. Local default gallery: `features/2026-09-22-atlas-visual-fidelity/evidence/default-world-gallery/README.md`. **Depends on:** current generator; OI-01 only
 for a clean cross-platform gate. **Targets:** existing examples/tests under
 `crates/arda/` and `crates/arda-gen/tests/`, `docs/capstone/06-testing.md`;
 a gallery/report harness is **proposed**.
@@ -192,7 +192,7 @@ target, topology remains correct, and any retained physical limit is explicit.
 
 ### OI-05 — Diagnose and correct reproduced rectangular regional basins
 
-**Status:** historical finding awaiting OI-02. **Depends on:** OI-02.
+**Status:** the current seed-42 configured 500×1000 km overview contains a large angular interior lake. This is new visual evidence relevant to the historical finding, not proof that its exact historical cause persists; basin identity, terrain shape and annual water support still need to be traced. **Depends on:** OI-02.
 **Targets:** continental relief, shared fine preparation/evolution, fine basin
 topology and annual lake support in `crates/arda-gen/src/hydrology/`.
 
@@ -313,7 +313,7 @@ crossings, with consistent geometry and stable identities across areas.
 
 ### OI-12 — Substantially improve world-map geographical rendering
 
-**Active continuation:** the user requested continuing until the whole render meets the target. Colour/depth refinement `9a16883` passes 649 workspace tests and real-image compatibility checks. Stronger lighting was tested but not adopted because it accentuates saved straight gullies. Stage probes localize those gullies to continent erosion; replacing contributing-area accumulation alone was rejected because it flattens valley relief. A scratch shoreline renderer smooths part of the coast but still requires zero-height, topology and mouth handling. Production geography remains unchanged; expansion beyond the agreed render-first scope is awaiting the user's decision. A larger fixed seed-42 500×1000 km world is in progress for broader acceptance; no completion is claimed for that run or the overall visual goal. Local audit: `features/2026-09-22-atlas-visual-fidelity/goal-audit.md`.
+**Active continuation:** the user requested continuing until the whole render meets the target. Colour/depth refinement `9a16883` passes 649 workspace tests and real-image compatibility checks. Stronger lighting was tested but not adopted because it accentuates saved straight gullies. Stage probes localize those gullies to continent erosion; replacing contributing-area accumulation alone was rejected because it flattens valley relief. Scratch shoreline renderers provide local rounding but still require topology and mouth handling. The larger fixed seed-42 500×1000 km world and 8K gallery are complete: high-altitude terrain is now inspected, but repeated grooves, broad pale relief, thin channels and an angular interior lake leave the reference-quality goal incomplete. Production geography remains unchanged; expansion beyond the agreed render-first scope is awaiting the user's decision. Local audit: `features/2026-09-22-atlas-visual-fidelity/goal-audit.md`.
 
 **Status:** first geographical rendering pass delivered September 22 at `342d03e55120`: earthy elevation palette, neighbor-aware shading, sea-depth colours and class-filtered per-output-pixel palette/light interpolation. The broader milestone remains open for ecological/human layers and multi-seed acceptance.
 **Depends on:** existing physical data to start; OI-08–OI-11 for ecological/human
