@@ -16,10 +16,12 @@ pub mod json;
 pub mod symbolic;
 
 pub use atlas::{AtlasHalo, AtlasNeighbor, AtlasTerrain};
-pub use carto::{render_area_png, render_area_png_to, render_overview_png};
+pub use carto::{
+    render_area_png, render_area_png_to, render_area_png_to_atlas, render_overview_png,
+};
 pub use channels::AreaImageScale;
 pub use json::{area_json, block_json, SCHEMA_VERSION};
-pub use overview::{write_overview_png, OverviewRaster};
+pub use overview::{write_atlas_overview_png, write_overview_png, OverviewRaster};
 pub use quality::ImageQuality;
 pub use symbolic::{render_block_png, SQUARE_PX};
 

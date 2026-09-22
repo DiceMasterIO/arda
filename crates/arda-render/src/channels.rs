@@ -1,10 +1,11 @@
 //! Physical channel raster and scale-dependent preview marks.
 
+use crate::atlas::axis_kernel;
 use crate::carto::{lake_colour, land_colour, sea_colour, LAKE_FILL};
 use crate::channel_geometry::{
     coverage, hull, strip, terminal_footprint, Point, Polygon, WorkBudget, Q,
 };
-use crate::{GlobalCell, ImageQuality, RenderError};
+use crate::{AtlasTerrain, GlobalCell, ImageQuality, RenderError};
 use arda_core::{AreaCells, CellCoord, Lake, TerrainKind};
 use std::collections::BTreeSet;
 
@@ -317,6 +318,7 @@ fn lake_colours(cells: &AreaCells, lakes: &[Lake]) -> Result<Vec<Option<[u8; 3]>
 /// fixed independent cap. No RGB image, mask, or per-image pixel array exists.
 pub(crate) struct AreaRaster<'a> {
     cells: &'a AreaCells,
+    terrain: Option<&'a AtlasTerrain>,
     lake_colours: Vec<Option<[u8; 3]>>,
     shapes: Vec<Shape>,
     starts: Vec<usize>,
@@ -342,6 +344,7 @@ fn coverage_work_limit(side: u32) -> u64 {
 }
 
 impl<'a> AreaRaster<'a> {
+    #[cfg(test)]
     pub(crate) fn new(
         cells: &'a AreaCells,
         inputs: impl IntoIterator<Item = Result<ChannelInput, RenderError>>,
@@ -349,8 +352,20 @@ impl<'a> AreaRaster<'a> {
         scale: AreaImageScale,
         lakes: &[Lake],
     ) -> Result<Self, RenderError> {
-        Self::with_work_limit(
+        Self::new_with_terrain(cells, None, inputs, origin, scale, lakes)
+    }
+
+    pub(crate) fn new_with_terrain(
+        cells: &'a AreaCells,
+        terrain: Option<&'a AtlasTerrain>,
+        inputs: impl IntoIterator<Item = Result<ChannelInput, RenderError>>,
+        origin: GlobalCell,
+        scale: AreaImageScale,
+        lakes: &[Lake],
+    ) -> Result<Self, RenderError> {
+        Self::with_terrain_and_work_limit(
             cells,
+            terrain,
             inputs,
             origin,
             scale,
@@ -359,8 +374,21 @@ impl<'a> AreaRaster<'a> {
         )
     }
 
+    #[cfg(test)]
     fn with_work_limit(
         cells: &'a AreaCells,
+        inputs: impl IntoIterator<Item = Result<ChannelInput, RenderError>>,
+        origin: GlobalCell,
+        scale: AreaImageScale,
+        lakes: &[Lake],
+        work_limit: u64,
+    ) -> Result<Self, RenderError> {
+        Self::with_terrain_and_work_limit(cells, None, inputs, origin, scale, lakes, work_limit)
+    }
+
+    fn with_terrain_and_work_limit(
+        cells: &'a AreaCells,
+        terrain: Option<&'a AtlasTerrain>,
         inputs: impl IntoIterator<Item = Result<ChannelInput, RenderError>>,
         origin: GlobalCell,
         scale: AreaImageScale,
@@ -376,6 +404,7 @@ impl<'a> AreaRaster<'a> {
         let side = scale.side() as usize;
         Ok(Self {
             cells,
+            terrain,
             lake_colours,
             shapes,
             starts,
@@ -394,35 +423,69 @@ impl<'a> AreaRaster<'a> {
         })
     }
 
-    fn base(&mut self, cell_y: usize) -> Result<(), RenderError> {
-        if self.base_cell_y == Some(cell_y) {
+    fn base(&mut self, y: usize) -> Result<(), RenderError> {
+        let cell_y = y * 512 / self.side;
+        let Some(terrain) = self.terrain else {
+            if self.base_cell_y == Some(cell_y) {
+                return Ok(());
+            }
+            for cell_x in 0..512 {
+                let at = CellCoord::new(
+                    u16::try_from(cell_x).map_err(|_| invalid("raster cell leaves area"))?,
+                    u16::try_from(cell_y).map_err(|_| invalid("raster cell leaves area"))?,
+                )
+                .ok_or_else(|| invalid("raster cell leaves area"))?;
+                let cell = self.cells.get(at);
+                let colour = match cell.terrain {
+                    TerrainKind::Lake => self
+                        .lake_colours
+                        .get(cell_y * 512 + cell_x)
+                        .copied()
+                        .flatten()
+                        .unwrap_or(LAKE_FILL),
+                    TerrainKind::Sea => sea_colour(cell.height.raw()),
+                    TerrainKind::Land => land_colour(cell.height.raw()),
+                };
+                let start = (cell_x * self.side).div_ceil(512);
+                let end = ((cell_x + 1) * self.side).div_ceil(512);
+                for pixel in self.base_row[start * 3..end * 3].as_chunks_mut::<3>().0 {
+                    pixel.copy_from_slice(&colour);
+                }
+            }
+            self.base_cell_y = Some(cell_y);
             return Ok(());
-        }
-        for cell_x in 0..512 {
+        };
+
+        let pixel_y = u32::try_from(y).map_err(|_| invalid("pixel exceeds raster"))?;
+        let side = u32::try_from(self.side).map_err(|_| invalid("pixel exceeds raster"))?;
+        let y_kernel = axis_kernel(pixel_y, side)?;
+        for x in 0..self.side {
+            let cell_x = x * 512 / self.side;
             let at = CellCoord::new(
                 u16::try_from(cell_x).map_err(|_| invalid("raster cell leaves area"))?,
                 u16::try_from(cell_y).map_err(|_| invalid("raster cell leaves area"))?,
             )
             .ok_or_else(|| invalid("raster cell leaves area"))?;
             let cell = self.cells.get(at);
-            let colour = match cell.terrain {
-                TerrainKind::Lake => self
-                    .lake_colours
+            let colour = if cell.terrain == TerrainKind::Lake {
+                self.lake_colours
                     .get(cell_y * 512 + cell_x)
                     .copied()
                     .flatten()
-                    .unwrap_or(LAKE_FILL),
-                TerrainKind::Sea => sea_colour(cell.height.raw()),
-                TerrainKind::Land => land_colour(cell.height.raw()),
+                    .unwrap_or(LAKE_FILL)
+            } else {
+                terrain.sample(
+                    axis_kernel(
+                        u32::try_from(x).map_err(|_| invalid("pixel exceeds raster"))?,
+                        side,
+                    )?,
+                    y_kernel,
+                    cell.terrain,
+                )?
             };
-            // Inverse of floor(pixel * 512 / side), including nonmultiples.
-            let start = (cell_x * self.side).div_ceil(512);
-            let end = ((cell_x + 1) * self.side).div_ceil(512);
-            for pixel in self.base_row[start * 3..end * 3].as_chunks_mut::<3>().0 {
-                pixel.copy_from_slice(&colour);
-            }
+            self.base_row[x * 3..x * 3 + 3].copy_from_slice(&colour);
         }
-        self.base_cell_y = Some(cell_y);
+        self.base_cell_y = None;
         Ok(())
     }
 
@@ -472,7 +535,7 @@ impl<'a> AreaRaster<'a> {
             }
         }
         let cell_y = y * 512 / self.side;
-        self.base(cell_y)?;
+        self.base(y)?;
         self.rgb.copy_from_slice(&self.base_row);
         for (x, ids) in self.pixels.iter().enumerate() {
             if ids.is_empty() {

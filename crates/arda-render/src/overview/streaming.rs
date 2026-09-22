@@ -2,7 +2,7 @@
 
 use super::{sample_pixel, validate_exact_dimensions, Feature};
 use crate::carto::{river_band_colour, RiverBand};
-use crate::RenderError;
+use crate::{AtlasTerrain, RenderError};
 use arda_core::{AreaCells, AreaCoord};
 use std::io::Write;
 
@@ -40,6 +40,49 @@ where
     F: FnMut(AreaCoord) -> Result<AreaCells, E>,
     E: From<RenderError>,
 {
+    write_overview_png_inner(areas_wide, areas_high, width, height, output, move |at| {
+        load_area(at).map(|cells| (cells, None))
+    })
+}
+
+/// Encodes an Atlas overview in bounded 256-row bands.
+///
+/// The callback supplies saved cells and their validated neighboring terrain
+/// context for each intersecting area; it may be called again across bands.
+///
+/// # Errors
+/// Returns dimension, loading, atlas-context, writer or PNG errors.
+pub fn write_atlas_overview_png<W, F, E>(
+    areas_wide: i32,
+    areas_high: i32,
+    width: u32,
+    height: u32,
+    output: W,
+    mut load_area: F,
+) -> Result<(), E>
+where
+    W: Write,
+    F: FnMut(AreaCoord) -> Result<(AreaCells, AtlasTerrain), E>,
+    E: From<RenderError>,
+{
+    write_overview_png_inner(areas_wide, areas_high, width, height, output, move |at| {
+        load_area(at).map(|(cells, terrain)| (cells, Some(terrain)))
+    })
+}
+
+fn write_overview_png_inner<W, F, E>(
+    areas_wide: i32,
+    areas_high: i32,
+    width: u32,
+    height: u32,
+    output: W,
+    mut load_area: F,
+) -> Result<(), E>
+where
+    W: Write,
+    F: FnMut(AreaCoord) -> Result<(AreaCells, Option<AtlasTerrain>), E>,
+    E: From<RenderError>,
+{
     validate_exact_dimensions(areas_wide, areas_high, width, height)?;
     let world_width =
         u32::try_from(areas_wide).map_err(|_| RenderError::ExactOverviewDimensions)?;
@@ -64,13 +107,14 @@ where
                 for area_x in 0..areas_wide {
                     let x =
                         u32::try_from(area_x).map_err(|_| RenderError::ExactOverviewDimensions)?;
-                    let cells = load_area(AreaCoord::new(area_x, area_y))?;
+                    let (cells, terrain) = load_area(AreaCoord::new(area_x, area_y))?;
                     band.render_tile(
                         x * width / world_width,
                         (x + 1) * width / world_width,
                         tile_y0,
                         tile_y1,
                         &cells,
+                        terrain.as_ref(),
                     )?;
                 }
             }
@@ -114,6 +158,7 @@ impl RasterBand {
         y0: u32,
         y1: u32,
         cells: &AreaCells,
+        terrain: Option<&AtlasTerrain>,
     ) -> Result<(), RenderError> {
         let tile_width = x1 - x0;
         let tile_height = y1 - y0;
@@ -122,7 +167,8 @@ impl RasterBand {
             let row =
                 usize::try_from(y - self.y0).map_err(|_| RenderError::ExactOverviewDimensions)?;
             for (pixel, x) in (row * self.width + output_x0..).zip(0..tile_width) {
-                let (colour, feature) = sample_pixel(cells, tile_width, tile_height, x, y - y0);
+                let (colour, feature) =
+                    sample_pixel(cells, terrain, tile_width, tile_height, x, y - y0)?;
                 self.rgb[pixel * 3..pixel * 3 + 3].copy_from_slice(&colour);
                 self.features[pixel] = feature;
             }
@@ -161,6 +207,7 @@ impl RasterBand {
 mod tests {
     use super::*;
     use crate::overview::OverviewRaster;
+    use crate::{AtlasHalo, AtlasNeighbor, AtlasTerrain};
     use arda_core::{Cell, CellCoord, DischargeMilli, HeightMm, TerrainKind, AREA_CELLS};
 
     fn area(at: AreaCoord) -> AreaCells {
@@ -202,6 +249,57 @@ mod tests {
         (frame.width, frame.height, rgb)
     }
 
+    fn standalone_atlas(cells: &AreaCells) -> AtlasTerrain {
+        let mut halo = AtlasHalo::new();
+        for direction in [
+            AtlasNeighbor::North,
+            AtlasNeighbor::NorthEast,
+            AtlasNeighbor::East,
+            AtlasNeighbor::SouthEast,
+            AtlasNeighbor::South,
+            AtlasNeighbor::SouthWest,
+            AtlasNeighbor::West,
+            AtlasNeighbor::NorthWest,
+        ] {
+            halo.mark_world_edge(direction).unwrap();
+        }
+        AtlasTerrain::new(cells, halo).unwrap()
+    }
+
+    #[test]
+    fn atlas_streaming_matches_unequal_buffered_partitions_and_push_order() {
+        for (width, height) in [(1541, 1031), (1537, 513)] {
+            let mut expected = None;
+            for reverse in [false, true] {
+                let mut raster = OverviewRaster::new_exact(3, 2, width, height).unwrap();
+                let mut coords = (0..2)
+                    .flat_map(|y| (0..3).map(move |x| AreaCoord::new(x, y)))
+                    .collect::<Vec<_>>();
+                if reverse {
+                    coords.reverse();
+                }
+                for at in coords {
+                    let cells = area(at);
+                    let terrain = standalone_atlas(&cells);
+                    raster.push_atlas(at, &cells, &terrain).unwrap();
+                }
+                let pixels = decode(&raster.finish().unwrap());
+                if let Some(ref previous) = expected {
+                    assert_eq!(&pixels, previous);
+                }
+                expected = Some(pixels);
+            }
+            let mut actual = Vec::new();
+            write_atlas_overview_png(3, 2, width, height, &mut actual, |at| {
+                let cells = area(at);
+                let terrain = standalone_atlas(&cells);
+                Ok::<_, RenderError>((cells, terrain))
+            })
+            .unwrap();
+            assert_eq!(decode(&actual), expected.unwrap());
+        }
+    }
+
     #[test]
     fn streaming_matches_buffered_pixels_across_area_and_band_seams() {
         for (areas_wide, areas_high, width, height) in [
@@ -234,6 +332,9 @@ mod tests {
         assert!(validate_exact_dimensions(1, 1, 32_768, 32_768).is_ok());
         assert_eq!(band_height(32_768), 256);
         assert_eq!(band_height(7), 7);
+        let band = RasterBand::new(32_768, 32_768).unwrap();
+        assert_eq!(band.rgb.len(), 256 * 32_768 * 3);
+        assert_eq!(band.features.len(), 256 * 32_768);
     }
 
     #[test]
@@ -249,5 +350,29 @@ mod tests {
             Err::<AreaCells, _>(RenderError::PartialWorld)
         });
         assert!(matches!(error, Err(RenderError::PartialWorld)));
+
+        let mut loaded = false;
+        let invalid = write_atlas_overview_png(1, 1, 32_769, 1, Vec::new(), |_| {
+            loaded = true;
+            Err::<(AreaCells, AtlasTerrain), _>(RenderError::PartialWorld)
+        });
+        assert!(matches!(invalid, Err(RenderError::ExactOverviewDimensions)));
+        assert!(!loaded);
+        let missing = write_atlas_overview_png(1, 1, 1, 1, Vec::new(), |_| {
+            Err::<(AreaCells, AtlasTerrain), _>(RenderError::PartialWorld)
+        });
+        assert!(matches!(missing, Err(RenderError::PartialWorld)));
+        let sea = AreaCells::flat(Cell {
+            terrain: TerrainKind::Sea,
+            ..Cell::default()
+        });
+        let wrong = AreaCells::flat(Cell {
+            terrain: TerrainKind::Land,
+            ..Cell::default()
+        });
+        let mismatch = write_atlas_overview_png(1, 1, 512, 512, Vec::new(), |_| {
+            Ok::<_, RenderError>((wrong.clone(), standalone_atlas(&sea)))
+        });
+        assert!(matches!(mismatch, Err(RenderError::AtlasContext { .. })));
     }
 }

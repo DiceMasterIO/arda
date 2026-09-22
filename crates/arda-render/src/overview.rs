@@ -1,14 +1,15 @@
 //! Incremental overview rendering from one saved area at a time.
 
+use crate::atlas::axis_kernel;
 use crate::carto::{
     land_colour, river_band, river_band_colour, RiverBand, LAKE_FILL, LAKE_MIN_BLOCK_DEN,
     OVERVIEW_SEA,
 };
-use crate::RenderError;
+use crate::{AtlasTerrain, RenderError};
 use arda_core::{AreaCells, AreaCoord, CellCoord, TerrainKind, AREA_CELLS};
 
 mod streaming;
-pub use streaming::write_overview_png;
+pub use streaming::{write_atlas_overview_png, write_overview_png};
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord)]
 enum Feature {
@@ -51,7 +52,7 @@ impl OverviewRaster {
         Self::allocate(areas_wide, areas_high, width, height)
     }
 
-    /// Allocates an exact-size overview, repeating saved cells when enlarged.
+    /// Allocates an exact-size overview; Classic repeats saved cells when enlarged.
     ///
     /// Each axis supports 1–32,768 pixels, with at most 134,217,728 pixels
     /// total. There must be at least one pixel per area along each axis;
@@ -106,6 +107,28 @@ impl OverviewRaster {
     /// # Errors
     /// Refuses out-of-range or duplicate areas.
     pub fn push(&mut self, at: AreaCoord, cells: &AreaCells) -> Result<(), RenderError> {
+        self.push_inner(at, cells, None)
+    }
+
+    /// Incorporates one Atlas area, preserving saved feature ownership.
+    ///
+    /// # Errors
+    /// Refuses out-of-range or duplicate areas and invalid atlas context.
+    pub fn push_atlas(
+        &mut self,
+        at: AreaCoord,
+        cells: &AreaCells,
+        terrain: &AtlasTerrain,
+    ) -> Result<(), RenderError> {
+        self.push_inner(at, cells, Some(terrain))
+    }
+
+    fn push_inner(
+        &mut self,
+        at: AreaCoord,
+        cells: &AreaCells,
+        terrain: Option<&AtlasTerrain>,
+    ) -> Result<(), RenderError> {
         if at.x < 0 || at.y < 0 || at.x >= self.areas_wide || at.y >= self.areas_high {
             return Err(RenderError::OverviewDimensions);
         }
@@ -129,7 +152,8 @@ impl OverviewRaster {
         let tile_height = output_y1 - output_y0;
         for py in 0..tile_height {
             for pxi in 0..tile_width {
-                let (colour, best) = sample_pixel(cells, tile_width, tile_height, pxi, py);
+                let (colour, best) =
+                    sample_pixel(cells, terrain, tile_width, tile_height, pxi, py)?;
 
                 let x = output_x0 + pxi;
                 let y = output_y0 + py;
@@ -214,13 +238,14 @@ fn validate_exact_dimensions(
 
 fn sample_pixel(
     cells: &AreaCells,
+    terrain: Option<&AtlasTerrain>,
     tile_width: u32,
     tile_height: u32,
     x: u32,
     y: u32,
-) -> ([u8; 3], Feature) {
+) -> Result<([u8; 3], Feature), RenderError> {
     // Half-open bounds retain the rightmost/bottom cells even when 512 is
-    // not divisible by the output tile size. Enlarging repeats saved cells.
+    // not divisible by the output tile size. These bounds own feature masks.
     let side = u32::from(AREA_CELLS);
     let x0 = x * side / tile_width;
     let x1 = ((x + 1) * side / tile_width).max(x0 + 1);
@@ -260,14 +285,26 @@ fn sample_pixel(
     if lake_cells * LAKE_MIN_BLOCK_DEN >= block_cells {
         best = Feature::Lake;
     }
-    let colour = match best {
-        Feature::Sea => OVERVIEW_SEA,
+    let colour = match (best, terrain) {
+        (Feature::Sea, Some(terrain)) => terrain.sample(
+            axis_kernel(x, tile_width)?,
+            axis_kernel(y, tile_height)?,
+            TerrainKind::Sea,
+        )?,
+        (Feature::Land, Some(terrain)) => terrain.sample(
+            axis_kernel(x, tile_width)?,
+            axis_kernel(y, tile_height)?,
+            TerrainKind::Land,
+        )?,
+        (Feature::Sea, None) => OVERVIEW_SEA,
         // Include channel cells in the land mean to preserve the ground tint.
-        Feature::Land => land_colour(i32::try_from(height_sum / land_count.max(1)).unwrap_or(0)),
-        Feature::River(band) => river_band_colour(band),
-        Feature::Lake => LAKE_FILL,
+        (Feature::Land, None) => {
+            land_colour(i32::try_from(height_sum / land_count.max(1)).unwrap_or(0))
+        }
+        (Feature::River(band), _) => river_band_colour(band),
+        (Feature::Lake, _) => LAKE_FILL,
     };
-    (colour, best)
+    Ok((colour, best))
 }
 
 /// Renders supplied areas as one overview, preserving the borrowed batch API.
@@ -290,7 +327,133 @@ pub fn render_overview_png(
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::{AtlasHalo, AtlasNeighbor, AtlasTerrain};
     use arda_core::{Cell, DischargeMilli, HeightMm};
+
+    fn standalone_atlas(cells: &AreaCells) -> AtlasTerrain {
+        let mut halo = AtlasHalo::new();
+        for direction in [
+            AtlasNeighbor::North,
+            AtlasNeighbor::NorthEast,
+            AtlasNeighbor::East,
+            AtlasNeighbor::SouthEast,
+            AtlasNeighbor::South,
+            AtlasNeighbor::SouthWest,
+            AtlasNeighbor::West,
+            AtlasNeighbor::NorthWest,
+        ] {
+            halo.mark_world_edge(direction).unwrap();
+        }
+        AtlasTerrain::new(cells, halo).unwrap()
+    }
+
+    #[test]
+    fn atlas_overview_mixed_axes_and_exact_centers() {
+        let mut cells = AreaCells::flat(Cell {
+            terrain: TerrainKind::Land,
+            ..Cell::default()
+        });
+        for y in 0..AREA_CELLS {
+            for x in 0..AREA_CELLS {
+                cells.set(
+                    CellCoord::new(x, y).unwrap(),
+                    Cell {
+                        height: HeightMm::new(i32::from(x) * 2_000 + i32::from(y) * 3_000),
+                        terrain: TerrainKind::Land,
+                        ..Cell::default()
+                    },
+                );
+            }
+        }
+        let terrain = standalone_atlas(&cells);
+        let mut mixed = OverviewRaster::new_exact(1, 1, 511, 513).unwrap();
+        mixed
+            .push_atlas(AreaCoord::new(0, 0), &cells, &terrain)
+            .unwrap();
+        for y in [0, 1, 255, 512] {
+            for x in [0, 255, 510] {
+                let pixel = usize::try_from((y * 511 + x) * 3).unwrap();
+                assert_eq!(
+                    &mixed.rgb[pixel..pixel + 3],
+                    &terrain
+                        .sample(
+                            crate::atlas::axis_kernel(x, 511).unwrap(),
+                            crate::atlas::axis_kernel(y, 513).unwrap(),
+                            TerrainKind::Land
+                        )
+                        .unwrap()
+                );
+            }
+        }
+        let mut enlarged = OverviewRaster::new_exact(1, 1, 1536, 1536).unwrap();
+        enlarged
+            .push_atlas(AreaCoord::new(0, 0), &cells, &terrain)
+            .unwrap();
+        for (x, y) in [(0, 0), (255, 255), (511, 511)] {
+            let pixel = ((y * 3 + 1) * 1536 + (x * 3 + 1)) * 3;
+            assert_eq!(
+                &enlarged.rgb[pixel..pixel + 3],
+                &terrain.colour(
+                    CellCoord::new(u16::try_from(x).unwrap(), u16::try_from(y).unwrap()).unwrap()
+                )
+            );
+        }
+    }
+
+    #[test]
+    fn atlas_overview_retains_saved_feature_mask_and_propagates_context_errors() {
+        let mut cells = AreaCells::flat(Cell {
+            height: HeightMm::new(-2000),
+            terrain: TerrainKind::Sea,
+            ..Cell::default()
+        });
+        for y in 0..AREA_CELLS {
+            for x in 256..AREA_CELLS {
+                cells.set(
+                    CellCoord::new(x, y).unwrap(),
+                    Cell {
+                        height: HeightMm::new(200_000),
+                        terrain: TerrainKind::Land,
+                        ..Cell::default()
+                    },
+                );
+            }
+        }
+        let terrain = standalone_atlas(&cells);
+        let mut classic = OverviewRaster::new_exact(1, 1, 513, 513).unwrap();
+        classic.push(AreaCoord::new(0, 0), &cells).unwrap();
+        let mut atlas = OverviewRaster::new_exact(1, 1, 513, 513).unwrap();
+        atlas
+            .push_atlas(AreaCoord::new(0, 0), &cells, &terrain)
+            .unwrap();
+        assert_eq!(atlas.features, classic.features);
+        for (x, class) in [
+            (255, TerrainKind::Sea),
+            (256, TerrainKind::Sea),
+            (257, TerrainKind::Land),
+        ] {
+            let i = (256 * 513 + x) * 3;
+            assert_eq!(
+                &atlas.rgb[i..i + 3],
+                &terrain
+                    .sample(
+                        crate::atlas::axis_kernel(u32::try_from(x).unwrap(), 513).unwrap(),
+                        crate::atlas::axis_kernel(256, 513).unwrap(),
+                        class
+                    )
+                    .unwrap()
+            );
+        }
+        let wrong = AreaCells::flat(Cell {
+            terrain: TerrainKind::Land,
+            ..Cell::default()
+        });
+        let mut rejected = OverviewRaster::new_exact(1, 1, 512, 512).unwrap();
+        assert!(matches!(
+            rejected.push_atlas(AreaCoord::new(0, 0), &wrong, &terrain),
+            Err(RenderError::AtlasContext { .. })
+        ));
+    }
 
     #[test]
     fn incremental_order_and_batch_wrapper_have_identical_bytes() {
