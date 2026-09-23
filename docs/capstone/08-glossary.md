@@ -1,7 +1,7 @@
 ---
-generated_at_commit: 757b2ab5418b
+generated_at_commit: 3c06909b427c
 generated_date: 2026-09-23
-content_hash: fc6f4c6ebab2
+content_hash: 3ea0394cbd98
 paths_covered: [":(top)crates/**", ":(top)tests/**"]
 absorbed_from: features/2026-09-07-area-water-terrain-realism@2026-09-08, features/2026-09-23-terrain-corrections@2026-09-23
 ---
@@ -57,6 +57,7 @@ absorbed_from: features/2026-09-07-area-water-terrain-realism@2026-09-08, featur
 | Subseed | BLAKE3 key over world seed plus tier/stage/coordinates/attempt, driving ChaCha8. | `crates/arda-core/src/rng.rs:84` |
 | format_version | Stored-world compatibility major, currently 4. Current loads require exact match; existing format-3 worlds are preserved and refused, with no migration. | `crates/arda-core/src/formats/mod.rs:17`; `crates/arda-core/src/formats/manifest.rs:75` |
 | model_revision / schema_version | Hydrology model 2 denotes representative annual semantics. JSON schema 2 carries those records and decimal-string global IDs/u128 amounts; it is independent of world-format and crate versions. | `crates/arda-core/src/formats/hydrology.rs:12`; `crates/arda-render/src/json.rs:15`; `crates/arda-render/src/hydrology_json.rs:145` |
+| Atlas land material | Saved gradient magnitude controls exposed-rock tint; altitude and slope control snow appearance. Integer presentation policy only, with no generated rock/forest/snow state. | `crates/arda-render/src/atlas.rs:636` |
 | Atlas shoreline | Integer bilinear saved-height sign reconstructs displayed land/sea boundaries at enlarged pixel centers, with saved-class guards for lakes, ambiguous diagonals and thin features. Box axes retain existing ownership; no saved membership changes. | `crates/arda-render/src/atlas.rs:412`; `crates/arda-render/src/overview.rs:239` |
 | Golden world | MICRO seed fixture with per-file fingerprints in root workspace tests; updating expected fingerprints requires explicit authorization. A source review does not substitute for this determinism gate. | `tests/golden_world.rs:69`; `standards.md` |
 | Trunk corridor / realm | Designed society/road constructs; no generation implementation yet. | `logic/01-continent-generation.md`; `logic/06-society-generation.md`; `crates/arda-gen/src/` |

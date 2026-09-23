@@ -1,7 +1,7 @@
 ---
-generated_at_commit: 757b2ab5418b
+generated_at_commit: 3c06909b427c
 generated_date: 2026-09-23
-content_hash: a290bff2f390
+content_hash: b404592347c6
 paths_covered: [":(top)Cargo.toml", ":(top)crates/*/Cargo.toml", ":(top)crates/*/src/**", ":(top)Dockerfile", ":(top).github/**", ":(top)rust-toolchain.toml", ":(top)deny.toml", ":(top)crates/*/examples/**"]
 absorbed_from: features/2026-09-07-area-water-terrain-realism@2026-09-08, features/2026-09-22-geographical-rendering-first-pass@2026-09-22, features/2026-09-23-terrain-corrections@2026-09-23
 ---

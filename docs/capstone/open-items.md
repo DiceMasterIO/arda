@@ -1,7 +1,7 @@
 ---
 generated_date: 2026-09-23
-generated_at_commit: 757b2ab5418b
-content_hash: 7fc9d9e31fb5
+generated_at_commit: 3c06909b427c
+content_hash: 128bb4c37eef
 paths_covered:
   - ":(top)crates/**"
   - ":(top)tests/**"
@@ -19,7 +19,9 @@ absorbed_from:
 
 ## Current status — renderer and correction checks complete 2026-09-23; visual target open
 
-The Atlas first pass and the authorized terrain/shoreline corrections are implemented on `codex/geographical-rendering-first-pass`. Current source `757b2ab` adds exact Euclidean tectonic belts, preserves shallow ocean-rim depth, leaves 1 km evolution as hillslope creep while shared 100 m evolution forms valleys, and reconstructs Atlas sea/land shores consistently across colour and river clipping. Formats and existing Classic exports remain compatible. Integrated small/default seed-42 worlds and a seed-99 MICRO holdout are retained, along with the full 32K default map. Verification and documentation close this correction pass; the broader reference-quality visual objective remains open for regional mountain/basin form and remaining repetitive drainage. Earlier completed physical, hydrology and rendering work remains implemented.
+The Atlas first pass and the authorized terrain/shoreline corrections are implemented on `codex/geographical-rendering-first-pass`. Terrain source `757b2ab` adds exact Euclidean tectonic belts, preserves shallow ocean-rim depth, leaves 1 km evolution as hillslope creep while shared 100 m evolution forms valleys, and reconstructs Atlas sea/land shores consistently across colour and river clipping. Formats and existing Classic exports remain compatible. Integrated small/default seed-42 worlds and a seed-99 MICRO holdout are retained, along with the full 32K default map. Verification and documentation close this correction pass; the broader reference-quality visual objective remains open for regional mountain/basin form and remaining repetitive drainage. Earlier completed physical, hydrology and rendering work remains implemented.
+
+Renderer source `3c06909` additionally improves exposed-rock and snow appearance using saved slope/elevation and stronger bounded light. The same seed-42 world has been exported again at 32K. This makes existing valleys easier to read; it does not resolve the broad smooth mountains, parallel drainage or regional basin. Controlled 100 m duration, receiver and channel-initiation trials did not establish a suitable terrain replacement; intermediate-scale relief remains research.
 
 ### Implemented work
 
@@ -35,7 +37,7 @@ The Atlas first pass and the authorized terrain/shoreline corrections are implem
 | Resource admission | Resource limits are checked before output creation and applied through preparation, solve and publication. `crates/arda-gen/src/orchestrator.rs:338`. |
 | Lazy loading | Manifest-first loading, requested area/archive caches and owned area reads for exports exist. Whole-world eager loading is no longer the implementation. `crates/arda/src/world.rs:93`, `crates/arda/src/world.rs:192`, `crates/arda/src/world.rs:208`. |
 | Cartographic PNG exports | Area/world maps render saved terrain and physical water geometry. Configurable quality defaults to 8K and accepts 512–32768 pixels; quality exports stream rows/bands through temporary-file publication. Higher image resolution does not regenerate terrain. `crates/arda-render/src/quality.rs:11`, `crates/arda-render/src/overview/streaming.rs:30`, `crates/arda/src/export_quality.rs:20`; commit `c577528`. |
-| Atlas rendering first pass | Natural elevation palette, neighbor-aware relief shading, sea-depth colour and per-output-pixel palette/light interpolation; Classic remains the default. Bounded 512–32K exports preserve saved 100 m data; guarded integer height contours refine displayed sea/land shores while lake ownership remains categorical. `crates/arda-render/src/atlas.rs:164`, `crates/arda/src/lib.rs:28`, `crates/arda/src/export_quality.rs:35`. |
+| Atlas rendering first pass | Natural elevation palette, slope-derived rock/snow appearance, neighbor-aware relief shading, sea-depth colour and per-output-pixel palette/light interpolation; Classic remains the default. Bounded 512–32K exports preserve saved 100 m data; guarded integer height contours refine displayed sea/land shores while lake ownership remains categorical. `crates/arda-render/src/atlas.rs:164`, `crates/arda/src/lib.rs:28`, `crates/arda/src/export_quality.rs:35`. |
 | JSON and developer surfaces | Versioned area/block JSON, reusable Rust facade, CLI `generate`/`preview`/`export`, and Docker build definition exist. `crates/arda-render/src/json.rs`, `crates/arda/src/lib.rs`, `crates/arda-cli/src/main.rs`, `Dockerfile`. |
 | Tactical prototype | Seeded 64×64 blocks, 24 tile kinds, bounded WFC attempts, relaxed-fill markers, compressed persistence and symbolic PNG/JSON export exist. Coverage is still sampled. `crates/arda-gen/src/block/`, `crates/arda-gen/src/orchestrator.rs:300`, `crates/arda-render/src/symbolic.rs`. |
 | Verification infrastructure | Physical/annual/boundary/resource/codec/render tests and a pinned golden world exist. CI defines Linux/macOS/Windows tests, MSRV, formatting, Clippy and dependency checks. Latest run status is recorded separately below. `crates/*/tests/`, `tests/golden_world.rs`, `.github/workflows/ci.yml`. |
@@ -53,6 +55,8 @@ The Atlas first pass and the authorized terrain/shoreline corrections are implem
 | Static model scope | Annual water is implemented. Seasons, snow storage, groundwater and dynamic floods are outside the current model; their absence does not make annual hydrology pending. Terrain samples remain 100 m apart. `crates/arda-gen/src/hydrology/annual.rs:135`, `crates/arda-core/src/coords.rs:10`. |
 
 ### Verification and visual acceptance
+
+- **September 23 material continuation (`3c06909`):** 89 renderer tests and 56 public-facade/CLI tests (six suites) pass; formatting and strict workspace Clippy pass. Two fresh independent material reviews are dry. Actual 2K overview and matched highland/coast/river exports were inspected; the updated 32K export completed in 66.92 s. These checks cover the material change, not a fresh complete generation/CI run or final visual acceptance.
 
 - **September 23 correction checks:** broad non-golden suite 659 passed/8 ignored before the final test additions; then 18 tectonic tests, five continent tests, strict golden comparison and independent repeat generation pass. Formatting, strict workspace Clippy, Rust 1.96.1 and offline dependency policy pass. Two fresh dry review rounds cover `7028f9b..757b2ab`. This is combined evidence, not a new all-at-once workspace run; no new remote/Windows CI result is claimed.
 - **September 23 actual worlds:** small/default seed42 and MICRO99 have exact saved annual balances. The default has 118 lakes, 799,834 reaches and 2,123 crossings, each agreeing with its canonical reach. Its 32K map repeats byte-identically in 65.65 s at 57,240 KiB peak RSS; all 523 world files remain unchanged. Detailed receipts are in [testing](06-testing.md#terrain-and-shoreline-correction-verification--2026-09-23).

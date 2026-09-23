@@ -1,7 +1,7 @@
 ---
-generated_at_commit: 757b2ab5418b
+generated_at_commit: 3c06909b427c
 generated_date: 2026-09-23
-content_hash: 5cde852d6abc
+content_hash: db98e724b8fc
 paths_covered: [":(top)Cargo.toml", ":(top)crates/*/src/**", ":(top)crates/*/tests/**", ":(top)crates/*/benches/**", ":(top)tests/**", ":(top).github/**", ":(top)crates/*/examples/**"]
 absorbed_from: features/2026-09-07-area-water-terrain-realism@2026-09-08, features/2026-09-22-geographical-rendering-first-pass@2026-09-22, features/2026-09-23-terrain-corrections@2026-09-23
 ---
@@ -350,3 +350,13 @@ their historical meaning and do not establish those gates.
 Source: [tiles.rs](../../crates/arda-core/src/tiles.rs),
 [orchestrator.rs:136](../../crates/arda-gen/src/orchestrator.rs:136),
 [area generation](logic/02-area-generation.md).
+
+## Atlas material continuation — 2026-09-23
+
+Source `3c06909` changes only Atlas land palette/light derivation and its renderer tests. Saved slope magnitude controls exposed rock; continuous altitude/slope weights control snow appearance. Existing area/overview interpolation, halo, water ownership, Classic routing and streaming allocations remain unchanged.
+
+Verification: 89 renderer tests, 56 facade/CLI tests across six suites (141.93 s), formatting and strict workspace Clippy pass. Two fresh independent GPT-6 Sol reviews found no actionable defects. Extreme central gradients are tested; reviewers also checked the doubled one-sided i32-span arithmetic bounds. Existing seam tests prove shared gradient/light behavior; a dedicated high-slope rock-colour seam assertion was noted as optional additional coverage, not a demonstrated defect.
+
+The final binary exported the same immutable default seed-42 world as a 2K overview and matched areas (5,4), (1,6), (2,6). The integrated full 15,522×32,768 overview took 66.92 s and has SHA-256 `a920b5eb8d983870e48abdcc32fa895d3260427f472a279541e1dabc18dbd25a`; command and receipt are retained in `features/2026-09-23-terrain-corrections/evidence/material-probe/integrated/full-world-32k/verification.json`. This is an updated export, not a regenerated world or a repeated resource benchmark. No full workspace, MSRV, dependency-policy or remote CI rerun is claimed for this small continuation.
+
+Actual renders show clearer saved valleys and less blanket-white highland. Broad smooth mountain forms, parallel channels and the large physical basin remain unresolved. Isolated terrain trials retain numeric inputs and reproducible evidence under `fine-time-probe`, `fine-receiver-probe`, `fine-threshold-probe` and `regional-relief-probe`; none changes production generation or its golden files.

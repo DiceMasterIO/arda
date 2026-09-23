@@ -7,11 +7,14 @@ Land colours blend continuously between elevation anchors. Green indicates
 low elevation, not forest cover; white indicates high elevation, not simulated
 snow. Classic does not add hillshading or a biome overlay.
 
-`--style atlas` adds an earthy elevation palette, northwest relief lighting
-computed from neighboring saved heights, and depth-based sea colours. Land
-palette and lighting are interpolated separately at every output pixel.
-Neither style models forest cover or snow from elevation colour. Atlas keeps
-the saved 100 m land/water masks, so close-up coastlines can still look stepped.
+`--style atlas` adds an earthy elevation palette, slope-derived exposed rock,
+altitude/slope-based snow appearance, northwest relief lighting, and depth-based
+sea colours. Land palette and lighting interpolate separately at each output
+pixel. Rock and snow are display rules, not simulated geology or snow storage;
+neither style adds a forest model. Atlas reconstructs guarded land/sea contours
+from saved heights at enlarged scales while preserving the saved physical data.
+Lake ownership and downsampled class coverage remain categorical, so some edges
+can still look stepped.
 
 World-map river colours represent annual mean discharge. Streams below 4 m³/s
 are omitted from the overview, and line widths are symbols rather than physical

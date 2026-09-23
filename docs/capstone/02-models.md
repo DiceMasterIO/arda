@@ -1,7 +1,7 @@
 ---
-generated_at_commit: 757b2ab5418b
+generated_at_commit: 3c06909b427c
 generated_date: 2026-09-23
-content_hash: 6560cedf60cd
+content_hash: c50336733b0b
 paths_covered: [":(top)crates/*/src/**"]
 absorbed_from: [features/2026-09-07-area-water-terrain-realism@2026-09-08, features/2026-09-22-geographical-rendering-first-pass@2026-09-22, features/2026-09-23-terrain-corrections@2026-09-23]
 ---
@@ -1058,6 +1058,8 @@ Core codecs explicitly write little-endian fields; Rust padding is not persisted
 `CellOut` still omits temperature, rainfall, moisture, forest_density, road and built_by; area JSON combines cells, objects, physical channel edges and hydrology in one document. `BlockOut` retains tile IDs/names without material/traversal/movement/cover/hazard attributes, POIs or buildings. Loaded continent-object queries and independently framed lazy block decoding remain unimplemented; `World::load` reads the manifest without loading continent or global hydrology tables (`crates/arda-render/src/json.rs:18`, `crates/arda-render/src/json.rs:66`, `crates/arda-render/src/json.rs:96`, `crates/arda/src/world.rs:93`).
 
 Area Preview is 512² pixels with faint marks for subpixel streams; Detail is 4,096² and Custom is any validated 512–32,768² edge, both showing physical channel coverage only. Every scale resamples the same immutable 512² grid of 100 m cells and saved global D8 channel geometry. Atlas adds an ephemeral 516² halo and 514² palette/light/class/height grids; it creates no new saved fields or world format. Supplied lake surfaces determine the existing blue-to-blue depth ramp; overview retains categorical lake fill and discharge-band river symbols. These are display choices, not changed wet membership or finer terrain (`crates/arda-render/src/atlas.rs:77`, `crates/arda-render/src/atlas.rs:159`, `crates/arda-render/src/channels.rs:11`, `crates/arda-render/src/overview.rs:278`).
+
+Atlas land material now derives exposed-rock colour from the magnitude of the existing saved-height gradient, blends rock tint continuously from 1–2 km elevation, and adds a slope-weighted pale snow appearance from 2.85–4.3 km. The northwest light uses stronger bounded Q12 modulation. These are deterministic display rules, not simulated lithology, vegetation or snow storage; they use the existing fixed halo and palette/light grids (`crates/arda-render/src/atlas.rs:636`). No saved cell field, serialized record or format version changes.
 
 For Linear×Linear output, Atlas reconstructs displayed land/sea ownership from four class-directed signed heights using exact rational pixel centers and i128 bilinear weights. Land samples are at least +1 mm and sea samples at most −1 mm. Positive chooses land, negative sea, and exact zero retains saved ownership. Saved lakes, quads touching lakes, alternating land/sea checkerboards, exact saved-cell centers and guarded one-cell islands/straits retain saved ownership. Any Box axis also retains the existing aggregation/ownership rule. Area colour and channel clipping and both overview paths use this same classifier; an internal AtlasSea feature prevents river-trunk widening over reconstructed sea. Classic remains unchanged (`crates/arda-render/src/atlas.rs:412`, `crates/arda-render/src/channels.rs:451`, `crates/arda-render/src/overview.rs:239`, `crates/arda-render/src/overview/streaming.rs:170`).
 
