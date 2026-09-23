@@ -1,7 +1,9 @@
 //! Bounded-memory exact overview encoding.
 
-use super::{sample_pixel, validate_exact_dimensions, Feature};
-use crate::carto::{river_band_colour, RiverBand};
+use super::{
+    atlas_river_radius, sample_pixel, style_river_band, validate_exact_dimensions, Feature,
+};
+use crate::carto::RiverBand;
 use crate::{AtlasTerrain, RenderError};
 use arda_core::{AreaCells, AreaCoord};
 use std::io::Write;
@@ -16,7 +18,8 @@ fn band_height(height: u32) -> u32 {
 ///
 /// Each axis supports 1–32,768 pixels and 1–78 areas, with at least one
 /// pixel per area per axis. Image memory is limited to 256 rows of RGB and
-/// feature classifications, one preceding feature row, and one loaded area.
+/// feature classifications, at most 16 halo rows each side, one reusable
+/// distance field, and one loaded area.
 /// All saved areas are required. `load_area` may load an area more than once
 /// when it intersects multiple bands and must return the same saved cells.
 ///
@@ -90,18 +93,18 @@ where
         u32::try_from(areas_high).map_err(|_| RenderError::ExactOverviewDimensions)?;
     crate::encode_png_rows(width, height, output, |writer| {
         let mut band = RasterBand::new(width, height)?;
-        let mut preceding_row = vec![Feature::Sea; band.width];
+        let halo = atlas_river_radius(width, height, RiverBand::Dark);
         let rows_per_band = band_height(height);
         let mut band_y0 = 0;
         while band_y0 < height {
             let band_y1 = (band_y0 + rows_per_band).min(height);
-            band.y0 = band_y0;
-            band.y1 = band_y1;
+            band.y0 = band_y0.saturating_sub(halo);
+            band.y1 = (band_y1 + halo).min(height);
             for area_y in 0..areas_high {
                 let y = u32::try_from(area_y).map_err(|_| RenderError::ExactOverviewDimensions)?;
                 let tile_y0 = y * height / world_height;
                 let tile_y1 = (y + 1) * height / world_height;
-                if tile_y1 <= band_y0 || tile_y0 >= band_y1 {
+                if tile_y1 <= band.y0 || tile_y0 >= band.y1 {
                     continue;
                 }
                 for area_x in 0..areas_wide {
@@ -119,11 +122,26 @@ where
                 }
             }
             let pixels = band.pixel_count()?;
-            band.widen_trunks(&preceding_row, pixels);
+            style_river_band(
+                width,
+                height,
+                band.y0,
+                band_y0,
+                band_y1,
+                &band.features[..pixels],
+                &mut band.rgb[..pixels * 3],
+            )?;
+            let start = usize::try_from(band_y0 - band.y0)
+                .map_err(|_| RenderError::ExactOverviewDimensions)?
+                * band.width
+                * 3;
+            let end = usize::try_from(band_y1 - band.y0)
+                .map_err(|_| RenderError::ExactOverviewDimensions)?
+                * band.width
+                * 3;
             writer
-                .write_all(&band.rgb[..pixels * 3])
+                .write_all(&band.rgb[start..end])
                 .map_err(|_| RenderError::Png)?;
-            preceding_row.copy_from_slice(&band.features[pixels - band.width..pixels]);
             band_y0 = band_y1;
         }
         Ok(())
@@ -140,8 +158,10 @@ struct RasterBand {
 
 impl RasterBand {
     fn new(width: u32, height: u32) -> Result<Self, RenderError> {
-        let pixels = usize::try_from(width * band_height(height))
-            .map_err(|_| RenderError::ExactOverviewDimensions)?;
+        let halo = atlas_river_radius(width, height, RiverBand::Dark);
+        let rows = (band_height(height) + halo * 2).min(height);
+        let pixels =
+            usize::try_from(width * rows).map_err(|_| RenderError::ExactOverviewDimensions)?;
         Ok(Self {
             width: usize::try_from(width).map_err(|_| RenderError::ExactOverviewDimensions)?,
             y0: 0,
@@ -181,31 +201,12 @@ impl RasterBand {
             usize::try_from(self.y1 - self.y0).map_err(|_| RenderError::ExactOverviewDimensions)?;
         Ok(rows * self.width)
     }
-
-    fn widen_trunks(&mut self, preceding_row: &[Feature], pixels: usize) {
-        let trunk = Feature::River(RiverBand::Dark);
-        let colour = river_band_colour(RiverBand::Dark);
-        for pixel in 0..pixels {
-            if !matches!(self.features[pixel], Feature::Land | Feature::Sea) {
-                continue;
-            }
-            let x = pixel % self.width;
-            let above = if pixel < self.width {
-                preceding_row[x]
-            } else {
-                self.features[pixel - self.width]
-            };
-            let left_is_trunk = x > 0 && self.features[pixel - 1] == trunk;
-            if above == trunk || left_is_trunk {
-                self.rgb[pixel * 3..pixel * 3 + 3].copy_from_slice(&colour);
-            }
-        }
-    }
 }
 
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::carto::{river_band_colour, RiverBand};
     use crate::overview::OverviewRaster;
     use crate::{AtlasHalo, AtlasNeighbor, AtlasTerrain};
     use arda_core::{Cell, CellCoord, DischargeMilli, HeightMm, TerrainKind, AREA_CELLS};
@@ -396,8 +397,8 @@ mod tests {
         assert_eq!(band_height(32_768), 256);
         assert_eq!(band_height(7), 7);
         let band = RasterBand::new(32_768, 32_768).unwrap();
-        assert_eq!(band.rgb.len(), 256 * 32_768 * 3);
-        assert_eq!(band.features.len(), 256 * 32_768);
+        assert_eq!(band.rgb.len(), (256 + 32) * 32_768 * 3);
+        assert_eq!(band.features.len(), (256 + 32) * 32_768);
     }
 
     #[test]
