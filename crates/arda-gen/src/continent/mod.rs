@@ -213,9 +213,8 @@ pub fn generate_continent_attempt(seed: u64, config: GenerateConfig, attempt: u8
         }
     }
 
-    // Step 2 (continued): coarse erosion and drainage respond on the 1 km
-    // grid. Running it here rather than only per-tile is what lets valleys
-    // cross tile boundaries, and it leaves no pinned-rim seams.
+    // Smooth 1 km hillslopes across the full continent. Valley incision runs
+    // later on the shared 100 m surface, across tile boundaries.
     erode::erode_continent(&mut height_mm, vis_w, vis_h);
 
     ContinentGrid {

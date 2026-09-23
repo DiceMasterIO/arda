@@ -753,10 +753,11 @@ mod tests {
     fn merged_seeds_take_the_max_order_not_the_summed_order() {
         // The crossing/window/tie-break oracle is independent of
         // `entering_rivers`; the exact landing cell may move within the tile.
-        let ctx = fixture_ctx();
-        let area = AreaCoord::new(0, 1);
-        let bundle = bundle_for(42, &ctx, area);
-        let merged = independent_seed_parts(42, &ctx, area)
+        let seed = 0;
+        let ctx = crate::continent::build_continent(seed, GenerateConfig::MICRO, 0);
+        let area = AreaCoord::new(1, 0);
+        let bundle = bundle_for(seed, &ctx, area);
+        let merged = independent_seed_parts(seed, &ctx, area)
             .into_iter()
             .filter(|(_, parts)| parts.len() >= 2);
         let mut merged_count = 0;
@@ -777,7 +778,7 @@ mod tests {
         }
         assert!(
             merged_count > 0,
-            "no physical merged seed in MICRO seed 42 tile (0,1)"
+            "no physical merged seed in MICRO seed 0 tile (1,0)"
         );
     }
 
@@ -785,9 +786,9 @@ mod tests {
     fn a_merged_seed_keeps_the_max_part_order_not_the_summed_order() {
         // A distinguishing natural merge catches recomputing order from the
         // summed catchment, even when both rules happen to agree elsewhere.
-        let seed = 362;
+        let seed = 2;
         let ctx = crate::continent::build_continent(seed, GenerateConfig::MICRO, 0);
-        let area = AreaCoord::new(0, 2);
+        let area = AreaCoord::new(0, 1);
         let bundle = bundle_for(seed, &ctx, area);
         let mut distinguished = 0;
         for ((cx, cy), parts) in independent_seed_parts(seed, &ctx, area) {

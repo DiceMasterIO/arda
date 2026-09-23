@@ -401,7 +401,7 @@ fn independent_lake_surface_at(b: &TileBundle, cells: &[CellCoord]) -> Option<i3
 ///
 /// The original fixture had 31 north-edge crossings, all with an upstream
 /// outlet in the matching absolute 10-cell window. Candidate 04 had 12
-/// crossings; corrected tectonic classification leaves four on that same
+/// crossings; the current creep-only coarse terrain leaves six on that same
 /// seam, still all matched. Their entering fields are checked independently,
 /// together with every other MICRO tile's entries. The count of receiving
 /// drainage values exceeding the independently computed upstream local
@@ -517,8 +517,8 @@ fn seam_entries_match_independent_hydrology_and_the_upstream_outlet() {
     println!("legacy seam totals: independently_checked_entries={independent_entries}, north_entries={}, matched_outlets={}, receiving_ge_upstream={ge_holds}", north.len(), north.len());
     assert_eq!(
         north.len(),
-        4,
-        "tile (0,3) north-edge entering count drifted; re-derive cross-tile-c06-fixtures.md"
+        6,
+        "tile (0,3) north-edge entering count drifted; re-derive the independent crossing fixture"
     );
 }
 
@@ -1076,7 +1076,7 @@ fn walled_pit(x_range: std::ops::Range<i32>, y_range: std::ops::Range<i32>) -> V
 /// Phase 1 uses the real `fill` -> `water` -> `compose` path with each
 /// bundle's real `basin_km`. Neither near-rim contact sees a continent
 /// depression, so the bilinear fallback applies. Independent bundle sampling
-/// derives surfaces 118,943 and 118,625 mm, a 318 mm gap. Candidate 04 measured
+/// derives surfaces 120,025 and 119,747 mm, a 278 mm gap. Candidate 04 measured
 /// 299,106 / 300,786 mm (1,680 mm gap); the earlier physical fixture was
 /// 306,426 / 308,937 mm (2,511 mm gap). This is the documented
 /// limitation of the retained local API: a synthetic fine-only pit has no
@@ -1239,11 +1239,11 @@ fn straddling_basins_agree_on_their_surface_across_the_seam() {
     );
     assert_eq!(
         (p_lake.surface.raw(), q_lake.surface.raw()),
-        (118_942, 118_625),
-        "the corrected fallback pair drifted; re-derive cross-tile-c05-fixtures.md"
+        (120_025, 119_747),
+        "the corrected fallback pair drifted; re-derive the independent surface fixture"
     );
     assert_eq!(
-        gap, 317,
-        "the legacy fallback gap drifted from 317 mm; re-derive cross-tile-c05-fixtures.md"
+        gap, 278,
+        "the legacy fallback gap drifted from 278 mm; re-derive the independent surface fixture"
     );
 }
