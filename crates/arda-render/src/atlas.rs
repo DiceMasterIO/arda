@@ -1,6 +1,8 @@
 //! Deterministic atlas palette and relief derived from saved area cells.
 
-use arda_core::{AreaCells, CellCoord, TerrainKind};
+use arda_core::{AreaCells, CellCoord, Lake, TerrainKind};
+
+use crate::channels::validated_lake_depths;
 
 use crate::{carto::LAKE_FILL, RenderError};
 
@@ -37,6 +39,7 @@ const SEA_STOPS: [(i64, [u8; 3]); 5] = [
 struct SourceSample {
     height_mm: i32,
     class: TerrainKind,
+    lake_depth_mm: Option<u32>,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -105,6 +108,19 @@ impl AtlasHalo {
         direction: AtlasNeighbor,
         cells: &AreaCells,
     ) -> Result<(), RenderError> {
+        self.copy_neighbor_with_lakes(direction, cells, &[])
+    }
+
+    /// Copies saved neighbor samples with validated lake depths.
+    ///
+    /// # Errors
+    /// Returns invalid lake geometry or an already resolved direction.
+    pub fn copy_neighbor_with_lakes(
+        &mut self,
+        direction: AtlasNeighbor,
+        cells: &AreaCells,
+        lakes: &[Lake],
+    ) -> Result<(), RenderError> {
         if self.states[direction.index()] != NeighborState::Unset {
             return Err(invalid("neighbor direction already resolved"));
         }
@@ -118,6 +134,7 @@ impl AtlasHalo {
             AtlasNeighbor::West => (-2, 0, 510, 0, 2, 512),
             AtlasNeighbor::NorthWest => (-2, -2, 510, 510, 2, 2),
         };
+        let lake_depths = validated_lake_depths(cells, lakes)?;
         for dy in 0..height {
             for dx in 0..width {
                 let source = CellCoord::new(source_x + dx, source_y + dy)
@@ -131,6 +148,10 @@ impl AtlasHalo {
                 self.context[target] = Some(SourceSample {
                     height_mm: cell.height.raw(),
                     class: cell.terrain,
+                    lake_depth_mm: lake_depths
+                        .get(usize::from(source.y()) * 512 + usize::from(source.x()))
+                        .copied()
+                        .flatten(),
                 });
             }
         }
@@ -170,6 +191,7 @@ pub struct AtlasTerrain {
     light: Vec<u16>,
     classes: Vec<TerrainKind>,
     heights: Vec<i32>,
+    has_lake_depths: bool,
 }
 
 impl AtlasTerrain {
@@ -178,7 +200,19 @@ impl AtlasTerrain {
     /// # Errors
     /// Returns [`RenderError::AtlasContext`] for missing, duplicate, or
     /// topologically inconsistent neighbor context.
-    pub fn new(cells: &AreaCells, mut halo: AtlasHalo) -> Result<Self, RenderError> {
+    pub fn new(cells: &AreaCells, halo: AtlasHalo) -> Result<Self, RenderError> {
+        Self::new_with_lakes(cells, &[], halo)
+    }
+
+    /// Derives Atlas colors with validated saved lake depths.
+    ///
+    /// # Errors
+    /// Returns invalid lake geometry or incomplete Atlas context.
+    pub fn new_with_lakes(
+        cells: &AreaCells,
+        lakes: &[Lake],
+        mut halo: AtlasHalo,
+    ) -> Result<Self, RenderError> {
         if halo.states.contains(&NeighborState::Unset) {
             return Err(invalid("neighbor direction unset"));
         }
@@ -210,6 +244,8 @@ impl AtlasTerrain {
                 return Err(invalid("diagonal contradicts cardinal world bounds"));
             }
         }
+        let lake_depths = validated_lake_depths(cells, lakes)?;
+        let has_lake_depths = !lake_depths.is_empty();
         for y in 0..512 {
             for x in 0..512 {
                 let at = CellCoord::new(x, y)
@@ -222,6 +258,10 @@ impl AtlasTerrain {
                 halo.context[index] = Some(SourceSample {
                     height_mm: cell.height.raw(),
                     class: cell.terrain,
+                    lake_depth_mm: lake_depths
+                        .get(usize::from(y) * 512 + usize::from(x))
+                        .copied()
+                        .flatten(),
                 });
             }
         }
@@ -236,6 +276,7 @@ impl AtlasTerrain {
             light: vec![LIGHT_ONE; SAMPLE_SIDE * SAMPLE_SIDE],
             classes: vec![TerrainKind::Sea; SAMPLE_SIDE * SAMPLE_SIDE],
             heights: vec![0; SAMPLE_SIDE * SAMPLE_SIDE],
+            has_lake_depths,
         };
         let start_x = if edges[3] { 0 } else { -1 };
         let end_x = if edges[1] { AREA - 1 } else { AREA };
@@ -254,7 +295,12 @@ impl AtlasTerrain {
                         terrain.light[index] = relief_light(dx, dy);
                     }
                     TerrainKind::Sea => terrain.palette[index] = sea_palette(source.height_mm),
-                    TerrainKind::Lake => terrain.palette[index] = LAKE_FILL,
+                    TerrainKind::Lake => {
+                        terrain.palette[index] = source
+                            .lake_depth_mm
+                            .map(|depth| water_depth_palette(i64::from(depth)))
+                            .unwrap_or(LAKE_FILL);
+                    }
                 }
             }
         }
@@ -305,6 +351,10 @@ impl AtlasTerrain {
             Ok(rgb) => rgb,
             Err(_) => unreachable!("exact-center kernel retains the center's stored terrain class"),
         }
+    }
+
+    pub(crate) fn has_lake_depths(&self) -> bool {
+        self.has_lake_depths
     }
 
     pub(crate) fn sample(
@@ -669,7 +719,10 @@ fn blend(a: [u8; 3], b: [u8; 3], weight_q12: i128) -> [u8; 3] {
 }
 
 fn sea_palette(height_mm: i32) -> [u8; 3] {
-    let depth = (-i64::from(height_mm)).max(0);
+    water_depth_palette((-i64::from(height_mm)).max(0))
+}
+
+fn water_depth_palette(depth: i64) -> [u8; 3] {
     for pair in SEA_STOPS.windows(2) {
         let (lower, low) = pair[0];
         let (upper, high) = pair[1];

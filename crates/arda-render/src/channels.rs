@@ -273,9 +273,12 @@ pub(crate) fn raster_results(
     raster_limited_results(cells, inputs, origin, scale, MAX_COVERAGE_WORK, lakes)
 }
 
-// At most one colour per area cell: a fixed <=1 MiB lookup, independent of
+// At most one depth per area cell: a fixed <=2 MiB lookup, independent of
 // detail resolution. None preserves categorical callers without lake surfaces.
-fn lake_colours(cells: &AreaCells, lakes: &[Lake]) -> Result<Vec<Option<[u8; 3]>>, RenderError> {
+pub(crate) fn validated_lake_depths(
+    cells: &AreaCells,
+    lakes: &[Lake],
+) -> Result<Vec<Option<u32>>, RenderError> {
     const COUNT: usize = 512 * 512;
     let invalid_lake = |reason| RenderError::LakeGeometry { reason };
     if lakes.len() > COUNT {
@@ -291,7 +294,7 @@ fn lake_colours(cells: &AreaCells, lakes: &[Lake]) -> Result<Vec<Option<[u8; 3]>
     if memberships == 0 {
         return Ok(Vec::new());
     }
-    let mut colours = vec![None; COUNT];
+    let mut depths = vec![None; COUNT];
     for lake in lakes {
         for &at in &lake.cells {
             let cell = cells.get(at);
@@ -302,15 +305,22 @@ fn lake_colours(cells: &AreaCells, lakes: &[Lake]) -> Result<Vec<Option<[u8; 3]>
                 ));
             }
             let index = usize::from(at.y()) * 512 + usize::from(at.x());
-            if colours[index].is_some() {
+            if depths[index].is_some() {
                 return Err(invalid_lake("duplicate lake cell membership"));
             }
             let depth = u32::try_from(depth)
                 .map_err(|_| invalid_lake("lake depth exceeds height range"))?;
-            colours[index] = Some(lake_colour(depth));
+            depths[index] = Some(depth);
         }
     }
-    Ok(colours)
+    Ok(depths)
+}
+
+fn lake_colours(cells: &AreaCells, lakes: &[Lake]) -> Result<Vec<Option<[u8; 3]>>, RenderError> {
+    Ok(validated_lake_depths(cells, lakes)?
+        .into_iter()
+        .map(|depth| depth.map(lake_colour))
+        .collect())
 }
 
 /// Prepared geometry and a single reusable scanline. Shape event indexes are
@@ -468,11 +478,19 @@ impl<'a> AreaRaster<'a> {
             .ok_or_else(|| invalid("raster cell leaves area"))?;
             let cell = self.cells.get(at);
             let colour = if cell.terrain == TerrainKind::Lake {
-                self.lake_colours
-                    .get(cell_y * 512 + cell_x)
-                    .copied()
-                    .flatten()
-                    .unwrap_or(LAKE_FILL)
+                if terrain.has_lake_depths() {
+                    let x_kernel = axis_kernel(
+                        u32::try_from(x).map_err(|_| invalid("pixel exceeds raster"))?,
+                        side,
+                    )?;
+                    terrain.sample(x_kernel, y_kernel, TerrainKind::Lake)?
+                } else {
+                    self.lake_colours
+                        .get(cell_y * 512 + cell_x)
+                        .copied()
+                        .flatten()
+                        .unwrap_or(LAKE_FILL)
+                }
             } else {
                 let x_kernel = axis_kernel(
                     u32::try_from(x).map_err(|_| invalid("pixel exceeds raster"))?,

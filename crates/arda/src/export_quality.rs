@@ -57,7 +57,7 @@ pub fn export_area_with_quality_and_style(
     };
     let terrain = match style {
         MapStyle::Classic => None,
-        MapStyle::Atlas => Some(atlas_terrain(world, ax, ay, area.cells())?),
+        MapStyle::Atlas => Some(atlas_terrain(world, ax, ay, area.cells(), area.lakes())?),
     };
     let path = out.join(format!("area_{ax:02}_{ay:02}.png"));
     publish_png(&path, |writer| {
@@ -130,8 +130,8 @@ pub fn export_overview_with_quality_and_style(
             writer,
             |at| {
                 let area = world.read_area(at.x, at.y)?;
+                let terrain = atlas_terrain(world, at.x, at.y, area.cells(), area.lakes())?;
                 let cells = area.into_cells();
-                let terrain = atlas_terrain(world, at.x, at.y, &cells)?;
                 Ok((cells, terrain))
             },
         ),

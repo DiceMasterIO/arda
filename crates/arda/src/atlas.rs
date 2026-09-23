@@ -1,7 +1,7 @@
 //! Bounded saved-neighbor loading for Atlas presentation.
 
 use crate::{ExportError, World};
-use arda_core::AreaCells;
+use arda_core::{AreaCells, Lake};
 use arda_render::{AtlasHalo, AtlasNeighbor, AtlasTerrain};
 
 const DIRECTIONS: [AtlasNeighbor; 8] = [
@@ -37,6 +37,7 @@ pub(crate) fn atlas_terrain(
     ax: i32,
     ay: i32,
     cells: &AreaCells,
+    lakes: &[Lake],
 ) -> Result<AtlasTerrain, ExportError> {
     let mut halo = AtlasHalo::new();
     for direction in DIRECTIONS {
@@ -46,11 +47,11 @@ pub(crate) fn atlas_terrain(
         let ny = ay + dy;
         if inside(world, nx, ny) {
             let neighbor = world.read_area(nx, ny)?;
-            halo.copy_neighbor(direction, neighbor.cells())?;
+            halo.copy_neighbor_with_lakes(direction, neighbor.cells(), neighbor.lakes())?;
             drop(neighbor);
         } else {
             halo.mark_world_edge(direction)?;
         }
     }
-    Ok(AtlasTerrain::new(cells, halo)?)
+    Ok(AtlasTerrain::new_with_lakes(cells, lakes, halo)?)
 }

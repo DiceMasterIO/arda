@@ -332,6 +332,11 @@ fn sample_pixel(
             land_colour(i32::try_from(height_sum / land_count.max(1)).unwrap_or(0))
         }
         (Feature::River(band), _) => river_band_colour(band),
+        (Feature::Lake, Some(terrain)) if terrain.has_lake_depths() => terrain.sample(
+            axis_kernel(x, tile_width)?,
+            axis_kernel(y, tile_height)?,
+            TerrainKind::Lake,
+        )?,
         (Feature::Lake, _) => LAKE_FILL,
     };
     Ok((colour, best))
@@ -676,6 +681,113 @@ mod tests {
                 );
             }
         }
+    }
+
+    #[test]
+    fn atlas_lake_overview_matches_area_palette_with_mixed_axis_sampling() {
+        let mut cells = AreaCells::flat(Cell {
+            height: HeightMm::new(100_000),
+            terrain: TerrainKind::Land,
+            ..Cell::default()
+        });
+        let locations = [
+            (CellCoord::new(100, 100).unwrap(), 190_000),
+            (CellCoord::new(100, 101).unwrap(), 0),
+        ];
+        for &(at, height) in &locations {
+            cells.set(
+                at,
+                Cell {
+                    height: HeightMm::new(height),
+                    terrain: TerrainKind::Lake,
+                    ..Cell::default()
+                },
+            );
+        }
+        let lake = arda_core::Lake {
+            global_id: arda_core::hydrology::BasinId(1),
+            id: 1,
+            surface: HeightMm::new(200_000),
+            depth_mm: 200_000,
+            outlet: None,
+            cells: locations.into_iter().map(|(at, _)| at).collect(),
+        };
+        let mut halo = AtlasHalo::new();
+        for direction in [
+            AtlasNeighbor::North,
+            AtlasNeighbor::NorthEast,
+            AtlasNeighbor::East,
+            AtlasNeighbor::SouthEast,
+            AtlasNeighbor::South,
+            AtlasNeighbor::SouthWest,
+            AtlasNeighbor::West,
+            AtlasNeighbor::NorthWest,
+        ] {
+            halo.mark_world_edge(direction).unwrap();
+        }
+        let terrain = AtlasTerrain::new_with_lakes(&cells, &[lake], halo).unwrap();
+        let (overview, feature) = sample_pixel(&cells, Some(&terrain), 512, 256, 100, 50).unwrap();
+        assert_eq!(feature, Feature::Lake);
+        assert_eq!(
+            overview,
+            terrain
+                .sample(
+                    axis_kernel(100, 512).unwrap(),
+                    axis_kernel(50, 256).unwrap(),
+                    TerrainKind::Lake
+                )
+                .unwrap()
+        );
+        assert_eq!(overview, [59, 117, 141]);
+
+        let mut objects = arda_core::AreaObjects::default();
+        objects.lakes.push(arda_core::Lake {
+            global_id: arda_core::hydrology::BasinId(1),
+            id: 1,
+            surface: HeightMm::new(200_000),
+            depth_mm: 200_000,
+            outlet: None,
+            cells: locations.into_iter().map(|(at, _)| at).collect(),
+        });
+        let mut area_png = Vec::new();
+        crate::render_area_png_to_atlas(
+            &cells,
+            &objects,
+            arda_core::GlobalCell { x: 0, y: 0 },
+            crate::AreaImageScale::Preview,
+            &terrain,
+            &mut area_png,
+        )
+        .unwrap();
+        let decode = |png: &[u8]| {
+            let mut reader = png::Decoder::new(png).read_info().unwrap();
+            let mut rgb = vec![0; reader.output_buffer_size()];
+            reader.next_frame(&mut rgb).unwrap();
+            rgb
+        };
+        let area_rgb = decode(&area_png);
+        assert_eq!(
+            &area_rgb[(100 * 512 + 100) * 3..(100 * 512 + 100) * 3 + 3],
+            &terrain.colour(locations[0].0)
+        );
+
+        let mut buffered = OverviewRaster::new_exact(1, 1, 512, 256).unwrap();
+        buffered
+            .push_atlas(AreaCoord::new(0, 0), &cells, &terrain)
+            .unwrap();
+        let buffered_rgb = decode(&buffered.finish().unwrap());
+        let mut streamed_png = Vec::new();
+        let mut payload = Some((cells, terrain));
+        write_atlas_overview_png(1, 1, 512, 256, &mut streamed_png, |_| {
+            Ok::<_, RenderError>(payload.take().unwrap())
+        })
+        .unwrap();
+        let streamed_rgb = decode(&streamed_png);
+        assert_eq!(streamed_rgb, buffered_rgb);
+        assert_eq!(
+            &streamed_rgb[(50 * 512 + 100) * 3..(50 * 512 + 100) * 3 + 3],
+            &overview
+        );
     }
 
     #[test]
