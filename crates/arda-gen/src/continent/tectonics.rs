@@ -326,7 +326,7 @@ fn diffuse(field: &mut [i32], w: i32, h: i32) {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::continent::plates::seed_plates;
+    use crate::continent::plates::{plate_of_warped, seed_plates};
 
     fn sim() -> SimExtent {
         SimExtent {
@@ -386,6 +386,52 @@ mod tests {
             }
             assert_eq!(previous, 0, "{want:?} extends past {width} cells");
         }
+    }
+
+    #[test]
+    fn converging_plates_raise_cells_beyond_boundary_diffusion() {
+        let sim = SimExtent {
+            width: 64,
+            height: 64,
+        };
+        let plates = [
+            Plate {
+                id: 0,
+                centre_x: 16,
+                centre_y: 32,
+                crust: CrustType::Continental,
+                drift_x: 1,
+                drift_y: 0,
+            },
+            Plate {
+                id: 1,
+                centre_x: 48,
+                centre_y: 32,
+                crust: CrustType::Continental,
+                drift_x: -1,
+                drift_y: 0,
+            },
+        ];
+        let seed = 42;
+        let uplift = run_tectonics(seed, &plates, sim, 1);
+        let width = usize::try_from(sim.width).unwrap();
+        let mut raised_interior = false;
+        for y in 3..sim.height - 3 {
+            for x in 3..sim.width - 3 {
+                let owner = plate_of_warped(seed, &plates, x, y);
+                let interior = (-3..=3).all(|dy| {
+                    (-3..=3).all(|dx| plate_of_warped(seed, &plates, x + dx, y + dy) == owner)
+                });
+                let i = usize::try_from(y).unwrap() * width + usize::try_from(x).unwrap();
+                if interior && uplift[i] > 0 {
+                    raised_interior = true;
+                }
+            }
+        }
+        assert!(
+            raised_interior,
+            "converging plates raised no cell beyond the immediate boundary and one diffusion pass"
+        );
     }
 
     #[test]

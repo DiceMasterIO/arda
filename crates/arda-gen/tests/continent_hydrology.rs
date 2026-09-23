@@ -2,7 +2,9 @@
 //! persistence round-trip through a generated world.
 #![allow(clippy::unwrap_used, clippy::expect_used)]
 
-use arda_core::{decode_continent_objects, decode_overview, GenerateConfig, LatitudeBand};
+use arda_core::{
+    decode_continent_objects, decode_overview, GenerateConfig, LatitudeBand, NO_DOWNSTREAM,
+};
 use arda_gen::continent::climate::climate;
 use arda_gen::continent::hydrology::{extract_rivers, hydrology};
 use arda_gen::continent::{generate_continent, generate_continent_attempt};
@@ -41,12 +43,53 @@ fn micro_world_persists_a_real_continent_layer() {
     assert!(overview.cells.iter().any(|c| c.rainfall.raw() > 0));
     assert!(overview.cells.iter().any(|c| c.catchment_km2 > 0));
 
+    // The generated world must persist the same accepted attempt exercised
+    // by the course, drainage and sea invariants below.
+    let grid = generate_continent_attempt(42, GenerateConfig::MICRO, ACCEPTED_MICRO_ATTEMPT);
+    let climate = climate(&grid, GenerateConfig::MICRO.latitude_band());
+    let hydro = hydrology(&grid, &climate);
+    assert_eq!(
+        (overview.width, overview.height),
+        (grid.width(), grid.height())
+    );
+    for (i, saved) in overview.cells.iter().enumerate() {
+        let x = i32::try_from(i).unwrap() % grid.width();
+        let y = i32::try_from(i).unwrap() / grid.width();
+        assert_eq!(saved.height, grid.get(x, y), "height at {x},{y}");
+        assert_eq!(
+            saved.temperature.raw(),
+            climate.temperature[i],
+            "temperature at {x},{y}"
+        );
+        assert_eq!(
+            saved.rainfall.raw(),
+            climate.rainfall[i],
+            "rainfall at {x},{y}"
+        );
+        assert_eq!(saved.regime, climate.regime[i], "regime at {x},{y}");
+        assert_eq!(
+            saved.downstream,
+            (hydro.downstream_dir[i] != NO_DOWNSTREAM).then_some(hydro.downstream_dir[i]),
+            "receiver at {x},{y}"
+        );
+        assert_eq!(
+            saved.catchment_km2, hydro.catchment_km2[i],
+            "catchment at {x},{y}"
+        );
+        assert_eq!(
+            saved.discharge.raw(),
+            hydro.discharge_l_s[i],
+            "discharge at {x},{y}"
+        );
+    }
+
     let bytes = std::fs::read(dir.0.join("continent/objects.bin")).unwrap();
     let objects = decode_continent_objects("continent/objects.bin", &bytes).unwrap();
     assert!(
         !objects.rivers.is_empty(),
         "micro world has no rivers (§Q7 floor)"
     );
+    assert_eq!(objects.rivers, extract_rivers(&grid, &hydro));
 }
 
 #[test]
