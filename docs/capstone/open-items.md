@@ -16,12 +16,9 @@ absorbed_from:
 
 # Implementation status and open items
 
-## Current status — audited 2026-09-22
+## Current status — first pass audited 2026-09-22; correction work active 2026-09-23
 
-Source audit: rendering implementation at `342d03e55120`; the generator, saved
-formats and golden fixtures are unchanged from base `23dfb0999672`. This section supersedes the older pending/default-field claims
-below and in the original build plan. Implementation, recorded verification
-and final visual acceptance are separate statuses.
+The completed first-pass audit covers rendering at `342d03e55120`; at that checkpoint the generator, saved formats and golden fixtures were unchanged from base `23dfb0999672`. Palette refinement `9a16883` followed. On September 23 the user approved terrain-generator and shoreline-geometry corrections, which are now in progress on the feature branch. The historical verification counts below do not certify these new generator edits. Existing saved worlds remain comparison baselines; final regenerated-world and visual acceptance are pending. This section supersedes older pending/default-field claims below and in the original build plan.
 
 ### Implemented work
 
@@ -313,7 +310,7 @@ crossings, with consistent geometry and stable identities across areas.
 
 ### OI-12 — Substantially improve world-map geographical rendering
 
-**Continuation blocked on scope decision:** the user requested continuing until the whole render meets the target. Colour/depth refinement `9a16883` passes 649 workspace tests and real-image compatibility checks. Stronger lighting was tested but not adopted because it accentuates saved straight gullies. Stage probes localize those gullies to continent erosion; replacing contributing-area accumulation alone was rejected because it flattens valley relief. Scratch shoreline renderers provide local rounding but still require topology and mouth handling. The larger fixed seed-42 500×1000 km world and 8K gallery are complete: high-altitude terrain is now inspected, but repeated grooves, broad pale relief, thin channels and an angular interior lake leave the reference-quality goal incomplete. Production geography remains unchanged; expansion beyond the agreed render-first scope is awaiting the user's decision. Independent verification is complete and the goal is marked blocked, not achieved. Local audit: `features/2026-09-22-atlas-visual-fidelity/goal-audit.md`.
+**Continuation resumed; terrain and shoreline corrections authorized September 23:** the user requested continuing until the whole render meets the target. Colour/depth refinement `9a16883` passes 649 workspace tests and real-image compatibility checks. Stronger lighting was tested but not adopted because it accentuates saved straight gullies. Stage probes localize those gullies to continent erosion; replacing contributing-area accumulation alone was rejected because it flattens valley relief. Scratch shoreline renderers provide local rounding but still require topology and mouth handling. The larger fixed seed-42 500×1000 km world and 8K gallery are complete: high-altitude terrain is now inspected, but repeated grooves, broad pale relief, thin channels and an angular interior lake leave the reference-quality goal incomplete. The user explicitly approved including generator and shoreline geometry corrections. Work has resumed with GPT-6 Sol subagents; the two saved worlds remain comparison baselines. The former scope blocker is resolved; the visual objective is not achieved. Local audit: `features/2026-09-22-atlas-visual-fidelity/goal-audit.md`.
 
 **Status:** first geographical rendering pass delivered September 22 at `342d03e55120`: earthy elevation palette, neighbor-aware shading, sea-depth colours and class-filtered per-output-pixel palette/light interpolation. The broader milestone remains open for ecological/human layers and multi-seed acceptance.
 **Depends on:** existing physical data to start; OI-08–OI-11 for ecological/human
