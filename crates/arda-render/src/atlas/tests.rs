@@ -88,6 +88,7 @@ fn terrain_test_context(cells: &AreaCells, mut halo: AtlasHalo) -> Vec<Option<So
                 Some(SourceSample {
                     height_mm: cells.get(at).height.raw(),
                     class: cells.get(at).terrain,
+                    wetness: cells.get(at).wetness,
                     lake_depth_mm: None,
                 });
         }
@@ -459,15 +460,15 @@ fn diagonal_two_by_two_changes_only_its_corner_sampling() {
 
 #[test]
 fn saved_slope_controls_rock_and_light_without_changing_flat_land() {
-    assert_eq!(land_material(500_000, 0, 0), [165, 161, 97]);
+    assert_eq!(land_material(500_000, 0, 0, 0), [165, 161, 97]);
     assert_eq!(relief_light(0, 0), LIGHT_ONE);
     assert_eq!(
-        land_material(500_000, 200_000, 0),
-        land_material(500_000, -200_000, 0)
+        land_material(500_000, 200_000, 0, 0),
+        land_material(500_000, -200_000, 0, 0)
     );
     assert_ne!(
-        land_material(500_000, 200_000, 0),
-        land_material(500_000, 0, 0)
+        land_material(500_000, 200_000, 0, 0),
+        land_material(500_000, 0, 0, 0)
     );
     assert!(relief_light(200_000, 0) > LIGHT_ONE);
     assert!(relief_light(-200_000, 0) < LIGHT_ONE);
@@ -488,12 +489,15 @@ fn saved_slope_controls_rock_and_light_without_changing_flat_land() {
     assert_eq!(land.colour(CellCoord::new(0, 0).unwrap()), [165, 161, 97]);
     assert_eq!(
         land.colour(CellCoord::new(200, 200).unwrap()),
-        modulate(land_material(500_000, 200_000, 0), relief_light(200_000, 0))
+        modulate(
+            land_material(500_000, 200_000, 0, 0),
+            relief_light(200_000, 0)
+        )
     );
     assert_eq!(
         land.colour(CellCoord::new(300, 300).unwrap()),
         modulate(
-            land_material(500_000, -200_000, 0),
+            land_material(500_000, -200_000, 0, 0),
             relief_light(-200_000, 0)
         )
     );
@@ -509,21 +513,189 @@ fn saved_slope_controls_rock_and_light_without_changing_flat_land() {
 }
 
 #[test]
+fn wetness_tint_uses_saved_index_without_changing_zero_wetness() {
+    assert_eq!(land_material(500_000, 0, 0, 0), [165, 161, 97]);
+    assert_eq!(land_material(500_000, 0, 0, 12), [144, 152, 91]);
+    assert_ne!(land_material(500_000, 0, 0, 255), [165, 161, 97]);
+}
+
+#[test]
+fn wetness_halo_matches_internal_cardinal_and_diagonal_samples() {
+    let wet_area = |wetness| {
+        let mut saved = cell(500_000, TerrainKind::Land);
+        saved.wetness = wetness;
+        AreaCells::flat(saved)
+    };
+    let target = wet_area(12);
+    let mut halo = edge_halo();
+    for (direction, wetness) in [
+        (AtlasNeighbor::North, 80),
+        (AtlasNeighbor::West, 120),
+        (AtlasNeighbor::NorthWest, 255),
+    ] {
+        halo.states[direction.index()] = NeighborState::Unset;
+        halo.copy_neighbor(direction, &wet_area(wetness)).unwrap();
+    }
+    let boundary = AtlasTerrain::new(&target, halo).unwrap();
+    assert_eq!(
+        record(&boundary, -1, -1).0,
+        land_material(500_000, 0, 0, 255)
+    );
+    assert_eq!(record(&boundary, 0, -1).0, land_material(500_000, 0, 0, 80));
+    assert_eq!(
+        record(&boundary, -1, 0).0,
+        land_material(500_000, 0, 0, 120)
+    );
+
+    let mut internal = target.clone();
+    for y in 0..512 {
+        let mut saved = cell(500_000, TerrainKind::Land);
+        saved.wetness = 120;
+        internal.set(CellCoord::new(255, y).unwrap(), saved);
+    }
+    for x in 0..512 {
+        let mut saved = cell(500_000, TerrainKind::Land);
+        saved.wetness = 80;
+        internal.set(CellCoord::new(x, 255).unwrap(), saved);
+    }
+    let mut corner = cell(500_000, TerrainKind::Land);
+    corner.wetness = 255;
+    internal.set(CellCoord::new(255, 255).unwrap(), corner);
+    let reference = AtlasTerrain::new(&internal, edge_halo()).unwrap();
+    let shifted = |kernel| match kernel {
+        AxisKernel::Linear {
+            low,
+            high_weight,
+            denominator,
+        } => AxisKernel::Linear {
+            low: low + 256,
+            high_weight,
+            denominator,
+        },
+        AxisKernel::Box { .. } => unreachable!(),
+    };
+    for (px, py) in [(0, 0), (0, 256), (256, 0)] {
+        let x = axis_kernel(px, 1024).unwrap();
+        let y = axis_kernel(py, 1024).unwrap();
+        assert_eq!(
+            boundary.sample(x, y, TerrainKind::Land).unwrap(),
+            reference
+                .sample(shifted(x), shifted(y), TerrainKind::Land)
+                .unwrap(),
+            "halo mismatch at ({px}, {py})"
+        );
+    }
+}
+
+#[test]
+fn wetness_changes_land_without_recoloring_water_or_ownership() {
+    let mut dry = filled(-100_000, TerrainKind::Sea);
+    dry.set(
+        CellCoord::new(200, 200).unwrap(),
+        cell(500_000, TerrainKind::Land),
+    );
+    dry.set(
+        CellCoord::new(201, 200).unwrap(),
+        cell(500_000, TerrainKind::Lake),
+    );
+    let mut wet = dry.clone();
+    for (x, y) in [(199, 200), (200, 200), (201, 200)] {
+        let at = CellCoord::new(x, y).unwrap();
+        let mut saved = *wet.get(at);
+        saved.wetness = 255;
+        wet.set(at, saved);
+    }
+    let control = AtlasTerrain::new(&dry, edge_halo()).unwrap();
+    let variant = AtlasTerrain::new(&wet, edge_halo()).unwrap();
+    assert_ne!(record(&control, 200, 200).0, record(&variant, 200, 200).0);
+    for (x, class, pixel) in [(199, TerrainKind::Sea, 399), (201, TerrainKind::Lake, 403)] {
+        assert_eq!(record(&control, x, 200), record(&variant, x, 200));
+        assert_eq!(
+            control
+                .sample(
+                    axis_kernel(pixel, 1024).unwrap(),
+                    axis_kernel(400, 1024).unwrap(),
+                    class
+                )
+                .unwrap(),
+            variant
+                .sample(
+                    axis_kernel(pixel, 1024).unwrap(),
+                    axis_kernel(400, 1024).unwrap(),
+                    class
+                )
+                .unwrap()
+        );
+    }
+    assert_eq!(control.classes, variant.classes);
+}
+
+#[test]
+fn nonzero_wetness_matches_buffered_and_streamed_mixed_axis_overviews() {
+    let mut low = cell(500_000, TerrainKind::Land);
+    low.wetness = 12;
+    let mut high = cell(500_000, TerrainKind::Land);
+    high.wetness = 120;
+    let cells = [AreaCells::flat(low), AreaCells::flat(high)];
+    let atlas_for = |index| {
+        let mut halo = edge_halo();
+        let direction = if index == 0 {
+            AtlasNeighbor::East
+        } else {
+            AtlasNeighbor::West
+        };
+        halo.states[direction.index()] = NeighborState::Unset;
+        halo.copy_neighbor(direction, &cells[1 - index]).unwrap();
+        AtlasTerrain::new(&cells[index], halo).unwrap()
+    };
+    assert_ne!(
+        atlas_for(0).colour(CellCoord::new(256, 256).unwrap()),
+        atlas_for(1).colour(CellCoord::new(256, 256).unwrap())
+    );
+    let decode = |bytes: &[u8]| {
+        let mut reader = png::Decoder::new(bytes).read_info().unwrap();
+        let mut rgb = vec![0; reader.output_buffer_size()];
+        let frame = reader.next_frame(&mut rgb).unwrap();
+        (frame.width, frame.height, rgb)
+    };
+    for (width, height) in [(1025, 257), (1001, 513)] {
+        let mut buffered = crate::OverviewRaster::new_exact(2, 1, width, height).unwrap();
+        for (index, saved) in cells.iter().enumerate() {
+            buffered
+                .push_atlas(
+                    arda_core::AreaCoord::new(i32::try_from(index).unwrap(), 0),
+                    saved,
+                    &atlas_for(index),
+                )
+                .unwrap();
+        }
+        let buffered = buffered.finish().unwrap();
+        let mut streamed = Vec::new();
+        crate::write_atlas_overview_png(2, 1, width, height, &mut streamed, |at| {
+            let index = usize::try_from(at.x).unwrap();
+            Ok::<_, RenderError>((cells[index].clone(), atlas_for(index)))
+        })
+        .unwrap();
+        assert_eq!(decode(&buffered), decode(&streamed));
+    }
+}
+
+#[test]
 fn rock_and_snow_vary_continuously_with_saved_height() {
-    let low_snow = land_material(2_850_000, 0, 0);
-    let high_snow = land_material(4_300_000, 0, 0);
+    let low_snow = land_material(2_850_000, 0, 0, 0);
+    let high_snow = land_material(4_300_000, 0, 0, 0);
     assert!(high_snow
         .iter()
         .zip(low_snow)
         .all(|(high, low)| *high > low));
-    let exposed_peak = land_material(4_300_000, 200_000, 0);
+    let exposed_peak = land_material(4_300_000, 200_000, 0, 0);
     assert!(exposed_peak
         .iter()
         .zip(high_snow)
         .all(|(rock, snow)| *rock < snow));
     for edge in [1_000_000, 1_500_000, 2_000_000, 2_850_000, 4_300_000] {
-        let below = land_material(edge - 1, 200_000, 0);
-        let above = land_material(edge, 200_000, 0);
+        let below = land_material(edge - 1, 200_000, 0, 0);
+        let above = land_material(edge, 200_000, 0, 0);
         assert!(
             below.iter().zip(above).all(|(a, b)| a.abs_diff(b) <= 1),
             "material discontinuity at {edge} mm"
@@ -536,8 +708,8 @@ fn extreme_saved_gradients_remain_bounded_and_deterministic() {
     let maximum = i64::from(i32::MAX) - i64::from(i32::MIN);
     for (dx, dy) in [(maximum, maximum), (-maximum, maximum), (maximum, -maximum)] {
         assert_eq!(
-            land_material(i32::MAX, dx, dy),
-            land_material(i32::MAX, -dx, -dy),
+            land_material(i32::MAX, dx, dy, 0),
+            land_material(i32::MAX, -dx, -dy, 0),
             "rock and snow depend on slope magnitude"
         );
         assert!((MIN_LIGHT..=MAX_LIGHT).contains(&i128::from(relief_light(dx, dy))));
@@ -563,12 +735,12 @@ fn extreme_saved_gradients_remain_bounded_and_deterministic() {
     let extreme = AtlasTerrain::new(&high, extreme_halo).unwrap();
     assert_eq!(
         extreme.colour(CellCoord::new(256, 256).unwrap()),
-        modulate(land_material(i32::MAX, 0, 0), LIGHT_ONE)
+        modulate(land_material(i32::MAX, 0, 0, 0), LIGHT_ONE)
     );
     assert_eq!(
         extreme.colour(CellCoord::new(511, 511).unwrap()),
         modulate(
-            land_material(i32::MAX, -maximum, 0),
+            land_material(i32::MAX, -maximum, 0, 0),
             relief_light(-maximum, 0)
         )
     );

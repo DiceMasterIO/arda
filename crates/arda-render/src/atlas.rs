@@ -40,6 +40,7 @@ struct SourceSample {
     height_mm: i32,
     class: TerrainKind,
     lake_depth_mm: Option<u32>,
+    wetness: u8,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -148,6 +149,7 @@ impl AtlasHalo {
                 self.context[target] = Some(SourceSample {
                     height_mm: cell.height.raw(),
                     class: cell.terrain,
+                    wetness: cell.wetness,
                     lake_depth_mm: lake_depths
                         .get(usize::from(source.y()) * 512 + usize::from(source.x()))
                         .copied()
@@ -258,6 +260,7 @@ impl AtlasTerrain {
                 halo.context[index] = Some(SourceSample {
                     height_mm: cell.height.raw(),
                     class: cell.terrain,
+                    wetness: cell.wetness,
                     lake_depth_mm: lake_depths
                         .get(usize::from(y) * 512 + usize::from(x))
                         .copied()
@@ -291,7 +294,8 @@ impl AtlasTerrain {
                 match source.class {
                     TerrainKind::Land => {
                         let (dx, dy) = gradient_numerators(&halo.context, x, y, edges)?;
-                        terrain.palette[index] = land_material(source.height_mm, dx, dy);
+                        terrain.palette[index] =
+                            land_material(source.height_mm, dx, dy, source.wetness);
                         terrain.light[index] = relief_light(dx, dy);
                     }
                     TerrainKind::Sea => terrain.palette[index] = sea_palette(source.height_mm),
@@ -687,8 +691,8 @@ fn land_palette(height_mm: i32) -> [u8; 3] {
 ///
 /// All weights are Q12 integers. Opposing saved cells are 200 m apart, so
 /// their millimetre height difference provides a bounded physical gradient.
-fn land_material(height_mm: i32, dx: i64, dy: i64) -> [u8; 3] {
-    let base = land_palette(height_mm);
+fn land_material(height_mm: i32, dx: i64, dy: i64, wetness: u8) -> [u8; 3] {
+    let base = wetness_tint(land_palette(height_mm), wetness);
     let squared = i128::from(dx) * i128::from(dx) + i128::from(dy) * i128::from(dy);
     let slope_mm = i128::try_from(squared.unsigned_abs().isqrt())
         .unwrap_or_else(|_| unreachable!("i32 saved heights yield a bounded slope"));
@@ -705,6 +709,13 @@ fn land_material(height_mm: i32, dx: i64, dy: i64) -> [u8; 3] {
         [229, 228, 223],
         snow_altitude_q12 * snow_shelter_q12 / 4_096,
     )
+}
+
+// Saved wetness is a drainage/slope indicator, so tint precedes rock and snow.
+fn wetness_tint(base: [u8; 3], wetness: u8) -> [u8; 3] {
+    let wet = i128::from(wetness);
+    let weight_q12 = wet * 2_048 / (wet + 12);
+    blend(base, [81, 126, 73], weight_q12)
 }
 
 fn blend(a: [u8; 3], b: [u8; 3], weight_q12: i128) -> [u8; 3] {
