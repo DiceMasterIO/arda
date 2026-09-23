@@ -21,7 +21,10 @@ pub use carto::{
 };
 pub use channels::AreaImageScale;
 pub use json::{area_json, block_json, SCHEMA_VERSION};
-pub use overview::{write_atlas_overview_png, write_overview_png, OverviewRaster};
+pub use overview::{
+    write_atlas_overview_png, write_atlas_overview_png_with_channels, write_overview_png,
+    OverviewChannelContext, OverviewRaster,
+};
 pub use quality::ImageQuality;
 pub use symbolic::{render_block_png, SQUARE_PX};
 

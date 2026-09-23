@@ -8,8 +8,12 @@ use crate::carto::{
 use crate::{AtlasTerrain, RenderError};
 use arda_core::{AreaCells, AreaCoord, CellCoord, TerrainKind, AREA_CELLS};
 
+mod channel_overlay;
 mod streaming;
-pub use streaming::{write_atlas_overview_png, write_overview_png};
+pub use channel_overlay::OverviewChannelContext;
+pub use streaming::{
+    write_atlas_overview_png, write_atlas_overview_png_with_channels, write_overview_png,
+};
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord)]
 enum Feature {
@@ -230,6 +234,7 @@ pub struct OverviewRaster {
     rgb: Vec<u8>,
     features: Vec<Feature>,
     supplied: Vec<bool>,
+    channel_mode: Option<bool>,
 }
 
 impl OverviewRaster {
@@ -301,6 +306,7 @@ impl OverviewRaster {
                 usize::try_from(areas_wide * areas_high)
                     .map_err(|_| RenderError::OverviewDimensions)?
             ],
+            channel_mode: None,
         })
     }
 
@@ -309,7 +315,7 @@ impl OverviewRaster {
     /// # Errors
     /// Refuses out-of-range or duplicate areas.
     pub fn push(&mut self, at: AreaCoord, cells: &AreaCells) -> Result<(), RenderError> {
-        self.push_inner(at, cells, None)
+        self.push_inner(at, cells, None, None)
     }
 
     /// Incorporates one Atlas area with reconstructed linear shoreline pixels.
@@ -322,7 +328,21 @@ impl OverviewRaster {
         cells: &AreaCells,
         terrain: &AtlasTerrain,
     ) -> Result<(), RenderError> {
-        self.push_inner(at, cells, Some(terrain))
+        self.push_inner(at, cells, Some(terrain), None)
+    }
+
+    /// Incorporates one Atlas area with saved, neighbor-complete connected channel geometry.
+    ///
+    /// # Errors
+    /// Refuses duplicate or out-of-range areas, incomplete channel context, and bounded geometry failures.
+    pub fn push_atlas_with_channels(
+        &mut self,
+        at: AreaCoord,
+        cells: &AreaCells,
+        terrain: &AtlasTerrain,
+        channels: &OverviewChannelContext,
+    ) -> Result<(), RenderError> {
+        self.push_inner(at, cells, Some(terrain), Some(channels))
     }
 
     fn push_inner(
@@ -330,7 +350,16 @@ impl OverviewRaster {
         at: AreaCoord,
         cells: &AreaCells,
         terrain: Option<&AtlasTerrain>,
+        channels: Option<&OverviewChannelContext>,
     ) -> Result<(), RenderError> {
+        if self
+            .channel_mode
+            .is_some_and(|mode| mode != channels.is_some())
+        {
+            return Err(RenderError::AtlasContext {
+                reason: "connected Atlas overview areas cannot mix with legacy area pushes",
+            });
+        }
         if at.x < 0 || at.y < 0 || at.x >= self.areas_wide || at.y >= self.areas_high {
             return Err(RenderError::OverviewDimensions);
         }
@@ -354,8 +383,17 @@ impl OverviewRaster {
         let tile_height = output_y1 - output_y0;
         for py in 0..tile_height {
             for pxi in 0..tile_width {
-                let (colour, best) =
-                    sample_pixel(cells, terrain, tile_width, tile_height, pxi, py)?;
+                let (colour, best) = match (terrain, channels) {
+                    (Some(terrain), Some(_)) => sample_atlas_channel_base_pixel(
+                        cells,
+                        terrain,
+                        tile_width,
+                        tile_height,
+                        pxi,
+                        py,
+                    )?,
+                    _ => sample_pixel(cells, terrain, tile_width, tile_height, pxi, py)?,
+                };
 
                 let x = output_x0 + pxi;
                 let y = output_y0 + py;
@@ -366,7 +404,29 @@ impl OverviewRaster {
                 self.features[pixel] = best;
             }
         }
+        if let Some(channels) = channels {
+            let mut tile = channel_overlay::ChannelTile::new(
+                channels,
+                at,
+                [output_x0, output_x1, output_y0, output_y1],
+                [self.width, self.height],
+            )?;
+            for y in output_y0..output_y1 {
+                let row =
+                    usize::try_from(y * width).map_err(|_| RenderError::ExactOverviewDimensions)?;
+                let x0 =
+                    usize::try_from(output_x0).map_err(|_| RenderError::ExactOverviewDimensions)?;
+                let x1 =
+                    usize::try_from(output_x1).map_err(|_| RenderError::ExactOverviewDimensions)?;
+                tile.blend_row(
+                    y,
+                    &mut self.rgb[(row + x0) * 3..(row + x1) * 3],
+                    &self.features[row + x0..row + x1],
+                )?;
+            }
+        }
         self.supplied[offset] = true;
+        self.channel_mode = Some(channels.is_some());
         Ok(())
     }
 
@@ -423,6 +483,27 @@ fn validate_exact_dimensions(
         return Err(RenderError::ExactOverviewDimensions);
     }
     Ok(())
+}
+
+fn sample_atlas_channel_base_pixel(
+    cells: &AreaCells,
+    terrain: &AtlasTerrain,
+    tile_width: u32,
+    tile_height: u32,
+    x: u32,
+    y: u32,
+) -> Result<([u8; 3], Feature), RenderError> {
+    let (colour, feature) = sample_pixel(cells, Some(terrain), tile_width, tile_height, x, y)?;
+    if matches!(feature, Feature::AtlasRiver(_, _)) {
+        let ground = terrain.sample(
+            axis_kernel(x, tile_width)?,
+            axis_kernel(y, tile_height)?,
+            TerrainKind::Land,
+        )?;
+        Ok((ground, Feature::AtlasLand))
+    } else {
+        Ok((colour, feature))
+    }
 }
 
 fn sample_pixel(

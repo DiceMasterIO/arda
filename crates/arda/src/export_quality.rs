@@ -122,7 +122,7 @@ pub fn export_overview_with_quality_and_style(
             writer,
             |at| Ok(world.read_area(at.x, at.y)?.into_cells()),
         ),
-        MapStyle::Atlas => arda_render::write_atlas_overview_png(
+        MapStyle::Atlas => arda_render::write_atlas_overview_png_with_channels(
             manifest.areas_wide,
             manifest.areas_high,
             width,
@@ -131,8 +131,24 @@ pub fn export_overview_with_quality_and_style(
             |at| {
                 let area = world.read_area(at.x, at.y)?;
                 let terrain = atlas_terrain(world, at.x, at.y, area.cells(), area.lakes())?;
-                let cells = area.into_cells();
-                Ok((cells, terrain))
+                let mut channels = arda_render::OverviewChannelContext::new(
+                    at,
+                    manifest.areas_wide,
+                    manifest.areas_high,
+                )?;
+                for y in (at.y - 1).max(0)..=(at.y + 1).min(manifest.areas_high - 1) {
+                    for x in (at.x - 1).max(0)..=(at.x + 1).min(manifest.areas_wide - 1) {
+                        if x == at.x && y == at.y {
+                            channels.add_area(at, area.objects())?;
+                        } else {
+                            let neighbor = world.read_area_objects(x, y)?;
+                            channels.add_area(arda_core::AreaCoord::new(x, y), &neighbor)?;
+                        }
+                    }
+                }
+                let channels = channels.finish()?;
+                let (cells, _objects) = area.into_render_parts();
+                Ok((cells, terrain, channels))
             },
         ),
     })?;

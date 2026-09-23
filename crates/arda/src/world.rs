@@ -56,6 +56,11 @@ impl Area {
         self.cells
     }
 
+    /// Transfers the cells and saved objects to the Atlas overview exporter.
+    pub(crate) fn into_render_parts(self) -> (AreaCells, AreaObjects) {
+        (self.cells, self.objects)
+    }
+
     /// The raw object lists, for renderers.
     #[must_use]
     pub const fn objects(&self) -> &AreaObjects {
@@ -230,11 +235,38 @@ impl World {
         }
         let dir = self.dir.join("areas").join(at.dir_name());
         let cells_path = dir.join("cells.bin");
-        let objects_path = dir.join("objects.bin");
         let cells = arda_core::decode_cells(
             &cells_path.display().to_string(),
             &read_bounded(&cells_path, cell_bytes)?,
         )?;
+        let objects = self.read_area_objects_with_byte_limit(x, y, object_bytes)?;
+        Ok(Area { cells, objects })
+    }
+
+    /// Reads only bounded saved object context for a neighboring Atlas overview area.
+    pub(crate) fn read_area_objects(&self, x: i32, y: i32) -> Result<AreaObjects, LoadError> {
+        self.read_area_objects_with_byte_limit(
+            x,
+            y,
+            arda_core::formats::area_objects_v4::ObjectsLimits::default().max_bytes,
+        )
+    }
+
+    fn read_area_objects_with_byte_limit(
+        &self,
+        x: i32,
+        y: i32,
+        object_bytes: usize,
+    ) -> Result<AreaObjects, LoadError> {
+        let at = AreaCoord::new(x, y);
+        if !self.areas.contains_key(&at) {
+            return Err(self.area_range(x, y));
+        }
+        let objects_path = self
+            .dir
+            .join("areas")
+            .join(at.dir_name())
+            .join("objects.bin");
         let objects = arda_core::decode_objects(
             &objects_path.display().to_string(),
             &read_bounded(&objects_path, object_bytes)?,
@@ -253,7 +285,7 @@ impl World {
                 ),
             ));
         }
-        Ok(Area { cells, objects })
+        Ok(objects)
     }
 
     fn area_range(&self, x: i32, y: i32) -> LoadError {
