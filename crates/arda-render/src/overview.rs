@@ -18,27 +18,66 @@ enum Feature {
     Land,
     AtlasLand,
     River(RiverBand),
-    AtlasRiver(RiverBand),
+    AtlasRiver(RiverBand, u8),
     Lake,
 }
 
-/// Atlas water needs enough width to survive a full-world image being fitted
-/// to a typical screen. These are symbol widths, not saved channel widths.
-fn atlas_river_radius(width: u32, height: u32, band: RiverBand) -> u32 {
-    let screen_scale = width.max(height).div_ceil(2048);
+/// Map saved channel width to a bounded cartographic radius at 32K. The floor
+/// keeps narrow rivers visible when the whole world is fitted to a screen.
+/// It is a symbol, not a claim that overview pixels are metres across.
+fn atlas_river_size(width_dm: u32, band: RiverBand) -> u8 {
     match band {
         RiverBand::Light => 0,
-        RiverBand::Mid => screen_scale.div_ceil(2),
-        RiverBand::Dark => screen_scale,
+        RiverBand::Mid => 4 + (width_dm / 150).min(3) as u8,
+        RiverBand::Dark => 7 + (width_dm / 180).min(6) as u8,
     }
+}
+
+fn atlas_river_radius(width: u32, height: u32, size: u8) -> u32 {
+    let screen_scale = width.max(height).div_ceil(2048);
+    (u32::from(size) * screen_scale).div_ceil(16)
+}
+
+fn atlas_river_halo(width: u32, height: u32) -> u32 {
+    atlas_river_radius(width, height, 13) + 1
 }
 
 const fn atlas_river_colour(band: RiverBand) -> [u8; 3] {
     match band {
-        RiverBand::Light => [88, 163, 195],
-        RiverBand::Mid => [49, 127, 184],
-        RiverBand::Dark => [24, 92, 158],
+        RiverBand::Light => [91, 153, 171],
+        RiverBand::Mid => [60, 135, 162],
+        RiverBand::Dark => [32, 98, 132],
     }
+}
+
+const fn atlas_river_edge_colour(band: RiverBand) -> [u8; 3] {
+    match band {
+        RiverBand::Light => [91, 153, 171],
+        RiverBand::Mid => [80, 151, 169],
+        RiverBand::Dark => [66, 141, 162],
+    }
+}
+
+/// Cartographic cross-section shading from the same signed distance as the
+/// bank coverage. This describes apparent water, not measured channel depth.
+fn atlas_river_water_colour(band: RiverBand, distance: i16, scale: i16) -> [u8; 3] {
+    let edge = atlas_river_edge_colour(band);
+    let core = atlas_river_colour(band);
+    let inner_pixels = match band {
+        RiverBand::Light => 1,
+        RiverBand::Mid => 3,
+        RiverBand::Dark => 5,
+    };
+    let span = i32::from(scale) * inner_pixels * 3;
+    let shade =
+        u32::try_from(((-i32::from(distance) - 24) * 256 / span).clamp(0, 256)).unwrap_or(0);
+    std::array::from_fn(|channel| {
+        u8::try_from(
+            (u32::from(edge[channel]) * (256 - shade) + u32::from(core[channel]) * shade + 128)
+                / 256,
+        )
+        .unwrap_or(255)
+    })
 }
 
 /// Styles a complete output band from source features with a small vertical
@@ -66,16 +105,27 @@ fn style_river_band(
     }
     let mut distances = Vec::new();
     for band in [RiverBand::Mid, RiverBand::Dark] {
-        if !features.contains(&Feature::AtlasRiver(band)) {
+        if !features
+            .iter()
+            .any(|feature| matches!(feature, Feature::AtlasRiver(b, _) if *b == band))
+        {
             continue;
         }
         if distances.len() != features.len() {
-            distances.resize(features.len(), u16::MAX / 2);
+            distances.resize(features.len(), i16::MAX / 2);
         }
-        distances.fill(u16::MAX / 2);
+        distances.fill(i16::MAX / 2);
+        // A negative seed radius turns the same chamfer transform into a
+        // tapered outline: wider saved channel cells extend farther out.
+        let scale = i16::try_from(width.max(height).div_ceil(2048))
+            .map_err(|_| RenderError::ExactOverviewDimensions)?;
         for (i, feature) in features.iter().enumerate() {
-            if *feature == Feature::AtlasRiver(band) {
-                distances[i] = 0;
+            if let Feature::AtlasRiver(source_band, size) = *feature {
+                if source_band == band {
+                    // Chamfer units are 1/16 pixel, preserving width
+                    // differences even in a direct 2K world overview.
+                    distances[i] = -(i16::from(size) * scale * 3);
+                }
             }
         }
         for y in 0..data_rows {
@@ -83,15 +133,15 @@ fn style_river_band(
                 let i = y * w + x;
                 let mut d = distances[i];
                 if x > 0 {
-                    d = d.min(distances[i - 1].saturating_add(3));
+                    d = d.min(distances[i - 1].saturating_add(48));
                 }
                 if y > 0 {
-                    d = d.min(distances[i - w].saturating_add(3));
+                    d = d.min(distances[i - w].saturating_add(48));
                     if x > 0 {
-                        d = d.min(distances[i - w - 1].saturating_add(4));
+                        d = d.min(distances[i - w - 1].saturating_add(64));
                     }
                     if x + 1 < w {
-                        d = d.min(distances[i - w + 1].saturating_add(4));
+                        d = d.min(distances[i - w + 1].saturating_add(64));
                     }
                 }
                 distances[i] = d;
@@ -102,24 +152,20 @@ fn style_river_band(
                 let i = y * w + x;
                 let mut d = distances[i];
                 if x + 1 < w {
-                    d = d.min(distances[i + 1].saturating_add(3));
+                    d = d.min(distances[i + 1].saturating_add(48));
                 }
                 if y + 1 < data_rows {
-                    d = d.min(distances[i + w].saturating_add(3));
+                    d = d.min(distances[i + w].saturating_add(48));
                     if x > 0 {
-                        d = d.min(distances[i + w - 1].saturating_add(4));
+                        d = d.min(distances[i + w - 1].saturating_add(64));
                     }
                     if x + 1 < w {
-                        d = d.min(distances[i + w + 1].saturating_add(4));
+                        d = d.min(distances[i + w + 1].saturating_add(64));
                     }
                 }
                 distances[i] = d;
             }
         }
-        let radius = atlas_river_radius(width, height, band);
-        let threshold =
-            u16::try_from(radius * 3).map_err(|_| RenderError::ExactOverviewDimensions)?;
-        let colour = atlas_river_colour(band);
         for y in output_y0..output_y1 {
             let row =
                 usize::try_from(y - data_y0).map_err(|_| RenderError::ExactOverviewDimensions)?;
@@ -128,16 +174,32 @@ fn style_river_band(
                 let eligible = match band {
                     RiverBand::Mid => matches!(
                         features[i],
-                        Feature::AtlasLand | Feature::AtlasRiver(RiverBand::Light)
+                        Feature::AtlasLand
+                            | Feature::AtlasRiver(RiverBand::Light | RiverBand::Mid, _)
                     ),
-                    RiverBand::Dark => matches!(
-                        features[i],
-                        Feature::AtlasLand | Feature::AtlasRiver(RiverBand::Light | RiverBand::Mid)
-                    ),
+                    RiverBand::Dark => {
+                        matches!(features[i], Feature::AtlasLand | Feature::AtlasRiver(_, _))
+                    }
                     RiverBand::Light => false,
                 };
-                if eligible && distances[i] <= threshold {
-                    rgb[i * 3..i * 3 + 3].copy_from_slice(&colour);
+                if !eligible {
+                    continue;
+                }
+                // A one-pixel coverage ramp softens the bank. Fractional
+                // radius also changes source-pixel coverage in small maps.
+                let alpha =
+                    u16::try_from(((24 - i32::from(distances[i])) * 256 / 48).clamp(0, 256))
+                        .unwrap_or(0);
+                if alpha > 0 {
+                    let colour = atlas_river_water_colour(band, distances[i], scale);
+                    for (background, foreground) in rgb[i * 3..i * 3 + 3].iter_mut().zip(colour) {
+                        *background = ((u32::from(*background) * u32::from(256 - alpha)
+                            + u32::from(foreground) * u32::from(alpha)
+                            + 128)
+                            / 256)
+                            .try_into()
+                            .unwrap_or(255);
+                    }
                 }
             }
         }
@@ -318,7 +380,7 @@ impl OverviewRaster {
     pub fn finish(mut self) -> Result<Vec<u8>, RenderError> {
         let (width, height) = (self.width, self.height);
         let row_width = usize::try_from(width).map_err(|_| RenderError::ExactOverviewDimensions)?;
-        let halo = atlas_river_radius(width, height, RiverBand::Dark);
+        let halo = atlas_river_halo(width, height);
         let mut y0 = 0;
         while y0 < height {
             let y1 = (y0 + 256).min(height);
@@ -380,6 +442,8 @@ fn sample_pixel(
     let y1 = ((y + 1) * side / tile_height).max(y0 + 1);
     // Lake coverage, rather than feature precedence, determines lake fill.
     let mut best = Feature::Sea;
+    let mut best_width_dm = 0u32;
+    let mut best_discharge = arda_core::DischargeMilli::new(0);
     let mut height_sum: i64 = 0;
     let mut land_count: i64 = 0;
     let mut lake_cells: u32 = 0;
@@ -404,13 +468,26 @@ fn sample_pixel(
                         Some(band) => Feature::River(band),
                         None => Feature::Land,
                     };
-                    best = best.max(feature);
+                    if feature > best {
+                        best = feature;
+                        best_width_dm = cell.watercourse_width_dm;
+                        best_discharge = cell.discharge;
+                    } else if feature == best {
+                        best_width_dm = best_width_dm.max(cell.watercourse_width_dm);
+                        best_discharge = best_discharge.max(cell.discharge);
+                    }
                 }
             }
         }
     }
     if lake_cells * LAKE_MIN_BLOCK_DEN >= block_cells {
         best = Feature::Lake;
+    }
+    // Saved worlds carry width. The fallback serves synthetic Atlas callers
+    // whose channel cells set discharge but leave width at zero. Overflow in
+    // physical width means the largest display symbol, not the smallest.
+    if terrain.is_some() && matches!(best, Feature::River(_)) && best_width_dm == 0 {
+        best_width_dm = arda_core::hydrology::channel_width_dm(best_discharge).unwrap_or(u32::MAX);
     }
     if let Some(terrain) = terrain {
         if best != Feature::Lake {
@@ -432,7 +509,9 @@ fn sample_pixel(
                 best = match terrain.contour_class(x_kernel, y_kernel, owner, saved)? {
                     TerrainKind::Sea => Feature::AtlasSea,
                     TerrainKind::Land => match best {
-                        Feature::River(band) => Feature::AtlasRiver(band),
+                        Feature::River(band) => {
+                            Feature::AtlasRiver(band, atlas_river_size(best_width_dm, band))
+                        }
                         _ => Feature::AtlasLand,
                     },
                     TerrainKind::Lake => Feature::Lake,
@@ -441,7 +520,9 @@ fn sample_pixel(
                 best = match best {
                     Feature::Sea => Feature::AtlasSea,
                     Feature::Land => Feature::AtlasLand,
-                    Feature::River(band) => Feature::AtlasRiver(band),
+                    Feature::River(band) => {
+                        Feature::AtlasRiver(band, atlas_river_size(best_width_dm, band))
+                    }
                     other => other,
                 };
             }
@@ -464,7 +545,15 @@ fn sample_pixel(
             land_colour(i32::try_from(height_sum / land_count.max(1)).unwrap_or(0))
         }
         (Feature::River(band), _) => river_band_colour(band),
-        (Feature::AtlasRiver(band), _) => atlas_river_colour(band),
+        (Feature::AtlasRiver(RiverBand::Light, _), _) => atlas_river_colour(RiverBand::Light),
+        (Feature::AtlasRiver(_, _), Some(terrain)) => terrain.sample(
+            axis_kernel(x, tile_width)?,
+            axis_kernel(y, tile_height)?,
+            TerrainKind::Land,
+        )?,
+        (Feature::AtlasRiver(_, _), None) => {
+            land_colour(i32::try_from(height_sum / land_count.max(1)).unwrap_or(0))
+        }
         (Feature::Lake, Some(terrain)) if terrain.has_lake_depths() => terrain.sample(
             axis_kernel(x, tile_width)?,
             axis_kernel(y, tile_height)?,
@@ -656,27 +745,28 @@ mod tests {
     }
 
     #[test]
-    fn atlas_river_symbols_are_centered_at_32k_and_protect_other_surfaces() {
+    fn atlas_river_symbols_taper_and_blend_at_32k_without_crossing_masks() {
         let width = 32_768usize;
         let data_y0 = 239u32;
         let data_y1 = 273u32;
         assert_eq!(
-            atlas_river_radius(u32::try_from(width).unwrap(), 2048, RiverBand::Dark),
-            16
+            atlas_river_radius(u32::try_from(width).unwrap(), 2048, 13),
+            13
         );
         assert_eq!(
-            atlas_river_radius(u32::try_from(width).unwrap(), 2048, RiverBand::Mid),
-            8
+            atlas_river_radius(u32::try_from(width).unwrap(), 2048, 7),
+            7
         );
+        assert!(atlas_river_size(2_000, RiverBand::Dark) > atlas_river_size(360, RiverBand::Dark));
         let mut features = vec![Feature::AtlasLand; width * (data_y1 - data_y0) as usize];
         let source = (255 - data_y0) as usize * width;
-        features[source + 100] = Feature::AtlasRiver(RiverBand::Dark);
-        features[source + 200] = Feature::AtlasRiver(RiverBand::Mid);
+        features[source + 100] = Feature::AtlasRiver(RiverBand::Dark, 13);
+        features[source + 200] = Feature::AtlasRiver(RiverBand::Mid, 7);
         let guarded = (256 - data_y0) as usize * width;
         features[guarded + 101] = Feature::AtlasSea;
         features[guarded + 102] = Feature::Lake;
         features[guarded + 103] = Feature::Land;
-        features[guarded + 104] = Feature::AtlasRiver(RiverBand::Light);
+        features[guarded + 104] = Feature::AtlasRiver(RiverBand::Light, 0);
         let mut rgb = vec![100; features.len() * 3];
         style_river_band(
             u32::try_from(width).unwrap(),
@@ -693,30 +783,46 @@ mod tests {
             &rgb[i..i + 3]
         };
         let dark = atlas_river_colour(RiverBand::Dark);
-        for (x, y) in [
-            (84, 255),
-            (116, 255),
-            (100, 239),
-            (100, 271),
-            (115, 256),
-            (85, 256),
-        ] {
-            assert_eq!(at(x, y), &dark, "dark symbol at ({x}, {y})");
-        }
-        for (x, y) in [(83, 255), (117, 255), (100, 272), (116, 256)] {
-            assert_eq!(at(x, y), &[100; 3], "outside symbol at ({x}, {y})");
-        }
+        assert_eq!(at(100, 255), &dark);
+        assert!(at(112, 255)[0] > dark[0]);
+        assert!(at(112, 255)[0] < atlas_river_edge_colour(RiverBand::Dark)[0]);
+        assert_ne!(at(113, 255), &dark);
+        assert_ne!(at(113, 255), &[100; 3]);
+        assert_eq!(at(114, 255), &[100; 3]);
+        assert_eq!(at(200, 255), &atlas_river_colour(RiverBand::Mid));
+        assert_eq!(at(207, 255), &[90, 126, 135]);
+        assert_eq!(at(208, 255), &[100; 3]);
         for x in [101, 102, 103] {
             assert_eq!(at(x, 256), &[100; 3], "protected surface at {x}");
         }
         assert_eq!(at(104, 256), &dark, "dark trunk wins over light stream");
-        let mid = atlas_river_colour(RiverBand::Mid);
-        for (x, y) in [(192, 255), (208, 255), (200, 247), (200, 263), (207, 256)] {
-            assert_eq!(at(x, y), &mid, "mid symbol at ({x}, {y})");
-        }
-        for (x, y) in [(191, 255), (209, 255), (200, 264), (208, 256)] {
-            assert_eq!(at(x, y), &[100; 3], "outside mid symbol at ({x}, {y})");
-        }
+    }
+
+    #[test]
+    fn zero_width_atlas_fallback_saturates_extreme_discharge() {
+        let cells = AreaCells::flat(Cell {
+            terrain: TerrainKind::Land,
+            discharge: DischargeMilli::new(u64::MAX),
+            ..Cell::default()
+        });
+        let terrain = standalone_atlas(&cells);
+        let (_, feature) = sample_pixel(&cells, Some(&terrain), 512, 512, 0, 0).unwrap();
+        assert_eq!(feature, Feature::AtlasRiver(RiverBand::Dark, 13));
+    }
+
+    #[test]
+    fn saved_width_changes_coverage_in_a_direct_2k_overview() {
+        let mut features = vec![Feature::AtlasLand; 32];
+        features[5] = Feature::AtlasRiver(RiverBand::Mid, 5);
+        features[20] = Feature::AtlasRiver(RiverBand::Mid, 7);
+        let mut rgb = vec![100; 32 * 3];
+        style_river_band(32, 2048, 0, 0, 1, &features, &mut rgb).unwrap();
+        let narrow = &rgb[5 * 3..5 * 3 + 3];
+        let wide = &rgb[20 * 3..20 * 3 + 3];
+        let blue = atlas_river_colour(RiverBand::Mid);
+        assert!(narrow[0] > wide[0]);
+        assert!(wide[0] > blue[0]);
+        assert_eq!(&rgb[2 * 3..2 * 3 + 3], &[100; 3]);
     }
 
     #[test]
@@ -736,18 +842,18 @@ mod tests {
     }
 
     #[test]
-    fn centered_symbols_match_chamfer_oracle_across_256_row_bands() {
+    fn tapered_symbols_match_chamfer_oracle_across_256_row_bands() {
         const W: usize = 64;
         const ROWS: usize = 528;
         let mut features = vec![Feature::AtlasLand; W * ROWS];
-        features[255 * W + 24] = Feature::AtlasRiver(RiverBand::Dark);
-        features[257 * W + 48] = Feature::AtlasRiver(RiverBand::Mid);
+        features[255 * W + 24] = Feature::AtlasRiver(RiverBand::Dark, 13);
+        features[257 * W + 48] = Feature::AtlasRiver(RiverBand::Mid, 7);
         features[256 * W + 25] = Feature::AtlasSea;
         features[258 * W + 24] = Feature::Lake;
-        features[255 * W + 26] = Feature::AtlasRiver(RiverBand::Light);
+        features[255 * W + 26] = Feature::AtlasRiver(RiverBand::Light, 0);
         let mut rgb = vec![100; W * ROWS * 3];
         for (data_y0, data_y1, output_y0, output_y1) in
-            [(0usize, 272usize, 0u32, 256u32), (240, 528, 256, 512)]
+            [(0usize, 270usize, 0u32, 256u32), (242, 528, 256, 512)]
         {
             style_river_band(
                 u32::try_from(W).unwrap(),
@@ -763,30 +869,49 @@ mod tests {
         let chamfer = |x: usize, y: usize, sx: usize, sy: usize| {
             let dx = x.abs_diff(sx);
             let dy = y.abs_diff(sy);
-            3 * dx.max(dy) + dx.min(dy)
+            i16::try_from(3 * dx.max(dy) + dx.min(dy)).unwrap()
         };
-        for y in 240..272 {
+        for y in 242..270 {
             for x in 0..W {
-                let i = y * W + x;
-                let feature = features[i];
-                let dark = chamfer(x, y, 24, 255) <= 48
-                    && matches!(
-                        feature,
-                        Feature::AtlasLand | Feature::AtlasRiver(RiverBand::Light | RiverBand::Mid)
-                    );
-                let mid = chamfer(x, y, 48, 257) <= 24
-                    && matches!(
-                        feature,
-                        Feature::AtlasLand | Feature::AtlasRiver(RiverBand::Light)
-                    );
-                let expected = if dark {
-                    atlas_river_colour(RiverBand::Dark)
-                } else if mid {
-                    atlas_river_colour(RiverBand::Mid)
-                } else {
-                    [100; 3]
-                };
-                assert_eq!(&rgb[i * 3..i * 3 + 3], &expected, "({x}, {y})");
+                let feature = features[y * W + x];
+                let mut expected = [100u8; 3];
+                for (band, source_x, source_y, radius) in
+                    [(RiverBand::Mid, 48, 257, 7), (RiverBand::Dark, 24, 255, 13)]
+                {
+                    let eligible = match band {
+                        RiverBand::Mid => matches!(
+                            feature,
+                            Feature::AtlasLand
+                                | Feature::AtlasRiver(RiverBand::Light | RiverBand::Mid, _)
+                        ),
+                        RiverBand::Dark => {
+                            matches!(feature, Feature::AtlasLand | Feature::AtlasRiver(_, _))
+                        }
+                        RiverBand::Light => false,
+                    };
+                    if !eligible {
+                        continue;
+                    }
+                    let distance = chamfer(x, y, source_x, source_y) * 16 - radius * 48;
+                    let alpha =
+                        u16::try_from(((24 - i32::from(distance)) * 256 / 48).clamp(0, 256))
+                            .unwrap();
+                    let colour = atlas_river_water_colour(band, distance, 16);
+                    for channel in 0..3 {
+                        expected[channel] = ((u32::from(expected[channel])
+                            * u32::from(256 - alpha)
+                            + u32::from(colour[channel]) * u32::from(alpha)
+                            + 128)
+                            / 256)
+                            .try_into()
+                            .unwrap_or(255);
+                    }
+                }
+                assert_eq!(
+                    &rgb[(y * W + x) * 3..(y * W + x) * 3 + 3],
+                    &expected,
+                    "({x}, {y})"
+                );
             }
         }
     }

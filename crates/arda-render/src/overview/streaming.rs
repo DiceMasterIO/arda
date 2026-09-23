@@ -1,9 +1,6 @@
 //! Bounded-memory exact overview encoding.
 
-use super::{
-    atlas_river_radius, sample_pixel, style_river_band, validate_exact_dimensions, Feature,
-};
-use crate::carto::RiverBand;
+use super::{atlas_river_halo, sample_pixel, style_river_band, validate_exact_dimensions, Feature};
 use crate::{AtlasTerrain, RenderError};
 use arda_core::{AreaCells, AreaCoord};
 use std::io::Write;
@@ -93,7 +90,7 @@ where
         u32::try_from(areas_high).map_err(|_| RenderError::ExactOverviewDimensions)?;
     crate::encode_png_rows(width, height, output, |writer| {
         let mut band = RasterBand::new(width, height)?;
-        let halo = atlas_river_radius(width, height, RiverBand::Dark);
+        let halo = atlas_river_halo(width, height);
         let rows_per_band = band_height(height);
         let mut band_y0 = 0;
         while band_y0 < height {
@@ -158,7 +155,7 @@ struct RasterBand {
 
 impl RasterBand {
     fn new(width: u32, height: u32) -> Result<Self, RenderError> {
-        let halo = atlas_river_radius(width, height, RiverBand::Dark);
+        let halo = atlas_river_halo(width, height);
         let rows = (band_height(height) + halo * 2).min(height);
         let pixels =
             usize::try_from(width * rows).map_err(|_| RenderError::ExactOverviewDimensions)?;
@@ -397,8 +394,8 @@ mod tests {
         assert_eq!(band_height(32_768), 256);
         assert_eq!(band_height(7), 7);
         let band = RasterBand::new(32_768, 32_768).unwrap();
-        assert_eq!(band.rgb.len(), (256 + 32) * 32_768 * 3);
-        assert_eq!(band.features.len(), (256 + 32) * 32_768);
+        assert_eq!(band.rgb.len(), (256 + 28) * 32_768 * 3);
+        assert_eq!(band.features.len(), (256 + 28) * 32_768);
     }
 
     #[test]
