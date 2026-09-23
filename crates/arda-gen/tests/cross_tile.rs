@@ -1239,11 +1239,11 @@ fn straddling_basins_agree_on_their_surface_across_the_seam() {
     );
     assert_eq!(
         (p_lake.surface.raw(), q_lake.surface.raw()),
-        (118_943, 118_625),
+        (118_942, 118_625),
         "the corrected fallback pair drifted; re-derive cross-tile-c05-fixtures.md"
     );
     assert_eq!(
-        gap, 318,
-        "the legacy fallback gap drifted from 318 mm; re-derive cross-tile-c05-fixtures.md"
+        gap, 317,
+        "the legacy fallback gap drifted from 317 mm; re-derive cross-tile-c05-fixtures.md"
     );
 }

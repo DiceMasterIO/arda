@@ -18,8 +18,7 @@ const ARC_PEAK_MM: i64 = 150_000;
 /// Peak subsidence per step at a rift axis, millimetres.
 const RIFT_PEAK_MM: i64 = 70_000;
 
-/// Belt half-width in 4 km cells. 40 cells is 160 km, the scale of the Alps
-/// or the Southern Uplands; arcs and rifts are narrower.
+/// Belt half-width in 4 km cells; arcs are narrower than collision ranges.
 const COLLISION_BELT: i32 = 9;
 const ARC_BELT: i32 = 6;
 const RIFT_BELT: i32 = 14;
@@ -198,7 +197,7 @@ fn normalise(uplift: &mut [i32]) {
     }
 }
 
-/// Belt profile: 1024 on the axis falling to 0 at `width`, as `t^3`.
+/// Belt profile: 1024 on the axis falling to 0 at `width` cells, as `t^3`.
 ///
 /// Smoothstep was tried first and is wrong here — it is flat-topped, so the
 /// whole belt rises to near-peak and the continent becomes a plateau with
@@ -206,55 +205,99 @@ fn normalise(uplift: &mut [i32]) {
 /// peaked at the axis and concave outward, which puts most of the belt's
 /// area in foothills and gives the strongly right-skewed hypsometry real
 /// continents have.
-fn belt(dist: i32, width: i32) -> i64 {
-    if dist >= width {
+fn belt(dist_q10: i32, width: i32) -> i64 {
+    if i64::from(dist_q10) >= i64::from(width) * 1024 {
         return 0;
     }
-    let t = 1024 - i64::from(dist) * 1024 / i64::from(width.max(1));
+    let t = 1024 - i64::from(dist_q10) / i64::from(width.max(1));
     let t2 = t * t / 1024;
     (t2 * t / 1024).clamp(0, 1024)
 }
 
-/// Chebyshev distance to the nearest cell of `kind`, capped at `limit`.
+/// Q10 Euclidean distance to the nearest cell of `kind`, capped past `limit`.
 ///
-/// Two-pass chamfer transform: deterministic, integer, and O(n).
+/// Two separable squared-distance passes keep work linear in grid area.
 fn distance_to(kind: &[BoundaryMask], want: Boundary, w: i32, h: i32, limit: i32) -> Vec<i32> {
-    let idx = |x: i32, y: i32| usize::try_from(y * w + x).unwrap_or(0);
-    let cap = limit + 1;
-    let mut d: Vec<i32> = kind
-        .iter()
-        .map(|&k| if k.contains(want) { 0 } else { cap })
-        .collect();
+    let width = usize::try_from(w).unwrap_or(0);
+    let height = usize::try_from(h).unwrap_or(0);
+    let cap_cells = i64::from(limit) + 1;
+    let cap2 = cap_cells * cap_cells;
+    let cap_q10 = i32::try_from(cap_cells * 1024).unwrap_or(i32::MAX);
+    let mut horizontal = vec![cap2; kind.len()];
 
-    for y in 0..h {
-        for x in 0..w {
-            let i = idx(x, y);
-            let mut best = d[i];
-            for (dx, dy) in [(-1, 0), (0, -1), (-1, -1), (1, -1)] {
-                let (nx, ny) = (x + dx, y + dy);
-                if nx < 0 || ny < 0 || nx >= w || ny >= h {
-                    continue;
-                }
-                best = best.min(d[idx(nx, ny)].saturating_add(1));
+    for y in 0..height {
+        let row = y * width;
+        let mut nearest = None;
+        for x in 0..width {
+            if kind[row + x].contains(want) {
+                nearest = Some(x);
             }
-            d[i] = best.min(cap);
+            if let Some(source) = nearest {
+                let dx = i64::try_from(x - source).unwrap_or(i64::MAX);
+                horizontal[row + x] = (dx * dx).min(cap2);
+            }
+        }
+        nearest = None;
+        for x in (0..width).rev() {
+            if kind[row + x].contains(want) {
+                nearest = Some(x);
+            }
+            if let Some(source) = nearest {
+                let dx = i64::try_from(source - x).unwrap_or(i64::MAX);
+                horizontal[row + x] = horizontal[row + x].min(dx * dx);
+            }
         }
     }
-    for y in (0..h).rev() {
-        for x in (0..w).rev() {
-            let i = idx(x, y);
-            let mut best = d[i];
-            for (dx, dy) in [(1, 0), (0, 1), (1, 1), (-1, 1)] {
-                let (nx, ny) = (x + dx, y + dy);
-                if nx < 0 || ny < 0 || nx >= w || ny >= h {
-                    continue;
-                }
-                best = best.min(d[idx(nx, ny)].saturating_add(1));
+
+    let mut result = vec![cap_q10; kind.len()];
+    let mut sites: Vec<usize> = Vec::with_capacity(height);
+    let mut starts: Vec<i128> = Vec::with_capacity(height);
+    for x in 0..width {
+        sites.clear();
+        starts.clear();
+        for q in 0..height {
+            let fq = horizontal[q * width + x];
+            if fq >= cap2 {
+                continue;
             }
-            d[i] = best.min(cap);
+            let qi = i128::try_from(q).unwrap_or(i128::MAX);
+            let mut start = i128::MIN;
+            while let Some(&p) = sites.last() {
+                let pi = i128::try_from(p).unwrap_or(i128::MAX);
+                let fp = i128::from(horizontal[p * width + x]);
+                // Integer intersections break equal-distance ties toward the
+                // earlier site, without rounding the final distance.
+                start = (i128::from(fq) + qi * qi - fp - pi * pi).div_euclid(2 * (qi - pi)) + 1;
+                if start > starts[starts.len() - 1] {
+                    break;
+                }
+                sites.pop();
+                starts.pop();
+            }
+            if sites.is_empty() {
+                start = i128::MIN;
+            }
+            sites.push(q);
+            starts.push(start);
+        }
+        let mut active = 0;
+        for y in 0..height {
+            if sites.is_empty() {
+                break;
+            }
+            while active + 1 < sites.len()
+                && starts[active + 1] <= i128::try_from(y).unwrap_or(i128::MAX)
+            {
+                active += 1;
+            }
+            let dy = y.abs_diff(sites[active]);
+            let dy = i64::try_from(dy).unwrap_or(i64::MAX);
+            let d2 = (horizontal[sites[active] * width + x] + dy * dy).min(cap2);
+            let scaled = u128::try_from(d2).unwrap_or(0) * 1024 * 1024;
+            result[y * width + x] = i32::try_from(scaled.isqrt()).unwrap_or(i32::MAX);
         }
     }
-    d
+    result
 }
 
 #[cfg(test)]
@@ -312,25 +355,44 @@ mod tests {
     }
 
     #[test]
-    fn uplift_is_a_belt_not_a_line() {
-        // Measure how wide the raised ground is: a one-cell ridge would mean
-        // the belt profile is not doing its job.
-        let p = seed_plates(42, sim(), 0);
-        let u = run_tectonics(42, &p, sim(), 20);
-        let peak = u.iter().copied().max().unwrap_or(1);
-        let high = u.iter().filter(|&&v| v > peak / 2).count();
-        assert!(
-            high > u.len() / 100,
-            "only {high} of {} cells are above half peak",
-            u.len()
-        );
+    fn straight_boundary_creates_a_symmetric_belt_at_each_configured_width() {
+        let mut kinds = vec![BoundaryMask::default(); 31 * 5];
+        for y in 0..5 {
+            kinds[y * 31 + 15] = BoundaryMask(
+                Boundary::Collision as u8 | Boundary::Arc as u8 | Boundary::Rift as u8,
+            );
+        }
+        for (want, width) in [
+            (Boundary::Collision, COLLISION_BELT),
+            (Boundary::Arc, ARC_BELT),
+            (Boundary::Rift, RIFT_BELT),
+        ] {
+            let distances = distance_to(&kinds, want, 31, 5, width);
+            assert_eq!(belt(distances[2 * 31 + 15], width), 1024);
+            let mut previous = 1024;
+            for offset in 1..=width {
+                let left = usize::try_from(15 - offset).unwrap();
+                let right = usize::try_from(15 + offset).unwrap();
+                let left_dist = distances[2 * 31 + left];
+                let right_dist = distances[2 * 31 + right];
+                assert_eq!(left_dist, offset * 1024);
+                assert_eq!(left_dist, right_dist);
+                let height = belt(left_dist, width);
+                assert!(height <= previous);
+                if offset < width - 1 {
+                    assert!(height > 0, "{want:?} vanished at {offset} of {width} cells");
+                }
+                previous = height;
+            }
+            assert_eq!(previous, 0, "{want:?} extends past {width} cells");
+        }
     }
 
     #[test]
     fn belt_profile_falls_to_zero_at_the_edge() {
         assert_eq!(belt(0, 40), 1024);
-        assert_eq!(belt(40, 40), 0);
-        assert_eq!(belt(41, 40), 0);
-        assert!(belt(20, 40) > 0 && belt(20, 40) < 1024);
+        assert_eq!(belt(40 * 1024, 40), 0);
+        assert_eq!(belt(41 * 1024, 40), 0);
+        assert!(belt(20 * 1024, 40) > 0 && belt(20 * 1024, 40) < 1024);
     }
 }

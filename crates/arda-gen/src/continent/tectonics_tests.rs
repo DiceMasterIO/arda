@@ -164,10 +164,78 @@ fn each_belt_sees_a_mixed_junction_as_its_own_distance_source() {
     for want in [Boundary::Collision, Boundary::Arc, Boundary::Rift] {
         let distances = distance_to(&kinds, want, 5, 5, 3);
         assert_eq!(distances[12], 0, "{want:?} must originate at junction");
-        assert_eq!(distances[13], 1);
-        // Retain the existing Chebyshev belt metric, including diagonals.
-        assert_eq!(distances[0], 2);
+        assert_eq!(distances[13], 1024);
+        assert_eq!(distances[0], 2_896);
     }
+}
+
+#[test]
+fn euclidean_distance_preserves_fractional_cell_offsets() {
+    let mut kinds = vec![BoundaryMask::default(); 13 * 13];
+    kinds[6 * 13 + 6] = BoundaryMask(Boundary::Collision as u8);
+    let d = distance_to(&kinds, Boundary::Collision, 13, 13, 9);
+    assert_eq!(d[6 * 13 + 11], 5 * 1024);
+    assert_eq!(d[10 * 13 + 9], 5 * 1024);
+    assert_eq!(d[7 * 13 + 7], 1_448);
+    assert_eq!(d[8 * 13 + 7], 2_289);
+    assert!(d[10 * 13 + 9] < d[11 * 13 + 11]);
+}
+
+#[test]
+fn distances_match_nearest_source_oracle_and_transpose() {
+    for bits in [0_u32, 1, 0b101_001_010_100_001, u32::MAX] {
+        let width = 5_usize;
+        let height = 4_usize;
+        let mut kinds = vec![BoundaryMask::default(); width * height];
+        for (i, kind) in kinds.iter_mut().enumerate() {
+            if bits & (1 << i) != 0 {
+                *kind = BoundaryMask(Boundary::Collision as u8 | Boundary::Rift as u8);
+            }
+        }
+        let mut transposed = vec![BoundaryMask::default(); kinds.len()];
+        for y in 0..height {
+            for x in 0..width {
+                transposed[x * height + y] = kinds[y * width + x];
+            }
+        }
+        for limit in [0, 1, 2, 6] {
+            let actual = distance_to(&kinds, Boundary::Collision, 5, 4, limit);
+            let cap = (limit + 1) * 1024;
+            for y in 0..height {
+                for x in 0..width {
+                    let nearest = (0..height)
+                        .flat_map(|sy| (0..width).map(move |sx| (sx, sy)))
+                        .filter(|&(sx, sy)| kinds[sy * width + sx].contains(Boundary::Collision))
+                        .map(|(sx, sy)| {
+                            let dx = x.abs_diff(sx);
+                            let dy = y.abs_diff(sy);
+                            dx * dx + dy * dy
+                        })
+                        .min();
+                    let expected = nearest.map_or(cap, |d2| {
+                        i32::try_from((u64::try_from(d2).unwrap() * 1024 * 1024).isqrt()).unwrap()
+                    });
+                    assert_eq!(actual[y * width + x], expected.min(cap));
+                }
+            }
+            let rotated = distance_to(&transposed, Boundary::Rift, 4, 5, limit);
+            for y in 0..height {
+                for x in 0..width {
+                    assert_eq!(actual[y * width + x], rotated[x * height + y]);
+                }
+            }
+        }
+    }
+}
+
+#[test]
+fn belt_uses_fractional_distance_and_exact_cutoff() {
+    let mut kinds = vec![BoundaryMask::default(); 21 * 21];
+    kinds[10 * 21 + 10] = BoundaryMask(Boundary::Collision as u8);
+    let d = distance_to(&kinds, Boundary::Collision, 21, 21, COLLISION_BELT);
+    assert!(belt(d[13 * 21 + 13], COLLISION_BELT) < belt(4 * 1024, COLLISION_BELT));
+    assert!(belt(d[10 * 21 + 18], COLLISION_BELT) > 0);
+    assert_eq!(belt(d[10 * 21 + 19], COLLISION_BELT), 0);
 }
 
 #[test]
