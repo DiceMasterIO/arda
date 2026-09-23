@@ -1,6 +1,6 @@
 ---
-generated_at_commit: 3c06909b427c
-content_hash: eeef9cd3cd5c
+generated_at_commit: 0fc9666b583b
+content_hash: 992a8086d2f5
 paths_covered: [":(top)Cargo.toml", ":(top)crates/*/Cargo.toml", ":(top)crates/*/src/**", ":(top).github/**"]
 generated_date: 2026-09-23
 absorbed_from: features/2026-09-07-area-water-terrain-realism@2026-09-08, features/2026-09-23-terrain-corrections@2026-09-23

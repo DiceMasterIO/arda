@@ -1,7 +1,7 @@
 ---
-generated_at_commit: 3c06909b427c
+generated_at_commit: 0fc9666b583b
 generated_date: 2026-09-23
-content_hash: c50336733b0b
+content_hash: a97747d052a0
 paths_covered: [":(top)crates/*/src/**"]
 absorbed_from: [features/2026-09-07-area-water-terrain-realism@2026-09-08, features/2026-09-22-geographical-rendering-first-pass@2026-09-22, features/2026-09-23-terrain-corrections@2026-09-23]
 ---
@@ -95,7 +95,7 @@ absorbed_from: [features/2026-09-07-area-water-terrain-realism@2026-09-08, featu
 | MapStyle | `crates/arda/src/lib.rs:28` | in-memory render request | Classic default or Atlas PNG presentation; never serialized in a world |
 | AreaImageScale | `crates/arda-render/src/channels.rs:13` | in-memory render request | Preview, detail or custom square area-image resolution |
 | AtlasNeighbor | `crates/arda-render/src/atlas.rs:47` | in-memory render context | Fixed eight adjacent-area directions |
-| AtlasHalo | `crates/arda-render/src/atlas.rs:77` | in-memory render scratch | 516² optional saved height/class context plus eight direction states |
+| AtlasHalo | `crates/arda-render/src/atlas.rs:77` | in-memory render scratch | 516² optional saved height/class/lake-depth context plus eight direction states |
 | AtlasTerrain | `crates/arda-render/src/atlas.rs:159` | in-memory render scratch | 514² derived palette RGB, Q12 lighting, terrain classes and saved millimetre heights |
 | OverviewRaster | `crates/arda-render/src/overview.rs:22` | in-memory buffered renderer | Exact or regular-size overview pixels, feature precedence and supplied-area tracking |
 | AreaRaster | `crates/arda-render/src/channels.rs:315` | in-memory streaming renderer | Prepared channel geometry, bounded candidate indexes and one reusable area scanline |
@@ -893,8 +893,10 @@ Copied global lake (`crates/arda-render/src/hydrology_json.rs:49`):
 
 | Field | Type | Required | Notes |
 |---|---|---|---|
-| context | `Option<SourceSample>[]` | yes | Fixed 516² saved height/class samples for target plus two-cell cardinal strips and 2×2 diagonal corners (`crates/arda-render/src/atlas.rs:77`, `crates/arda-render/src/atlas.rs:108`) |
+| context | `Option<SourceSample>[]` | yes | Fixed 516² saved height/class/optional-lake-depth samples for target plus two-cell cardinal strips and 2×2 diagonal corners (`crates/arda-render/src/atlas.rs:77`, `crates/arda-render/src/atlas.rs:108`) |
 | states | `NeighborState[8]` | yes | Every direction resolved once as Copied or WorldEdge; incomplete or contradictory context is refused (`crates/arda-render/src/atlas.rs:176`) |
+
+Each optional halo sample occupies 16 bytes on the verified target; the fixed 516² context is 4,260,096 bytes. Lake validation uses at most one transient 512² `Option<u32>` depth lookup (2,097,152 bytes) per neighbor before copying its edge/corner and dropping it. `copy_neighbor_with_lakes` and `new_with_lakes` are additive APIs; existing constructors retain categorical fallback when saved surfaces are absent.
 
 ### AtlasTerrain
 
@@ -904,6 +906,7 @@ Copied global lake (`crates/arda-render/src/hydrology_json.rs:49`):
 | light | `u16[]` | yes | 514² Q12 relief factors, applied only to land (`crates/arda-render/src/atlas.rs:241`) |
 | classes | `TerrainKind[]` | yes | 514² ownership classes for filtered sampling (`crates/arda-render/src/atlas.rs:168`) |
 | heights | `i32[]` | yes | 514² saved millimetre heights, including independently clamped outer ghosts; supports integer bilinear land/sea reconstruction (`crates/arda-render/src/atlas.rs:168`, `crates/arda-render/src/atlas.rs:412`) |
+| has_lake_depths | `bool` | yes | Target has supplied lake memberships; enables Atlas depth sampling while preserving older caller fallback |
 
 ### OverviewRaster
 
@@ -1057,7 +1060,7 @@ Core codecs explicitly write little-endian fields; Rust padding is not persisted
 
 `CellOut` still omits temperature, rainfall, moisture, forest_density, road and built_by; area JSON combines cells, objects, physical channel edges and hydrology in one document. `BlockOut` retains tile IDs/names without material/traversal/movement/cover/hazard attributes, POIs or buildings. Loaded continent-object queries and independently framed lazy block decoding remain unimplemented; `World::load` reads the manifest without loading continent or global hydrology tables (`crates/arda-render/src/json.rs:18`, `crates/arda-render/src/json.rs:66`, `crates/arda-render/src/json.rs:96`, `crates/arda/src/world.rs:93`).
 
-Area Preview is 512² pixels with faint marks for subpixel streams; Detail is 4,096² and Custom is any validated 512–32,768² edge, both showing physical channel coverage only. Every scale resamples the same immutable 512² grid of 100 m cells and saved global D8 channel geometry. Atlas adds an ephemeral 516² halo and 514² palette/light/class/height grids; it creates no new saved fields or world format. Supplied lake surfaces determine the existing blue-to-blue depth ramp; overview retains categorical lake fill and discharge-band river symbols. These are display choices, not changed wet membership or finer terrain (`crates/arda-render/src/atlas.rs:77`, `crates/arda-render/src/atlas.rs:159`, `crates/arda-render/src/channels.rs:11`, `crates/arda-render/src/overview.rs:278`).
+Area Preview is 512² pixels with faint marks for subpixel streams; Detail is 4,096² and Custom is any validated 512–32,768² edge, both showing physical channel coverage only. Every scale resamples the same immutable 512² grid of 100 m cells and saved global D8 channel geometry. Atlas adds an ephemeral 516² halo and 514² palette/light/class/height grids; it creates no new saved fields or world format. Supplied lake surfaces determine physical depth. Atlas area and overview use the same depth palette as Atlas sea; Classic area keeps its existing lake ramp and Classic overview keeps categorical fill. Overview retains discharge-band river symbols. These are display choices, not changed wet membership or finer terrain (`crates/arda-render/src/atlas.rs:77`, `crates/arda-render/src/atlas.rs:159`, `crates/arda-render/src/channels.rs:11`, `crates/arda-render/src/overview.rs:278`).
 
 Atlas land material now derives exposed-rock colour from the magnitude of the existing saved-height gradient, blends rock tint continuously from 1–2 km elevation, and adds a slope-weighted pale snow appearance from 2.85–4.3 km. The northwest light uses stronger bounded Q12 modulation. These are deterministic display rules, not simulated lithology, vegetation or snow storage; they use the existing fixed halo and palette/light grids (`crates/arda-render/src/atlas.rs:636`). No saved cell field, serialized record or format version changes.
 

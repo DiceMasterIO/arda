@@ -1,7 +1,7 @@
 ---
-generated_at_commit: 3c06909b427c
+generated_at_commit: 0fc9666b583b
 generated_date: 2026-09-23
-content_hash: 3ea0394cbd98
+content_hash: f87c83391e8f
 paths_covered: [":(top)crates/**", ":(top)tests/**"]
 absorbed_from: features/2026-09-07-area-water-terrain-realism@2026-09-08, features/2026-09-23-terrain-corrections@2026-09-23
 ---
@@ -50,7 +50,7 @@ absorbed_from: features/2026-09-07-area-water-terrain-realism@2026-09-08, featur
 | Preview / Detail | Area Preview is 512² with faint subpixel stream marks; Detail is 4096² with physical coverage only. Both depict the same 100 m terrain and saved water decisions. | `crates/arda-render/src/channels.rs:12` |
 | Exact-size overview | A bounded arbitrary raster size over saved area cells; the 16K example follows manifest aspect ratio. It increases output pixels without generating finer terrain. | `crates/arda-render/src/overview.rs`; `crates/arda/examples/export_world_16k.rs` |
 | Regional detail amplitude | Fine land noise scales with the largest regional height difference among eight offset samples, capped at 90 m; absolute altitude does not amplify it. | `crates/arda-gen/src/continent/bundles.rs`; `logic/02-area-generation.md` |
-| Lake depth palette | Supplied physical bed/surface depth drives an integer blue-to-blue shade ramp in area images. It is cartographic shading, not calibrated optics or transparency; overview and missing direct-fixture surface context use categorical fill. | `crates/arda-render/src/carto.rs:60`; `crates/arda-render/src/channels.rs:268` |
+| Lake depth palette | Supplied physical bed/surface depth drives integer water shading. Atlas area and overview share the Atlas sea-depth ramp; Classic area keeps its previous blue ramp and Classic overview stays categorical. Missing surface context retains categorical fallback. This is cartographic colour, not calibrated optics or transparency. | `crates/arda-render/src/carto.rs:60`; `crates/arda-render/src/channels.rs:268` |
 | Resource admission | Explicit RAM, simultaneous scratch, logical-work and I/O capacity checks precede generation writes. Later observed excess returns a typed error; limits never select a different water result. Payload admission is not a process-RSS measurement or maximum-world runtime claim. | `crates/arda-gen/src/hydrology/types.rs:84`; `crates/arda-gen/src/orchestrator/generation_limits.rs:145` |
 | Partial world / clean rerun | Failed or interrupted generation retains partial files without a completion manifest. A nonempty output is refused; successful publication removes runtime scratch and renames the manifest last. This is process-interruption completion, not power-loss durability. | `crates/arda-gen/src/orchestrator/publication.rs:42`; `crates/arda-gen/src/orchestrator/publication.rs:126` |
 | Relaxed block | Eight WFC attempts failed; first allowed tile (or ID 0) fills the block, flagged relaxed. Tactical rules are unchanged by the shared-water model. | `crates/arda-gen/src/block/wfc.rs:19` |

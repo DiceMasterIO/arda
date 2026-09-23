@@ -1,7 +1,7 @@
 ---
-generated_at_commit: 3c06909b427c
+generated_at_commit: 0fc9666b583b
 generated_date: 2026-09-23
-content_hash: b404592347c6
+content_hash: 968d950bc295
 paths_covered: [":(top)Cargo.toml", ":(top)crates/*/Cargo.toml", ":(top)crates/*/src/**", ":(top)Dockerfile", ":(top).github/**", ":(top)rust-toolchain.toml", ":(top)deny.toml", ":(top)crates/*/examples/**"]
 absorbed_from: features/2026-09-07-area-water-terrain-realism@2026-09-08, features/2026-09-22-geographical-rendering-first-pass@2026-09-22, features/2026-09-23-terrain-corrections@2026-09-23
 ---
@@ -198,12 +198,13 @@ mode retains a faint mark for subpixel streams. Larger quality sizes and Classic
 All use the same saved 100 m terrain. Saved global IDs, crossings and per-area
 context preserve shared topology; rendering does not recalculate river widths
 from local fragments. Invalid geometry or rendering-work caps return typed errors.
-Atlas changes PNG presentation only: earthy height and sea-depth colors, fixed
+Atlas changes PNG presentation only: earthy height and water-depth colors, fixed
 directional relief and pixel-center interpolation from saved cells. It reads
 the two nearest rows/columns and corners from existing in-world neighbors;
 missing or corrupt neighbors fail the export. Out-of-world edges use one-sided
-gradients. Atlas area PNGs keep physical lake depths and channel geometry;
-the overview keeps categorical lake fill and discharge-band river symbols.
+gradients. Atlas area and overview PNGs share saved lake-depth colours; area
+images retain physical channel geometry, while overview keeps its categorical
+lake footprint threshold and discharge-band river symbols.
 Classic remains the omitted-style behavior, including existing library entry
 points. The additive styled APIs are
 `export_area_with_quality_and_style` and
@@ -477,3 +478,7 @@ regenerated blocks and their exports matched saved data. These figures concern
 the current 24-tile WFC, with no timing claim for future assets or full tactical
 coverage. Source:
 [tactical timing report](features/2026-09-07-area-water-terrain-realism/verification/tactical-timing/report.json).
+
+### Atlas lake-depth export measurement — 2026-09-23
+
+Renderer `0fc9666` exported the same saved default world at 15,522×32,768 in 69.34 s, with 76,904 KiB peak child RSS measured by Linux `getrusage`. The PNG is 152,810,414 bytes. This is one local release export, not a repeated timing guarantee or a new generation run. Exact command and SHA-256: [lake-depth 32K receipt](features/2026-09-23-terrain-corrections/evidence/atlas-lake-depth/full-world-32k/verification.json).

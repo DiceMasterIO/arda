@@ -9,8 +9,8 @@ snow. Classic does not add hillshading or a biome overlay.
 
 `--style atlas` adds an earthy elevation palette, slope-derived exposed rock,
 altitude/slope-based snow appearance, northwest relief lighting, and depth-based
-sea colours. Land palette and lighting interpolate separately at each output
-pixel. Rock and snow are display rules, not simulated geology or snow storage;
+sea and lake colours from saved water depth. Land palette and lighting
+interpolate separately at each output pixel. Rock and snow are display rules, not simulated geology or snow storage;
 neither style adds a forest model. Atlas reconstructs guarded land/sea contours
 from saved heights at enlarged scales while preserving the saved physical data.
 Lake ownership and downsampled class coverage remain categorical, so some edges

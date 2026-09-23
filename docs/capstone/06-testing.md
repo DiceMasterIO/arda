@@ -1,7 +1,7 @@
 ---
-generated_at_commit: 3c06909b427c
+generated_at_commit: 0fc9666b583b
 generated_date: 2026-09-23
-content_hash: db98e724b8fc
+content_hash: e7c29578cd20
 paths_covered: [":(top)Cargo.toml", ":(top)crates/*/src/**", ":(top)crates/*/tests/**", ":(top)crates/*/benches/**", ":(top)tests/**", ":(top).github/**", ":(top)crates/*/examples/**"]
 absorbed_from: features/2026-09-07-area-water-terrain-realism@2026-09-08, features/2026-09-22-geographical-rendering-first-pass@2026-09-22, features/2026-09-23-terrain-corrections@2026-09-23
 ---
@@ -274,7 +274,7 @@ Evidence: [correction verification](features/2026-09-07-area-water-terrain-reali
 The Atlas renderer tests cover exact integer lighting and sampling, 512/513 area
 scales, a 511×513 mixed-axis overview, adjacent interpolated rows, and continuous
 planar gradients across area edges and four-area corners. Area water tests retain
-validated lake depth and saved channel coverage; overview water remains categorical.
+validated lake depth and saved channel coverage; overview water was categorical at this first-pass stage.
 The facade tests use encoded saved-area grids to exercise all eight halo directions,
 two-cell diagonal context, unavailable and corrupt in-world neighbors, repeat PNG
 bytes, unchanged saved layers, and failure-safe publication. CLI process tests
@@ -360,3 +360,11 @@ Verification: 89 renderer tests, 56 facade/CLI tests across six suites (141.93 s
 The final binary exported the same immutable default seed-42 world as a 2K overview and matched areas (5,4), (1,6), (2,6). The integrated full 15,522×32,768 overview took 66.92 s and has SHA-256 `a920b5eb8d983870e48abdcc32fa895d3260427f472a279541e1dabc18dbd25a`; command and receipt are retained in `features/2026-09-23-terrain-corrections/evidence/material-probe/integrated/full-world-32k/verification.json`. This is an updated export, not a regenerated world or a repeated resource benchmark. No full workspace, MSRV, dependency-policy or remote CI rerun is claimed for this small continuation.
 
 Actual renders show clearer saved valleys and less blanket-white highland. Broad smooth mountain forms, parallel channels and the large physical basin remain unresolved. Isolated terrain trials retain numeric inputs and reproducible evidence under `fine-time-probe`, `fine-receiver-probe`, `fine-threshold-probe` and `regional-relief-probe`; none changes production generation or its golden files.
+
+## Atlas lake-depth continuation — 2026-09-23
+
+Source `0fc9666` passes 94 renderer library tests, 12 public area-export tests and 14 CLI process tests. Formatting, strict Clippy for `arda-render` and `arda` with all targets, and whitespace checks pass. Two independent Sol code reviews found no confirmed defects. Their noted test gaps were then covered by a diagonal lake-depth corner fixture and public area/buffered/streamed mixed-axis overview assertions, inspected by the root reviewer.
+
+Matched 2K exports of the saved default seed-42 world were inspected against clean archived HEAD `820af9d`: the overview changes 147,889 pixels; lake-interior area 4,5 changes 4,194,304 and lake-margin area 4,7 changes 1,926,688. An initially shared build target reused the new executable and invalidated the first baseline comparison; those files were replaced after a separate clean-target build. Classic area 4,7 remains byte-identical. The current 32K output is 15,522×32,768, produced in 69.34 s at 76,904 KiB peak child RSS; no repeat run or full workspace/remote CI result is claimed for this continuation. [Evidence and exact receipts](features/2026-09-23-terrain-corrections/evidence/atlas-lake-depth/README.md).
+
+Controlled terrain trials remain experimental. Coupled D-infinity, jittered coarse meshes and sediment infill did not establish the requested morphology. Ordinary intermediate-scale relief plus longer evolution produced larger branching valleys on one fixed crop, but retains fine parallel gullies and has not been integrated or validated as a full world. Reference-quality visual acceptance remains open.
