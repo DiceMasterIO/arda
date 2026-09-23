@@ -327,6 +327,69 @@ mod tests {
     }
 
     #[test]
+    fn mixed_style_trunk_widening_protects_atlas_sea_across_area_and_band_seams() {
+        let mut trunk = AreaCells::flat(Cell {
+            terrain: TerrainKind::Land,
+            height: HeightMm::new(100_000),
+            ..Cell::default()
+        });
+        for y in 0..512 {
+            trunk.set(
+                CellCoord::new(511, y).unwrap(),
+                Cell {
+                    terrain: TerrainKind::Land,
+                    height: HeightMm::new(100_000),
+                    discharge: DischargeMilli::new(800_000),
+                    ..Cell::default()
+                },
+            );
+        }
+        let sea = AreaCells::flat(Cell {
+            terrain: TerrainKind::Sea,
+            height: HeightMm::new(-100_000),
+            ..Cell::default()
+        });
+        for atlas_sea in [false, true] {
+            let mut buffered = OverviewRaster::new_exact(2, 1, 1024, 512).unwrap();
+            buffered.push(AreaCoord::new(0, 0), &trunk).unwrap();
+            if atlas_sea {
+                buffered
+                    .push_atlas(AreaCoord::new(1, 0), &sea, &standalone_atlas(&sea))
+                    .unwrap();
+            } else {
+                buffered.push(AreaCoord::new(1, 0), &sea).unwrap();
+            }
+            let expected = decode(&buffered.finish().unwrap());
+            let mut encoded = Vec::new();
+            write_overview_png_inner(2, 1, 1024, 512, &mut encoded, |at| {
+                if at.x == 0 {
+                    Ok::<_, RenderError>((trunk.clone(), None))
+                } else {
+                    Ok::<_, RenderError>((sea.clone(), atlas_sea.then(|| standalone_atlas(&sea))))
+                }
+            })
+            .unwrap();
+            let actual = decode(&encoded);
+            assert_eq!(actual, expected);
+            for y in [255, 256] {
+                let p = (y * 1024 + 512) * 3;
+                let want = if atlas_sea {
+                    standalone_atlas(&sea)
+                        .sample(
+                            crate::atlas::axis_kernel(0, 512).unwrap(),
+                            crate::atlas::axis_kernel(u32::try_from(y).unwrap(), 512).unwrap(),
+                            TerrainKind::Sea,
+                        )
+                        .unwrap()
+                } else {
+                    river_band_colour(RiverBand::Dark)
+                };
+                assert_eq!(&actual.2[p..p + 3], &want);
+            }
+        }
+    }
+
+    #[test]
     fn streaming_accepts_32k_square_without_a_full_image_allocation() {
         assert!(validate_exact_dimensions(78, 78, 32_768, 32_768).is_ok());
         assert!(validate_exact_dimensions(1, 1, 32_768, 32_768).is_ok());

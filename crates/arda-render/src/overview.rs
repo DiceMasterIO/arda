@@ -14,6 +14,7 @@ pub use streaming::{write_atlas_overview_png, write_overview_png};
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord)]
 enum Feature {
     Sea,
+    AtlasSea,
     Land,
     River(RiverBand),
     Lake,
@@ -110,7 +111,7 @@ impl OverviewRaster {
         self.push_inner(at, cells, None)
     }
 
-    /// Incorporates one Atlas area, preserving saved feature ownership.
+    /// Incorporates one Atlas area with reconstructed linear shoreline pixels.
     ///
     /// # Errors
     /// Refuses out-of-range or duplicate areas and invalid atlas context.
@@ -178,9 +179,8 @@ impl OverviewRaster {
     pub fn finish(mut self) -> Result<Vec<u8>, RenderError> {
         let (width, height) = (self.width, self.height);
         // The Dark band widens by one pixel so the few real trunks carry
-        // visible weight against the streams. Guarded both ways: never over a
-        // lake, and never over another river pixel, so the pass cannot change
-        // a classification the block pass already made.
+        // visible weight against the streams. Saved Classic sea may receive
+        // this mark, while reconstructed Atlas sea remains protected.
         let mut widened = vec![false; self.features.len()];
         for y in 0..height {
             for x in 0..width {
@@ -285,8 +285,38 @@ fn sample_pixel(
     if lake_cells * LAKE_MIN_BLOCK_DEN >= block_cells {
         best = Feature::Lake;
     }
+    if let Some(terrain) = terrain {
+        if best != Feature::Lake {
+            let x_kernel = axis_kernel(x, tile_width)?;
+            let y_kernel = axis_kernel(y, tile_height)?;
+            if matches!(
+                (x_kernel, y_kernel),
+                (
+                    crate::atlas::AxisKernel::Linear { .. },
+                    crate::atlas::AxisKernel::Linear { .. }
+                )
+            ) {
+                let owner = CellCoord::new(
+                    u16::try_from(x0).map_err(|_| RenderError::ExactOverviewDimensions)?,
+                    u16::try_from(y0).map_err(|_| RenderError::ExactOverviewDimensions)?,
+                )
+                .ok_or(RenderError::ExactOverviewDimensions)?;
+                let saved = cells.get(owner).terrain;
+                best = match terrain.contour_class(x_kernel, y_kernel, owner, saved)? {
+                    TerrainKind::Sea => Feature::AtlasSea,
+                    TerrainKind::Land => match best {
+                        Feature::River(band) => Feature::River(band),
+                        _ => Feature::Land,
+                    },
+                    TerrainKind::Lake => Feature::Lake,
+                };
+            } else if best == Feature::Sea {
+                best = Feature::AtlasSea;
+            }
+        }
+    }
     let colour = match (best, terrain) {
-        (Feature::Sea, Some(terrain)) => terrain.sample(
+        (Feature::Sea | Feature::AtlasSea, Some(terrain)) => terrain.sample(
             axis_kernel(x, tile_width)?,
             axis_kernel(y, tile_height)?,
             TerrainKind::Sea,
@@ -296,7 +326,7 @@ fn sample_pixel(
             axis_kernel(y, tile_height)?,
             TerrainKind::Land,
         )?,
-        (Feature::Sea, None) => OVERVIEW_SEA,
+        (Feature::Sea | Feature::AtlasSea, None) => OVERVIEW_SEA,
         // Include channel cells in the land mean to preserve the ground tint.
         (Feature::Land, None) => {
             land_colour(i32::try_from(height_sum / land_count.max(1)).unwrap_or(0))
@@ -401,7 +431,7 @@ mod tests {
     }
 
     #[test]
-    fn atlas_overview_retains_saved_feature_mask_and_propagates_context_errors() {
+    fn atlas_overview_resolves_linear_shore_and_propagates_context_errors() {
         let mut cells = AreaCells::flat(Cell {
             height: HeightMm::new(-2000),
             terrain: TerrainKind::Sea,
@@ -426,22 +456,26 @@ mod tests {
         atlas
             .push_atlas(AreaCoord::new(0, 0), &cells, &terrain)
             .unwrap();
-        assert_eq!(atlas.features, classic.features);
-        for (x, class) in [
-            (255, TerrainKind::Sea),
-            (256, TerrainKind::Sea),
-            (257, TerrainKind::Land),
-        ] {
+        assert_eq!(classic.features[256 * 513 + 255], Feature::Sea);
+        for x in [255, 256, 257] {
+            let owner = CellCoord::new(u16::try_from(x * 512 / 513).unwrap(), 255).unwrap();
+            let x_kernel = crate::atlas::axis_kernel(u32::try_from(x).unwrap(), 513).unwrap();
+            let y_kernel = crate::atlas::axis_kernel(256, 513).unwrap();
+            let class = terrain
+                .contour_class(x_kernel, y_kernel, owner, cells.get(owner).terrain)
+                .unwrap();
             let i = (256 * 513 + x) * 3;
             assert_eq!(
+                atlas.features[256 * 513 + x],
+                if class == TerrainKind::Sea {
+                    Feature::AtlasSea
+                } else {
+                    Feature::Land
+                }
+            );
+            assert_eq!(
                 &atlas.rgb[i..i + 3],
-                &terrain
-                    .sample(
-                        crate::atlas::axis_kernel(u32::try_from(x).unwrap(), 513).unwrap(),
-                        crate::atlas::axis_kernel(256, 513).unwrap(),
-                        class
-                    )
-                    .unwrap()
+                &terrain.sample(x_kernel, y_kernel, class).unwrap()
             );
         }
         let wrong = AreaCells::flat(Cell {
@@ -453,6 +487,77 @@ mod tests {
             rejected.push_atlas(AreaCoord::new(0, 0), &wrong, &terrain),
             Err(RenderError::AtlasContext { .. })
         ));
+    }
+
+    #[test]
+    fn atlas_river_is_suppressed_where_the_contour_resolves_sea() {
+        let mut cells = AreaCells::flat(Cell {
+            terrain: TerrainKind::Sea,
+            height: HeightMm::new(-100_000),
+            ..Cell::default()
+        });
+        for y in 0..512 {
+            for x in 101..512 {
+                cells.set(
+                    CellCoord::new(x, y).unwrap(),
+                    Cell {
+                        terrain: TerrainKind::Land,
+                        height: HeightMm::new(1),
+                        discharge: DischargeMilli::new(800_000),
+                        ..Cell::default()
+                    },
+                );
+            }
+        }
+        let terrain = standalone_atlas(&cells);
+        let (_, feature) =
+            sample_pixel(&cells, Some(&terrain), 4096, 4096, 101 * 8, 100 * 8).unwrap();
+        assert_eq!(feature, Feature::AtlasSea);
+        let (_, classic) = sample_pixel(&cells, None, 4096, 4096, 101 * 8, 100 * 8).unwrap();
+        assert_eq!(classic, Feature::River(RiverBand::Dark));
+    }
+
+    #[test]
+    fn linear_overview_and_area_use_the_same_shoreline_decision() {
+        use crate::channels::{AreaImageScale, AreaRaster};
+        use crate::{GlobalCell, ImageQuality};
+        let mut cells = AreaCells::flat(Cell {
+            terrain: TerrainKind::Sea,
+            height: HeightMm::new(0),
+            ..Cell::default()
+        });
+        for y in 0..512 {
+            for x in 101..512 {
+                cells.set(
+                    CellCoord::new(x, y).unwrap(),
+                    Cell {
+                        terrain: TerrainKind::Land,
+                        height: HeightMm::new(100_000),
+                        ..Cell::default()
+                    },
+                );
+            }
+        }
+        let terrain = standalone_atlas(&cells);
+        for side in [2048, 8192] {
+            let py = 100 * (side / 512) + 1;
+            let px = 101 * (side / 512) - 1;
+            let (overview_colour, feature) =
+                sample_pixel(&cells, Some(&terrain), side, side, px, py).unwrap();
+            assert_eq!(feature, Feature::Land);
+            let mut area = AreaRaster::new_with_terrain(
+                &cells,
+                Some(&terrain),
+                std::iter::empty(),
+                GlobalCell { x: 0, y: 0 },
+                AreaImageScale::Custom(ImageQuality::new(side).unwrap()),
+                &[],
+            )
+            .unwrap();
+            let row = area.row(usize::try_from(py).unwrap()).unwrap();
+            let start = usize::try_from(px).unwrap() * 3;
+            assert_eq!(&row[start..start + 3], &overview_colour);
+        }
     }
 
     #[test]

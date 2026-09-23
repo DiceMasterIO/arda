@@ -558,6 +558,221 @@ fn fixture() -> AtlasTerrain {
         palette: vec![[0; 3]; SAMPLE_SIDE * SAMPLE_SIDE],
         light: vec![LIGHT_ONE; SAMPLE_SIDE * SAMPLE_SIDE],
         classes: vec![TerrainKind::Sea; SAMPLE_SIDE * SAMPLE_SIDE],
+        heights: vec![0; SAMPLE_SIDE * SAMPLE_SIDE],
+    }
+}
+
+#[test]
+fn contour_uses_class_directed_zero_heights_and_saved_ties() {
+    let mut terrain = fixture();
+    for (x, y, class, height) in [
+        (99, 100, TerrainKind::Land, 0),
+        (100, 99, TerrainKind::Land, 0),
+        (100, 100, TerrainKind::Land, 0),
+        (101, 100, TerrainKind::Sea, 0),
+        (100, 101, TerrainKind::Land, 0),
+        (101, 101, TerrainKind::Sea, 0),
+    ] {
+        let i = sample_index(x, y).unwrap();
+        terrain.classes[i] = class;
+        terrain.heights[i] = height;
+    }
+    let owner = CellCoord::new(100, 100).unwrap();
+    let quarter = AxisKernel::Linear {
+        low: 100,
+        high_weight: 1,
+        denominator: 4,
+    };
+    let middle = AxisKernel::Linear {
+        low: 100,
+        high_weight: 1,
+        denominator: 2,
+    };
+    let centre = AxisKernel::Linear {
+        low: 100,
+        high_weight: 0,
+        denominator: 4,
+    };
+    assert_eq!(
+        terrain
+            .contour_class(quarter, middle, owner, TerrainKind::Land)
+            .unwrap(),
+        TerrainKind::Land
+    );
+    assert_eq!(
+        terrain
+            .contour_class(middle, middle, owner, TerrainKind::Land)
+            .unwrap(),
+        TerrainKind::Land
+    );
+    assert_eq!(
+        terrain
+            .contour_class(
+                middle,
+                middle,
+                CellCoord::new(101, 100).unwrap(),
+                TerrainKind::Sea
+            )
+            .unwrap(),
+        TerrainKind::Sea
+    );
+    assert_eq!(
+        terrain
+            .contour_class(centre, centre, owner, TerrainKind::Land)
+            .unwrap(),
+        TerrainKind::Land
+    );
+    assert_eq!(
+        terrain
+            .contour_class(
+                quarter,
+                AxisKernel::Box {
+                    start: 100,
+                    end: 101
+                },
+                owner,
+                TerrainKind::Land
+            )
+            .unwrap(),
+        TerrainKind::Land
+    );
+    terrain.classes[sample_index(100, 101).unwrap()] = TerrainKind::Lake;
+    let near_middle = AxisKernel::Linear {
+        low: 100,
+        high_weight: 49,
+        denominator: 100,
+    };
+    assert_eq!(
+        terrain
+            .contour_class(near_middle, middle, owner, TerrainKind::Land)
+            .unwrap(),
+        TerrainKind::Land
+    );
+    terrain.classes[sample_index(100, 101).unwrap()] = TerrainKind::Sea;
+    terrain.classes[sample_index(101, 101).unwrap()] = TerrainKind::Land;
+    terrain.heights[sample_index(100, 100).unwrap()] = 100_000;
+    terrain.heights[sample_index(101, 101).unwrap()] = 100_000;
+    let three_quarters = AxisKernel::Linear {
+        low: 100,
+        high_weight: 3,
+        denominator: 4,
+    };
+    assert_eq!(
+        terrain
+            .contour_class(
+                three_quarters,
+                quarter,
+                CellCoord::new(101, 100).unwrap(),
+                TerrainKind::Sea,
+            )
+            .unwrap(),
+        TerrainKind::Sea
+    );
+}
+
+#[test]
+fn thin_island_and_strait_keep_connected_rendered_footprints_at_even_scales() {
+    use crate::channels::{AreaImageScale, AreaRaster, ChannelInput};
+    use crate::GlobalCell;
+    for (background, feature, background_height) in [
+        (TerrainKind::Sea, TerrainKind::Land, i32::MIN),
+        (TerrainKind::Land, TerrainKind::Sea, i32::MAX),
+    ] {
+        let mut cells = filled(background_height, background);
+        let y_range = if feature == TerrainKind::Land {
+            100..101
+        } else {
+            0..512
+        };
+        for y in y_range {
+            cells.set(CellCoord::new(100, y).unwrap(), cell(0, feature));
+        }
+        let terrain = AtlasTerrain::new(&cells, edge_halo()).unwrap();
+        for side in [2048_u32, 8192] {
+            let quality = crate::ImageQuality::new(side).unwrap();
+            let mut raster = AreaRaster::new_with_terrain(
+                &cells,
+                Some(&terrain),
+                Vec::<Result<ChannelInput, RenderError>>::new(),
+                GlobalCell { x: 0, y: 0 },
+                AreaImageScale::Custom(quality),
+                &[],
+            )
+            .unwrap();
+            let scale = usize::try_from(side / 512).unwrap();
+            let first_y = 100 * scale;
+            let mut visible = 0;
+            for py in first_y..first_y + scale {
+                let row = raster.row(py).unwrap();
+                for px in 100 * scale..101 * scale {
+                    let x = axis_kernel(u32::try_from(px).unwrap(), side).unwrap();
+                    let y = axis_kernel(u32::try_from(py).unwrap(), side).unwrap();
+                    assert_eq!(
+                        &row[px * 3..px * 3 + 3],
+                        &terrain.sample(x, y, feature).unwrap()
+                    );
+                    visible += 1;
+                }
+            }
+            assert_eq!(visible, scale * scale);
+        }
+    }
+}
+
+#[test]
+fn true_neighbor_halo_matches_same_shore_inside_an_area() {
+    let sea = filled(-100_000, TerrainKind::Sea);
+    let land = filled(100_000, TerrainKind::Land);
+    let mut left_halo = edge_halo();
+    left_halo.states[AtlasNeighbor::East.index()] = NeighborState::Unset;
+    left_halo.copy_neighbor(AtlasNeighbor::East, &land).unwrap();
+    let mut right_halo = edge_halo();
+    right_halo.states[AtlasNeighbor::West.index()] = NeighborState::Unset;
+    right_halo.copy_neighbor(AtlasNeighbor::West, &sea).unwrap();
+    let left = AtlasTerrain::new(&sea, left_halo).unwrap();
+    let right = AtlasTerrain::new(&land, right_halo).unwrap();
+    let mut interior = sea.clone();
+    for y in 0..512 {
+        for x in 256..512 {
+            interior.set(
+                CellCoord::new(x, y).unwrap(),
+                cell(100_000, TerrainKind::Land),
+            );
+        }
+    }
+    let reference = AtlasTerrain::new(&interior, edge_halo()).unwrap();
+    for side in [2048, 8192] {
+        let y = axis_kernel(side / 2, side).unwrap();
+        for (boundary, pixel, owner, saved, reference_pixel, reference_owner) in [
+            (
+                &left,
+                side - 1,
+                CellCoord::new(511, 256).unwrap(),
+                TerrainKind::Sea,
+                side / 2 - 1,
+                CellCoord::new(255, 256).unwrap(),
+            ),
+            (
+                &right,
+                0,
+                CellCoord::new(0, 256).unwrap(),
+                TerrainKind::Land,
+                side / 2,
+                CellCoord::new(256, 256).unwrap(),
+            ),
+        ] {
+            let x = axis_kernel(pixel, side).unwrap();
+            let rx = axis_kernel(reference_pixel, side).unwrap();
+            let got = boundary.contour_class(x, y, owner, saved).unwrap();
+            let want = reference
+                .contour_class(rx, y, reference_owner, saved)
+                .unwrap();
+            assert_eq!(got, want);
+            assert_eq!(
+                boundary.sample(x, y, got).unwrap(),
+                reference.sample(rx, y, want).unwrap()
+            );
+        }
     }
 }
 
@@ -691,4 +906,5 @@ fn buffers_have_bounded_exact_lengths() {
     assert_eq!(terrain.palette.len(), 514 * 514);
     assert_eq!(terrain.light.len(), 514 * 514);
     assert_eq!(terrain.classes.len(), 514 * 514);
+    assert_eq!(terrain.heights.len(), 514 * 514);
 }

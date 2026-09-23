@@ -169,6 +169,7 @@ pub struct AtlasTerrain {
     palette: Vec<[u8; 3]>,
     light: Vec<u16>,
     classes: Vec<TerrainKind>,
+    heights: Vec<i32>,
 }
 
 impl AtlasTerrain {
@@ -234,6 +235,7 @@ impl AtlasTerrain {
             palette: vec![[0; 3]; SAMPLE_SIDE * SAMPLE_SIDE],
             light: vec![LIGHT_ONE; SAMPLE_SIDE * SAMPLE_SIDE],
             classes: vec![TerrainKind::Sea; SAMPLE_SIDE * SAMPLE_SIDE],
+            heights: vec![0; SAMPLE_SIDE * SAMPLE_SIDE],
         };
         let start_x = if edges[3] { 0 } else { -1 };
         let end_x = if edges[1] { AREA - 1 } else { AREA };
@@ -244,6 +246,7 @@ impl AtlasTerrain {
                 let source = source(&halo.context, x, y)?;
                 let index = sample_index(x, y)?;
                 terrain.classes[index] = source.class;
+                terrain.heights[index] = source.height_mm;
                 match source.class {
                     TerrainKind::Land => {
                         let (dx, dy) = gradient_numerators(&halo.context, x, y, edges)?;
@@ -269,6 +272,7 @@ impl AtlasTerrain {
                     terrain.palette[to] = terrain.palette[from];
                     terrain.light[to] = terrain.light[from];
                     terrain.classes[to] = terrain.classes[from];
+                    terrain.heights[to] = terrain.heights[from];
                 }
             }
         }
@@ -403,6 +407,82 @@ impl AtlasTerrain {
         let light = u16::try_from((light_sum + weight_sum / 2) / weight_sum)
             .map_err(|_| invalid("light average outside Q12 bounds"))?;
         Ok(modulate(palette, light))
+    }
+
+    /// Resolves an unambiguous shoreline from saved height samples.
+    pub(crate) fn contour_class(
+        &self,
+        x: AxisKernel,
+        y: AxisKernel,
+        owner: CellCoord,
+        saved: TerrainKind,
+    ) -> Result<TerrainKind, RenderError> {
+        let (
+            AxisKernel::Linear {
+                low: xl,
+                high_weight: xh,
+                denominator: xd,
+            },
+            AxisKernel::Linear {
+                low: yl,
+                high_weight: yh,
+                denominator: yd,
+            },
+        ) = (x, y)
+        else {
+            return Ok(saved);
+        };
+        if saved == TerrainKind::Lake || (xh == 0 && yh == 0) {
+            return Ok(saved);
+        }
+        let ox = i16::try_from(owner.x()).map_err(|_| invalid("owner column conversion"))?;
+        let oy = i16::try_from(owner.y()).map_err(|_| invalid("owner row conversion"))?;
+        if self.classes[sample_index(ox, oy)?] != saved {
+            return Err(invalid("atlas terrain disagrees with saved cell class"));
+        }
+        // A one-cell-wide saved island or strait must remain visible even when
+        // neighboring heights have much larger magnitudes than its own.
+        for (ax, ay, bx, by) in [(ox - 1, oy, ox + 1, oy), (ox, oy - 1, ox, oy + 1)] {
+            let a = self.classes[sample_index(ax, ay)?];
+            let b = self.classes[sample_index(bx, by)?];
+            if a == b && a != saved && a != TerrainKind::Lake {
+                return Ok(saved);
+            }
+        }
+        let mut classes = [TerrainKind::Sea; 4];
+        // Four i32 heights times Q16 axis weights fit i128 at the 32K limit.
+        let mut height_sum = 0_i128;
+        for (i, (cx, cy, weight)) in [
+            (xl, yl, i128::from(xd - xh) * i128::from(yd - yh)),
+            (xl + 1, yl, i128::from(xh) * i128::from(yd - yh)),
+            (xl, yl + 1, i128::from(xd - xh) * i128::from(yh)),
+            (xl + 1, yl + 1, i128::from(xh) * i128::from(yh)),
+        ]
+        .into_iter()
+        .enumerate()
+        {
+            let index = sample_index(cx, cy)?;
+            let class = self.classes[index];
+            if class == TerrainKind::Lake {
+                return Ok(saved);
+            }
+            classes[i] = class;
+            let height = i128::from(self.heights[index]);
+            let directed = if class == TerrainKind::Land {
+                height.max(1)
+            } else {
+                height.min(-1)
+            };
+            height_sum += directed * weight;
+        }
+        if classes[0] == classes[3] && classes[1] == classes[2] && classes[0] != classes[1] {
+            return Ok(saved);
+        }
+        Ok(match height_sum.cmp(&0) {
+            std::cmp::Ordering::Greater => TerrainKind::Land,
+            std::cmp::Ordering::Less => TerrainKind::Sea,
+            std::cmp::Ordering::Equal => saved,
+        })
     }
 }
 

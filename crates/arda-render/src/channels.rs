@@ -474,14 +474,12 @@ impl<'a> AreaRaster<'a> {
                     .flatten()
                     .unwrap_or(LAKE_FILL)
             } else {
-                terrain.sample(
-                    axis_kernel(
-                        u32::try_from(x).map_err(|_| invalid("pixel exceeds raster"))?,
-                        side,
-                    )?,
-                    y_kernel,
-                    cell.terrain,
-                )?
+                let x_kernel = axis_kernel(
+                    u32::try_from(x).map_err(|_| invalid("pixel exceeds raster"))?,
+                    side,
+                )?;
+                let class = terrain.contour_class(x_kernel, y_kernel, at, cell.terrain)?;
+                terrain.sample(x_kernel, y_kernel, class)?
             };
             self.base_row[x * 3..x * 3 + 3].copy_from_slice(&colour);
         }
@@ -547,7 +545,21 @@ impl<'a> AreaRaster<'a> {
                 u16::try_from(cell_y).map_err(|_| invalid("raster cell leaves area"))?,
             )
             .ok_or_else(|| invalid("raster cell leaves area"))?;
-            if self.cells.get(at).terrain != TerrainKind::Land {
+            let saved = self.cells.get(at).terrain;
+            let class = if let Some(terrain) = self.terrain {
+                let side = u32::try_from(self.side).map_err(|_| invalid("pixel exceeds raster"))?;
+                let pixel_x = u32::try_from(x).map_err(|_| invalid("pixel exceeds raster"))?;
+                let pixel_y = u32::try_from(y).map_err(|_| invalid("pixel exceeds raster"))?;
+                terrain.contour_class(
+                    axis_kernel(pixel_x, side)?,
+                    axis_kernel(pixel_y, side)?,
+                    at,
+                    saved,
+                )?
+            } else {
+                saved
+            };
+            if class != TerrainKind::Land {
                 continue;
             }
             let shape_slice = self.shapes.as_slice();

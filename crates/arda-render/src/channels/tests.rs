@@ -109,6 +109,73 @@ fn atlas_32k_rows_keep_bounded_storage() {
     assert_eq!(raster.rgb.len(), side as usize * 3);
 }
 
+#[test]
+fn river_crossing_uses_the_same_resolved_shore_as_area_colour() {
+    for (sea_height, land_height, crossing_from) in [
+        (-1, 100_000, TerrainKind::Sea),
+        (-100_000, 1, TerrainKind::Land),
+    ] {
+        let mut cells = AreaCells::flat(Cell {
+            terrain: TerrainKind::Sea,
+            height: HeightMm::new(sea_height),
+            ..Cell::default()
+        });
+        for y in 0..512 {
+            for x in 101..512 {
+                cells.set(
+                    CellCoord::new(x, y).unwrap(),
+                    Cell {
+                        terrain: TerrainKind::Land,
+                        height: HeightMm::new(land_height),
+                        ..Cell::default()
+                    },
+                );
+            }
+        }
+        let terrain = standalone_atlas(&cells);
+        let scale = AreaImageScale::Custom(ImageQuality::new(4096).unwrap());
+        let origin = GlobalCell { x: 0, y: 0 };
+        let input = edge((100, 100), (101, 100), 2000);
+        let mut base = AreaRaster::new_with_terrain(
+            &cells,
+            Some(&terrain),
+            std::iter::empty(),
+            origin,
+            scale,
+            &[],
+        )
+        .unwrap();
+        let mut river =
+            AreaRaster::new_with_terrain(&cells, Some(&terrain), [Ok(input)], origin, scale, &[])
+                .unwrap();
+        let py = 100 * 8 + 4;
+        let base_row = base.row(py).unwrap();
+        let river_row = river.row(py).unwrap();
+        let mut crossed = 0;
+        for px in 100 * 8..102 * 8 {
+            let owner = CellCoord::new(u16::try_from(px / 8).unwrap(), 100).unwrap();
+            let saved = cells.get(owner).terrain;
+            let resolved = terrain
+                .contour_class(
+                    axis_kernel(u32::try_from(px).unwrap(), 4096).unwrap(),
+                    axis_kernel(u32::try_from(py).unwrap(), 4096).unwrap(),
+                    owner,
+                    saved,
+                )
+                .unwrap();
+            let start = px * 3;
+            if saved == crossing_from && resolved != saved {
+                crossed += 1;
+                assert_eq!(
+                    base_row[start..start + 3] != river_row[start..start + 3],
+                    resolved == TerrainKind::Land
+                );
+            }
+        }
+        assert!(crossed > 0);
+    }
+}
+
 fn land() -> AreaCells {
     AreaCells::flat(Cell {
         terrain: TerrainKind::Land,
