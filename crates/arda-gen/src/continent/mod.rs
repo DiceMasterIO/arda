@@ -11,6 +11,7 @@ pub mod coast;
 pub mod erode;
 pub mod hydrology;
 pub mod plates;
+pub(crate) mod structural_relief;
 pub mod tectonics;
 
 #[cfg(test)]

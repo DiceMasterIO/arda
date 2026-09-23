@@ -36,7 +36,10 @@ pub fn boundary_height(seed: u64, continent: &ContinentGrid, abs_x: i32, abs_y: 
             abs_y.saturating_add(dy),
         )
     });
-    refine_height(seed, coarse, relief, abs_x, abs_y)
+    let refined = refine_height(seed, coarse, relief, abs_x, abs_y);
+    super::structural_relief::sample_height(seed, abs_x, abs_y, refined, coarse, |x, y| {
+        coarse_height(continent, x, y)
+    })
 }
 
 /// Regional detail correction (`logic/02`): the largest regional height
