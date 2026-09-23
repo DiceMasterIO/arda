@@ -207,7 +207,7 @@ pub fn generate_continent_attempt(seed: u64, config: GenerateConfig, attempt: u8
             h = h.saturating_add(detail_mm);
 
             if rim_forced_ocean(x, y, vis_w, vis_h, RIM_MARGIN) {
-                h = h.min(coast::OCEANIC_BASE_MM / 2);
+                h = h.min(-1);
             }
             height_mm.push(h);
         }
@@ -283,6 +283,25 @@ mod tests {
             assert!(grid.get(0, y).raw() < 0, "left edge at {y} is land");
             assert!(grid.get(w - 1, y).raw() < 0, "right edge at {y} is land");
         }
+    }
+
+    #[test]
+    fn generated_ocean_rim_retains_shallow_depths() {
+        let grid = generate_continent(42, GenerateConfig::MICRO);
+        let rim = (0..grid.height())
+            .flat_map(|y| (0..grid.width()).map(move |x| (x, y)))
+            .filter(|&(x, y)| rim_forced_ocean(x, y, grid.width(), grid.height(), RIM_MARGIN))
+            .map(|(x, y)| grid.get(x, y).raw())
+            .collect::<Vec<_>>();
+        let shallow = rim
+            .iter()
+            .copied()
+            .filter(|&depth| (-1_050_000..-1).contains(&depth))
+            .collect::<std::collections::BTreeSet<_>>();
+        assert!(
+            shallow.len() > 1,
+            "the ocean rim lost shallow depth variation"
+        );
     }
 
     #[test]
