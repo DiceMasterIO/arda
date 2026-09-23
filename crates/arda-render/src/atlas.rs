@@ -12,9 +12,9 @@ const CELL_DIAMETER_MM: i128 = 200_000;
 const LIGHT_HORIZONTAL_Q15: i128 = 13_377;
 const LIGHT_UP_Q15: i128 = 26_755;
 const FLAT_LIGHT_Q15: i128 = LIGHT_UP_Q15;
-const RELIEF_STRENGTH: i128 = 2_048;
-const MIN_LIGHT: i128 = 2_048;
-const MAX_LIGHT: i128 = 5_120;
+const RELIEF_STRENGTH: i128 = 3_450;
+const MIN_LIGHT: i128 = 1_600;
+const MAX_LIGHT: i128 = 5_350;
 
 const LAND_STOPS: [(i32, [u8; 3]); 7] = [
     (0, [104, 133, 68]),
@@ -22,8 +22,8 @@ const LAND_STOPS: [(i32, [u8; 3]); 7] = [
     (500_000, [165, 161, 97]),
     (900_000, [182, 162, 116]),
     (1_400_000, [167, 143, 109]),
-    (2_000_000, [146, 143, 133]),
-    (2_800_000, [232, 232, 226]),
+    (2_000_000, [137, 128, 112]),
+    (2_800_000, [166, 160, 147]),
 ];
 const SEA_STOPS: [(i64, [u8; 3]); 5] = [
     (0, [103, 163, 168]),
@@ -250,7 +250,7 @@ impl AtlasTerrain {
                 match source.class {
                     TerrainKind::Land => {
                         let (dx, dy) = gradient_numerators(&halo.context, x, y, edges)?;
-                        terrain.palette[index] = land_palette(source.height_mm);
+                        terrain.palette[index] = land_material(source.height_mm, dx, dy);
                         terrain.light[index] = relief_light(dx, dy);
                     }
                     TerrainKind::Sea => terrain.palette[index] = sea_palette(source.height_mm),
@@ -631,6 +631,41 @@ fn land_palette(height_mm: i32) -> [u8; 3] {
         }
     }
     LAND_STOPS[LAND_STOPS.len() - 1].1
+}
+
+/// Varies exposed rock with measured slope and snow with saved elevation.
+///
+/// All weights are Q12 integers. Opposing saved cells are 200 m apart, so
+/// their millimetre height difference provides a bounded physical gradient.
+fn land_material(height_mm: i32, dx: i64, dy: i64) -> [u8; 3] {
+    let base = land_palette(height_mm);
+    let squared = i128::from(dx) * i128::from(dx) + i128::from(dy) * i128::from(dy);
+    let slope_mm = i128::try_from(squared.unsigned_abs().isqrt())
+        .unwrap_or_else(|_| unreachable!("i32 saved heights yield a bounded slope"));
+    let rock_q12 = ((slope_mm - 35_000) * 3_500 / 170_000).clamp(0, 3_500);
+    let rock_altitude_q12 =
+        ((i128::from(height_mm) - 1_000_000) * 4_096 / 1_000_000).clamp(0, 4_096);
+    let rock = blend([111, 105, 87], [114, 111, 105], rock_altitude_q12);
+    let colour = blend(base, rock, rock_q12);
+    let snow_altitude_q12 =
+        ((i128::from(height_mm) - 2_850_000) * 4_096 / 1_450_000).clamp(0, 4_096);
+    let snow_shelter_q12 = 4_096 - rock_q12 * 3 / 4;
+    blend(
+        colour,
+        [229, 228, 223],
+        snow_altitude_q12 * snow_shelter_q12 / 4_096,
+    )
+}
+
+fn blend(a: [u8; 3], b: [u8; 3], weight_q12: i128) -> [u8; 3] {
+    debug_assert!((0..=4_096).contains(&weight_q12));
+    std::array::from_fn(|channel| {
+        let value = (i128::from(a[channel]) * (4_096 - weight_q12)
+            + i128::from(b[channel]) * weight_q12
+            + 2_048)
+            / 4_096;
+        u8::try_from(value).unwrap_or_else(|_| unreachable!("convex RGB blend fits u8"))
+    })
 }
 
 fn sea_palette(height_mm: i32) -> [u8; 3] {

@@ -410,7 +410,10 @@ fn outer_edges_clamp_each_axis_independently() {
     }
     let terrain = AtlasTerrain::new(&target, halo).unwrap();
     assert_eq!(record(&terrain, -1, 512), record(&terrain, 0, 512));
-    assert_ne!(record(&terrain, -1, 512).0, record(&terrain, 0, 511).0);
+    // Palette quantization may make adjacent elevations identical, but the
+    // south halo must still supply its distinct saved height at this corner.
+    assert_eq!(terrain.heights[sample_index(-1, 512).unwrap()], 1_514_000);
+    assert_eq!(terrain.heights[sample_index(0, 511).unwrap()], 1_512_000);
     assert_eq!(record(&terrain, 0, 512).1, relief_light(2000, 4000));
     assert_eq!(record(&terrain, 0, 0).1, relief_light(2000, 4000));
 }
@@ -454,26 +457,20 @@ fn diagonal_two_by_two_changes_only_its_corner_sampling() {
 }
 
 #[test]
-fn flat_opposed_and_extreme_relief_have_exact_records() {
+fn saved_slope_controls_rock_and_light_without_changing_flat_land() {
+    assert_eq!(land_material(500_000, 0, 0), [165, 161, 97]);
+    assert_eq!(relief_light(0, 0), LIGHT_ONE);
     assert_eq!(
-        modulate(land_palette(500_000), relief_light(0, 0)),
-        [165, 161, 97]
+        land_material(500_000, 200_000, 0),
+        land_material(500_000, -200_000, 0)
     );
-    assert_eq!(
-        modulate(land_palette(500_000), relief_light(200_000, 0)),
-        [169, 165, 99]
+    assert_ne!(
+        land_material(500_000, 200_000, 0),
+        land_material(500_000, 0, 0)
     );
-    assert_eq!(
-        modulate(land_palette(500_000), relief_light(-200_000, 0)),
-        [121, 119, 71]
-    );
-    assert_eq!(sea_palette(-3_000_000), [10, 37, 68]);
-    assert_eq!(sea_palette(-6_000_000), [7, 26, 51]);
-    assert_eq!(land_palette(2_800_000), [232, 232, 226]);
-    assert_eq!(
-        modulate(land_palette(2_800_000), relief_light(-4_294_967_295, 0)),
-        [116, 116, 113]
-    );
+    assert!(relief_light(200_000, 0) > LIGHT_ONE);
+    assert!(relief_light(-200_000, 0) < LIGHT_ONE);
+
     let mut land_cells = filled(500_000, TerrainKind::Land);
     for (x, y, height) in [
         (199, 200, 400_000),
@@ -487,24 +484,66 @@ fn flat_opposed_and_extreme_relief_have_exact_records() {
         );
     }
     let land = AtlasTerrain::new(&land_cells, edge_halo()).unwrap();
-    let sea = AtlasTerrain::new(&filled(-3_000_000, TerrainKind::Sea), edge_halo()).unwrap();
-    let lake = AtlasTerrain::new(&filled(500_000, TerrainKind::Lake), edge_halo()).unwrap();
     assert_eq!(land.colour(CellCoord::new(0, 0).unwrap()), [165, 161, 97]);
     assert_eq!(
         land.colour(CellCoord::new(200, 200).unwrap()),
-        [169, 165, 99]
+        modulate(land_material(500_000, 200_000, 0), relief_light(200_000, 0))
     );
     assert_eq!(
         land.colour(CellCoord::new(300, 300).unwrap()),
-        [121, 119, 71]
+        modulate(
+            land_material(500_000, -200_000, 0),
+            relief_light(-200_000, 0)
+        )
     );
-    assert_eq!(record(&sea, 0, 0).1, 4096);
-    assert_eq!(record(&lake, 0, 0).1, 4096);
+    let sea = AtlasTerrain::new(&filled(-3_000_000, TerrainKind::Sea), edge_halo()).unwrap();
+    let lake = AtlasTerrain::new(&filled(500_000, TerrainKind::Lake), edge_halo()).unwrap();
+    assert_eq!(record(&sea, 0, 0).1, LIGHT_ONE);
+    assert_eq!(record(&lake, 0, 0).1, LIGHT_ONE);
     assert_eq!(sea.colour(CellCoord::new(0, 0).unwrap()), [10, 37, 68]);
     assert_eq!(
         lake.colour(CellCoord::new(0, 0).unwrap()),
         crate::carto::LAKE_FILL
     );
+}
+
+#[test]
+fn rock_and_snow_vary_continuously_with_saved_height() {
+    let low_snow = land_material(2_850_000, 0, 0);
+    let high_snow = land_material(4_300_000, 0, 0);
+    assert!(high_snow
+        .iter()
+        .zip(low_snow)
+        .all(|(high, low)| *high > low));
+    let exposed_peak = land_material(4_300_000, 200_000, 0);
+    assert!(exposed_peak
+        .iter()
+        .zip(high_snow)
+        .all(|(rock, snow)| *rock < snow));
+    for edge in [1_000_000, 1_500_000, 2_000_000, 2_850_000, 4_300_000] {
+        let below = land_material(edge - 1, 200_000, 0);
+        let above = land_material(edge, 200_000, 0);
+        assert!(
+            below.iter().zip(above).all(|(a, b)| a.abs_diff(b) <= 1),
+            "material discontinuity at {edge} mm"
+        );
+    }
+}
+
+#[test]
+fn extreme_saved_gradients_remain_bounded_and_deterministic() {
+    let maximum = i64::from(i32::MAX) - i64::from(i32::MIN);
+    for (dx, dy) in [(maximum, maximum), (-maximum, maximum), (maximum, -maximum)] {
+        assert_eq!(
+            land_material(i32::MAX, dx, dy),
+            land_material(i32::MAX, -dx, -dy),
+            "rock and snow depend on slope magnitude"
+        );
+        assert!((MIN_LIGHT..=MAX_LIGHT).contains(&i128::from(relief_light(dx, dy))));
+        if dx == dy {
+            assert_ne!(relief_light(dx, dy), relief_light(-dx, -dy));
+        }
+    }
     let high = filled(i32::MAX, TerrainKind::Land);
     let low = filled(i32::MIN, TerrainKind::Land);
     let mut extreme_halo = AtlasHalo::new();
@@ -523,11 +562,14 @@ fn flat_opposed_and_extreme_relief_have_exact_records() {
     let extreme = AtlasTerrain::new(&high, extreme_halo).unwrap();
     assert_eq!(
         extreme.colour(CellCoord::new(256, 256).unwrap()),
-        [232, 232, 226]
+        modulate(land_material(i32::MAX, 0, 0), LIGHT_ONE)
     );
     assert_eq!(
         extreme.colour(CellCoord::new(511, 511).unwrap()),
-        [116, 116, 113]
+        modulate(
+            land_material(i32::MAX, -maximum, 0),
+            relief_light(-maximum, 0)
+        )
     );
 }
 
