@@ -1,7 +1,7 @@
 ---
-generated_at_commit: 311829e4e5c9
-generated_date: 2026-09-08
-content_hash: 7a6fb14e7e94
+generated_at_commit: 757b2ab5418b
+generated_date: 2026-09-23
+content_hash: 1692736c95fb
 paths_covered: [":(top)Cargo.toml", ":(top)Cargo.lock", ":(top)crates/*/Cargo.toml", ":(top)rust-toolchain.toml", ":(top)deny.toml", ":(top).github/**"]
 absorbed_from: features/2026-09-07-area-water-terrain-realism@2026-09-08
 ---
@@ -10,7 +10,7 @@ absorbed_from: features/2026-09-07-area-water-terrain-realism@2026-09-08
 
 ## Runtime dependencies
 
-Installed declarations come from `Cargo.toml:15` and `crates/*/Cargo.toml`; exact resolutions from `Cargo.lock`. License labels and the selection rationale are carried forward from the recorded August 2026 stack decisions, not newly researched or re-vetted here. No paid service was selected.
+Installed declarations come from `Cargo.toml:15` and `crates/*/Cargo.toml`; exact resolutions from `Cargo.lock`. License labels and the selection rationale are carried forward from the recorded August 2026 stack decisions, not newly researched or re-vetted here. No paid service was selected. The workspace package license is Apache-2.0 (`Cargo.toml:8`); dependency license labels below are separate.
 
 | Package | Declared range / retained floor | Locked version | Recorded license | Role / status |
 |---|---|---|---|---|
@@ -41,7 +41,7 @@ Simulation arithmetic, noise, erosion, hydrology and WFC were selected for imple
 | rustfmt / clippy | Stable toolchain components; default formatter and CI warning denial (`rust-toolchain.toml`, `.github/workflows/ci.yml`). |
 | cargo-deny | License/advisory check through CI action; policy in `deny.toml`. |
 
-The forcing lookup tables and MFD numerical data are checked in under generator modules; `tools/generate_water_forcing_tables.py` is an offline standard-library maintenance tool, not a runtime service. Rust1.96.1 now supplies the explicit latest-stable-minus-two CI check (`.github/workflows/ci.yml:18`). No dependency version or new runtime package was introduced by the area-water change.
+The forcing lookup tables and MFD numerical data are checked in under generator modules; `tools/generate_water_forcing_tables.py` is an offline standard-library maintenance tool, not a runtime service. Rust1.96.1 now supplies the explicit latest-stable-minus-two CI check (`.github/workflows/ci.yml:18`). No dependency version or new runtime package was introduced by the area-water or Atlas/terrain corrections. CI runs the golden/repeatability tests within its single workspace invocation rather than a second redundant determinism step (`.github/workflows/ci.yml:14`).
 
 ## External services
 

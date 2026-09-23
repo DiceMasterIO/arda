@@ -1,7 +1,7 @@
 ---
-generated_date: 2026-09-22
-generated_at_commit: 342d03e55120
-content_hash: fd283f097e0a
+generated_date: 2026-09-23
+generated_at_commit: 757b2ab5418b
+content_hash: 7fc9d9e31fb5
 paths_covered:
   - ":(top)crates/**"
   - ":(top)tests/**"
@@ -10,15 +10,16 @@ paths_covered:
   - ":(top)Dockerfile"
   - ":(top)rust-toolchain.toml"
 absorbed_from:
+  - features/2026-09-23-terrain-corrections@2026-09-23
   - features/2026-09-07-area-water-terrain-realism@2026-09-08
   - features/2026-09-22-geographical-rendering-first-pass@2026-09-22
 ---
 
 # Implementation status and open items
 
-## Current status — first pass audited 2026-09-22; correction work active 2026-09-23
+## Current status — renderer and correction checks complete 2026-09-23; visual target open
 
-The completed first-pass audit covers rendering at `342d03e55120`; at that checkpoint the generator, saved formats and golden fixtures were unchanged from base `23dfb0999672`. Palette refinement `9a16883` followed. On September 23 the user approved terrain-generator and shoreline-geometry corrections, which are now in progress on the feature branch. The historical verification counts below do not certify these new generator edits. Existing saved worlds remain comparison baselines; final regenerated-world and visual acceptance are pending. This section supersedes older pending/default-field claims below and in the original build plan.
+The Atlas first pass and the authorized terrain/shoreline corrections are implemented on `codex/geographical-rendering-first-pass`. Current source `757b2ab` adds exact Euclidean tectonic belts, preserves shallow ocean-rim depth, leaves 1 km evolution as hillslope creep while shared 100 m evolution forms valleys, and reconstructs Atlas sea/land shores consistently across colour and river clipping. Formats and existing Classic exports remain compatible. Integrated small/default seed-42 worlds and a seed-99 MICRO holdout are retained, along with the full 32K default map. Verification and documentation close this correction pass; the broader reference-quality visual objective remains open for regional mountain/basin form and remaining repetitive drainage. Earlier completed physical, hydrology and rendering work remains implemented.
 
 ### Implemented work
 
@@ -34,7 +35,7 @@ The completed first-pass audit covers rendering at `342d03e55120`; at that check
 | Resource admission | Resource limits are checked before output creation and applied through preparation, solve and publication. `crates/arda-gen/src/orchestrator.rs:338`. |
 | Lazy loading | Manifest-first loading, requested area/archive caches and owned area reads for exports exist. Whole-world eager loading is no longer the implementation. `crates/arda/src/world.rs:93`, `crates/arda/src/world.rs:192`, `crates/arda/src/world.rs:208`. |
 | Cartographic PNG exports | Area/world maps render saved terrain and physical water geometry. Configurable quality defaults to 8K and accepts 512–32768 pixels; quality exports stream rows/bands through temporary-file publication. Higher image resolution does not regenerate terrain. `crates/arda-render/src/quality.rs:11`, `crates/arda-render/src/overview/streaming.rs:30`, `crates/arda/src/export_quality.rs:20`; commit `c577528`. |
-| Atlas rendering first pass | Natural elevation palette, neighbor-aware relief shading, sea-depth colour and per-output-pixel palette/light interpolation; Classic remains the default. Bounded 512–32K exports preserve saved 100 m geography and water masks. `crates/arda-render/src/atlas.rs:164`, `crates/arda/src/lib.rs:28`, `crates/arda/src/export_quality.rs:35`. |
+| Atlas rendering first pass | Natural elevation palette, neighbor-aware relief shading, sea-depth colour and per-output-pixel palette/light interpolation; Classic remains the default. Bounded 512–32K exports preserve saved 100 m data; guarded integer height contours refine displayed sea/land shores while lake ownership remains categorical. `crates/arda-render/src/atlas.rs:164`, `crates/arda/src/lib.rs:28`, `crates/arda/src/export_quality.rs:35`. |
 | JSON and developer surfaces | Versioned area/block JSON, reusable Rust facade, CLI `generate`/`preview`/`export`, and Docker build definition exist. `crates/arda-render/src/json.rs`, `crates/arda/src/lib.rs`, `crates/arda-cli/src/main.rs`, `Dockerfile`. |
 | Tactical prototype | Seeded 64×64 blocks, 24 tile kinds, bounded WFC attempts, relaxed-fill markers, compressed persistence and symbolic PNG/JSON export exist. Coverage is still sampled. `crates/arda-gen/src/block/`, `crates/arda-gen/src/orchestrator.rs:300`, `crates/arda-render/src/symbolic.rs`. |
 | Verification infrastructure | Physical/annual/boundary/resource/codec/render tests and a pinned golden world exist. CI defines Linux/macOS/Windows tests, MSRV, formatting, Clippy and dependency checks. Latest run status is recorded separately below. `crates/*/tests/`, `tests/golden_world.rs`, `.github/workflows/ci.yml`. |
@@ -53,13 +54,17 @@ The completed first-pass audit covers rendering at `342d03e55120`; at that check
 
 ### Verification and visual acceptance
 
+- **September 23 correction checks:** broad non-golden suite 659 passed/8 ignored before the final test additions; then 18 tectonic tests, five continent tests, strict golden comparison and independent repeat generation pass. Formatting, strict workspace Clippy, Rust 1.96.1 and offline dependency policy pass. Two fresh dry review rounds cover `7028f9b..757b2ab`. This is combined evidence, not a new all-at-once workspace run; no new remote/Windows CI result is claimed.
+- **September 23 actual worlds:** small/default seed42 and MICRO99 have exact saved annual balances. The default has 118 lakes, 799,834 reaches and 2,123 crossings, each agreeing with its canonical reach. Its 32K map repeats byte-identically in 65.65 s at 57,240 KiB peak RSS; all 523 world files remain unchanged. Detailed receipts are in [testing](06-testing.md#terrain-and-shoreline-correction-verification--2026-09-23).
+- **September 23 visual diagnosis:** coarse-incision removal reduces straight-cut artifacts in the controlled small-world comparison; the shared sea/land contour removes many staircase edges while protecting thin features. Parallel valleys and broad smooth mountain forms remain. The default world's largest lake is a real 30,709.15 km² positive-depth basin at 1,177.501 m; independently, the coarse bed has an enclosed 32,337 km² basin with escape elevation 1,173.357 m. This supports the generated terrain as its cause, not a misplaced render polygon. No lake-size quota, arbitrary flattening/deletion or invented texture was added.
+
 - **Recorded C06 verification, September 8:** the durable ledger reports five frozen worlds, 38 selected JSON checks, 238 exports, exact annual balances and matching IDs/surfaces on 20,712 both-wet neighboring pairs. Its combined broad/focused/approved-golden record reports 590 passing tests. Source: `changelog.md`, `snapshot/2026-09-07-area-water-terrain-realism@c06-committed-cleanup` and `fix/2026-09-07-area-water-terrain-realism@lake-district-c06-verification`.
 - **Later export verification:** commit `c577528` records full 32K area/world exports, 611 workspace tests and 74 final targeted checks, formatting, strict Clippy, Rust 1.96.1 and cached dependency checks. These counts can overlap; they are not added together. Generation, saved formats and goldens were unchanged by that commit.
 - **Fresh Atlas verification, September 22:** source `342d03e55120` passes 648 Linux workspace tests (8 ignored), formatting, strict Clippy, Rust 1.96.1 checks and dependency audit. Three old-executable Classic comparisons match byte-for-byte. The retained seed-42 200×300 km panel includes matched 8K views of five areas and repeated deterministic 32K area/overview exports; all 55 saved files and the five re-exported area JSONs are unchanged. Two three-lens GPT-6 Sol review rounds found no issues. Local acceptance/evidence: `features/2026-09-22-geographical-rendering-first-pass/acceptance.md`.
 - **Palette continuation verification, September 22:** production source `9a16883` passes 649 workspace tests (8 ignored, 21 suites), in addition to the recorded 80 renderer tests, formatting, strict renderer Clippy and real-image compatibility checks. Scratch shoreline and drainage experiments are excluded from this production-source result. Local receipt: `features/2026-09-22-atlas-visual-fidelity/evidence/workspace-tests-palette.json`.
 - **Base CI, checked September 22:** [run 34260968213, attempt 1](https://github.com/DiceMasterIO/arda/actions/runs/34260968213), on base commit `23dfb0999672c8f15deee6d94dc5dee89b946ce8`, completed September 8 with a Windows failure. Linux/macOS test jobs, lint, MSRV and dependency checks passed. The [Windows job](https://github.com/DiceMasterIO/arda/actions/runs/34260968213/job/102178507146) failed `micro_world_matches_the_golden_fingerprint`: actual text used LF and expected text CRLF. All 34 logged fingerprint entries match after line-ending normalization; the same-seed repeat test passed. This is an unresolved golden-text comparison failure, not evidence of different generated fingerprints. No newer run/retry was present when checked.
 - **Delivered visual correction:** the C06 record reports seed436342 changing from 2,653 to 186 lakes, and 50 km squares with at least 50 lake anchors changing from 18 to zero. The repeated lake-district artifact was corrected. Those observations are not lake-count quotas for every world.
-- **Last recorded visual gaps:** parallel drainage/ravines, angular shorelines and large rectangular regional basins remained open on September 8. No later terrain/hydrology behavior change was found establishing their resolution. The September 22 stage probe exactly reproduces all 60,000 saved regional heights of seed 42, 200×300 km: the straight valleys in area (2,0) appear during the 25 continent-erosion iterations, then area evolution deepens them. The current renderer preserves categorical 100 m shore steps. These findings localize two visible artifacts; they do not resolve them or the wider rectangular-basin finding.
+- **Historical September 22 visual gaps (superseded by the correction evidence above):** parallel drainage/ravines, angular shorelines and large rectangular regional basins remained open on September 8. No later terrain/hydrology behavior change was found establishing their resolution. The September 22 stage probe exactly reproduces all 60,000 saved regional heights of seed 42, 200×300 km: the straight valleys in area (2,0) appear during the 25 continent-erosion iterations, then area evolution deepens them. The current renderer preserves categorical 100 m shore steps. These findings localize two visible artifacts; they do not resolve them or the wider rectangular-basin finding.
 - **Evidence available here:** the original terrain-realism feature reports/gallery remain absent; their absence does not undo committed work. A new retained Atlas feature folder now contains its own generated world, actual PNGs, hashes, test receipts and acceptance report. These are newly dated evidence, not a reconstruction of the old gallery.
 - **Completion boundary:** the broader terrain-realism feature has no completion marker in the durable ledger because overall visual acceptance remained open. Its implemented terrain, water, storage, loading and rendering must not be treated as unstarted.
 
@@ -138,10 +143,7 @@ fresh CI run passes every configured job. The approved hashes remain unchanged.
 
 ### OI-02 — Restore a reproducible visual and measurement baseline
 
-**Status:** partially evidenced by two retained seed-42 worlds: the September 22 200×300 km panel has five selected areas, matched styles and both seam directions; the configured 500×1000 km default world has 171 areas, a real 8K overview and six selected 8K area views chosen from measured terrain/water coverage. The larger world reaches 3,801.251 m and exercises the high-elevation palette. Its gallery still shows repeated valleys, stepped shores and a large angular interior lake. Additional seeds, MICRO/climate coverage and final visual acceptance remain open. Local default gallery: `features/2026-09-22-atlas-visual-fidelity/evidence/default-world-gallery/README.md`. **Depends on:** current generator; OI-01 only
-for a clean cross-platform gate. **Targets:** existing examples/tests under
-`crates/arda/` and `crates/arda-gen/tests/`, `docs/capstone/06-testing.md`;
-a gallery/report harness is **proposed**.
+**Status:** integrated baseline retained and measured: seed42 at 200×300 and 500×1000 km, plus MICRO99 holdout. The same six default-world coordinates are exported at 8K, and the full 32K default map repeats identically without modifying saved data. Broader natural-landscape acceptance remains open. **Depends on:** current generator; OI-01 only for Windows text comparison.
 
 1. Attempt to locate the original feature evidence through its recorded paths. If unavailable, retain its ledger citations and generate a newly dated baseline; never label recreated images as original evidence.
 2. Freeze a manageable panel including default seeds 42 and 436342, MICRO controls and additional representative climates/landforms. Record configuration, source revision and generator version.
@@ -155,10 +157,7 @@ measurements, and every historical visual finding has a current disposition.
 
 ### OI-03 — Diagnose and correct reproduced parallel drainage/ravines
 
-**Status:** reproduced September 22 on seed 42, 200×300 km, area (2,0). An exact match to all 60,000 saved continent heights establishes that aligned valleys already exist in the regional surface; initial fine detail preserves their layout and shared area evolution deepens them. One valley changes from 317.323 m regional to 321.569 m initial fine to 205.622 m saved. A before/after continent probe localizes their appearance to the 25 erosion iterations: an 11-cell northward drainage run holds incision on one 1 km grid column. Local evidence: `features/2026-09-22-atlas-visual-fidelity/evidence/terrain-stage-probe.md`. **Depends on:** OI-02. **Targets:**
-`crates/arda-gen/src/continent/{mod.rs,bundles.rs}`,
-`crates/arda-gen/src/terrain_interpolation.rs`,
-`crates/arda-gen/src/area/{prepare.rs,evolution.rs}` and hydrology diagnostics.
+**Status:** corrected in part September 23. Controlled full-world removal of coarse 1 km incision reduces the measured straight-cut trough from 203.8 to 83.1 m and long horizontal runs from seven to two; the production stage retains 25 creep passes and existing shared 100 m incision. Broad parallel valleys remain in the default highland gallery. **Depends on:** OI-02. **Targets:** `crates/arda-gen/src/continent/erode.rs`, `crates/arda-gen/src/area/evolution.rs`.
 
 1. Trace a reproduced regular pattern back to the first stage that introduces it. Measure valley convergence, drainage orientation and incision along the same slopes before and after evolution.
 2. Recheck current interpolation: `coarse_height` already calls the bounded, affine-preserving sampler. The older smoothstep-bilinear diagnosis is historical; the separate 4 km→1 km sampler still uses bilinear interpolation.
@@ -174,8 +173,7 @@ cannot reproduce it, close as not reproduced with evidence instead of changing c
 
 ### OI-04 — Diagnose and improve angular shorelines
 
-**Status:** 100 m coast/lake steps are visible in the September 22 native crops and deliberately preserved by Atlas. A saved-height contour diagnostic smooths the ocean outline but changes 4,894 of 1,048,576 displayed pixels in the selected 6.4 km crop. It is inferred subcell geometry, not merely output-pixel antialiasing; production adoption requires consistent topology and river-mouth treatment. Lakes require their own saved surface/identity context. The diagnostic is not implemented production behavior or accepted geography. **Depends on:** OI-02. **Targets:** current terrain/coast
-construction, saved water geometry, `crates/arda-render/src/{carto.rs,channels.rs,overview.rs}`.
+**Status:** shared Atlas sea/land reconstruction implemented and verified September 23, including zero-height, thin-island/strait, ambiguous-diagonal, halo, mouth and streaming cases. Lakes and Box/mixed-axis views retain saved ownership; their quantization remains explicit. The 32K default export passes repeatability and unchanged-world checks. **Depends on:** OI-02. **Targets:** `crates/arda-render/src/atlas.rs`, `channels.rs`, `overview.rs`, `overview/streaming.rs`.
 
 1. Inspect world and area views of the same coast/lake boundary against the saved wet cells and physical surfaces. Identify coarse terrain angles, 100 m stair steps and rasterization artifacts separately.
 2. Decide which scale needs additional physical geometry and which needs better presentation. Larger PNGs alone cannot resolve either missing physical samples or poor edge styling.
@@ -189,9 +187,7 @@ target, topology remains correct, and any retained physical limit is explicit.
 
 ### OI-05 — Diagnose and correct reproduced rectangular regional basins
 
-**Status:** the current seed-42 configured 500×1000 km overview contains a large angular interior lake. This is new visual evidence relevant to the historical finding, not proof that its exact historical cause persists; basin identity, terrain shape and annual water support still need to be traced. **Depends on:** OI-02.
-**Targets:** continental relief, shared fine preparation/evolution, fine basin
-topology and annual lake support in `crates/arda-gen/src/hydrology/`.
+**Status:** traced September 23 to a real regional depression. The fine lake spans 30,709.15 km² at 1,177.501 m; the independently measured coarse basin spills at 1,173.357 m. Euclidean tectonic distance removes square belt geometry but does not remove this basin. No local lake-accounting or render-polygon defect was demonstrated. Regional terrain calibration remains open. **Depends on:** OI-02.
 
 1. Trace each reproduced rectangular waterbody through final wet membership, basin geometry, fine terrain and coarse relief. Separate the shape of a valid filled basin from incorrect water support.
 2. Check whether its sides follow real input relief, coarse interpolation, the modeled outer boundary or an internal publication boundary. Internal area boundaries must not behave as physical dams.
@@ -310,7 +306,7 @@ crossings, with consistent geometry and stable identities across areas.
 
 ### OI-12 — Substantially improve world-map geographical rendering
 
-**Continuation resumed; terrain and shoreline corrections authorized September 23:** the user requested continuing until the whole render meets the target. Colour/depth refinement `9a16883` passes 649 workspace tests and real-image compatibility checks. Stronger lighting was tested but not adopted because it accentuates saved straight gullies. Stage probes localize those gullies to continent erosion; replacing contributing-area accumulation alone was rejected because it flattens valley relief. Scratch shoreline renderers provide local rounding but still require topology and mouth handling. The larger fixed seed-42 500×1000 km world and 8K gallery are complete: high-altitude terrain is now inspected, but repeated grooves, broad pale relief, thin channels and an angular interior lake leave the reference-quality goal incomplete. The user explicitly approved including generator and shoreline geometry corrections. Work has resumed with GPT-6 Sol subagents; the two saved worlds remain comparison baselines. The former scope blocker is resolved; the visual objective is not achieved. Local audit: `features/2026-09-22-atlas-visual-fidelity/goal-audit.md`.
+**September 23 continuation verified:** the authorized terrain and shoreline corrections are committed through `757b2ab`, with final integration tests, approved physical golden update, local lint/MSRV/dependency gates and two independent dry review rounds. Actual integrated small/default worlds and MICRO99 retain exact annual budgets; the full 32K default render repeats byte-identically. Current docs describe the corrected behavior. The first-pass renderer is working; broad mountain forms, large generated basins and repetitive drainage remain terrain-naturalness work, so the overall reference-quality objective has not been declared achieved. Local evidence: `features/2026-09-23-terrain-corrections/evidence/README.md`.
 
 **Status:** first geographical rendering pass delivered September 22 at `342d03e55120`: earthy elevation palette, neighbor-aware shading, sea-depth colours and class-filtered per-output-pixel palette/light interpolation. The broader milestone remains open for ecological/human layers and multi-seed acceptance.
 **Depends on:** existing physical data to start; OI-08–OI-11 for ecological/human

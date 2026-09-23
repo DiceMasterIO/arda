@@ -1,9 +1,9 @@
 ---
-generated_date: 2026-09-08
+generated_date: 2026-09-23
 scenario: area-generation
 artifact: ../mockup-artifact.md
-generated_at_commit: 311829e4e5c9
-absorbed_from: features/03-climate-driven-refinement@2026-08-27, features/2026-09-07-area-water-terrain-realism@2026-09-08
+generated_at_commit: 757b2ab5418b
+absorbed_from: features/03-climate-driven-refinement@2026-08-27, features/2026-09-07-area-water-terrain-realism@2026-09-08, features/2026-09-23-terrain-corrections@2026-09-23
 ---
 
 # 02 — Area generation
@@ -125,6 +125,14 @@ orchestrator uses `SharedTerrain::build`, `prepare_area_terrain`, `shared_solve:
 `area_output::compose` instead. Source:
 [orchestrator.rs:406](../../../crates/arda-gen/src/orchestrator.rs:406),
 [area/mod.rs:658](../../../crates/arda-gen/src/area/mod.rs:658).
+
+Canonical preparation consumes coarse relief and bundle coordinates, rainfall and
+temperature reference. Coarse entering rivers, filled routing and basin patches
+do not seed shared physical evolution or published annual water. They remain
+inputs to the tile-only local diagnostic API (`crates/arda-gen/src/area/prepare.rs:39`,
+`crates/arda-gen/src/area/prepare.rs:115`, `crates/arda-gen/src/orchestrator.rs:412`,
+`crates/arda-gen/src/area/water.rs:199`). The 1 km stage now retains hillslope
+creep only; stream-power incision belongs to the existing shared 100 m evolution.
 
 ## Steps
 

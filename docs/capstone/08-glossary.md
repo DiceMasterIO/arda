@@ -1,9 +1,9 @@
 ---
-generated_at_commit: b0f93f22b969
-generated_date: 2026-09-08
-content_hash: ffb0f56190a7
+generated_at_commit: 757b2ab5418b
+generated_date: 2026-09-23
+content_hash: fc6f4c6ebab2
 paths_covered: [":(top)crates/**", ":(top)tests/**"]
-absorbed_from: features/2026-09-07-area-water-terrain-realism@2026-09-08
+absorbed_from: features/2026-09-07-area-water-terrain-realism@2026-09-08, features/2026-09-23-terrain-corrections@2026-09-23
 ---
 
 # Glossary
@@ -15,7 +15,7 @@ absorbed_from: features/2026-09-07-area-water-terrain-realism@2026-09-08
 | World | Seed/config manifest, continent layers, shared hydrology tables, area layers and sampled block archives on disk. The manifest is the completion stamp. | `crates/arda-gen/src/orchestrator.rs:338`; `crates/arda-gen/src/orchestrator/publication.rs:126` |
 | Manifest-first load | Validates the manifest/configuration and creates empty area/block cache slots. Requested reads can subsequently fail on missing, corrupt or inaccessible layers. | `crates/arda/src/world.rs:88` |
 | Owned area read | read_area() returns one area without retaining it in the query cache, allowing bounded saved-export passes. Borrowed area() retains successfully requested areas. | `crates/arda/src/world.rs:187`; `crates/arda/src/world.rs:203` |
-| Continent | 4 km tectonic simulation resampled to a 1 km relief/climate/hydrology grid; accepted coarse context supplies preparation. | `crates/arda-gen/src/continent/mod.rs:118` |
+| Continent | 4 km tectonics with exact Euclidean belt distances, resampled to 1 km relief with 25 hillslope-creep passes before climate/hydrology; shared 100 m evolution owns incision. | `crates/arda-gen/src/continent/mod.rs:118` |
 | Area / cell | 512² cells of 100 m, a 51.2 km square. Published preparation and final composition are sequential; shared water is solved between them. | `crates/arda-core/src/coords.rs:7`; `crates/arda-gen/src/orchestrator.rs:416` |
 | Block / square | 64² tile IDs; each square is 1,524 mm (five feet). Total 97.536 m is distinct from the nominal 100 m cell. The first block query decodes its complete area's archive. | `crates/arda-core/src/coords.rs:9`; `crates/arda/src/world.rs:257` |
 | TileId | u16 ID into the current 24-entry skeleton vocabulary; not a coordinate. | `crates/arda-core/src/tiles.rs:9` |
@@ -57,5 +57,6 @@ absorbed_from: features/2026-09-07-area-water-terrain-realism@2026-09-08
 | Subseed | BLAKE3 key over world seed plus tier/stage/coordinates/attempt, driving ChaCha8. | `crates/arda-core/src/rng.rs:84` |
 | format_version | Stored-world compatibility major, currently 4. Current loads require exact match; existing format-3 worlds are preserved and refused, with no migration. | `crates/arda-core/src/formats/mod.rs:17`; `crates/arda-core/src/formats/manifest.rs:75` |
 | model_revision / schema_version | Hydrology model 2 denotes representative annual semantics. JSON schema 2 carries those records and decimal-string global IDs/u128 amounts; it is independent of world-format and crate versions. | `crates/arda-core/src/formats/hydrology.rs:12`; `crates/arda-render/src/json.rs:15`; `crates/arda-render/src/hydrology_json.rs:145` |
+| Atlas shoreline | Integer bilinear saved-height sign reconstructs displayed land/sea boundaries at enlarged pixel centers, with saved-class guards for lakes, ambiguous diagonals and thin features. Box axes retain existing ownership; no saved membership changes. | `crates/arda-render/src/atlas.rs:412`; `crates/arda-render/src/overview.rs:239` |
 | Golden world | MICRO seed fixture with per-file fingerprints in root workspace tests; updating expected fingerprints requires explicit authorization. A source review does not substitute for this determinism gate. | `tests/golden_world.rs:69`; `standards.md` |
 | Trunk corridor / realm | Designed society/road constructs; no generation implementation yet. | `logic/01-continent-generation.md`; `logic/06-society-generation.md`; `crates/arda-gen/src/` |

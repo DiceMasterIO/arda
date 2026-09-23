@@ -1,9 +1,9 @@
 ---
-generated_at_commit: 342d03e55120
-generated_date: 2026-09-22
-content_hash: 14d115361425
+generated_at_commit: 757b2ab5418b
+generated_date: 2026-09-23
+content_hash: a290bff2f390
 paths_covered: [":(top)Cargo.toml", ":(top)crates/*/Cargo.toml", ":(top)crates/*/src/**", ":(top)Dockerfile", ":(top).github/**", ":(top)rust-toolchain.toml", ":(top)deny.toml", ":(top)crates/*/examples/**"]
-absorbed_from: features/2026-09-07-area-water-terrain-realism@2026-09-08, features/2026-09-22-geographical-rendering-first-pass@2026-09-22
+absorbed_from: features/2026-09-07-area-water-terrain-realism@2026-09-08, features/2026-09-22-geographical-rendering-first-pass@2026-09-22, features/2026-09-23-terrain-corrections@2026-09-23
 ---
 
 # Operations
@@ -218,6 +218,8 @@ Sources: [quality.rs](../../crates/arda-render/src/quality.rs),
 [channels.rs](../../crates/arda-render/src/channels.rs),
 [export_quality.rs](../../crates/arda/src/export_quality.rs).
 
+For Linear×Linear output, Atlas reconstructs displayed land/sea ownership from four class-directed signed heights using exact rational pixel centers and i128 bilinear weights. Land samples are at least +1 mm and sea samples at most −1 mm. Positive chooses land, negative sea, and exact zero retains saved ownership. Saved lakes, quads touching lakes, alternating land/sea checkerboards, exact saved-cell centers and guarded one-cell islands/straits retain saved ownership. Any Box axis also retains the existing aggregation/ownership rule. Area colour and channel clipping and both overview paths use this same classifier; an internal AtlasSea feature prevents river-trunk widening over reconstructed sea. Classic remains unchanged (`crates/arda-render/src/atlas.rs:412`, `crates/arda-render/src/channels.rs:451`, `crates/arda-render/src/overview.rs:239`, `crates/arda-render/src/overview/streaming.rs:170`).
+
 Quality exports, including the default area/overview CLI paths, stream into an
 exclusive temporary sibling file and rename it to the final filename only after
 encoding and flushing succeed. A failed render/write preserves any previous
@@ -239,7 +241,7 @@ most 32,768 pixels per axis and retains its 134,217,728-pixel total limit; squar
 [streaming.rs](../../crates/arda-render/src/overview/streaming.rs),
 [carto.rs](../../crates/arda-render/src/carto.rs).
 
-Atlas area export retains a 514×514 derived palette/light/class grid and fixed
+Atlas area export retains a 514×514 derived palette/light/class/height grid and fixed
 516×516 height context. Neighbor area payloads are loaded one at a time while
 their two-cell strips or corners are copied. Atlas overview keeps the existing
 256-row output bands and can reread areas across bands; the cost therefore
@@ -286,6 +288,12 @@ cache. Per-block archive decompression is not implemented. Source:
 ## Infrastructure
 
 `Dockerfile:1` builds with `rust:1-bookworm`, copies the release binary to `debian:bookworm-slim`, runs UID 10001, declares `/worlds`, and uses entrypoint `arda`. It declares no ports, healthcheck or compose services. Multi-architecture image publication and crates.io/GHCR release automation remain designed but absent; `.github/workflows/` contains CI only.
+
+### September 23 integrated measurements
+
+The fixed seed-42 500×1000 km world completes in 1,640.71 s (27 min 21 s); seed-42 200×300 km takes 183.29 s and seed-99 MICRO 46.60 s. These are individual local release runs, not runtime guarantees. The default 32K Atlas overview is 15,522×32,768, 129,037,747 bytes, and takes 65.84 s; a byte-identical repeat takes 65.65 s with 57,240 KiB peak RSS. All 523 saved files remain unchanged during the repeat export. A 1000×1000 km world has not been benchmarked here; the conversational 55–75 minute estimate is not measured evidence.
+
+Receipts and outputs: [evidence index](features/2026-09-23-terrain-corrections/evidence/README.md). Existing output directories retain the original and corrected worlds separately. Source compatibility and visual acceptance are recorded in [current status](open-items.md).
 
 ## Developer workflow
 

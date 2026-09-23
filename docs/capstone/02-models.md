@@ -1,9 +1,9 @@
 ---
-generated_at_commit: 342d03e55120
-generated_date: 2026-09-22
-content_hash: 454d2f2ef505
+generated_at_commit: 757b2ab5418b
+generated_date: 2026-09-23
+content_hash: 6560cedf60cd
 paths_covered: [":(top)crates/*/src/**"]
-absorbed_from: [features/2026-09-07-area-water-terrain-realism@2026-09-08, features/2026-09-22-geographical-rendering-first-pass@2026-09-22]
+absorbed_from: [features/2026-09-07-area-water-terrain-realism@2026-09-08, features/2026-09-22-geographical-rendering-first-pass@2026-09-22, features/2026-09-23-terrain-corrections@2026-09-23]
 ---
 
 # Models
@@ -96,7 +96,7 @@ absorbed_from: [features/2026-09-07-area-water-terrain-realism@2026-09-08, featu
 | AreaImageScale | `crates/arda-render/src/channels.rs:13` | in-memory render request | Preview, detail or custom square area-image resolution |
 | AtlasNeighbor | `crates/arda-render/src/atlas.rs:47` | in-memory render context | Fixed eight adjacent-area directions |
 | AtlasHalo | `crates/arda-render/src/atlas.rs:77` | in-memory render scratch | 516² optional saved height/class context plus eight direction states |
-| AtlasTerrain | `crates/arda-render/src/atlas.rs:159` | in-memory render scratch | 514² derived palette RGB, Q12 lighting and terrain classes |
+| AtlasTerrain | `crates/arda-render/src/atlas.rs:159` | in-memory render scratch | 514² derived palette RGB, Q12 lighting, terrain classes and saved millimetre heights |
 | OverviewRaster | `crates/arda-render/src/overview.rs:22` | in-memory buffered renderer | Exact or regular-size overview pixels, feature precedence and supplied-area tracking |
 | AreaRaster | `crates/arda-render/src/channels.rs:315` | in-memory streaming renderer | Prepared channel geometry, bounded candidate indexes and one reusable area scanline |
 | RasterBand | `crates/arda-render/src/overview/streaming.rs:89` | in-memory streaming helper | At most 256 overview rows of RGB and feature classifications |
@@ -902,7 +902,8 @@ Copied global lake (`crates/arda-render/src/hydrology_json.rs:49`):
 |---|---|---|---|
 | palette | `[u8; 3][]` | yes | 514² derived RGB terrain palette, including interpolation ghosts (`crates/arda-render/src/atlas.rs:159`) |
 | light | `u16[]` | yes | 514² Q12 relief factors, applied only to land (`crates/arda-render/src/atlas.rs:241`) |
-| classes | `TerrainKind[]` | yes | 514² ownership classes for filtered sampling (`crates/arda-render/src/atlas.rs:302`) |
+| classes | `TerrainKind[]` | yes | 514² ownership classes for filtered sampling (`crates/arda-render/src/atlas.rs:168`) |
+| heights | `i32[]` | yes | 514² saved millimetre heights, including independently clamped outer ghosts; supports integer bilinear land/sea reconstruction (`crates/arda-render/src/atlas.rs:168`, `crates/arda-render/src/atlas.rs:412`) |
 
 ### OverviewRaster
 
@@ -913,7 +914,7 @@ Copied global lake (`crates/arda-render/src/hydrology_json.rs:49`):
 | areas_wide | `i32` | yes | Validated 1–78 |
 | areas_high | `i32` | yes | Validated 1–78 |
 | rgb | `u8[]` | yes | Three bytes per output pixel |
-| features | `Feature[]` | yes | Private accepted variants: Sea, Land, River(Light\|Mid\|Dark), Lake |
+| features | `Feature[]` | yes | Private accepted variants: Sea, AtlasSea, Land, River(Light\|Mid\|Dark), Lake; AtlasSea blocks trunk widening |
 | supplied | `bool[]` | yes | One duplicate-detection flag per area |
 
 ### AreaRaster
@@ -1056,7 +1057,9 @@ Core codecs explicitly write little-endian fields; Rust padding is not persisted
 
 `CellOut` still omits temperature, rainfall, moisture, forest_density, road and built_by; area JSON combines cells, objects, physical channel edges and hydrology in one document. `BlockOut` retains tile IDs/names without material/traversal/movement/cover/hazard attributes, POIs or buildings. Loaded continent-object queries and independently framed lazy block decoding remain unimplemented; `World::load` reads the manifest without loading continent or global hydrology tables (`crates/arda-render/src/json.rs:18`, `crates/arda-render/src/json.rs:66`, `crates/arda-render/src/json.rs:96`, `crates/arda/src/world.rs:93`).
 
-Area Preview is 512² pixels with faint marks for subpixel streams; Detail is 4,096² and Custom is any validated 512–32,768² edge, both showing physical channel coverage only. Every scale resamples the same immutable 512² grid of 100 m cells and saved global D8 channel geometry. Atlas adds an ephemeral 516² halo and 514² palette/light/class grids; it creates no new saved fields or world format. Supplied lake surfaces determine the existing blue-to-blue depth ramp; overview retains categorical lake fill and discharge-band river symbols. These are display choices, not changed wet membership or finer terrain (`crates/arda-render/src/atlas.rs:77`, `crates/arda-render/src/atlas.rs:159`, `crates/arda-render/src/channels.rs:11`, `crates/arda-render/src/overview.rs:278`).
+Area Preview is 512² pixels with faint marks for subpixel streams; Detail is 4,096² and Custom is any validated 512–32,768² edge, both showing physical channel coverage only. Every scale resamples the same immutable 512² grid of 100 m cells and saved global D8 channel geometry. Atlas adds an ephemeral 516² halo and 514² palette/light/class/height grids; it creates no new saved fields or world format. Supplied lake surfaces determine the existing blue-to-blue depth ramp; overview retains categorical lake fill and discharge-band river symbols. These are display choices, not changed wet membership or finer terrain (`crates/arda-render/src/atlas.rs:77`, `crates/arda-render/src/atlas.rs:159`, `crates/arda-render/src/channels.rs:11`, `crates/arda-render/src/overview.rs:278`).
+
+For Linear×Linear output, Atlas reconstructs displayed land/sea ownership from four class-directed signed heights using exact rational pixel centers and i128 bilinear weights. Land samples are at least +1 mm and sea samples at most −1 mm. Positive chooses land, negative sea, and exact zero retains saved ownership. Saved lakes, quads touching lakes, alternating land/sea checkerboards, exact saved-cell centers and guarded one-cell islands/straits retain saved ownership. Any Box axis also retains the existing aggregation/ownership rule. Area colour and channel clipping and both overview paths use this same classifier; an internal AtlasSea feature prevents river-trunk widening over reconstructed sea. Classic remains unchanged (`crates/arda-render/src/atlas.rs:412`, `crates/arda-render/src/channels.rs:451`, `crates/arda-render/src/overview.rs:239`, `crates/arda-render/src/overview/streaming.rs:170`).
 
 ## Validation
 

@@ -1,8 +1,8 @@
 ---
-generated_date: 2026-09-08
+generated_date: 2026-09-23
 scenario: continent-generation
-generated_at_commit: 311829e4e5c9
-absorbed_from: features/02-continent-climate-hydrology@2026-08-26, features/03-climate-driven-refinement@2026-08-27, features/2026-09-07-area-water-terrain-realism@2026-09-08
+generated_at_commit: 757b2ab5418b
+absorbed_from: features/02-continent-climate-hydrology@2026-08-26, features/03-climate-driven-refinement@2026-08-27, features/2026-09-07-area-water-terrain-realism@2026-09-08, features/2026-09-23-terrain-corrections@2026-09-23
 ---
 
 # 01 — Continent generation
@@ -18,9 +18,9 @@ retained MICRO and default seeds. This changes regional geography and requires
 new overview checks; it is not a rendered river-path perturbation. Other broad
 tectonic flanks can still support parallel drainage.
 
-**Current implementation — 2026-09-08.**
+**Current implementation — 2026-09-23.**
 
-**Boundary-classification correction — installed; integrated acceptance open.**
+**Boundary classification and belt-distance corrections — installed.**
 Relative plate motion is classified by its component along the normal between
 the moved plate centers, rather than a cardinal raster neighbor direction.
 This is the normal of the underlying unwarped Voronoi pair; the existing spatial
@@ -28,8 +28,10 @@ warp remains an approximation and does not have its local derivative modeled.
 Tangential motion has zero normal component and adds no collision, arc or rift
 forcing. At junctions, retain every incident kind in an order-independent mask
 so visiting neighbors in a different order cannot replace collision with rift.
-Each existing belt still uses distance to its own kind; amplitudes, metric,
-drift, diffusion, coast and normalization are unchanged. Source and red/green
+Each belt uses distance to its own boundary kind. The September 23 correction
+uses an exact separable squared Euclidean transform and integer-square-root Q10
+distance through the cubic profile, replacing the former Chebyshev metric.
+Amplitudes, belt widths, drift, diffusion and normalization remain unchanged. Source and red/green
 evidence: `crates/arda-gen/src/continent/tectonics.rs` and
 `features/2026-09-07-area-water-terrain-realism/verification/terrain-correction/regional-relief-diagnostic/`.
 
@@ -37,8 +39,9 @@ The continent stage supplies the accepted coarse relief, climate and overview
 rivers for a batch. Published area water is solved later over the complete
 prepared 100 m domain. This section's Steps and Invariants describe current
 behavior; the earlier design and observations below are retained history.
-This records implemented behavior, not completion of the pending natural-panel
-and golden acceptance gates.
+The September 23 correction passes local physical, deterministic and golden
+checks; natural-landscape visual acceptance remains open. Historical verification
+below retains its original scope.
 
 ## Trigger & preconditions
 
@@ -59,8 +62,12 @@ default API. Source: [config.rs:83](../../../crates/arda-core/src/config.rs:83),
    [generation_limits.rs:156](../../../crates/arda-gen/src/orchestrator/generation_limits.rs:156),
    [publication.rs:58](../../../crates/arda-gen/src/orchestrator/publication.rs:58).
 2. **Generate and validate the coarse continent.** Seeded plate/tectonic relief
-   produces the 4 km simulation and 1 km working surface, including coarse
-   erosion. Climate, coarse hydrology and rivers are retained from the
+   produces the 4 km simulation and 1 km working surface. The latter receives
+   25 nine-point hillslope-creep passes over positive interior cells; the rim
+   and nonpositive cells stay fixed. Stream-power incision occurs later in
+   the existing 40-step shared 100 m evolution (`crates/arda-gen/src/continent/erode.rs:19`,
+   `crates/arda-gen/src/area/evolution.rs:189`). The forced rim uses `h.min(-1)` to preserve
+   already-negative seafloor depths (`crates/arda-gen/src/continent/mod.rs:209`). Climate, coarse hydrology and rivers are retained from the
    accepted attempt; the acceptance/retry branches are below. There is no implemented 1500 m range gate, human-geography
    stage or naming stage. Source:
    [continent/mod.rs:71](../../../crates/arda-gen/src/continent/mod.rs:71),
