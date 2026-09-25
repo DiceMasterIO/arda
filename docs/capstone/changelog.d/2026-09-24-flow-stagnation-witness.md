@@ -1,0 +1,4 @@
+- Traced the retained measured Newton failure to one interior upwind donor reversal just below the smallest permitted trial; before crossing, the accurately solved Newton direction descends as predicted.
+- Validated both limiting face derivatives independently. Both one-sided Newton directions depart into the opposite side, so no simple donor flip or average is adopted.
+- Independently projected saved velocities to exact positive water balance and checked the reduced coupled derivative. The single full velocity trial is extreme and fails its gate; no reduced trajectory follows.
+- Production and original world remain unchanged. No new terrain render or mountain-grandeur acceptance is claimed; current-status and feature-plan documentation record the specific numerical limitation.

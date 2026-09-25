@@ -1,7 +1,7 @@
 ---
-generated_at_commit: 0fc9666b583b
+generated_at_commit: 14a70b9144dd
 generated_date: 2026-09-23
-content_hash: 968d950bc295
+content_hash: e66e1bae74c8
 paths_covered: [":(top)Cargo.toml", ":(top)crates/*/Cargo.toml", ":(top)crates/*/src/**", ":(top)Dockerfile", ":(top).github/**", ":(top)rust-toolchain.toml", ":(top)deny.toml", ":(top)crates/*/examples/**"]
 absorbed_from: features/2026-09-07-area-water-terrain-realism@2026-09-08, features/2026-09-22-geographical-rendering-first-pass@2026-09-22, features/2026-09-23-terrain-corrections@2026-09-23
 ---
@@ -97,13 +97,17 @@ Generation evolves one complete modeled physical rectangle, persists immutable
 area/fringe slices, releases the dense surface, solves shared annual water once,
 indexes global features, then composes areas. Initial relief uses the radial
 continent mask and four aligned area-detail lattice spacings of 40/20/10/5 cells.
-Forty shared evolution iterations carry uplift, fractional contributing area,
+Absolute-coordinate integer structural relief from 8 and 4 km lattice spacings
+is added to the initial physical bed where the range of coarse heights at eight
+roughly 5 km offsets exceeds 400 m, reaching full strength at 2,000 m. The
+160 shared evolution iterations carry uplift, fractional contributing area,
 creep and collapse across area cuts; implicit downstream-first incision uses
 updated receiver beds. Only the actual modeled outer rim remains fixed. Sources:
 [prepare.rs](../../crates/arda-gen/src/area/prepare.rs),
 [evolution.rs](../../crates/arda-gen/src/area/evolution.rs),
 [coast.rs](../../crates/arda-gen/src/continent/coast.rs),
-[area_detail.rs](../../crates/arda-gen/src/continent/area_detail.rs).
+[area_detail.rs](../../crates/arda-gen/src/continent/area_detail.rs),
+[structural_relief.rs](../../crates/arda-gen/src/continent/structural_relief.rs).
 
 Fine marine connectivity is separate
 from a negative inland bed. Annual supply is `P`; annual Hamon evaporation `E` is
@@ -138,15 +142,21 @@ not the terrain or annual model. Source:
 Declared work includes shared terrain sampling and every bounded evolution pass,
 including the flood heaps' logarithmic comparisons. It counts bounded transitions
 and comparisons, not CPU instructions or seconds. Current default admission sums
-1,881,932,212,727 such units, below the unchanged 2^48 allowance; a caller limit
-that omits this terrain work is refused before output is created.
+4,685,132,212,727 such units, below the unchanged 2^48 allowance; a caller limit
+that omits this terrain work is refused before output is created. The terrain
+work term is `N × (640 + 160 × (184 + 8×9 + 8×ceil(log2 N)))` for N modeled fine
+cells; the 640N initial allowance includes the structural sampler. The separate
+legacy tile-only erosion constant remains 40 iterations. Sources:
+[evolution.rs:98](../../crates/arda-gen/src/area/evolution.rs:98),
+[evolution.rs:117](../../crates/arda-gen/src/area/evolution.rs:117),
+[admission receipt](features/2026-09-23-terrain-corrections/evidence/integer-regional-relief-probe/candidate-160/admission-measurement.json).
 
 The previous per-area pinned rim/taper produced grid-aligned troughs. Current
-shared evolution removes those internal boundary conditions, but natural-realism
-acceptance remains open while the full corrected candidate is inspected. The
-earlier observations remain preserved in [open items](open-items.md) and feature
-evidence; they are not a claim that the current implementation still pins every
-area rim.
+shared evolution removes those internal boundary conditions. The accepted
+structural-relief and 160-step world improves branching in inspected views, while
+smooth summits and parallel grooves remain visible; it does not complete the
+reference-quality terrain goal. The earlier observations remain preserved in
+[open items](open-items.md) and the [visual verdict](features/2026-09-23-terrain-corrections/evidence/integer-regional-relief-probe/candidate-160/root-default-visual-verdict.json).
 
 The RAM figure is an owned-payload reservation, not a process-RSS guarantee.
 Admission includes two dense `i32` terrain inputs and the shared kernel scratch:
@@ -203,8 +213,17 @@ directional relief and pixel-center interpolation from saved cells. It reads
 the two nearest rows/columns and corners from existing in-world neighbors;
 missing or corrupt neighbors fail the export. Out-of-world edges use one-sided
 gradients. Atlas area and overview PNGs share saved lake-depth colours; area
-images retain physical channel geometry, while overview keeps its categorical
-lake footprint threshold and discharge-band river symbols.
+images retain physical channel geometry. World Atlas overview keeps the categorical
+lake footprint threshold but renders connected saved channels from complete 3×3
+neighbor object context. It draws Q20 strips, terminal footprints and junction hulls
+at display width `min(8 × saved_width_dm, 10_000 dm)`, clips to each source area,
+then projects to unequal output partitions and unions bounded pixel coverage.
+Only land pixels receive channel color; sea and lake ownership remains with their
+feature masks. The older Mid/Dark width-derived chamfer symbols remain in direct
+legacy Atlas overview APIs; Classic retains its right/down one-pixel Dark trunk
+extension (`crates/arda/src/export_quality.rs:125`,
+`crates/arda-render/src/overview/channel_overlay.rs:43`,
+`crates/arda-render/src/overview/channel_overlay.rs:287`).
 Classic remains the omitted-style behavior, including existing library entry
 points. The additive styled APIs are
 `export_area_with_quality_and_style` and
@@ -219,7 +238,7 @@ Sources: [quality.rs](../../crates/arda-render/src/quality.rs),
 [channels.rs](../../crates/arda-render/src/channels.rs),
 [export_quality.rs](../../crates/arda/src/export_quality.rs).
 
-For Linear×Linear output, Atlas reconstructs displayed land/sea ownership from four class-directed signed heights using exact rational pixel centers and i128 bilinear weights. Land samples are at least +1 mm and sea samples at most −1 mm. Positive chooses land, negative sea, and exact zero retains saved ownership. Saved lakes, quads touching lakes, alternating land/sea checkerboards, exact saved-cell centers and guarded one-cell islands/straits retain saved ownership. Any Box axis also retains the existing aggregation/ownership rule. Area colour and channel clipping and both overview paths use this same classifier; an internal AtlasSea feature prevents river-trunk widening over reconstructed sea. Classic remains unchanged (`crates/arda-render/src/atlas.rs:412`, `crates/arda-render/src/channels.rs:451`, `crates/arda-render/src/overview.rs:239`, `crates/arda-render/src/overview/streaming.rs:170`).
+For Linear×Linear output, Atlas reconstructs displayed land/sea ownership from four class-directed signed heights using exact rational pixel centers and i128 bilinear weights. Land samples are at least +1 mm and sea samples at most −1 mm. Positive chooses land, negative sea, and exact zero retains saved ownership. Saved lakes, quads touching lakes, alternating land/sea checkerboards, exact saved-cell centers and guarded one-cell islands/straits retain saved ownership. Any Box axis also retains the existing aggregation/ownership rule. Area colour and channel clipping and both overview paths use this same classifier; an internal AtlasSea feature prevents connected channel overlay and legacy river-trunk widening over reconstructed sea. Classic remains unchanged (`crates/arda-render/src/atlas.rs:412`, `crates/arda-render/src/channels.rs:451`, `crates/arda-render/src/overview.rs:428`, `crates/arda-render/src/overview/streaming.rs:92`).
 
 Quality exports, including the default area/overview CLI paths, stream into an
 exclusive temporary sibling file and rename it to the final filename only after
@@ -232,9 +251,16 @@ partial destination. Source:
 [export_quality.rs](../../crates/arda/src/export_quality.rs),
 [lib.rs](../../crates/arda/src/lib.rs).
 
-The streaming overview renderer, `write_overview_png`, uses bounded bands and
-supports square 32K output. Area streaming uses reusable rows and bounded channel
-geometry/candidate storage. The buffered `OverviewRaster::new_exact` accepts at
+The streaming overview renderers `write_overview_png` and
+`write_atlas_overview_png_with_channels` use bounded bands and support square 32K
+output. The latter requires canonical saved-channel context from every existing
+adjacent area and refuses missing or conflicting records. Connected coverage has
+bounded candidates and work; a pixel that exceeds the ordinary 64-piece Q20
+union is subdivided to depth 6, with typed refusal when that or the 250-million-unit
+per-tile-row work limit is exhausted. Area streaming uses reusable rows and bounded
+channel geometry/candidate storage (`crates/arda-render/src/overview/channel_overlay.rs:16`,
+`crates/arda-render/src/channel_geometry.rs:380`,
+`crates/arda-render/src/channel_geometry.rs:439`). The buffered `OverviewRaster::new_exact` accepts at
 most 32,768 pixels per axis and retains its 134,217,728-pixel total limit; square
 16K and 32K images exceed that buffered budget. The regular buffered constructor's
 512-pixels-per-area and 64-million-pixel limits remain unchanged. Sources:
@@ -243,11 +269,20 @@ most 32,768 pixels per axis and retains its 134,217,728-pixel total limit; squar
 [carto.rs](../../crates/arda-render/src/carto.rs).
 
 Atlas area export retains a 514×514 derived palette/light/class/height grid and fixed
-516×516 height context. Neighbor area payloads are loaded one at a time while
-their two-cell strips or corners are copied. Atlas overview keeps the existing
-256-row output bands and can reread areas across bands; the cost therefore
-depends on output height and area layout even though raster memory stays bounded.
-The measured local Linux seed-42 200×300 km exports completed at 32K twice each:
+516×516 height/class/lake-depth/wetness context. Neighbor area payloads are loaded
+one at a time while their two-cell strips or corners are copied. Saved wetness
+tints only Atlas land toward `[81,126,73]` with Q12 weight
+`wetness×2048/(wetness+12)` before rock and snow material blending. It is a
+saved drainage/slope display index, not a new soil-moisture simulation. The
+optional context sample still measures 16 bytes, so this addition does not grow
+the fixed halo (`crates/arda-render/src/atlas.rs:39`,
+`crates/arda-render/src/atlas.rs:698`,
+`crates/arda-render/src/atlas/tests.rs:1118`). Atlas overview uses 256-row output bands plus at most 14 halo rows on each side. The world facade can reread target cells, terrain neighbors and object-only channel neighbors across bands; each connected `ChannelTile` holds bounded geometry and pixel references rather than a full image. The legacy direct Atlas API retains its reusable distance field (`crates/arda-render/src/overview/streaming.rs:100`, `crates/arda-render/src/overview/channel_overlay.rs:287`, `crates/arda/src/world.rs:245`).
+The current saved-width river presentation under commit `92689f8` produced two byte-identical 15,522×32,768 Atlas PNGs of 326,768,717 bytes in 80.7532 and 80.6843 s. All 523 saved world files (1,943,353,639 bytes) remained unchanged, and the selected Classic 2K export matched the prior exporter byte-for-byte. These are local measurements, not a universal runtime bound ([receipt](features/2026-09-23-terrain-corrections/evidence/natural-river-pass/surface-receipt.json)).
+
+The preceding default seed-42 500×1000 km Atlas 32K overview under commit `a9ce4fe` was 15,522×32,768 pixels and 325,652,273 bytes. Two completed exports took 78.9093 and 79.3596 s and have the same SHA-256; all 523 saved world files stayed unchanged. This is a local render receipt, not an all-platform performance bound ([receipt](features/2026-09-23-terrain-corrections/evidence/readability-pass/render-receipt.json)).
+
+The following measured seed-42 200×300 km 32K exports precede the wetness change:
 
 | Atlas 32K PNG | Pixels | Elapsed runs | Peak child RSS runs |
 |---|---:|---:|---:|
@@ -290,9 +325,17 @@ cache. Per-block archive decompression is not implemented. Source:
 
 `Dockerfile:1` builds with `rust:1-bookworm`, copies the release binary to `debian:bookworm-slim`, runs UID 10001, declares `/worlds`, and uses entrypoint `arda`. It declares no ports, healthcheck or compose services. Multi-architecture image publication and crates.io/GHCR release automation remain designed but absent; `.github/workflows/` contains CI only.
 
-### September 23 integrated measurements
+### September 23 measurements
 
-The fixed seed-42 500×1000 km world completes in 1,640.71 s (27 min 21 s); seed-42 200×300 km takes 183.29 s and seed-99 MICRO 46.60 s. These are individual local release runs, not runtime guarantees. The default 32K Atlas overview is 15,522×32,768, 129,037,747 bytes, and takes 65.84 s; a byte-identical repeat takes 65.65 s with 57,240 KiB peak RSS. All 523 saved files remain unchanged during the repeat export. A 1000×1000 km world has not been benchmarked here; the conversational 55–75 minute estimate is not measured evidence.
+The installed structural-relief/160-step seed-42 500×1000 km world completed in
+3,256.01 s (54 min 16 s), with 1,850,884 KiB peak child RSS. This is one local
+release generation, not a runtime guarantee. Its saved schema and area count
+remain 4 and 171. The 32K Atlas overview completed in 71.31 s with a
+byte-identical repeat; all 523 saved-world files remained unchanged by export.
+Sources: [generation receipt](features/2026-09-23-terrain-corrections/evidence/integer-regional-relief-probe/candidate-160/world-seed42-500x1000-time.json),
+[render receipt](features/2026-09-23-terrain-corrections/evidence/integer-regional-relief-probe/candidate-160/full-world-32k/receipt.json).
+
+The preceding 40-step seed-42 500×1000 km world completed in 1,640.71 s (27 min 21 s); seed-42 200×300 km took 183.29 s and seed-99 MICRO took 46.60 s. These are individual earlier local release runs, not runtime guarantees. That preceding world’s default 32K Atlas overview was 15,522×32,768, 129,037,747 bytes, and took 65.84 s; a byte-identical repeat took 65.65 s with 57,240 KiB peak RSS. All 523 saved files remain unchanged during the repeat export. A 1000×1000 km world has not been benchmarked here; the conversational 55–75 minute estimate is not measured evidence.
 
 Receipts and outputs: [evidence index](features/2026-09-23-terrain-corrections/evidence/README.md). Existing output directories retain the original and corrected worlds separately. Source compatibility and visual acceptance are recorded in [current status](open-items.md).
 
@@ -309,15 +352,14 @@ process or remote service is involved. Source:
 [ci.yml:18](../../.github/workflows/ci.yml:18),
 [rust-toolchain.toml](../../rust-toolchain.toml).
 
-The previous exact-HEAD run checked September 22 still has the recorded Windows
-golden-text LF/CRLF failure; Linux/macOS, lint, MSRV and dependency jobs passed.
-The run and fingerprint comparison are recorded in [current status](open-items.md).
-Configured gates and historical passing measurements do not imply a fresh green
-run. The Atlas feature's subsequent local Linux workspace, formatting, strict
-Clippy and Rust 1.96.1 checks passed at HEAD `342d03e55120`; the prior passing
-dependency check remains applicable with unchanged manifests, lockfile and
-policy. No new Windows run was made. See the dated [testing evidence](06-testing.md)
-and [gate results](features/2026-09-22-geographical-rendering-first-pass/evidence/gates/results.json).
+At adopted source `4ea2271`, the cleaned proposal passed 674 non-golden
+workspace tests, formatting, strict all-package Clippy, Rust 1.96.1 and cached
+offline dependency policy. The root release golden suite then passed both the
+approved 34-file fingerprint and independent same-seed repeat. These are local
+checks, not a new remote or Windows CI run. The September 22 Windows golden-text
+LF/CRLF failure remains the last recorded remote Windows result. Exact commands,
+scopes and receipts are in [testing](06-testing.md) and the
+[adoption receipt](features/2026-09-23-terrain-corrections/evidence/integer-regional-relief-probe/candidate-160/production-adoption/root-integration-receipt.md).
 
 Forcing tables are checked-in runtime data. The explicit maintenance command
 `python3 tools/generate_water_forcing_tables.py /tmp/arda-forcing-tables.rs`
@@ -482,3 +524,27 @@ coverage. Source:
 ### Atlas lake-depth export measurement — 2026-09-23
 
 Renderer `0fc9666` exported the same saved default world at 15,522×32,768 in 69.34 s, with 76,904 KiB peak child RSS measured by Linux `getrusage`. The PNG is 152,810,414 bytes. This is one local release export, not a repeated timing guarantee or a new generation run. Exact command and SHA-256: [lake-depth 32K receipt](features/2026-09-23-terrain-corrections/evidence/atlas-lake-depth/full-world-32k/verification.json).
+
+
+### Saved-wetness Atlas export measurement — 2026-09-23
+
+The committed renderer produced two byte-identical 15,522 × 32,768 PNGs (327,031,502 bytes each) in 76.16 s and 76.05 s, at 66,516 and 66,284 KiB peak child RSS. All 523 saved world files (1,943,353,639 bytes) retain identical before/after hashes. The 970 × 2048 preview is downsampled from the completed 32K PNG, not a separate 2K export. Root inspected it; smooth principal ridges and repetitive fine gullies remain. Receipt: `features/2026-09-23-terrain-corrections/evidence/wetness-response-probe/production/full-world-32k/receipt.json`.
+
+The connected-channel world overview under `14a70b9144dd` produced repeated 15,522×32,768 PNGs in 93.19/92.62 s, with identical 329,746,127-byte outputs. The supported 512-pixel export also completes. The new union subdivides earlier in dense pixels instead of increasing resource limits. All523 saved files, selected Classic 2K and physical area 1725 outputs remain unchanged. [Integration receipt](features/2026-09-23-terrain-corrections/evidence/connected-river-integration/production-integration.json).
+
+## Opt-in canonical fine-source qualification
+
+The `generate` CLI defaults to the legacy source. `generate --terrain fine` runs the accepted recipe-2 source and world pipeline, using up to five deterministic candidates with the existing land/river gates and no legacy fallback. Fine mode admits separate source and world limits before creating private staging, reserves its retained source file alongside world scratch, and cleans its owned staging on success or ordinary failure. `--fine-ram-bytes` and `--fine-file-bytes` override the source defaults of 16 GiB and 4 GiB; these options require fine mode. Diagnostic examples also expose the two phases separately. `generate_fine_source` accepts seed, attempt, width km, height km, RAM ceiling bytes, file ceiling bytes, a new terrain path and a new receipt path; its receipt identifies recipe 2. `generate_fine_world` accepts seed, attempt, explicit source recipe version, width km, height km, the existing terrain file and a new world directory. Recipe must match the supplied file's producer; the height-file checksum does not bind seed/provenance. Occupied outputs are refused.
+
+Normal `export --style atlas` consumes a world's optional fine descriptor automatically. Missing/corrupt declared fine data fails; legacy worlds retain legacy Atlas. Separate export calls each verify the file once, while a single overview reuses its verified reader across bounded area windows. The original saved seed-42 world is retained unchanged; new outputs reside under the active feature evidence directories. See [current fine Atlas evidence](features/2026-09-23-terrain-corrections/evidence/fine-atlas-integration/README.md).
+
+Accepted fine terrain can be reproduced with:
+
+```sh
+arda generate --seed 42 --size 500x1000 --terrain fine --out output/fine42
+arda export --world output/fine42 --overview --quality 32k --style atlas --out output/fine42-render
+```
+
+The facade equivalent is `generate_from_fine_source(seed, config, out, FineDeliveryLimits::default())`. Source spectral work is bounded by geometry and the fixed candidate count; it is not charged to the world's hydrology work counter. The existing `generate` facade call and `preview` CLI remain legacy. The production fine command reproduced all 35 accepted MICRO files exactly; see [proof](features/2026-09-23-terrain-corrections/evidence/accepted-look-qualification/production-cli-proof.md).
+
+The final recipe-2 seed-42 500×1000 km run measured source 406.630 s, world 1,223.970 s, verification 2.574 s and 32K export 193.293 s: 1,826.467 s combined (30m 26s), excluding later inspection and hashing. The normal Atlas output is 15,522×32,768 and 259,955,341 bytes. The field covers the requested domain; the existing complete-area overview uses 9×19 exported areas (460.8×972.8 km), omitting partial fringe tiles. These are single local release observations; full-size peak RSS was not captured. [Commands, hashes, admission and images](features/2026-09-23-terrain-corrections/evidence/accepted-look-qualification/README.md).

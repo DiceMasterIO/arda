@@ -1,0 +1,4 @@
+- Added a read-only original-TIN shape decomposition at four retained measured-input snapshots, with plane, V-valley, orientation and linearity oracles.
+- Independently reproduced height/gradient/jump identities, corrected positive-decile selection, weighted contributions and flattening projections. Hillside and channel effects interact; accounting does not establish a causal replacement.
+- Inspected actual Atlas with component maps, a fixed cross-section and registered mesh-crease markers. No new evolved terrain, production adoption or mountain-grandeur acceptance.
+- Corrected stale current-status statements about the procedural-only requirement and the adaptive transport branch's ten accepted updates before failure. Full terrain goal remains open.

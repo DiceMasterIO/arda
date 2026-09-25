@@ -3,8 +3,9 @@
 use anyhow::{bail, Context, Result};
 use arda::{
     export_area_with_quality_and_style, export_area_with_scale, export_block, export_overview,
-    export_overview_with_quality_and_style, generate, AreaImageScale, ExportFormat, GenerateConfig,
-    ImageQuality, LatitudeBand, MapStyle, SizeKm, World,
+    export_overview_with_quality_and_style, generate, generate_from_fine_source, AreaImageScale,
+    ExportFormat, FineDeliveryLimits, GenerateConfig, ImageQuality, LatitudeBand, MapStyle, SizeKm,
+    World,
 };
 use clap::{Parser, Subcommand, ValueEnum};
 use std::path::{Path, PathBuf};
@@ -36,6 +37,15 @@ enum Command {
         /// World directory to create.
         #[arg(long)]
         out: PathBuf,
+        /// Terrain source. Fine uses recipe 2 and a fixed five-attempt gate.
+        #[arg(long, value_enum, default_value_t = Terrain::Legacy)]
+        terrain: Terrain,
+        /// Fine-source RAM ceiling in bytes (default 16 GiB; fine mode only).
+        #[arg(long)]
+        fine_ram_bytes: Option<u128>,
+        /// Fine-source file ceiling in bytes (default 4 GiB; fine mode only).
+        #[arg(long)]
+        fine_file_bytes: Option<u128>,
     },
     /// Generate a world and render one overview image of it.
     ///
@@ -108,6 +118,12 @@ enum Style {
     Atlas,
 }
 
+#[derive(Debug, Clone, Copy, PartialEq, Eq, ValueEnum)]
+enum Terrain {
+    Legacy,
+    Fine,
+}
+
 impl From<Style> for MapStyle {
     fn from(value: Style) -> Self {
         match value {
@@ -160,7 +176,15 @@ fn parse_size(text: &str) -> Result<SizeKm> {
     ))
 }
 
-fn run_generate(seed: u64, size: &str, micro: bool, out: &Path) -> Result<()> {
+fn run_generate(
+    seed: u64,
+    size: &str,
+    micro: bool,
+    out: &Path,
+    terrain: Terrain,
+    fine_ram_bytes: Option<u128>,
+    fine_file_bytes: Option<u128>,
+) -> Result<()> {
     let config = if micro {
         GenerateConfig::MICRO
     } else {
@@ -174,9 +198,24 @@ fn run_generate(seed: u64, size: &str, micro: bool, out: &Path) -> Result<()> {
         config.size_km().height,
         config.areas_wide() * config.areas_high()
     );
+    if terrain == Terrain::Legacy && (fine_ram_bytes.is_some() || fine_file_bytes.is_some()) {
+        bail!("fine resource ceilings require --terrain fine");
+    }
     println!("stages: continent → prepared terrain → shared water → areas → blocks");
 
-    let manifest = generate(seed, config, out)?;
+    let manifest = match terrain {
+        Terrain::Legacy => generate(seed, config, out)?,
+        Terrain::Fine => {
+            let mut limits = FineDeliveryLimits::default();
+            if let Some(bytes) = fine_ram_bytes {
+                limits.source.max_ram_bytes = bytes;
+            }
+            if let Some(bytes) = fine_file_bytes {
+                limits.source.max_file_bytes = bytes;
+            }
+            generate_from_fine_source(seed, config, out, limits)?
+        }
+    };
     println!(
         "done — {} · {} areas · land {}‰ · {} rivers",
         out.display(),
@@ -328,7 +367,18 @@ fn main() -> Result<()> {
             size,
             micro,
             out,
-        } => run_generate(seed, &size, micro, &out),
+            terrain,
+            fine_ram_bytes,
+            fine_file_bytes,
+        } => run_generate(
+            seed,
+            &size,
+            micro,
+            &out,
+            terrain,
+            fine_ram_bytes,
+            fine_file_bytes,
+        ),
         Command::Preview {
             seed,
             size,
@@ -417,6 +467,43 @@ mod tests {
             .style(),
             MapStyle::Classic
         );
+    }
+
+    #[test]
+    fn fine_generation_is_explicit_and_legacy_remains_default() {
+        let legacy = Cli::try_parse_from([
+            "arda", "generate", "--seed", "42", "--micro", "--out", "world",
+        ])
+        .unwrap();
+        assert!(matches!(
+            legacy.command,
+            Command::Generate {
+                terrain: Terrain::Legacy,
+                ..
+            }
+        ));
+        let fine = Cli::try_parse_from([
+            "arda",
+            "generate",
+            "--seed",
+            "42",
+            "--micro",
+            "--out",
+            "world",
+            "--terrain",
+            "fine",
+            "--fine-ram-bytes",
+            "123456",
+        ])
+        .unwrap();
+        assert!(matches!(
+            fine.command,
+            Command::Generate {
+                terrain: Terrain::Fine,
+                fine_ram_bytes: Some(123456),
+                ..
+            }
+        ));
     }
 
     #[test]

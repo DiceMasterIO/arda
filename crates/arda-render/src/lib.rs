@@ -15,7 +15,7 @@ pub mod carto;
 pub mod json;
 pub mod symbolic;
 
-pub use atlas::{AtlasHalo, AtlasNeighbor, AtlasTerrain};
+pub use atlas::{AtlasFineWorldBounds, AtlasHalo, AtlasNeighbor, AtlasTerrain};
 pub use carto::{
     render_area_png, render_area_png_to, render_area_png_to_atlas, render_overview_png,
 };
@@ -159,6 +159,7 @@ mod tests {
                 named_river_count: 0,
                 river_count: 0,
             },
+            fine_terrain: None,
         }
     }
 

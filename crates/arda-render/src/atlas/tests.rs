@@ -774,7 +774,62 @@ fn fixture() -> AtlasTerrain {
         light: vec![LIGHT_ONE; SAMPLE_SIDE * SAMPLE_SIDE],
         classes: vec![TerrainKind::Sea; SAMPLE_SIDE * SAMPLE_SIDE],
         heights: vec![0; SAMPLE_SIDE * SAMPLE_SIDE],
+        wetness: vec![0; SAMPLE_SIDE * SAMPLE_SIDE],
         has_lake_depths: false,
+        fine: None,
+    }
+}
+
+#[test]
+fn optional_fine_window_preserves_saved_sea_and_lake_colours() {
+    use arda_core::{AreaCoord, HeightMm, TerrainField, TerrainPoint};
+
+    let origin = TerrainPoint {
+        x_um: -200_000_000,
+        y_um: -200_000_000,
+    };
+    let last = TerrainPoint {
+        x_um: 51_400_000_000,
+        y_um: 51_400_000_000,
+    };
+    let field = TerrainField::new(
+        origin,
+        100_000_000,
+        517,
+        517,
+        vec![HeightMm::new(1_000_000); 517 * 517],
+    )
+    .unwrap();
+    let bounds = AtlasFineWorldBounds {
+        min: origin,
+        max: last,
+    };
+    let x = AxisKernel::Linear {
+        low: 50,
+        high_weight: 1,
+        denominator: 2,
+    };
+    let y = AxisKernel::Linear {
+        low: 60,
+        high_weight: 1,
+        denominator: 2,
+    };
+    for (height, class) in [(-3_000_000, TerrainKind::Sea), (500_000, TerrainKind::Lake)] {
+        let cells = filled(height, class);
+        let legacy = AtlasTerrain::new(&cells, edge_halo()).unwrap();
+        let fine = AtlasTerrain::new_with_fine(
+            &cells,
+            &[],
+            edge_halo(),
+            AreaCoord::new(0, 0),
+            bounds,
+            field.clone(),
+        )
+        .unwrap();
+        assert_eq!(
+            fine.sample(x, y, class).unwrap(),
+            legacy.sample(x, y, class).unwrap()
+        );
     }
 }
 

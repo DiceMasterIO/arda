@@ -1,0 +1,5 @@
+- Replayed retained late flow proposals exactly and attributed almost all rejected-step model error to one interior cell's water-depth collapse and drag response. Independent baseline residual maps show distributed remaining error.
+- Implemented and reviewed full log-depth/velocity tangent trust geometry with exact-water trial retraction. Three synthetic tests, branch checks and independent local replay pass.
+- Fresh original-initial measured run reaches 60 accepted steps in 88 trials/119.17 s. Momentum scaled L2 is 90.90, 140× below the prior metric at the same step budget, but still fails the unchanged convergence target.
+- Independently checked 61 saved states and all trial decisions, water conservation, final residuals and old-solver water agreement. No terrain update, new rendered mountain result, production adoption or original-world change.
+- A single old momentum-map check still requires up to 20.43 m/s local velocity change; 452 cells miss its stability threshold. This localizes the next investigation to interior pockets despite the improved global residual.

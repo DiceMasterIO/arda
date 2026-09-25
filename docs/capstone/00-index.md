@@ -6,7 +6,7 @@ Deterministic offline tabletop world generation in a Rust 2021 Cargo workspace: 
 
 | Module | Purpose | Entry points (repository-relative) |
 |---|---|---|
-| arda-core | Domain types, coordinates, keyed RNG, manifest and layer codecs | `crates/arda-core/src/lib.rs` |
+| arda-core | Domain types, coordinates, canonical fine-field sampling, keyed RNG, manifest and layer codecs | `crates/arda-core/src/lib.rs` |
 | arda-gen | Canonical terrain preparation, shared annual water, immutable area/block composition and disk batch | `crates/arda-gen/src/lib.rs`, `crates/arda-gen/src/orchestrator.rs` |
 | arda-render | Classic/Atlas area and overview PNG, block PNG and versioned JSON | `crates/arda-render/src/lib.rs` |
 | arda | Public generation, lazy load/query and saved-layer export facade | `crates/arda/src/lib.rs`, `crates/arda/src/world.rs` |
@@ -37,6 +37,8 @@ Deterministic offline tabletop world generation in a Rust 2021 Cargo workspace: 
 
 ## Companion docs
 
+Current terrain milestone: opt-in recipe-2 source and Atlas delivery completed, including the seed-42 full 32K output; see [status](open-items.md) and [rendered evidence](features/2026-09-23-terrain-corrections/evidence/accepted-look-qualification/README.md).
+
 | File | What it is |
 |---|---|
 | [Map legend](../map-legend.md) | Saved offline colour swatches and interpretation for world and detailed area PNGs. |
@@ -54,5 +56,5 @@ Deterministic offline tabletop world generation in a Rust 2021 Cargo workspace: 
 | [mockup/05-docker.md](mockup/05-docker.md) | Retained docker surface design. |
 | [mockup/06-serve.md](mockup/06-serve.md) | Retained serve surface design. |
 | uiux | Absent: no frontend; CLI/API and exported PNGs do not constitute application views. |
-| `features/` (local only) | Active specifications, plans and retained evidence. The geographical-rendering first pass is implemented; the September 23 terrain/shoreline corrections and local checks are complete through `757b2ab`, including actual small/default worlds, MICRO99, an 8K gallery and repeated 32K output. `2026-09-23-terrain-corrections` tracks the remaining broad visual objective; mountain/basin form and repetitive drainage are still open. Earlier absent local galleries do not undo their committed implementation and durable ledger. |
+| `features/` (local only) | Active specifications, plans and retained evidence. The geographical-rendering first pass is implemented; the September 23 terrain/shoreline corrections, material/lake-depth rendering, structural relief and saved-wetness tint are integrated through `14a70b9144dd`, including connected overview channel geometry, tapered display widths and fractional bank coverage, with actual small/default worlds, MICRO99, reviewed deterministic baselines and repeated 32K output. `2026-09-23-terrain-corrections` tracks the remaining broad visual objective, opt-in canonical fine-source worlds, bounded fine Atlas exports, recipe-2 ocean-rim/lowland-gain correction and the exact plateau/wetness attribution. Mountain grandeur, believable lowland rendering, multiple-world qualification and the new full 32K delivery remain open. Earlier absent local galleries do not undo their committed implementation and durable ledger. |
 | [changelog.md](changelog.md) | Append-only durable run ledger; historical names/keys retained. |

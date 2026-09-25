@@ -1,0 +1,12 @@
+## terrain-corrections/spatial-refinement-control@2026-09-24
+
+- **What:** completed one same-source actual mesh comparison,148,992→592,896 sites, toward the natural terrain-reference goal; no production adoption.
+- **Controls:** exact saved continuous fold segments, same uplift formula/K/talus/lambda0/n1/D and400×12.5 kyr. Fine initial heights sample the saved coarse TIN, already height-gained once; recomputed clipped Voronoi weights pass graph and independent cotangent checks. Source quadrature differs+0.0927%; the unstructured meshes are not nested.
+- **Repair:** first fine attempt stops at a scalar asymptotic zero-slope roundoff event. A narrow analytic-limit branch passes the captured regression,21 tests and independent80-digit oracle. Failed and repaired sources/binaries remain separate; no general tolerance change.
+- **Replay:** repaired original-mesh run exactly reproduces24 producer-compared deterministic files and400 physics rows; root independently checks17 selected files and400 rows.
+- **Fine result:**400 steps complete in186.76 s. Final source/bed errors≤2.48e−10 m; fixed hull exact; all ledger checks and independent final diffusion residual1.548e−7 m pass.
+- **Visual result:** matched actual Atlas and native crops add sharp local cuts but worsen steep cellular ridge bands and do not supply broad connected valleys or distinct mountain masses. Reject adoption; no further resolution sweep.
+- **Geometry:** central raster median slope38.694°→52.657°; native geometric basin capacity0.020302→0.474240 km³ and raster4.180306→11.337142 km³. More sampled summits do not prove fidelity. Basin geometry is not canonical annual water.
+- **Scope:** original/wider physical presentations use identical cameras/render settings within each pair; coarse PNG parity and zero displayed-interior halo checks pass. No production, saved-world, convergence or full-reference completion claim.
+- **Records:** active plan and current status refreshed; reproducible source/commands/receipts and root assessment retained in `features/2026-09-23-terrain-corrections/evidence/spatial-refinement-control/`.
+- **Follow-through:** a read-only physical-area census locates steepening mainly below0.1 km² contributing area; previous gate experiments used other models. Its final-height slopes follow pre-final-step routes, so attribution remains descriptive. No threshold or further evolution selected.

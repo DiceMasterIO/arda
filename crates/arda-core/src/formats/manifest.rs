@@ -26,6 +26,23 @@ pub struct ValidationStats {
     pub river_count: u32,
 }
 
+/// Identity of an optional canonical fine terrain layer.
+///
+/// Its path is fixed by [`FINE_TERRAIN_PATH`], so a manifest cannot redirect
+/// the loader to an arbitrary file. The world seed is already in [`Manifest`].
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+pub struct FineTerrainDescriptor {
+    /// Version of the source recipe that generated the layer.
+    pub recipe_version: u16,
+    /// Deterministic continent/source validation attempt.
+    pub attempt: u8,
+}
+
+/// The only relative path for a persisted canonical fine terrain layer.
+pub const FINE_TERRAIN_PATH: &str = "terrain/fine.bin";
+/// The source recipe understood by this build.
+pub const FINE_TERRAIN_RECIPE_VERSION: u16 = 2;
+
 /// Everything needed to identify, verify, or regenerate a world.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct Manifest {
@@ -43,6 +60,9 @@ pub struct Manifest {
     pub areas_high: i32,
     /// Validation statistics.
     pub stats: ValidationStats,
+    /// Present only for worlds that published a canonical fine terrain layer.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub fine_terrain: Option<FineTerrainDescriptor>,
 }
 
 /// Manifest file name inside a world directory.
@@ -127,6 +147,7 @@ mod tests {
                 named_river_count: 0,
                 river_count: 3,
             },
+            fine_terrain: None,
         }
     }
 
@@ -136,6 +157,22 @@ mod tests {
         write_manifest(dir.path(), &sample()).unwrap();
         let read = read_manifest(dir.path()).unwrap();
         assert_eq!(read, sample());
+    }
+
+    #[test]
+    fn fine_descriptor_is_optional_without_changing_legacy_json() {
+        let legacy = serde_json::to_value(sample()).unwrap();
+        assert!(legacy.get("fine_terrain").is_none());
+        let mut with_fine = sample();
+        with_fine.fine_terrain = Some(FineTerrainDescriptor {
+            recipe_version: FINE_TERRAIN_RECIPE_VERSION,
+            attempt: 3,
+        });
+        let decoded: Manifest =
+            serde_json::from_value(serde_json::to_value(&with_fine).unwrap()).unwrap();
+        assert_eq!(decoded, with_fine);
+        let decoded_legacy: Manifest = serde_json::from_value(legacy).unwrap();
+        assert_eq!(decoded_legacy.fine_terrain, None);
     }
 
     #[test]

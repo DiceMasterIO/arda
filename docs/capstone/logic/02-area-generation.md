@@ -2,7 +2,7 @@
 generated_date: 2026-09-23
 scenario: area-generation
 artifact: ../mockup-artifact.md
-generated_at_commit: 757b2ab5418b
+generated_at_commit: 4ea2271cd809
 absorbed_from: features/03-climate-driven-refinement@2026-08-27, features/2026-09-07-area-water-terrain-realism@2026-09-08, features/2026-09-23-terrain-corrections@2026-09-23
 ---
 
@@ -73,11 +73,52 @@ array is allocated. Radius-ten D8 fallbacks number 60(W+H)−400 for W,H≥10,
 bounded by 0.1875N for admitted axes W,H≥640. Eight cache reads per cell and
 fallback interpolation add under 16N bounded visits/evaluations. Public bundle
 sampling adds under 49N using the retained bound on tiles and entering-river
-windows. The initial work allowance increases from 256N to 512N; the forty-step
-evolution allowance and 53N dense owned-memory accounting are unchanged.
+windows. That local-detail correction raised the initial work allowance from
+256N to 512N at the time. The current structural-relief addition raises it to 640N;
+the shared duration is now 160 steps. The 53N dense owned-memory accounting
+remains unchanged because the added gate reuses the coarse/uplift array.
 This admission convention counts bounded source visits/cubic evaluations, not
 individual machine instructions. Sources: `continent/bundles.rs`,
 `continent/area_detail.rs`, `area/prepare.rs`, `area/evolution.rs`.
+
+### Structural relief and shared duration — installed 2026-09-23
+
+After the sign-preserving four-octave detail sample, add an integer structural
+delta to the initial physical bed. At absolute 100 m cell coordinates `(x,y)`,
+`delta_mm = 23×value_noise(seed⊕broad_salt,x,y,80) +
+10×value_noise(seed⊕detail_salt,x,y,40)`. The two lattice spacings are 8 and
+4 km, not their dominant wavelengths; the raw magnitude is at most 1,081,344 mm.
+The same fixed seed and absolute coordinates are used from any area. Source:
+[structural_relief.rs:9](../../../crates/arda-gen/src/continent/structural_relief.rs:9),
+[structural_relief.rs:22](../../../crates/arda-gen/src/continent/structural_relief.rs:22).
+
+Compute a nearby coarse range across the center and eight samples at offsets
+`(±50,0)`, `(0,±50)` and `(±35,±35)` fine cells, approximately 5 km away. Its
+Q16 multiplier is `clamp((range_mm−400,000)×65,536/1,600,000,0,65,536)`.
+Apply `delta_mm×gate/65,536` with integer truncation and clamp the final sum to
+i32. When the previous initial height or the center coarse height is nonpositive,
+leave that initial height unchanged. Positive land can cross zero; the later
+shared physical ocean/annual-water solve classifies the resulting bed, with no
+shoreline clamp. The unperturbed coarse field still drives uplift. Source:
+[structural_relief.rs:30](../../../crates/arda-gen/src/continent/structural_relief.rs:30),
+[structural_relief.rs:52](../../../crates/arda-gen/src/continent/structural_relief.rs:52),
+[prepare.rs:39](../../../crates/arda-gen/src/area/prepare.rs:39).
+
+`boundary_height` computes this initial sample directly. Shared preparation
+reuses its existing dense coarse/uplift field for gate samples inside the modeled
+rectangle; outside samples use the same direct coarse interpolator rather than
+clamping to a tile or modeled edge. No extra dense field is allocated. Shared
+evolution then runs 160 iterations; the separate tile-only diagnostic kernel
+retains its 40-step constant. Declared terrain work is
+`N×(640 + 160×(184 + 8×9 + 8×ceil(log2 N)))` bounded units, where N is the
+modeled fine-cell count; the default whole-generation admission is
+4,685,132,212,727 units under the unchanged 2^48 default cap. Terrain memory
+remains 53N owned bytes plus headers. Sources:
+[bundles.rs:30](../../../crates/arda-gen/src/continent/bundles.rs:30),
+[prepare.rs:104](../../../crates/arda-gen/src/area/prepare.rs:104),
+[evolution.rs:20](../../../crates/arda-gen/src/area/evolution.rs:20),
+[evolution.rs:98](../../../crates/arda-gen/src/area/evolution.rs:98),
+[admission receipt](../features/2026-09-23-terrain-corrections/evidence/integer-regional-relief-probe/candidate-160/admission-measurement.json).
 
 **Legacy outside-neighbor correction — installed and verified in candidate05.**
 The area-only water API must read the physical cell at the requested adjacent
@@ -112,7 +153,8 @@ water solve → immutable area composition**. An exported area has 512 × 512
 cells of 100 m; its final water cannot be generated independently from a tile
 bundle. This section is the current behavior. Earlier prescriptions and dated
 observations below remain historical/deferred, and do not override these Steps
-or Invariants. Natural-panel and golden acceptance remain separate pending gates.
+or Invariants. Golden and physical-water checks for the installed correction
+are recorded in [testing](../06-testing.md); reference-quality visual acceptance remains open.
 
 ## Trigger & preconditions
 
@@ -144,13 +186,14 @@ creep only; stream-power incision belongs to the existing shared 100 m evolution
    use absolute coordinates and bounded, affine-preserving coarse interpolation;
    four detail octaves with 40/20/10/5-cell periods preserve the coarse sign.
    Their amplitude follows the local regional relief rule above; height alone
-   does not increase roughness or prescribe a lake district.
+   does not increase roughness or prescribe a lake district. The subsequent
+   structural rule above may move initially positive land below zero.
    Neighbor bundle boundaries naming the same absolute sample agree, rather
    than forcing every pair of adjacent cell centers to have equal heights.
    Source: [prepared_domain.rs:42](../../../crates/arda-gen/src/hydrology/prepared_domain.rs:42),
    [bundles.rs:31](../../../crates/arda-gen/src/continent/bundles.rs:31),
    [terrain_interpolation.rs:38](../../../crates/arda-gen/src/terrain_interpolation.rs:38).
-2. **Evolve the physical bed, then freeze it.** The 40-step shared erosion loop
+2. **Evolve the physical bed, then freeze it.** The 160-step shared erosion loop
    fixes only the true modeled outer rim. Uplift, catchments, creep and collapse
    cross every publication boundary without a taper. Uplift is driven by coarse
    relief, normalized once for the domain, with 900 mm peak per step. Incision uses
@@ -160,10 +203,11 @@ creep only; stream-power incision belongs to the existing shared 100 m evolution
    Floor removed material, preventing rounding from inverting a positive slope.
    Exact physical spill elevation protects real depressions from incision;
    a numerical routing increment alone does not imply lake depth. Creep and
-   collapse remain in the loop. The current erosion loop leaves nonpositive
-   beds unchanged and keeps positive updates at least 1 mm; this is a terrain
-   rule, not the later marine-classification test. Slice immutable physical
-   heights into prepared records; only the valid extent of a partial tile is
+   collapse remain in the loop. The current erosion loop leaves initially
+   nonpositive beds unchanged and keeps positive updates at least 1 mm; structural relief
+   can create a nonpositive initial bed from shallow positive land before this
+   loop. This is a terrain rule, not the later marine-classification test.
+   Slice immutable physical heights into prepared records; only the valid extent of a partial tile is
    saved, and zero padding never enters the model. Drop the shared terrain buffer
    before the annual water solve. Save physical signed-mm
    height, canonical annual rainfall and the unclamped lapse-removed temperature

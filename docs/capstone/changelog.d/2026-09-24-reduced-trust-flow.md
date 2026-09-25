@@ -1,0 +1,4 @@
+- Implemented and reviewed an isolated exact-water dogleg solver for the unchanged fixed-bed transport equations, including the full implicit depth response and true adjoint.
+- Four small-field tests and independent first-step replay pass. Oversized trials are rejected before state mutation; the first accepted bounded step reduces squared momentum error by about 46%.
+- The measured run takes 60 accepted steps in 94 trials/90.67 s, then fails its declared cap. Momentum error decreases 301-fold within the run but remains far above tolerance; late steps cycle between accepted small moves and rejected larger ones.
+- Independently verified 61 saved states and all trial decisions, positive water balance, final residual field and agreement with the old water solver. No flow acceptance, terrain evolution, production change or new visual improvement.

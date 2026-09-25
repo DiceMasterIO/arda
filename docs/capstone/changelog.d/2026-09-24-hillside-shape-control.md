@@ -1,0 +1,5 @@
+- Verified exact constant-speed hillside solutions and decreasing cone/bowl errors from the frozen kernel on three regular mesh spacings; independently checked raw fields and boundary reach.
+- Evaluated measured-raster disk minima with explicit interpolation bounds and independent all-cell offset reductions; rendered unchanged Atlas.
+- Completed a reviewed 40-step pure-hillside isolation on the actual irregular TIN in 188.62 s, preserving geometry, Ch, timestep and hull. Independent saved-endpoint/material checks and exact initial raster transfer pass.
+- Actual Atlas confirms broad smooth mountain faces without channels or diffusion. Coupling adds 319.8 m average lowering, mostly through changed hillside response; it remains a combined channel/diffusion intervention.
+- No production adoption or grandeur acceptance. Original saved world remains untouched; replacement mechanisms must address this demonstrated shape behavior and account for previous failed finite-cover/diffusion controls.

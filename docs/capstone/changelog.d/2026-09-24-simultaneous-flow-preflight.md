@@ -1,0 +1,5 @@
+- Reviewed nonlinear soil-transport applicability and prior measured finite-cover failures; no new hillside law selected without a supported mechanism.
+- Derived exact positive-flow one-cell and nodal two-cell controls; the previous relaxed iteration is stable there, so lagged depth alone does not explain the measured failure.
+- Implemented an isolated full coupled water/momentum Newton fixture with five passing tests, including mixed interior flow reversals and failure checkpoint retention.
+- Ran one unchanged measured 128×128 fixed-bed case. Line search fails at iteration 23 after 24.48 s, reducing the scaled residual only 2.815%; no qualified flow or terrain result.
+- Independently reproduced final residuals and checked frozen sources/inputs and global accounting. No production change, original-world modification or new visual acceptance. Periodic actual-render updates remain a required part of progress reporting.

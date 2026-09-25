@@ -16,6 +16,25 @@ pub(crate) struct SharedTerrain {
 }
 
 impl SharedTerrain {
+    /// Adopt an already finalized physical bed without synthesizing or evolving it.
+    pub(crate) fn from_heights(
+        domain: PreparedDomain,
+        heights: Vec<i32>,
+    ) -> Result<Self, HydrologyError> {
+        let width = domain.width() as usize;
+        let height = domain.height() as usize;
+        if heights.len() != width * height {
+            return Err(HydrologyError::TerrainPreparation(
+                "final bed shape mismatch",
+            ));
+        }
+        Ok(Self {
+            width,
+            height,
+            heights,
+        })
+    }
+
     /// Logic/02 "Shared terrain correction": area coordinates partition output,
     /// never the physical boundary conditions or upstream catchment.
     pub(crate) fn build(

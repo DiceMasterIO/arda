@@ -1,6 +1,10 @@
 //! Deterministic atlas palette and relief derived from saved area cells.
 
-use arda_core::{AreaCells, CellCoord, Lake, TerrainKind};
+use arda_core::{AreaCells, AreaCoord, CellCoord, Lake, TerrainField, TerrainKind};
+
+mod fine;
+pub use fine::AtlasFineWorldBounds;
+use fine::FineAtlas;
 
 use crate::channels::validated_lake_depths;
 
@@ -193,7 +197,9 @@ pub struct AtlasTerrain {
     light: Vec<u16>,
     classes: Vec<TerrainKind>,
     heights: Vec<i32>,
+    wetness: Vec<u8>,
     has_lake_depths: bool,
+    fine: Option<FineAtlas>,
 }
 
 impl AtlasTerrain {
@@ -204,6 +210,34 @@ impl AtlasTerrain {
     /// topologically inconsistent neighbor context.
     pub fn new(cells: &AreaCells, halo: AtlasHalo) -> Result<Self, RenderError> {
         Self::new_with_lakes(cells, &[], halo)
+    }
+
+    /// Uses a canonical fine-height window for land material and relief.
+    ///
+    /// Saved cells continue to own coast, lake, river, and wetness decisions.
+    /// `world_bounds` contains the first and last canonical fine-source nodes,
+    /// not the edge of this area or its fine window. Only a halo-marked outer
+    /// world edge permits clamping a query beyond those source nodes.
+    ///
+    /// # Errors
+    /// Returns invalid context, geometry, or insufficient fine-window coverage.
+    pub fn new_with_fine(
+        cells: &AreaCells,
+        lakes: &[Lake],
+        halo: AtlasHalo,
+        area: AreaCoord,
+        world_bounds: AtlasFineWorldBounds,
+        fine_window: TerrainField,
+    ) -> Result<Self, RenderError> {
+        let edges = [
+            halo.states[AtlasNeighbor::North.index()] == NeighborState::WorldEdge,
+            halo.states[AtlasNeighbor::East.index()] == NeighborState::WorldEdge,
+            halo.states[AtlasNeighbor::South.index()] == NeighborState::WorldEdge,
+            halo.states[AtlasNeighbor::West.index()] == NeighborState::WorldEdge,
+        ];
+        let mut terrain = Self::new_with_lakes(cells, lakes, halo)?;
+        terrain.fine = Some(FineAtlas::new(area, world_bounds, fine_window, edges)?);
+        Ok(terrain)
     }
 
     /// Derives Atlas colors with validated saved lake depths.
@@ -279,7 +313,9 @@ impl AtlasTerrain {
             light: vec![LIGHT_ONE; SAMPLE_SIDE * SAMPLE_SIDE],
             classes: vec![TerrainKind::Sea; SAMPLE_SIDE * SAMPLE_SIDE],
             heights: vec![0; SAMPLE_SIDE * SAMPLE_SIDE],
+            wetness: vec![0; SAMPLE_SIDE * SAMPLE_SIDE],
             has_lake_depths,
+            fine: None,
         };
         let start_x = if edges[3] { 0 } else { -1 };
         let end_x = if edges[1] { AREA - 1 } else { AREA };
@@ -291,6 +327,7 @@ impl AtlasTerrain {
                 let index = sample_index(x, y)?;
                 terrain.classes[index] = source.class;
                 terrain.heights[index] = source.height_mm;
+                terrain.wetness[index] = source.wetness;
                 match source.class {
                     TerrainKind::Land => {
                         let (dx, dy) = gradient_numerators(&halo.context, x, y, edges)?;
@@ -323,6 +360,7 @@ impl AtlasTerrain {
                     terrain.light[to] = terrain.light[from];
                     terrain.classes[to] = terrain.classes[from];
                     terrain.heights[to] = terrain.heights[from];
+                    terrain.wetness[to] = terrain.wetness[from];
                 }
             }
         }
@@ -369,6 +407,11 @@ impl AtlasTerrain {
     ) -> Result<[u8; 3], RenderError> {
         validate_kernel(x)?;
         validate_kernel(y)?;
+        if class == TerrainKind::Land {
+            if let Some(fine) = &self.fine {
+                return fine.sample(x, y, &self.classes, &self.wetness);
+            }
+        }
         let mut palette_sum = [0_u64; 3];
         let mut light_sum = 0_u64;
         let mut weight_sum = 0_u64;

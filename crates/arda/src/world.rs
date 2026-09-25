@@ -1,11 +1,13 @@
 //! Manifest-first stored-world queries with independent area and block caches.
 
 use arda_core::{
-    AreaCells, AreaCoord, AreaObjects, Block, Cell, GenerateConfig, Lake, LoadError, Manifest,
-    RiverSegment, SizeKm,
+    AreaCells, AreaCoord, AreaObjects, Block, Cell, FormatError, GenerateConfig, Lake, LoadError,
+    Manifest, RiverSegment, SizeKm, TerrainFileError, TerrainFileReader, FINE_TERRAIN_PATH,
+    FINE_TERRAIN_RECIPE_VERSION,
 };
 use std::{
     collections::BTreeMap,
+    fs::File,
     io::Read,
     path::{Path, PathBuf},
     sync::OnceLock,
@@ -114,6 +116,15 @@ impl World {
                 reason: "area dimensions disagree with the validated configuration".into(),
             });
         }
+        if manifest
+            .fine_terrain
+            .is_some_and(|fine| !(1..=FINE_TERRAIN_RECIPE_VERSION).contains(&fine.recipe_version))
+        {
+            return Err(LoadError::ManifestUnreadable {
+                dir: dir.display().to_string(),
+                reason: "unsupported canonical fine terrain source recipe".into(),
+            });
+        }
         let invalid_domain = || LoadError::ManifestUnreadable {
             dir: dir.display().to_string(),
             reason: "modeled dimensions overflow".into(),
@@ -182,6 +193,51 @@ impl World {
     #[must_use]
     pub const fn manifest(&self) -> &Manifest {
         &self.manifest
+    }
+
+    /// Opens and verifies the declared canonical fine terrain layer.
+    ///
+    /// Legacy worlds return `None`. A manifest that declares this layer never
+    /// falls back to area heights if the file is missing, malformed, or has a
+    /// different geometry. The explicit budget covers the reader's transient
+    /// verification and row buffers, not the caller-owned file handle.
+    /// # Errors
+    /// Returns the named terrain-layer error or rejects insufficient reader RAM.
+    pub fn fine_terrain(
+        &self,
+        max_transient_bytes: u64,
+    ) -> Result<Option<TerrainFileReader<File>>, LoadError> {
+        if self.manifest.fine_terrain.is_none() {
+            return Ok(None);
+        }
+        let path = self.dir.join(FINE_TERRAIN_PATH);
+        let error = |source| LoadError::Corrupt {
+            source: FormatError::Terrain {
+                path: path.display().to_string(),
+                source,
+            },
+        };
+        let file = File::open(&path).map_err(|source| error(TerrainFileError::Io(source)))?;
+        let reader = TerrainFileReader::open(file, max_transient_bytes).map_err(error)?;
+        let origin = reader.origin();
+        let size = self.manifest.config.size_km();
+        let required_x = (i64::from(size.width) * 1_000_000_000)
+            .max((i64::from(self.domain.width_cells) - 1) * 100_000_000);
+        let required_y = (i64::from(size.height) * 1_000_000_000)
+            .max((i64::from(self.domain.height_cells) - 1) * 100_000_000);
+        let last_x = i128::from(reader.width() - 1) * i128::from(reader.spacing_um());
+        let last_y = i128::from(reader.height() - 1) * i128::from(reader.spacing_um());
+        if origin.x_um != 0
+            || origin.y_um != 0
+            || reader.spacing_um() != 39_062_500
+            || last_x < i128::from(required_x)
+            || last_y < i128::from(required_y)
+        {
+            return Err(error(TerrainFileError::InvalidHeader(
+                "fine terrain geometry does not cover the modeled world",
+            )));
+        }
+        Ok(Some(reader))
     }
 
     /// Every area coordinate in this world, row-major.
@@ -396,7 +452,9 @@ fn read(path: &Path) -> Result<Vec<u8>, LoadError> {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use arda_core::{HeightMm, TerrainKind, ValidationStats, FORMAT_VERSION};
+    use arda_core::{
+        FineTerrainDescriptor, HeightMm, TerrainKind, ValidationStats, FORMAT_VERSION,
+    };
 
     struct Fixture(PathBuf);
     impl Fixture {
@@ -423,6 +481,7 @@ mod tests {
                     named_river_count: 0,
                     river_count: 0,
                 },
+                fine_terrain: None,
             };
             arda_core::write_manifest(&path, &manifest).unwrap();
             Self(path)
@@ -477,6 +536,43 @@ mod tests {
         assert!(matches!(
             world.area(-1, 0),
             Err(LoadError::OutOfRange { what: "area", .. })
+        ));
+    }
+
+    #[test]
+    fn declared_fine_layer_never_falls_back_when_missing_or_corrupt() {
+        let fixture = Fixture::new();
+        let legacy = World::load(&fixture.0).unwrap();
+        assert!(legacy.fine_terrain(1 << 20).unwrap().is_none());
+
+        let mut manifest = arda_core::read_manifest(&fixture.0).unwrap();
+        manifest.fine_terrain = Some(FineTerrainDescriptor {
+            recipe_version: FINE_TERRAIN_RECIPE_VERSION,
+            attempt: 0,
+        });
+        arda_core::write_manifest(&fixture.0, &manifest).unwrap();
+        let world = World::load(&fixture.0).unwrap();
+        assert!(matches!(
+            world.fine_terrain(1 << 20),
+            Err(LoadError::Corrupt {
+                source: FormatError::Terrain { .. }
+            })
+        ));
+        let path = fixture.0.join(FINE_TERRAIN_PATH);
+        std::fs::create_dir_all(path.parent().unwrap()).unwrap();
+        std::fs::write(&path, b"not a fine terrain").unwrap();
+        assert!(matches!(
+            world.fine_terrain(1 << 20),
+            Err(LoadError::Corrupt {
+                source: FormatError::Terrain { .. }
+            })
+        ));
+
+        manifest.fine_terrain.as_mut().unwrap().recipe_version += 1;
+        arda_core::write_manifest(&fixture.0, &manifest).unwrap();
+        assert!(matches!(
+            World::load(&fixture.0),
+            Err(LoadError::ManifestUnreadable { .. })
         ));
     }
 

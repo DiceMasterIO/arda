@@ -1,0 +1,3 @@
+# Measured-input corrected-TIN diagnostic
+
+Completed the isolated zero-uplift measured-terrain survival control with transfer verification, five snapshots, numerical checks, actual Atlas comparisons and independent Sol review. Repeated cuts and smooth steep faces develop without procedural uplift forcing. The process census motivates revisiting hillslope/channel treatment; it selects no new source or parameter variant. Production and the original saved world are unchanged. Mountain grandeur and full reference fidelity remain unmet. See features/2026-09-23-terrain-corrections/evidence/measured-tin-survival/root-assessment.md.

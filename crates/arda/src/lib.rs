@@ -12,6 +12,7 @@ pub use arda_core::{
     AreaCells, AreaObjects, Block, Cell, Cover, GenerateConfig, Lake, LatitudeBand, LoadError,
     Manifest, RiverSegment, RoadClass, SizeKm, TerrainKind, TileId, ValidationStats,
 };
+pub use arda_gen::orchestrator::FineDeliveryLimits;
 pub use arda_gen::{GenError, HydrologyLimits};
 pub use arda_render::{AreaImageScale, ImageQuality};
 mod atlas;
@@ -53,6 +54,21 @@ pub fn generate_with_limits(
     limits: HydrologyLimits,
 ) -> Result<Manifest, GenError> {
     arda_gen::generate_world_with_limits(seed, config, out, limits)
+}
+
+/// Generates a complete world from the first validated canonical recipe-2 fine
+/// source in the fixed deterministic attempt ladder. Legacy generation remains
+/// available through [`generate`].
+///
+/// # Errors
+/// Returns source/world admission, generation, validation, or publication errors.
+pub fn generate_from_fine_source(
+    seed: u64,
+    config: GenerateConfig,
+    out: &Path,
+    limits: FineDeliveryLimits,
+) -> Result<Manifest, GenError> {
+    arda_gen::orchestrator::generate_world_with_fine_source(seed, config, out, limits)
 }
 
 /// Output format for `export` (`mockup/03`).

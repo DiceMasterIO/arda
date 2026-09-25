@@ -41,6 +41,7 @@ impl Fixture {
                 named_river_count: 0,
                 river_count: 0,
             },
+            fine_terrain: None,
         };
         arda_core::write_manifest(&path.join("world"), &manifest).unwrap();
         let cells = AreaCells::flat(Cell {
@@ -113,6 +114,7 @@ impl Fixture {
                 named_river_count: 0,
                 river_count: 0,
             },
+            fine_terrain: None,
         };
         arda_core::write_manifest(&path.join("world"), &manifest).unwrap();
         for ay in 0..areas_high {

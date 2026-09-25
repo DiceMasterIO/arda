@@ -39,7 +39,39 @@ pub struct ContinentGrid {
     height_mm: Vec<i32>,
 }
 
+/// A supplied continent raster cannot be indexed as a positive i32 rectangle.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, thiserror::Error)]
+#[error("continent raster requires positive axes, at most i32::MAX cells, and exactly width * height heights")]
+pub struct ContinentGridError;
+
 impl ContinentGrid {
+    /// Construct the climate/drainage grid from samples of an authoritative surface.
+    ///
+    /// Heights are row-major millimetres at 1 km spacing. This does not change
+    /// heights, force an ocean rim, or run erosion: those belong to the source.
+    ///
+    /// # Errors
+    /// Rejects empty, oversized, or incorrectly sized rasters before indexing.
+    pub fn from_heights(
+        width: i32,
+        height: i32,
+        height_mm: Vec<i32>,
+    ) -> Result<Self, ContinentGridError> {
+        let count = width
+            .checked_mul(height)
+            .filter(|_| width > 0 && height > 0)
+            .and_then(|n| usize::try_from(n).ok())
+            .ok_or(ContinentGridError)?;
+        if height_mm.len() != count {
+            return Err(ContinentGridError);
+        }
+        Ok(Self {
+            width,
+            height,
+            height_mm,
+        })
+    }
+
     /// Grid width in 1 km cells.
     #[must_use]
     pub const fn width(&self) -> i32 {
@@ -52,8 +84,7 @@ impl ContinentGrid {
         self.height
     }
 
-    /// Elevation at a cell; out-of-range coordinates clamp to the edge, which
-    /// is always ocean.
+    /// Elevation at a cell; out-of-range coordinates clamp to the edge.
     #[must_use]
     pub fn get(&self, x: i32, y: i32) -> HeightMm {
         let cx = x.clamp(0, self.width - 1);
@@ -248,6 +279,27 @@ fn sample_coarse(coarse: &[i32], sim: SimExtent, km_x: i32, km_y: i32) -> i32 {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn supplied_surface_is_preserved_without_coast_or_height_correction() {
+        let grid = ContinentGrid::from_heights(2, 2, vec![-17, 23, 41, 59]).unwrap();
+        assert_eq!(grid.get(0, 0).raw(), -17);
+        assert_eq!(grid.get(1, 0).raw(), 23);
+        assert_eq!(grid.get(-1, 2).raw(), 41);
+        assert_eq!(grid.get(2, 2).raw(), 59);
+        assert_eq!(grid.land_fraction_permille(), 750);
+        for (w, h, values) in [
+            (0, 2, vec![]),
+            (-2, -2, vec![0; 4]),
+            (2, 2, vec![0; 3]),
+            (i32::MAX, 2, vec![]),
+        ] {
+            assert_eq!(
+                ContinentGrid::from_heights(w, h, values),
+                Err(ContinentGridError)
+            );
+        }
+    }
 
     #[test]
     fn micro_continent_grid_is_the_configured_size() {

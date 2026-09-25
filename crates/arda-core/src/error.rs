@@ -44,6 +44,15 @@ pub enum ConfigError {
 /// A byte-level problem inside `arda-core::formats`.
 #[derive(Debug, Error)]
 pub enum FormatError {
+    /// A declared canonical fine terrain layer is missing or invalid.
+    #[error("{path}: {source}")]
+    Terrain {
+        /// Fixed layer path in the world.
+        path: String,
+        /// Checked terrain header, checksum, resource, or I/O failure.
+        #[source]
+        source: crate::formats::terrain::TerrainFileError,
+    },
     /// A malformed shared-hydrology record or table.
     #[error("{path}: {source}")]
     Hydrology {

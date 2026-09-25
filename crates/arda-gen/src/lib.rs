@@ -14,5 +14,7 @@ pub mod continent;
 pub mod hydrology;
 pub mod noise;
 pub mod orchestrator;
+pub mod spectral;
+pub mod spectral_composition;
 
 pub use orchestrator::{generate_world, generate_world_with_limits, GenError, HydrologyLimits};

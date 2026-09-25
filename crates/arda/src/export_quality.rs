@@ -1,6 +1,9 @@
 //! High-resolution PNG exports with bounded raster memory and final publication.
 
-use crate::{atlas::atlas_terrain, AreaImageScale, ExportError, ImageQuality, MapStyle, World};
+use crate::{
+    atlas::{atlas_terrain, FINE_READER_BYTES},
+    AreaImageScale, ExportError, ImageQuality, MapStyle, World,
+};
 use std::{
     fs::{File, OpenOptions},
     io::{BufWriter, Write},
@@ -55,9 +58,20 @@ pub fn export_area_with_quality_and_style(
     } else {
         AreaImageScale::Custom(quality)
     };
+    let mut fine = match style {
+        MapStyle::Classic => None,
+        MapStyle::Atlas => world.fine_terrain(FINE_READER_BYTES)?,
+    };
     let terrain = match style {
         MapStyle::Classic => None,
-        MapStyle::Atlas => Some(atlas_terrain(world, ax, ay, area.cells(), area.lakes())?),
+        MapStyle::Atlas => Some(atlas_terrain(
+            world,
+            ax,
+            ay,
+            area.cells(),
+            area.lakes(),
+            fine.as_mut(),
+        )?),
     };
     let path = out.join(format!("area_{ax:02}_{ay:02}.png"));
     publish_png(&path, |writer| {
@@ -112,6 +126,10 @@ pub fn export_overview_with_quality_and_style(
 ) -> Result<PathBuf, ExportError> {
     let manifest = world.manifest();
     let (width, height) = quality.overview_dimensions(manifest.areas_wide, manifest.areas_high)?;
+    let mut fine = match style {
+        MapStyle::Classic => None,
+        MapStyle::Atlas => world.fine_terrain(FINE_READER_BYTES)?,
+    };
     let path = out.join("overview.png");
     publish_png(&path, |writer| match style {
         MapStyle::Classic => arda_render::write_overview_png(
@@ -130,7 +148,8 @@ pub fn export_overview_with_quality_and_style(
             writer,
             |at| {
                 let area = world.read_area(at.x, at.y)?;
-                let terrain = atlas_terrain(world, at.x, at.y, area.cells(), area.lakes())?;
+                let terrain =
+                    atlas_terrain(world, at.x, at.y, area.cells(), area.lakes(), fine.as_mut())?;
                 let mut channels = arda_render::OverviewChannelContext::new(
                     at,
                     manifest.areas_wide,

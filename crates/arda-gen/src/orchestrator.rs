@@ -11,6 +11,12 @@ pub(crate) mod child_links;
 mod entrypoint_tests;
 #[cfg(test)]
 mod error_chain_tests;
+mod fine_delivery;
+pub mod fine_input;
+pub mod fine_source;
+mod fine_world;
+pub use fine_delivery::{generate_world_with_fine_source, FineDeliveryLimits};
+use fine_input::FineInputError;
 pub(crate) mod flow_disk;
 mod generation_limits;
 #[cfg(test)]
@@ -48,6 +54,12 @@ use thiserror::Error;
 /// A batch failure (`mockup/01` States).
 #[derive(Debug, Error)]
 pub enum GenError {
+    /// The opt-in canonical source could not be generated.
+    #[error(transparent)]
+    FineSource(#[from] fine_source::FineSourceError),
+    /// An opt-in canonical fine terrain failed validation or sampling.
+    #[error(transparent)]
+    FineInput(#[from] FineInputError),
     /// The output directory already holds something.
     #[error("output directory {dir} is not empty; refusing to overwrite a world")]
     OutputNotEmpty {
@@ -341,6 +353,50 @@ pub fn generate_world_with_limits(
     out: &Path,
     limits: HydrologyLimits,
 ) -> Result<Manifest, GenError> {
+    generate_world_inner(seed, config, out, limits, None)
+}
+
+/// Generate a complete world from one finalized canonical fine terrain.
+///
+/// This opt-in source path preserves its raw heights: it applies neither the
+/// legacy detail source nor the legacy 160-step evolution. Climate, continent
+/// drainage and prepared area heights all sample the supplied field. The caller
+/// must supply the file produced by `fine_source::generate` for this seed,
+/// configuration, recipe version and attempt, declared in `descriptor`. The
+/// file checksum binds geometry and heights; it does not verify that provenance.
+/// A rejected field is an error, never a reroll to
+/// a different terrain source. The accepted field is copied into the world.
+///
+/// # Errors
+/// Source coverage/checksum, resource, continent validation or hydrology failures
+/// leave no completed manifest. Occupied output directories are never replaced.
+pub fn generate_world_from_fine_terrain(
+    seed: u64,
+    descriptor: arda_core::FineTerrainDescriptor,
+    config: GenerateConfig,
+    source: &Path,
+    out: &Path,
+    limits: HydrologyLimits,
+) -> Result<Manifest, GenError> {
+    if !(1..=arda_core::FINE_TERRAIN_RECIPE_VERSION).contains(&descriptor.recipe_version) {
+        return Err(GenError::Validation {
+            check: "unsupported fine terrain source recipe".into(),
+        });
+    }
+    generate_world_inner(seed, config, out, limits, Some((source, descriptor)))
+}
+
+fn generate_world_inner(
+    seed: u64,
+    config: GenerateConfig,
+    out: &Path,
+    limits: HydrologyLimits,
+    fine: Option<(&Path, arda_core::FineTerrainDescriptor)>,
+) -> Result<Manifest, GenError> {
+    let fine_admission = fine
+        .map(|(path, _)| fine_world::admit(path, config, limits))
+        .transpose()?;
+    let limits = fine_admission.as_ref().map_or(limits, |a| a.remaining);
     let admission = generation_limits::admit(config, &WorldOutput::scratch_path(out), limits)?;
     let mut writes = FinalWrites {
         bytes: 0,
@@ -353,6 +409,12 @@ pub fn generate_world_with_limits(
     // This is admitted before creating output and retained through the final commit.
     writes.charge(1 << 20, 16)?;
     let output = WorldOutput::begin(out).map_err(publication_error)?;
+    let mut fine_reader = match (fine, &fine_admission) {
+        (Some((path, _)), Some(admission)) => Some(fine_world::copy_and_open(
+            path, &output, out, config, admission,
+        )?),
+        _ => None,
+    };
 
     // Tier 1: continent, single-threaded, with the step-9 validation gates
     // — land fraction, then a sea-reaching river — and their deterministic
@@ -363,8 +425,21 @@ pub fn generate_world_with_limits(
     // persistence below, with no second computation.
     let mut accepted: Option<(Continent, u16, Vec<ContinentRiver>)> = None;
     let mut last_check = String::new();
-    for attempt in 0..CONTINENT_ATTEMPTS {
-        let candidate = generate_continent_attempt(seed, config, attempt);
+    let attempts = if fine.is_some() {
+        1
+    } else {
+        CONTINENT_ATTEMPTS
+    };
+    for attempt in 0..attempts {
+        let candidate = if let Some(reader) = &mut fine_reader {
+            fine_input::continent(
+                reader,
+                config,
+                admission.reservations.continent_preparation_bytes,
+            )?
+        } else {
+            generate_continent_attempt(seed, config, attempt)
+        };
         let land = candidate.land_fraction_permille();
         if !LAND_FRACTION_GATE.contains(&land) {
             last_check = format!(
@@ -399,7 +474,7 @@ pub fn generate_world_with_limits(
     }
     let Some((continent, land, rivers)) = accepted else {
         return Err(GenError::Validation {
-            check: format!("{last_check} after {CONTINENT_ATTEMPTS} rerolls"),
+            check: format!("{last_check} after {attempts} candidate(s)"),
         });
     };
 
@@ -409,7 +484,19 @@ pub fn generate_world_with_limits(
     let solve_dir = output.scratch().join("solve");
     create_private(&prepared_dir)?;
     create_private(&solve_dir)?;
-    let terrain = SharedTerrain::build(seed, &continent, admission.domain)?;
+    let terrain = if let Some(reader) = &mut fine_reader {
+        SharedTerrain::from_heights(
+            admission.domain,
+            fine_input::prepared_heights(
+                reader,
+                config,
+                admission.reservations.continent_preparation_bytes,
+            )?,
+        )?
+    } else {
+        SharedTerrain::build(seed, &continent, admission.domain)?
+    };
+    drop(fine_reader);
     let mut writer =
         prepared_files::PreparedWriter::new(&prepared_dir, admission.domain, admission.prepared)?;
     for entry in admission.domain.entries() {
@@ -518,6 +605,7 @@ pub fn generate_world_with_limits(
     )?;
 
     let manifest = Manifest {
+        fine_terrain: fine.map(|(_, descriptor)| descriptor),
         format_version: FORMAT_VERSION,
         arda_version: env!("CARGO_PKG_VERSION").to_owned(),
         seed,
