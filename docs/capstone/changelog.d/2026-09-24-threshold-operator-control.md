@@ -1,0 +1,9 @@
+# Threshold-operator causal control
+
+- **What:** the isolated dense-source operator ablation completed before the preceding status-only turn, which made no implementation progress. The current continuation revalidated and retained that result before selecting a separate n=2 diagnostic.
+- **Frozen scope:** same 148,992-site TIN, fold uplift, initial heights, lowest-pass routing, static area-weighted K and talus angle, and 100 × 50 kyr evolution. Only the extra erosion term above the talus threshold is removed; stream-power erosion remains.
+- **Verification:** the slope-limited baseline matches prior uniform-material retained fields and actual Atlas exactly. Local lambda-zero regression, focused tests, release-smoke repeat, all-node identities, 100 step ledgers, and per-arm material metadata pass. Both arms complete in 9.779 seconds. Native/raster geometry and source/image hashes are retained under features/2026-09-23-terrain-corrections/evidence/slope-operator-control/.
+- **Measured effect:** central native area within 1° of the 41.4874° threshold falls from 52.33% to 2.94%; above 1 km it falls from 71.86% to 3.38%. Native central geometric capacity rises from 0.1122 to 0.1288 km³, and 100 m raster capacity from 1.0675 to 4.3973 km³.
+- **Actual visual decision:** Atlas shows more irregular crags, but much steeper terrain and narrow valleys. Reject production adoption. Geometric capacities are not canonical annual-water volumes; no water or full-world run was made.
+- **Next bounded question:** a separate n=1 versus n=2 stream-power slope-exponent pair with fixed K, lambda=0, source and routing has since completed and is recorded in its own changelog/evidence. This was not a coefficient/angle search or a proposed final hillslope model.
+- **Status:** production stays at 14a70b9; reference-quality landforms remain open. The active plan and latest open-items paragraph now reflect this result.

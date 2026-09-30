@@ -1,0 +1,18 @@
+[package]
+name = "arda-ids"
+description = "Shared ids, canonical enums and the stable hash for Arda's product layers"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+repository.workspace = true
+publish = false
+
+[dependencies]
+blake3 = { workspace = true }
+serde = { workspace = true }
+
+[dev-dependencies]
+serde_json = { workspace = true }
+
+[lints]
+workspace = true

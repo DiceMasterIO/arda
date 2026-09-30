@@ -3,3 +3,7 @@
 **/*.rs.bk
 /out
 .VSCodeCounter/
+# Local working journals (never committed)
+JOURNAL.md
+JOURNAL-*.md
+docs/journal/

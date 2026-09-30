@@ -1,0 +1,31 @@
+[package]
+name = "arda-settle"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+repository.workspace = true
+description = "Settlements, roads, realms and names for generated arda worlds"
+
+[dependencies]
+ab_glyph.workspace = true
+arda.workspace = true
+arda-core.workspace = true
+arda-ids.workspace = true
+arda-names.workspace = true
+clap.workspace = true
+png.workspace = true
+serde.workspace = true
+serde_json.workspace = true
+thiserror.workspace = true
+zstd.workspace = true
+
+[dev-dependencies]
+arda-npc.workspace = true
+arda-society.workspace = true
+
+[[bin]]
+name = "arda-settle"
+path = "src/main.rs"
+
+[lints]
+workspace = true

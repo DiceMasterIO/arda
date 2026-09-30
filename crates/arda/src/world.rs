@@ -1,11 +1,13 @@
 //! Manifest-first stored-world queries with independent area and block caches.
 
 use arda_core::{
-    AreaCells, AreaCoord, AreaObjects, Block, Cell, GenerateConfig, Lake, LoadError, Manifest,
-    RiverSegment, SizeKm,
+    AreaCells, AreaCoord, AreaObjects, Block, Cell, FormatError, GenerateConfig, Lake, LoadError,
+    Manifest, RiverSegment, SizeKm, TerrainFileError, TerrainFileReader, FINE_TERRAIN_PATH,
+    FINE_TERRAIN_RECIPE_VERSION,
 };
 use std::{
     collections::BTreeMap,
+    fs::File,
     io::Read,
     path::{Path, PathBuf},
     sync::OnceLock,
@@ -15,6 +17,7 @@ use std::{
 pub struct Area {
     cells: AreaCells,
     objects: AreaObjects,
+    water: Option<arda_core::water::AreaWater>,
 }
 
 impl Area {
@@ -45,6 +48,12 @@ impl Area {
         &self.objects.lakes
     }
 
+    /// Saved physical channel centreline edges touching this tile.
+    #[must_use]
+    pub fn channel_edges(&self) -> &[arda_core::hydrology::ChannelEdge] {
+        &self.objects.channel_edges
+    }
+
     /// The raw cell grid, for renderers.
     #[must_use]
     pub const fn cells(&self) -> &AreaCells {
@@ -56,10 +65,24 @@ impl Area {
         self.cells
     }
 
+    /// Transfers the cells and saved objects to the Atlas overview exporter.
+    pub(crate) fn into_render_parts(self) -> (AreaCells, AreaObjects) {
+        (self.cells, self.objects)
+    }
+
     /// The raw object lists, for renderers.
     #[must_use]
     pub const fn objects(&self) -> &AreaObjects {
         &self.objects
+    }
+
+    /// Stored river and lake forms (logic/02 §world-water): per river
+    /// segment and lake, in the order of [`Self::rivers`] and
+    /// [`Self::lakes`]. `None` for worlds whose recipe does not publish
+    /// them.
+    #[must_use]
+    pub const fn water(&self) -> Option<&arda_core::water::AreaWater> {
+        self.water.as_ref()
     }
 }
 
@@ -107,6 +130,15 @@ impl World {
             return Err(LoadError::ManifestUnreadable {
                 dir: dir.display().to_string(),
                 reason: "area dimensions disagree with the validated configuration".into(),
+            });
+        }
+        if manifest
+            .fine_terrain
+            .is_some_and(|fine| !(1..=FINE_TERRAIN_RECIPE_VERSION).contains(&fine.recipe_version))
+        {
+            return Err(LoadError::ManifestUnreadable {
+                dir: dir.display().to_string(),
+                reason: "unsupported canonical fine terrain source recipe".into(),
             });
         }
         let invalid_domain = || LoadError::ManifestUnreadable {
@@ -179,6 +211,75 @@ impl World {
         &self.manifest
     }
 
+    /// Opens and verifies the declared canonical fine terrain layer.
+    ///
+    /// Legacy worlds return `None`. A manifest that declares this layer never
+    /// falls back to area heights if the file is missing, malformed, or has a
+    /// different geometry. The explicit budget covers the reader's transient
+    /// verification and row buffers, not the caller-owned file handle.
+    /// # Errors
+    /// Returns the named terrain-layer error or rejects insufficient reader RAM.
+    pub fn fine_terrain(
+        &self,
+        max_transient_bytes: u64,
+    ) -> Result<Option<TerrainFileReader<File>>, LoadError> {
+        if self.manifest.fine_terrain.is_none() {
+            return Ok(None);
+        }
+        let path = self.dir.join(FINE_TERRAIN_PATH);
+        let error = |source| LoadError::Corrupt {
+            source: FormatError::Terrain {
+                path: path.display().to_string(),
+                source,
+            },
+        };
+        let file = File::open(&path).map_err(|source| error(TerrainFileError::Io(source)))?;
+        let reader = TerrainFileReader::open(file, max_transient_bytes).map_err(error)?;
+        let origin = reader.origin();
+        let size = self.manifest.config.size_km();
+        let required_x = (i64::from(size.width) * 1_000_000_000)
+            .max((i64::from(self.domain.width_cells) - 1) * 100_000_000);
+        let required_y = (i64::from(size.height) * 1_000_000_000)
+            .max((i64::from(self.domain.height_cells) - 1) * 100_000_000);
+        let last_x = i128::from(reader.width() - 1) * i128::from(reader.spacing_um());
+        let last_y = i128::from(reader.height() - 1) * i128::from(reader.spacing_um());
+        if origin.x_um != 0
+            || origin.y_um != 0
+            || reader.spacing_um() != 39_062_500
+            || last_x < i128::from(required_x)
+            || last_y < i128::from(required_y)
+        {
+            return Err(error(TerrainFileError::InvalidHeader(
+                "fine terrain geometry does not cover the modeled world",
+            )));
+        }
+        Ok(Some(reader))
+    }
+
+    /// Reads and verifies the optional shore layer (logic/02
+    /// §fine-formation shore classes): shore classes on the 100 m cell grid and the
+    /// island census. Worlds without one (legacy recipes) return `None`.
+    ///
+    /// # Errors
+    /// Returns the named layer error when the file is unreadable or fails
+    /// its checksum or structure checks.
+    pub fn shore(&self) -> Result<Option<arda_core::ShoreLayer>, LoadError> {
+        let path = self.dir.join(arda_core::SHORE_PATH);
+        let name = path.display().to_string();
+        let bytes = match std::fs::read(&path) {
+            Ok(b) => b,
+            Err(e) if e.kind() == std::io::ErrorKind::NotFound => return Ok(None),
+            Err(source) => {
+                return Err(LoadError::Corrupt {
+                    source: FormatError::Io { path: name, source },
+                })
+            }
+        };
+        arda_core::ShoreLayer::decode(&bytes, &name)
+            .map(Some)
+            .map_err(|source| LoadError::Corrupt { source })
+    }
+
     /// Every area coordinate in this world, row-major.
     pub fn area_coords(&self) -> impl Iterator<Item = (i32, i32)> + '_ {
         let (w, h) = (self.manifest.areas_wide, self.manifest.areas_high);
@@ -230,11 +331,83 @@ impl World {
         }
         let dir = self.dir.join("areas").join(at.dir_name());
         let cells_path = dir.join("cells.bin");
-        let objects_path = dir.join("objects.bin");
         let cells = arda_core::decode_cells(
             &cells_path.display().to_string(),
             &read_bounded(&cells_path, cell_bytes)?,
         )?;
+        let objects = self.read_area_objects_with_byte_limit(x, y, object_bytes)?;
+        let water = self.read_area_water_for(x, y, &objects)?;
+        Ok(Area {
+            cells,
+            objects,
+            water,
+        })
+    }
+
+    /// Reads a neighboring area's stored water forms, when the world has them.
+    pub(crate) fn read_area_water(
+        &self,
+        x: i32,
+        y: i32,
+    ) -> Result<Option<arda_core::water::AreaWater>, LoadError> {
+        let objects = self.read_area_objects(x, y)?;
+        self.read_area_water_for(x, y, &objects)
+    }
+
+    /// Optional `water.bin`, checked against the area's rivers and lakes.
+    fn read_area_water_for(
+        &self,
+        x: i32,
+        y: i32,
+        objects: &AreaObjects,
+    ) -> Result<Option<arda_core::water::AreaWater>, LoadError> {
+        let water_path = self
+            .dir
+            .join("areas")
+            .join(AreaCoord::new(x, y).dir_name())
+            .join("water.bin");
+        if !water_path.exists() {
+            return Ok(None);
+        }
+        let w = arda_core::decode_water(
+            &read_bounded(&water_path, WATER_BYTES)?,
+            &water_path.display().to_string(),
+        )?;
+        if w.segments.len() != objects.rivers.len() || w.lakes.len() != objects.lakes.len() {
+            return Err(FormatError::UnexpectedEof {
+                path: water_path.display().to_string(),
+                read: w.segments.len() + w.lakes.len(),
+                expected: objects.rivers.len() + objects.lakes.len(),
+            }
+            .into());
+        }
+        Ok(Some(w))
+    }
+
+    /// Reads only bounded saved object context for a neighboring Atlas overview area.
+    pub(crate) fn read_area_objects(&self, x: i32, y: i32) -> Result<AreaObjects, LoadError> {
+        self.read_area_objects_with_byte_limit(
+            x,
+            y,
+            arda_core::formats::area_objects_v4::ObjectsLimits::default().max_bytes,
+        )
+    }
+
+    fn read_area_objects_with_byte_limit(
+        &self,
+        x: i32,
+        y: i32,
+        object_bytes: usize,
+    ) -> Result<AreaObjects, LoadError> {
+        let at = AreaCoord::new(x, y);
+        if !self.areas.contains_key(&at) {
+            return Err(self.area_range(x, y));
+        }
+        let objects_path = self
+            .dir
+            .join("areas")
+            .join(at.dir_name())
+            .join("objects.bin");
         let objects = arda_core::decode_objects(
             &objects_path.display().to_string(),
             &read_bounded(&objects_path, object_bytes)?,
@@ -253,7 +426,7 @@ impl World {
                 ),
             ));
         }
-        Ok(Area { cells, objects })
+        Ok(objects)
     }
 
     fn area_range(&self, x: i32, y: i32) -> LoadError {
@@ -320,6 +493,9 @@ fn hydrology_error(
     .into()
 }
 
+/// Largest water-forms layer read, bytes.
+const WATER_BYTES: usize = 64 << 20;
+
 fn read_bounded(path: &Path, limit: usize) -> Result<Vec<u8>, LoadError> {
     let io_error = |source| arda_core::FormatError::Io {
         path: path.display().to_string(),
@@ -364,7 +540,9 @@ fn read(path: &Path) -> Result<Vec<u8>, LoadError> {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use arda_core::{HeightMm, TerrainKind, ValidationStats, FORMAT_VERSION};
+    use arda_core::{
+        FineTerrainDescriptor, HeightMm, TerrainKind, ValidationStats, FORMAT_VERSION,
+    };
 
     struct Fixture(PathBuf);
     impl Fixture {
@@ -391,6 +569,7 @@ mod tests {
                     named_river_count: 0,
                     river_count: 0,
                 },
+                fine_terrain: None,
             };
             arda_core::write_manifest(&path, &manifest).unwrap();
             Self(path)
@@ -445,6 +624,43 @@ mod tests {
         assert!(matches!(
             world.area(-1, 0),
             Err(LoadError::OutOfRange { what: "area", .. })
+        ));
+    }
+
+    #[test]
+    fn declared_fine_layer_never_falls_back_when_missing_or_corrupt() {
+        let fixture = Fixture::new();
+        let legacy = World::load(&fixture.0).unwrap();
+        assert!(legacy.fine_terrain(1 << 20).unwrap().is_none());
+
+        let mut manifest = arda_core::read_manifest(&fixture.0).unwrap();
+        manifest.fine_terrain = Some(FineTerrainDescriptor {
+            recipe_version: FINE_TERRAIN_RECIPE_VERSION,
+            attempt: 0,
+        });
+        arda_core::write_manifest(&fixture.0, &manifest).unwrap();
+        let world = World::load(&fixture.0).unwrap();
+        assert!(matches!(
+            world.fine_terrain(1 << 20),
+            Err(LoadError::Corrupt {
+                source: FormatError::Terrain { .. }
+            })
+        ));
+        let path = fixture.0.join(FINE_TERRAIN_PATH);
+        std::fs::create_dir_all(path.parent().unwrap()).unwrap();
+        std::fs::write(&path, b"not a fine terrain").unwrap();
+        assert!(matches!(
+            world.fine_terrain(1 << 20),
+            Err(LoadError::Corrupt {
+                source: FormatError::Terrain { .. }
+            })
+        ));
+
+        manifest.fine_terrain.as_mut().unwrap().recipe_version += 1;
+        arda_core::write_manifest(&fixture.0, &manifest).unwrap();
+        assert!(matches!(
+            World::load(&fixture.0),
+            Err(LoadError::ManifestUnreadable { .. })
         ));
     }
 

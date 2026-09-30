@@ -1,0 +1,39 @@
+## 2026-09-22 - implement: geographical rendering first pass
+key: implement/2026-09-22-geographical-rendering-first-pass@Q5
+
+- What: add selectable natural shaded Atlas world/area PNGs for users of saved Arda worlds, retaining Classic as the default.
+- Approach: derive fixed integer palette/light/class grids from saved heights and two-cell eight-neighbor context; class-filter and interpolate palette/light separately at output-pixel centers; reuse physical water validation, rows/bands and temporary-file publication.
+- Rejected: resolution-only output adds no geographical information.
+- Rejected: palette-only refresh does not supply the selected relief direction.
+- Rejected: illustrated-fantasy direction was not selected.
+- Rejected: generated artwork as final map cannot guarantee agreement with saved geography.
+- Rejected: stored slope/aspect alone lacks complete boundary gradients.
+- Rejected: fading shade at area borders risks artificial grid bands.
+- Out of scope: terrain/erosion/coast/basin generation changes and saved codecs/golden hashes.
+- Out of scope: forest/soil-moisture producers, farms, settlements, extents, roads, buildings and society.
+- Out of scope: tactical vocabulary/WFC changes, assets, interiors, gameplay and browser/VTT delivery.
+- Out of scope: seasonal water, exact invented concept detail, unrelated Windows line-ending repair and changing the default style.
+- Task 1: deterministic Atlas halo, terrain derivation and exact sampler; commit `4dbebd149f6b`.
+- Task 2: area/overview integration, water authority and bounded streaming; commit `f851ecac3aed`.
+- Task 3: MapStyle and bounded style-aware facade exports; commit `238e7550ae21`.
+- Task 4: CLI style selection, early refusals, preview compatibility and detail routing; commit `342d03e55120`.
+- Task 5: retained real-map panel, native crops, independent Classic comparisons, repeat 32K exports, protected-path checks and reference absorption.
+- Diff: `crates/arda-render/src/atlas.rs`, `atlas/tests.rs`, `carto.rs`, `channels.rs`, `channels/tests.rs`, `lib.rs`, `overview.rs`, `overview/streaming.rs`.
+- Diff: `crates/arda/src/atlas.rs`, `export_quality.rs`, `lib.rs`, `crates/arda/tests/area_exports.rs`.
+- Diff: `crates/arda-cli/src/main.rs`, `crates/arda-cli/tests/cli.rs`.
+- Chapters refreshed: `01-architecture.md` gains Atlas composition and entry points.
+- Chapters refreshed: `02-models.md` gains in-memory display/context records and validation.
+- Chapters refreshed: `04-data-flow.md` gains per-output-pixel sampling and failure/publication flow.
+- Chapters refreshed: `06-testing.md` gains dated tests, actual output and evidence boundaries.
+- Chapters refreshed: `07-operations.md` gains style options, compatibility and observed resource cost.
+- Scenarios absorbed: `logic/04-export.md` gains style/load/water/sampling/publication rules.
+- Scenarios absorbed: `logic/07-preview.md` gains Atlas selection and explicit-style/legacy-pixel refusal.
+- Surfaces absorbed: `mockup/03-export.md` gains current choices/errors; `mockup/04-crate-api.md` gains additive actual APIs without replacing future designs.
+- Index/status: `00-index.md`, folder indexes, `open-items.md`, `implementation.md`, `README.md`, map legend and tactical roadmap reflect this delivered slice and preserve the larger queue.
+- Verification: 648 workspace tests passed, 8 ignored, across 21 suites on Linux; formatting, strict Clippy, Rust 1.96.1 and dependency policy passed. Existing Windows LF/CRLF CI failure remains historical/open.
+- Evidence: one retained base-generated seed-42 200×300 km world, matched 8K overview/five-area pairs, 512 Atlas area, repeated 32K area/overview, native relief/water/edge/corner/band crops and exact hashes.
+- Compatibility: three independent pre-change executable comparisons preserve Classic PNG bytes; all 55 saved files and five selected JSON exports remain identical.
+- Resources: repeated 32768² area PNGs took 31.06/31.35 s, peak 44312/43956 KiB; repeated 19661×32768 overviews took 29.57/29.81 s, peak 66604/66204 KiB, measured by Linux child wait4 rusage. Both image pairs were byte-identical; these are host observations.
+- Visual verdict: clearer relief, earthy palette and smooth within-cell transitions accepted; saved 100 m shoreline steps and existing straight/parallel drainage forms remain. The broader multi-seed/terrain-realism and inhabited-map milestones stay open.
+- Review loop: two consecutive full dry rounds, three fresh GPT-6 Sol lenses per round; zero findings confirmed/fixed/refuted, no source changes between rounds. Separate documentation review corrections were verified before wrap.
+- Retention: local ignored `features/2026-09-22-geographical-rendering-first-pass/` keeps the spec, approved plan, review ledger, acceptance report and generated evidence. No push, PR, merge or release performed.

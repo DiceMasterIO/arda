@@ -1,7 +1,7 @@
 //! Freeze one evolved physical domain, then slice its immutable prepared areas.
 use crate::continent::{
     bundles::{abs_cell, coarse_height, refine_height, refinement_relief, TileBundle},
-    Continent,
+    structural_relief, Continent,
 };
 use crate::hydrology::{
     prepared_domain::PreparedDomain, HydrologyError, PreparedExtent, PreparedTerrain,
@@ -16,6 +16,25 @@ pub(crate) struct SharedTerrain {
 }
 
 impl SharedTerrain {
+    /// Adopt an already finalized physical bed without synthesizing or evolving it.
+    pub(crate) fn from_heights(
+        domain: PreparedDomain,
+        heights: Vec<i32>,
+    ) -> Result<Self, HydrologyError> {
+        let width = domain.width() as usize;
+        let height = domain.height() as usize;
+        if heights.len() != width * height {
+            return Err(HydrologyError::TerrainPreparation(
+                "final bed shape mismatch",
+            ));
+        }
+        Ok(Self {
+            width,
+            height,
+            heights,
+        })
+    }
+
     /// Logic/02 "Shared terrain correction": area coordinates partition output,
     /// never the physical boundary conditions or upstream catchment.
     pub(crate) fn build(
@@ -58,7 +77,16 @@ impl SharedTerrain {
                 let relief = cached_relief(&uplift, width, height, x, y, |nx, ny| {
                     coarse_height(&continent.grid, nx, ny)
                 });
-                heights.push(refine_height(seed, uplift[at], relief, x, y));
+                let refined = refine_height(seed, uplift[at], relief, x, y);
+                heights.push(cached_structural_height(
+                    seed,
+                    &uplift,
+                    (width, height),
+                    x,
+                    y,
+                    refined,
+                    |nx, ny| coarse_height(&continent.grid, nx, ny),
+                ));
             }
         }
         super::evolution::evolve(&mut heights, &uplift, width, height)?;
@@ -84,6 +112,30 @@ fn cached_relief(
 ) -> i64 {
     refinement_relief(regional[y as usize * width + x as usize], |dx, dy| {
         let (nx, ny) = (x.saturating_add(dx), y.saturating_add(dy));
+        if nx >= 0 && ny >= 0 && (nx as usize) < width && (ny as usize) < height {
+            regional[ny as usize * width + nx as usize]
+        } else {
+            outside(nx, ny)
+        }
+    })
+}
+
+// The dense unperturbed regional field is already owned for uplift. Interior
+// 5 km gate samples reuse it; true outside samples use the same absolute
+// sampler as direct boundary_height. There is no tile or crop-edge clamp.
+#[allow(clippy::cast_sign_loss)]
+fn cached_structural_height(
+    seed: u64,
+    regional: &[i32],
+    dimensions: (usize, usize),
+    x: i32,
+    y: i32,
+    refined: i32,
+    outside: impl Fn(i32, i32) -> i32,
+) -> i32 {
+    let (width, height) = dimensions;
+    let at = y as usize * width + x as usize;
+    structural_relief::sample_height(seed, x, y, refined, regional[at], |nx, ny| {
         if nx >= 0 && ny >= 0 && (nx as usize) < width && (ny as usize) < height {
             regional[ny as usize * width + nx as usize]
         } else {
@@ -186,6 +238,62 @@ mod tests {
                 assert_eq!(cached_relief(&regional, width, height, x, y, field), direct);
             }
         }
+    }
+
+    #[test]
+    fn cached_structural_matches_direct_at_cuts_and_outer_rims() {
+        // Nonlinear absolute samples expose a cache clamp at either physical rim.
+        let (width, height) = (517, 83);
+        let field = |x: i32, y: i32| {
+            1_300_000
+                + 8_000 * x
+                + 4_000 * y
+                + 9_000 * (x.div_euclid(31) % 7)
+                + 6_000 * (y.div_euclid(13) % 11)
+        };
+        let regional: Vec<_> = (0..height)
+            .flat_map(|y| {
+                (0..width).map(move |x| field(i32::try_from(x).unwrap(), i32::try_from(y).unwrap()))
+            })
+            .collect();
+        for y in [0, 1, 35, 50, 82] {
+            for x in [0, 1, 35, 50, 511, 512, 516] {
+                let refined = 2_000_000;
+                let gate = structural_relief::relief_gate_q16(x, y, field(x, y), field);
+                assert!(
+                    (1..65_536).contains(&gate),
+                    "uninformative gate at ({x},{y})"
+                );
+                let direct =
+                    structural_relief::sample_height(42, x, y, refined, field(x, y), field);
+                let cached =
+                    cached_structural_height(42, &regional, (width, height), x, y, refined, field);
+                assert_eq!(cached, direct, "cached mismatch at ({x},{y})");
+            }
+        }
+        let clamped = |x: i32, y: i32| field(x.clamp(0, 516), y.clamp(0, 82));
+        let mut exposed = 0;
+        for (x, y) in [(0, 0), (516, 82), (0, 50), (516, 35)] {
+            let direct = structural_relief::sample_height(42, x, y, 2_000_000, field(x, y), field);
+            let wrongly_clamped =
+                cached_structural_height(42, &regional, (width, height), x, y, 2_000_000, clamped);
+            exposed += usize::from(direct != wrongly_clamped);
+        }
+        assert!(exposed > 0, "outer-rim control failed to expose clamping");
+    }
+
+    #[test]
+    fn structural_preserves_sea_and_flat_gate() {
+        let regional = vec![-300_000; 3 * 3];
+        assert_eq!(
+            cached_structural_height(42, &regional, (3, 3), 1, 1, -100_000, |_, _| 2_000_000),
+            -100_000
+        );
+        let flat = vec![900_000; 3 * 3];
+        assert_eq!(
+            cached_structural_height(42, &flat, (3, 3), 1, 1, 1_100_000, |_, _| 900_000),
+            1_100_000
+        );
     }
 
     #[test]

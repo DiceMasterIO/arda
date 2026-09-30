@@ -1,0 +1,25 @@
+[package]
+name = "arda-town"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+repository.workspace = true
+description = "Town layouts for arda: street and plot plans, and 5-ft tactical building blocks"
+
+[lib]
+path = "src/lib.rs"
+
+[[bin]]
+name = "arda-town"
+path = "src/main.rs"
+
+[dependencies]
+arda-scene.workspace = true
+arda-tactical.workspace = true
+serde.workspace = true
+serde_json.workspace = true
+thiserror.workspace = true
+clap.workspace = true
+
+[lints]
+workspace = true

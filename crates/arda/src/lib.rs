@@ -9,15 +9,32 @@
 use std::path::{Path, PathBuf};
 
 pub use arda_core::{
-    AreaCells, AreaObjects, Block, Cell, Cover, GenerateConfig, Lake, LatitudeBand, LoadError,
-    Manifest, RiverSegment, RoadClass, SizeKm, TerrainKind, TileId, ValidationStats,
+    AreaCells, AreaObjects, Block, Cell, Cover, GenerateConfig, Island, IslandCause, Lake,
+    LatitudeBand, LoadError, Manifest, RiverSegment, RoadClass, ShoreClass, ShoreLayer, SizeKm,
+    TerrainKind, TileId, ValidationStats,
 };
+pub use arda_gen::orchestrator::FineDeliveryLimits;
 pub use arda_gen::{GenError, HydrologyLimits};
 pub use arda_render::{AreaImageScale, ImageQuality};
+mod atlas;
 mod export_quality;
-pub use export_quality::{export_area_with_quality, export_overview_with_quality};
+pub use export_quality::{
+    export_area_with_quality, export_area_with_quality_and_style, export_overview_with_quality,
+    export_overview_with_quality_and_style,
+};
 mod world;
+pub use atlas::area_atlas_terrain;
 pub use world::{Area, World};
+
+/// Cartographic presentation applied to PNG exports.
+#[derive(Debug, Default, Clone, Copy, PartialEq, Eq)]
+pub enum MapStyle {
+    /// Existing categorical cartography.
+    #[default]
+    Classic,
+    /// Natural atlas terrain color and deterministic relief.
+    Atlas,
+}
 
 /// Runs the batch, writing a world directory (`mockup/01`).
 ///
@@ -39,6 +56,21 @@ pub fn generate_with_limits(
     limits: HydrologyLimits,
 ) -> Result<Manifest, GenError> {
     arda_gen::generate_world_with_limits(seed, config, out, limits)
+}
+
+/// Generates a complete world from the first validated canonical recipe-2 fine
+/// source in the fixed deterministic attempt ladder. Legacy generation remains
+/// available through [`generate`].
+///
+/// # Errors
+/// Returns source/world admission, generation, validation, or publication errors.
+pub fn generate_from_fine_source(
+    seed: u64,
+    config: GenerateConfig,
+    out: &Path,
+    limits: FineDeliveryLimits,
+) -> Result<Manifest, GenError> {
+    arda_gen::orchestrator::generate_world_with_fine_source(seed, config, out, limits)
 }
 
 /// Output format for `export` (`mockup/03`).

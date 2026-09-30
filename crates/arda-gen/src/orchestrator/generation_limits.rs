@@ -221,6 +221,7 @@ pub fn admit(
     )?;
     let (mst_io, mst_calls) = cold(add(slot_reads, slot_writes)?, mst_initial)?;
     let mst = mst::MstLimits {
+        max_leaves: leaves,
         ram_bytes: sum(&[
             SlotStore::required_ram(&mst_dir, slot_pages)?,
             8192,
@@ -430,7 +431,8 @@ pub fn admit(
     // Fixed-record writers issue one payload call per row; the repeated child
     // read and lake/child/node writes are covered independently from the bridge.
     let final_io_operations = sum(&[
-        mul(areas, 12)?,
+        // cells, objects, blocks and water forms: four calls each per file.
+        mul(areas, 16)?,
         records,
         mul(nodes, 4)?,
         mul(leaves, 2)?,

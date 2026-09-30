@@ -1,0 +1,574 @@
+{
+ "_note": "Original to Arda. Leader values are role kinds in roles.json; 'head' means the settlement's ruler, lord, reeve or elder.",
+ "patrons": [
+  "the Lamp-Bearer",
+  "the Ploughwife",
+  "the Drowned King",
+  "the Tallow Saint",
+  "the Weigher of Hearts",
+  "the Green Shepherd",
+  "the Keeper of Keys",
+  "the Lady of the Ford",
+  "the Silent Smith",
+  "the Twice-Born Sun"
+ ],
+ "kinds": [
+  {
+   "key": "court",
+   "label": "lord's household",
+   "buildings_any": [
+    "keep",
+    "manor"
+   ],
+   "min_tier": "village",
+   "leader": "head",
+   "power": 40,
+   "seat": [
+    "keep",
+    "manor"
+   ],
+   "names": [
+    "the household of House {house}",
+    "the Hall of {settlement}"
+   ],
+   "goals": [
+    "collect every penny of the levy owed",
+    "marry the heir into a greater house",
+    "stop the townsfolk swearing a sworn commune",
+    "rebuild the old curtain wall before the next war",
+    "buy back land pawned by the last lord"
+   ],
+   "goals_rural": [
+    "enclose the common for sheep",
+    "collect the heriot owed on every death",
+    "marry the heir into a greater house",
+    "buy back land pawned by the last lord",
+    "make the villagers grind their corn at the lord's mill"
+   ]
+  },
+  {
+   "key": "merchants",
+   "label": "merchant guild",
+   "functions_any": [
+    "market",
+    "port"
+   ],
+   "min_tier": "town",
+   "leader": "guildmaster",
+   "power": 35,
+   "seat": [
+    "market_hall",
+    "warehouse",
+    "stall"
+   ],
+   "names": [
+    "the Company of {settlement} Merchants",
+    "the {good_title} Exchange",
+    "the Worshipful Guild of Chapmen",
+    "the Fellowship of the Scales"
+   ],
+   "goals": [
+    "win a charter freeing members from road tolls",
+    "corner the {good} trade before the autumn fair",
+    "seat a guild member on the lord's council",
+    "drive foreign pedlars out of the market square",
+    "fund a new bridge and charge for crossing it"
+   ]
+  },
+  {
+   "key": "crafts",
+   "label": "craft guild",
+   "functions_any": [
+    "crafting"
+   ],
+   "min_tier": "town",
+   "leader": "craftmaster",
+   "power": 25,
+   "seat": [
+    "workshop",
+    "smithy",
+    "tannery"
+   ],
+   "names": [
+    "the Honourable Company of {settlement} Craftsfolk",
+    "the Brotherhood of the Bench",
+    "the Hall of Hammers and Looms",
+    "the {settlement} Masters' Guild"
+   ],
+   "goals": [
+    "keep every workshop in town under the guild's rules",
+    "hold apprentice wages down and masters' fees up",
+    "win the contract to rebuild the temple roof",
+    "stop merchants bringing in cheaper foreign work"
+   ]
+  },
+  {
+   "key": "temple",
+   "label": "temple clergy",
+   "buildings_any": [
+    "temple"
+   ],
+   "min_tier": "village",
+   "leader": "high_priest",
+   "power": 30,
+   "seat": [
+    "temple"
+   ],
+   "names": [
+    "the Clergy of {patron}",
+    "the Temple of {patron}"
+   ],
+   "goals": [
+    "raise a bell tower paid for by tithes",
+    "root out a heresy whispered in the lower streets",
+    "recover a relic lost in the last war",
+    "make the lord do public penance",
+    "found a hospice for the sick"
+   ]
+  },
+  {
+   "key": "shrine",
+   "label": "shrine keepers",
+   "buildings_any": [
+    "shrine"
+   ],
+   "min_tier": "village",
+   "leader": "shrine_keeper",
+   "power": 15,
+   "seat": [
+    "shrine"
+   ],
+   "names": [
+    "the Keepers of the Shrine of {patron}",
+    "the Shrine-Folk of {settlement}"
+   ],
+   "goals": [
+    "keep the old feast days alive",
+    "raise coin to re-roof the shrine",
+    "find out who has been leaving offerings at night"
+   ]
+  },
+  {
+   "key": "abbey",
+   "label": "abbey",
+   "functions_any": [
+    "abbey"
+   ],
+   "min_tier": "village",
+   "leader": "abbot",
+   "power": 30,
+   "seat": [
+    "temple",
+    "library"
+   ],
+   "names": [
+    "the Abbey of {patron}",
+    "the Brethren of {settlement}"
+   ],
+   "goals": [
+    "extend the abbey's grazing onto the common",
+    "copy the great chronicle before it rots",
+    "win exemption from the lord's courts",
+    "shelter a fugitive who claimed sanctuary"
+   ]
+  },
+  {
+   "key": "watch",
+   "label": "town watch",
+   "buildings_any": [
+    "guardhouse",
+    "barracks"
+   ],
+   "min_tier": "town",
+   "leader": "captain",
+   "power": 25,
+   "seat": [
+    "guardhouse",
+    "barracks",
+    "keep"
+   ],
+   "names": [
+    "the {settlement} Watch",
+    "the Gate Wardens of {settlement}"
+   ],
+   "goals": [
+    "clear the cutpurses out of the market",
+    "win the back pay owed since the last war",
+    "keep both the lord's favour and the guilds' gifts"
+   ]
+  },
+  {
+   "key": "criminals",
+   "label": "criminal gang",
+   "min_tier": "town",
+   "leader": "crime_boss",
+   "power": 20,
+   "seat": [
+    "tavern",
+    "warehouse",
+    "stable"
+   ],
+   "names": [
+    "the Lantern Men",
+    "the Quiet Hands",
+    "the Tuesday Company",
+    "the Ropewalk Lot",
+    "the Grey Ledger",
+    "the Bell-Ringers",
+    "the Salt Rats",
+    "the Widow's Sons",
+    "the Low Market Crew",
+    "the Ninth Hour",
+    "the Tin Crowns",
+    "the Mudlarks"
+   ],
+   "goals": [
+    "run the smuggling of {good} through the gates",
+    "buy or break the watch captain",
+    "settle an old score with a rival crew",
+    "take a cut of every stall in the market"
+   ]
+  },
+  {
+   "key": "fishers",
+   "label": "fishers' league",
+   "functions_any": [
+    "fishing"
+   ],
+   "min_tier": "village",
+   "leader": "fisher_head",
+   "power": 15,
+   "seat": [
+    "boathouse",
+    "dock"
+   ],
+   "names": [
+    "the Net-Menders of {settlement}",
+    "the Fishers' League of {settlement}"
+   ],
+   "goals": [
+    "overturn the lord's new tax on every catch",
+    "keep outsiders off the best fishing grounds",
+    "raise a chapel for the drowned"
+   ]
+  },
+  {
+   "key": "miners",
+   "label": "miners' brotherhood",
+   "functions_any": [
+    "mining"
+   ],
+   "min_tier": "village",
+   "leader": "miner_captain",
+   "power": 20,
+   "seat": [
+    "mine"
+   ],
+   "names": [
+    "the Brotherhood of the Deep Seam",
+    "the {settlement} Delvers"
+   ],
+   "goals": [
+    "make the owners shore up the old galleries",
+    "win a fairer share of the ore price",
+    "keep the sealed gallery sealed"
+   ]
+  },
+  {
+   "key": "foresters",
+   "label": "woodfolk",
+   "functions_any": [
+    "logging"
+   ],
+   "min_tier": "village",
+   "leader": "forester",
+   "power": 12,
+   "seat": [
+    "lumber_camp"
+   ],
+   "names": [
+    "the Charcoal Burners of {settlement}",
+    "the Woodwards of {settlement}"
+   ],
+   "goals": [
+    "win back the right to cut in the lord's forest",
+    "keep the wolves away from the camps",
+    "stop the new enclosures on the woodland edge"
+   ]
+  },
+  {
+   "key": "boatmen",
+   "label": "lightermen",
+   "functions_any": [
+    "port"
+   ],
+   "min_tier": "town",
+   "leader": "boatmaster",
+   "power": 15,
+   "seat": [
+    "dock",
+    "warehouse"
+   ],
+   "names": [
+    "the Lightermen's Fellowship",
+    "the Quay Porters of {settlement}"
+   ],
+   "goals": [
+    "hold the monopoly on loading at the quays",
+    "win a rest day in the harvest season"
+   ]
+  },
+  {
+   "key": "commons",
+   "label": "commons",
+   "min_tier": "hamlet",
+   "leader": "commons_voice",
+   "power": 15,
+   "seat": [
+    "tavern",
+    "house",
+    "farmhouse",
+    "cottage"
+   ],
+   "names": [
+    "the tenants of {settlement}",
+    "the Moot of {settlement}"
+   ],
+   "goals": [
+    "have the old common grazing restored",
+    "see the tithe cut after a lean year",
+    "keep the young from leaving for the towns",
+    "get the lord to mend the bridge"
+   ],
+   "goals_rural": [
+    "have the old common grazing restored",
+    "see the tithe cut after a lean year",
+    "keep the young from leaving for the towns",
+    "get the lord to mend the bridge",
+    "stop the lord's shepherds grazing the stubble"
+   ]
+  }
+ ],
+ "affinity": [
+  [
+   "court",
+   "merchants",
+   -1
+  ],
+  [
+   "court",
+   "temple",
+   1
+  ],
+  [
+   "court",
+   "watch",
+   1
+  ],
+  [
+   "court",
+   "criminals",
+   -2
+  ],
+  [
+   "court",
+   "fishers",
+   -1
+  ],
+  [
+   "court",
+   "miners",
+   -1
+  ],
+  [
+   "court",
+   "foresters",
+   -1
+  ],
+  [
+   "merchants",
+   "crafts",
+   -1
+  ],
+  [
+   "merchants",
+   "criminals",
+   -1
+  ],
+  [
+   "merchants",
+   "watch",
+   1
+  ],
+  [
+   "merchants",
+   "boatmen",
+   1
+  ],
+  [
+   "merchants",
+   "miners",
+   -1
+  ],
+  [
+   "merchants",
+   "fishers",
+   -1
+  ],
+  [
+   "temple",
+   "criminals",
+   -2
+  ],
+  [
+   "temple",
+   "abbey",
+   -1
+  ],
+  [
+   "temple",
+   "commons",
+   1
+  ],
+  [
+   "shrine",
+   "commons",
+   1
+  ],
+  [
+   "watch",
+   "criminals",
+   -2
+  ],
+  [
+   "abbey",
+   "commons",
+   1
+  ],
+  [
+   "abbey",
+   "court",
+   -1
+  ],
+  [
+   "boatmen",
+   "criminals",
+   1
+  ],
+  [
+   "crafts",
+   "watch",
+   0
+  ]
+ ],
+ "reasons": {
+  "rival": [
+   "{a} and {b} have quarrelled over dues and tolls for a generation.",
+   "{a} accuse {b} of cheating them at every reckoning.",
+   "{a} and {b} will not sit at the same table at the harvest feast."
+  ],
+  "hostile": [
+   "{a} and {b} have spilled blood in the alleys within the year.",
+   "{a} have sworn to see {b} broken.",
+   "A body in the millrace last spring is laid at the door of {b}, and {a} want payment."
+  ],
+  "friendly": [
+   "{a} and {b} trade favours and sit together at feasts.",
+   "{a} lend money to {b}, and both like the arrangement."
+  ],
+  "allied": [
+   "{a} and {b} are bound by marriages, debts and oaths.",
+   "{a} and {b} act together whenever the lord's steward comes calling."
+  ]
+ },
+ "pair_reasons": {
+  "court|merchants": [
+   "{b} say the levy at the gates is robbery; {a} say {b} lie in their ledgers.",
+   "{a} have refused {b} a charter three years running."
+  ],
+  "commons|court": [
+   "{a} want the old grazing rights back, and {b} have fenced the common.",
+   "Labour days owed to {b} have doubled, and {a} are muttering about a moot."
+  ],
+  "court|criminals": [
+   "{b} have been bleeding the lord's tolls, and {a} have hanged two of them.",
+   "{a} want {b} gone; {b} know where the lord's debts are buried."
+  ],
+  "criminals|watch": [
+   "{b} take bribes from {a} with one hand and hang them with the other.",
+   "{a} killed a watchman at the river steps last winter, and {b} have not forgotten."
+  ],
+  "criminals|temple": [
+   "{b} preach against {a} from the steps every holy day.",
+   "{a} robbed the poor box of {b}, and the priests want the thieves named."
+  ],
+  "crafts|merchants": [
+   "{b} import cheap foreign work and undercut {a}.",
+   "{a} say {b} fix the price of raw stuff to starve the workshops."
+  ],
+  "court|temple": [
+   "{a} and {b} share the tithe and the pulpit's blessing.",
+   "{b} bless every feast of {a} and are paid for it in candles and land."
+  ],
+  "abbey|temple": [
+   "{a} and {b} squabble over tithes and who may bury the dead.",
+   "{b} call {a} idle landlords in habits."
+  ],
+  "court|fishers": [
+   "{a} have put a tax on every catch, and {b} have stopped paying it.",
+   "{b} want the lord's weir on the river pulled down; {a} want it kept."
+  ],
+  "court|miners": [
+   "{b} want the old galleries shored up; {a} want the ore faster.",
+   "{a} fined {b} for a stoppage after the last collapse."
+  ],
+  "fishers|merchants": [
+   "{b} buy the catch cheap and sell it dear, and {a} know it.",
+   "{a} say {b} fix the price of salt against the boats."
+  ],
+  "court|foresters": [
+   "{a} have closed the forest to cutting, and {b} cut anyway.",
+   "{b} say the lord's foresters hang men for gathering deadwood."
+  ],
+  "court|watch": [
+   "{b} are paid and fed by {a}, and know which side their bread is buttered.",
+   "The captain of {b} sits at {a}'s table."
+  ],
+  "merchants|watch": [
+   "{a} pay {b} a little extra to guard the warehouses.",
+   "{b} escort the caravans of {a}, for a fee."
+  ],
+  "commons|temple": [
+   "{b} feed the poor of {a} in the lean months.",
+   "{a} crowd into {b}'s hall on every feast day."
+  ],
+  "abbey|commons": [
+   "{a} rent their fields to {b} at fair rates.",
+   "{b} send their children to {a} to learn their letters."
+  ],
+  "abbey|court": [
+   "{a} claim land that {b} say was stolen from the lord's grandfather.",
+   "{b} want {a}'s tithe barns taxed."
+  ],
+  "criminals|merchants": [
+   "{a} run protection over the stalls of {b}.",
+   "{b} hire {a} to rough up rivals, and pay late."
+  ],
+  "boatmen|criminals": [
+   "{a} look the other way at night, for a share of what {b} unload.",
+   "{b} pay {a} to lose crates in the river."
+  ],
+  "boatmen|merchants": [
+   "{b} hire {a} for every cargo.",
+   "{a} and {b} split the dock dues between them."
+  ],
+  "commons|shrine": [
+   "{b} keep the old feast days that {a} love.",
+   "{a} bring the first sheaf of the harvest to {b}."
+  ],
+  "merchants|miners": [
+   "{a} buy ore from {b} by weight and cheat them on the scales.",
+   "{b} want to sell ore without {a} as middlemen."
+  ]
+ }
+}

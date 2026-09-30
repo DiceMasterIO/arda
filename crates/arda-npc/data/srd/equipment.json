@@ -1,0 +1,837 @@
+{
+ "armor": [
+  {
+   "name": "Breastplate",
+   "category": "Medium",
+   "base_ac": 14,
+   "dex_bonus": true,
+   "max_dex": 2,
+   "str_minimum": 0,
+   "stealth_disadvantage": false,
+   "cost_gp": 400
+  },
+  {
+   "name": "Chain Mail",
+   "category": "Heavy",
+   "base_ac": 16,
+   "dex_bonus": false,
+   "max_dex": null,
+   "str_minimum": 13,
+   "stealth_disadvantage": true,
+   "cost_gp": 75
+  },
+  {
+   "name": "Chain Shirt",
+   "category": "Medium",
+   "base_ac": 13,
+   "dex_bonus": true,
+   "max_dex": 2,
+   "str_minimum": 0,
+   "stealth_disadvantage": false,
+   "cost_gp": 50
+  },
+  {
+   "name": "Half Plate Armor",
+   "category": "Medium",
+   "base_ac": 15,
+   "dex_bonus": true,
+   "max_dex": 2,
+   "str_minimum": 0,
+   "stealth_disadvantage": true,
+   "cost_gp": 750
+  },
+  {
+   "name": "Hide Armor",
+   "category": "Medium",
+   "base_ac": 12,
+   "dex_bonus": true,
+   "max_dex": 2,
+   "str_minimum": 0,
+   "stealth_disadvantage": false,
+   "cost_gp": 10
+  },
+  {
+   "name": "Leather Armor",
+   "category": "Light",
+   "base_ac": 11,
+   "dex_bonus": true,
+   "max_dex": null,
+   "str_minimum": 0,
+   "stealth_disadvantage": false,
+   "cost_gp": 10
+  },
+  {
+   "name": "Padded Armor",
+   "category": "Light",
+   "base_ac": 11,
+   "dex_bonus": true,
+   "max_dex": null,
+   "str_minimum": 0,
+   "stealth_disadvantage": true,
+   "cost_gp": 5
+  },
+  {
+   "name": "Plate Armor",
+   "category": "Heavy",
+   "base_ac": 18,
+   "dex_bonus": false,
+   "max_dex": null,
+   "str_minimum": 15,
+   "stealth_disadvantage": true,
+   "cost_gp": 1500
+  },
+  {
+   "name": "Ring Mail",
+   "category": "Heavy",
+   "base_ac": 14,
+   "dex_bonus": false,
+   "max_dex": null,
+   "str_minimum": 0,
+   "stealth_disadvantage": true,
+   "cost_gp": 30
+  },
+  {
+   "name": "Scale Mail",
+   "category": "Medium",
+   "base_ac": 14,
+   "dex_bonus": true,
+   "max_dex": 2,
+   "str_minimum": 0,
+   "stealth_disadvantage": true,
+   "cost_gp": 50
+  },
+  {
+   "name": "Shield",
+   "category": "Shield",
+   "base_ac": 2,
+   "dex_bonus": false,
+   "max_dex": null,
+   "str_minimum": 0,
+   "stealth_disadvantage": false,
+   "cost_gp": 10
+  },
+  {
+   "name": "Splint Armor",
+   "category": "Heavy",
+   "base_ac": 17,
+   "dex_bonus": false,
+   "max_dex": null,
+   "str_minimum": 15,
+   "stealth_disadvantage": true,
+   "cost_gp": 200
+  },
+  {
+   "name": "Studded Leather Armor",
+   "category": "Light",
+   "base_ac": 12,
+   "dex_bonus": true,
+   "max_dex": null,
+   "str_minimum": 0,
+   "stealth_disadvantage": false,
+   "cost_gp": 45
+  }
+ ],
+ "weapons": [
+  {
+   "name": "Battleaxe",
+   "category": "Martial",
+   "range_kind": "Melee",
+   "damage_dice": "1d8",
+   "damage_type": "slashing",
+   "versatile_dice": "1d10",
+   "range": null,
+   "properties": [
+    "Versatile"
+   ],
+   "cost_gp": 10
+  },
+  {
+   "name": "Blowgun",
+   "category": "Martial",
+   "range_kind": "Ranged",
+   "damage_dice": "1",
+   "damage_type": "piercing",
+   "versatile_dice": null,
+   "range": [
+    25,
+    100
+   ],
+   "properties": [
+    "Ammunition",
+    "Loading"
+   ],
+   "cost_gp": 10
+  },
+  {
+   "name": "Club",
+   "category": "Simple",
+   "range_kind": "Melee",
+   "damage_dice": "1d4",
+   "damage_type": "bludgeoning",
+   "versatile_dice": null,
+   "range": null,
+   "properties": [
+    "Light"
+   ],
+   "cost_gp": 0.1
+  },
+  {
+   "name": "Crossbow, hand",
+   "category": "Martial",
+   "range_kind": "Ranged",
+   "damage_dice": "1d6",
+   "damage_type": "piercing",
+   "versatile_dice": null,
+   "range": [
+    30,
+    120
+   ],
+   "properties": [
+    "Ammunition",
+    "Light",
+    "Loading"
+   ],
+   "cost_gp": 75
+  },
+  {
+   "name": "Crossbow, heavy",
+   "category": "Martial",
+   "range_kind": "Ranged",
+   "damage_dice": "1d10",
+   "damage_type": "piercing",
+   "versatile_dice": null,
+   "range": [
+    100,
+    400
+   ],
+   "properties": [
+    "Ammunition",
+    "Heavy",
+    "Loading",
+    "Two-Handed"
+   ],
+   "cost_gp": 50
+  },
+  {
+   "name": "Crossbow, light",
+   "category": "Simple",
+   "range_kind": "Ranged",
+   "damage_dice": "1d8",
+   "damage_type": "piercing",
+   "versatile_dice": null,
+   "range": [
+    80,
+    320
+   ],
+   "properties": [
+    "Ammunition",
+    "Loading",
+    "Two-Handed"
+   ],
+   "cost_gp": 25
+  },
+  {
+   "name": "Dagger",
+   "category": "Simple",
+   "range_kind": "Melee",
+   "damage_dice": "1d4",
+   "damage_type": "piercing",
+   "versatile_dice": null,
+   "range": [
+    20,
+    60
+   ],
+   "properties": [
+    "Finesse",
+    "Light",
+    "Thrown"
+   ],
+   "cost_gp": 2
+  },
+  {
+   "name": "Dart",
+   "category": "Simple",
+   "range_kind": "Ranged",
+   "damage_dice": "1d4",
+   "damage_type": "piercing",
+   "versatile_dice": null,
+   "range": [
+    20,
+    60
+   ],
+   "properties": [
+    "Finesse",
+    "Thrown"
+   ],
+   "cost_gp": 0.05
+  },
+  {
+   "name": "Flail",
+   "category": "Martial",
+   "range_kind": "Melee",
+   "damage_dice": "1d8",
+   "damage_type": "bludgeoning",
+   "versatile_dice": null,
+   "range": null,
+   "properties": [],
+   "cost_gp": 10
+  },
+  {
+   "name": "Glaive",
+   "category": "Martial",
+   "range_kind": "Melee",
+   "damage_dice": "1d10",
+   "damage_type": "slashing",
+   "versatile_dice": null,
+   "range": null,
+   "properties": [
+    "Heavy",
+    "Reach",
+    "Two-Handed"
+   ],
+   "cost_gp": 20
+  },
+  {
+   "name": "Greataxe",
+   "category": "Martial",
+   "range_kind": "Melee",
+   "damage_dice": "1d12",
+   "damage_type": "slashing",
+   "versatile_dice": null,
+   "range": null,
+   "properties": [
+    "Heavy",
+    "Two-Handed"
+   ],
+   "cost_gp": 30
+  },
+  {
+   "name": "Greatclub",
+   "category": "Simple",
+   "range_kind": "Melee",
+   "damage_dice": "1d8",
+   "damage_type": "bludgeoning",
+   "versatile_dice": null,
+   "range": null,
+   "properties": [
+    "Two-Handed"
+   ],
+   "cost_gp": 0.2
+  },
+  {
+   "name": "Greatsword",
+   "category": "Martial",
+   "range_kind": "Melee",
+   "damage_dice": "2d6",
+   "damage_type": "slashing",
+   "versatile_dice": null,
+   "range": null,
+   "properties": [
+    "Heavy",
+    "Two-Handed"
+   ],
+   "cost_gp": 50
+  },
+  {
+   "name": "Halberd",
+   "category": "Martial",
+   "range_kind": "Melee",
+   "damage_dice": "1d10",
+   "damage_type": "slashing",
+   "versatile_dice": null,
+   "range": null,
+   "properties": [
+    "Heavy",
+    "Reach",
+    "Two-Handed"
+   ],
+   "cost_gp": 20
+  },
+  {
+   "name": "Handaxe",
+   "category": "Simple",
+   "range_kind": "Melee",
+   "damage_dice": "1d6",
+   "damage_type": "slashing",
+   "versatile_dice": null,
+   "range": [
+    20,
+    60
+   ],
+   "properties": [
+    "Light",
+    "Thrown"
+   ],
+   "cost_gp": 5
+  },
+  {
+   "name": "Javelin",
+   "category": "Simple",
+   "range_kind": "Melee",
+   "damage_dice": "1d6",
+   "damage_type": "piercing",
+   "versatile_dice": null,
+   "range": [
+    30,
+    120
+   ],
+   "properties": [
+    "Thrown"
+   ],
+   "cost_gp": 0.5
+  },
+  {
+   "name": "Lance",
+   "category": "Martial",
+   "range_kind": "Melee",
+   "damage_dice": "1d12",
+   "damage_type": "piercing",
+   "versatile_dice": null,
+   "range": null,
+   "properties": [
+    "Reach",
+    "Special"
+   ],
+   "cost_gp": 10
+  },
+  {
+   "name": "Light hammer",
+   "category": "Simple",
+   "range_kind": "Melee",
+   "damage_dice": "1d4",
+   "damage_type": "bludgeoning",
+   "versatile_dice": null,
+   "range": [
+    20,
+    60
+   ],
+   "properties": [
+    "Light",
+    "Thrown"
+   ],
+   "cost_gp": 2
+  },
+  {
+   "name": "Longbow",
+   "category": "Martial",
+   "range_kind": "Ranged",
+   "damage_dice": "1d8",
+   "damage_type": "piercing",
+   "versatile_dice": null,
+   "range": [
+    150,
+    600
+   ],
+   "properties": [
+    "Ammunition",
+    "Heavy",
+    "Two-Handed"
+   ],
+   "cost_gp": 50
+  },
+  {
+   "name": "Longsword",
+   "category": "Martial",
+   "range_kind": "Melee",
+   "damage_dice": "1d8",
+   "damage_type": "slashing",
+   "versatile_dice": "1d10",
+   "range": null,
+   "properties": [
+    "Versatile"
+   ],
+   "cost_gp": 15
+  },
+  {
+   "name": "Mace",
+   "category": "Simple",
+   "range_kind": "Melee",
+   "damage_dice": "1d6",
+   "damage_type": "bludgeoning",
+   "versatile_dice": null,
+   "range": null,
+   "properties": [],
+   "cost_gp": 5
+  },
+  {
+   "name": "Maul",
+   "category": "Martial",
+   "range_kind": "Melee",
+   "damage_dice": "2d6",
+   "damage_type": "bludgeoning",
+   "versatile_dice": null,
+   "range": null,
+   "properties": [
+    "Heavy",
+    "Two-Handed"
+   ],
+   "cost_gp": 10
+  },
+  {
+   "name": "Morningstar",
+   "category": "Martial",
+   "range_kind": "Melee",
+   "damage_dice": "1d8",
+   "damage_type": "piercing",
+   "versatile_dice": null,
+   "range": null,
+   "properties": [],
+   "cost_gp": 15
+  },
+  {
+   "name": "Net",
+   "category": "Martial",
+   "range_kind": "Ranged",
+   "damage_dice": "0",
+   "damage_type": "none",
+   "versatile_dice": null,
+   "range": [
+    5,
+    15
+   ],
+   "properties": [
+    "Thrown",
+    "Special"
+   ],
+   "cost_gp": 1
+  },
+  {
+   "name": "Pike",
+   "category": "Martial",
+   "range_kind": "Melee",
+   "damage_dice": "1d10",
+   "damage_type": "piercing",
+   "versatile_dice": null,
+   "range": null,
+   "properties": [
+    "Heavy",
+    "Reach",
+    "Two-Handed"
+   ],
+   "cost_gp": 5
+  },
+  {
+   "name": "Quarterstaff",
+   "category": "Simple",
+   "range_kind": "Melee",
+   "damage_dice": "1d6",
+   "damage_type": "bludgeoning",
+   "versatile_dice": "1d8",
+   "range": null,
+   "properties": [
+    "Versatile"
+   ],
+   "cost_gp": 0.2
+  },
+  {
+   "name": "Rapier",
+   "category": "Martial",
+   "range_kind": "Melee",
+   "damage_dice": "1d8",
+   "damage_type": "piercing",
+   "versatile_dice": null,
+   "range": null,
+   "properties": [
+    "Finesse"
+   ],
+   "cost_gp": 25
+  },
+  {
+   "name": "Scimitar",
+   "category": "Martial",
+   "range_kind": "Melee",
+   "damage_dice": "1d6",
+   "damage_type": "slashing",
+   "versatile_dice": null,
+   "range": null,
+   "properties": [
+    "Finesse",
+    "Light"
+   ],
+   "cost_gp": 25
+  },
+  {
+   "name": "Shortbow",
+   "category": "Simple",
+   "range_kind": "Ranged",
+   "damage_dice": "1d6",
+   "damage_type": "piercing",
+   "versatile_dice": null,
+   "range": [
+    80,
+    320
+   ],
+   "properties": [
+    "Ammunition",
+    "Two-Handed"
+   ],
+   "cost_gp": 25
+  },
+  {
+   "name": "Shortsword",
+   "category": "Martial",
+   "range_kind": "Melee",
+   "damage_dice": "1d6",
+   "damage_type": "piercing",
+   "versatile_dice": null,
+   "range": null,
+   "properties": [
+    "Finesse",
+    "Light"
+   ],
+   "cost_gp": 10
+  },
+  {
+   "name": "Sickle",
+   "category": "Simple",
+   "range_kind": "Melee",
+   "damage_dice": "1d4",
+   "damage_type": "slashing",
+   "versatile_dice": null,
+   "range": null,
+   "properties": [
+    "Light"
+   ],
+   "cost_gp": 1
+  },
+  {
+   "name": "Sling",
+   "category": "Simple",
+   "range_kind": "Ranged",
+   "damage_dice": "1d4",
+   "damage_type": "bludgeoning",
+   "versatile_dice": null,
+   "range": [
+    30,
+    120
+   ],
+   "properties": [
+    "Ammunition"
+   ],
+   "cost_gp": 0.1
+  },
+  {
+   "name": "Spear",
+   "category": "Simple",
+   "range_kind": "Melee",
+   "damage_dice": "1d6",
+   "damage_type": "piercing",
+   "versatile_dice": "1d8",
+   "range": [
+    20,
+    60
+   ],
+   "properties": [
+    "Thrown",
+    "Versatile"
+   ],
+   "cost_gp": 1
+  },
+  {
+   "name": "Trident",
+   "category": "Martial",
+   "range_kind": "Melee",
+   "damage_dice": "1d6",
+   "damage_type": "piercing",
+   "versatile_dice": "1d8",
+   "range": [
+    20,
+    60
+   ],
+   "properties": [
+    "Thrown",
+    "Versatile"
+   ],
+   "cost_gp": 5
+  },
+  {
+   "name": "War pick",
+   "category": "Martial",
+   "range_kind": "Melee",
+   "damage_dice": "1d8",
+   "damage_type": "piercing",
+   "versatile_dice": null,
+   "range": null,
+   "properties": [],
+   "cost_gp": 5
+  },
+  {
+   "name": "Warhammer",
+   "category": "Martial",
+   "range_kind": "Melee",
+   "damage_dice": "1d8",
+   "damage_type": "bludgeoning",
+   "versatile_dice": "1d10",
+   "range": null,
+   "properties": [
+    "Versatile"
+   ],
+   "cost_gp": 15
+  },
+  {
+   "name": "Whip",
+   "category": "Martial",
+   "range_kind": "Melee",
+   "damage_dice": "1d4",
+   "damage_type": "slashing",
+   "versatile_dice": null,
+   "range": null,
+   "properties": [
+    "Finesse",
+    "Reach"
+   ],
+   "cost_gp": 2
+  }
+ ],
+ "gear": [
+  "Abacus",
+  "Acid (vial)",
+  "Alchemist's fire (flask)",
+  "Alms box",
+  "Amulet",
+  "Antitoxin (vial)",
+  "Arrow",
+  "Backpack",
+  "Ball bearings (bag of 1,000)",
+  "Barrel",
+  "Basket",
+  "Bedroll",
+  "Bell",
+  "Blanket",
+  "Block and tackle",
+  "Block of incense",
+  "Blowgun needle",
+  "Book",
+  "Bottle, glass",
+  "Bucket",
+  "Burglar's Pack",
+  "Caltrops",
+  "Candle",
+  "Case, crossbow bolt",
+  "Case, map or scroll",
+  "Censer",
+  "Chain (10 feet)",
+  "Chalk (1 piece)",
+  "Chest",
+  "Climber's Kit",
+  "Clothes, common",
+  "Clothes, costume",
+  "Clothes, fine",
+  "Clothes, traveler's",
+  "Component pouch",
+  "Crossbow bolt",
+  "Crowbar",
+  "Crystal",
+  "Diplomat's Pack",
+  "Disguise Kit",
+  "Dungeoneer's Pack",
+  "Emblem",
+  "Entertainer's Pack",
+  "Explorer's Pack",
+  "Fishing tackle",
+  "Flask or tankard",
+  "Forgery Kit",
+  "Grappling hook",
+  "Hammer",
+  "Hammer, sledge",
+  "Healer's Kit",
+  "Herbalism Kit",
+  "Holy water (flask)",
+  "Hourglass",
+  "Hunting trap",
+  "Ink (1 ounce bottle)",
+  "Ink pen",
+  "Jug or pitcher",
+  "Ladder (10-foot)",
+  "Lamp",
+  "Lantern, bullseye",
+  "Lantern, hooded",
+  "Little bag of sand",
+  "Lock",
+  "Magnifying glass",
+  "Manacles",
+  "Mess Kit",
+  "Mirror, steel",
+  "Oil (flask)",
+  "Orb",
+  "Paper (one sheet)",
+  "Parchment (one sheet)",
+  "Perfume (vial)",
+  "Pick, miner's",
+  "Piton",
+  "Poison, basic (vial)",
+  "Poisoner's Kit",
+  "Pole (10-foot)",
+  "Pot, iron",
+  "Pouch",
+  "Priest's Pack",
+  "Quiver",
+  "Ram, portable",
+  "Rations (1 day)",
+  "Reliquary",
+  "Robes",
+  "Rod",
+  "Rope, hempen (50 feet)",
+  "Rope, silk (50 feet)",
+  "Sack",
+  "Scale, merchant's",
+  "Scholar's Pack",
+  "Sealing wax",
+  "Shovel",
+  "Signal whistle",
+  "Signet ring",
+  "Sling bullet",
+  "Small knife",
+  "Soap",
+  "Spellbook",
+  "Spike, iron",
+  "Sprig of mistletoe",
+  "Spyglass",
+  "Staff",
+  "String (10 feet)",
+  "Tent, two-person",
+  "Tinderbox",
+  "Torch",
+  "Totem",
+  "Vestments",
+  "Vial",
+  "Wand",
+  "Waterskin",
+  "Whetstone",
+  "Wooden staff",
+  "Yew wand"
+ ],
+ "tools": [
+  "Alchemist's Supplies",
+  "Bagpipes",
+  "Brewer's Supplies",
+  "Calligrapher's Supplies",
+  "Carpenter's Tools",
+  "Cartographer's Tools",
+  "Cobbler's Tools",
+  "Cook's utensils",
+  "Dice Set",
+  "Drum",
+  "Dulcimer",
+  "Flute",
+  "Glassblower's Tools",
+  "Horn",
+  "Jeweler's Tools",
+  "Leatherworker's Tools",
+  "Lute",
+  "Lyre",
+  "Mason's Tools",
+  "Navigator's Tools",
+  "Painter's Supplies",
+  "Pan flute",
+  "Playing Card Set",
+  "Potter's Tools",
+  "Shawm",
+  "Smith's Tools",
+  "Thieves' Tools",
+  "Tinker's Tools",
+  "Viol",
+  "Weaver's Tools",
+  "Woodcarver's Tools"
+ ]
+}

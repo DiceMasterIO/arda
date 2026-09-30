@@ -1,0 +1,49 @@
+[package]
+name = "arda-server"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+repository.workspace = true
+description = "Versioned world-query contract and HTTP service for arda worlds"
+
+[lib]
+path = "src/lib.rs"
+
+[[bin]]
+name = "arda-server"
+path = "src/main.rs"
+
+[dependencies]
+arda.workspace = true
+arda-core.workspace = true
+arda-npc.workspace = true
+arda-blocks.workspace = true
+arda-ids.workspace = true
+arda-people.workspace = true
+arda-midzoom.workspace = true
+arda-refine.workspace = true
+arda-scene.workspace = true
+arda-tactical.workspace = true
+axum = { version = "0.8", default-features = false, features = ["http1", "json", "query", "tokio"] }
+blake3.workspace = true
+clap.workspace = true
+image-webp = "0.2"
+png.workspace = true
+rayon.workspace = true
+serde.workspace = true
+serde_json.workspace = true
+thiserror.workspace = true
+hyper = { version = "1", features = ["http1", "server"] }
+hyper-util = { version = "0.1", features = ["http1", "server", "service", "tokio"] }
+tokio = { version = "1", features = ["macros", "net", "rt-multi-thread", "signal", "sync", "time"] }
+tower-http = { version = "0.6", features = ["cors"] }
+ts-rs = "12"
+
+[dev-dependencies]
+arda-names.workspace = true
+tokio = { version = "1", features = ["io-util"] }
+http-body-util = "0.1"
+tower = { version = "0.5", features = ["util"] }
+
+[lints]
+workspace = true

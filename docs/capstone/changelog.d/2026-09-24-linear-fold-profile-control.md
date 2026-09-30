@@ -1,0 +1,3 @@
+# Linear fold-profile source control
+
+Completed one isolated 100-step comparison replacing the dense source’s cosine top-to-bottom profile with a linear distance profile at the same area-weighted uplift. The baseline exactly replays retained n=1 plus diffusion fields; source, bed and solver checks pass. Native and raster geometric basin capacity fall, but actual Atlas and fixed projection still show broad rounded faces and repeated mountain bands. Hold production adoption; retain the cosine baseline. Evidence: [linear-fold-profile-control](../features/2026-09-23-terrain-corrections/evidence/linear-fold-profile-control/root-assessment.md).

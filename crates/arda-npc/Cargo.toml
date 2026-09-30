@@ -1,0 +1,21 @@
+[package]
+name = "arda-npc"
+description = "Deterministic NPC populations with jobs, personalities and SRD 5.1 sheets"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+repository.workspace = true
+publish = false
+
+[dependencies]
+arda-ids = { workspace = true }
+arda-names = { workspace = true }
+blake3 = { workspace = true }
+serde = { workspace = true }
+serde_json = { workspace = true }
+thiserror = { workspace = true }
+
+[lints]
+workspace = true
+
+[dev-dependencies]

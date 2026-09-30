@@ -2,7 +2,7 @@
 
 use crate::channels::{AreaImageScale, ChannelInput};
 pub use crate::overview::render_overview_png;
-use crate::RenderError;
+use crate::{AtlasTerrain, RenderError};
 use arda_core::{AreaCells, AreaObjects, GlobalCell};
 
 /// Hypsometric palette: millimetres of elevation to RGB.
@@ -164,6 +164,34 @@ pub fn render_area_png_to<W: std::io::Write>(
     scale: AreaImageScale,
     writer: W,
 ) -> Result<(), RenderError> {
+    render_area_png_to_inner(cells, objects, origin, scale, None, writer)
+}
+
+/// Streams an Atlas area PNG with per-pixel saved-terrain interpolation.
+///
+/// Water geometry and validated lake depth retain their saved-cell ownership.
+///
+/// # Errors
+/// Returns typed geometry, atlas-context, resource or PNG failures.
+pub fn render_area_png_to_atlas<W: std::io::Write>(
+    cells: &AreaCells,
+    objects: &AreaObjects,
+    origin: GlobalCell,
+    scale: AreaImageScale,
+    terrain: &AtlasTerrain,
+    writer: W,
+) -> Result<(), RenderError> {
+    render_area_png_to_inner(cells, objects, origin, scale, Some(terrain), writer)
+}
+
+fn render_area_png_to_inner<W: std::io::Write>(
+    cells: &AreaCells,
+    objects: &AreaObjects,
+    origin: GlobalCell,
+    scale: AreaImageScale,
+    terrain: Option<&AtlasTerrain>,
+    writer: W,
+) -> Result<(), RenderError> {
     let inputs = objects.channel_edges.iter().map(|edge| ChannelInput {
         from: edge.from,
         to: edge.to,
@@ -195,8 +223,9 @@ pub fn render_area_png_to<W: std::io::Write>(
                 discharge: r.mean_discharge.raw(),
             })
         });
-    let mut raster = crate::channels::AreaRaster::new(
+    let mut raster = crate::channels::AreaRaster::new_with_terrain(
         cells,
+        terrain,
         inputs.map(Ok).chain(points),
         origin,
         scale,
@@ -215,7 +244,160 @@ pub fn render_area_png_to<W: std::io::Write>(
 #[cfg(test)]
 mod tests {
     use super::*;
-    use arda_core::{Cell, CellCoord, DischargeMilli, TerrainKind, AREA_CELLS};
+    use crate::{AtlasHalo, AtlasNeighbor, AtlasTerrain, ImageQuality};
+    use arda_core::{Cell, CellCoord, DischargeMilli, HeightMm, TerrainKind, AREA_CELLS};
+
+    fn standalone_atlas(cells: &AreaCells) -> AtlasTerrain {
+        let mut halo = AtlasHalo::new();
+        for direction in [
+            AtlasNeighbor::North,
+            AtlasNeighbor::NorthEast,
+            AtlasNeighbor::East,
+            AtlasNeighbor::SouthEast,
+            AtlasNeighbor::South,
+            AtlasNeighbor::SouthWest,
+            AtlasNeighbor::West,
+            AtlasNeighbor::NorthWest,
+        ] {
+            halo.mark_world_edge(direction).unwrap();
+        }
+        AtlasTerrain::new(cells, halo).unwrap()
+    }
+
+    #[test]
+    fn atlas_area_exact_centers_and_adjacent_rows() {
+        let mut cells = AreaCells::flat(Cell {
+            terrain: TerrainKind::Land,
+            ..Cell::default()
+        });
+        for y in 0..AREA_CELLS {
+            for x in 0..AREA_CELLS {
+                cells.set(
+                    CellCoord::new(x, y).unwrap(),
+                    Cell {
+                        height: HeightMm::new(i32::from(x) * 2_000 + i32::from(y) * 3_000),
+                        terrain: TerrainKind::Land,
+                        ..Cell::default()
+                    },
+                );
+            }
+        }
+        let terrain = standalone_atlas(&cells);
+        let objects = AreaObjects::default();
+        let origin = GlobalCell { x: 0, y: 0 };
+        let mut png = Vec::new();
+        render_area_png_to_atlas(
+            &cells,
+            &objects,
+            origin,
+            AreaImageScale::Custom(ImageQuality::new(1536).unwrap()),
+            &terrain,
+            &mut png,
+        )
+        .unwrap();
+        for (x, y) in [(0, 0), (255, 255), (511, 511)] {
+            assert_eq!(
+                pixel_at(&png, x * 3 + 1, y * 3 + 1),
+                terrain.colour(
+                    CellCoord::new(u16::try_from(x).unwrap(), u16::try_from(y).unwrap()).unwrap()
+                )
+            );
+        }
+
+        let mut step = AreaCells::flat(Cell {
+            height: HeightMm::new(1_000_000),
+            terrain: TerrainKind::Land,
+            ..Cell::default()
+        });
+        for x in 0..AREA_CELLS {
+            step.set(
+                CellCoord::new(x, 0).unwrap(),
+                Cell {
+                    height: HeightMm::new(0),
+                    terrain: TerrainKind::Land,
+                    ..Cell::default()
+                },
+            );
+        }
+        let terrain = standalone_atlas(&step);
+        png.clear();
+        render_area_png_to_atlas(
+            &step,
+            &objects,
+            origin,
+            AreaImageScale::Custom(ImageQuality::new(1536).unwrap()),
+            &terrain,
+            &mut png,
+        )
+        .unwrap();
+        assert_eq!(
+            pixel_at(&png, 1, 1),
+            terrain.colour(CellCoord::new(0, 0).unwrap())
+        );
+        assert_eq!(
+            pixel_at(&png, 1, 2),
+            terrain
+                .sample(
+                    crate::atlas::axis_kernel(1, 1536).unwrap(),
+                    crate::atlas::axis_kernel(2, 1536).unwrap(),
+                    TerrainKind::Land
+                )
+                .unwrap()
+        );
+        assert_ne!(pixel_at(&png, 1, 1), pixel_at(&png, 1, 2));
+    }
+
+    #[test]
+    fn atlas_area_routes_512_and_513_and_reports_class_mismatch() {
+        let cells = AreaCells::flat(Cell {
+            height: HeightMm::new(200_000),
+            terrain: TerrainKind::Land,
+            ..Cell::default()
+        });
+        let terrain = standalone_atlas(&cells);
+        let objects = AreaObjects::default();
+        let origin = GlobalCell { x: 0, y: 0 };
+        for side in [512, 513] {
+            let mut png = Vec::new();
+            render_area_png_to_atlas(
+                &cells,
+                &objects,
+                origin,
+                AreaImageScale::Custom(ImageQuality::new(side).unwrap()),
+                &terrain,
+                &mut png,
+            )
+            .unwrap();
+            for (x, y) in [(0, 0), (side / 2, side / 2), (side - 1, side - 1)] {
+                assert_eq!(
+                    pixel_at(&png, x as usize, y as usize),
+                    terrain
+                        .sample(
+                            crate::atlas::axis_kernel(x, side).unwrap(),
+                            crate::atlas::axis_kernel(y, side).unwrap(),
+                            TerrainKind::Land
+                        )
+                        .unwrap()
+                );
+            }
+        }
+        let sea = AreaCells::flat(Cell {
+            terrain: TerrainKind::Sea,
+            ..Cell::default()
+        });
+        let mismatched = standalone_atlas(&sea);
+        assert!(matches!(
+            render_area_png_to_atlas(
+                &cells,
+                &objects,
+                origin,
+                AreaImageScale::Preview,
+                &mismatched,
+                Vec::new()
+            ),
+            Err(RenderError::AtlasContext { .. })
+        ));
+    }
 
     #[test]
     fn standing_water_depth_is_bounded_monotonic_and_visible() {

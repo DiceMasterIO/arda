@@ -151,6 +151,7 @@ pub(super) fn check(
             named_river_count: 0,
             river_count: u32::try_from(objects.rivers.len()).unwrap(),
         },
+        fine_terrain: None,
     };
     drop(mirror);
     drop(prepared);

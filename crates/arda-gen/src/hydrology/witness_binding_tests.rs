@@ -102,6 +102,7 @@ fn tied_elder_death_binds_actual_source_component_before_the_sill() {
 }
 fn cap() -> MstLimits {
     MstLimits {
+        max_leaves: 1_000_000,
         ram_bytes: 1 << 24,
         scratch_bytes: 1 << 24,
         io_bytes: 1 << 30,

@@ -214,6 +214,74 @@ fn capped_distance(d: u32) -> u16 {
 /// Computes temperature and regime; rainfall is computed via advection-diffusion.
 #[must_use]
 pub fn climate(grid: &ContinentGrid, band: LatitudeBand) -> ContinentClimate {
+    climate_with_rain_relief(grid, band, grid)
+}
+
+/// Recipe-5 climate (logic/02 §fine-formation climate relief): orographic
+/// rainfall reads `rain_relief`, a smoothed copy of the formed terrain,
+/// because precipitation responds to topography at ~10 km and above;
+/// 1 km ridges of eroded terrain would otherwise make per-cell rain spikes.
+/// Temperature, regime and ocean masks still use the true grid.
+#[must_use]
+pub fn climate_smoothed_rain(grid: &ContinentGrid, band: LatitudeBand) -> ContinentClimate {
+    let smooth = smoothed_land(grid, 5, 2);
+    climate_with_rain_relief(grid, band, &smooth)
+}
+
+/// Box-blurs land heights (radius `r` cells, `passes` times); sea cells
+/// keep their height so the ocean mask and coastline are unchanged.
+fn smoothed_land(grid: &ContinentGrid, r: i32, passes: u32) -> ContinentGrid {
+    let (w, h) = (grid.width(), grid.height());
+    let n = usize::try_from(w * h).unwrap_or(0);
+    let idx = |x: i32, y: i32| usize::try_from(y * w + x).unwrap_or(0);
+    let mut cur: Vec<i64> = (0..n)
+        .map(|i| {
+            let (x, y) = (
+                i32::try_from(i).unwrap_or(0) % w,
+                i32::try_from(i).unwrap_or(0) / w,
+            );
+            i64::from(grid.get(x, y).raw().max(0))
+        })
+        .collect();
+    let mut next = cur.clone();
+    for _ in 0..passes {
+        for y in 0..h {
+            for x in 0..w {
+                let s: i64 = (-r..=r).map(|d| cur[idx((x + d).clamp(0, w - 1), y)]).sum();
+                next[idx(x, y)] = s / i64::from(2 * r + 1);
+            }
+        }
+        for y in 0..h {
+            for x in 0..w {
+                let s: i64 = (-r..=r)
+                    .map(|d| next[idx(x, (y + d).clamp(0, h - 1))])
+                    .sum();
+                cur[idx(x, y)] = s / i64::from(2 * r + 1);
+            }
+        }
+    }
+    let heights = (0..n)
+        .map(|i| {
+            let (x, y) = (
+                i32::try_from(i).unwrap_or(0) % w,
+                i32::try_from(i).unwrap_or(0) / w,
+            );
+            let raw = grid.get(x, y).raw();
+            if raw <= 0 {
+                raw
+            } else {
+                i32::try_from(cur[i].max(1)).unwrap_or(raw)
+            }
+        })
+        .collect();
+    ContinentGrid::from_heights(w, h, heights).unwrap_or_else(|_| grid.clone())
+}
+
+fn climate_with_rain_relief(
+    grid: &ContinentGrid,
+    band: LatitudeBand,
+    rain_relief: &ContinentGrid,
+) -> ContinentClimate {
     let (w, h) = (grid.width(), grid.height());
     let count = usize::try_from(w * h).unwrap_or(0);
     let ocean = ocean_mask(grid);
@@ -249,7 +317,7 @@ pub fn climate(grid: &ContinentGrid, band: LatitudeBand) -> ContinentClimate {
             });
         }
     }
-    let (rainfall, moisture) = rainfall_field(grid, &ocean);
+    let (rainfall, moisture) = rainfall_field(rain_relief, &ocean);
     let ocean_distance_km = dist.into_iter().map(capped_distance).collect();
     ContinentClimate {
         temperature,

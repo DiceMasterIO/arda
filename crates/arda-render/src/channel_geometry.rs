@@ -6,6 +6,8 @@ pub(crate) const Q: i64 = 1 << 20;
 const COORD_LIMIT: i64 = 1 << 40;
 const MAX_VERTICES: usize = 128;
 const MAX_PIECES: usize = 4096;
+// Overview-only: subdivide before the union accumulates costly fragment lists.
+const OVERVIEW_SUBDIVIDE_PIECES: usize = 64;
 pub(crate) type Point = (i64, i64);
 pub(crate) type Polygon = Vec<Point>;
 
@@ -337,6 +339,42 @@ pub(crate) fn strip(
     Ok((p, a_cap, b_cap))
 }
 
+/// A strip in any direction (recipe-5 thalweg vertices, logic/04
+/// §atlas-formed rivers): exact integer unit normal from the edge length.
+pub(crate) fn strip_free(
+    a: Point,
+    b: Point,
+    width_a: i64,
+    width_b: i64,
+) -> Result<(Polygon, [Point; 2], [Point; 2]), RenderError> {
+    validate(&[a, b])?;
+    if a == b || width_a < 0 || width_b < 0 {
+        return Err(invalid("channel edge has zero length or negative width"));
+    }
+    let (ex, ey) = (i128::from(b.0 - a.0), i128::from(b.1 - a.1));
+    let length = i128::try_from((ex * ex + ey * ey).unsigned_abs().isqrt())
+        .map_err(|_| invalid("channel length exceeds i128"))?;
+    let normal = |width: i64| -> Result<Point, RenderError> {
+        let w = i128::from(width);
+        Ok((
+            i64::try_from(-ey * w / (2 * length))
+                .map_err(|_| invalid("channel normal exceeds i64"))?,
+            i64::try_from(ex * w / (2 * length))
+                .map_err(|_| invalid("channel normal exceeds i64"))?,
+        ))
+    };
+    let na = normal(width_a)?;
+    let nb = normal(width_b)?;
+    let a_cap = [(a.0 + na.0, a.1 + na.1), (a.0 - na.0, a.1 - na.1)];
+    let b_cap = [(b.0 + nb.0, b.1 + nb.1), (b.0 - nb.0, b.1 - nb.1)];
+    let mut p = vec![a_cap[0], b_cap[0], b_cap[1], a_cap[1]];
+    validate(&p)?;
+    if signed_area(&p) < 0 {
+        p.reverse();
+    }
+    Ok((p, a_cap, b_cap))
+}
+
 pub(crate) fn rectangle(x0: i64, y0: i64, x1: i64, y1: i64) -> Polygon {
     vec![(x0, y0), (x1, y0), (x1, y1), (x0, y1)]
 }
@@ -364,6 +402,194 @@ pub(crate) fn hull(mut points: Vec<Point>) -> Result<Polygon, RenderError> {
     }
     out.pop();
     Ok(out)
+}
+
+// The opt-in world overview can place many wide saved strips in one fitted
+// pixel. The ordinary exact union above may fragment even 14 overlapping
+// polygons into 64 pieces. Recursively subdividing that pixel
+// keeps the same Q20 clipping/union operation; a finite depth/work refusal
+// remains instead of omitting channels or silently clamping coverage.
+struct RectUnion {
+    area2: i128,
+    maximum_discharge: u64,
+    roundings: u64,
+    pieces: usize,
+}
+fn union_rect(
+    polygons: &[(&Polygon, u64)],
+    rect: &Polygon,
+    work: &mut WorkBudget,
+) -> Result<Option<RectUnion>, RenderError> {
+    let mut disjoint: Vec<Polygon> = Vec::new();
+    let mut roundings = 0_u64;
+    let mut maximum_discharge = 0_u64;
+    let mut full = false;
+    let rect_area2 = area2(rect);
+    for &(poly, discharge) in polygons {
+        let clipped = intersection(poly, rect, &mut roundings, work)?;
+        if clipped.is_empty() {
+            continue;
+        }
+        maximum_discharge = maximum_discharge.max(discharge);
+        if full {
+            continue;
+        }
+        work.charge(clipped.len() as u64)?;
+        if area2(&clipped) >= rect_area2 {
+            full = true;
+            disjoint.clear();
+            continue;
+        }
+        let mut parts = vec![clipped];
+        for old in &disjoint {
+            let mut next = Vec::new();
+            for p in &parts {
+                work.charge(1)?;
+                for part in subtract(p, old, &mut roundings, work)? {
+                    if next.len() + disjoint.len() >= OVERVIEW_SUBDIVIDE_PIECES {
+                        return Ok(None);
+                    }
+                    next.push(part);
+                }
+            }
+            parts = next;
+            if parts.is_empty() {
+                break;
+            }
+        }
+        if disjoint.len() + parts.len() >= OVERVIEW_SUBDIVIDE_PIECES {
+            return Ok(None);
+        }
+        disjoint.extend(parts);
+    }
+    work.charge(disjoint.iter().map(|p| p.len() as u64).sum())?;
+    Ok(Some(RectUnion {
+        area2: if full {
+            rect_area2
+        } else {
+            disjoint.iter().map(|p| area2(p)).sum()
+        },
+        maximum_discharge,
+        roundings,
+        pieces: if full { 1 } else { disjoint.len() },
+    }))
+}
+fn union_subdivided(
+    polygons: &[(&Polygon, u64)],
+    bounds: [i64; 4],
+    depth: u8,
+    work: &mut WorkBudget,
+) -> Result<RectUnion, RenderError> {
+    let [x0, y0, x1, y1] = bounds;
+    let rect = rectangle(x0, y0, x1, y1);
+    if let Some(result) = union_rect(polygons, &rect, work)? {
+        return Ok(result);
+    }
+    if depth == 6 {
+        return Err(invalid(
+            "overview channel union exceeds bounded Q20 subdivision",
+        ));
+    }
+    let mx = (x0 + x1) / 2;
+    let my = (y0 + y1) / 2;
+    let mut total = RectUnion {
+        area2: 0,
+        maximum_discharge: 0,
+        roundings: 0,
+        pieces: 0,
+    };
+    for quadrant in [
+        [x0, y0, mx, my],
+        [mx, y0, x1, my],
+        [x0, my, mx, y1],
+        [mx, my, x1, y1],
+    ] {
+        let part = union_subdivided(polygons, quadrant, depth + 1, work)?;
+        total.area2 = total
+            .area2
+            .checked_add(part.area2)
+            .ok_or_else(|| invalid("overview union area overflow"))?;
+        total.maximum_discharge = total.maximum_discharge.max(part.maximum_discharge);
+        total.roundings = total
+            .roundings
+            .checked_add(part.roundings)
+            .ok_or_else(|| invalid("overview union work overflow"))?;
+        total.pieces = total
+            .pieces
+            .checked_add(part.pieces)
+            .ok_or_else(|| invalid("overview union piece count overflow"))?;
+    }
+    Ok(total)
+}
+/// Bounded deterministic Q20 polygon coverage for dense Atlas overview channels.
+/// Segment intersections are rounded to Q20, so this is not an unrounded real-number union.
+/// Subdivides only pixels whose ordinary fixed-point polygon union fragments
+/// at its 64-piece overview trigger; all paths retain typed work/depth failures.
+pub(crate) fn coverage_overview<'a>(
+    polygons: impl IntoIterator<Item = (&'a Polygon, u64)>,
+    x: u32,
+    y: u32,
+    work: &mut WorkBudget,
+) -> Result<Coverage, RenderError> {
+    if x >= crate::ImageQuality::MAX || y >= crate::ImageQuality::MAX {
+        return Err(invalid("overview channel pixel exceeds supported axis"));
+    }
+    let input: Vec<_> = polygons.into_iter().collect();
+    let x0 = i64::from(x) * Q;
+    let y0 = i64::from(y) * Q;
+    let result = union_subdivided(&input, [x0, y0, x0 + Q, y0 + Q], 0, work)?;
+    let alpha = u16::try_from(
+        nearest(result.area2 * 65_535, 2 * i128::from(Q) * i128::from(Q)).clamp(0, 65_535),
+    )
+    .map_err(|_| invalid("overview channel coverage leaves u16 range"))?;
+    Ok(Coverage {
+        alpha,
+        roundings: result.roundings,
+        pieces: result.pieces,
+        maximum_discharge: result.maximum_discharge,
+    })
+}
+#[cfg(test)]
+mod overview_dense_tests {
+    use super::*;
+    fn check_fixture(raw: &str, expected_alpha: u16, expected_q: u64) {
+        let json: serde_json::Value = serde_json::from_str(raw).unwrap();
+        assert_eq!(json["q"].as_i64(), Some(Q));
+        let x = u32::try_from(json["pixel"][0].as_u64().unwrap()).unwrap();
+        let y = u32::try_from(json["pixel"][1].as_u64().unwrap()).unwrap();
+        let polygons: Vec<(Polygon, u64)> = json["polygons"]
+            .as_array()
+            .unwrap()
+            .iter()
+            .map(|record| {
+                let p = record["polygon"]
+                    .as_array()
+                    .unwrap()
+                    .iter()
+                    .map(|point| (point[0].as_i64().unwrap(), point[1].as_i64().unwrap()))
+                    .collect();
+                (p, record["discharge"].as_u64().unwrap())
+            })
+            .collect();
+        let mut work = WorkBudget::new(250_000_000);
+        let result =
+            coverage_overview(polygons.iter().map(|(p, q)| (p, *q)), x, y, &mut work).unwrap();
+        assert!(result.alpha.abs_diff(expected_alpha) <= 2);
+        assert_eq!(result.maximum_discharge, expected_q);
+    }
+    #[test]
+    fn saved_dense_14_polygon_pixels_match_independent_geos_to_q20_tolerance() {
+        check_fixture(
+            include_str!("overview/fixtures/pixel-142-17.json"),
+            2429,
+            166,
+        );
+        check_fixture(
+            include_str!("overview/fixtures/pixel-301-474.json"),
+            43178,
+            88715,
+        );
+    }
 }
 
 #[cfg(test)]

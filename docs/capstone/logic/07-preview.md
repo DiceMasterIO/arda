@@ -1,9 +1,9 @@
 ---
-generated_date: 2026-09-08
-generated_at_commit: b0f93f22b969
-content_hash: de2675f24dc3
+generated_date: 2026-09-23
+generated_at_commit: 0fc9666b583b
+content_hash: e98c69ad4d34
 paths_covered: [":(top)crates/arda-cli/src/**", ":(top)crates/arda/src/**", ":(top)crates/arda-gen/src/orchestrator.rs", ":(top)crates/arda-gen/src/orchestrator/**", ":(top)crates/arda-core/src/config.rs", ":(top)crates/arda-core/src/formats/manifest.rs", ":(top)crates/arda-render/src/**"]
-absorbed_from: features/2026-09-07-area-water-terrain-realism@2026-09-08
+absorbed_from: features/2026-09-07-area-water-terrain-realism@2026-09-08, features/2026-09-22-geographical-rendering-first-pass@2026-09-22, features/2026-09-23-terrain-corrections@2026-09-23
 ---
 
 # 07 — Preview a seed
@@ -12,14 +12,14 @@ Descriptive extraction of the implemented `Preview` command; owns the composed C
 
 ## Trigger & preconditions
 
-A local user runs `arda preview --seed <u64> --out <path>`. There is no application identity or authorization layer; filesystem permissions govern access (`crates/arda-cli/src/main.rs`). Seed and out are required; size defaults to 500x1000 km, micro defaults false, and overview quality defaults to 8192 (8K) on the long edge. `--quality` accepts any integer 512–32768 pixels or an integer k/K suffix, where 1K is 1024. Legacy `--px` is optional (1–512 pixels per area) and conflicts with explicit quality. Generation requires an empty `out/world` directory (`crates/arda-cli/src/main.rs`, `crates/arda-gen/src/orchestrator.rs`).
+A local user runs `arda preview --seed <u64> --out <path>`. There is no application identity or authorization layer; filesystem permissions govern access (`crates/arda-cli/src/main.rs`). Seed and out are required; size defaults to 500x1000 km, micro defaults false, and overview quality defaults to 8192 (8K) on the long edge. `--quality` accepts any integer 512–32768 pixels or an integer k/K suffix, where 1K is 1024. `--style classic|atlas` selects PNG presentation; omission remains Classic. Legacy `--px` is optional (1–512 pixels per area) and conflicts with explicit quality or any explicit style, including Classic (`crates/arda-cli/src/main.rs:51`). Generation requires an empty `out/world` directory (`crates/arda-gen/src/orchestrator.rs`).
 
 ## Steps
 
 1. Choose MICRO (102×204 km) when `--micro` is set; otherwise parse lowercase-x-separated width/height and validate `GenerateConfig` with latitude 35–55°N and density 15. MICRO bypasses parsing the supplied size (`crates/arda-cli/src/main.rs`, `crates/arda-cli/src/main.rs`).
 2. Create `out/world`, print seed, configured dimensions and area count (`crates/arda-cli/src/main.rs`). Config uses integer axis/51 counts; default is 9×19 areas (`crates/arda-core/src/config.rs`).
 3. Run the full generation pipeline and print generated area count and land permille. This includes canonical terrain preparation, shared annual water calculation, immutable area composition and sampled tactical generation (`crates/arda-cli/src/main.rs`, `crates/arda-gen/src/orchestrator.rs`).
-4. Load and validate the format-4 manifest and create empty per-area cache slots. Export the area-derived overview by reading one owned area at a time; this does not populate the persistent area cache or load block archives. By default, or with `--quality`, the PNG uses the selected long edge and rounds the shorter edge to the nearest pixel from the saved area-grid aspect ratio; bounded bands allow square 32K output. Explicit legacy `--px` instead produces areas_wide×px by areas_high×px through the buffered renderer. Raster validation rejects invalid dimensions before area reads (`crates/arda/src/world.rs`, `crates/arda/src/export_quality.rs`, `crates/arda-render/src/quality.rs`, `crates/arda-render/src/overview/streaming.rs`).
+4. Load and validate the format-4 manifest and create empty per-area cache slots. Export the area-derived overview by reading owned areas as needed; this does not populate the persistent area cache or load block archives. The quality renderer can reread an area when it intersects several 256-row bands and receives cells after the facade drops the owned area's objects; the Atlas callback also supplies derived AtlasTerrain context. Atlas additionally reads up to eight saved neighbors per area in fixed order, copying a two-cell halo and dropping each neighbor before the next; missing or corrupt in-bounds neighbors fail. Atlas derives fixed-size palette/light/class/height samples, including slope-derived rock/snow appearance and northwest relief. It validates saved lake surfaces and bed heights before releasing each area payload; Atlas lake colour uses the same depth ramp as the sea, while Classic retains categorical overview fill. Enlarged sea/land pixels use the guarded height-contour classifier shared with area export; lake, thin-feature and ambiguous-diagonal guards retain saved ownership, as do Box/mixed-axis views (`crates/arda-render/src/atlas.rs:412`). The overview retains its categorical lake threshold and discharge-band rivers. By default, or with `--quality`, the PNG uses the selected long edge and rounds the shorter edge to the nearest pixel from the saved area-grid aspect ratio; bounded bands allow square 32K output. Explicit legacy `--px` instead produces areas_wide×px by areas_high×px through the buffered Classic renderer. Raster validation rejects invalid dimensions before area reads (`crates/arda/src/export_quality.rs:107`, `crates/arda/src/atlas.rs:35`, `crates/arda-render/src/overview/streaming.rs:73`).
 5. In the quality path, stream into an exclusive temporary sibling, flush/close it and rename it to `out/overview.png` on success. Explicit `--px` retains the completed-buffer write. Print the PNG path and return success (`crates/arda-cli/src/main.rs`, `crates/arda/src/export_quality.rs`, `crates/arda/src/lib.rs`).
 
 ## Branches
@@ -28,7 +28,7 @@ A local user runs `arda preview --seed <u64> --out <path>`. There is no applicat
 
 ## Unhappy paths
 
-Clap rejects malformed integer arguments, quality outside 512–32768, legacy px outside 1–512 and explicit `--px`/`--quality` combinations before generation. Config refusal occurs before directory creation; mkdir, generation, load, render and write errors propagate to main with no outer retry or compensation (`crates/arda-cli/src/main.rs`, `crates/arda-cli/src/main.rs`). Aggregate raster validation for the legacy buffered path still occurs after generation and manifest loading; its pixel cap can leave a complete world with no PNG. Mid-generation failure can leave a partial world; repeating the command against an occupied `out/world` is refused. An ordinary quality-path render/write failure preserves any previous completed overview and attempts to remove its temporary sibling; abrupt interruption may leave the temporary file. A failed legacy `--px` buffer write can leave truncated destination bytes. A create-new transaction marker reserves an empty target against cooperating generators. Interruption has no resume handler (`crates/arda-gen/src/orchestrator.rs`, `crates/arda/src/lib.rs`).
+Clap rejects malformed integer arguments, unknown styles, quality outside 512–32768, legacy px outside 1–512 and explicit `--px` with `--quality` or `--style` before generation (`crates/arda-cli/src/main.rs:51`). Config refusal occurs before directory creation; mkdir, generation, load, render and write errors propagate to main with no outer retry or compensation. Atlas also fails on unavailable in-bounds neighbors or contradictory halo context (`crates/arda/src/atlas.rs:43`, `crates/arda-render/src/atlas.rs:176`). Aggregate raster validation for the legacy buffered path still occurs after generation and manifest loading; its pixel cap can leave a complete world with no PNG. Mid-generation failure can leave a partial world; repeating the command against an occupied `out/world` is refused. An ordinary quality-path render/write failure preserves any previous completed overview and attempts to remove its temporary sibling; abrupt interruption may leave the temporary file. A failed legacy `--px` buffer write can leave truncated destination bytes. A create-new transaction marker reserves an empty target against cooperating generators. Interruption has no resume handler (`crates/arda-gen/src/orchestrator.rs`, `crates/arda/src/lib.rs`).
 
 ## State transitions
 
@@ -36,7 +36,7 @@ Empty target → reserved partial world → complete layers and global tables �
 
 ## Invariants
 
-On successful return, generation, manifest validation and every overview area read succeeded and overview bytes were written. Preview does not mutate generated layers during export, and uses no clock-dependent rendering input (`crates/arda-cli/src/main.rs`, `crates/arda/src/lib.rs`). Image quality does not change the generated 100 m terrain. It provides no all-or-nothing guarantee over world plus PNG and no cache/deduplication service for repeated invocations.
+On successful return, generation, manifest validation and every requested overview area read succeeded; Atlas also read all required in-bounds neighbors. Preview wrote overview bytes without mutating generated layers or using clock-dependent rendering input (`crates/arda-cli/src/main.rs:209`, `crates/arda/src/export_quality.rs:107`). Style and image quality do not change the generated 100 m terrain. It provides no all-or-nothing guarantee over world plus PNG and no cache/deduplication service for repeated invocations.
 
 ## Outcomes & side effects
 

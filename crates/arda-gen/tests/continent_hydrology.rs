@@ -2,12 +2,17 @@
 //! persistence round-trip through a generated world.
 #![allow(clippy::unwrap_used, clippy::expect_used)]
 
-use arda_core::{decode_continent_objects, decode_overview, GenerateConfig, LatitudeBand};
+use arda_core::{
+    decode_continent_objects, decode_overview, GenerateConfig, LatitudeBand, NO_DOWNSTREAM,
+};
 use arda_gen::continent::climate::climate;
-use arda_gen::continent::generate_continent;
 use arda_gen::continent::hydrology::{extract_rivers, hydrology};
+use arda_gen::continent::{generate_continent, generate_continent_attempt};
 use arda_gen::orchestrator::generate_world;
 use std::path::PathBuf;
+
+// The seed-42 MICRO attempt accepted by the continent land and river gates.
+const ACCEPTED_MICRO_ATTEMPT: u8 = 2;
 
 struct TempDir(PathBuf);
 impl TempDir {
@@ -38,18 +43,59 @@ fn micro_world_persists_a_real_continent_layer() {
     assert!(overview.cells.iter().any(|c| c.rainfall.raw() > 0));
     assert!(overview.cells.iter().any(|c| c.catchment_km2 > 0));
 
+    // The generated world must persist the same accepted attempt exercised
+    // by the course, drainage and sea invariants below.
+    let grid = generate_continent_attempt(42, GenerateConfig::MICRO, ACCEPTED_MICRO_ATTEMPT);
+    let climate = climate(&grid, GenerateConfig::MICRO.latitude_band());
+    let hydro = hydrology(&grid, &climate);
+    assert_eq!(
+        (overview.width, overview.height),
+        (grid.width(), grid.height())
+    );
+    for (i, saved) in overview.cells.iter().enumerate() {
+        let x = i32::try_from(i).unwrap() % grid.width();
+        let y = i32::try_from(i).unwrap() / grid.width();
+        assert_eq!(saved.height, grid.get(x, y), "height at {x},{y}");
+        assert_eq!(
+            saved.temperature.raw(),
+            climate.temperature[i],
+            "temperature at {x},{y}"
+        );
+        assert_eq!(
+            saved.rainfall.raw(),
+            climate.rainfall[i],
+            "rainfall at {x},{y}"
+        );
+        assert_eq!(saved.regime, climate.regime[i], "regime at {x},{y}");
+        assert_eq!(
+            saved.downstream,
+            (hydro.downstream_dir[i] != NO_DOWNSTREAM).then_some(hydro.downstream_dir[i]),
+            "receiver at {x},{y}"
+        );
+        assert_eq!(
+            saved.catchment_km2, hydro.catchment_km2[i],
+            "catchment at {x},{y}"
+        );
+        assert_eq!(
+            saved.discharge.raw(),
+            hydro.discharge_l_s[i],
+            "discharge at {x},{y}"
+        );
+    }
+
     let bytes = std::fs::read(dir.0.join("continent/objects.bin")).unwrap();
     let objects = decode_continent_objects("continent/objects.bin", &bytes).unwrap();
     assert!(
         !objects.rivers.is_empty(),
         "micro world has no rivers (§Q7 floor)"
     );
+    assert_eq!(objects.rivers, extract_rivers(&grid, &hydro));
 }
 
 #[test]
 fn every_micro_land_cell_reaches_the_ocean() {
-    // Spec R7 invariant (a) on the real seed-42 micro continent.
-    let g = generate_continent(42, GenerateConfig::MICRO);
+    // Spec R7 invariant (a) on the accepted seed-42 micro continent.
+    let g = generate_continent_attempt(42, GenerateConfig::MICRO, ACCEPTED_MICRO_ATTEMPT);
     let c = climate(&g, LatitudeBand::new(35, 55));
     let hy = hydrology(&g, &c);
     let (w, h) = (g.width(), g.height());
@@ -89,12 +135,17 @@ fn micro_rivers_satisfy_the_course_invariants() {
     // Spec R7 invariant (c) on courses: connected, descending on the
     // routing surface, feeds acyclic. Invariants (b) (catchment/discharge
     // monotonicity) and (d) (zero catchment/discharge on sea cells) are
-    // covered separately below, against this same real seed-42 terrain.
-    let g = generate_continent(42, GenerateConfig::MICRO);
+    // covered separately below, against this same accepted seed-42 terrain.
+    let g = generate_continent_attempt(42, GenerateConfig::MICRO, ACCEPTED_MICRO_ATTEMPT);
     let c = climate(&g, LatitudeBand::new(35, 55));
     let hy = hydrology(&g, &c);
     let rivers = extract_rivers(&g, &hy);
-    assert!(!rivers.is_empty());
+    assert_eq!(rivers.len(), 2, "accepted MICRO terrain lost its rivers");
+    assert_eq!(
+        rivers.iter().filter(|r| r.feeds.is_none()).count(),
+        2,
+        "accepted MICRO terrain lost its sea-reaching rivers"
+    );
     let w = usize::try_from(g.width()).unwrap_or(0);
     for r in &rivers {
         if let Some(f) = r.feeds {
@@ -123,10 +174,10 @@ fn micro_rivers_satisfy_the_course_invariants() {
 
 #[test]
 fn micro_hydrology_satisfies_catchment_and_sea_invariants() {
-    // Spec R7 invariants (b) and (d), on the real seed-42 micro continent
+    // Spec R7 invariants (b) and (d), on the accepted seed-42 micro continent
     // (hydrology.rs's unit tests only cover these against the synthetic
     // "dome" fixture, never against generated terrain).
-    let g = generate_continent(42, GenerateConfig::MICRO);
+    let g = generate_continent_attempt(42, GenerateConfig::MICRO, ACCEPTED_MICRO_ATTEMPT);
     let c = climate(&g, LatitudeBand::new(35, 55));
     let hy = hydrology(&g, &c);
     let w = g.width();

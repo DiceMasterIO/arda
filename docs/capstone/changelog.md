@@ -2,6 +2,58 @@
 generated_date: 2026-08-24
 ---
 
+## 2026-09-22 - groom: geographical rendering first pass
+key: groom/2026-09-22-geographical-rendering-first-pass@Q4
+
+- `features/2026-09-22-geographical-rendering-first-pass/spec.md`: formalizes eight requirements, twelve behavior rules and six constraints for an additive natural shaded atlas over saved geography.
+- `features/2026-09-22-geographical-rendering-first-pass/references/natural-atlas-concept.png`: retains the selected AI-generated style reference, explicitly distinct from real Arda evidence.
+- User selected the first natural-atlas concept and accepted the render-first scope; delegated work uses GPT-5.6 Sol.
+- Rejected illustrated-fantasy, resolution-only, palette-only and generated-artwork export approaches; saved edge slope alone cannot ensure seam continuity.
+- Proposed implementation preserves Classic compatibility and uses cardinal saved-height borders, existing water authority and bounded streaming.
+- New generation, ecology, settlement/road outlines, society, tactical scenes and unrelated Windows line-ending repair remain outside this pass.
+- Actual code, real-map visual acceptance and concrete implementation-plan approval remain pending.
+
+## 2026-09-22 - map: rendering feature prerequisite refresh
+key: map/all@23dfb0999672-rendering-prerequisite
+
+- `01-architecture.md`: source-drift refresh for quality exports, complete CLI branches, renderer payloads, bounded streaming and temporary-file publication; preserves delivered physical generation.
+- `02-models.md`: source-drift refresh adds image-quality and streaming records, corrects exact overview limits and updates loading/render validation without changing format-4 definitions.
+- `04-data-flow.md`: source-drift refresh replaces obsolete fixed-resolution/buffer-only export flow with quality bands/rows, uncached reads and explicit failure behavior.
+- `06-testing.md`: source-drift refresh adds quality/streaming and publication test coverage while preserving dated verification sections unchanged; no tests rerun.
+- `07-operations.md`: covered-source audit retains current quality/export contracts and records single-invocation workspace CI wiring and the dated Windows failure.
+- `logic/07-preview.md`: source-drift refresh records rereads across 256-row bands and the cells-only overview handoff; existing quality/default/legacy behavior is preserved.
+- `00-index.md`: records the new local rendering-feature working state; earlier feature-local galleries remain absent, not undone.
+- User selected Sol subagents for the feature chain; GPT-6 Sol was rejected by the account, so three GPT-5.6 Sol agents supplied read-only audits and root composed the reference changes.
+- Export logic and the export surface already describe current quality behavior; unrelated conventions/dependencies/glossary drift is outside this prerequisite refresh. No frontend or runtime interface was added.
+- No production code, saved-world data, generation, rendering, approved golden hashes or runtime tests changed; the feature remains in grooming with its visual approach awaiting the user.
+
+## 2026-09-22 - docs: detailed remaining-work queue
+key: docs/open-items-detail@23dfb0999672-2026-09-22
+
+- `docs/capstone/open-items.md`: adds 31 work items with 203 ordered steps, dependencies, code targets and completion gates; maps all 12 historical inventory items, original build stages and 18 companion roadmap steps.
+- `docs/tactical-map-roadmap.md`: links the detailed queue and aligns delivery order with shared-layout finalization before publishing settlement outlines.
+- `docs/capstone/implementation.md`: points the retained build stages to the detailed queue without discarding delivered work or historical plans.
+- `docs/capstone/00-index.md`: describes the queue and the world/area/tactical roadmap as complementary references.
+- Confirmed scope: richer geographical world rendering plus settlement outlines/main roads; area building outlines/local paths; detailed tactical scenes sharing the same geometry and identities.
+- World/area output must be available before tactical interiors or furnishings; WFC remains one assembly stage and society binds to the shared layout.
+- Current code already includes bounded terrain interpolation, shared annual water, lazy loading and 32K streaming exports; retained tasks build on those foundations.
+- CI rechecked September 22: exact-HEAD run 34260968213 remains attempt 1 with the recorded Windows golden-text line-ending failure; no newer run or retry was found.
+- Verification: three domain reviews, 31 task-structure checks, 63 local links/anchors, inventory/roadmap coverage and unchanged historical-appendix hash; documentation diff passes whitespace checks.
+- No production changes, generation, rendering or runtime tests were performed; terrain fixes, content implementation and visual acceptance remain future work.
+
+## 2026-09-21 - map: implementation status audit
+key: map/status@23dfb0999672
+
+- `README.md`: separates implemented physical-world/data/export/tooling capabilities from remaining content and model boundaries; records exact-commit CI outcome.
+- `docs/capstone/open-items.md`: source-audited capability inventory at `23dfb0999672`; distinguishes basic cover from full vegetation, recorded successful checks from live CI, and historical visual findings from fresh observations.
+- `docs/capstone/implementation.md`: credits delivered parts of steps 4, 5, 6, 9, 10 and 12; retires obsolete eager-loading, empty-overview, upstream-count-only discharge and simple-memory-cap claims.
+- `docs/capstone/06-testing.md`: points to the current Windows golden-text line-ending failure without relabeling earlier successful evidence or restamping the historical inventory.
+- `docs/capstone/00-index.md`: describes the audited status and reconciled plan; indexes the tactical roadmap and records the local feature evidence folder's absence in this checkout.
+- `docs/tactical-map-roadmap.md`: expands the implemented baseline so tactical work builds on delivered terrain, climate, shared water, basic cover, storage, loading and 32K exports.
+- CI run `34260968213`, attempt 1 at exact HEAD, passed Linux/macOS, lint, MSRV and dependency jobs; Windows golden text differed only by LF/CRLF in 34 otherwise matching fingerprint entries. No CI rerun or code fix was performed.
+- Prior C06 and later export verification counts remain dated records; no generation, rendering or test suite was rerun. Missing local image/report files do not reverse committed implementation.
+- Overall terrain visual acceptance, richer vegetation/human geography, complete tactical scenes and serving remain open. The static annual model's absent seasonal processes are scope boundaries.
+
 ## 2026-09-08 - snapshot: C06 correction and feature-code cleanup
 key: snapshot/2026-09-07-area-water-terrain-realism@c06-committed-cleanup
 

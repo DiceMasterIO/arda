@@ -1,0 +1,12 @@
+{
+ "_note": "Original to Arda. Notable ranges follow docs/capstone/logic/06-society-generation.md step 5.",
+ "tiers": {
+  "hamlet":  {"notables": [2, 4],    "levels": [1, 2], "leader_levels": [2, 3],  "rural_pm": 1000,  "urban_pm": 150, "officials": [], "promote": ["headman", "elder", "yeoman"]},
+  "village": {"notables": [6, 12],   "levels": [1, 2], "leader_levels": [2, 3],  "rural_pm": 1000,  "urban_pm": 300,  "officials": ["reeve"], "promote": ["elder", "yeoman", "yeoman"]},
+  "town":    {"notables": [20, 60],  "levels": [1, 4], "leader_levels": [5, 8],  "rural_pm": 220,  "urban_pm": 1000,  "officials": ["mayor", "magistrate", "tax_collector"], "promote": ["elder", "yeoman"]},
+  "city":    {"notables": [60, 200], "levels": [2, 6], "leader_levels": [8, 12], "rural_pm": 60, "urban_pm": 1400,  "officials": ["lord_mayor", "magistrate", "magistrate", "tax_collector", "tax_collector"], "promote": ["magistrate", "factor"]}
+ },
+ "capital_officials": ["herald"],
+ "exception": {"chance_per_mille": 20, "bonus_levels": 3, "max_level": 20},
+ "household_sizes": [[1, 6], [2, 13], [3, 17], [4, 20], [5, 18], [6, 13], [7, 8], [8, 5]]
+}

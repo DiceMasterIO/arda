@@ -1,0 +1,2694 @@
+[
+ {
+  "name": "Acid Splash",
+  "level": 0,
+  "classes": [
+   "Sorcerer",
+   "Wizard"
+  ]
+ },
+ {
+  "name": "Chill Touch",
+  "level": 0,
+  "classes": [
+   "Sorcerer",
+   "Warlock",
+   "Wizard"
+  ]
+ },
+ {
+  "name": "Dancing Lights",
+  "level": 0,
+  "classes": [
+   "Bard",
+   "Sorcerer",
+   "Wizard"
+  ]
+ },
+ {
+  "name": "Druidcraft",
+  "level": 0,
+  "classes": [
+   "Druid"
+  ]
+ },
+ {
+  "name": "Eldritch Blast",
+  "level": 0,
+  "classes": [
+   "Warlock"
+  ]
+ },
+ {
+  "name": "Fire Bolt",
+  "level": 0,
+  "classes": [
+   "Sorcerer",
+   "Wizard"
+  ]
+ },
+ {
+  "name": "Guidance",
+  "level": 0,
+  "classes": [
+   "Cleric",
+   "Druid"
+  ]
+ },
+ {
+  "name": "Light",
+  "level": 0,
+  "classes": [
+   "Bard",
+   "Cleric",
+   "Sorcerer",
+   "Wizard"
+  ]
+ },
+ {
+  "name": "Mage Hand",
+  "level": 0,
+  "classes": [
+   "Bard",
+   "Sorcerer",
+   "Warlock",
+   "Wizard"
+  ]
+ },
+ {
+  "name": "Mending",
+  "level": 0,
+  "classes": [
+   "Bard",
+   "Cleric",
+   "Druid",
+   "Sorcerer",
+   "Wizard"
+  ]
+ },
+ {
+  "name": "Message",
+  "level": 0,
+  "classes": [
+   "Bard",
+   "Sorcerer",
+   "Wizard"
+  ]
+ },
+ {
+  "name": "Minor Illusion",
+  "level": 0,
+  "classes": [
+   "Bard",
+   "Sorcerer",
+   "Warlock",
+   "Wizard"
+  ]
+ },
+ {
+  "name": "Poison Spray",
+  "level": 0,
+  "classes": [
+   "Druid",
+   "Sorcerer",
+   "Warlock",
+   "Wizard"
+  ]
+ },
+ {
+  "name": "Prestidigitation",
+  "level": 0,
+  "classes": [
+   "Bard",
+   "Sorcerer",
+   "Warlock",
+   "Wizard"
+  ]
+ },
+ {
+  "name": "Produce Flame",
+  "level": 0,
+  "classes": [
+   "Druid"
+  ]
+ },
+ {
+  "name": "Ray of Frost",
+  "level": 0,
+  "classes": [
+   "Sorcerer",
+   "Wizard"
+  ]
+ },
+ {
+  "name": "Resistance",
+  "level": 0,
+  "classes": [
+   "Cleric",
+   "Druid"
+  ]
+ },
+ {
+  "name": "Sacred Flame",
+  "level": 0,
+  "classes": [
+   "Cleric"
+  ]
+ },
+ {
+  "name": "Shillelagh",
+  "level": 0,
+  "classes": [
+   "Druid"
+  ]
+ },
+ {
+  "name": "Shocking Grasp",
+  "level": 0,
+  "classes": [
+   "Sorcerer",
+   "Wizard"
+  ]
+ },
+ {
+  "name": "Spare the Dying",
+  "level": 0,
+  "classes": [
+   "Cleric"
+  ]
+ },
+ {
+  "name": "Thaumaturgy",
+  "level": 0,
+  "classes": [
+   "Cleric"
+  ]
+ },
+ {
+  "name": "True Strike",
+  "level": 0,
+  "classes": [
+   "Bard",
+   "Sorcerer",
+   "Warlock",
+   "Wizard"
+  ]
+ },
+ {
+  "name": "Vicious Mockery",
+  "level": 0,
+  "classes": [
+   "Bard"
+  ]
+ },
+ {
+  "name": "Alarm",
+  "level": 1,
+  "classes": [
+   "Ranger",
+   "Wizard"
+  ]
+ },
+ {
+  "name": "Animal Friendship",
+  "level": 1,
+  "classes": [
+   "Bard",
+   "Druid",
+   "Ranger"
+  ]
+ },
+ {
+  "name": "Bane",
+  "level": 1,
+  "classes": [
+   "Bard",
+   "Cleric"
+  ]
+ },
+ {
+  "name": "Bless",
+  "level": 1,
+  "classes": [
+   "Cleric",
+   "Paladin"
+  ]
+ },
+ {
+  "name": "Burning Hands",
+  "level": 1,
+  "classes": [
+   "Sorcerer",
+   "Wizard"
+  ]
+ },
+ {
+  "name": "Charm Person",
+  "level": 1,
+  "classes": [
+   "Bard",
+   "Druid",
+   "Sorcerer",
+   "Warlock",
+   "Wizard"
+  ]
+ },
+ {
+  "name": "Color Spray",
+  "level": 1,
+  "classes": [
+   "Sorcerer",
+   "Wizard"
+  ]
+ },
+ {
+  "name": "Command",
+  "level": 1,
+  "classes": [
+   "Cleric",
+   "Paladin"
+  ]
+ },
+ {
+  "name": "Comprehend Languages",
+  "level": 1,
+  "classes": [
+   "Bard",
+   "Sorcerer",
+   "Warlock",
+   "Wizard"
+  ]
+ },
+ {
+  "name": "Create or Destroy Water",
+  "level": 1,
+  "classes": [
+   "Cleric",
+   "Druid"
+  ]
+ },
+ {
+  "name": "Cure Wounds",
+  "level": 1,
+  "classes": [
+   "Bard",
+   "Cleric",
+   "Druid",
+   "Paladin",
+   "Ranger"
+  ]
+ },
+ {
+  "name": "Detect Evil and Good",
+  "level": 1,
+  "classes": [
+   "Cleric",
+   "Paladin"
+  ]
+ },
+ {
+  "name": "Detect Magic",
+  "level": 1,
+  "classes": [
+   "Bard",
+   "Cleric",
+   "Druid",
+   "Paladin",
+   "Ranger",
+   "Sorcerer",
+   "Wizard"
+  ]
+ },
+ {
+  "name": "Detect Poison and Disease",
+  "level": 1,
+  "classes": [
+   "Cleric",
+   "Druid",
+   "Paladin",
+   "Ranger"
+  ]
+ },
+ {
+  "name": "Disguise Self",
+  "level": 1,
+  "classes": [
+   "Bard",
+   "Sorcerer",
+   "Wizard"
+  ]
+ },
+ {
+  "name": "Divine Favor",
+  "level": 1,
+  "classes": [
+   "Paladin"
+  ]
+ },
+ {
+  "name": "Entangle",
+  "level": 1,
+  "classes": [
+   "Druid"
+  ]
+ },
+ {
+  "name": "Expeditious Retreat",
+  "level": 1,
+  "classes": [
+   "Sorcerer",
+   "Warlock",
+   "Wizard"
+  ]
+ },
+ {
+  "name": "Faerie Fire",
+  "level": 1,
+  "classes": [
+   "Druid"
+  ]
+ },
+ {
+  "name": "False Life",
+  "level": 1,
+  "classes": [
+   "Sorcerer",
+   "Wizard"
+  ]
+ },
+ {
+  "name": "Feather Fall",
+  "level": 1,
+  "classes": [
+   "Bard",
+   "Sorcerer",
+   "Wizard"
+  ]
+ },
+ {
+  "name": "Find Familiar",
+  "level": 1,
+  "classes": [
+   "Wizard"
+  ]
+ },
+ {
+  "name": "Floating Disk",
+  "level": 1,
+  "classes": [
+   "Wizard"
+  ]
+ },
+ {
+  "name": "Fog Cloud",
+  "level": 1,
+  "classes": [
+   "Druid",
+   "Ranger",
+   "Sorcerer",
+   "Wizard"
+  ]
+ },
+ {
+  "name": "Goodberry",
+  "level": 1,
+  "classes": [
+   "Druid",
+   "Ranger"
+  ]
+ },
+ {
+  "name": "Grease",
+  "level": 1,
+  "classes": [
+   "Wizard"
+  ]
+ },
+ {
+  "name": "Guiding Bolt",
+  "level": 1,
+  "classes": [
+   "Cleric"
+  ]
+ },
+ {
+  "name": "Healing Word",
+  "level": 1,
+  "classes": [
+   "Bard",
+   "Cleric",
+   "Druid"
+  ]
+ },
+ {
+  "name": "Hellish Rebuke",
+  "level": 1,
+  "classes": [
+   "Warlock"
+  ]
+ },
+ {
+  "name": "Heroism",
+  "level": 1,
+  "classes": [
+   "Bard",
+   "Paladin"
+  ]
+ },
+ {
+  "name": "Hideous Laughter",
+  "level": 1,
+  "classes": [
+   "Bard",
+   "Wizard"
+  ]
+ },
+ {
+  "name": "Hunter's Mark",
+  "level": 1,
+  "classes": [
+   "Ranger"
+  ]
+ },
+ {
+  "name": "Identify",
+  "level": 1,
+  "classes": [
+   "Bard",
+   "Wizard"
+  ]
+ },
+ {
+  "name": "Illusory Script",
+  "level": 1,
+  "classes": [
+   "Bard",
+   "Warlock",
+   "Wizard"
+  ]
+ },
+ {
+  "name": "Inflict Wounds",
+  "level": 1,
+  "classes": [
+   "Cleric"
+  ]
+ },
+ {
+  "name": "Jump",
+  "level": 1,
+  "classes": [
+   "Druid",
+   "Ranger",
+   "Sorcerer",
+   "Wizard"
+  ]
+ },
+ {
+  "name": "Longstrider",
+  "level": 1,
+  "classes": [
+   "Bard",
+   "Druid",
+   "Ranger",
+   "Wizard"
+  ]
+ },
+ {
+  "name": "Mage Armor",
+  "level": 1,
+  "classes": [
+   "Sorcerer",
+   "Wizard"
+  ]
+ },
+ {
+  "name": "Magic Missile",
+  "level": 1,
+  "classes": [
+   "Sorcerer",
+   "Wizard"
+  ]
+ },
+ {
+  "name": "Protection from Evil and Good",
+  "level": 1,
+  "classes": [
+   "Cleric",
+   "Paladin",
+   "Warlock",
+   "Wizard"
+  ]
+ },
+ {
+  "name": "Purify Food and Drink",
+  "level": 1,
+  "classes": [
+   "Cleric",
+   "Druid",
+   "Paladin"
+  ]
+ },
+ {
+  "name": "Sanctuary",
+  "level": 1,
+  "classes": [
+   "Cleric"
+  ]
+ },
+ {
+  "name": "Shield",
+  "level": 1,
+  "classes": [
+   "Sorcerer",
+   "Wizard"
+  ]
+ },
+ {
+  "name": "Shield of Faith",
+  "level": 1,
+  "classes": [
+   "Cleric",
+   "Paladin"
+  ]
+ },
+ {
+  "name": "Silent Image",
+  "level": 1,
+  "classes": [
+   "Bard",
+   "Sorcerer",
+   "Wizard"
+  ]
+ },
+ {
+  "name": "Sleep",
+  "level": 1,
+  "classes": [
+   "Bard",
+   "Sorcerer",
+   "Wizard"
+  ]
+ },
+ {
+  "name": "Speak with Animals",
+  "level": 1,
+  "classes": [
+   "Bard",
+   "Druid",
+   "Ranger"
+  ]
+ },
+ {
+  "name": "Thunderwave",
+  "level": 1,
+  "classes": [
+   "Bard",
+   "Druid",
+   "Sorcerer",
+   "Wizard"
+  ]
+ },
+ {
+  "name": "Unseen Servant",
+  "level": 1,
+  "classes": [
+   "Bard",
+   "Warlock",
+   "Wizard"
+  ]
+ },
+ {
+  "name": "Acid Arrow",
+  "level": 2,
+  "classes": [
+   "Wizard"
+  ]
+ },
+ {
+  "name": "Aid",
+  "level": 2,
+  "classes": [
+   "Cleric",
+   "Paladin"
+  ]
+ },
+ {
+  "name": "Alter Self",
+  "level": 2,
+  "classes": [
+   "Sorcerer",
+   "Wizard"
+  ]
+ },
+ {
+  "name": "Animal Messenger",
+  "level": 2,
+  "classes": [
+   "Bard",
+   "Druid",
+   "Ranger"
+  ]
+ },
+ {
+  "name": "Arcane Lock",
+  "level": 2,
+  "classes": [
+   "Wizard"
+  ]
+ },
+ {
+  "name": "Arcanist's Magic Aura",
+  "level": 2,
+  "classes": [
+   "Wizard"
+  ]
+ },
+ {
+  "name": "Augury",
+  "level": 2,
+  "classes": [
+   "Cleric"
+  ]
+ },
+ {
+  "name": "Barkskin",
+  "level": 2,
+  "classes": [
+   "Druid",
+   "Ranger"
+  ]
+ },
+ {
+  "name": "Blindness/Deafness",
+  "level": 2,
+  "classes": [
+   "Bard",
+   "Cleric",
+   "Sorcerer",
+   "Wizard"
+  ]
+ },
+ {
+  "name": "Blur",
+  "level": 2,
+  "classes": [
+   "Sorcerer",
+   "Wizard"
+  ]
+ },
+ {
+  "name": "Branding Smite",
+  "level": 2,
+  "classes": [
+   "Paladin"
+  ]
+ },
+ {
+  "name": "Calm Emotions",
+  "level": 2,
+  "classes": [
+   "Bard",
+   "Cleric"
+  ]
+ },
+ {
+  "name": "Continual Flame",
+  "level": 2,
+  "classes": [
+   "Cleric",
+   "Wizard"
+  ]
+ },
+ {
+  "name": "Darkness",
+  "level": 2,
+  "classes": [
+   "Sorcerer",
+   "Warlock",
+   "Wizard"
+  ]
+ },
+ {
+  "name": "Darkvision",
+  "level": 2,
+  "classes": [
+   "Druid",
+   "Ranger",
+   "Sorcerer",
+   "Wizard"
+  ]
+ },
+ {
+  "name": "Detect Thoughts",
+  "level": 2,
+  "classes": [
+   "Bard",
+   "Sorcerer",
+   "Wizard"
+  ]
+ },
+ {
+  "name": "Enhance Ability",
+  "level": 2,
+  "classes": [
+   "Bard",
+   "Cleric",
+   "Druid",
+   "Sorcerer"
+  ]
+ },
+ {
+  "name": "Enlarge/Reduce",
+  "level": 2,
+  "classes": [
+   "Sorcerer",
+   "Wizard"
+  ]
+ },
+ {
+  "name": "Enthrall",
+  "level": 2,
+  "classes": [
+   "Bard",
+   "Warlock"
+  ]
+ },
+ {
+  "name": "Find Steed",
+  "level": 2,
+  "classes": [
+   "Paladin"
+  ]
+ },
+ {
+  "name": "Find Traps",
+  "level": 2,
+  "classes": [
+   "Cleric",
+   "Druid",
+   "Ranger"
+  ]
+ },
+ {
+  "name": "Flame Blade",
+  "level": 2,
+  "classes": [
+   "Druid"
+  ]
+ },
+ {
+  "name": "Flaming Sphere",
+  "level": 2,
+  "classes": [
+   "Druid",
+   "Wizard"
+  ]
+ },
+ {
+  "name": "Gentle Repose",
+  "level": 2,
+  "classes": [
+   "Cleric",
+   "Wizard"
+  ]
+ },
+ {
+  "name": "Gust of Wind",
+  "level": 2,
+  "classes": [
+   "Druid",
+   "Sorcerer",
+   "Wizard"
+  ]
+ },
+ {
+  "name": "Heat Metal",
+  "level": 2,
+  "classes": [
+   "Bard",
+   "Druid"
+  ]
+ },
+ {
+  "name": "Hold Person",
+  "level": 2,
+  "classes": [
+   "Bard",
+   "Cleric",
+   "Druid",
+   "Sorcerer",
+   "Warlock",
+   "Wizard"
+  ]
+ },
+ {
+  "name": "Invisibility",
+  "level": 2,
+  "classes": [
+   "Bard",
+   "Sorcerer",
+   "Warlock",
+   "Wizard"
+  ]
+ },
+ {
+  "name": "Knock",
+  "level": 2,
+  "classes": [
+   "Bard",
+   "Sorcerer",
+   "Wizard"
+  ]
+ },
+ {
+  "name": "Lesser Restoration",
+  "level": 2,
+  "classes": [
+   "Bard",
+   "Cleric",
+   "Druid",
+   "Paladin",
+   "Ranger"
+  ]
+ },
+ {
+  "name": "Levitate",
+  "level": 2,
+  "classes": [
+   "Sorcerer",
+   "Wizard"
+  ]
+ },
+ {
+  "name": "Locate Animals or Plants",
+  "level": 2,
+  "classes": [
+   "Bard",
+   "Druid",
+   "Ranger"
+  ]
+ },
+ {
+  "name": "Locate Object",
+  "level": 2,
+  "classes": [
+   "Bard",
+   "Cleric",
+   "Druid",
+   "Paladin",
+   "Ranger",
+   "Wizard"
+  ]
+ },
+ {
+  "name": "Magic Mouth",
+  "level": 2,
+  "classes": [
+   "Bard",
+   "Wizard"
+  ]
+ },
+ {
+  "name": "Magic Weapon",
+  "level": 2,
+  "classes": [
+   "Paladin",
+   "Wizard"
+  ]
+ },
+ {
+  "name": "Mirror Image",
+  "level": 2,
+  "classes": [
+   "Sorcerer",
+   "Warlock",
+   "Wizard"
+  ]
+ },
+ {
+  "name": "Misty Step",
+  "level": 2,
+  "classes": [
+   "Sorcerer",
+   "Warlock",
+   "Wizard"
+  ]
+ },
+ {
+  "name": "Moonbeam",
+  "level": 2,
+  "classes": [
+   "Druid"
+  ]
+ },
+ {
+  "name": "Pass Without Trace",
+  "level": 2,
+  "classes": [
+   "Druid",
+   "Ranger"
+  ]
+ },
+ {
+  "name": "Prayer of Healing",
+  "level": 2,
+  "classes": [
+   "Cleric"
+  ]
+ },
+ {
+  "name": "Protection from Poison",
+  "level": 2,
+  "classes": [
+   "Cleric",
+   "Druid",
+   "Paladin",
+   "Ranger"
+  ]
+ },
+ {
+  "name": "Ray of Enfeeblement",
+  "level": 2,
+  "classes": [
+   "Warlock",
+   "Wizard"
+  ]
+ },
+ {
+  "name": "Rope Trick",
+  "level": 2,
+  "classes": [
+   "Wizard"
+  ]
+ },
+ {
+  "name": "Scorching Ray",
+  "level": 2,
+  "classes": [
+   "Sorcerer",
+   "Wizard"
+  ]
+ },
+ {
+  "name": "See Invisibility",
+  "level": 2,
+  "classes": [
+   "Bard",
+   "Sorcerer",
+   "Wizard"
+  ]
+ },
+ {
+  "name": "Shatter",
+  "level": 2,
+  "classes": [
+   "Bard",
+   "Sorcerer",
+   "Warlock",
+   "Wizard"
+  ]
+ },
+ {
+  "name": "Silence",
+  "level": 2,
+  "classes": [
+   "Bard",
+   "Cleric",
+   "Ranger"
+  ]
+ },
+ {
+  "name": "Spider Climb",
+  "level": 2,
+  "classes": [
+   "Sorcerer",
+   "Warlock",
+   "Wizard"
+  ]
+ },
+ {
+  "name": "Spike Growth",
+  "level": 2,
+  "classes": [
+   "Druid",
+   "Ranger"
+  ]
+ },
+ {
+  "name": "Spiritual Weapon",
+  "level": 2,
+  "classes": [
+   "Cleric"
+  ]
+ },
+ {
+  "name": "Suggestion",
+  "level": 2,
+  "classes": [
+   "Bard",
+   "Sorcerer",
+   "Warlock",
+   "Wizard"
+  ]
+ },
+ {
+  "name": "Warding Bond",
+  "level": 2,
+  "classes": [
+   "Cleric"
+  ]
+ },
+ {
+  "name": "Web",
+  "level": 2,
+  "classes": [
+   "Sorcerer",
+   "Wizard"
+  ]
+ },
+ {
+  "name": "Zone of Truth",
+  "level": 2,
+  "classes": [
+   "Bard",
+   "Cleric",
+   "Paladin"
+  ]
+ },
+ {
+  "name": "Animate Dead",
+  "level": 3,
+  "classes": [
+   "Cleric",
+   "Wizard"
+  ]
+ },
+ {
+  "name": "Beacon of Hope",
+  "level": 3,
+  "classes": [
+   "Cleric"
+  ]
+ },
+ {
+  "name": "Bestow Curse",
+  "level": 3,
+  "classes": [
+   "Bard",
+   "Cleric",
+   "Wizard"
+  ]
+ },
+ {
+  "name": "Blink",
+  "level": 3,
+  "classes": [
+   "Sorcerer",
+   "Wizard"
+  ]
+ },
+ {
+  "name": "Call Lightning",
+  "level": 3,
+  "classes": [
+   "Druid"
+  ]
+ },
+ {
+  "name": "Clairvoyance",
+  "level": 3,
+  "classes": [
+   "Bard",
+   "Cleric",
+   "Sorcerer",
+   "Wizard"
+  ]
+ },
+ {
+  "name": "Conjure Animals",
+  "level": 3,
+  "classes": [
+   "Druid",
+   "Ranger"
+  ]
+ },
+ {
+  "name": "Counterspell",
+  "level": 3,
+  "classes": [
+   "Sorcerer",
+   "Warlock",
+   "Wizard"
+  ]
+ },
+ {
+  "name": "Create Food and Water",
+  "level": 3,
+  "classes": [
+   "Cleric",
+   "Druid",
+   "Paladin"
+  ]
+ },
+ {
+  "name": "Daylight",
+  "level": 3,
+  "classes": [
+   "Cleric",
+   "Druid",
+   "Paladin",
+   "Ranger",
+   "Sorcerer"
+  ]
+ },
+ {
+  "name": "Dispel Magic",
+  "level": 3,
+  "classes": [
+   "Bard",
+   "Cleric",
+   "Druid",
+   "Paladin",
+   "Sorcerer",
+   "Warlock",
+   "Wizard"
+  ]
+ },
+ {
+  "name": "Fear",
+  "level": 3,
+  "classes": [
+   "Bard",
+   "Sorcerer",
+   "Warlock",
+   "Wizard"
+  ]
+ },
+ {
+  "name": "Fireball",
+  "level": 3,
+  "classes": [
+   "Sorcerer",
+   "Wizard"
+  ]
+ },
+ {
+  "name": "Fly",
+  "level": 3,
+  "classes": [
+   "Sorcerer",
+   "Warlock",
+   "Wizard"
+  ]
+ },
+ {
+  "name": "Gaseous Form",
+  "level": 3,
+  "classes": [
+   "Sorcerer",
+   "Warlock",
+   "Wizard"
+  ]
+ },
+ {
+  "name": "Glyph of Warding",
+  "level": 3,
+  "classes": [
+   "Bard",
+   "Cleric",
+   "Wizard"
+  ]
+ },
+ {
+  "name": "Haste",
+  "level": 3,
+  "classes": [
+   "Sorcerer",
+   "Wizard"
+  ]
+ },
+ {
+  "name": "Hypnotic Pattern",
+  "level": 3,
+  "classes": [
+   "Bard",
+   "Sorcerer",
+   "Warlock",
+   "Wizard"
+  ]
+ },
+ {
+  "name": "Lightning Bolt",
+  "level": 3,
+  "classes": [
+   "Sorcerer",
+   "Wizard"
+  ]
+ },
+ {
+  "name": "Magic Circle",
+  "level": 3,
+  "classes": [
+   "Cleric",
+   "Paladin",
+   "Warlock",
+   "Wizard"
+  ]
+ },
+ {
+  "name": "Major Image",
+  "level": 3,
+  "classes": [
+   "Bard",
+   "Sorcerer",
+   "Warlock",
+   "Wizard"
+  ]
+ },
+ {
+  "name": "Mass Healing Word",
+  "level": 3,
+  "classes": [
+   "Cleric"
+  ]
+ },
+ {
+  "name": "Meld Into Stone",
+  "level": 3,
+  "classes": [
+   "Cleric"
+  ]
+ },
+ {
+  "name": "Nondetection",
+  "level": 3,
+  "classes": [
+   "Bard",
+   "Ranger",
+   "Wizard"
+  ]
+ },
+ {
+  "name": "Phantom Steed",
+  "level": 3,
+  "classes": [
+   "Wizard"
+  ]
+ },
+ {
+  "name": "Plant Growth",
+  "level": 3,
+  "classes": [
+   "Bard",
+   "Druid",
+   "Ranger"
+  ]
+ },
+ {
+  "name": "Protection From Energy",
+  "level": 3,
+  "classes": [
+   "Cleric",
+   "Druid",
+   "Ranger",
+   "Sorcerer",
+   "Wizard"
+  ]
+ },
+ {
+  "name": "Remove Curse",
+  "level": 3,
+  "classes": [
+   "Cleric",
+   "Paladin",
+   "Warlock",
+   "Wizard"
+  ]
+ },
+ {
+  "name": "Revivify",
+  "level": 3,
+  "classes": [
+   "Cleric",
+   "Paladin"
+  ]
+ },
+ {
+  "name": "Sending",
+  "level": 3,
+  "classes": [
+   "Bard",
+   "Cleric",
+   "Wizard"
+  ]
+ },
+ {
+  "name": "Sleet Storm",
+  "level": 3,
+  "classes": [
+   "Druid",
+   "Sorcerer",
+   "Wizard"
+  ]
+ },
+ {
+  "name": "Slow",
+  "level": 3,
+  "classes": [
+   "Sorcerer",
+   "Wizard"
+  ]
+ },
+ {
+  "name": "Speak with Dead",
+  "level": 3,
+  "classes": [
+   "Bard",
+   "Cleric"
+  ]
+ },
+ {
+  "name": "Speak with Plants",
+  "level": 3,
+  "classes": [
+   "Bard",
+   "Druid",
+   "Ranger"
+  ]
+ },
+ {
+  "name": "Spirit Guardians",
+  "level": 3,
+  "classes": [
+   "Cleric"
+  ]
+ },
+ {
+  "name": "Stinking Cloud",
+  "level": 3,
+  "classes": [
+   "Bard",
+   "Sorcerer",
+   "Wizard"
+  ]
+ },
+ {
+  "name": "Tiny Hut",
+  "level": 3,
+  "classes": [
+   "Bard",
+   "Wizard"
+  ]
+ },
+ {
+  "name": "Tongues",
+  "level": 3,
+  "classes": [
+   "Bard",
+   "Cleric",
+   "Sorcerer",
+   "Warlock",
+   "Wizard"
+  ]
+ },
+ {
+  "name": "Vampiric Touch",
+  "level": 3,
+  "classes": [
+   "Warlock",
+   "Wizard"
+  ]
+ },
+ {
+  "name": "Water Breathing",
+  "level": 3,
+  "classes": [
+   "Druid",
+   "Ranger",
+   "Sorcerer",
+   "Wizard"
+  ]
+ },
+ {
+  "name": "Water Walk",
+  "level": 3,
+  "classes": [
+   "Cleric",
+   "Druid",
+   "Ranger",
+   "Sorcerer"
+  ]
+ },
+ {
+  "name": "Wind Wall",
+  "level": 3,
+  "classes": [
+   "Druid",
+   "Ranger"
+  ]
+ },
+ {
+  "name": "Arcane Eye",
+  "level": 4,
+  "classes": [
+   "Cleric",
+   "Wizard"
+  ]
+ },
+ {
+  "name": "Banishment",
+  "level": 4,
+  "classes": [
+   "Cleric",
+   "Paladin",
+   "Sorcerer",
+   "Warlock",
+   "Wizard"
+  ]
+ },
+ {
+  "name": "Black Tentacles",
+  "level": 4,
+  "classes": [
+   "Wizard"
+  ]
+ },
+ {
+  "name": "Blight",
+  "level": 4,
+  "classes": [
+   "Druid",
+   "Sorcerer",
+   "Warlock",
+   "Wizard"
+  ]
+ },
+ {
+  "name": "Compulsion",
+  "level": 4,
+  "classes": [
+   "Bard"
+  ]
+ },
+ {
+  "name": "Confusion",
+  "level": 4,
+  "classes": [
+   "Bard",
+   "Druid",
+   "Sorcerer",
+   "Wizard"
+  ]
+ },
+ {
+  "name": "Conjure Minor Elementals",
+  "level": 4,
+  "classes": [
+   "Druid",
+   "Wizard"
+  ]
+ },
+ {
+  "name": "Conjure Woodland Beings",
+  "level": 4,
+  "classes": [
+   "Druid",
+   "Ranger"
+  ]
+ },
+ {
+  "name": "Control Water",
+  "level": 4,
+  "classes": [
+   "Cleric",
+   "Druid",
+   "Wizard"
+  ]
+ },
+ {
+  "name": "Death Ward",
+  "level": 4,
+  "classes": [
+   "Cleric",
+   "Paladin"
+  ]
+ },
+ {
+  "name": "Dimension Door",
+  "level": 4,
+  "classes": [
+   "Bard",
+   "Sorcerer",
+   "Warlock",
+   "Wizard"
+  ]
+ },
+ {
+  "name": "Divination",
+  "level": 4,
+  "classes": [
+   "Druid"
+  ]
+ },
+ {
+  "name": "Dominate Beast",
+  "level": 4,
+  "classes": [
+   "Druid",
+   "Sorcerer"
+  ]
+ },
+ {
+  "name": "Fabricate",
+  "level": 4,
+  "classes": [
+   "Wizard"
+  ]
+ },
+ {
+  "name": "Faithful Hound",
+  "level": 4,
+  "classes": [
+   "Wizard"
+  ]
+ },
+ {
+  "name": "Fire Shield",
+  "level": 4,
+  "classes": [
+   "Wizard"
+  ]
+ },
+ {
+  "name": "Freedom of Movement",
+  "level": 4,
+  "classes": [
+   "Bard",
+   "Cleric",
+   "Druid",
+   "Ranger"
+  ]
+ },
+ {
+  "name": "Giant Insect",
+  "level": 4,
+  "classes": [
+   "Druid"
+  ]
+ },
+ {
+  "name": "Greater Invisibility",
+  "level": 4,
+  "classes": [
+   "Bard",
+   "Sorcerer",
+   "Wizard"
+  ]
+ },
+ {
+  "name": "Guardian of Faith",
+  "level": 4,
+  "classes": [
+   "Cleric"
+  ]
+ },
+ {
+  "name": "Hallucinatory Terrain",
+  "level": 4,
+  "classes": [
+   "Bard",
+   "Druid",
+   "Warlock",
+   "Wizard"
+  ]
+ },
+ {
+  "name": "Ice Storm",
+  "level": 4,
+  "classes": [
+   "Druid",
+   "Sorcerer",
+   "Wizard"
+  ]
+ },
+ {
+  "name": "Locate Creature",
+  "level": 4,
+  "classes": [
+   "Bard",
+   "Cleric",
+   "Druid",
+   "Paladin",
+   "Ranger",
+   "Wizard"
+  ]
+ },
+ {
+  "name": "Phantasmal Killer",
+  "level": 4,
+  "classes": [
+   "Wizard"
+  ]
+ },
+ {
+  "name": "Polymorph",
+  "level": 4,
+  "classes": [
+   "Bard",
+   "Druid",
+   "Sorcerer",
+   "Wizard"
+  ]
+ },
+ {
+  "name": "Private Sanctum",
+  "level": 4,
+  "classes": [
+   "Wizard"
+  ]
+ },
+ {
+  "name": "Resilient Sphere",
+  "level": 4,
+  "classes": [
+   "Wizard"
+  ]
+ },
+ {
+  "name": "Secret Chest",
+  "level": 4,
+  "classes": [
+   "Wizard"
+  ]
+ },
+ {
+  "name": "Stone Shape",
+  "level": 4,
+  "classes": [
+   "Cleric",
+   "Druid",
+   "Wizard"
+  ]
+ },
+ {
+  "name": "Stoneskin",
+  "level": 4,
+  "classes": [
+   "Druid",
+   "Ranger",
+   "Sorcerer",
+   "Wizard"
+  ]
+ },
+ {
+  "name": "Wall of Fire",
+  "level": 4,
+  "classes": [
+   "Druid",
+   "Sorcerer",
+   "Wizard"
+  ]
+ },
+ {
+  "name": "Animate Objects",
+  "level": 5,
+  "classes": [
+   "Bard",
+   "Sorcerer",
+   "Wizard"
+  ]
+ },
+ {
+  "name": "Antilife Shell",
+  "level": 5,
+  "classes": [
+   "Druid"
+  ]
+ },
+ {
+  "name": "Arcane Hand",
+  "level": 5,
+  "classes": [
+   "Wizard"
+  ]
+ },
+ {
+  "name": "Awaken",
+  "level": 5,
+  "classes": [
+   "Bard",
+   "Druid"
+  ]
+ },
+ {
+  "name": "Cloudkill",
+  "level": 5,
+  "classes": [
+   "Sorcerer",
+   "Wizard"
+  ]
+ },
+ {
+  "name": "Commune",
+  "level": 5,
+  "classes": [
+   "Cleric"
+  ]
+ },
+ {
+  "name": "Commune With Nature",
+  "level": 5,
+  "classes": [
+   "Druid",
+   "Ranger"
+  ]
+ },
+ {
+  "name": "Cone of Cold",
+  "level": 5,
+  "classes": [
+   "Sorcerer",
+   "Wizard"
+  ]
+ },
+ {
+  "name": "Conjure Elemental",
+  "level": 5,
+  "classes": [
+   "Druid",
+   "Wizard"
+  ]
+ },
+ {
+  "name": "Contact Other Plane",
+  "level": 5,
+  "classes": [
+   "Warlock",
+   "Wizard"
+  ]
+ },
+ {
+  "name": "Contagion",
+  "level": 5,
+  "classes": [
+   "Cleric",
+   "Druid"
+  ]
+ },
+ {
+  "name": "Creation",
+  "level": 5,
+  "classes": [
+   "Sorcerer",
+   "Wizard"
+  ]
+ },
+ {
+  "name": "Dispel Evil and Good",
+  "level": 5,
+  "classes": [
+   "Cleric",
+   "Paladin"
+  ]
+ },
+ {
+  "name": "Dominate Person",
+  "level": 5,
+  "classes": [
+   "Bard",
+   "Sorcerer",
+   "Wizard"
+  ]
+ },
+ {
+  "name": "Dream",
+  "level": 5,
+  "classes": [
+   "Bard",
+   "Warlock",
+   "Wizard"
+  ]
+ },
+ {
+  "name": "Flame Strike",
+  "level": 5,
+  "classes": [
+   "Cleric"
+  ]
+ },
+ {
+  "name": "Geas",
+  "level": 5,
+  "classes": [
+   "Bard",
+   "Cleric",
+   "Druid",
+   "Paladin",
+   "Wizard"
+  ]
+ },
+ {
+  "name": "Greater Restoration",
+  "level": 5,
+  "classes": [
+   "Bard",
+   "Cleric",
+   "Druid"
+  ]
+ },
+ {
+  "name": "Hallow",
+  "level": 5,
+  "classes": [
+   "Cleric"
+  ]
+ },
+ {
+  "name": "Hold Monster",
+  "level": 5,
+  "classes": [
+   "Bard",
+   "Sorcerer",
+   "Warlock",
+   "Wizard"
+  ]
+ },
+ {
+  "name": "Insect Plague",
+  "level": 5,
+  "classes": [
+   "Cleric",
+   "Druid",
+   "Sorcerer"
+  ]
+ },
+ {
+  "name": "Legend Lore",
+  "level": 5,
+  "classes": [
+   "Bard",
+   "Cleric",
+   "Wizard"
+  ]
+ },
+ {
+  "name": "Mass Cure Wounds",
+  "level": 5,
+  "classes": [
+   "Bard",
+   "Cleric",
+   "Druid"
+  ]
+ },
+ {
+  "name": "Mislead",
+  "level": 5,
+  "classes": [
+   "Bard",
+   "Wizard"
+  ]
+ },
+ {
+  "name": "Modify Memory",
+  "level": 5,
+  "classes": [
+   "Bard",
+   "Wizard"
+  ]
+ },
+ {
+  "name": "Passwall",
+  "level": 5,
+  "classes": [
+   "Wizard"
+  ]
+ },
+ {
+  "name": "Planar Binding",
+  "level": 5,
+  "classes": [
+   "Bard",
+   "Cleric",
+   "Druid",
+   "Wizard"
+  ]
+ },
+ {
+  "name": "Raise Dead",
+  "level": 5,
+  "classes": [
+   "Bard",
+   "Cleric",
+   "Paladin"
+  ]
+ },
+ {
+  "name": "Reincarnate",
+  "level": 5,
+  "classes": [
+   "Druid"
+  ]
+ },
+ {
+  "name": "Scrying",
+  "level": 5,
+  "classes": [
+   "Bard",
+   "Cleric",
+   "Druid",
+   "Warlock",
+   "Wizard"
+  ]
+ },
+ {
+  "name": "Seeming",
+  "level": 5,
+  "classes": [
+   "Bard",
+   "Sorcerer",
+   "Wizard"
+  ]
+ },
+ {
+  "name": "Telekinesis",
+  "level": 5,
+  "classes": [
+   "Sorcerer",
+   "Wizard"
+  ]
+ },
+ {
+  "name": "Telepathic Bond",
+  "level": 5,
+  "classes": [
+   "Wizard"
+  ]
+ },
+ {
+  "name": "Teleportation Circle",
+  "level": 5,
+  "classes": [
+   "Bard",
+   "Sorcerer",
+   "Wizard"
+  ]
+ },
+ {
+  "name": "Tree Stride",
+  "level": 5,
+  "classes": [
+   "Druid",
+   "Ranger"
+  ]
+ },
+ {
+  "name": "Wall of Force",
+  "level": 5,
+  "classes": [
+   "Wizard"
+  ]
+ },
+ {
+  "name": "Wall of Stone",
+  "level": 5,
+  "classes": [
+   "Druid",
+   "Sorcerer",
+   "Wizard"
+  ]
+ },
+ {
+  "name": "Blade Barrier",
+  "level": 6,
+  "classes": [
+   "Cleric"
+  ]
+ },
+ {
+  "name": "Chain Lightning",
+  "level": 6,
+  "classes": [
+   "Sorcerer",
+   "Wizard"
+  ]
+ },
+ {
+  "name": "Circle of Death",
+  "level": 6,
+  "classes": [
+   "Sorcerer",
+   "Warlock",
+   "Wizard"
+  ]
+ },
+ {
+  "name": "Conjure Fey",
+  "level": 6,
+  "classes": [
+   "Druid",
+   "Warlock"
+  ]
+ },
+ {
+  "name": "Contingency",
+  "level": 6,
+  "classes": [
+   "Wizard"
+  ]
+ },
+ {
+  "name": "Create Undead",
+  "level": 6,
+  "classes": [
+   "Cleric",
+   "Warlock",
+   "Wizard"
+  ]
+ },
+ {
+  "name": "Disintegrate",
+  "level": 6,
+  "classes": [
+   "Sorcerer",
+   "Wizard"
+  ]
+ },
+ {
+  "name": "Eyebite",
+  "level": 6,
+  "classes": [
+   "Bard",
+   "Sorcerer",
+   "Warlock",
+   "Wizard"
+  ]
+ },
+ {
+  "name": "Find the Path",
+  "level": 6,
+  "classes": [
+   "Bard",
+   "Cleric",
+   "Druid"
+  ]
+ },
+ {
+  "name": "Flesh to Stone",
+  "level": 6,
+  "classes": [
+   "Warlock",
+   "Wizard"
+  ]
+ },
+ {
+  "name": "Forbiddance",
+  "level": 6,
+  "classes": [
+   "Cleric"
+  ]
+ },
+ {
+  "name": "Freezing Sphere",
+  "level": 6,
+  "classes": [
+   "Wizard"
+  ]
+ },
+ {
+  "name": "Globe of Invulnerability",
+  "level": 6,
+  "classes": [
+   "Sorcerer",
+   "Wizard"
+  ]
+ },
+ {
+  "name": "Guards and Wards",
+  "level": 6,
+  "classes": [
+   "Bard",
+   "Wizard"
+  ]
+ },
+ {
+  "name": "Harm",
+  "level": 6,
+  "classes": [
+   "Cleric"
+  ]
+ },
+ {
+  "name": "Heal",
+  "level": 6,
+  "classes": [
+   "Cleric",
+   "Druid"
+  ]
+ },
+ {
+  "name": "Heroes' Feast",
+  "level": 6,
+  "classes": [
+   "Cleric",
+   "Druid"
+  ]
+ },
+ {
+  "name": "Instant Summons",
+  "level": 6,
+  "classes": [
+   "Wizard"
+  ]
+ },
+ {
+  "name": "Irresistible Dance",
+  "level": 6,
+  "classes": [
+   "Bard",
+   "Wizard"
+  ]
+ },
+ {
+  "name": "Magic Jar",
+  "level": 6,
+  "classes": [
+   "Wizard"
+  ]
+ },
+ {
+  "name": "Mass Suggestion",
+  "level": 6,
+  "classes": [
+   "Bard",
+   "Sorcerer",
+   "Warlock",
+   "Wizard"
+  ]
+ },
+ {
+  "name": "Move Earth",
+  "level": 6,
+  "classes": [
+   "Druid",
+   "Sorcerer",
+   "Wizard"
+  ]
+ },
+ {
+  "name": "Planar Ally",
+  "level": 6,
+  "classes": [
+   "Cleric"
+  ]
+ },
+ {
+  "name": "Programmed Illusion",
+  "level": 6,
+  "classes": [
+   "Bard",
+   "Wizard"
+  ]
+ },
+ {
+  "name": "Sunbeam",
+  "level": 6,
+  "classes": [
+   "Druid",
+   "Sorcerer",
+   "Wizard"
+  ]
+ },
+ {
+  "name": "Transport via Plants",
+  "level": 6,
+  "classes": [
+   "Druid"
+  ]
+ },
+ {
+  "name": "True Seeing",
+  "level": 6,
+  "classes": [
+   "Bard",
+   "Cleric",
+   "Sorcerer",
+   "Warlock",
+   "Wizard"
+  ]
+ },
+ {
+  "name": "Wall of Ice",
+  "level": 6,
+  "classes": [
+   "Wizard"
+  ]
+ },
+ {
+  "name": "Wall of Thorns",
+  "level": 6,
+  "classes": [
+   "Druid"
+  ]
+ },
+ {
+  "name": "Wind Walk",
+  "level": 6,
+  "classes": [
+   "Druid"
+  ]
+ },
+ {
+  "name": "Word of Recall",
+  "level": 6,
+  "classes": [
+   "Cleric"
+  ]
+ },
+ {
+  "name": "Arcane Sword",
+  "level": 7,
+  "classes": [
+   "Bard",
+   "Wizard"
+  ]
+ },
+ {
+  "name": "Conjure Celestial",
+  "level": 7,
+  "classes": [
+   "Cleric"
+  ]
+ },
+ {
+  "name": "Delayed Blast Fireball",
+  "level": 7,
+  "classes": [
+   "Sorcerer",
+   "Wizard"
+  ]
+ },
+ {
+  "name": "Divine Word",
+  "level": 7,
+  "classes": [
+   "Cleric"
+  ]
+ },
+ {
+  "name": "Etherealness",
+  "level": 7,
+  "classes": [
+   "Bard",
+   "Cleric",
+   "Sorcerer",
+   "Warlock",
+   "Wizard"
+  ]
+ },
+ {
+  "name": "Finger of Death",
+  "level": 7,
+  "classes": [
+   "Sorcerer",
+   "Warlock",
+   "Wizard"
+  ]
+ },
+ {
+  "name": "Fire Storm",
+  "level": 7,
+  "classes": [
+   "Cleric",
+   "Druid",
+   "Sorcerer"
+  ]
+ },
+ {
+  "name": "Forcecage",
+  "level": 7,
+  "classes": [
+   "Bard",
+   "Warlock",
+   "Wizard"
+  ]
+ },
+ {
+  "name": "Magnificent Mansion",
+  "level": 7,
+  "classes": [
+   "Bard",
+   "Wizard"
+  ]
+ },
+ {
+  "name": "Mirage Arcane",
+  "level": 7,
+  "classes": [
+   "Bard",
+   "Druid",
+   "Wizard"
+  ]
+ },
+ {
+  "name": "Plane Shift",
+  "level": 7,
+  "classes": [
+   "Cleric",
+   "Druid",
+   "Sorcerer",
+   "Warlock",
+   "Wizard"
+  ]
+ },
+ {
+  "name": "Prismatic Spray",
+  "level": 7,
+  "classes": [
+   "Sorcerer",
+   "Wizard"
+  ]
+ },
+ {
+  "name": "Project Image",
+  "level": 7,
+  "classes": [
+   "Bard",
+   "Wizard"
+  ]
+ },
+ {
+  "name": "Regenerate",
+  "level": 7,
+  "classes": [
+   "Bard",
+   "Cleric",
+   "Druid"
+  ]
+ },
+ {
+  "name": "Resurrection",
+  "level": 7,
+  "classes": [
+   "Bard",
+   "Cleric"
+  ]
+ },
+ {
+  "name": "Reverse Gravity",
+  "level": 7,
+  "classes": [
+   "Druid",
+   "Sorcerer",
+   "Wizard"
+  ]
+ },
+ {
+  "name": "Sequester",
+  "level": 7,
+  "classes": [
+   "Wizard"
+  ]
+ },
+ {
+  "name": "Simulacrum",
+  "level": 7,
+  "classes": [
+   "Wizard"
+  ]
+ },
+ {
+  "name": "Symbol",
+  "level": 7,
+  "classes": [
+   "Bard",
+   "Cleric",
+   "Wizard"
+  ]
+ },
+ {
+  "name": "Teleport",
+  "level": 7,
+  "classes": [
+   "Bard",
+   "Sorcerer",
+   "Wizard"
+  ]
+ },
+ {
+  "name": "Animal Shapes",
+  "level": 8,
+  "classes": [
+   "Druid"
+  ]
+ },
+ {
+  "name": "Antimagic Field",
+  "level": 8,
+  "classes": [
+   "Cleric",
+   "Wizard"
+  ]
+ },
+ {
+  "name": "Antipathy/Sympathy",
+  "level": 8,
+  "classes": [
+   "Druid",
+   "Wizard"
+  ]
+ },
+ {
+  "name": "Clone",
+  "level": 8,
+  "classes": [
+   "Wizard"
+  ]
+ },
+ {
+  "name": "Control Weather",
+  "level": 8,
+  "classes": [
+   "Cleric",
+   "Druid",
+   "Wizard"
+  ]
+ },
+ {
+  "name": "Demiplane",
+  "level": 8,
+  "classes": [
+   "Warlock",
+   "Wizard"
+  ]
+ },
+ {
+  "name": "Dominate Monster",
+  "level": 8,
+  "classes": [
+   "Bard",
+   "Sorcerer",
+   "Warlock",
+   "Wizard"
+  ]
+ },
+ {
+  "name": "Earthquake",
+  "level": 8,
+  "classes": [
+   "Cleric",
+   "Druid",
+   "Sorcerer"
+  ]
+ },
+ {
+  "name": "Feeblemind",
+  "level": 8,
+  "classes": [
+   "Bard",
+   "Druid",
+   "Warlock",
+   "Wizard"
+  ]
+ },
+ {
+  "name": "Glibness",
+  "level": 8,
+  "classes": [
+   "Bard",
+   "Warlock"
+  ]
+ },
+ {
+  "name": "Holy Aura",
+  "level": 8,
+  "classes": [
+   "Cleric"
+  ]
+ },
+ {
+  "name": "Incendiary Cloud",
+  "level": 8,
+  "classes": [
+   "Sorcerer",
+   "Wizard"
+  ]
+ },
+ {
+  "name": "Maze",
+  "level": 8,
+  "classes": [
+   "Wizard"
+  ]
+ },
+ {
+  "name": "Mind Blank",
+  "level": 8,
+  "classes": [
+   "Bard",
+   "Wizard"
+  ]
+ },
+ {
+  "name": "Power Word Stun",
+  "level": 8,
+  "classes": [
+   "Bard",
+   "Sorcerer",
+   "Warlock",
+   "Wizard"
+  ]
+ },
+ {
+  "name": "Sunburst",
+  "level": 8,
+  "classes": [
+   "Druid",
+   "Sorcerer",
+   "Wizard"
+  ]
+ },
+ {
+  "name": "Astral Projection",
+  "level": 9,
+  "classes": [
+   "Cleric",
+   "Warlock",
+   "Wizard"
+  ]
+ },
+ {
+  "name": "Foresight",
+  "level": 9,
+  "classes": [
+   "Bard",
+   "Druid",
+   "Warlock",
+   "Wizard"
+  ]
+ },
+ {
+  "name": "Gate",
+  "level": 9,
+  "classes": [
+   "Cleric",
+   "Sorcerer",
+   "Wizard"
+  ]
+ },
+ {
+  "name": "Imprisonment",
+  "level": 9,
+  "classes": [
+   "Warlock",
+   "Wizard"
+  ]
+ },
+ {
+  "name": "Mass Heal",
+  "level": 9,
+  "classes": [
+   "Cleric"
+  ]
+ },
+ {
+  "name": "Meteor Swarm",
+  "level": 9,
+  "classes": [
+   "Sorcerer",
+   "Wizard"
+  ]
+ },
+ {
+  "name": "Power Word Kill",
+  "level": 9,
+  "classes": [
+   "Bard",
+   "Sorcerer",
+   "Warlock",
+   "Wizard"
+  ]
+ },
+ {
+  "name": "Prismatic Wall",
+  "level": 9,
+  "classes": [
+   "Wizard"
+  ]
+ },
+ {
+  "name": "Shapechange",
+  "level": 9,
+  "classes": [
+   "Druid",
+   "Wizard"
+  ]
+ },
+ {
+  "name": "Storm of Vengeance",
+  "level": 9,
+  "classes": [
+   "Druid"
+  ]
+ },
+ {
+  "name": "Time Stop",
+  "level": 9,
+  "classes": [
+   "Sorcerer",
+   "Wizard"
+  ]
+ },
+ {
+  "name": "True Polymorph",
+  "level": 9,
+  "classes": [
+   "Bard",
+   "Warlock",
+   "Wizard"
+  ]
+ },
+ {
+  "name": "True Resurrection",
+  "level": 9,
+  "classes": [
+   "Cleric",
+   "Druid"
+  ]
+ },
+ {
+  "name": "Weird",
+  "level": 9,
+  "classes": [
+   "Wizard"
+  ]
+ },
+ {
+  "name": "Wish",
+  "level": 9,
+  "classes": [
+   "Sorcerer",
+   "Wizard"
+  ]
+ }
+]

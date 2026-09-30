@@ -44,6 +44,15 @@ pub enum ConfigError {
 /// A byte-level problem inside `arda-core::formats`.
 #[derive(Debug, Error)]
 pub enum FormatError {
+    /// A declared canonical fine terrain layer is missing or invalid.
+    #[error("{path}: {source}")]
+    Terrain {
+        /// Fixed layer path in the world.
+        path: String,
+        /// Checked terrain header, checksum, resource, or I/O failure.
+        #[source]
+        source: crate::formats::terrain::TerrainFileError,
+    },
     /// A malformed shared-hydrology record or table.
     #[error("{path}: {source}")]
     Hydrology {
@@ -61,6 +70,14 @@ pub enum FormatError {
         /// Checked structural, resource-limit, or hydrology failure.
         #[source]
         source: crate::formats::area_objects_v4::ObjectsFormatError,
+    },
+    /// A shore layer failed its checksum or structural checks.
+    #[error("{path}: invalid shore layer: {reason}")]
+    Shore {
+        /// File being read.
+        path: String,
+        /// What was wrong.
+        reason: &'static str,
     },
     /// The underlying reader or writer failed.
     #[error("io error on {path}: {source}")]

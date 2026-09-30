@@ -1,0 +1,1479 @@
+[
+ {
+  "name": "Acolyte",
+  "size": "Medium",
+  "armor_class": 10,
+  "armor": [],
+  "hit_points": 9,
+  "hit_dice": "2d8",
+  "speed": 30,
+  "abilities": [
+   10,
+   10,
+   10,
+   10,
+   14,
+   11
+  ],
+  "saves": {},
+  "skills": {
+   "Medicine": 4,
+   "Religion": 2
+  },
+  "passive_perception": 12,
+  "languages": "any one language (usually Common)",
+  "challenge_rating": "1/4",
+  "xp": 50,
+  "damage_resistances": [],
+  "traits": [],
+  "reactions": [],
+  "multiattack": false,
+  "actions": [
+   {
+    "name": "Club",
+    "attack_bonus": 2,
+    "damage": "1d4",
+    "damage_type": "bludgeoning",
+    "extra_damage": []
+   }
+  ],
+  "spellcasting": {
+   "ability": "WIS",
+   "caster_level": 1,
+   "save_dc": 12,
+   "attack_bonus": 4,
+   "slots": [
+    3
+   ],
+   "spells": [
+    [
+     "Light",
+     0
+    ],
+    [
+     "Sacred Flame",
+     0
+    ],
+    [
+     "Thaumaturgy",
+     0
+    ],
+    [
+     "Bless",
+     1
+    ],
+    [
+     "Cure Wounds",
+     1
+    ],
+    [
+     "Sanctuary",
+     1
+    ]
+   ]
+  },
+  "equipment": [
+   "Club"
+  ]
+ },
+ {
+  "name": "Archmage",
+  "size": "Medium",
+  "armor_class": 12,
+  "armor": [],
+  "hit_points": 99,
+  "hit_dice": "18d8",
+  "speed": 30,
+  "abilities": [
+   10,
+   14,
+   12,
+   20,
+   15,
+   16
+  ],
+  "saves": {
+   "INT": 9,
+   "WIS": 6
+  },
+  "skills": {
+   "Arcana": 13,
+   "History": 13
+  },
+  "passive_perception": 12,
+  "languages": "any six languages",
+  "challenge_rating": "12",
+  "xp": 8400,
+  "damage_resistances": [
+   "damage from spells",
+   "bludgeoning, piercing, and slashing from nonmagical attacks (from stoneskin)"
+  ],
+  "traits": [
+   "Magic Resistance"
+  ],
+  "reactions": [],
+  "multiattack": false,
+  "actions": [
+   {
+    "name": "Dagger",
+    "attack_bonus": 6,
+    "damage": "1d4+2",
+    "damage_type": "piercing",
+    "extra_damage": []
+   }
+  ],
+  "spellcasting": {
+   "ability": "INT",
+   "caster_level": 18,
+   "save_dc": 17,
+   "attack_bonus": 9,
+   "slots": [
+    4,
+    3,
+    3,
+    3,
+    3,
+    1,
+    1,
+    1,
+    1
+   ],
+   "spells": [
+    [
+     "Disguise Self",
+     1
+    ],
+    [
+     "Invisibility",
+     2
+    ],
+    [
+     "Fire Bolt",
+     0
+    ],
+    [
+     "Light",
+     0
+    ],
+    [
+     "Mage Hand",
+     0
+    ],
+    [
+     "Prestidigitation",
+     0
+    ],
+    [
+     "Shocking Grasp",
+     0
+    ],
+    [
+     "Detect Magic",
+     1
+    ],
+    [
+     "Identify",
+     1
+    ],
+    [
+     "Mage Armor",
+     1
+    ],
+    [
+     "Magic Missile",
+     1
+    ],
+    [
+     "Detect Thoughts",
+     2
+    ],
+    [
+     "Mirror Image",
+     2
+    ],
+    [
+     "Misty Step",
+     2
+    ],
+    [
+     "Counterspell",
+     3
+    ],
+    [
+     "Fly",
+     3
+    ],
+    [
+     "Lightning Bolt",
+     3
+    ],
+    [
+     "Banishment",
+     4
+    ],
+    [
+     "Fire Shield",
+     4
+    ],
+    [
+     "Stoneskin",
+     4
+    ],
+    [
+     "Cone of Cold",
+     5
+    ],
+    [
+     "Scrying",
+     5
+    ],
+    [
+     "Wall of Force",
+     5
+    ],
+    [
+     "Globe of Invulnerability",
+     6
+    ],
+    [
+     "Teleport",
+     7
+    ],
+    [
+     "Mind Blank",
+     8
+    ],
+    [
+     "Time Stop",
+     9
+    ]
+   ]
+  },
+  "equipment": [
+   "Dagger"
+  ]
+ },
+ {
+  "name": "Assassin",
+  "size": "Medium",
+  "armor_class": 15,
+  "armor": [
+   "Studded Leather Armor"
+  ],
+  "hit_points": 78,
+  "hit_dice": "12d8",
+  "speed": 30,
+  "abilities": [
+   11,
+   16,
+   14,
+   13,
+   11,
+   10
+  ],
+  "saves": {
+   "DEX": 6,
+   "INT": 4
+  },
+  "skills": {
+   "Acrobatics": 6,
+   "Deception": 3,
+   "Perception": 3,
+   "Stealth": 9
+  },
+  "passive_perception": 13,
+  "languages": "Thieves' cant plus any two languages",
+  "challenge_rating": "8",
+  "xp": 3900,
+  "damage_resistances": [
+   "poison"
+  ],
+  "traits": [
+   "Assassinate",
+   "Evasion",
+   "Sneak Attack (1/Turn)"
+  ],
+  "reactions": [],
+  "multiattack": true,
+  "actions": [
+   {
+    "name": "Shortsword",
+    "attack_bonus": 6,
+    "damage": "1d6+3",
+    "damage_type": "piercing",
+    "extra_damage": [
+     {
+      "dice": "7d6",
+      "type": "poison"
+     }
+    ]
+   },
+   {
+    "name": "Light Crossbow",
+    "attack_bonus": 6,
+    "damage": "1d8+3",
+    "damage_type": "piercing",
+    "extra_damage": [
+     {
+      "dice": "7d6",
+      "type": "poison"
+     }
+    ]
+   }
+  ],
+  "spellcasting": null,
+  "equipment": [
+   "Studded Leather Armor",
+   "Shortsword",
+   "Crossbow, light"
+  ]
+ },
+ {
+  "name": "Bandit Captain",
+  "size": "Medium",
+  "armor_class": 15,
+  "armor": [
+   "Studded Leather Armor"
+  ],
+  "hit_points": 65,
+  "hit_dice": "10d8",
+  "speed": 30,
+  "abilities": [
+   15,
+   16,
+   14,
+   14,
+   11,
+   14
+  ],
+  "saves": {
+   "STR": 4,
+   "DEX": 5,
+   "WIS": 2
+  },
+  "skills": {
+   "Athletics": 4,
+   "Deception": 4
+  },
+  "passive_perception": 10,
+  "languages": "any two languages",
+  "challenge_rating": "2",
+  "xp": 450,
+  "damage_resistances": [],
+  "traits": [],
+  "reactions": [
+   "Parry"
+  ],
+  "multiattack": true,
+  "actions": [
+   {
+    "name": "Scimitar",
+    "attack_bonus": 5,
+    "damage": "1d6+3",
+    "damage_type": "slashing",
+    "extra_damage": []
+   },
+   {
+    "name": "Dagger",
+    "attack_bonus": 5,
+    "damage": "1d4+3",
+    "damage_type": "piercing",
+    "extra_damage": []
+   }
+  ],
+  "spellcasting": null,
+  "equipment": [
+   "Studded Leather Armor",
+   "Scimitar",
+   "Dagger"
+  ]
+ },
+ {
+  "name": "Bandit",
+  "size": "Medium",
+  "armor_class": 12,
+  "armor": [
+   "Leather Armor"
+  ],
+  "hit_points": 11,
+  "hit_dice": "2d8",
+  "speed": 30,
+  "abilities": [
+   11,
+   12,
+   12,
+   10,
+   10,
+   10
+  ],
+  "saves": {},
+  "skills": {},
+  "passive_perception": 10,
+  "languages": "any one language (usually Common)",
+  "challenge_rating": "1/8",
+  "xp": 25,
+  "damage_resistances": [],
+  "traits": [],
+  "reactions": [],
+  "multiattack": false,
+  "actions": [
+   {
+    "name": "Scimitar",
+    "attack_bonus": 3,
+    "damage": "1d6+1",
+    "damage_type": "slashing",
+    "extra_damage": []
+   },
+   {
+    "name": "Light Crossbow",
+    "attack_bonus": 3,
+    "damage": "1d8+1",
+    "damage_type": "piercing",
+    "extra_damage": []
+   }
+  ],
+  "spellcasting": null,
+  "equipment": [
+   "Leather Armor",
+   "Scimitar",
+   "Crossbow, light"
+  ]
+ },
+ {
+  "name": "Berserker",
+  "size": "Medium",
+  "armor_class": 13,
+  "armor": [
+   "Hide Armor"
+  ],
+  "hit_points": 67,
+  "hit_dice": "9d8",
+  "speed": 30,
+  "abilities": [
+   16,
+   12,
+   17,
+   9,
+   11,
+   9
+  ],
+  "saves": {},
+  "skills": {},
+  "passive_perception": 10,
+  "languages": "any one language (usually Common)",
+  "challenge_rating": "2",
+  "xp": 450,
+  "damage_resistances": [],
+  "traits": [
+   "Reckless"
+  ],
+  "reactions": [],
+  "multiattack": false,
+  "actions": [
+   {
+    "name": "Greataxe",
+    "attack_bonus": 5,
+    "damage": "1d12+3",
+    "damage_type": "slashing",
+    "extra_damage": []
+   }
+  ],
+  "spellcasting": null,
+  "equipment": [
+   "Hide Armor",
+   "Greataxe"
+  ]
+ },
+ {
+  "name": "Commoner",
+  "size": "Medium",
+  "armor_class": 10,
+  "armor": [],
+  "hit_points": 4,
+  "hit_dice": "1d8",
+  "speed": 30,
+  "abilities": [
+   10,
+   10,
+   10,
+   10,
+   10,
+   10
+  ],
+  "saves": {},
+  "skills": {},
+  "passive_perception": 10,
+  "languages": "any one language (usually Common)",
+  "challenge_rating": "0",
+  "xp": 10,
+  "damage_resistances": [],
+  "traits": [],
+  "reactions": [],
+  "multiattack": false,
+  "actions": [
+   {
+    "name": "Club",
+    "attack_bonus": 2,
+    "damage": "1d4",
+    "damage_type": "bludgeoning",
+    "extra_damage": []
+   }
+  ],
+  "spellcasting": null,
+  "equipment": [
+   "Club"
+  ]
+ },
+ {
+  "name": "Cult Fanatic",
+  "size": "Medium",
+  "armor_class": 13,
+  "armor": [
+   "Leather Armor"
+  ],
+  "hit_points": 33,
+  "hit_dice": "6d8",
+  "speed": 30,
+  "abilities": [
+   11,
+   14,
+   12,
+   10,
+   13,
+   14
+  ],
+  "saves": {},
+  "skills": {
+   "Deception": 4,
+   "Persuasion": 4,
+   "Religion": 2
+  },
+  "passive_perception": 11,
+  "languages": "any one language (usually Common)",
+  "challenge_rating": "2",
+  "xp": 450,
+  "damage_resistances": [],
+  "traits": [
+   "Dark Devotion"
+  ],
+  "reactions": [],
+  "multiattack": true,
+  "actions": [
+   {
+    "name": "Dagger",
+    "attack_bonus": 4,
+    "damage": "1d4+2",
+    "damage_type": "piercing",
+    "extra_damage": []
+   }
+  ],
+  "spellcasting": {
+   "ability": "WIS",
+   "caster_level": 4,
+   "save_dc": 11,
+   "attack_bonus": 3,
+   "slots": [
+    4,
+    3
+   ],
+   "spells": [
+    [
+     "Light",
+     0
+    ],
+    [
+     "Sacred Flame",
+     0
+    ],
+    [
+     "Thaumaturgy",
+     0
+    ],
+    [
+     "Command",
+     1
+    ],
+    [
+     "Inflict Wounds",
+     1
+    ],
+    [
+     "Shield of Faith",
+     1
+    ],
+    [
+     "Hold Person",
+     2
+    ],
+    [
+     "Spiritual Weapon",
+     2
+    ]
+   ]
+  },
+  "equipment": [
+   "Leather Armor",
+   "Dagger"
+  ]
+ },
+ {
+  "name": "Cultist",
+  "size": "Medium",
+  "armor_class": 12,
+  "armor": [
+   "Leather Armor"
+  ],
+  "hit_points": 9,
+  "hit_dice": "2d8",
+  "speed": 30,
+  "abilities": [
+   11,
+   12,
+   10,
+   10,
+   11,
+   10
+  ],
+  "saves": {},
+  "skills": {
+   "Deception": 2,
+   "Religion": 2
+  },
+  "passive_perception": 10,
+  "languages": "any one language (usually Common)",
+  "challenge_rating": "1/8",
+  "xp": 25,
+  "damage_resistances": [],
+  "traits": [
+   "Dark Devotion"
+  ],
+  "reactions": [],
+  "multiattack": false,
+  "actions": [
+   {
+    "name": "Scimitar",
+    "attack_bonus": 3,
+    "damage": "1d6+1",
+    "damage_type": "slashing",
+    "extra_damage": []
+   }
+  ],
+  "spellcasting": null,
+  "equipment": [
+   "Leather Armor",
+   "Scimitar"
+  ]
+ },
+ {
+  "name": "Druid",
+  "size": "Medium",
+  "armor_class": 11,
+  "armor": [],
+  "hit_points": 27,
+  "hit_dice": "5d8",
+  "speed": 30,
+  "abilities": [
+   10,
+   12,
+   13,
+   12,
+   15,
+   11
+  ],
+  "saves": {},
+  "skills": {
+   "Medicine": 4,
+   "Nature": 3,
+   "Perception": 4
+  },
+  "passive_perception": 14,
+  "languages": "Druidic plus any two languages",
+  "challenge_rating": "2",
+  "xp": 450,
+  "damage_resistances": [],
+  "traits": [],
+  "reactions": [],
+  "multiattack": false,
+  "actions": [
+   {
+    "name": "Quarterstaff",
+    "attack_bonus": 2,
+    "damage": "1d6",
+    "damage_type": "bludgeoning",
+    "extra_damage": []
+   }
+  ],
+  "spellcasting": {
+   "ability": "WIS",
+   "caster_level": 4,
+   "save_dc": 12,
+   "attack_bonus": 4,
+   "slots": [
+    4,
+    3
+   ],
+   "spells": [
+    [
+     "Druidcraft",
+     0
+    ],
+    [
+     "Produce Flame",
+     0
+    ],
+    [
+     "Shillelagh",
+     0
+    ],
+    [
+     "Entangle",
+     1
+    ],
+    [
+     "Longstrider",
+     1
+    ],
+    [
+     "Speak with Animals",
+     1
+    ],
+    [
+     "Thunderwave",
+     1
+    ],
+    [
+     "Animal Messenger",
+     2
+    ],
+    [
+     "Barkskin",
+     2
+    ]
+   ]
+  },
+  "equipment": [
+   "Quarterstaff"
+  ]
+ },
+ {
+  "name": "Gladiator",
+  "size": "Medium",
+  "armor_class": 16,
+  "armor": [
+   "Studded Leather Armor",
+   "Shield"
+  ],
+  "hit_points": 112,
+  "hit_dice": "15d8",
+  "speed": 30,
+  "abilities": [
+   18,
+   15,
+   16,
+   10,
+   12,
+   15
+  ],
+  "saves": {
+   "STR": 7,
+   "DEX": 5,
+   "CON": 6
+  },
+  "skills": {
+   "Athletics": 10,
+   "Intimidation": 5
+  },
+  "passive_perception": 11,
+  "languages": "any one language (usually Common)",
+  "challenge_rating": "5",
+  "xp": 1800,
+  "damage_resistances": [],
+  "traits": [
+   "Brave",
+   "Brute"
+  ],
+  "reactions": [
+   "Parry"
+  ],
+  "multiattack": true,
+  "actions": [
+   {
+    "name": "Spear",
+    "attack_bonus": 7,
+    "damage": "2d6+4",
+    "damage_type": "piercing",
+    "extra_damage": []
+   },
+   {
+    "name": "Shield Bash",
+    "attack_bonus": 7,
+    "damage": "2d4+4",
+    "damage_type": "bludgeoning",
+    "extra_damage": []
+   }
+  ],
+  "spellcasting": null,
+  "equipment": [
+   "Studded Leather Armor",
+   "Shield",
+   "Spear"
+  ]
+ },
+ {
+  "name": "Guard",
+  "size": "Medium",
+  "armor_class": 16,
+  "armor": [
+   "Chain Shirt",
+   "Shield"
+  ],
+  "hit_points": 11,
+  "hit_dice": "2d8",
+  "speed": 30,
+  "abilities": [
+   13,
+   12,
+   12,
+   10,
+   11,
+   10
+  ],
+  "saves": {},
+  "skills": {
+   "Perception": 2
+  },
+  "passive_perception": 12,
+  "languages": "any one language (usually Common)",
+  "challenge_rating": "1/8",
+  "xp": 25,
+  "damage_resistances": [],
+  "traits": [],
+  "reactions": [],
+  "multiattack": false,
+  "actions": [
+   {
+    "name": "Spear",
+    "attack_bonus": 3,
+    "damage": "1d6+1",
+    "damage_type": "piercing",
+    "extra_damage": []
+   }
+  ],
+  "spellcasting": null,
+  "equipment": [
+   "Chain Shirt",
+   "Shield",
+   "Spear"
+  ]
+ },
+ {
+  "name": "Knight",
+  "size": "Medium",
+  "armor_class": 18,
+  "armor": [
+   "Plate Armor"
+  ],
+  "hit_points": 52,
+  "hit_dice": "8d8",
+  "speed": 30,
+  "abilities": [
+   16,
+   11,
+   14,
+   11,
+   11,
+   15
+  ],
+  "saves": {
+   "CON": 4,
+   "WIS": 2
+  },
+  "skills": {},
+  "passive_perception": 10,
+  "languages": "any one language (usually Common)",
+  "challenge_rating": "3",
+  "xp": 700,
+  "damage_resistances": [],
+  "traits": [
+   "Brave"
+  ],
+  "reactions": [
+   "Parry"
+  ],
+  "multiattack": true,
+  "actions": [
+   {
+    "name": "Greatsword",
+    "attack_bonus": 5,
+    "damage": "2d6+3",
+    "damage_type": "slashing",
+    "extra_damage": []
+   },
+   {
+    "name": "Heavy Crossbow",
+    "attack_bonus": 2,
+    "damage": "1d10",
+    "damage_type": "piercing",
+    "extra_damage": []
+   }
+  ],
+  "spellcasting": null,
+  "equipment": [
+   "Plate Armor",
+   "Greatsword",
+   "Crossbow, heavy"
+  ]
+ },
+ {
+  "name": "Mage",
+  "size": "Medium",
+  "armor_class": 12,
+  "armor": [],
+  "hit_points": 40,
+  "hit_dice": "9d8",
+  "speed": 30,
+  "abilities": [
+   9,
+   14,
+   11,
+   17,
+   12,
+   11
+  ],
+  "saves": {
+   "INT": 6,
+   "WIS": 4
+  },
+  "skills": {
+   "Arcana": 6,
+   "History": 6
+  },
+  "passive_perception": 11,
+  "languages": "any four languages",
+  "challenge_rating": "6",
+  "xp": 2300,
+  "damage_resistances": [],
+  "traits": [],
+  "reactions": [],
+  "multiattack": false,
+  "actions": [
+   {
+    "name": "Dagger",
+    "attack_bonus": 5,
+    "damage": "1d4+2",
+    "damage_type": "piercing",
+    "extra_damage": []
+   }
+  ],
+  "spellcasting": {
+   "ability": "INT",
+   "caster_level": 9,
+   "save_dc": 14,
+   "attack_bonus": 6,
+   "slots": [
+    4,
+    3,
+    3,
+    3,
+    1
+   ],
+   "spells": [
+    [
+     "Fire Bolt",
+     0
+    ],
+    [
+     "Light",
+     0
+    ],
+    [
+     "Mage Hand",
+     0
+    ],
+    [
+     "Prestidigitation",
+     0
+    ],
+    [
+     "Detect Magic",
+     1
+    ],
+    [
+     "Mage Armor",
+     1
+    ],
+    [
+     "Magic Missile",
+     1
+    ],
+    [
+     "Shield",
+     1
+    ],
+    [
+     "Misty Step",
+     2
+    ],
+    [
+     "Suggestion",
+     2
+    ],
+    [
+     "Counterspell",
+     3
+    ],
+    [
+     "Fireball",
+     3
+    ],
+    [
+     "Fly",
+     3
+    ],
+    [
+     "Greater Invisibility",
+     4
+    ],
+    [
+     "Ice Storm",
+     4
+    ],
+    [
+     "Cone of Cold",
+     5
+    ]
+   ]
+  },
+  "equipment": [
+   "Dagger"
+  ]
+ },
+ {
+  "name": "Noble",
+  "size": "Medium",
+  "armor_class": 15,
+  "armor": [
+   "Breastplate"
+  ],
+  "hit_points": 9,
+  "hit_dice": "2d8",
+  "speed": 30,
+  "abilities": [
+   11,
+   12,
+   11,
+   12,
+   14,
+   16
+  ],
+  "saves": {},
+  "skills": {
+   "Deception": 5,
+   "Insight": 4,
+   "Persuasion": 5
+  },
+  "passive_perception": 12,
+  "languages": "any two languages",
+  "challenge_rating": "1/8",
+  "xp": 25,
+  "damage_resistances": [],
+  "traits": [],
+  "reactions": [
+   "Parry"
+  ],
+  "multiattack": false,
+  "actions": [
+   {
+    "name": "Rapier",
+    "attack_bonus": 3,
+    "damage": "1d8+1",
+    "damage_type": "piercing",
+    "extra_damage": []
+   }
+  ],
+  "spellcasting": null,
+  "equipment": [
+   "Breastplate",
+   "Rapier"
+  ]
+ },
+ {
+  "name": "Priest",
+  "size": "Medium",
+  "armor_class": 13,
+  "armor": [
+   "Chain Shirt"
+  ],
+  "hit_points": 27,
+  "hit_dice": "5d8",
+  "speed": 25,
+  "abilities": [
+   10,
+   10,
+   12,
+   13,
+   16,
+   13
+  ],
+  "saves": {},
+  "skills": {
+   "Medicine": 7,
+   "Persuasion": 3,
+   "Religion": 4
+  },
+  "passive_perception": 13,
+  "languages": "any two languages",
+  "challenge_rating": "2",
+  "xp": 450,
+  "damage_resistances": [],
+  "traits": [
+   "Divine Eminence"
+  ],
+  "reactions": [],
+  "multiattack": false,
+  "actions": [
+   {
+    "name": "Mace",
+    "attack_bonus": 2,
+    "damage": "1d6",
+    "damage_type": "bludgeoning",
+    "extra_damage": []
+   }
+  ],
+  "spellcasting": {
+   "ability": "WIS",
+   "caster_level": 5,
+   "save_dc": 13,
+   "attack_bonus": 5,
+   "slots": [
+    4,
+    3,
+    2
+   ],
+   "spells": [
+    [
+     "Light",
+     0
+    ],
+    [
+     "Sacred Flame",
+     0
+    ],
+    [
+     "Thaumaturgy",
+     0
+    ],
+    [
+     "Cure Wounds",
+     1
+    ],
+    [
+     "Guiding Bolt",
+     1
+    ],
+    [
+     "Sanctuary",
+     1
+    ],
+    [
+     "Lesser Restoration",
+     2
+    ],
+    [
+     "Spiritual Weapon",
+     2
+    ],
+    [
+     "Dispel Magic",
+     3
+    ],
+    [
+     "Spirit Guardians",
+     3
+    ]
+   ]
+  },
+  "equipment": [
+   "Chain Shirt",
+   "Mace"
+  ]
+ },
+ {
+  "name": "Scout",
+  "size": "Medium",
+  "armor_class": 13,
+  "armor": [
+   "Leather Armor"
+  ],
+  "hit_points": 16,
+  "hit_dice": "3d8",
+  "speed": 30,
+  "abilities": [
+   11,
+   14,
+   12,
+   11,
+   13,
+   11
+  ],
+  "saves": {},
+  "skills": {
+   "Nature": 4,
+   "Perception": 5,
+   "Stealth": 6,
+   "Survival": 5
+  },
+  "passive_perception": 15,
+  "languages": "any one language (usually Common)",
+  "challenge_rating": "1/2",
+  "xp": 100,
+  "damage_resistances": [],
+  "traits": [
+   "Keen Hearing and Sight"
+  ],
+  "reactions": [],
+  "multiattack": true,
+  "actions": [
+   {
+    "name": "Shortsword",
+    "attack_bonus": 4,
+    "damage": "1d6+2",
+    "damage_type": "piercing",
+    "extra_damage": []
+   },
+   {
+    "name": "Longbow",
+    "attack_bonus": 4,
+    "damage": "1d8+2",
+    "damage_type": "piercing",
+    "extra_damage": []
+   }
+  ],
+  "spellcasting": null,
+  "equipment": [
+   "Leather Armor",
+   "Shortsword",
+   "Longbow"
+  ]
+ },
+ {
+  "name": "Spy",
+  "size": "Medium",
+  "armor_class": 12,
+  "armor": [],
+  "hit_points": 27,
+  "hit_dice": "6d8",
+  "speed": 30,
+  "abilities": [
+   10,
+   15,
+   10,
+   12,
+   14,
+   16
+  ],
+  "saves": {},
+  "skills": {
+   "Deception": 5,
+   "Insight": 4,
+   "Investigation": 5,
+   "Perception": 6,
+   "Persuasion": 5,
+   "Stealth": 4
+  },
+  "passive_perception": 16,
+  "languages": "any two languages",
+  "challenge_rating": "1",
+  "xp": 200,
+  "damage_resistances": [],
+  "traits": [
+   "Cunning Action",
+   "Sneak Attack (1/Turn)"
+  ],
+  "reactions": [],
+  "multiattack": true,
+  "actions": [
+   {
+    "name": "Shortsword",
+    "attack_bonus": 4,
+    "damage": "1d6+2",
+    "damage_type": "piercing",
+    "extra_damage": []
+   },
+   {
+    "name": "Hand Crossbow",
+    "attack_bonus": 4,
+    "damage": "1d6+2",
+    "damage_type": "piercing",
+    "extra_damage": []
+   }
+  ],
+  "spellcasting": null,
+  "equipment": [
+   "Shortsword",
+   "Crossbow, hand"
+  ]
+ },
+ {
+  "name": "Thug",
+  "size": "Medium",
+  "armor_class": 11,
+  "armor": [
+   "Leather Armor"
+  ],
+  "hit_points": 32,
+  "hit_dice": "5d8",
+  "speed": 30,
+  "abilities": [
+   15,
+   11,
+   14,
+   10,
+   10,
+   11
+  ],
+  "saves": {},
+  "skills": {
+   "Intimidation": 2
+  },
+  "passive_perception": 10,
+  "languages": "any one language (usually Common)",
+  "challenge_rating": "1/2",
+  "xp": 100,
+  "damage_resistances": [],
+  "traits": [
+   "Pack Tactics"
+  ],
+  "reactions": [],
+  "multiattack": true,
+  "actions": [
+   {
+    "name": "Mace",
+    "attack_bonus": 4,
+    "damage": "1d6+2",
+    "damage_type": "bludgeoning",
+    "extra_damage": []
+   },
+   {
+    "name": "Heavy Crossbow",
+    "attack_bonus": 2,
+    "damage": "1d10",
+    "damage_type": "piercing",
+    "extra_damage": []
+   }
+  ],
+  "spellcasting": null,
+  "equipment": [
+   "Leather Armor",
+   "Mace",
+   "Crossbow, heavy"
+  ]
+ },
+ {
+  "name": "Tribal Warrior",
+  "size": "Medium",
+  "armor_class": 12,
+  "armor": [
+   "Hide Armor"
+  ],
+  "hit_points": 11,
+  "hit_dice": "2d8",
+  "speed": 30,
+  "abilities": [
+   13,
+   11,
+   12,
+   8,
+   11,
+   8
+  ],
+  "saves": {},
+  "skills": {},
+  "passive_perception": 10,
+  "languages": "any one language",
+  "challenge_rating": "1/8",
+  "xp": 25,
+  "damage_resistances": [],
+  "traits": [
+   "Pack Tactics"
+  ],
+  "reactions": [],
+  "multiattack": false,
+  "actions": [
+   {
+    "name": "Spear",
+    "attack_bonus": 3,
+    "damage": "1d6+1",
+    "damage_type": "piercing",
+    "extra_damage": []
+   }
+  ],
+  "spellcasting": null,
+  "equipment": [
+   "Hide Armor",
+   "Spear"
+  ]
+ },
+ {
+  "name": "Veteran",
+  "size": "Medium",
+  "armor_class": 17,
+  "armor": [
+   "Splint Armor"
+  ],
+  "hit_points": 58,
+  "hit_dice": "9d8",
+  "speed": 30,
+  "abilities": [
+   16,
+   13,
+   14,
+   10,
+   11,
+   10
+  ],
+  "saves": {},
+  "skills": {
+   "Athletics": 5,
+   "Perception": 2
+  },
+  "passive_perception": 12,
+  "languages": "any one language (usually Common)",
+  "challenge_rating": "3",
+  "xp": 700,
+  "damage_resistances": [],
+  "traits": [],
+  "reactions": [],
+  "multiattack": true,
+  "actions": [
+   {
+    "name": "Longsword",
+    "attack_bonus": 5,
+    "damage": "1d8+3",
+    "damage_type": "slashing",
+    "extra_damage": []
+   },
+   {
+    "name": "Shortsword",
+    "attack_bonus": 5,
+    "damage": "1d6+3",
+    "damage_type": "piercing",
+    "extra_damage": []
+   },
+   {
+    "name": "Heavy Crossbow",
+    "attack_bonus": 3,
+    "damage": "1d10+1",
+    "damage_type": "piercing",
+    "extra_damage": []
+   }
+  ],
+  "spellcasting": null,
+  "equipment": [
+   "Splint Armor",
+   "Longsword",
+   "Shortsword",
+   "Crossbow, heavy"
+  ]
+ }
+]

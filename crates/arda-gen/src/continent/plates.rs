@@ -51,6 +51,21 @@ pub struct Plate {
 #[must_use]
 #[allow(clippy::cast_possible_wrap)]
 pub fn seed_plates(seed: u64, sim: SimExtent, attempt: u8) -> Vec<Plate> {
+    seed_plates_with_zones(seed, sim, attempt, false)
+}
+
+/// Recipe-5 plates (logic/02 §fine-formation continent): crust zones by an
+/// elliptical radius with a per-plate jitter instead of the Chebyshev
+/// square, whose straight axis-aligned zone edges became rectangular
+/// collision belts and basins. The random draws are identical, so plate
+/// count, centres and drifts match [`seed_plates`].
+#[must_use]
+pub fn seed_plates_round(seed: u64, sim: SimExtent, attempt: u8) -> Vec<Plate> {
+    seed_plates_with_zones(seed, sim, attempt, true)
+}
+
+#[allow(clippy::cast_possible_wrap)]
+fn seed_plates_with_zones(seed: u64, sim: SimExtent, attempt: u8, round: bool) -> Vec<Plate> {
     let mut r = rng(
         seed,
         SeedKey::new(Tier::Continent, Stage::Plates, 0, 0, attempt),
@@ -79,19 +94,42 @@ pub fn seed_plates(seed: u64, sim: SimExtent, attempt: u8) -> Vec<Plate> {
                 / i64::from(sim.width.max(1));
             let ny = (i64::from(centre_y) * 2 - i64::from(sim.height)).abs() * 1024
                 / i64::from(sim.height.max(1));
-            let radius = nx.max(ny);
+            let radius = if round {
+                // Euclidean radius (1024 at the domain edge midpoint, like
+                // the square's), jittered ±12% per plate so the core outline
+                // is irregular rather than an ellipse.
+                let euclid = i64::try_from((nx * nx + ny * ny).unsigned_abs().isqrt()).unwrap_or(0);
+                let jitter =
+                    i64::from(crate::noise::hash_2d(seed ^ 0x0C0E, i32::from(id), 7) % 245) - 122;
+                euclid * (1_024 + jitter) / 1_024
+            } else {
+                nx.max(ny)
+            };
+            // The shared stream draws a margin coin exactly when the square
+            // rule puts the plate in the margin band; round zones keep that
+            // draw so every later centre and drift is unchanged, and decide
+            // their own margin plates by a per-plate hash instead.
+            let square = nx.max(ny);
+            let coin = if (420..=820).contains(&square) {
+                Some(r.next_u32())
+            } else {
+                None
+            };
+            let margin_oceanic = if round {
+                crate::noise::hash_2d(seed ^ 0x0C0F, i32::from(id), 11).is_multiple_of(3)
+            } else {
+                coin.is_some_and(|c| c.is_multiple_of(3))
+            };
             let crust = if radius < 420 {
                 CrustType::Continental
             } else if radius > 820 {
                 CrustType::Oceanic
-            } else {
+            } else if margin_oceanic {
                 // Mixed margin: continental about two times in three, which
                 // gives the ragged coast and the offshore islands.
-                if (r.next_u32()).is_multiple_of(3) {
-                    CrustType::Oceanic
-                } else {
-                    CrustType::Continental
-                }
+                CrustType::Oceanic
+            } else {
+                CrustType::Continental
             };
 
             Plate {
@@ -119,6 +157,21 @@ pub fn plate_of_warped(seed: u64, plates: &[Plate], x: i32, y: i32) -> u8 {
     plate_of(plates, wx, wy)
 }
 
+/// Recipe-5 plate lookup (logic/02 §fine-formation continent): the shared
+/// warp plus a low-frequency octave (±48 km at a 256 km period, peak slope
+/// ≈ 0.3, so the mapping never folds). Plate interiors keep their identity
+/// while the ~150 km straight Voronoi edges become curved margins.
+#[must_use]
+pub fn plate_of_warped_round(seed: u64, plates: &[Plate], x: i32, y: i32) -> u8 {
+    let wx = x
+        + crate::noise::fbm(seed ^ 0x0057_A9F1, x, y, 24, 3) * 7 / 32_768
+        + crate::noise::fbm(seed ^ 0x0157_A9F1, x, y, 128, 2) * 30 / 32_768;
+    let wy = y
+        + crate::noise::fbm(seed ^ 0x00B4_11E3, x, y, 24, 3) * 7 / 32_768
+        + crate::noise::fbm(seed ^ 0x01B4_11E3, x, y, 128, 2) * 30 / 32_768;
+    plate_of(plates, wx, wy)
+}
+
 /// Nearest-site Voronoi assignment. Ties break toward the lower plate id, so
 /// the result never depends on iteration order (§Q4).
 #[must_use]
@@ -140,6 +193,28 @@ pub fn plate_of(plates: &[Plate], x: i32, y: i32) -> u8 {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn round_zones_keep_every_draw_and_only_reclassify_crust() {
+        let sim = SimExtent {
+            width: 250,
+            height: 500,
+        };
+        let square = seed_plates(42, sim, 0);
+        let round = seed_plates_round(42, sim, 0);
+        assert_eq!(square.len(), round.len());
+        for (a, b) in square.iter().zip(&round) {
+            assert_eq!(
+                (a.id, a.centre_x, a.centre_y, a.drift_x, a.drift_y),
+                (b.id, b.centre_x, b.centre_y, b.drift_x, b.drift_y)
+            );
+        }
+        assert!(
+            square.iter().zip(&round).any(|(a, b)| a.crust != b.crust),
+            "the zone metric must change some crust"
+        );
+        assert_eq!(round, seed_plates_round(42, sim, 0), "deterministic");
+    }
 
     fn sim() -> SimExtent {
         SimExtent {

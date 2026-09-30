@@ -1,0 +1,177 @@
+{
+ "_note": "Original to Arda.",
+ "governments": {
+  "monarchy": {
+   "label": "hereditary monarchy",
+   "hereditary": true,
+   "tax_pct": 10,
+   "titles": {
+    "kingdom": [
+     "King",
+     "Queen"
+    ],
+    "duchy": [
+     "Duke",
+     "Duchess"
+    ],
+    "county": [
+     "Count",
+     "Countess"
+    ]
+   },
+   "style": {
+    "kingdom": "the Kingdom of {name}",
+    "duchy": "the Duchy of {name}",
+    "county": "the County of {name}"
+   },
+   "vassal": [
+    "Baron",
+    "Baroness"
+   ],
+   "blurb": "The crown passes from parent to eldest child, and the great houses hold their towns as fiefs."
+  },
+  "merchant_republic": {
+   "label": "merchant republic",
+   "hereditary": false,
+   "tax_pct": 7,
+   "titles": {
+    "kingdom": [
+     "Grand Syndic",
+     "Grand Syndic"
+    ],
+    "duchy": [
+     "First Syndic",
+     "First Syndic"
+    ],
+    "county": [
+     "Syndic",
+     "Syndic"
+    ]
+   },
+   "style": {
+    "kingdom": "the Free League of {name}",
+    "duchy": "the Free City of {name}",
+    "county": "the Commune of {name}"
+   },
+   "vassal": [
+    "Magistrate",
+    "Magistrate"
+   ],
+   "blurb": "The richest trading houses elect one of their own to rule for life, and buy the rest.",
+   "ruler": {
+    "class": [
+     "bard",
+     8
+    ]
+   }
+  },
+  "theocracy": {
+   "label": "theocracy",
+   "hereditary": false,
+   "tax_pct": 14,
+   "titles": {
+    "kingdom": [
+     "Hierarch",
+     "Hierarch"
+    ],
+    "duchy": [
+     "Prelate",
+     "Prelate"
+    ],
+    "county": [
+     "Provost",
+     "Provost"
+    ]
+   },
+   "style": {
+    "kingdom": "the Hallowed Realm of {name}",
+    "duchy": "the Prelacy of {name}",
+    "county": "the Provostry of {name}"
+   },
+   "vassal": [
+    "Warden",
+    "Warden"
+   ],
+   "blurb": "The senior clergy choose the realm's ruler from among themselves, and the tithe is the law.",
+   "ruler": {
+    "class": [
+     "cleric",
+     10
+    ]
+   }
+  },
+  "elective_crown": {
+   "label": "elective crown",
+   "hereditary": false,
+   "tax_pct": 11,
+   "titles": {
+    "kingdom": [
+     "High King",
+     "High Queen"
+    ],
+    "duchy": [
+     "Elector-Duke",
+     "Elector-Duchess"
+    ],
+    "county": [
+     "Elected Count",
+     "Elected Countess"
+    ]
+   },
+   "style": {
+    "kingdom": "the Crown of {name}",
+    "duchy": "the Electorate of {name}",
+    "county": "the Elected County of {name}"
+   },
+   "vassal": [
+    "Elector",
+    "Electress"
+   ],
+   "blurb": "When the ruler dies the town lords meet and choose the next, and every election is bought.",
+   "ruler": {
+    "class": [
+     "fighter",
+     8
+    ]
+   }
+  }
+ },
+ "heads": {
+  "village": [
+   "Reeve",
+   "Reeve"
+  ],
+  "hamlet": [
+   "Elder",
+   "Elder"
+  ],
+  "fortress": [
+   "Castellan",
+   "Castellan"
+  ],
+  "border": [
+   "Margrave",
+   "Margravine"
+  ],
+  "manor": [
+   "Lord",
+   "Lady"
+  ]
+ },
+ "grievances": {
+  "conquered": "{settlement} was taken from {former} only in {year}, and many there still drink to the old banner.",
+  "old_blood": "House {house} ruled {realm} until {year} and has never forgotten it.",
+  "distance": "{settlement} lies far from the seat; the crown's writs arrive late and are obeyed later."
+ },
+ "reasons": {
+  "war_now": "{a} and {b} are at war.",
+  "border": "{roads} cross their shared border.",
+  "trade": "About {trade} sp of goods pass between them each year.",
+  "wars": "They have fought {wars} in recorded memory.",
+  "taken": "{taken} changed hands between them by the sword.",
+  "recent_war": "The last war between them ended only {years} years ago.",
+  "culture": "Their peoples share a tongue and customs.",
+  "marriage": "Their ruling houses are joined by marriage.",
+  "distant": "They have little to do with one another."
+ }
+}

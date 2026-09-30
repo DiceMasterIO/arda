@@ -1,0 +1,305 @@
+{
+ "_note": "Original to Arda.",
+ "era": "the Reckoning of Hearths",
+ "era_abbrev": "RH",
+ "titles": {
+  "founding_root": [
+   "{settlement} is founded",
+   "First hearths at {settlement}"
+  ],
+  "founding_from": [
+   "{settlement} is settled from {parent}",
+   "Settlers from {parent} found {settlement}"
+  ],
+  "realm_formed": [
+   "{realm} is proclaimed at {settlement}",
+   "The founding of {realm}"
+  ],
+  "peace": [
+   "The Peace of {place}",
+   "The Treaty of {place}"
+  ],
+  "border_shift": [
+   "{settlement} passes to {winner}"
+  ],
+  "flood": [
+   "The great flood at {settlement}",
+   "The {settlement} flood"
+  ],
+  "plague": [
+   "{plague}"
+  ],
+  "fire": [
+   "The burning of {settlement}",
+   "Great fire at {settlement}"
+  ],
+  "famine": [
+   "The hungry years in {realm}",
+   "Famine in {realm}"
+  ],
+  "mine_collapse": [
+   "The fall of the {settlement} galleries",
+   "Collapse at the {settlement} mines"
+  ]
+ },
+ "events": {
+  "founding_root": [
+   "Folk settle at {site} and name the place {settlement}.",
+   "A few families raise the first hearths of {settlement} at {site}."
+  ],
+  "founding_from": [
+   "Younger sons and daughters of {parent} clear new ground at {site} and call it {settlement}.",
+   "Settlers from {parent} follow the road and put down roots at {site}."
+  ],
+  "realm_formed": [
+   "The lords of {settlement} bind {count} neighbouring settlements by oath and proclaim {realm}.",
+   "At {settlement} the headmen of the country swear to one banner, and {realm} begins."
+  ],
+  "war": [
+   "{realm_a} and {realm_b} go to war over the country around {place}.",
+   "Cattle raids around {place} turn into open war between {realm_a} and {realm_b}.",
+   "A quarrel over tolls at {place} sets {realm_a} and {realm_b} at each other's throats."
+  ],
+  "peace_gains": [
+   "{winner} has the better of it, and {loser} gives up {gains}.",
+   "The war ends with {winner}'s banners over {gains}; {loser} signs to keep the rest."
+  ],
+  "peace_status_quo": [
+   "Neither side can claim victory; {winner} and {loser} swap hostages and go home.",
+   "Exhausted, {winner} and {loser} make peace on the old borders."
+  ],
+  "border_shift": [
+   "{settlement} is handed from {loser} to {winner}.",
+   "The folk of {settlement} wake to find themselves subjects of {winner}."
+  ],
+  "flood": [
+   "The river bursts its banks and drowns the low fields of {places}.",
+   "A wet spring sends the water through the streets of {places}."
+  ],
+  "plague": [
+   "Carried along the roads from {settlement}, it empties houses in {places}.",
+   "It breaks out in {settlement} and spreads to {places}."
+  ],
+  "fire": [
+   "A fire starting in a bakehouse burns a third of {settlement}.",
+   "Wind drives a fire through the thatch of {settlement}."
+  ],
+  "famine": [
+   "Blight in the grain brings hunger to {places}.",
+   "Two wet summers in a row leave the barns of {realm} empty; {places} go hungry."
+  ],
+  "mine_collapse": [
+   "Old galleries give way beneath {settlement}, burying a shift of miners.",
+   "Flooding brings down the deep workings at {settlement}."
+  ],
+  "accession": [
+   "{ruler} of House {house} is raised as {title} of {realm}.",
+   "{ruler} takes the seat of {realm}."
+  ],
+  "dynasty_founding": [
+   "House {house} takes the lordship of {realm} at its founding."
+  ],
+  "dynasty_usurpation": [
+   "House {house} seizes the throne of {realm} by force and oath-breaking."
+  ],
+  "dynasty_succession": [
+   "The old line fails, and the lords of {realm} give the crown to House {house}."
+  ],
+  "dynasty_conquest": [
+   "After a lost war, House {house} is set over {realm}."
+  ],
+  "dynasty_election": [
+   "The electors of {realm} raise House {house} to rule."
+  ],
+  "abandon_plague": [
+   "The last families leave {ruin} after the sickness, and the {kind} falls to nettles."
+  ],
+  "abandon_flood": [
+   "The flood leaves {ruin} under silt; nobody rebuilds the {kind}."
+  ],
+  "abandon_war": [
+   "Soldiers burn {ruin} in the war, and the {kind} is never resettled."
+  ],
+  "abandon_famine": [
+   "Hunger drives the people of {ruin} to {settlement}, and the {kind} is left empty."
+  ],
+  "abandon_fire": [
+   "Fire takes {ruin}, and its folk move to {settlement} rather than rebuild."
+  ],
+  "abandon_mine_collapse": [
+   "With the mine closed, {ruin} has no reason to exist; the {kind} empties in a season."
+  ],
+  "abandon_well_failed": [
+   "The well at {ruin} fails in a dry summer, and the {kind} is left to the crows."
+  ],
+  "abandon_raiders": [
+   "Raiders strike {ruin} twice in a year; the survivors take refuge in {settlement}."
+  ],
+  "abandon_enclosure": [
+   "The lord clears {ruin} for sheep, and its tenants are turned out onto the road."
+  ]
+ },
+ "lore": {
+  "site_line": [
+   "{line}"
+  ],
+  "root": [
+   "One of the oldest hearths in the land: folk were living at {site} by {year} {era}.",
+   "{settlement} was already old when its neighbours were founded; its first houses stood at {site} around {year} {era}.",
+   "The chroniclers of {settlement} begin their tale in {year} {era}, when the first families settled at {site}."
+  ],
+  "from": [
+   "Settlers from {parent} founded {settlement} at {site} in {year} {era}, and the two still argue over grazing rights.",
+   "The founding families came from {parent} in {year} {era}; old folk still call the place {parent}'s daughter.",
+   "Folk from {parent} walked the road to {site} in {year} {era} and stayed; the oldest graves here face back towards {parent}.",
+   "{settlement} began in {year} {era} as a summer camp of herders from {parent} and slowly became a place of its own.",
+   "In {year} {era} a family from {parent} quarrelled with their kin and built anew at {site}; the feud is forgotten, the name is not."
+  ],
+  "captured": [
+   "{settlement} belonged to {former} until {war} ended in {year} {era}.",
+   "{settlement} was part of {former} until {war}; the old boundary stones still stand in the fields."
+  ],
+  "captured_recent": [
+   "Grandparents here were born subjects of {former}; {war} moved the border in {year} {era}.",
+   "{settlement} was part of {former} until {war} ended in {year} {era}, and some families still keep the old banner in a chest."
+  ],
+  "plague": [
+   "{event} emptied whole streets; a burial field lies outside the walls.",
+   "Families here still name the dead of {event} at midwinter.",
+   "The hospice by the gate was founded in the year of {event}, and it has never been empty since."
+  ],
+  "flood": [
+   "High-water marks from the flood of {year} {era} are cut into the oldest doorposts.",
+   "The flood of {year} {era} took the old mill and half the lower fields."
+  ],
+  "fire": [
+   "After the fire of {year} {era} the place was rebuilt in stone, and thatch is still frowned on.",
+   "Scorched beams from the fire of {year} {era} still show in the cellars."
+  ],
+  "famine": [
+   "In the hungry years of {year} {era} the folk here ate their seed corn and bark bread."
+  ],
+  "mine_collapse": [
+   "The collapse of {year} {era} sealed a shift of miners below; nobody works that gallery now."
+  ],
+  "dynasty": [
+   "House {house} has ruled {realm} from here since {year} {era}.",
+   "The banner of House {house} has flown over {settlement} since {year} {era}."
+  ],
+  "ruin": [
+   "Half a day's walk away lie the ruins of {ruin}, a {kind} abandoned in {year} {era}.",
+   "Shepherds avoid the tumbled walls of {ruin}, a {kind} empty since {year} {era}.",
+   "Stones from {ruin}, a {kind} deserted in {year} {era}, are built into half the barns here."
+  ],
+  "export": [
+   "Its {good} goes out along the road to {dest}, and has for generations.",
+   "Carters from {dest} come each season for its {good}.",
+   "Every autumn a train of {good} leaves for {dest}; the whole place turns out to load it.",
+   "The market at {dest} would be poorer without its {good}, and both sides know it."
+  ],
+  "quiet": [
+   "Little of note has happened here, and the folk of {settlement} like it that way.",
+   "The chronicles barely mention {settlement}; its people prefer it so."
+  ],
+  "plague_small": [
+   "{event} carried off half the households; their hearths were never relit.",
+   "Families here still name the dead of {event} at midwinter.",
+   "A lych-gate stands where the dead of {event} were carried out, and nobody lingers under it.",
+   "The survivors of {event} burned the worst-hit houses; the charred footings still show in the grass."
+  ]
+ },
+ "war_names": [
+  "the War of {place}",
+  "the {place} War",
+  "the Border War of {year}",
+  "the War of the {realm_b} Marches",
+  "the Long Raid on {place}"
+ ],
+ "plague_names": [
+  "the Grey Cough",
+  "the Weeping Fever",
+  "the Sweating Sickness",
+  "the Blue Rot",
+  "the Harvest Pox",
+  "the Crow Fever",
+  "the Red Flux",
+  "the Wasting"
+ ],
+ "reign_ends": {
+  "died": "died in their bed",
+  "fell": "fell in battle",
+  "deposed": "was deposed",
+  "plague": "died of plague",
+  "abdicated": "gave up the throne",
+  "heirless": "died without an heir"
+ },
+ "epithets": [
+  "the Patient",
+  "the Bold",
+  "the Fair",
+  "the Lame",
+  "the Builder",
+  "the Pious",
+  "the Grim",
+  "the Young",
+  "the Wise",
+  "the Red",
+  "the Just",
+  "the Hard",
+  "the Generous",
+  "the Quiet",
+  "the Lawgiver",
+  "the Tall"
+ ],
+ "ruin_kinds": {
+  "hamlet": [
+   "hamlet",
+   "farmstead",
+   "shepherds' steading",
+   "charcoal-burners' camp"
+  ],
+  "village": [
+   "village",
+   "walled village",
+   "abbey grange",
+   "watchtower village"
+  ]
+ },
+ "site_order": [
+  "confluence",
+  "harbour",
+  "estuary",
+  "ford",
+  "bridge_site",
+  "pass",
+  "defensible",
+  "spring",
+  "ore",
+  "lake",
+  "coast",
+  "navigable",
+  "river",
+  "marsh",
+  "forest",
+  "hill"
+ ],
+ "sites": {
+  "confluence": "the meeting of two rivers",
+  "harbour": "a sheltered harbour",
+  "estuary": "the head of the estuary",
+  "ford": "a ford",
+  "bridge_site": "a narrow reach good for a bridge",
+  "pass": "the foot of the pass",
+  "defensible": "a steep-sided knoll",
+  "spring": "a spring that never fails",
+  "ore": "an outcrop of ore",
+  "lake": "the lakeshore",
+  "coast": "the shingle shore",
+  "navigable": "a deep reach of the river",
+  "river": "the riverbank",
+  "marsh": "the edge of the marsh",
+  "forest": "a clearing in the forest",
+  "hill": "a sheltered hillside"
+ },
+ "site_default": "good ploughland"
+}

@@ -1,6 +1,9 @@
 //! High-resolution PNG exports with bounded raster memory and final publication.
 
-use crate::{AreaImageScale, ExportError, ImageQuality, World};
+use crate::{
+    atlas::{atlas_terrain, FINE_READER_BYTES},
+    AreaImageScale, ExportError, ImageQuality, MapStyle, World,
+};
 use std::{
     fs::{File, OpenOptions},
     io::{BufWriter, Write},
@@ -24,6 +27,22 @@ pub fn export_area_with_quality(
     out: &Path,
     quality: ImageQuality,
 ) -> Result<PathBuf, ExportError> {
+    export_area_with_quality_and_style(world, ax, ay, out, quality, MapStyle::Classic)
+}
+
+/// Exports an area PNG at a validated resolution and presentation.
+///
+/// # Errors
+/// Propagates target/neighbor loading, Atlas halo, saved geometry, PNG and
+/// write failures. A failed stream preserves an existing completed destination.
+pub fn export_area_with_quality_and_style(
+    world: &World,
+    ax: i32,
+    ay: i32,
+    out: &Path,
+    quality: ImageQuality,
+    style: MapStyle,
+) -> Result<PathBuf, ExportError> {
     let area = world.read_area(ax, ay)?;
     let coordinate = |value| {
         u32::try_from(value).map_err(|_| arda_render::RenderError::ChannelGeometry {
@@ -39,9 +58,45 @@ pub fn export_area_with_quality(
     } else {
         AreaImageScale::Custom(quality)
     };
+    let mut fine = match style {
+        MapStyle::Classic => None,
+        MapStyle::Atlas => world.fine_terrain(FINE_READER_BYTES)?,
+    };
+    let shore = match style {
+        MapStyle::Classic => None,
+        MapStyle::Atlas => world.shore()?,
+    };
+    let terrain = match style {
+        MapStyle::Classic => None,
+        MapStyle::Atlas => Some(atlas_terrain(
+            world,
+            ax,
+            ay,
+            area.cells(),
+            area.lakes(),
+            fine.as_mut(),
+            shore.as_ref(),
+        )?),
+    };
     let path = out.join(format!("area_{ax:02}_{ay:02}.png"));
     publish_png(&path, |writer| {
-        arda_render::render_area_png_to(area.cells(), area.objects(), origin, scale, writer)?;
+        match terrain.as_ref() {
+            None => arda_render::render_area_png_to(
+                area.cells(),
+                area.objects(),
+                origin,
+                scale,
+                writer,
+            )?,
+            Some(terrain) => arda_render::render_area_png_to_atlas(
+                area.cells(),
+                area.objects(),
+                origin,
+                scale,
+                terrain,
+                writer,
+            )?,
+        }
         Ok(())
     })?;
     Ok(path)
@@ -60,18 +115,114 @@ pub fn export_overview_with_quality(
     out: &Path,
     quality: ImageQuality,
 ) -> Result<PathBuf, ExportError> {
+    export_overview_with_quality_and_style(world, out, quality, MapStyle::Classic)
+}
+
+/// Exports an overview PNG with the selected long edge and presentation.
+///
+/// # Errors
+/// Propagates dimension, target/neighbor loading, Atlas halo, render, PNG and
+/// write failures. A failed stream preserves an existing completed destination.
+pub fn export_overview_with_quality_and_style(
+    world: &World,
+    out: &Path,
+    quality: ImageQuality,
+    style: MapStyle,
+) -> Result<PathBuf, ExportError> {
     let manifest = world.manifest();
     let (width, height) = quality.overview_dimensions(manifest.areas_wide, manifest.areas_high)?;
+    let mut fine = match style {
+        MapStyle::Classic => None,
+        MapStyle::Atlas => world.fine_terrain(FINE_READER_BYTES)?,
+    };
+    let shore = match style {
+        MapStyle::Classic => None,
+        MapStyle::Atlas => world.shore()?,
+    };
     let path = out.join("overview.png");
-    publish_png(&path, |writer| {
-        arda_render::write_overview_png(
+    publish_png(&path, |writer| match style {
+        MapStyle::Classic => arda_render::write_overview_png(
             manifest.areas_wide,
             manifest.areas_high,
             width,
             height,
             writer,
             |at| Ok(world.read_area(at.x, at.y)?.into_cells()),
-        )
+        ),
+        MapStyle::Atlas => {
+            let load_area = |at: arda_core::AreaCoord| {
+                let area = world.read_area(at.x, at.y)?;
+                let terrain = atlas_terrain(
+                    world,
+                    at.x,
+                    at.y,
+                    area.cells(),
+                    area.lakes(),
+                    fine.as_mut(),
+                    shore.as_ref(),
+                )?;
+                let mut channels = arda_render::OverviewChannelContext::new(
+                    at,
+                    manifest.areas_wide,
+                    manifest.areas_high,
+                )?;
+                for y in (at.y - 1).max(0)..=(at.y + 1).min(manifest.areas_high - 1) {
+                    for x in (at.x - 1).max(0)..=(at.x + 1).min(manifest.areas_wide - 1) {
+                        if x == at.x && y == at.y {
+                            channels.add_area(at, area.objects())?;
+                            channels.add_braided(braided_cells(
+                                at,
+                                area.objects(),
+                                area.water(),
+                            ))?;
+                        } else {
+                            let here = arda_core::AreaCoord::new(x, y);
+                            let neighbor = world.read_area_objects(x, y)?;
+                            channels.add_area(here, &neighbor)?;
+                            let water = world.read_area_water(x, y)?;
+                            channels.add_braided(braided_cells(here, &neighbor, water.as_ref()))?;
+                        }
+                    }
+                }
+                let channels = channels.finish()?;
+                let (cells, _objects) = area.into_render_parts();
+                Ok((cells, terrain, channels))
+            };
+            let recipe4 = manifest
+                .fine_terrain
+                .is_some_and(|fine| fine.recipe_version >= 4);
+            let formed = manifest
+                .fine_terrain
+                .is_some_and(|fine| fine.recipe_version >= 5);
+            if formed {
+                arda_render::write_atlas_overview_png_with_channels_formed(
+                    manifest.areas_wide,
+                    manifest.areas_high,
+                    width,
+                    height,
+                    writer,
+                    load_area,
+                )
+            } else if recipe4 {
+                arda_render::write_atlas_overview_png_with_channels_recipe4(
+                    manifest.areas_wide,
+                    manifest.areas_high,
+                    width,
+                    height,
+                    writer,
+                    load_area,
+                )
+            } else {
+                arda_render::write_atlas_overview_png_with_channels(
+                    manifest.areas_wide,
+                    manifest.areas_high,
+                    width,
+                    height,
+                    writer,
+                    load_area,
+                )
+            }
+        }
     })?;
     Ok(path)
 }
@@ -113,6 +264,39 @@ impl Drop for PartialExport {
     fn drop(&mut self) {
         let _ = std::fs::remove_file(&self.0);
     }
+}
+
+/// Global course cells of an area's braided segments with their belt
+/// width, from the stored water forms (logic/02 §world-water).
+fn braided_cells(
+    at: arda_core::AreaCoord,
+    objects: &arda_core::AreaObjects,
+    water: Option<&arda_core::water::AreaWater>,
+) -> Vec<(arda_core::GlobalCell, u32)> {
+    let Some(water) = water else {
+        return Vec::new();
+    };
+    let (ox, oy) = (
+        u32::try_from(at.x).unwrap_or(0) * 512,
+        u32::try_from(at.y).unwrap_or(0) * 512,
+    );
+    objects
+        .rivers
+        .iter()
+        .zip(&water.segments)
+        .filter(|(_, f)| f.pattern == arda_core::water::ChannelPattern::Braided)
+        .flat_map(|(r, f)| {
+            r.course.iter().map(move |c| {
+                (
+                    arda_core::GlobalCell {
+                        x: ox + u32::from(c.x()),
+                        y: oy + u32::from(c.y()),
+                    },
+                    f.belt_width_dm,
+                )
+            })
+        })
+        .collect()
 }
 
 #[cfg(test)]

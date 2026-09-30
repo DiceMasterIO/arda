@@ -1,6 +1,6 @@
 ---
-generated_date: 2026-09-07
-generated_at_commit: 8d3c9d9
+generated_date: 2026-09-22
+generated_at_commit: 342d03e55120
 capstone_version: 6.4
 ---
 
@@ -11,19 +11,29 @@ Backend only (no frontend — design skipped, no UI). Every step follows
 that decided each shape. Verification is per-step; a step is done when
 its verification passes.
 
-**Build state: steps 0–3 complete** (2026-08-25), plus the drainage and
-continent work of 2026-08-26, which pulled parts of steps 4 and 5 forward:
-the continent tier gained belt tectonics with plate drift, a shelf coast, and
-global 1 km erosion; the area tier gained four-process erosion, depression
-filling with lakes, true Strahler order, reach-based segments, and the
-derived river fields. Measured against Earth: median land elevation 303–337 m
-against 330 m, land above 500 m 37–41% against 33%, lake area 0.5–1.1%
-against ~1%. The seam sketches and
-step rows below were corrected against what building them actually
-taught; the three corrections are called out inline as **Correction**.
-Steps 4–12 remain prescriptive.
+**Build state updated 2026-09-22 at source `342d03e55120`.** Steps 0–3 were completed
+in the initial build. Substantial portions of steps 4, 5, 9 and 10 are also
+implemented: continental climate/drainage, shared physical terrain and annual
+water, produced area climate/water fields, simple ground cover, format-4
+storage, lazy loading, Classic/Atlas PNG exports through 32K with per-pixel
+Atlas palette/lighting interpolation, JSON, CLI,
+library and Docker. Step 6 retains its sampled tactical prototype; step 12
+has physical/boundary/determinism tests but not the full proposed calibration
+suite. The table below records those partial completions explicitly.
 
-## Workspace layout (to create)
+The original task descriptions and acceptance targets remain the plan; a
+remaining subtask does not make an entire stage unimplemented. Current source
+evidence, historical successful checks, the latest Windows CI line-ending
+failure and unresolved visual acceptance are recorded in
+[implementation status](open-items.md).
+
+The [detailed work queue](open-items.md#detailed-work-queue--2026-09-22) now decomposes the remaining work into ordered steps and completion gates, including the confirmed richer-world, area-outline and full tactical-map requirements. Its coverage tables map every original stage and historical open item to the relevant tasks.
+
+The workspace and seam sketches below are retained design/history, not an
+exact inventory of current modules. Current structure is in
+[architecture](01-architecture.md) and [data flow](04-data-flow.md).
+
+## Workspace layout — retained original plan
 
 ```text
 arda/
@@ -169,15 +179,15 @@ then its verification. Conventional commit per step.
 | 1 | `arda-core`: coords, fixed-point, rng, error enums, config | unit tests incl. rng reference vectors (same key → same stream) | done |
 | 2 | `arda-core::formats`: manifest + cells + objects + blocks codecs | round-trip property tests; version-skew refusal test | done |
 | 3 | **Walking skeleton**: micro-continent config (8 tiles) through minimal-but-real stages — kinematic-lite tectonics pass, relief+water only area, ~24-tile WFC subset, symbolic PNG + JSON export, load round-trip | skeleton runs end to end; blake3 stage hashes identical on 3 OSes in CI — **`status: formalized` lands here** | done |
-| 4 | Spike S1 then continent full: plates → coupled tectonics/erosion → coast → climate → hydrology → people → naming → validate+reroll → bundles (logic/01 steps 1–10) | S1 eyeball + Horton on fixtures; unit tests per rule; continent stage ≤30 min release-mode | pending |
-| 5 | Area full: seven stages at artifact fidelity, pinned edges, cross-tile agreement | per-rule unit tests from logic/02; two adjacent fixture tiles agree on shared edge byte-for-byte | pending |
-| 6 | Spike S2 then blocks full: 200+ tile vocabulary, constraints, WFC ≤8 + relaxed marks | S2 convergence stats on hard cells; continuity test: river/road entry=exit across fixture edges | pending |
+| 4 | Spike S1 then continent full: plates → coupled tectonics/erosion → coast → climate → hydrology → people → naming → validate+reroll → bundles (logic/01 steps 1–10) | S1 eyeball + Horton on fixtures; unit tests per rule; continent stage ≤30 min release-mode | partial: physical terrain, climate, drainage/rivers, validation/rerolls, bundles and overview persistence implemented; people/naming and remaining full-fidelity acceptance open |
+| 5 | Area full: seven stages at artifact fidelity, pinned edges, cross-tile agreement | per-rule unit tests from logic/02; two adjacent fixture tiles agree on shared edge byte-for-byte | partial: shared terrain evolution replaces internal edge pinning; annual water, climate fields, basic cover and cross-area water records implemented; full vegetation/soil moisture, settlement, land use and roads open |
+| 6 | Spike S2 then blocks full: 200+ tile vocabulary, constraints, WFC ≤8 + relaxed marks | S2 convergence stats on hard cells; continuity test: river/road entry=exit across fixture edges | sampled 24-tile prototype implemented; full constraints/vocabulary/layout/coverage pending |
 | 7 | Society stage (`logic/06`): realms (cost-distance allegiance + border snap), building objects from the block layout function, NPC notables with SRD 5.1-style sheets + on-demand commoners; NOTICE file (CC-BY-4.0 attribution) | partition invariants (every land cell in exactly one realm); every notable housed; sheet determinism test | pending |
 | 8 | Tile attributes + POI layer: vocabulary attribute table, sparse per-block POIs | legend JSON carries attrs; POI determinism test | pending |
-| 9 | Export full: carto renders, block symbolic render, versioned JSON incl. realms/buildings/npcs/poi | byte-identical re-export test; refusal cases (logic/04); export benches ≤60 s area / ≤5 s block | pending |
-| 10 | Facade + CLI + docker + release workflow | `mockup/01`/`03` transcripts reproduced; `World::load` ≤100 ms bench; image runs `generate` via volume | pending |
+| 9 | Export full: carto renders, block symbolic render, versioned JSON incl. realms/buildings/npcs/poi | byte-identical re-export test; refusal cases (logic/04); export benches ≤60 s area / ≤5 s block | partial: Classic/Atlas cartographic/overview PNGs through 32K, smooth display interpolation over saved 100 m terrain, symbolic blocks and versioned terrain/water/block JSON implemented; society/POI export waits on its producers; original full-scope performance acceptance remains distinct |
+| 10 | Facade + CLI + docker + release workflow | `mockup/01`/`03` transcripts reproduced; `World::load` ≤100 ms bench; image runs `generate` via volume | partial: facade, lazy loading, generate/preview/export CLI, Docker and CI implemented; dedicated release workflow and remaining full-scope acceptance pending |
 | 11 | `arda serve` (`mockup/06`): tiny_http sync server, read-only endpoints reusing export renderers; docker EXPOSE | endpoint tests against a fixture world; ETag byte-identity; refuses partial worlds | pending |
-| 12 | Statistical validation suite as CI gate (Horton/Hack/rank-size/sinuosity/farmland) + full-batch measurement | gates green on fixture continents; default-continent batch time recorded vs ≤12 h target | pending |
+| 12 | Statistical validation suite as CI gate (Horton/Hack/rank-size/sinuosity/farmland) + full-batch measurement | gates green on fixture continents; default-continent batch time recorded vs ≤12 h target | partial: terrain/water/boundary/resource/determinism tests and batch measurements exist; full combined calibration suite pending; latest CI is not fully green |
 
 New crate paths for the additions: `arda-gen/src/society/{realms,buildings,npcs}.rs`,
 `arda-core/src/tiles.rs` gains the attribute table, `arda-cli` gains
@@ -211,17 +221,16 @@ Constraints discovered by construction, binding on the steps named:
   artifact fidelity — it is the prerequisite for the Horton and Hack
   gates at step 12, and step 5 should carry it explicitly.
 
-## Ceilings carried by the step 0–3 code
+## Current disposition of the original skeleton ceilings
 
-Each is marked in-source with a `ponytail:` comment naming its upgrade
-path; none is a defect, all are scope:
+- **Still present:** blocks are materialized at a 64-cell stride, not at every land cell. `crates/arda-gen/src/orchestrator.rs:300`.
+- **Resolved:** `World::load` reads the manifest and uses lazy requested-area/archive caches; owned area reads support exports. The planned `OnceLock` layer exists. `crates/arda/src/world.rs:93`, `crates/arda/src/world.rs:192`.
+- **Resolved:** `continent/overview.bin` contains real relief, climate and drainage records; continent river objects are stored too. `crates/arda-gen/src/orchestrator.rs:490`.
+- **Still present:** block access decompresses/caches the area's complete archive. Per-block frames and an offset index remain future work. `crates/arda/src/world.rs:274`.
+- **Resolved:** final discharge comes from shared annual water processing, with rainfall/runoff/evaporation support, not only upstream cell count. `crates/arda-gen/src/orchestrator/shared_solve.rs:382`, `crates/arda-gen/src/area/shared_compose.rs:203`.
+- **Resource handling advanced:** admission and stage budgets are implemented; describing memory control as only an areas-in-flight cap is obsolete. `crates/arda-gen/src/orchestrator.rs:338`.
 
-- Blocks are materialised on a 64-cell stride, not one per land cell (`mockup/02`) — step 6 removes the stride.
-- `World::load` reads every area and block eagerly; `logic/05` specifies lazy access with an O(accessed) cache — step 10 owes the `OnceLock` layer.
-- `continent/overview.bin` is written empty; the continent grid is regenerated rather than stored — step 4 gives it a real layout.
-- Block archives decompress whole; `logic/05` step 3 wants per-cell decompression — needs per-block frames plus an offset index.
-- Discharge is a linear function of upstream cell count; the real rating curve is rainfall-driven — step 5, once the climate stage exists.
-
-Deferred (not planned): tileset-manifest renderer beyond a stub,
-`--memory` tuning beyond a simple areas-in-flight cap, region-file
-front door, runtime in-process game API.
+Detailed custom-art rendering, a region-file front door and a mutable runtime
+game API remain outside the implemented surface. The existing read/query Rust
+API is implemented; it is not an absent feature. See `crates/arda/src/lib.rs`
+and [export behavior](mockup/03-export.md).

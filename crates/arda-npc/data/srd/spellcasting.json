@@ -1,0 +1,16 @@
+{
+ "full_caster_slots": [
+  [2], [3], [4, 2], [4, 3], [4, 3, 2], [4, 3, 3], [4, 3, 3, 1], [4, 3, 3, 2], [4, 3, 3, 3, 1], [4, 3, 3, 3, 2],
+  [4, 3, 3, 3, 2, 1], [4, 3, 3, 3, 2, 1], [4, 3, 3, 3, 2, 1, 1], [4, 3, 3, 3, 2, 1, 1], [4, 3, 3, 3, 2, 1, 1, 1],
+  [4, 3, 3, 3, 2, 1, 1, 1], [4, 3, 3, 3, 2, 1, 1, 1, 1], [4, 3, 3, 3, 3, 1, 1, 1, 1], [4, 3, 3, 3, 3, 2, 1, 1, 1],
+  [4, 3, 3, 3, 3, 2, 2, 1, 1]
+ ],
+ "pact_slots": [
+  {"slots": 1, "level": 1}, {"slots": 2, "level": 1}, {"slots": 2, "level": 2}, {"slots": 2, "level": 2},
+  {"slots": 2, "level": 3}, {"slots": 2, "level": 3}, {"slots": 2, "level": 4}, {"slots": 2, "level": 4},
+  {"slots": 2, "level": 5}, {"slots": 2, "level": 5}, {"slots": 3, "level": 5}, {"slots": 3, "level": 5},
+  {"slots": 3, "level": 5}, {"slots": 3, "level": 5}, {"slots": 3, "level": 5}, {"slots": 3, "level": 5},
+  {"slots": 4, "level": 5}, {"slots": 4, "level": 5}, {"slots": 4, "level": 5}, {"slots": 4, "level": 5}
+ ],
+ "note": "Half casters (paladin, ranger) use the full-caster row for ceil(level / 2) from class level 2."
+}

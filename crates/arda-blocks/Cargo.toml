@@ -1,0 +1,24 @@
+[package]
+name = "arda-blocks"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+repository.workspace = true
+description = "World-derived tactical blocks for arda: arda-refine terrain composed with ways, fields and town overlays"
+
+[dependencies]
+arda.workspace = true
+arda-refine.workspace = true
+arda-scene.workspace = true
+arda-tactical.workspace = true
+arda-ways.workspace = true
+arda-fields.workspace = true
+arda-town.workspace = true
+arda-ids.workspace = true
+arda-people.workspace = true
+arda-settle.workspace = true
+serde_json.workspace = true
+thiserror.workspace = true
+
+[lints]
+workspace = true

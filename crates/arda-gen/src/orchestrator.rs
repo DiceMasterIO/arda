@@ -11,6 +11,18 @@ pub(crate) mod child_links;
 mod entrypoint_tests;
 #[cfg(test)]
 mod error_chain_tests;
+mod fine_delivery;
+pub mod fine_formation;
+pub mod fine_input;
+mod fine_materials;
+pub mod fine_source;
+mod fine_valleys;
+mod fine_world;
+pub use fine_delivery::{
+    generate_world_with_fine_recipe, generate_world_with_fine_source, FineDeliveryLimits,
+    FineRecipe,
+};
+use fine_input::FineInputError;
 pub(crate) mod flow_disk;
 mod generation_limits;
 #[cfg(test)]
@@ -20,6 +32,7 @@ pub(crate) mod prepared_files;
 pub(crate) mod publication;
 pub(crate) mod routing_disk;
 pub(crate) mod shared_solve;
+mod water_forms;
 
 use crate::area::prepare::{prepare_area_terrain, SharedTerrain};
 use crate::block::{constraints_for, fill_block};
@@ -48,6 +61,18 @@ use thiserror::Error;
 /// A batch failure (`mockup/01` States).
 #[derive(Debug, Error)]
 pub enum GenError {
+    /// The opt-in canonical source could not be generated.
+    #[error(transparent)]
+    FineSource(#[from] fine_source::FineSourceError),
+    /// An opt-in canonical fine terrain failed validation or sampling.
+    #[error(transparent)]
+    FineInput(#[from] FineInputError),
+    /// Canonical source-stage valley carving failed.
+    #[error(transparent)]
+    FineValleys(#[from] fine_valleys::ValleyError),
+    /// Recipe-5 stream-power formation failed or was refused.
+    #[error(transparent)]
+    Formation(#[from] crate::formation::FormationError),
     /// The output directory already holds something.
     #[error("output directory {dir} is not empty; refusing to overwrite a world")]
     OutputNotEmpty {
@@ -341,6 +366,81 @@ pub fn generate_world_with_limits(
     out: &Path,
     limits: HydrologyLimits,
 ) -> Result<Manifest, GenError> {
+    generate_world_inner(seed, config, out, limits, None, None)
+}
+
+/// Generate a complete world from one finalized canonical fine terrain.
+///
+/// This opt-in source path preserves its raw heights: it applies neither the
+/// legacy detail source nor the legacy 160-step evolution. Climate, continent
+/// drainage and prepared area heights all sample the supplied field. The caller
+/// must supply the file produced by `fine_source::generate` for this seed,
+/// configuration, recipe version and attempt, declared in `descriptor`. The
+/// file checksum binds geometry and heights; it does not verify that provenance.
+/// A rejected field is an error, never a reroll to
+/// a different terrain source. The accepted field is copied into the world.
+///
+/// # Errors
+/// Source coverage/checksum, resource, continent validation or hydrology failures
+/// leave no completed manifest. Occupied output directories are never replaced.
+pub fn generate_world_from_fine_terrain(
+    seed: u64,
+    descriptor: arda_core::FineTerrainDescriptor,
+    config: GenerateConfig,
+    source: &Path,
+    out: &Path,
+    limits: HydrologyLimits,
+) -> Result<Manifest, GenError> {
+    if !(1..=arda_core::FINE_TERRAIN_RECIPE_VERSION).contains(&descriptor.recipe_version) {
+        return Err(GenError::Validation {
+            check: "unsupported fine terrain source recipe".into(),
+        });
+    }
+    generate_world_inner(seed, config, out, limits, Some((source, descriptor)), None)
+}
+
+/// [`generate_world_from_fine_terrain`] for a field formed in this run,
+/// also publishing each area's river and lake forms from what formation
+/// shaped (`areas/<ax>_<ay>/water.bin`, logic/02 §world-water).
+///
+/// # Errors
+/// As [`generate_world_from_fine_terrain`].
+pub fn generate_world_from_formed_terrain(
+    seed: u64,
+    descriptor: arda_core::FineTerrainDescriptor,
+    config: GenerateConfig,
+    source: &Path,
+    out: &Path,
+    limits: HydrologyLimits,
+    water: &crate::formation::water::WaterFeatures,
+) -> Result<Manifest, GenError> {
+    if !(1..=arda_core::FINE_TERRAIN_RECIPE_VERSION).contains(&descriptor.recipe_version) {
+        return Err(GenError::Validation {
+            check: "unsupported fine terrain source recipe".into(),
+        });
+    }
+    generate_world_inner(
+        seed,
+        config,
+        out,
+        limits,
+        Some((source, descriptor)),
+        Some(water),
+    )
+}
+
+fn generate_world_inner(
+    seed: u64,
+    config: GenerateConfig,
+    out: &Path,
+    limits: HydrologyLimits,
+    fine: Option<(&Path, arda_core::FineTerrainDescriptor)>,
+    water: Option<&crate::formation::water::WaterFeatures>,
+) -> Result<Manifest, GenError> {
+    let fine_admission = fine
+        .map(|(path, _)| fine_world::admit(path, config, limits))
+        .transpose()?;
+    let limits = fine_admission.as_ref().map_or(limits, |a| a.remaining);
     let admission = generation_limits::admit(config, &WorldOutput::scratch_path(out), limits)?;
     let mut writes = FinalWrites {
         bytes: 0,
@@ -353,6 +453,12 @@ pub fn generate_world_with_limits(
     // This is admitted before creating output and retained through the final commit.
     writes.charge(1 << 20, 16)?;
     let output = WorldOutput::begin(out).map_err(publication_error)?;
+    let mut fine_reader = match (fine, &fine_admission) {
+        (Some((path, _)), Some(admission)) => Some(fine_world::copy_and_open(
+            path, &output, out, config, admission,
+        )?),
+        _ => None,
+    };
 
     // Tier 1: continent, single-threaded, with the step-9 validation gates
     // — land fraction, then a sea-reaching river — and their deterministic
@@ -363,8 +469,21 @@ pub fn generate_world_with_limits(
     // persistence below, with no second computation.
     let mut accepted: Option<(Continent, u16, Vec<ContinentRiver>)> = None;
     let mut last_check = String::new();
-    for attempt in 0..CONTINENT_ATTEMPTS {
-        let candidate = generate_continent_attempt(seed, config, attempt);
+    let attempts = if fine.is_some() {
+        1
+    } else {
+        CONTINENT_ATTEMPTS
+    };
+    for attempt in 0..attempts {
+        let candidate = if let Some(reader) = &mut fine_reader {
+            fine_input::continent(
+                reader,
+                config,
+                admission.reservations.continent_preparation_bytes,
+            )?
+        } else {
+            generate_continent_attempt(seed, config, attempt)
+        };
         let land = candidate.land_fraction_permille();
         if !LAND_FRACTION_GATE.contains(&land) {
             last_check = format!(
@@ -375,7 +494,11 @@ pub fn generate_world_with_limits(
             continue;
         }
 
-        let clim = climate(&candidate, config.latitude_band());
+        let clim = if fine.is_some_and(|(_, d)| d.recipe_version >= 5) {
+            crate::continent::climate::climate_smoothed_rain(&candidate, config.latitude_band())
+        } else {
+            climate(&candidate, config.latitude_band())
+        };
         let hydro = hydrology(&candidate, &clim);
         let rivers = extract_rivers(&candidate, &hydro);
         if let Err(check) = river_gate(&rivers) {
@@ -399,7 +522,7 @@ pub fn generate_world_with_limits(
     }
     let Some((continent, land, rivers)) = accepted else {
         return Err(GenError::Validation {
-            check: format!("{last_check} after {CONTINENT_ATTEMPTS} rerolls"),
+            check: format!("{last_check} after {attempts} candidate(s)"),
         });
     };
 
@@ -409,7 +532,19 @@ pub fn generate_world_with_limits(
     let solve_dir = output.scratch().join("solve");
     create_private(&prepared_dir)?;
     create_private(&solve_dir)?;
-    let terrain = SharedTerrain::build(seed, &continent, admission.domain)?;
+    let terrain = if let Some(reader) = &mut fine_reader {
+        SharedTerrain::from_heights(
+            admission.domain,
+            fine_input::prepared_heights(
+                reader,
+                config,
+                admission.reservations.continent_preparation_bytes,
+            )?,
+        )?
+    } else {
+        SharedTerrain::build(seed, &continent, admission.domain)?
+    };
+    drop(fine_reader);
     let mut writer =
         prepared_files::PreparedWriter::new(&prepared_dir, admission.domain, admission.prepared)?;
     for entry in admission.domain.entries() {
@@ -448,9 +583,13 @@ pub fn generate_world_with_limits(
     )
     .map_err(GenError::Index)?;
     let coords: Vec<AreaCoord> = config.area_coords().collect();
+    // logic/02 §world-water publication: forms are written after every
+    // area, once lake origins found in any area are known.
+    let mut forms = Vec::new();
+    let mut origins = std::collections::BTreeMap::new();
     for &area in &coords {
         let tile = prepared.tile(area)?;
-        let (cells, objects) = area_output::compose(
+        let (mut cells, objects) = area_output::compose(
             tile,
             &mut shared.routing,
             &mut shared.flow,
@@ -459,7 +598,27 @@ pub fn generate_world_with_limits(
             admission.area,
         )
         .map_err(GenError::Area)?;
+        if fine.is_some_and(|(_, descriptor)| descriptor.recipe_version >= 4) {
+            fine_materials::apply(&mut cells, seed, area);
+        }
         write_area(seed, area, &cells, &objects, &output, &mut writes)?;
+        if let Some(features) = water {
+            let w = water_forms::area_water(
+                area,
+                &cells,
+                &objects,
+                features,
+                &shared.lakes,
+                &mut origins,
+            );
+            let ids: Vec<_> = objects.lakes.iter().map(|l| l.global_id).collect();
+            forms.push((area, ids, w));
+        }
+    }
+    for (area, ids, mut w) in forms {
+        water_forms::resolve_origins(&mut w, &ids, &origins);
+        let path = Path::new("areas").join(area.dir_name()).join("water.bin");
+        write_file(&output, &path, &arda_core::encode_water(&w), &mut writes)?;
     }
     writes.global(&shared, &index)?;
     global_output::write(&output, &mut shared, &index)?;
@@ -518,6 +677,7 @@ pub fn generate_world_with_limits(
     )?;
 
     let manifest = Manifest {
+        fine_terrain: fine.map(|(_, descriptor)| descriptor),
         format_version: FORMAT_VERSION,
         arda_version: env!("CARGO_PKG_VERSION").to_owned(),
         seed,
