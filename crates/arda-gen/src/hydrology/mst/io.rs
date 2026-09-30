@@ -21,6 +21,14 @@ pub enum StageError {
     /// A declared resource reservation is exhausted.
     #[error("MST exceeded {0}")]
     Limit(&'static str),
+    /// The routing authority has more closed terminals than were admitted.
+    #[error("MST closed leaves {observed} exceed limit {limit}")]
+    ClosedLeafLimit {
+        /// Actual closed terminals in the final routing authority.
+        observed: u32,
+        /// Admitted maximum closed terminals.
+        limit: u64,
+    },
     /// Underlying failure on a private file.
     #[error("MST I/O on {path}: {source}")]
     Io {

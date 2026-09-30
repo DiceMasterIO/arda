@@ -1,0 +1,12 @@
+{
+ "_note": "Original to Arda. Ancestry weights are per mille-ish relative weights; any unknown culture key falls back to the default.",
+ "default": "heartland",
+ "cultures": {
+  "heartland": {"ancestry": {"human": 780, "halfling": 80, "half-elf": 40, "dwarf": 40, "gnome": 20, "elf": 20, "half-orc": 10, "tiefling": 5, "dragonborn": 5}},
+  "highland":  {"ancestry": {"human": 560, "dwarf": 280, "gnome": 60, "half-orc": 40, "halfling": 30, "half-elf": 20, "elf": 10}},
+  "sylvan":    {"ancestry": {"human": 500, "elf": 230, "half-elf": 160, "halfling": 50, "gnome": 50, "dwarf": 10}},
+  "coastal":   {"ancestry": {"human": 740, "half-elf": 60, "halfling": 60, "half-orc": 50, "dwarf": 30, "dragonborn": 30, "tiefling": 20, "gnome": 10}},
+  "southern":  {"ancestry": {"human": 650, "dragonborn": 120, "tiefling": 100, "half-orc": 50, "half-elf": 40, "halfling": 20, "gnome": 20}},
+  "borderland":{"ancestry": {"human": 620, "half-orc": 200, "dwarf": 60, "halfling": 40, "half-elf": 40, "tiefling": 40}}
+ }
+}

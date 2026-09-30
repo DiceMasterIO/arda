@@ -36,7 +36,10 @@ pub fn boundary_height(seed: u64, continent: &ContinentGrid, abs_x: i32, abs_y: 
             abs_y.saturating_add(dy),
         )
     });
-    refine_height(seed, coarse, relief, abs_x, abs_y)
+    let refined = refine_height(seed, coarse, relief, abs_x, abs_y);
+    super::structural_relief::sample_height(seed, abs_x, abs_y, refined, coarse, |x, y| {
+        coarse_height(continent, x, y)
+    })
 }
 
 /// Regional detail correction (`logic/02`): the largest regional height
@@ -676,41 +679,16 @@ mod tests {
         }
     }
 
-    #[test]
-    fn merged_seeds_take_the_max_order_not_the_summed_order() {
-        // Feature 03 §Q3: crossings sharing a seed cell sum catchment and
-        // discharge but take the MAX per-edge order over the contributing
-        // edges — `entering_order` is not additive, so `entering_order(sum)`
-        // would be a different (wrong) rule: e.g. two 8 km² edges merging to
-        // catchment 16 give max(order(8), order(8)) = max(1,1) = 1, but
-        // entering_order(16) = 2.
-        //
-        // MICRO seed 42 has exactly one multi-contributor seed cell, on
-        // tile (0,2). Find it the same way
-        // `tile_entries_match_an_independent_crossing_sum` finds its
-        // crossings: reimplement the crossing/window/tie-break rule
-        // independently of `entering_rivers`, grouped by seed cell, rather
-        // than hardcoding a cell coordinate — so this keeps working if the
-        // fixture's exact numbers drift (§Q9(a): the crossing set is a pure
-        // function of shared continent data).
-        //
-        // NB: at today's fixture, the merge site's two contributors are
-        // 207 km² (order 4) and 148 km² (order 3): max(4,3) = 4, and that
-        // *coincidentally* equals entering_order(355) = 4 too — both land
-        // in the same floor-log bucket. So this test cannot, by itself,
-        // distinguish the max-of-parts rule from the wrong sum-then-order
-        // rule by value alone; it pins the max-of-parts computation
-        // directly against independently re-derived per-edge orders
-        // instead, which is correct regardless of that coincidence.
-        let ctx = fixture_ctx();
-        let area = AreaCoord::new(0, 2);
-        let bundle = bundle_for(42, &ctx, area);
-
+    fn independent_seed_parts(
+        seed: u64,
+        ctx: &Continent,
+        area: AreaCoord,
+    ) -> std::collections::BTreeMap<(u16, u16), Vec<(u32, u64)>> {
         let (w, h) = (ctx.grid.width(), ctx.grid.height());
         let n = i64::from(AREA_CELLS);
         let (x0, y0) = (i64::from(area.x) * n, i64::from(area.y) * n);
         let (x1, y1) = (x0 + n, y0 + n);
-        let mut groups: std::collections::BTreeMap<(u16, u16), Vec<u32>> =
+        let mut groups: std::collections::BTreeMap<(u16, u16), Vec<(u32, u64)>> =
             std::collections::BTreeMap::new();
         for ky in 0..h {
             for kx in 0..w {
@@ -750,7 +728,7 @@ mod tests {
                         u16::try_from(lx).unwrap_or(0),
                         u16::try_from(ly).unwrap_or(0),
                     );
-                    let hgt = boundary_height(42, &ctx.grid, ax, ay);
+                    let hgt = boundary_height(seed, &ctx.grid, ax, ay);
                     if hgt <= 0 {
                         continue; // sea cell cannot seed
                     }
@@ -765,138 +743,82 @@ mod tests {
                 let (Ok(cx), Ok(cy)) = (u16::try_from(lx), u16::try_from(ly)) else {
                     continue;
                 };
-                groups.entry((cx, cy)).or_default().push(c_km2);
+                groups
+                    .entry((cx, cy))
+                    .or_default()
+                    .push((c_km2, ctx.hydrology.discharge_l_s[i]));
             }
         }
+        groups
+    }
 
-        let merged: Vec<_> = groups.into_iter().filter(|(_, v)| v.len() >= 2).collect();
-        assert!(
-            !merged.is_empty(),
-            "no multi-contributor seed found on tile (0,2); if the fixture \
-             changed, find the new merge site rather than deleting this test"
-        );
+    #[test]
+    fn merged_seeds_take_the_max_order_not_the_summed_order() {
+        // The crossing/window/tie-break oracle is independent of
+        // `entering_rivers`; the exact landing cell may move within the tile.
+        let seed = 0;
+        let ctx = crate::continent::build_continent(seed, GenerateConfig::MICRO, 0);
+        let area = AreaCoord::new(1, 0);
+        let bundle = bundle_for(seed, &ctx, area);
+        let merged = independent_seed_parts(seed, &ctx, area)
+            .into_iter()
+            .filter(|(_, parts)| parts.len() >= 2);
+        let mut merged_count = 0;
         for ((cx, cy), parts) in merged {
+            merged_count += 1;
             let cell = CellCoord::new(cx, cy).unwrap();
-            let want_catchment: u32 = parts.iter().sum();
-            let want_order = parts.iter().map(|&c| entering_order(c)).max().unwrap();
+            let want_catchment: u32 = parts.iter().map(|&(c, _)| c).sum();
+            let want_discharge: u64 = parts.iter().map(|&(_, q)| q).sum();
+            let want_order = parts.iter().map(|&(c, _)| entering_order(c)).max().unwrap();
             let got = bundle
                 .entering
                 .iter()
                 .find(|e| e.cell == cell)
                 .unwrap_or_else(|| panic!("bundle has no entry at merged seed {cell:?}"));
-            assert_eq!(
-                got.catchment_km2, want_catchment,
-                "catchment must sum every contributing edge at {cell:?}"
-            );
-            assert_eq!(
-                got.order, want_order,
-                "order at {cell:?} must be max(per-edge order), never \
-                 entering_order(summed catchment)"
-            );
+            assert_eq!(got.catchment_km2, want_catchment);
+            assert_eq!(got.discharge.raw(), want_discharge);
+            assert_eq!(got.order, want_order);
         }
+        assert!(
+            merged_count > 0,
+            "no physical merged seed in MICRO seed 0 tile (1,0)"
+        );
     }
 
     #[test]
     fn a_merged_seed_keeps_the_max_part_order_not_the_summed_order() {
-        // Feature 03 §Q3: merged order is max(per-edge order), not order(sum).
-        // Corrected tectonic classification removed seed 362's tile (0,0)
-        // merger. A coarse-only re-survey found this natural merger on tile
-        // (0,2)'s north edge. The three possible D8 origins are independently
-        // inspected below; the bundle cannot define its own expected parts.
-        // See verification/terrain-correction/merger-c05-fixture.md.
-        const SEED: u64 = 362;
-        let ctx = crate::continent::build_continent(SEED, GenerateConfig::MICRO, 0);
-        let area = AreaCoord::new(0, 2);
-        let b = bundle_for(SEED, &ctx, area);
-        let w = ctx.grid.width();
-        let downstream = usize::try_from(102 * w + 37).unwrap();
-        let mut parts = Vec::new();
-        for kx in 36..=38 {
-            let source = usize::try_from(101 * w + kx).unwrap();
-            if ctx.hydrology.downstream[source] != Some(u32::try_from(downstream).unwrap()) {
+        // A distinguishing natural merge catches recomputing order from the
+        // summed catchment, even when both rules happen to agree elsewhere.
+        let seed = 2;
+        let ctx = crate::continent::build_continent(seed, GenerateConfig::MICRO, 0);
+        let area = AreaCoord::new(0, 1);
+        let bundle = bundle_for(seed, &ctx, area);
+        let mut distinguished = 0;
+        for ((cx, cy), parts) in independent_seed_parts(seed, &ctx, area) {
+            if parts.len() < 2 {
                 continue;
             }
-            let catchment = ctx.hydrology.catchment_km2[source];
-            if catchment < 3 {
+            let catchment_sum: u32 = parts.iter().map(|&(c, _)| c).sum();
+            let max_part_order = parts.iter().map(|&(c, _)| entering_order(c)).max().unwrap();
+            if entering_order(catchment_sum) == max_part_order {
                 continue;
             }
-            assert!(ctx.grid.get(kx, 101).raw() > 0, "source must be land");
-            assert!(
-                ctx.hydrology.filled[source] >= ctx.hydrology.filled[downstream],
-                "the contributor must descend to the receiving coarse cell"
+            distinguished += 1;
+            let cell = CellCoord::new(cx, cy).unwrap();
+            let entries: Vec<_> = bundle.entering.iter().filter(|e| e.cell == cell).collect();
+            assert_eq!(entries.len(), 1, "contributors must become one entry");
+            let entry = entries[0];
+            assert_eq!(entry.catchment_km2, catchment_sum);
+            assert_eq!(
+                entry.discharge.raw(),
+                parts.iter().map(|&(_, q)| q).sum::<u64>()
             );
-            parts.push((catchment, ctx.hydrology.discharge_l_s[source]));
-            println!("merged seed contributor: coarse=({kx},101)->(37,102), catchment_km2={catchment}, discharge_l_s={}, order={}", ctx.hydrology.discharge_l_s[source], entering_order(catchment));
+            assert_eq!(entry.order, max_part_order);
+            assert_ne!(entry.order, entering_order(entry.catchment_km2));
         }
-        assert_eq!(
-            parts.len(),
-            2,
-            "the fixture must exercise two real contributors"
+        assert!(
+            distinguished > 0,
+            "no natural merge distinguishes the two order rules"
         );
-
-        assert_eq!(
-            parts,
-            vec![(28, 1_132), (43, 2_041)],
-            "the independently measured contributors drifted"
-        );
-
-        // Tile (0,2)'s north line is absolute y=1024. Coarse source centres
-        // at y=1015 lie outside, and destination centre (375,1025) lies inside.
-        // Its independent ten-cell landing window is x=370..380 at local
-        // y=0. Find its lowest land cell with the documented low-x tie rule.
-        let (_, landing_x) = (370_u16..380)
-            .map(|x| (boundary_height(SEED, &ctx.grid, i32::from(x), 1024), x))
-            .filter(|&(height, _)| height > 0)
-            .min()
-            .expect("the merger's receiving window must contain land");
-        let landing = CellCoord::new(landing_x, 0).unwrap();
-        assert_eq!(landing_x, 370, "the measured landing window drifted");
-        let entries: Vec<_> = b
-            .entering
-            .iter()
-            .filter(|entry| entry.cell == landing)
-            .collect();
-        assert_eq!(
-            entries.len(),
-            1,
-            "the two contributors must become one entry"
-        );
-        let entry = entries[0];
-        let catchment_sum: u32 = parts.iter().map(|&(catchment, _)| catchment).sum();
-        let discharge_sum: u64 = parts.iter().map(|&(_, discharge)| discharge).sum();
-        let max_part_order = parts
-            .iter()
-            .map(|&(catchment, _)| entering_order(catchment))
-            .max()
-            .unwrap();
-        assert_eq!(
-            (catchment_sum, max_part_order),
-            (71, 2),
-            "the measured parts drifted"
-        );
-        assert_eq!(
-            entering_order(catchment_sum),
-            3,
-            "the control must distinguish the wrong summed-order rule"
-        );
-        assert_eq!(
-            entry.catchment_km2, catchment_sum,
-            "merge must sum contributing catchments"
-        );
-        assert_eq!(
-            entry.discharge.raw(),
-            discharge_sum,
-            "merge must sum contributing discharge"
-        );
-        assert_eq!(
-            entry.order, max_part_order,
-            "merge must retain max(per-edge order)"
-        );
-        assert_ne!(
-            entry.order,
-            entering_order(entry.catchment_km2),
-            "recomputing order from the sum is the regression under test"
-        );
-        println!("merged seed result: area={area:?}, cell={landing:?}, contributors={}, catchment_km2={}, discharge_l_s={}, max_part_order={}, incorrect_summed_order={}", parts.len(), entry.catchment_km2, entry.discharge.raw(), entry.order, entering_order(entry.catchment_km2));
     }
 }

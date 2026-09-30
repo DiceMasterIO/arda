@@ -1,0 +1,17 @@
+[package]
+name = "arda-fields"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+repository.workspace = true
+description = "Tactical land use around settlements for arda: fields, hedgerows, farmsteads, mills and mines on the 5-ft grid"
+
+[dependencies]
+arda-scene.workspace = true
+arda-tactical.workspace = true
+serde.workspace = true
+serde_json.workspace = true
+thiserror.workspace = true
+
+[lints]
+workspace = true

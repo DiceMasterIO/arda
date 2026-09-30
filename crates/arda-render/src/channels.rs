@@ -1,12 +1,17 @@
 //! Physical channel raster and scale-dependent preview marks.
 
+use crate::atlas::axis_kernel;
 use crate::carto::{lake_colour, land_colour, sea_colour, LAKE_FILL};
-use crate::channel_geometry::{
-    coverage, hull, strip, terminal_footprint, Point, Polygon, WorkBudget, Q,
+use crate::channel_curve::{
+    curved_strip, min_width_px_q8, segments as curve_segments, source_width, Network,
 };
-use crate::{GlobalCell, ImageQuality, RenderError};
+use crate::channel_geometry::{
+    coverage, hull, strip, strip_free, terminal_footprint, Point, Polygon, WorkBudget, Q,
+};
+use crate::{AtlasTerrain, GlobalCell, ImageQuality, RenderError};
 use arda_core::{AreaCells, CellCoord, Lake, TerrainKind};
-use std::collections::BTreeSet;
+use rayon::prelude::*;
+use std::collections::{BTreeMap, BTreeSet};
 
 /// Resolution of an area image; every scale uses the same 100 m terrain.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
@@ -92,7 +97,9 @@ fn shapes_results(
     inputs: impl IntoIterator<Item = Result<ChannelInput, RenderError>>,
     origin: GlobalCell,
     scale: AreaImageScale,
+    offset_um: Option<&dyn Fn(GlobalCell) -> (i64, i64)>,
 ) -> Result<Vec<Shape>, RenderError> {
+    let free = offset_um.is_some();
     let side = scale.side() as usize;
     // Q is divisible by 512, so arbitrary integer image sizes retain exact D8
     // steps. With u32 endpoints and widths these products stay below 2^60.
@@ -126,12 +133,34 @@ fn shapes_results(
             "duplicate channel endpoints disagree about solved fields",
         ));
     }
-    let point = |node: GlobalCell| -> Point {
+    let raw_point = |node: GlobalCell| -> Point {
+        let (ox, oy) = offset_um.map_or((0, 0), |f| f(node));
         (
-            ((i64::from(node.x) - i64::from(origin.x)) * 2 + 1) * ppc_q / 2,
-            ((i64::from(node.y) - i64::from(origin.y)) * 2 + 1) * ppc_q / 2,
+            ((i64::from(node.x) - i64::from(origin.x)) * 2 + 1) * ppc_q / 2
+                + ox * ppc_q / 100_000_000,
+            ((i64::from(node.y) - i64::from(origin.y)) * 2 + 1) * ppc_q / 2
+                + oy * ppc_q / 100_000_000,
         )
     };
+    // Recipe 5: smooth, relaxed centrelines tapered at sources, exactly as
+    // the overview draws them (logic/04 §atlas-formed rivers).
+    let network = free.then(|| Network::new(edges.iter().map(|e| (e.from, e.to, e.discharge))));
+    let mut snapped: BTreeMap<GlobalCell, Point> = BTreeMap::new();
+    if let Some(net) = &network {
+        for e in &edges {
+            for cell in [e.from, e.to] {
+                snapped.entry(cell).or_insert_with(|| raw_point(cell));
+            }
+        }
+        snapped = net.relax(&snapped);
+    }
+    let point = |node: GlobalCell| -> Point {
+        snapped
+            .get(&node)
+            .copied()
+            .unwrap_or_else(|| raw_point(node))
+    };
+    let segments_per_edge = curve_segments(i64::from(scale.side()) / 512);
     let mut out = Vec::new();
     let mut caps = Vec::new();
     let mut vertices = 0;
@@ -148,8 +177,18 @@ fn shapes_results(
         Ok(())
     };
     for edge in edges {
-        let wa = i64::from(edge.from_width_dm) * ppc_q / 1000;
-        let wb = i64::from(edge.to_width_dm) * ppc_q / 1000;
+        let mut wa = i64::from(edge.from_width_dm) * ppc_q / 1000;
+        let mut wb = i64::from(edge.to_width_dm) * ppc_q / 1000;
+        if free {
+            // Recipe 5: minimum on-screen width by discharge, as in the
+            // overview (logic/04 §atlas-formed scale). Q is one pixel.
+            let min_w = min_width_px_q8(edge.discharge) * Q / 256;
+            wa = wa.max(min_w);
+            wb = wb.max(min_w);
+            if network.as_ref().is_some_and(|n| n.is_source(edge.from)) {
+                wa = source_width(wa);
+            }
+        }
         let marker = scale == AreaImageScale::Preview && wa < Q && wb < Q;
         for is_marker in [false, true] {
             if is_marker && !marker {
@@ -163,13 +202,28 @@ fn shapes_results(
                 )?;
                 continue;
             }
-            let (p, a, b) = strip(
-                point(edge.from),
-                point(edge.to),
-                if is_marker { Q } else { wa },
-                if is_marker { Q } else { wb },
-            )?;
-            append(p, edge.discharge, is_marker)?;
+            let (wa, wb) = if is_marker { (Q, Q) } else { (wa, wb) };
+            let (pieces, a, b) = match &network {
+                Some(net) => {
+                    let (before, after) = net.neighbours(edge.from, edge.to);
+                    curved_strip(
+                        before.map(point),
+                        point(edge.from),
+                        point(edge.to),
+                        after.map(point),
+                        (wa, wb),
+                        segments_per_edge,
+                    )?
+                }
+                None => {
+                    let build = if free { strip_free } else { strip };
+                    let (p, a, b) = build(point(edge.from), point(edge.to), wa, wb)?;
+                    (vec![p], a, b)
+                }
+            };
+            for p in pieces {
+                append(p, edge.discharge, is_marker)?;
+            }
             caps.push(Cap {
                 node: edge.from,
                 points: a,
@@ -215,7 +269,7 @@ fn shapes(
     origin: GlobalCell,
     scale: AreaImageScale,
 ) -> Result<Vec<Shape>, RenderError> {
-    shapes_results(inputs.into_iter().map(Ok), origin, scale)
+    shapes_results(inputs.into_iter().map(Ok), origin, scale, None)
 }
 
 fn channel_colour(q: u64) -> [u8; 3] {
@@ -272,9 +326,12 @@ pub(crate) fn raster_results(
     raster_limited_results(cells, inputs, origin, scale, MAX_COVERAGE_WORK, lakes)
 }
 
-// At most one colour per area cell: a fixed <=1 MiB lookup, independent of
+// At most one depth per area cell: a fixed <=2 MiB lookup, independent of
 // detail resolution. None preserves categorical callers without lake surfaces.
-fn lake_colours(cells: &AreaCells, lakes: &[Lake]) -> Result<Vec<Option<[u8; 3]>>, RenderError> {
+pub(crate) fn validated_lake_depths(
+    cells: &AreaCells,
+    lakes: &[Lake],
+) -> Result<Vec<Option<u32>>, RenderError> {
     const COUNT: usize = 512 * 512;
     let invalid_lake = |reason| RenderError::LakeGeometry { reason };
     if lakes.len() > COUNT {
@@ -290,7 +347,7 @@ fn lake_colours(cells: &AreaCells, lakes: &[Lake]) -> Result<Vec<Option<[u8; 3]>
     if memberships == 0 {
         return Ok(Vec::new());
     }
-    let mut colours = vec![None; COUNT];
+    let mut depths = vec![None; COUNT];
     for lake in lakes {
         for &at in &lake.cells {
             let cell = cells.get(at);
@@ -301,15 +358,22 @@ fn lake_colours(cells: &AreaCells, lakes: &[Lake]) -> Result<Vec<Option<[u8; 3]>
                 ));
             }
             let index = usize::from(at.y()) * 512 + usize::from(at.x());
-            if colours[index].is_some() {
+            if depths[index].is_some() {
                 return Err(invalid_lake("duplicate lake cell membership"));
             }
             let depth = u32::try_from(depth)
                 .map_err(|_| invalid_lake("lake depth exceeds height range"))?;
-            colours[index] = Some(lake_colour(depth));
+            depths[index] = Some(depth);
         }
     }
-    Ok(colours)
+    Ok(depths)
+}
+
+fn lake_colours(cells: &AreaCells, lakes: &[Lake]) -> Result<Vec<Option<[u8; 3]>>, RenderError> {
+    Ok(validated_lake_depths(cells, lakes)?
+        .into_iter()
+        .map(|depth| depth.map(lake_colour))
+        .collect())
 }
 
 /// Prepared geometry and a single reusable scanline. Shape event indexes are
@@ -317,6 +381,7 @@ fn lake_colours(cells: &AreaCells, lakes: &[Lake]) -> Result<Vec<Option<[u8; 3]>
 /// fixed independent cap. No RGB image, mask, or per-image pixel array exists.
 pub(crate) struct AreaRaster<'a> {
     cells: &'a AreaCells,
+    terrain: Option<&'a AtlasTerrain>,
     lake_colours: Vec<Option<[u8; 3]>>,
     shapes: Vec<Shape>,
     starts: Vec<usize>,
@@ -342,6 +407,7 @@ fn coverage_work_limit(side: u32) -> u64 {
 }
 
 impl<'a> AreaRaster<'a> {
+    #[cfg(test)]
     pub(crate) fn new(
         cells: &'a AreaCells,
         inputs: impl IntoIterator<Item = Result<ChannelInput, RenderError>>,
@@ -349,8 +415,20 @@ impl<'a> AreaRaster<'a> {
         scale: AreaImageScale,
         lakes: &[Lake],
     ) -> Result<Self, RenderError> {
-        Self::with_work_limit(
+        Self::new_with_terrain(cells, None, inputs, origin, scale, lakes)
+    }
+
+    pub(crate) fn new_with_terrain(
+        cells: &'a AreaCells,
+        terrain: Option<&'a AtlasTerrain>,
+        inputs: impl IntoIterator<Item = Result<ChannelInput, RenderError>>,
+        origin: GlobalCell,
+        scale: AreaImageScale,
+        lakes: &[Lake],
+    ) -> Result<Self, RenderError> {
+        Self::with_terrain_and_work_limit(
             cells,
+            terrain,
             inputs,
             origin,
             scale,
@@ -359,6 +437,7 @@ impl<'a> AreaRaster<'a> {
         )
     }
 
+    #[cfg(test)]
     fn with_work_limit(
         cells: &'a AreaCells,
         inputs: impl IntoIterator<Item = Result<ChannelInput, RenderError>>,
@@ -367,8 +446,27 @@ impl<'a> AreaRaster<'a> {
         lakes: &[Lake],
         work_limit: u64,
     ) -> Result<Self, RenderError> {
+        Self::with_terrain_and_work_limit(cells, None, inputs, origin, scale, lakes, work_limit)
+    }
+
+    fn with_terrain_and_work_limit(
+        cells: &'a AreaCells,
+        terrain: Option<&'a AtlasTerrain>,
+        inputs: impl IntoIterator<Item = Result<ChannelInput, RenderError>>,
+        origin: GlobalCell,
+        scale: AreaImageScale,
+        lakes: &[Lake],
+        work_limit: u64,
+    ) -> Result<Self, RenderError> {
         let lake_colours = lake_colours(cells, lakes)?;
-        let shapes = shapes_results(inputs, origin, scale)?;
+        let offset = |node: GlobalCell| terrain.map_or((0, 0), |t| t.channel_offset_um(node));
+        let formed = terrain.is_some_and(AtlasTerrain::is_formed);
+        let shapes = shapes_results(
+            inputs,
+            origin,
+            scale,
+            if formed { Some(&offset) } else { None },
+        )?;
         let mut starts: Vec<_> = (0..shapes.len()).collect();
         let mut ends = starts.clone();
         starts.sort_unstable_by_key(|&i| (shapes[i].bounds[2], i));
@@ -376,6 +474,7 @@ impl<'a> AreaRaster<'a> {
         let side = scale.side() as usize;
         Ok(Self {
             cells,
+            terrain,
             lake_colours,
             shapes,
             starts,
@@ -394,35 +493,83 @@ impl<'a> AreaRaster<'a> {
         })
     }
 
-    fn base(&mut self, cell_y: usize) -> Result<(), RenderError> {
-        if self.base_cell_y == Some(cell_y) {
-            return Ok(());
-        }
-        for cell_x in 0..512 {
-            let at = CellCoord::new(
-                u16::try_from(cell_x).map_err(|_| invalid("raster cell leaves area"))?,
-                u16::try_from(cell_y).map_err(|_| invalid("raster cell leaves area"))?,
-            )
-            .ok_or_else(|| invalid("raster cell leaves area"))?;
-            let cell = self.cells.get(at);
-            let colour = match cell.terrain {
-                TerrainKind::Lake => self
-                    .lake_colours
-                    .get(cell_y * 512 + cell_x)
-                    .copied()
-                    .flatten()
-                    .unwrap_or(LAKE_FILL),
-                TerrainKind::Sea => sea_colour(cell.height.raw()),
-                TerrainKind::Land => land_colour(cell.height.raw()),
-            };
-            // Inverse of floor(pixel * 512 / side), including nonmultiples.
-            let start = (cell_x * self.side).div_ceil(512);
-            let end = ((cell_x + 1) * self.side).div_ceil(512);
-            for pixel in self.base_row[start * 3..end * 3].as_chunks_mut::<3>().0 {
-                pixel.copy_from_slice(&colour);
+    fn base(&mut self, y: usize) -> Result<(), RenderError> {
+        let cell_y = y * 512 / self.side;
+        let Some(terrain) = self.terrain else {
+            if self.base_cell_y == Some(cell_y) {
+                return Ok(());
             }
-        }
-        self.base_cell_y = Some(cell_y);
+            for cell_x in 0..512 {
+                let at = CellCoord::new(
+                    u16::try_from(cell_x).map_err(|_| invalid("raster cell leaves area"))?,
+                    u16::try_from(cell_y).map_err(|_| invalid("raster cell leaves area"))?,
+                )
+                .ok_or_else(|| invalid("raster cell leaves area"))?;
+                let cell = self.cells.get(at);
+                let colour = match cell.terrain {
+                    TerrainKind::Lake => self
+                        .lake_colours
+                        .get(cell_y * 512 + cell_x)
+                        .copied()
+                        .flatten()
+                        .unwrap_or(LAKE_FILL),
+                    TerrainKind::Sea => sea_colour(cell.height.raw()),
+                    TerrainKind::Land => land_colour(cell.height.raw()),
+                };
+                let start = (cell_x * self.side).div_ceil(512);
+                let end = ((cell_x + 1) * self.side).div_ceil(512);
+                for pixel in self.base_row[start * 3..end * 3].as_chunks_mut::<3>().0 {
+                    pixel.copy_from_slice(&colour);
+                }
+            }
+            self.base_cell_y = Some(cell_y);
+            return Ok(());
+        };
+
+        let pixel_y = u32::try_from(y).map_err(|_| invalid("pixel exceeds raster"))?;
+        let side = u32::try_from(self.side).map_err(|_| invalid("pixel exceeds raster"))?;
+        let y_kernel = axis_kernel(pixel_y, side)?;
+        let cells = self.cells;
+        let lake_colours = &self.lake_colours;
+        let row_side = self.side;
+        // Pixels are pure functions of saved data: render 256-pixel chunks
+        // of the row in parallel; output is identical for any thread count.
+        self.base_row
+            .par_chunks_mut(256 * 3)
+            .enumerate()
+            .try_for_each(|(chunk, out)| -> Result<(), RenderError> {
+                for (k, px) in out.as_chunks_mut::<3>().0.iter_mut().enumerate() {
+                    let x = chunk * 256 + k;
+                    let cell_x = x * 512 / row_side;
+                    let at = CellCoord::new(
+                        u16::try_from(cell_x).map_err(|_| invalid("raster cell leaves area"))?,
+                        u16::try_from(cell_y).map_err(|_| invalid("raster cell leaves area"))?,
+                    )
+                    .ok_or_else(|| invalid("raster cell leaves area"))?;
+                    let cell = cells.get(at);
+                    let x_kernel = axis_kernel(
+                        u32::try_from(x).map_err(|_| invalid("pixel exceeds raster"))?,
+                        side,
+                    )?;
+                    let colour = if cell.terrain == TerrainKind::Lake {
+                        if terrain.has_lake_depths() {
+                            terrain.sample(x_kernel, y_kernel, TerrainKind::Lake)?
+                        } else {
+                            lake_colours
+                                .get(cell_y * 512 + cell_x)
+                                .copied()
+                                .flatten()
+                                .unwrap_or(LAKE_FILL)
+                        }
+                    } else {
+                        let class = terrain.contour_class(x_kernel, y_kernel, at, cell.terrain)?;
+                        terrain.sample(x_kernel, y_kernel, class)?
+                    };
+                    px.copy_from_slice(&colour);
+                }
+                Ok(())
+            })?;
+        self.base_cell_y = None;
         Ok(())
     }
 
@@ -472,7 +619,7 @@ impl<'a> AreaRaster<'a> {
             }
         }
         let cell_y = y * 512 / self.side;
-        self.base(cell_y)?;
+        self.base(y)?;
         self.rgb.copy_from_slice(&self.base_row);
         for (x, ids) in self.pixels.iter().enumerate() {
             if ids.is_empty() {
@@ -484,7 +631,21 @@ impl<'a> AreaRaster<'a> {
                 u16::try_from(cell_y).map_err(|_| invalid("raster cell leaves area"))?,
             )
             .ok_or_else(|| invalid("raster cell leaves area"))?;
-            if self.cells.get(at).terrain != TerrainKind::Land {
+            let saved = self.cells.get(at).terrain;
+            let class = if let Some(terrain) = self.terrain {
+                let side = u32::try_from(self.side).map_err(|_| invalid("pixel exceeds raster"))?;
+                let pixel_x = u32::try_from(x).map_err(|_| invalid("pixel exceeds raster"))?;
+                let pixel_y = u32::try_from(y).map_err(|_| invalid("pixel exceeds raster"))?;
+                terrain.contour_class(
+                    axis_kernel(pixel_x, side)?,
+                    axis_kernel(pixel_y, side)?,
+                    at,
+                    saved,
+                )?
+            } else {
+                saved
+            };
+            if class != TerrainKind::Land {
                 continue;
             }
             let shape_slice = self.shapes.as_slice();

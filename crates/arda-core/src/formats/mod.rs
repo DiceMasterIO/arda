@@ -10,6 +10,9 @@ pub mod hydrology;
 pub mod manifest;
 pub mod objects;
 pub mod overview;
+pub mod shore;
+pub mod terrain;
+pub mod water;
 
 /// The world-format major. Bumped only by a breaking layout change; loaders
 /// refuse any other major with the regenerate remedy (`logic/05`).

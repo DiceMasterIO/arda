@@ -1,0 +1,7 @@
+## terrain-corrections/rock-albedo-control@2026-09-24
+
+- **What:** completed one isolated exposed-rock colour comparison on saved production area (5,4), using a world-coordinate200 m cubic field, seed42, bounded±16 RGB levels and4×4 pixel-footprint quadrature. Physical terrain, normal/light, masks and water geometry stay fixed.
+- **Implementation:** opt-in scratch Atlas exposure mask and colour-before-light sampler; existing saved-area channel path supplies actual pixel coordinates. A reviewed preliminary river-alpha suppression branch was removed so partial water coverage retains its original blend over detailed ground. No production source change.
+- **Checks:**114 renderer tests, strict Clippy, independent code review,79 exact-rational field/footprint cases and enabled halo/interior RGB at512/2048 pass. Old/off PNGs and repeated candidates match exactly. Root confirms all523 saved-world files and26,237/419,792 saved lake pixels remain unchanged. The selected area has no sea; sea behavior has fixture coverage only.
+- **Visual result:** actual native and fitted comparisons add neutral mottling, leaving smooth mountain faces, repeated incisions and broad soft crests. Reject this fixed material setting for adoption; no claim that all texture methods fail. The reference-quality objective remains open.
+- **Evidence:** `features/2026-09-23-terrain-corrections/evidence/rock-albedo-control/root-assessment.md`, frozen source/binary, render receipts and root comparison metrics. No new full-world export or generator adoption.

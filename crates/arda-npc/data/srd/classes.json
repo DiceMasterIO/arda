@@ -1,0 +1,1328 @@
+[
+ {
+  "key": "barbarian",
+  "name": "Barbarian",
+  "hit_die": 12,
+  "priority": [
+   "STR",
+   "CON",
+   "DEX",
+   "WIS",
+   "CHA",
+   "INT"
+  ],
+  "saves": [
+   "STR",
+   "CON"
+  ],
+  "armor_training": [
+   "light",
+   "medium",
+   "shield"
+  ],
+  "weapon_training": [
+   "simple",
+   "martial"
+  ],
+  "skill_count": 2,
+  "skills": [
+   "Animal Handling",
+   "Athletics",
+   "Intimidation",
+   "Nature",
+   "Perception",
+   "Survival"
+  ],
+  "subclass": {
+   "name": "Path of the Berserker",
+   "level": 3,
+   "features": {
+    "3": [
+     "Frenzy"
+    ],
+    "6": [
+     "Mindless Rage"
+    ],
+    "10": [
+     "Intimidating Presence"
+    ],
+    "14": [
+     "Retaliation"
+    ]
+   },
+   "hp_per_level": 0,
+   "unarmored_base": null
+  },
+  "features": {
+   "1": [
+    "Rage",
+    "Unarmored Defense"
+   ],
+   "2": [
+    "Reckless Attack",
+    "Danger Sense"
+   ],
+   "5": [
+    "Extra Attack",
+    "Fast Movement"
+   ],
+   "7": [
+    "Feral Instinct"
+   ],
+   "9": [
+    "Brutal Critical"
+   ],
+   "11": [
+    "Relentless Rage"
+   ],
+   "15": [
+    "Persistent Rage"
+   ],
+   "18": [
+    "Indomitable Might"
+   ],
+   "20": [
+    "Primal Champion"
+   ]
+  },
+  "caster": "none",
+  "spell_ability": null,
+  "cantrips_known": [
+   0,
+   0,
+   0
+  ],
+  "unarmored_bonus": "CON",
+  "asi_levels": [
+   4,
+   8,
+   12,
+   16,
+   19
+  ],
+  "extra_attack_level": 5,
+  "loadout": {
+   "armor": [
+    null,
+    null,
+    null
+   ],
+   "shield": false,
+   "weapons": [
+    "Greataxe",
+    "Handaxe"
+   ]
+  }
+ },
+ {
+  "key": "bard",
+  "name": "Bard",
+  "hit_die": 8,
+  "priority": [
+   "CHA",
+   "DEX",
+   "CON",
+   "WIS",
+   "INT",
+   "STR"
+  ],
+  "saves": [
+   "DEX",
+   "CHA"
+  ],
+  "armor_training": [
+   "light"
+  ],
+  "weapon_training": [
+   "simple",
+   "Crossbow, hand",
+   "Longsword",
+   "Rapier",
+   "Shortsword"
+  ],
+  "skill_count": 3,
+  "skills": [
+   "Acrobatics",
+   "Animal Handling",
+   "Arcana",
+   "Athletics",
+   "Deception",
+   "History",
+   "Insight",
+   "Intimidation",
+   "Investigation",
+   "Medicine",
+   "Nature",
+   "Perception",
+   "Performance",
+   "Persuasion",
+   "Religion",
+   "Sleight of Hand",
+   "Stealth",
+   "Survival"
+  ],
+  "subclass": {
+   "name": "College of Lore",
+   "level": 3,
+   "features": {
+    "3": [
+     "Bonus Proficiencies",
+     "Cutting Words"
+    ],
+    "6": [
+     "Additional Magical Secrets"
+    ],
+    "14": [
+     "Peerless Skill"
+    ]
+   },
+   "hp_per_level": 0,
+   "unarmored_base": null
+  },
+  "features": {
+   "1": [
+    "Spellcasting",
+    "Bardic Inspiration"
+   ],
+   "2": [
+    "Jack of All Trades",
+    "Song of Rest"
+   ],
+   "3": [
+    "Expertise"
+   ],
+   "5": [
+    "Font of Inspiration"
+   ],
+   "6": [
+    "Countercharm"
+   ],
+   "10": [
+    "Magical Secrets"
+   ],
+   "20": [
+    "Superior Inspiration"
+   ]
+  },
+  "caster": "full",
+  "spell_ability": "CHA",
+  "cantrips_known": [
+   2,
+   3,
+   4
+  ],
+  "unarmored_bonus": null,
+  "asi_levels": [
+   4,
+   8,
+   12,
+   16,
+   19
+  ],
+  "extra_attack_level": null,
+  "loadout": {
+   "armor": [
+    "Leather Armor",
+    "Leather Armor",
+    "Studded Leather Armor"
+   ],
+   "shield": false,
+   "weapons": [
+    "Rapier",
+    "Dagger"
+   ]
+  }
+ },
+ {
+  "key": "cleric",
+  "name": "Cleric",
+  "hit_die": 8,
+  "priority": [
+   "WIS",
+   "CON",
+   "STR",
+   "CHA",
+   "DEX",
+   "INT"
+  ],
+  "saves": [
+   "WIS",
+   "CHA"
+  ],
+  "armor_training": [
+   "light",
+   "medium",
+   "shield",
+   "heavy"
+  ],
+  "weapon_training": [
+   "simple"
+  ],
+  "skill_count": 2,
+  "skills": [
+   "History",
+   "Insight",
+   "Medicine",
+   "Persuasion",
+   "Religion"
+  ],
+  "subclass": {
+   "name": "Life Domain",
+   "level": 1,
+   "features": {
+    "1": [
+     "Bonus Proficiency",
+     "Disciple of Life"
+    ],
+    "2": [
+     "Channel Divinity: Preserve Life"
+    ],
+    "6": [
+     "Blessed Healer"
+    ],
+    "8": [
+     "Divine Strike"
+    ],
+    "17": [
+     "Supreme Healing"
+    ]
+   },
+   "hp_per_level": 0,
+   "unarmored_base": null
+  },
+  "features": {
+   "1": [
+    "Spellcasting",
+    "Divine Domain"
+   ],
+   "2": [
+    "Channel Divinity: Turn Undead"
+   ],
+   "5": [
+    "Destroy Undead"
+   ],
+   "10": [
+    "Divine Intervention"
+   ]
+  },
+  "caster": "full",
+  "spell_ability": "WIS",
+  "cantrips_known": [
+   3,
+   4,
+   5
+  ],
+  "unarmored_bonus": null,
+  "asi_levels": [
+   4,
+   8,
+   12,
+   16,
+   19
+  ],
+  "extra_attack_level": null,
+  "loadout": {
+   "armor": [
+    "Scale Mail",
+    "Chain Mail",
+    "Plate Armor"
+   ],
+   "shield": true,
+   "weapons": [
+    "Mace",
+    "Crossbow, light"
+   ]
+  }
+ },
+ {
+  "key": "druid",
+  "name": "Druid",
+  "hit_die": 8,
+  "priority": [
+   "WIS",
+   "CON",
+   "DEX",
+   "INT",
+   "CHA",
+   "STR"
+  ],
+  "saves": [
+   "INT",
+   "WIS"
+  ],
+  "armor_training": [
+   "light",
+   "medium",
+   "shield"
+  ],
+  "weapon_training": [
+   "Club",
+   "Dagger",
+   "Dart",
+   "Javelin",
+   "Mace",
+   "Quarterstaff",
+   "Scimitar",
+   "Sickle",
+   "Sling",
+   "Spear"
+  ],
+  "skill_count": 2,
+  "skills": [
+   "Arcana",
+   "Animal Handling",
+   "Insight",
+   "Medicine",
+   "Nature",
+   "Perception",
+   "Religion",
+   "Survival"
+  ],
+  "subclass": {
+   "name": "Circle of the Land",
+   "level": 2,
+   "features": {
+    "2": [
+     "Bonus Cantrip",
+     "Natural Recovery"
+    ],
+    "3": [
+     "Circle Spells"
+    ],
+    "6": [
+     "Land's Stride"
+    ],
+    "10": [
+     "Nature's Ward"
+    ],
+    "14": [
+     "Nature's Sanctuary"
+    ]
+   },
+   "hp_per_level": 0,
+   "unarmored_base": null
+  },
+  "features": {
+   "1": [
+    "Druidic",
+    "Spellcasting"
+   ],
+   "2": [
+    "Wild Shape",
+    "Druid Circle"
+   ],
+   "18": [
+    "Timeless Body",
+    "Beast Spells"
+   ],
+   "20": [
+    "Archdruid"
+   ]
+  },
+  "caster": "full",
+  "spell_ability": "WIS",
+  "cantrips_known": [
+   2,
+   3,
+   4
+  ],
+  "unarmored_bonus": null,
+  "asi_levels": [
+   4,
+   8,
+   12,
+   16,
+   19
+  ],
+  "extra_attack_level": null,
+  "loadout": {
+   "armor": [
+    "Leather Armor",
+    "Hide Armor",
+    "Hide Armor"
+   ],
+   "shield": true,
+   "weapons": [
+    "Quarterstaff",
+    "Sling"
+   ]
+  }
+ },
+ {
+  "key": "fighter",
+  "name": "Fighter",
+  "hit_die": 10,
+  "priority": [
+   "STR",
+   "CON",
+   "DEX",
+   "WIS",
+   "CHA",
+   "INT"
+  ],
+  "saves": [
+   "STR",
+   "CON"
+  ],
+  "armor_training": [
+   "light",
+   "medium",
+   "heavy",
+   "shield"
+  ],
+  "weapon_training": [
+   "simple",
+   "martial"
+  ],
+  "skill_count": 2,
+  "skills": [
+   "Acrobatics",
+   "Animal Handling",
+   "Athletics",
+   "History",
+   "Insight",
+   "Intimidation",
+   "Perception",
+   "Survival"
+  ],
+  "subclass": {
+   "name": "Champion",
+   "level": 3,
+   "features": {
+    "3": [
+     "Improved Critical"
+    ],
+    "7": [
+     "Remarkable Athlete"
+    ],
+    "10": [
+     "Additional Fighting Style"
+    ],
+    "15": [
+     "Superior Critical"
+    ],
+    "18": [
+     "Survivor"
+    ]
+   },
+   "hp_per_level": 0,
+   "unarmored_base": null
+  },
+  "features": {
+   "1": [
+    "Fighting Style (Defense)",
+    "Second Wind"
+   ],
+   "2": [
+    "Action Surge"
+   ],
+   "5": [
+    "Extra Attack"
+   ],
+   "9": [
+    "Indomitable"
+   ]
+  },
+  "caster": "none",
+  "spell_ability": null,
+  "cantrips_known": [
+   0,
+   0,
+   0
+  ],
+  "unarmored_bonus": null,
+  "asi_levels": [
+   4,
+   6,
+   8,
+   12,
+   14,
+   16,
+   19
+  ],
+  "extra_attack_level": 5,
+  "loadout": {
+   "armor": [
+    "Chain Mail",
+    "Splint Armor",
+    "Plate Armor"
+   ],
+   "shield": true,
+   "weapons": [
+    "Longsword",
+    "Crossbow, heavy"
+   ]
+  }
+ },
+ {
+  "key": "monk",
+  "name": "Monk",
+  "hit_die": 8,
+  "priority": [
+   "DEX",
+   "WIS",
+   "CON",
+   "STR",
+   "INT",
+   "CHA"
+  ],
+  "saves": [
+   "STR",
+   "DEX"
+  ],
+  "armor_training": [],
+  "weapon_training": [
+   "simple",
+   "Shortsword"
+  ],
+  "skill_count": 2,
+  "skills": [
+   "Acrobatics",
+   "Athletics",
+   "History",
+   "Insight",
+   "Religion",
+   "Stealth"
+  ],
+  "subclass": {
+   "name": "Way of the Open Hand",
+   "level": 3,
+   "features": {
+    "3": [
+     "Open Hand Technique"
+    ],
+    "6": [
+     "Wholeness of Body"
+    ],
+    "11": [
+     "Tranquility"
+    ],
+    "17": [
+     "Quivering Palm"
+    ]
+   },
+   "hp_per_level": 0,
+   "unarmored_base": null
+  },
+  "features": {
+   "1": [
+    "Unarmored Defense",
+    "Martial Arts"
+   ],
+   "2": [
+    "Ki",
+    "Unarmored Movement"
+   ],
+   "3": [
+    "Deflect Missiles"
+   ],
+   "4": [
+    "Slow Fall"
+   ],
+   "5": [
+    "Extra Attack",
+    "Stunning Strike"
+   ],
+   "6": [
+    "Ki-Empowered Strikes"
+   ],
+   "7": [
+    "Evasion",
+    "Stillness of Mind"
+   ],
+   "10": [
+    "Purity of Body"
+   ],
+   "13": [
+    "Tongue of the Sun and Moon"
+   ],
+   "14": [
+    "Diamond Soul"
+   ],
+   "15": [
+    "Timeless Body"
+   ],
+   "18": [
+    "Empty Body"
+   ],
+   "20": [
+    "Perfect Self"
+   ]
+  },
+  "caster": "none",
+  "spell_ability": null,
+  "cantrips_known": [
+   0,
+   0,
+   0
+  ],
+  "unarmored_bonus": "WIS",
+  "asi_levels": [
+   4,
+   8,
+   12,
+   16,
+   19
+  ],
+  "extra_attack_level": 5,
+  "loadout": {
+   "armor": [
+    null,
+    null,
+    null
+   ],
+   "shield": false,
+   "weapons": [
+    "Shortsword",
+    "Dart"
+   ]
+  }
+ },
+ {
+  "key": "paladin",
+  "name": "Paladin",
+  "hit_die": 10,
+  "priority": [
+   "STR",
+   "CHA",
+   "CON",
+   "WIS",
+   "DEX",
+   "INT"
+  ],
+  "saves": [
+   "WIS",
+   "CHA"
+  ],
+  "armor_training": [
+   "light",
+   "medium",
+   "heavy",
+   "shield"
+  ],
+  "weapon_training": [
+   "simple",
+   "martial"
+  ],
+  "skill_count": 2,
+  "skills": [
+   "Athletics",
+   "Insight",
+   "Intimidation",
+   "Medicine",
+   "Persuasion",
+   "Religion"
+  ],
+  "subclass": {
+   "name": "Oath of Devotion",
+   "level": 3,
+   "features": {
+    "3": [
+     "Channel Divinity: Sacred Weapon",
+     "Channel Divinity: Turn the Unholy"
+    ],
+    "7": [
+     "Aura of Devotion"
+    ],
+    "15": [
+     "Purity of Spirit"
+    ],
+    "20": [
+     "Holy Nimbus"
+    ]
+   },
+   "hp_per_level": 0,
+   "unarmored_base": null
+  },
+  "features": {
+   "1": [
+    "Divine Sense",
+    "Lay on Hands"
+   ],
+   "2": [
+    "Fighting Style (Defense)",
+    "Spellcasting",
+    "Divine Smite"
+   ],
+   "3": [
+    "Divine Health"
+   ],
+   "5": [
+    "Extra Attack"
+   ],
+   "6": [
+    "Aura of Protection"
+   ],
+   "10": [
+    "Aura of Courage"
+   ],
+   "11": [
+    "Improved Divine Smite"
+   ],
+   "14": [
+    "Cleansing Touch"
+   ]
+  },
+  "caster": "half",
+  "spell_ability": "CHA",
+  "cantrips_known": [
+   0,
+   0,
+   0
+  ],
+  "unarmored_bonus": null,
+  "asi_levels": [
+   4,
+   8,
+   12,
+   16,
+   19
+  ],
+  "extra_attack_level": 5,
+  "loadout": {
+   "armor": [
+    "Chain Mail",
+    "Splint Armor",
+    "Plate Armor"
+   ],
+   "shield": true,
+   "weapons": [
+    "Longsword",
+    "Javelin"
+   ]
+  }
+ },
+ {
+  "key": "ranger",
+  "name": "Ranger",
+  "hit_die": 10,
+  "priority": [
+   "DEX",
+   "WIS",
+   "CON",
+   "STR",
+   "INT",
+   "CHA"
+  ],
+  "saves": [
+   "STR",
+   "DEX"
+  ],
+  "armor_training": [
+   "light",
+   "medium",
+   "shield"
+  ],
+  "weapon_training": [
+   "simple",
+   "martial"
+  ],
+  "skill_count": 3,
+  "skills": [
+   "Animal Handling",
+   "Athletics",
+   "Insight",
+   "Investigation",
+   "Nature",
+   "Perception",
+   "Stealth",
+   "Survival"
+  ],
+  "subclass": {
+   "name": "Hunter",
+   "level": 3,
+   "features": {
+    "3": [
+     "Hunter's Prey"
+    ],
+    "7": [
+     "Defensive Tactics"
+    ],
+    "11": [
+     "Multiattack"
+    ],
+    "15": [
+     "Superior Hunter's Defense"
+    ]
+   },
+   "hp_per_level": 0,
+   "unarmored_base": null
+  },
+  "features": {
+   "1": [
+    "Favored Enemy",
+    "Natural Explorer"
+   ],
+   "2": [
+    "Fighting Style (Defense)",
+    "Spellcasting"
+   ],
+   "3": [
+    "Primeval Awareness"
+   ],
+   "5": [
+    "Extra Attack"
+   ],
+   "8": [
+    "Land's Stride"
+   ],
+   "10": [
+    "Hide in Plain Sight"
+   ],
+   "14": [
+    "Vanish"
+   ],
+   "18": [
+    "Feral Senses"
+   ],
+   "20": [
+    "Foe Slayer"
+   ]
+  },
+  "caster": "half",
+  "spell_ability": "WIS",
+  "cantrips_known": [
+   0,
+   0,
+   0
+  ],
+  "unarmored_bonus": null,
+  "asi_levels": [
+   4,
+   8,
+   12,
+   16,
+   19
+  ],
+  "extra_attack_level": 5,
+  "loadout": {
+   "armor": [
+    "Leather Armor",
+    "Studded Leather Armor",
+    "Studded Leather Armor"
+   ],
+   "shield": false,
+   "weapons": [
+    "Shortsword",
+    "Longbow"
+   ]
+  }
+ },
+ {
+  "key": "rogue",
+  "name": "Rogue",
+  "hit_die": 8,
+  "priority": [
+   "DEX",
+   "CON",
+   "INT",
+   "WIS",
+   "CHA",
+   "STR"
+  ],
+  "saves": [
+   "DEX",
+   "INT"
+  ],
+  "armor_training": [
+   "light"
+  ],
+  "weapon_training": [
+   "simple",
+   "Crossbow, hand",
+   "Longsword",
+   "Rapier",
+   "Shortsword"
+  ],
+  "skill_count": 4,
+  "skills": [
+   "Acrobatics",
+   "Athletics",
+   "Deception",
+   "Insight",
+   "Intimidation",
+   "Investigation",
+   "Perception",
+   "Performance",
+   "Persuasion",
+   "Sleight of Hand",
+   "Stealth"
+  ],
+  "subclass": {
+   "name": "Thief",
+   "level": 3,
+   "features": {
+    "3": [
+     "Fast Hands",
+     "Second-Story Work"
+    ],
+    "9": [
+     "Supreme Sneak"
+    ],
+    "13": [
+     "Use Magic Device"
+    ],
+    "17": [
+     "Thief's Reflexes"
+    ]
+   },
+   "hp_per_level": 0,
+   "unarmored_base": null
+  },
+  "features": {
+   "1": [
+    "Expertise",
+    "Sneak Attack",
+    "Thieves' Cant"
+   ],
+   "2": [
+    "Cunning Action"
+   ],
+   "5": [
+    "Uncanny Dodge"
+   ],
+   "7": [
+    "Evasion"
+   ],
+   "11": [
+    "Reliable Talent"
+   ],
+   "14": [
+    "Blindsense"
+   ],
+   "15": [
+    "Slippery Mind"
+   ],
+   "18": [
+    "Elusive"
+   ],
+   "20": [
+    "Stroke of Luck"
+   ]
+  },
+  "caster": "none",
+  "spell_ability": null,
+  "cantrips_known": [
+   0,
+   0,
+   0
+  ],
+  "unarmored_bonus": null,
+  "asi_levels": [
+   4,
+   8,
+   10,
+   12,
+   16,
+   19
+  ],
+  "extra_attack_level": null,
+  "loadout": {
+   "armor": [
+    "Leather Armor",
+    "Leather Armor",
+    "Studded Leather Armor"
+   ],
+   "shield": false,
+   "weapons": [
+    "Rapier",
+    "Shortbow"
+   ]
+  }
+ },
+ {
+  "key": "sorcerer",
+  "name": "Sorcerer",
+  "hit_die": 6,
+  "priority": [
+   "CHA",
+   "CON",
+   "DEX",
+   "WIS",
+   "INT",
+   "STR"
+  ],
+  "saves": [
+   "CON",
+   "CHA"
+  ],
+  "armor_training": [],
+  "weapon_training": [
+   "Dagger",
+   "Dart",
+   "Sling",
+   "Quarterstaff",
+   "Crossbow, light"
+  ],
+  "skill_count": 2,
+  "skills": [
+   "Arcana",
+   "Deception",
+   "Insight",
+   "Intimidation",
+   "Persuasion",
+   "Religion"
+  ],
+  "subclass": {
+   "name": "Draconic Bloodline",
+   "level": 1,
+   "features": {
+    "1": [
+     "Dragon Ancestor",
+     "Draconic Resilience"
+    ],
+    "6": [
+     "Elemental Affinity"
+    ],
+    "14": [
+     "Dragon Wings"
+    ],
+    "18": [
+     "Draconic Presence"
+    ]
+   },
+   "hp_per_level": 1,
+   "unarmored_base": 13
+  },
+  "features": {
+   "1": [
+    "Spellcasting",
+    "Sorcerous Origin"
+   ],
+   "2": [
+    "Font of Magic"
+   ],
+   "3": [
+    "Metamagic"
+   ],
+   "20": [
+    "Sorcerous Restoration"
+   ]
+  },
+  "caster": "full",
+  "spell_ability": "CHA",
+  "cantrips_known": [
+   4,
+   5,
+   6
+  ],
+  "unarmored_bonus": null,
+  "asi_levels": [
+   4,
+   8,
+   12,
+   16,
+   19
+  ],
+  "extra_attack_level": null,
+  "loadout": {
+   "armor": [
+    null,
+    null,
+    null
+   ],
+   "shield": false,
+   "weapons": [
+    "Dagger",
+    "Crossbow, light"
+   ]
+  }
+ },
+ {
+  "key": "warlock",
+  "name": "Warlock",
+  "hit_die": 8,
+  "priority": [
+   "CHA",
+   "CON",
+   "DEX",
+   "WIS",
+   "INT",
+   "STR"
+  ],
+  "saves": [
+   "WIS",
+   "CHA"
+  ],
+  "armor_training": [
+   "light"
+  ],
+  "weapon_training": [
+   "simple"
+  ],
+  "skill_count": 2,
+  "skills": [
+   "Arcana",
+   "Deception",
+   "History",
+   "Intimidation",
+   "Investigation",
+   "Nature",
+   "Religion"
+  ],
+  "subclass": {
+   "name": "The Fiend",
+   "level": 1,
+   "features": {
+    "1": [
+     "Dark One's Blessing"
+    ],
+    "6": [
+     "Dark One's Own Luck"
+    ],
+    "10": [
+     "Fiendish Resilience"
+    ],
+    "14": [
+     "Hurl Through Hell"
+    ]
+   },
+   "hp_per_level": 0,
+   "unarmored_base": null
+  },
+  "features": {
+   "1": [
+    "Otherworldly Patron",
+    "Pact Magic"
+   ],
+   "2": [
+    "Eldritch Invocations"
+   ],
+   "3": [
+    "Pact Boon"
+   ],
+   "11": [
+    "Mystic Arcanum"
+   ],
+   "20": [
+    "Eldritch Master"
+   ]
+  },
+  "caster": "pact",
+  "spell_ability": "CHA",
+  "cantrips_known": [
+   2,
+   3,
+   4
+  ],
+  "unarmored_bonus": null,
+  "asi_levels": [
+   4,
+   8,
+   12,
+   16,
+   19
+  ],
+  "extra_attack_level": null,
+  "loadout": {
+   "armor": [
+    "Leather Armor",
+    "Leather Armor",
+    "Studded Leather Armor"
+   ],
+   "shield": false,
+   "weapons": [
+    "Dagger",
+    "Crossbow, light"
+   ]
+  }
+ },
+ {
+  "key": "wizard",
+  "name": "Wizard",
+  "hit_die": 6,
+  "priority": [
+   "INT",
+   "CON",
+   "DEX",
+   "WIS",
+   "CHA",
+   "STR"
+  ],
+  "saves": [
+   "INT",
+   "WIS"
+  ],
+  "armor_training": [],
+  "weapon_training": [
+   "Dagger",
+   "Dart",
+   "Sling",
+   "Quarterstaff",
+   "Crossbow, light"
+  ],
+  "skill_count": 2,
+  "skills": [
+   "Arcana",
+   "History",
+   "Insight",
+   "Investigation",
+   "Medicine",
+   "Religion"
+  ],
+  "subclass": {
+   "name": "School of Evocation",
+   "level": 2,
+   "features": {
+    "2": [
+     "Evocation Savant",
+     "Sculpt Spells"
+    ],
+    "6": [
+     "Potent Cantrip"
+    ],
+    "10": [
+     "Empowered Evocation"
+    ],
+    "14": [
+     "Overchannel"
+    ]
+   },
+   "hp_per_level": 0,
+   "unarmored_base": null
+  },
+  "features": {
+   "1": [
+    "Spellcasting",
+    "Arcane Recovery"
+   ],
+   "2": [
+    "Arcane Tradition"
+   ],
+   "18": [
+    "Spell Mastery"
+   ],
+   "20": [
+    "Signature Spells"
+   ]
+  },
+  "caster": "full",
+  "spell_ability": "INT",
+  "cantrips_known": [
+   3,
+   4,
+   5
+  ],
+  "unarmored_bonus": null,
+  "asi_levels": [
+   4,
+   8,
+   12,
+   16,
+   19
+  ],
+  "extra_attack_level": null,
+  "loadout": {
+   "armor": [
+    null,
+    null,
+    null
+   ],
+   "shield": false,
+   "weapons": [
+    "Quarterstaff",
+    "Dagger"
+   ]
+  }
+ }
+]

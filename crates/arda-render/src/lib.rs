@@ -3,6 +3,8 @@
 // `code-prefs.md` §Q1 bans unwrap/expect *outside* `#[cfg(test)]`.
 #![cfg_attr(test, allow(clippy::unwrap_used, clippy::expect_used))]
 
+mod atlas;
+mod channel_curve;
 mod channel_geometry;
 mod channels;
 mod hydrology_json;
@@ -14,10 +16,20 @@ pub mod carto;
 pub mod json;
 pub mod symbolic;
 
-pub use carto::{render_area_png, render_area_png_to, render_overview_png};
+pub use atlas::{
+    formed_river_centreline, formed_river_rgb, formed_source_width, AtlasFineWorldBounds,
+    AtlasHalo, AtlasNeighbor, AtlasTerrain, FormedRiverNetwork, ReliefGeometry,
+};
+pub use carto::{
+    render_area_png, render_area_png_to, render_area_png_to_atlas, render_overview_png,
+};
 pub use channels::AreaImageScale;
 pub use json::{area_json, block_json, SCHEMA_VERSION};
-pub use overview::{write_overview_png, OverviewRaster};
+pub use overview::{
+    write_atlas_overview_png, write_atlas_overview_png_with_channels,
+    write_atlas_overview_png_with_channels_formed, write_atlas_overview_png_with_channels_recipe4,
+    write_overview_png, OverviewChannelContext, OverviewRaster,
+};
 pub use quality::ImageQuality;
 pub use symbolic::{render_block_png, SQUARE_PX};
 
@@ -42,6 +54,12 @@ pub enum RenderError {
     #[error("invalid channel geometry: {reason}")]
     ChannelGeometry {
         /// The failed physical or resource rule.
+        reason: &'static str,
+    },
+    /// Neighbor context or exact resampling invariants were violated.
+    #[error("invalid atlas context: {reason}")]
+    AtlasContext {
+        /// The violated context or sampling rule.
         reason: &'static str,
     },
     /// Overview dimensions exceed supported ranges or the pixel budget.
@@ -146,6 +164,7 @@ mod tests {
                 named_river_count: 0,
                 river_count: 0,
             },
+            fine_terrain: None,
         }
     }
 

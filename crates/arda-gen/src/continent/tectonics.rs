@@ -6,7 +6,8 @@
 //! are 100-300 km wide, and raising a single 4 km cell and then diffusing it
 //! produces a plateau rather than a range.
 
-use super::plates::{plate_of_warped, CrustType, Plate, SimExtent};
+use super::plates::{plate_of_warped, plate_of_warped_round, CrustType, Plate, SimExtent};
+use crate::noise::value_noise;
 
 /// Peak uplift per step at a continent-continent collision axis, millimetres.
 ///
@@ -18,8 +19,7 @@ const ARC_PEAK_MM: i64 = 150_000;
 /// Peak subsidence per step at a rift axis, millimetres.
 const RIFT_PEAK_MM: i64 = 70_000;
 
-/// Belt half-width in 4 km cells. 40 cells is 160 km, the scale of the Alps
-/// or the Southern Uplands; arcs and rifts are narrower.
+/// Belt half-width in 4 km cells; arcs are narrower than collision ranges.
 const COLLISION_BELT: i32 = 9;
 const ARC_BELT: i32 = 6;
 const RIFT_BELT: i32 = 14;
@@ -85,10 +85,51 @@ fn boundary_kinds<'a>(a: &Plate, neighbours: impl IntoIterator<Item = &'a Plate>
 /// Accumulated uplift in millimetres per 4 km cell.
 #[must_use]
 pub fn run_tectonics(seed: u64, plates: &[Plate], sim: SimExtent, steps: u16) -> Vec<i32> {
+    run_tectonics_with_profile(seed, plates, sim, steps, false, false)
+}
+
+/// Fine-terrain macro uplift. The legacy profile remains byte-identical;
+/// only the opt-in canonical source uses segmented mountain crests and a
+/// continuous rift floor.
+#[must_use]
+pub fn run_tectonics_fine(seed: u64, plates: &[Plate], sim: SimExtent, steps: u16) -> Vec<i32> {
+    run_tectonics_with_profile(seed, plates, sim, steps, true, false)
+}
+
+/// Recipe-5 macro uplift: the fine profile over curved plate margins
+/// ([`plate_of_warped_round`]).
+#[must_use]
+pub fn run_tectonics_formed(seed: u64, plates: &[Plate], sim: SimExtent, steps: u16) -> Vec<i32> {
+    run_tectonics_with_profile(seed, plates, sim, steps, true, true)
+}
+
+fn run_tectonics_with_profile(
+    seed: u64,
+    plates: &[Plate],
+    sim: SimExtent,
+    steps: u16,
+    fine: bool,
+    round: bool,
+) -> Vec<i32> {
     let w = sim.width;
     let h = sim.height;
     let count = usize::try_from(w * h).unwrap_or(0);
     let mut uplift = vec![0i32; count];
+    // Calibrate the fine variant against the unchanged tectonic accumulation.
+    // Normalizing its new peaks against themselves would lower most mountain
+    // slopes and make the ranges feel flatter despite adding crest structure.
+    let mut calibration = if fine { vec![0i32; count] } else { Vec::new() };
+    // Fixed in world coordinates across tectonic steps: a migrating belt
+    // sweeps over the same crest/saddle landscape instead of re-rolling its
+    // peaks each step. The two smooth scales are 64 and 24 km on this 4 km
+    // lattice. They modulate only positive orogenic forcing, never the coast.
+    let crest_weight: Vec<i64> = if fine {
+        (0..h)
+            .flat_map(|y| (0..w).map(move |x| crest_weight_q10(seed, x, y)))
+            .collect()
+    } else {
+        Vec::new()
+    };
 
     let idx = |x: i32, y: i32| usize::try_from(y * w + x).unwrap_or(0);
 
@@ -103,15 +144,40 @@ pub fn run_tectonics(seed: u64, plates: &[Plate], sim: SimExtent, steps: u16) ->
         // kinematic-lite reading of `logic/01` §Q5.
         let moved: Vec<Plate> = plates
             .iter()
-            .map(|p| Plate {
-                centre_x: p.centre_x + p.drift_x * i32::from(step),
-                centre_y: p.centre_y + p.drift_y * i32::from(step),
-                ..*p
+            .map(|p| {
+                if round {
+                    // logic/02 §fine-formation continent: continuous drift
+                    // direction (same speed as the shared integer drift), in
+                    // 1/16-cell units. Integer axis/diagonal drift swept belts
+                    // into parallelograms with axis-aligned sides.
+                    let (vx, vy) = round_drift_q4(seed, p);
+                    Plate {
+                        centre_x: p.centre_x + (vx * i32::from(step) + 8).div_euclid(16),
+                        centre_y: p.centre_y + (vy * i32::from(step) + 8).div_euclid(16),
+                        // Classification needs only the sign of a dot product,
+                        // so scaled drift classifies identically in kind.
+                        drift_x: vx,
+                        drift_y: vy,
+                        ..*p
+                    }
+                } else {
+                    Plate {
+                        centre_x: p.centre_x + p.drift_x * i32::from(step),
+                        centre_y: p.centre_y + p.drift_y * i32::from(step),
+                        ..*p
+                    }
+                }
             })
             .collect();
         let owner: Vec<u8> = (0..h)
             .flat_map(|y| (0..w).map(move |x| (x, y)))
-            .map(|(x, y)| plate_of_warped(seed, &moved, x, y))
+            .map(|(x, y)| {
+                if round {
+                    plate_of_warped_round(seed, &moved, x, y)
+                } else {
+                    plate_of_warped(seed, &moved, x, y)
+                }
+            })
             .collect();
         let plates = &moved;
 
@@ -150,19 +216,70 @@ pub fn run_tectonics(seed: u64, plates: &[Plate], sim: SimExtent, steps: u16) ->
 
         for i in 0..count {
             let mut dz = 0i64;
-            dz += COLLISION_PEAK_MM * belt(d_col[i], COLLISION_BELT) / 1024;
-            dz += ARC_PEAK_MM * belt(d_arc[i], ARC_BELT) / 1024;
-            dz -= RIFT_PEAK_MM * belt(d_rift[i], RIFT_BELT) / 1024;
+            let collision = COLLISION_PEAK_MM * belt(d_col[i], COLLISION_BELT) / 1024;
+            let arc = ARC_PEAK_MM * belt(d_arc[i], ARC_BELT) / 1024;
+            let rift = RIFT_PEAK_MM * belt(d_rift[i], RIFT_BELT) / 1024;
+            if fine {
+                dz += (collision + arc) * crest_weight[i] / 1024 - rift;
+                calibration[i] = i32::try_from(i64::from(calibration[i]) + collision + arc - rift)
+                    .unwrap_or(i32::MAX);
+            } else {
+                dz += collision + arc - rift;
+            }
             uplift[i] = i32::try_from(i64::from(uplift[i]) + dz).unwrap_or(i32::MAX);
         }
 
         if step % DIFFUSE_EVERY == 0 {
             diffuse(&mut uplift, w, h);
+            if fine {
+                diffuse(&mut calibration, w, h);
+            }
         }
     }
 
-    normalise(&mut uplift);
+    if fine {
+        normalise_fine(&mut uplift, &calibration);
+    } else {
+        normalise(&mut uplift);
+    }
     uplift
+}
+
+/// Recipe-5 plate drift in 1/16 cell per step: the shared drift's speed in
+/// a hash-chosen direction (64 headings, Q12 cosine table built from a
+/// quarter-wave of integer values).
+pub(super) fn round_drift_q4(seed: u64, p: &Plate) -> (i32, i32) {
+    const COS_Q12: [i64; 17] = [
+        4096, 4076, 4017, 3920, 3784, 3612, 3406, 3166, 2896, 2598, 2276, 1931, 1567, 1189, 799,
+        401, 0,
+    ];
+    let speed_sq = i64::from(p.drift_x * p.drift_x + p.drift_y * p.drift_y) * 256;
+    let speed = i64::try_from(speed_sq.unsigned_abs().isqrt()).unwrap_or(0);
+    let k = (crate::noise::hash_2d(seed ^ 0xD21F, i32::from(p.id), 3) % 64) as usize;
+    let quarter = |k: usize| -> i64 {
+        // cos(k * 2pi / 64) for k in 0..64
+        match k / 16 {
+            0 => COS_Q12[k],
+            1 => -COS_Q12[32 - k],
+            2 => -COS_Q12[k - 32],
+            _ => COS_Q12[64 - k],
+        }
+    };
+    let c = quarter(k);
+    let sn = quarter((k + 48) % 64);
+    (
+        i32::try_from(speed * c / 4096).unwrap_or(0),
+        i32::try_from(speed * sn / 4096).unwrap_or(0),
+    )
+}
+
+/// Bounded, smooth peak/saddle hierarchy along an orogenic axis. The 4 km
+/// cells retain the tectonic belt shape; this varies its crest strength over
+/// tens of kilometres so a long collision is not one wall of equal height.
+fn crest_weight_q10(seed: u64, x: i32, y: i32) -> i64 {
+    let broad = i64::from(value_noise(seed ^ 0xC2E5_7A11, x, y, 16));
+    let secondary = i64::from(value_noise(seed ^ 0x59D1_83B4, x, y, 6));
+    (1024 + broad * 640 / 32_768 + secondary * 160 / 32_768).clamp(224, 1824)
 }
 
 /// Relief the highest ground reaches once the run settles, millimetres.
@@ -198,7 +315,33 @@ fn normalise(uplift: &mut [i32]) {
     }
 }
 
-/// Belt profile: 1024 on the axis falling to 0 at `width`, as `t^3`.
+/// The fine profile keeps the same positive-height calibration as the
+/// legacy path, while mapping negative rift uplift monotonically toward the
+/// old -220 m limit. A hard clamp erased all differences between deep rift
+/// cells, making a broad exact-height floor below the continental base.
+fn normalise_fine(uplift: &mut [i32], calibration: &[i32]) {
+    let mut positive: Vec<i32> = calibration.iter().copied().filter(|&v| v > 0).collect();
+    positive.sort_unstable();
+    let hi = positive
+        .get(positive.len().saturating_mul(995) / 1000)
+        .map(|&v| i64::from(v).max(1));
+    const RIFT_SOFTNESS_MM: i64 = 550_000;
+    for v in uplift.iter_mut() {
+        let scaled = hi.map_or(i64::from(*v), |hi| i64::from(*v) * TARGET_RELIEF_MM / hi);
+        let shaped = if scaled < 0 {
+            let depth = -scaled;
+            let softened = i128::from(RIFT_FLOOR_MM) * i128::from(depth)
+                / i128::from(depth + RIFT_SOFTNESS_MM);
+            -i64::try_from(softened).unwrap_or(RIFT_FLOOR_MM)
+        } else {
+            scaled
+        };
+        *v = i32::try_from(shaped.clamp(i64::from(i32::MIN), i64::from(i32::MAX)))
+            .unwrap_or(i32::MAX);
+    }
+}
+
+/// Belt profile: 1024 on the axis falling to 0 at `width` cells, as `t^3`.
 ///
 /// Smoothstep was tried first and is wrong here — it is flat-topped, so the
 /// whole belt rises to near-peak and the continent becomes a plateau with
@@ -206,55 +349,99 @@ fn normalise(uplift: &mut [i32]) {
 /// peaked at the axis and concave outward, which puts most of the belt's
 /// area in foothills and gives the strongly right-skewed hypsometry real
 /// continents have.
-fn belt(dist: i32, width: i32) -> i64 {
-    if dist >= width {
+fn belt(dist_q10: i32, width: i32) -> i64 {
+    if i64::from(dist_q10) >= i64::from(width) * 1024 {
         return 0;
     }
-    let t = 1024 - i64::from(dist) * 1024 / i64::from(width.max(1));
+    let t = 1024 - i64::from(dist_q10) / i64::from(width.max(1));
     let t2 = t * t / 1024;
     (t2 * t / 1024).clamp(0, 1024)
 }
 
-/// Chebyshev distance to the nearest cell of `kind`, capped at `limit`.
+/// Q10 Euclidean distance to the nearest cell of `kind`, capped past `limit`.
 ///
-/// Two-pass chamfer transform: deterministic, integer, and O(n).
+/// Two separable squared-distance passes keep work linear in grid area.
 fn distance_to(kind: &[BoundaryMask], want: Boundary, w: i32, h: i32, limit: i32) -> Vec<i32> {
-    let idx = |x: i32, y: i32| usize::try_from(y * w + x).unwrap_or(0);
-    let cap = limit + 1;
-    let mut d: Vec<i32> = kind
-        .iter()
-        .map(|&k| if k.contains(want) { 0 } else { cap })
-        .collect();
+    let width = usize::try_from(w).unwrap_or(0);
+    let height = usize::try_from(h).unwrap_or(0);
+    let cap_cells = i64::from(limit) + 1;
+    let cap2 = cap_cells * cap_cells;
+    let cap_q10 = i32::try_from(cap_cells * 1024).unwrap_or(i32::MAX);
+    let mut horizontal = vec![cap2; kind.len()];
 
-    for y in 0..h {
-        for x in 0..w {
-            let i = idx(x, y);
-            let mut best = d[i];
-            for (dx, dy) in [(-1, 0), (0, -1), (-1, -1), (1, -1)] {
-                let (nx, ny) = (x + dx, y + dy);
-                if nx < 0 || ny < 0 || nx >= w || ny >= h {
-                    continue;
-                }
-                best = best.min(d[idx(nx, ny)].saturating_add(1));
+    for y in 0..height {
+        let row = y * width;
+        let mut nearest = None;
+        for x in 0..width {
+            if kind[row + x].contains(want) {
+                nearest = Some(x);
             }
-            d[i] = best.min(cap);
+            if let Some(source) = nearest {
+                let dx = i64::try_from(x - source).unwrap_or(i64::MAX);
+                horizontal[row + x] = (dx * dx).min(cap2);
+            }
+        }
+        nearest = None;
+        for x in (0..width).rev() {
+            if kind[row + x].contains(want) {
+                nearest = Some(x);
+            }
+            if let Some(source) = nearest {
+                let dx = i64::try_from(source - x).unwrap_or(i64::MAX);
+                horizontal[row + x] = horizontal[row + x].min(dx * dx);
+            }
         }
     }
-    for y in (0..h).rev() {
-        for x in (0..w).rev() {
-            let i = idx(x, y);
-            let mut best = d[i];
-            for (dx, dy) in [(1, 0), (0, 1), (1, 1), (-1, 1)] {
-                let (nx, ny) = (x + dx, y + dy);
-                if nx < 0 || ny < 0 || nx >= w || ny >= h {
-                    continue;
-                }
-                best = best.min(d[idx(nx, ny)].saturating_add(1));
+
+    let mut result = vec![cap_q10; kind.len()];
+    let mut sites: Vec<usize> = Vec::with_capacity(height);
+    let mut starts: Vec<i128> = Vec::with_capacity(height);
+    for x in 0..width {
+        sites.clear();
+        starts.clear();
+        for q in 0..height {
+            let fq = horizontal[q * width + x];
+            if fq >= cap2 {
+                continue;
             }
-            d[i] = best.min(cap);
+            let qi = i128::try_from(q).unwrap_or(i128::MAX);
+            let mut start = i128::MIN;
+            while let Some(&p) = sites.last() {
+                let pi = i128::try_from(p).unwrap_or(i128::MAX);
+                let fp = i128::from(horizontal[p * width + x]);
+                // Integer intersections break equal-distance ties toward the
+                // earlier site, without rounding the final distance.
+                start = (i128::from(fq) + qi * qi - fp - pi * pi).div_euclid(2 * (qi - pi)) + 1;
+                if start > starts[starts.len() - 1] {
+                    break;
+                }
+                sites.pop();
+                starts.pop();
+            }
+            if sites.is_empty() {
+                start = i128::MIN;
+            }
+            sites.push(q);
+            starts.push(start);
+        }
+        let mut active = 0;
+        for y in 0..height {
+            if sites.is_empty() {
+                break;
+            }
+            while active + 1 < sites.len()
+                && starts[active + 1] <= i128::try_from(y).unwrap_or(i128::MAX)
+            {
+                active += 1;
+            }
+            let dy = y.abs_diff(sites[active]);
+            let dy = i64::try_from(dy).unwrap_or(i64::MAX);
+            let d2 = (horizontal[sites[active] * width + x] + dy * dy).min(cap2);
+            let scaled = u128::try_from(d2).unwrap_or(0) * 1024 * 1024;
+            result[y * width + x] = i32::try_from(scaled.isqrt()).unwrap_or(i32::MAX);
         }
     }
-    d
+    result
 }
 
 #[cfg(test)]
@@ -283,7 +470,7 @@ fn diffuse(field: &mut [i32], w: i32, h: i32) {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::continent::plates::seed_plates;
+    use crate::continent::plates::{plate_of_warped, seed_plates};
 
     fn sim() -> SimExtent {
         SimExtent {
@@ -312,25 +499,127 @@ mod tests {
     }
 
     #[test]
-    fn uplift_is_a_belt_not_a_line() {
-        // Measure how wide the raised ground is: a one-cell ridge would mean
-        // the belt profile is not doing its job.
-        let p = seed_plates(42, sim(), 0);
-        let u = run_tectonics(42, &p, sim(), 20);
-        let peak = u.iter().copied().max().unwrap_or(1);
-        let high = u.iter().filter(|&&v| v > peak / 2).count();
+    fn fine_profile_breaks_equal_height_crests_without_exceeding_bounded_weight() {
+        let mut values = Vec::new();
+        for x in 0..64 {
+            let weight = crest_weight_q10(42, x, 12);
+            assert!((224..=1824).contains(&weight));
+            values.push(weight);
+        }
+        assert!(values.iter().max().unwrap() - values.iter().min().unwrap() > 250);
+        assert_eq!(
+            values,
+            (0..64)
+                .map(|x| crest_weight_q10(42, x, 12))
+                .collect::<Vec<_>>()
+        );
+    }
+
+    #[test]
+    fn fine_rift_floor_preserves_depth_order_where_legacy_clamps() {
+        let input = [-100_000, -500_000, -1_000_000, -2_000_000, 2_600_000];
+        let mut legacy = input;
+        let mut fine = input;
+        normalise(&mut legacy);
+        normalise_fine(&mut fine, &input);
+        assert_eq!(legacy[1..4], [-220_000; 3]);
+        assert!(fine[..4].windows(2).all(|w| w[0] > w[1]));
+        assert!(fine[..4].iter().all(|&h| h > -220_000 && h < 0));
+        assert_eq!(fine[4], 2_600_000);
+        let mut extremes = [i32::MIN, 1];
+        normalise_fine(&mut extremes, &[i32::MIN, 1]);
+        assert!((-220_000..0).contains(&extremes[0]));
+        let mut rift_only = [-2_000_000, -1_000_000, 0];
+        let no_peak_calibration = rift_only;
+        normalise_fine(&mut rift_only, &no_peak_calibration);
+        assert!(rift_only[0] < rift_only[1] && rift_only[1] < 0);
+    }
+
+    #[test]
+    fn straight_boundary_creates_a_symmetric_belt_at_each_configured_width() {
+        let mut kinds = vec![BoundaryMask::default(); 31 * 5];
+        for y in 0..5 {
+            kinds[y * 31 + 15] = BoundaryMask(
+                Boundary::Collision as u8 | Boundary::Arc as u8 | Boundary::Rift as u8,
+            );
+        }
+        for (want, width) in [
+            (Boundary::Collision, COLLISION_BELT),
+            (Boundary::Arc, ARC_BELT),
+            (Boundary::Rift, RIFT_BELT),
+        ] {
+            let distances = distance_to(&kinds, want, 31, 5, width);
+            assert_eq!(belt(distances[2 * 31 + 15], width), 1024);
+            let mut previous = 1024;
+            for offset in 1..=width {
+                let left = usize::try_from(15 - offset).unwrap();
+                let right = usize::try_from(15 + offset).unwrap();
+                let left_dist = distances[2 * 31 + left];
+                let right_dist = distances[2 * 31 + right];
+                assert_eq!(left_dist, offset * 1024);
+                assert_eq!(left_dist, right_dist);
+                let height = belt(left_dist, width);
+                assert!(height <= previous);
+                if offset < width - 1 {
+                    assert!(height > 0, "{want:?} vanished at {offset} of {width} cells");
+                }
+                previous = height;
+            }
+            assert_eq!(previous, 0, "{want:?} extends past {width} cells");
+        }
+    }
+
+    #[test]
+    fn converging_plates_raise_cells_beyond_boundary_diffusion() {
+        let sim = SimExtent {
+            width: 64,
+            height: 64,
+        };
+        let plates = [
+            Plate {
+                id: 0,
+                centre_x: 16,
+                centre_y: 32,
+                crust: CrustType::Continental,
+                drift_x: 1,
+                drift_y: 0,
+            },
+            Plate {
+                id: 1,
+                centre_x: 48,
+                centre_y: 32,
+                crust: CrustType::Continental,
+                drift_x: -1,
+                drift_y: 0,
+            },
+        ];
+        let seed = 42;
+        let uplift = run_tectonics(seed, &plates, sim, 1);
+        let width = usize::try_from(sim.width).unwrap();
+        let mut raised_interior = false;
+        for y in 3..sim.height - 3 {
+            for x in 3..sim.width - 3 {
+                let owner = plate_of_warped(seed, &plates, x, y);
+                let interior = (-3..=3).all(|dy| {
+                    (-3..=3).all(|dx| plate_of_warped(seed, &plates, x + dx, y + dy) == owner)
+                });
+                let i = usize::try_from(y).unwrap() * width + usize::try_from(x).unwrap();
+                if interior && uplift[i] > 0 {
+                    raised_interior = true;
+                }
+            }
+        }
         assert!(
-            high > u.len() / 100,
-            "only {high} of {} cells are above half peak",
-            u.len()
+            raised_interior,
+            "converging plates raised no cell beyond the immediate boundary and one diffusion pass"
         );
     }
 
     #[test]
     fn belt_profile_falls_to_zero_at_the_edge() {
         assert_eq!(belt(0, 40), 1024);
-        assert_eq!(belt(40, 40), 0);
-        assert_eq!(belt(41, 40), 0);
-        assert!(belt(20, 40) > 0 && belt(20, 40) < 1024);
+        assert_eq!(belt(40 * 1024, 40), 0);
+        assert_eq!(belt(41 * 1024, 40), 0);
+        assert!(belt(20 * 1024, 40) > 0 && belt(20 * 1024, 40) < 1024);
     }
 }

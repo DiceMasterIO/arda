@@ -1,0 +1,537 @@
+{
+ "_note": "Original to Arda. Slots are filled from the simulated society; see src/hooks/*.rs for which slots each kind receives.",
+ "hooks": {
+  "guild_vs_lord": {
+   "variants": [
+    [
+     "The Guild's Price",
+     "{guild} want what {court} will not give. {reason} The {master} is quietly hiring swords to guard the guildhall, and the {lord} wants to know who is paying them."
+    ],
+    [
+     "Stalls Shut",
+     "The {lord} has doubled the market dues, and {guild} answer by shutting their stalls. {reason} Someone has to carry terms between the {master} and the hall before the quarrel becomes a riot."
+    ],
+    [
+     "Ledgers and Lords",
+     "A ledger proving the {lord} skims the levy has gone missing from the strongroom of {guild}. {reason} The {master} will pay handsomely for its return; the {lord} will pay more for its burning."
+    ]
+   ]
+  },
+  "faction_feud": {
+   "variants": [
+    [
+     "Old Grudges",
+     "{reason} The {a_leader} wants proof that {b} are behind a string of small sabotages, and the {b_leader} swears it is the other way round."
+    ],
+    [
+     "A Meeting on Neutral Ground",
+     "{reason} Both {a} and {b} have asked strangers to witness a meeting at neutral ground, and both plan to bring more friends than agreed."
+    ]
+   ]
+  },
+  "underworld": {
+   "variants": [
+    [
+     "Coin for Names",
+     "{reason} The {a_leader} is offering coin for names, while the {b_leader} is offering more coin for silence."
+    ],
+    [
+     "Knives After Dark",
+     "A body in the gutter wears the token of {b}. {reason} {settlement} holds its breath to see whether {a} strike back."
+    ]
+   ]
+  },
+  "old_banner": {
+   "variants": [
+    [
+     "The Old Banner",
+     "Old loyalties to {former} stir in {settlement}, taken only in {year}. Someone is painting the old banner on the walls at night, and the {lord} wants names."
+    ],
+    [
+     "Divided Loyalties",
+     "A pedlar from {former} is carrying letters to families in {settlement} who have kin across the border. The {lord}, who has held the place since {year}, suspects a plot to hand it back."
+    ]
+   ]
+  },
+  "border_dispute": {
+   "variants": [
+    [
+     "Whose Pasture?",
+     "Herdsmen from {other} in {foe} keep grazing across the border on the {road_class} to {settlement}. The {captain} needs someone to mark the old boundary before the next quarrel turns to killing."
+    ],
+    [
+     "The Mill Charter",
+     "{foe} claims the mill on the {road_class} to {other} is theirs by an old charter. The {captain} wants that charter found, or forged."
+    ]
+   ]
+  },
+  "front_line": {
+   "variants": [
+    [
+     "The Front Line",
+     "{foe} troops have been seen on the {road_class} from {other}. The {captain} needs scouts who can count banners and come back alive."
+    ],
+    [
+     "Banners on the Road",
+     "Refugees from {other} are crowding into {settlement} ahead of the {foe} army. The {captain} suspects a spy among them."
+    ]
+   ]
+  },
+  "blockade": {
+   "variants": [
+    [
+     "The Closed Road",
+     "{foe} has closed the {road_class} to {other}, and wagons rot at the barrier. The merchants of {settlement} will pay well for anyone who can get a caravan through, and the {captain} will look the other way."
+    ],
+    [
+     "Tolls Tripled",
+     "Tolls on the {road_class} to {other} have tripled overnight by order of {foe}. Somebody in {settlement} is profiting from the blockade, and the {captain} wants to know who."
+    ]
+   ]
+  },
+  "bandit_road": {
+   "variants": [
+    [
+     "The Bandit Road",
+     "Carts on the {km} km {road_class} to {other} keep vanishing. The {captain} suspects a band hiding in {hideout} and offers a bounty per head."
+    ],
+    [
+     "An Arrow in the Shoulder",
+     "A carter staggers into {settlement} with an arrow in his shoulder, the third this season on the {road_class} to {other}. The trail leads towards {hideout}."
+    ],
+    [
+     "The Toll-Keeper's Purse",
+     "The toll-keeper on the {road_class} to {other} has grown rich too quickly. The {captain} thinks he sells travellers' routes to the band in {hideout}."
+    ]
+   ]
+  },
+  "shortage": {
+   "variants": [
+    [
+     "Scarcity",
+     "{settlement} {shortfall}. Prices have tripled; the {lord} blames hoarders, and the hoarders blame the roads."
+    ],
+    [
+     "Short Measures",
+     "A shipment of {good} promised to {settlement} never arrived, and people are restless. The {lord} wants it found and the thief hanged."
+    ]
+   ]
+  },
+  "glut": {
+   "variants": [
+    [
+     "Rotting in the Barns",
+     "Barns in {settlement} are bursting with {good} that nobody within reach will buy. Whoever opens a new market for it earns the {lord}'s gratitude, and the envy of every rival."
+    ],
+    [
+     "A Fixed Price",
+     "With {good} piling up unsold, the {lord} has banned its sale below a fixed price. Smugglers are already moving it out by night."
+    ]
+   ]
+  },
+  "smugglers": {
+   "variants": [
+    [
+     "Night Cargo",
+     "{gang} run untaxed cargo past the quays at night. The {harbourmaster} is either blind or bought, and someone wants to know which."
+    ],
+    [
+     "Not Wine but Weapons",
+     "A crate dropped from a lighter split open on the quay at {settlement}: not wine but weapons. {gang} want it back before the {harbourmaster} asks questions."
+    ]
+   ]
+  },
+  "ruin": {
+   "variants": [
+    [
+     "Lights in the Ruins",
+     "Lights have been seen in the ruins of {ruin}, a {kind} abandoned in {year}. The {lord} wants to know who is living there before winter."
+    ],
+    [
+     "The Empty {kind}",
+     "Children from {settlement} dared each other into the ruins of {ruin}. One came back with an old silver coin and a fever; one has not come back at all."
+    ]
+   ]
+  },
+  "aftermath": {
+   "variants": [
+    [
+     "Unquiet Graves",
+     "{years} years after {event}, the {priest} still keeps the list of the dead. Someone has begun digging in the old burial pits."
+    ],
+    [
+     "The Stranger's Gift",
+     "Survivors of {event} say the troubles began with a stranger's gift. {years} years on, the same gift has turned up again, and the {priest} is frightened."
+    ]
+   ]
+  },
+  "deep_trouble": {
+   "variants": [
+    [
+     "Knocking Below",
+     "Miners refuse to go below since knocking was heard behind the galleries sealed in {year}. The {overseer} needs the seam worked before the ore wagons come."
+    ],
+    [
+     "The Old Workings",
+     "A new vein breaks into old workings nobody has records of, from before {year}. The {overseer} wants it surveyed before anyone else hears of it."
+    ]
+   ]
+  },
+  "disloyal_vassal": {
+   "variants": [
+    [
+     "Riders by Night",
+     "{grievance} The {lord} of House {house} has been receiving riders at night, and the crown's agent in {settlement} wants to know from where."
+    ],
+    [
+     "A Lord of Two Minds",
+     "{grievance} House {house} has quietly stopped sending its levy. The {lord} insists it was bandits."
+    ]
+   ]
+  },
+  "missing_person": {
+   "variants": [
+    [
+     "Gone Missing",
+     "A shepherd's child has not come home, and the {lord} has more pressing matters. The family begs strangers for help."
+    ],
+    [
+     "Not Home by Dark",
+     "The miller's apprentice vanished the night the river rose. The {lord} says he ran off; his mother does not believe it."
+    ]
+   ]
+  },
+  "stranger": {
+   "variants": [
+    [
+     "The Stranger at {place}",
+     "A stranger with a sealed letter waits every evening at {place}, asking after someone who died years ago. The {lord} would like the stranger gone."
+    ],
+    [
+     "Coins of No King",
+     "A traveller at {place} pays in coins minted by no living ruler. Word reaches the {lord} before the coins are spent."
+    ]
+   ]
+  },
+  "omen": {
+   "variants": [
+    [
+     "An Ill Omen",
+     "A two-headed calf was born in {settlement} on the eve of the equinox, and the folk want a wise one to say what it means. The {lord} wants it kept quiet."
+    ],
+    [
+     "Signs and Wonders",
+     "Every dog in {settlement} howled at the same hour three nights running. The {lord} has sent for anyone who knows about such things."
+    ]
+   ]
+  },
+  "boundary_stone": {
+   "variants": [
+    [
+     "The Moved Stone",
+     "Someone moved the boundary stone between {settlement} and {other} in the night. Both sides have fetched cudgels, and the {lord} needs a neutral judge."
+    ],
+    [
+     "Where the Fields Meet",
+     "A well dug on the line between {settlement} and {other} has struck something buried and worked. Both villages claim it, and the {lord} wants it seen first."
+    ]
+   ]
+  },
+  "war_front": {
+   "variants": [
+    [
+     "War with {other}",
+     "{style} is at war with {other}. {ruler} needs a company to hold a river crossing until the levies arrive."
+    ],
+    [
+     "A Secret Truce",
+     "{other_ruler} has offered a secret truce, carried by a single envoy who must reach {ruler} at {seat} alive. Half the court would rather the war went on."
+    ]
+   ]
+  },
+  "rival_realm": {
+   "variants": [
+    [
+     "Envoys Turned Away",
+     "Envoys from {other} were turned away at {seat}. {ruler} wants proof that {other_ruler} is paying brigands to raid the border."
+    ],
+    [
+     "The Escaped Hostage",
+     "A noble hostage from {other} has escaped from {seat}. {ruler} wants them back before {other_ruler} learns of it."
+    ]
+   ]
+  },
+  "realm_blockade": {
+   "variants": [
+    [
+     "The Border Is Shut",
+     "{other} has shut its border roads to wagons from {realm}. {ruler} needs the blockade broken, or bribed open, before the harvest rots."
+    ],
+    [
+     "Wagons Turned Back",
+     "{other_ruler} has closed the border to carts from {realm}, and the carters' guild is threatening to march on {seat}. {ruler} needs proof the blockade breaks an old treaty."
+    ]
+   ]
+  },
+  "envoy": {
+   "variants": [
+    [
+     "The Envoy's Road",
+     "The {pact} between {realm} and {other} is up for renewal, and someone has tried to poison the envoy. Escort the new one safely to {other_ruler}."
+    ],
+    [
+     "Terms of the {pact_title}",
+     "A clause in the {pact} with {other} has been found altered in the archives at {seat}. {ruler} wants to know who benefits."
+    ]
+   ]
+  },
+  "courtship": {
+   "variants": [
+    [
+     "The Stolen Portrait",
+     "{ruler} seeks a marriage alliance with {other}, but the portrait sent ahead was stolen on the road."
+    ],
+    [
+     "Gifts from {other}",
+     "{other_ruler} has sent gifts to {seat}. {ruler}'s counsellors cannot agree whether they are a courtship or a bribe."
+    ]
+   ]
+  },
+  "succession": {
+   "variants": [
+    [
+     "The Failing Crown",
+     "{ruler} has reigned {years} years and is failing. {claimant} is gathering friends at court, and the great houses are choosing sides."
+    ],
+    [
+     "Heirs and Claimants",
+     "A will naming the heir of {ruler} has vanished from the chapel at {seat}. {claimant} swears to know nothing of it."
+    ]
+   ]
+  },
+  "vassal_revolt": {
+   "variants": [
+    [
+     "The Levy Unpaid",
+     "{vassal} has stopped sending the levy. {grievance} {ruler} wants to know whether it is sulking or rebellion."
+    ],
+    [
+     "A Lord in Revolt",
+     "{vassal} has closed the gates to the crown's tax-gatherers. {grievance} {ruler} needs a go-between before blood is spilt."
+    ]
+   ]
+  },
+  "plague_return": {
+   "variants": [
+    [
+     "Fever on the Roads",
+     "A sickness like {plague} of {years} years ago is being reported on the roads. {ruler} wants its source found before panic spreads."
+    ],
+    [
+     "Opened Graves",
+     "Old graves from {plague} have been opened in the night. The folk of {realm} whisper that someone wants the sickness back."
+    ]
+   ]
+  },
+  "lost_ruin": {
+   "variants": [
+    [
+     "The Buried Charter",
+     "Scholars at {seat} believe {ruin}, a {kind} near {near} settled in {year}, hides records that could undo House {house}'s right to rule."
+    ],
+    [
+     "Treasure-Hunters",
+     "Treasure-hunters are digging at {ruin}, near {near}. {ruler} wants them stopped, or wants a share."
+    ]
+   ]
+  },
+  "tax_revolt": {
+   "variants": [
+    [
+     "The Tax Strike",
+     "{ruler} takes {tax} in every hundred on trade, about {levy} sp a year, and the towns grumble. A pamphleteer calling for a tax strike must be found, or protected, depending on who pays."
+    ],
+    [
+     "The Stolen Rolls",
+     "The crown's tax rolls for {realm} were stolen on the way to {seat}. Every town is suddenly very quiet."
+    ]
+   ]
+  },
+  "royal_progress": {
+   "variants": [
+    [
+     "The Royal Progress",
+     "{ruler} will tour {realm} this summer. Every lord is scrambling to impress, and somebody would like the progress to end early."
+    ],
+    [
+     "The Ruler in Disguise",
+     "{ruler} is travelling from {seat} in disguise to see the realm unguarded, and needs discreet companions."
+    ]
+   ]
+  },
+  "census": {
+   "variants": [
+    [
+     "Counting Hearths",
+     "The crown has ordered a count of every hearth in {realm}, and the census-takers keep being run out of villages."
+    ],
+    [
+     "The Missing Census-Taker",
+     "A census-taker has gone missing between {seat} and the hills, and so have the rolls he carried."
+    ]
+   ]
+  },
+  "tourney": {
+   "variants": [
+    [
+     "The Great Tourney",
+     "A great tourney is called at {seat}. Riders arrive from every corner of {realm}, and they bring their old feuds with them."
+    ],
+    [
+     "A Poisoned Champion",
+     "The champion of the last tourney at {seat} was found poisoned. {ruler} wants the culprit before the next bout."
+    ]
+   ]
+  },
+  "old_claim": {
+   "variants": [
+    [
+     "An Old Claim Revived",
+     "{former} never formally gave up its claim to {settlement}, lost in {year}. An envoy has arrived with a mouldering charter and a lawyer, and the {lord} wants the charter proved a forgery."
+    ],
+    [
+     "The Charter of {former}",
+     "A family in {settlement} has produced a deed from before {year}, when the place belonged to {former}, claiming half the common fields. The {lord} needs the truth before the next quarter-day."
+    ]
+   ]
+  },
+  "trade_war": {
+   "variants": [
+    [
+     "Trade War",
+     "{ruler} has closed the roads to {other} to punish {other_ruler}; smugglers on both sides are growing rich, and one of them knows too much."
+    ],
+    [
+     "The Closed Border",
+     "By order of {ruler}, no wagon may cross into {other}. The merchants of {seat} are quietly paying anyone who can get their goods through regardless."
+    ]
+   ]
+  },
+  "claimant": {
+   "variants": [
+    [
+     "A Crown Contested",
+     "{ruler} came to power only {years} years ago, and {claimant} has never accepted it. Letters are passing between the claimant and lords who remember the old house."
+    ],
+    [
+     "The Old Blood",
+     "{claimant} is holding a feast for the lords of {realm} on the anniversary of the old house's fall. {ruler} wants someone inside."
+    ]
+   ]
+  },
+  "dues_dispute": {
+   "variants": [
+    [
+     "Dues Unpaid",
+     "{reason} The {master} wants a champion to argue their case before the {lord} at the next court day, and the {lord} wants the ringleaders named."
+    ],
+    [
+     "The Bailiff's Seizure",
+     "{reason} Now the {lord}'s bailiff has seized the tools of three of them, and the {master} is talking of burning the tally sticks."
+    ]
+   ]
+  },
+  "embargo": {
+   "variants": [
+    [
+     "By Order of the Crown",
+     "{ruler} has closed the {road_class} to {other} in {foe}, and wagons stand idle in {settlement}. The {captain} is under orders to turn back every cart, and under pressure to let a few through."
+    ],
+    [
+     "The Embargo",
+     "Nothing may cross into {foe} on the {road_class} to {other}, by order of {ruler}. Somebody in {settlement} is running goods over the fields at night, and the {captain} is expected to catch them."
+    ]
+   ]
+  },
+  "wolf_winter": {
+   "variants": [
+    [
+     "A Wolf Winter",
+     "Something is taking sheep from the high pastures above {settlement}, and the tracks are too large for any wolf. The {lord} has promised a fleece and a silver penny for its head."
+    ],
+    [
+     "The Last Shepherd",
+     "A shepherd from {settlement} came down from the {terrain} raving about eyes in the dark and refuses to go back. The flock is still up there."
+    ]
+   ]
+  },
+  "rising_water": {
+   "variants": [
+    [
+     "Rising Water",
+     "The river is higher than it has been since {flood}, and the old dyke above {settlement} is weeping. The {lord} needs hands to shore it, and someone to find out who has been cutting the dyke at night."
+    ],
+    [
+     "The Drowned Fields",
+     "Silt from {flood} buried a boundary stone, and now two families of {settlement} claim the same field. The {lord} wants the stone dug up before the ploughing."
+    ]
+   ]
+  },
+  "press_gang": {
+   "variants": [
+    [
+     "The Levy",
+     "{realm} is calling up its levies, and {settlement} owes {men} men. The {lord} is short, and strangers passing through look like a solution."
+    ],
+    [
+     "Deserters",
+     "Men who ran from the last muster of {realm} are hiding in the woods near {settlement}. The {lord} is ordered to bring them in; their families are feeding them."
+    ]
+   ]
+  },
+  "fair": {
+   "variants": [
+    [
+     "Fair Day",
+     "The yearly fair at {settlement} draws pedlars, players and pickpockets from every road. The {lord} wants the peace kept, and a travelling troupe wants protection from someone it will not name."
+    ],
+    [
+     "The Harvest Feast",
+     "At the harvest feast in {settlement} the best ale goes missing, and so does the brewer. The {lord} wants both back before the toasts."
+    ]
+   ]
+  },
+  "plough_find": {
+   "variants": [
+    [
+     "What the Plough Turned Up",
+     "A ploughman near {settlement} has turned up a sealed stone box. The {lord} claims it by right of the land; the ploughman has already hidden it."
+    ],
+    [
+     "Bones in the Field",
+     "Old bones and a rusted crown came up with the spring ploughing at {settlement}. Folk want them reburied before anyone asks whose they are; the {lord} wants them shown to scholars."
+    ]
+   ]
+  },
+  "wedding": {
+   "variants": [
+    [
+     "A Wedding Feud",
+     "Two families of {settlement} are to be joined at midsummer, and neither can stand the other. The {lord} needs the wedding to go ahead without blood."
+    ],
+    [
+     "The Runaway Bride",
+     "A bride from {settlement} has run off the night before her wedding, with the dowry. The {lord} would rather she were found quietly."
+    ]
+   ]
+  }
+ },
+ "hideouts": [
+  "a charcoal-burners' clearing",
+  "a burnt-out mill",
+  "the old quarry",
+  "a ruined toll-house",
+  "a hollow in the woods",
+  "a drovers' fold on the hill"
+ ]
+}

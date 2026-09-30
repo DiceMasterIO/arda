@@ -1,0 +1,23 @@
+[package]
+name = "arda-midzoom"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+repository.workspace = true
+description = "On-demand ~10 m mid-zoom relief refinement and tiles for arda worlds"
+
+[[bin]]
+name = "arda-midzoom"
+path = "src/bin/arda-midzoom.rs"
+
+[dependencies]
+arda.workspace = true
+arda-core.workspace = true
+arda-render.workspace = true
+clap.workspace = true
+png.workspace = true
+rayon.workspace = true
+thiserror.workspace = true
+
+[lints]
+workspace = true

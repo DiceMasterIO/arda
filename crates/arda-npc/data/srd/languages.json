@@ -1,0 +1,5 @@
+{
+ "standard": ["Common", "Dwarvish", "Elvish", "Giant", "Gnomish", "Goblin", "Halfling", "Orc"],
+ "exotic": ["Abyssal", "Celestial", "Draconic", "Deep Speech", "Infernal", "Primordial", "Sylvan", "Undercommon"],
+ "secret": ["Druidic", "Thieves' Cant"]
+}

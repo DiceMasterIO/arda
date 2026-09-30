@@ -1,0 +1,465 @@
+{
+ "_note": "Original to Arda. Loads are notional cartloads a year; values are silver pieces per load.",
+ "goods": [
+  {
+   "key": "grain",
+   "label": "grain",
+   "value_sp": 20,
+   "range_km": 60,
+   "demand_per_100": 100,
+   "staple": true
+  },
+  {
+   "key": "livestock",
+   "label": "livestock",
+   "value_sp": 60,
+   "range_km": 90,
+   "demand_per_100": 22,
+   "staple": true
+  },
+  {
+   "key": "wool",
+   "label": "wool",
+   "value_sp": 40,
+   "range_km": 160,
+   "demand_per_100": 0,
+   "staple": false
+  },
+  {
+   "key": "fish",
+   "label": "salt fish",
+   "value_sp": 25,
+   "range_km": 70,
+   "demand_per_100": 10,
+   "staple": true
+  },
+  {
+   "key": "salt",
+   "label": "salt",
+   "value_sp": 50,
+   "range_km": 220,
+   "demand_per_100": 3,
+   "staple": true
+  },
+  {
+   "key": "ore",
+   "label": "iron ore",
+   "value_sp": 30,
+   "range_km": 150,
+   "demand_per_100": 0,
+   "staple": false
+  },
+  {
+   "key": "ironware",
+   "label": "ironware",
+   "value_sp": 150,
+   "range_km": 250,
+   "demand_per_100": 3,
+   "staple": true
+  },
+  {
+   "key": "timber",
+   "label": "timber",
+   "value_sp": 15,
+   "range_km": 50,
+   "demand_per_100": 12,
+   "staple": true
+  },
+  {
+   "key": "charcoal",
+   "label": "charcoal",
+   "value_sp": 20,
+   "range_km": 45,
+   "demand_per_100": 3,
+   "urban_only": true,
+   "staple": false
+  },
+  {
+   "key": "stone",
+   "label": "dressed stone",
+   "value_sp": 10,
+   "range_km": 30,
+   "demand_per_100": 3,
+   "urban_only": true,
+   "staple": false
+  },
+  {
+   "key": "cloth",
+   "label": "woollen cloth",
+   "value_sp": 120,
+   "range_km": 250,
+   "demand_per_100": 4,
+   "wealth_scaled": true,
+   "staple": false
+  },
+  {
+   "key": "leather",
+   "label": "leather",
+   "value_sp": 80,
+   "range_km": 180,
+   "demand_per_100": 3,
+   "staple": false
+  },
+  {
+   "key": "ale",
+   "label": "ale",
+   "value_sp": 12,
+   "range_km": 40,
+   "demand_per_100": 14,
+   "staple": true
+  },
+  {
+   "key": "wine",
+   "label": "wine",
+   "value_sp": 90,
+   "range_km": 260,
+   "demand_per_100": 2,
+   "urban_only": true,
+   "wealth_scaled": true,
+   "staple": false
+  },
+  {
+   "key": "fine_wares",
+   "label": "fine wares",
+   "value_sp": 400,
+   "range_km": 300,
+   "demand_per_100": 1,
+   "urban_only": true,
+   "wealth_scaled": true,
+   "staple": false
+  }
+ ],
+ "land_share_pct": {
+  "hamlet": 90,
+  "village": 80,
+  "town": 45,
+  "city": 20
+ },
+ "function_weight": {
+  "farming": 5,
+  "pastoral": 3,
+  "fishing": 2,
+  "mining": 3,
+  "logging": 2
+ },
+ "land": {
+  "farming": [
+   [
+    "grain",
+    260
+   ],
+   [
+    "livestock",
+    15
+   ],
+   [
+    "ale",
+    20
+   ],
+   [
+    "timber",
+    18
+   ]
+  ],
+  "pastoral": [
+   [
+    "livestock",
+    90
+   ],
+   [
+    "wool",
+    60
+   ],
+   [
+    "cloth",
+    8
+   ],
+   [
+    "leather",
+    6
+   ],
+   [
+    "timber",
+    8
+   ]
+  ],
+  "fishing": [
+   [
+    "fish",
+    110
+   ]
+  ],
+  "mining": [
+   [
+    "ore",
+    80
+   ],
+   [
+    "stone",
+    25
+   ]
+  ],
+  "logging": [
+   [
+    "timber",
+    130
+   ],
+   [
+    "charcoal",
+    35
+   ]
+  ]
+ },
+ "buildings": {
+  "smithy": [
+   [
+    "ironware",
+    25
+   ]
+  ],
+  "tannery": [
+   [
+    "leather",
+    60
+   ]
+  ],
+  "brewery": [
+   [
+    "ale",
+    160
+   ]
+  ],
+  "tavern": [
+   [
+    "ale",
+    40
+   ]
+  ],
+  "inn": [
+   [
+    "ale",
+    20
+   ]
+  ],
+  "mine": [
+   [
+    "ore",
+    40
+   ]
+  ],
+  "lumber_camp": [
+   [
+    "timber",
+    50
+   ],
+   [
+    "charcoal",
+    15
+   ]
+  ],
+  "boathouse": [
+   [
+    "fish",
+    20
+   ]
+  ],
+  "dock": [
+   [
+    "fish",
+    8
+   ]
+  ]
+ },
+ "crafts": {
+  "weaver": [
+   [
+    "cloth",
+    50
+   ]
+  ],
+  "leatherworker": [
+   [
+    "leather",
+    10
+   ]
+  ],
+  "cobbler": [
+   [
+    "leather",
+    5
+   ]
+  ],
+  "potter": [
+   [
+    "fine_wares",
+    3
+   ]
+  ],
+  "jeweller": [
+   [
+    "fine_wares",
+    4
+   ]
+  ],
+  "glassblower": [
+   [
+    "fine_wares",
+    4
+   ]
+  ],
+  "carpenter": [
+   [
+    "fine_wares",
+    2
+   ]
+  ],
+  "mason": [
+   [
+    "stone",
+    15
+   ]
+  ],
+  "woodcarver": [
+   [
+    "fine_wares",
+    2
+   ]
+  ],
+  "tinker": [
+   [
+    "ironware",
+    4
+   ]
+  ],
+  "painter": [
+   [
+    "fine_wares",
+    2
+   ]
+  ],
+  "cartographer": [
+   [
+    "fine_wares",
+    1
+   ]
+  ]
+ },
+ "workshop_crafts": [
+  "weaver",
+  "leatherworker",
+  "carpenter",
+  "weaver",
+  "potter",
+  "mason",
+  "tinker",
+  "cobbler",
+  "jeweller",
+  "weaver",
+  "glassblower",
+  "woodcarver"
+ ],
+ "inputs": {
+  "ironware": {
+   "good": "ore",
+   "per": 15
+  },
+  "cloth": {
+   "good": "wool",
+   "per": 12
+  },
+  "leather": {
+   "good": "livestock",
+   "per": 5
+  },
+  "ale": {
+   "good": "grain",
+   "per": 3
+  }
+ },
+ "biomes": {
+  "highland": {
+   "mult_pct": {
+    "grain": 60,
+    "livestock": 130,
+    "wool": 140
+   }
+  },
+  "alpine": {
+   "mult_pct": {
+    "grain": 35,
+    "livestock": 120,
+    "wool": 150
+   }
+  },
+  "steppe": {
+   "mult_pct": {
+    "grain": 70,
+    "livestock": 150
+   }
+  },
+  "wetland": {
+   "mult_pct": {
+    "grain": 70,
+    "fish": 140
+   }
+  },
+  "temperate_forest": {
+   "mult_pct": {
+    "grain": 80,
+    "timber": 130
+   }
+  },
+  "boreal_forest": {
+   "mult_pct": {
+    "grain": 55,
+    "timber": 150
+   }
+  },
+  "warm_temperate": {
+   "extra": [
+    [
+     "wine",
+     25
+    ]
+   ]
+  },
+  "coastal": {
+   "mult_pct": {
+    "fish": 120
+   }
+  },
+  "temperate": {}
+ },
+ "sites": {
+  "salt": [
+   [
+    "salt",
+    12
+   ]
+  ],
+  "ore": [
+   [
+    "ore",
+    10
+   ]
+  ],
+  "fish": [
+   [
+    "fish",
+    5
+   ]
+  ],
+  "timber": [
+   [
+    "timber",
+    8
+   ]
+  ],
+  "harbour": [
+   [
+    "fish",
+    4
+   ]
+  ]
+ }
+}

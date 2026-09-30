@@ -81,6 +81,7 @@ fn limits(path: &Path, extent: Extent) -> SharedLimits {
         ocean: ocean::Limits::for_extent(extent),
         routing: routing::Limits::for_extent(extent),
         mst: mst::MstLimits {
+            max_leaves: 32,
             ram_bytes: 1 << 24,
             scratch_bytes: 1 << 24,
             io_bytes: 1 << 30,

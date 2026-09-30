@@ -187,6 +187,88 @@ fn export_writes_a_png_for_an_area() {
 }
 
 #[test]
+fn explicit_atlas_routes_area_overview_and_detail_pngs() {
+    let world = micro_world("atlas-world");
+    for (tag, args, file, dimensions) in [
+        (
+            "atlas-area",
+            vec!["--area", "1,1", "--quality", "513", "--style", "atlas"],
+            "area_01_01.png",
+            (513, 513),
+        ),
+        (
+            "atlas-overview",
+            vec!["--overview", "--quality", "512", "--style", "atlas"],
+            "overview.png",
+            (256, 512),
+        ),
+        (
+            "atlas-detail",
+            vec!["--area", "1,1", "--detail", "--style", "atlas"],
+            "area_01_01.png",
+            (4096, 4096),
+        ),
+    ] {
+        let out = TempDir::new(tag);
+        let mut command = Command::new(bin());
+        command.args(["export", "--world"]).arg(world.path());
+        command.args(args).arg("--out").arg(out.path());
+        let result = command.output().unwrap();
+        assert!(
+            result.status.success(),
+            "{}",
+            String::from_utf8_lossy(&result.stderr)
+        );
+        assert_eq!(png_dimensions(&out.path().join(file)), dimensions);
+    }
+}
+
+#[test]
+fn classic_style_is_byte_identical_to_omitted_style() {
+    let world = micro_world("classic-style-world");
+    let omitted = TempDir::new("classic-omitted");
+    let explicit = TempDir::new("classic-explicit");
+    for (out, style) in [(&omitted, None), (&explicit, Some("classic"))] {
+        let mut command = Command::new(bin());
+        command.args(["export", "--world"]).arg(world.path()).args([
+            "--area",
+            "1,1",
+            "--quality",
+            "513",
+        ]);
+        if let Some(style) = style {
+            command.args(["--style", style]);
+        }
+        let result = command.arg("--out").arg(out.path()).output().unwrap();
+        assert!(result.status.success());
+    }
+    assert_eq!(
+        std::fs::read(omitted.path().join("area_01_01.png")).unwrap(),
+        std::fs::read(explicit.path().join("area_01_01.png")).unwrap(),
+    );
+}
+
+#[test]
+fn explicit_style_refusals_create_no_output_directory() {
+    let missing = TempDir::new("style-refusal-parent");
+    let cases = [
+        vec!["--format", "json", "--style", "classic"],
+        vec!["--block", "0,0,0,0", "--style", "atlas"],
+    ];
+    for (index, args) in cases.into_iter().enumerate() {
+        let out = missing.path().join(format!("case-{index}"));
+        let mut command = Command::new(bin());
+        command.args(["export", "--world", "missing-world"]);
+        command.args(args).arg("--out").arg(&out);
+        let result = command.output().unwrap();
+        assert!(!result.status.success());
+        assert!(String::from_utf8_lossy(&result.stderr)
+            .contains("--style is valid only for area or overview PNG exports"));
+        assert!(!out.exists());
+    }
+}
+
+#[test]
 fn export_writes_json_when_asked() {
     let world = micro_world("exp-json-world");
     let out = TempDir::new("exp-json-out");
@@ -245,6 +327,35 @@ fn preview_generates_a_world_and_one_overview_image() {
     let width = u32::from_be_bytes([bytes[16], bytes[17], bytes[18], bytes[19]]);
     let height = u32::from_be_bytes([bytes[20], bytes[21], bytes[22], bytes[23]]);
     assert_eq!((width, height), (2 * 16, 4 * 16));
+}
+
+#[test]
+fn preview_generates_a_world_and_one_atlas_overview_image() {
+    let dir = TempDir::new("preview-atlas");
+    let out = Command::new(bin())
+        .args([
+            "preview",
+            "--seed",
+            "42",
+            "--micro",
+            "--quality",
+            "512",
+            "--style",
+            "atlas",
+            "--out",
+        ])
+        .arg(dir.path())
+        .output()
+        .unwrap();
+    assert!(
+        out.status.success(),
+        "stderr: {}",
+        String::from_utf8_lossy(&out.stderr)
+    );
+    assert!(dir.path().join("world/world.json").is_file());
+    let png = dir.path().join("overview.png");
+    assert!(png.is_file(), "no overview.png written");
+    assert_eq!(png_dimensions(&png), (256, 512));
 }
 
 #[test]

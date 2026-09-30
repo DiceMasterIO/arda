@@ -1,0 +1,18 @@
+{
+ "_note": "Original to Arda. Flavour backgrounds for class builds; each grants two SRD skills and nothing else.",
+ "backgrounds": {
+  "agriculture": {"name": "Furrow-Born", "text": "Raised to the rhythm of sowing and harvest.", "skills": ["Animal Handling", "Nature"]},
+  "craft":       {"name": "Bench-Trained", "text": "Learned a trade at a master's elbow, one ruined piece at a time.", "skills": ["Insight", "Investigation"]},
+  "trade":       {"name": "Ledger-Keeper", "text": "Grew up among scales, tallies and hard bargains.", "skills": ["Insight", "Persuasion"]},
+  "service":     {"name": "Hearth-Keeper", "text": "Knows every regular's drink and every stranger's story.", "skills": ["Insight", "Performance"]},
+  "religion":    {"name": "Temple-Raised", "text": "Swept temple floors long before leading its prayers.", "skills": ["Religion", "Medicine"]},
+  "military":    {"name": "Wall-Sworn", "text": "Took the garrison's oath young and has kept watch ever since.", "skills": ["Athletics", "Intimidation"]},
+  "government":  {"name": "Seal-Bearer", "text": "Carries the small authority of office and the large weight of it.", "skills": ["History", "Persuasion"]},
+  "maritime":    {"name": "Tide-Hand", "text": "Reads the water and the weather before reading anything else.", "skills": ["Athletics", "Perception"]},
+  "extraction":  {"name": "Deep-Delver", "text": "Has spent more days under stone or bough than under open sky.", "skills": ["Athletics", "Survival"]},
+  "scholar":     {"name": "Lamp-Reader", "text": "Has read by lamplight every night since learning letters.", "skills": ["Arcana", "History"]},
+  "labour":      {"name": "Cobble-Walker", "text": "Knows every alley, back door and shortcut in town.", "skills": ["Athletics", "Perception"]},
+  "nobility":    {"name": "Landed Heir", "text": "Born to a name that opens doors and invites grudges.", "skills": ["History", "Persuasion"]},
+  "dependent":   {"name": "Hearth-Born", "text": "Has lived a quiet life close to home.", "skills": ["Insight", "Perception"]}
+ }
+}

@@ -1,7 +1,7 @@
 ---
-generated_date: 2026-09-08
-generated_at_commit: 311829e4e5c9
-absorbed_from: features/2026-09-07-area-water-terrain-realism@2026-09-08
+generated_date: 2026-09-22
+generated_at_commit: 342d03e55120
+absorbed_from: features/2026-09-07-area-water-terrain-realism@2026-09-08, features/2026-09-22-geographical-rendering-first-pass@2026-09-22
 ---
 
 # Mockup — arda
@@ -15,8 +15,8 @@ interaction transcripts. Source artifact: `../mockup-artifact.md`. These are ret
 | --- | --- | --- |
 | `01-generate.md` — batch CLI | batch-generate | Confirmed design |
 | `02-world-layout.md` — output volume | batch-generate, inspect-volume | Confirmed design |
-| [03-export.md](03-export.md) — images/JSON CLI | export-vtt, inspect-volume | Current format-4/schema-2, 512/4096 area export; asset-rich tactical design deferred |
-| `04-crate-api.md` — load & query | load-query | Confirmed design |
+| [03-export.md](03-export.md) — images/JSON CLI | export-vtt, inspect-volume | Current format-4/schema-2 and Classic/Atlas PNG exports; asset-rich tactical design deferred |
+| [04-crate-api.md](04-crate-api.md) — load & query | load-query | Retained future accessor design, with separate current Atlas PNG facade section |
 | `05-docker.md` — container | all | Confirmed design |
 | `06-serve.md` — read-only HTTP API | serve-vtt | (added at build gate) |
 

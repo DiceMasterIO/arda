@@ -12,6 +12,9 @@ path = "src/main.rs"
 
 [dependencies]
 arda.workspace = true
+arda-people.workspace = true
+arda-settle.workspace = true
+arda-tactical.workspace = true
 clap.workspace = true
 anyhow.workspace = true
 

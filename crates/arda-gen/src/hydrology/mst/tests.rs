@@ -9,6 +9,7 @@ use super::{
 use std::fs;
 pub(crate) fn limits(cache_pages: u64) -> MstLimits {
     MstLimits {
+        max_leaves: 1_000_000,
         ram_bytes: 1 << 24,
         scratch_bytes: 1 << 28,
         io_bytes: 1 << 34,
@@ -283,6 +284,24 @@ fn preflight_rejects_known_resources_before_any_files() {
         assert!(producer::produce(&mut r, &dir.0, cap).is_err());
         assert_eq!(fs::read_dir(&dir.0).unwrap().count(), 0);
     }
+}
+#[test]
+fn closed_leaf_capacity_is_reported_before_scratch_is_created() {
+    let e = Extent::new(3, 3).unwrap();
+    let mut z = [9; 9];
+    z[4] = 0;
+    let mut r = routing(e, &z, &[false; 9]);
+    let dir = Directory::new();
+    let mut cap = limits(1);
+    cap.max_leaves = 0;
+    assert!(matches!(
+        producer::produce(&mut r, &dir.0, cap),
+        Err(producer::MstError::Stage(StageError::ClosedLeafLimit {
+            observed: 1,
+            limit: 0
+        }))
+    ));
+    assert_eq!(fs::read_dir(&dir.0).unwrap().count(), 0);
 }
 #[test]
 fn counted_work_limits_fail_with_typed_errors() {

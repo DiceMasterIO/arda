@@ -15,7 +15,9 @@
 use crate::hydrology::HydrologyError;
 use std::{cmp::Reverse, collections::BinaryHeap, mem::size_of};
 
-use super::{erosion::ITERATIONS, fill::NEIGHBOURS, mfd};
+use super::{fill::NEIGHBOURS, mfd};
+
+pub(crate) const SHARED_ITERATIONS: u32 = 160;
 
 const UPLIFT_PEAK_MM: i64 = 900;
 const CREEP_NUM: i64 = 3;
@@ -102,12 +104,15 @@ pub(crate) fn scratch_bytes(width: usize, height: usize) -> Result<u128, Hydrolo
 /// passes, and uplift/creep/incision visit each neighborhood once. Collapse makes
 /// at most eight nine-visit cell/neighbor passes. The fixed 256-unit cell allowance
 /// covers these scans and array passes; eight units per heap level cover both
-/// floods. A separate 512-unit initial allowance covers regional/detail sampling,
+/// floods. A separate 640-unit initial allowance covers regional/detail sampling,
 /// normalization, scratch initialization and sequential bundle construction.
-/// Regional detail adds eight cache reads per cell. Its radius-ten fallbacks
-/// number at most 60*(width+height), or 0.1875 per cell on admitted axes >=640.
-/// Extra bundle interpolation also fits this allowance (`logic/02`, Regional
-/// detail correction). No additional dense field is retained. The loops have no
+/// It includes 128 extra units for eight cached coarse reads and two integer
+/// lattice-noise evaluations per cell for structural relief. Regional-detail
+/// radius-ten fallbacks number at most 60*(width+height), or 0.1875 per cell
+/// on admitted axes >=640. Structural-relief radius-fifty fallbacks number at
+/// most 800*(width+height), or 2.5 per cell on those axes. Extra bundle
+/// interpolation also fits this allowance (`logic/02`, Regional detail
+/// correction). No additional dense field is retained. The loops have no
 /// data-dependent retry, so admission requires no runtime model-changing cap.
 pub(crate) fn work_operations(width: usize, height: usize) -> Result<u64, HydrologyError> {
     let grid = Grid::checked(width, height)?;
@@ -115,7 +120,7 @@ pub(crate) fn work_operations(width: usize, height: usize) -> Result<u64, Hydrol
     let heap_levels = u64::from(u64::BITS - (count - 1).leading_zeros());
     let per_step = 184 + COLLAPSE_PASSES * 9 + 8 * heap_levels;
     count
-        .checked_mul(512 + u64::from(ITERATIONS) * per_step)
+        .checked_mul(640 + u64::from(SHARED_ITERATIONS) * per_step)
         .ok_or(HydrologyError::Overflow("shared terrain work"))
 }
 
@@ -192,7 +197,7 @@ pub(crate) fn evolve(
     width: usize,
     height: usize,
 ) -> Result<(), HydrologyError> {
-    evolve_steps(heights, coarse, width, height, ITERATIONS)
+    evolve_steps(heights, coarse, width, height, SHARED_ITERATIONS)
 }
 
 fn evolve_steps(

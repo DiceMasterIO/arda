@@ -10,7 +10,9 @@ pub mod climate;
 pub mod coast;
 pub mod erode;
 pub mod hydrology;
+pub mod margins;
 pub mod plates;
+pub(crate) mod structural_relief;
 pub mod tectonics;
 
 #[cfg(test)]
@@ -38,7 +40,39 @@ pub struct ContinentGrid {
     height_mm: Vec<i32>,
 }
 
+/// A supplied continent raster cannot be indexed as a positive i32 rectangle.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, thiserror::Error)]
+#[error("continent raster requires positive axes, at most i32::MAX cells, and exactly width * height heights")]
+pub struct ContinentGridError;
+
 impl ContinentGrid {
+    /// Construct the climate/drainage grid from samples of an authoritative surface.
+    ///
+    /// Heights are row-major millimetres at 1 km spacing. This does not change
+    /// heights, force an ocean rim, or run erosion: those belong to the source.
+    ///
+    /// # Errors
+    /// Rejects empty, oversized, or incorrectly sized rasters before indexing.
+    pub fn from_heights(
+        width: i32,
+        height: i32,
+        height_mm: Vec<i32>,
+    ) -> Result<Self, ContinentGridError> {
+        let count = width
+            .checked_mul(height)
+            .filter(|_| width > 0 && height > 0)
+            .and_then(|n| usize::try_from(n).ok())
+            .ok_or(ContinentGridError)?;
+        if height_mm.len() != count {
+            return Err(ContinentGridError);
+        }
+        Ok(Self {
+            width,
+            height,
+            height_mm,
+        })
+    }
+
     /// Grid width in 1 km cells.
     #[must_use]
     pub const fn width(&self) -> i32 {
@@ -51,8 +85,7 @@ impl ContinentGrid {
         self.height
     }
 
-    /// Elevation at a cell; out-of-range coordinates clamp to the edge, which
-    /// is always ocean.
+    /// Elevation at a cell; out-of-range coordinates clamp to the edge.
     #[must_use]
     pub fn get(&self, x: i32, y: i32) -> HeightMm {
         let cx = x.clamp(0, self.width - 1);
@@ -117,6 +150,50 @@ pub fn build_continent(seed: u64, config: GenerateConfig, attempt: u8) -> Contin
 #[must_use]
 #[allow(clippy::cast_possible_wrap)]
 pub fn generate_continent_attempt(seed: u64, config: GenerateConfig, attempt: u8) -> ContinentGrid {
+    generate_continent_attempt_with_profile(seed, config, attempt, false)
+}
+
+/// Fine-source macro geography for one deterministic validation attempt.
+/// The opt-in terrain recipe varies mountain crests and retains differences
+/// across deep rifts; ordinary generation keeps its established profile.
+#[must_use]
+pub fn generate_continent_attempt_fine(
+    seed: u64,
+    config: GenerateConfig,
+    attempt: u8,
+) -> ContinentGrid {
+    generate_continent_attempt_with_profile(seed, config, attempt, true)
+}
+
+/// Recipe-5 macro geography: the fine tectonic profile with elliptical,
+/// jittered crust zones ([`plates::seed_plates_round`]).
+#[must_use]
+pub fn generate_continent_attempt_formed(
+    seed: u64,
+    config: GenerateConfig,
+    attempt: u8,
+) -> ContinentGrid {
+    generate_continent_attempt_with_profile_zones(seed, config, attempt, true, true)
+}
+
+#[allow(clippy::cast_possible_wrap)]
+fn generate_continent_attempt_with_profile(
+    seed: u64,
+    config: GenerateConfig,
+    attempt: u8,
+    fine: bool,
+) -> ContinentGrid {
+    generate_continent_attempt_with_profile_zones(seed, config, attempt, fine, false)
+}
+
+#[allow(clippy::cast_possible_wrap)]
+fn generate_continent_attempt_with_profile_zones(
+    seed: u64,
+    config: GenerateConfig,
+    attempt: u8,
+    fine: bool,
+    round: bool,
+) -> ContinentGrid {
     let vis_w = config.size_km().width as i32;
     let vis_h = config.size_km().height as i32;
 
@@ -125,10 +202,22 @@ pub fn generate_continent_attempt(seed: u64, config: GenerateConfig, attempt: u8
         width: (vis_w * 2 / SIM_CELL_KM).max(8),
         height: (vis_h * 2 / SIM_CELL_KM).max(8),
     };
-    let plates = plates::seed_plates(seed, sim, attempt);
+    let plates = if round {
+        plates::seed_plates_round(seed, sim, attempt)
+    } else {
+        plates::seed_plates(seed, sim, attempt)
+    };
 
     // Step 2: coupled tectonics.
-    let uplift = tectonics::run_tectonics(seed, &plates, sim, SKELETON_STEPS);
+    let uplift = if fine {
+        if round {
+            tectonics::run_tectonics_formed(seed, &plates, sim, SKELETON_STEPS)
+        } else {
+            tectonics::run_tectonics_fine(seed, &plates, sim, SKELETON_STEPS)
+        }
+    } else {
+        tectonics::run_tectonics(seed, &plates, sim, SKELETON_STEPS)
+    };
 
     // Step 3: isostasy plus accumulated uplift, on the 4 km grid.
     // Crust is sampled through a warped Voronoi so plate boundaries are not
@@ -137,7 +226,11 @@ pub fn generate_continent_attempt(seed: u64, config: GenerateConfig, attempt: u8
     let binary: Vec<i32> = (0..sim.height)
         .flat_map(|y| (0..sim.width).map(move |x| (x, y)))
         .map(|(x, y)| {
-            let id = plates::plate_of_warped(seed, &plates, x, y);
+            let id = if round {
+                plates::plate_of_warped_round(seed, &plates, x, y)
+            } else {
+                plates::plate_of_warped(seed, &plates, x, y)
+            };
             let continental = plates
                 .iter()
                 .find(|p| p.id == id)
@@ -207,15 +300,14 @@ pub fn generate_continent_attempt(seed: u64, config: GenerateConfig, attempt: u8
             h = h.saturating_add(detail_mm);
 
             if rim_forced_ocean(x, y, vis_w, vis_h, RIM_MARGIN) {
-                h = h.min(coast::OCEANIC_BASE_MM / 2);
+                h = h.min(-1);
             }
             height_mm.push(h);
         }
     }
 
-    // Step 2 (continued): coarse erosion and drainage respond on the 1 km
-    // grid. Running it here rather than only per-tile is what lets valleys
-    // cross tile boundaries, and it leaves no pinned-rim seams.
+    // Smooth 1 km hillslopes across the full continent. Valley incision runs
+    // later on the shared 100 m surface, across tile boundaries.
     erode::erode_continent(&mut height_mm, vis_w, vis_h);
 
     ContinentGrid {
@@ -250,6 +342,27 @@ mod tests {
     use super::*;
 
     #[test]
+    fn supplied_surface_is_preserved_without_coast_or_height_correction() {
+        let grid = ContinentGrid::from_heights(2, 2, vec![-17, 23, 41, 59]).unwrap();
+        assert_eq!(grid.get(0, 0).raw(), -17);
+        assert_eq!(grid.get(1, 0).raw(), 23);
+        assert_eq!(grid.get(-1, 2).raw(), 41);
+        assert_eq!(grid.get(2, 2).raw(), 59);
+        assert_eq!(grid.land_fraction_permille(), 750);
+        for (w, h, values) in [
+            (0, 2, vec![]),
+            (-2, -2, vec![0; 4]),
+            (2, 2, vec![0; 3]),
+            (i32::MAX, 2, vec![]),
+        ] {
+            assert_eq!(
+                ContinentGrid::from_heights(w, h, values),
+                Err(ContinentGridError)
+            );
+        }
+    }
+
+    #[test]
     fn micro_continent_grid_is_the_configured_size() {
         let grid = generate_continent(42, GenerateConfig::MICRO);
         assert_eq!(grid.width(), 102);
@@ -261,6 +374,26 @@ mod tests {
         let a = generate_continent(42, GenerateConfig::MICRO);
         let b = generate_continent(42, GenerateConfig::MICRO);
         assert_eq!(a, b);
+    }
+
+    #[test]
+    fn fine_macro_profile_is_repeatable_and_keeps_the_ocean_rim() {
+        let fine = generate_continent_attempt_fine(42, GenerateConfig::MICRO, 0);
+        assert_eq!(
+            fine,
+            generate_continent_attempt_fine(42, GenerateConfig::MICRO, 0)
+        );
+        assert_ne!(
+            fine,
+            generate_continent_attempt(42, GenerateConfig::MICRO, 0)
+        );
+        for y in 0..fine.height() {
+            for x in 0..fine.width() {
+                if rim_forced_ocean(x, y, fine.width(), fine.height(), RIM_MARGIN) {
+                    assert!(fine.get(x, y).raw() < 0, "fine rim became land at {x},{y}");
+                }
+            }
+        }
     }
 
     #[test]
@@ -283,6 +416,25 @@ mod tests {
             assert!(grid.get(0, y).raw() < 0, "left edge at {y} is land");
             assert!(grid.get(w - 1, y).raw() < 0, "right edge at {y} is land");
         }
+    }
+
+    #[test]
+    fn generated_ocean_rim_retains_shallow_depths() {
+        let grid = generate_continent(42, GenerateConfig::MICRO);
+        let rim = (0..grid.height())
+            .flat_map(|y| (0..grid.width()).map(move |x| (x, y)))
+            .filter(|&(x, y)| rim_forced_ocean(x, y, grid.width(), grid.height(), RIM_MARGIN))
+            .map(|(x, y)| grid.get(x, y).raw())
+            .collect::<Vec<_>>();
+        let shallow = rim
+            .iter()
+            .copied()
+            .filter(|&depth| (-1_050_000..-1).contains(&depth))
+            .collect::<std::collections::BTreeSet<_>>();
+        assert!(
+            shallow.len() > 1,
+            "the ocean rim lost shallow depth variation"
+        );
     }
 
     #[test]
@@ -311,6 +463,77 @@ mod tests {
             .max()
             .unwrap_or(0);
         assert!(max > 400_000, "highest point is only {max} mm");
+    }
+
+    #[test]
+    #[ignore = "full seed-42 macro comparison for terrain-profile evaluation"]
+    fn measure_seed42_fine_macro_against_delivered_profile() {
+        let config = GenerateConfig::new(
+            arda_core::SizeKm::new(500, 1000),
+            arda_core::LatitudeBand::new(35, 55),
+            15,
+        )
+        .unwrap();
+        let summarize = |label: &str, grid: &ContinentGrid| {
+            let mut land = Vec::new();
+            let mut plain = Vec::new();
+            let mut mountain = Vec::new();
+            for y in 0..grid.height() {
+                for x in 0..grid.width() {
+                    let h = grid.get(x, y).raw();
+                    if h > 0 {
+                        land.push(h);
+                    }
+                    if (154..205).contains(&x) && (512..563).contains(&y) {
+                        plain.push(h);
+                    }
+                    if (256..307).contains(&x) && (205..256).contains(&y) {
+                        mountain.push(h);
+                    }
+                }
+            }
+            for values in [&mut land, &mut plain, &mut mountain] {
+                values.sort_unstable();
+            }
+            let percentile = |v: &[i32], p: usize| v[v.len() * p / 100] / 1000;
+            eprintln!(
+                "{label}: land={}‰, land p50/p95/max={} / {} / {} m, >2850m={}‰ land, plain p5/p95={} / {} m, mountain p5/p95={} / {} m",
+                grid.land_fraction_permille(),
+                percentile(&land, 50),
+                percentile(&land, 95),
+                land.last().unwrap() / 1000,
+                land.iter().filter(|&&h| h > 2_850_000).count() * 1000 / land.len(),
+                percentile(&plain, 5),
+                percentile(&plain, 95),
+                percentile(&mountain, 5),
+                percentile(&mountain, 95),
+            );
+        };
+        let old = generate_continent_attempt(42, config, 0);
+        let fine = generate_continent_attempt_fine(42, config, 0);
+        summarize("delivered", &old);
+        summarize("fine", &fine);
+
+        let sim = SimExtent {
+            width: 250,
+            height: 500,
+        };
+        let plates = plates::seed_plates(42, sim, 0);
+        let old_uplift = tectonics::run_tectonics(42, &plates, sim, SKELETON_STEPS);
+        let fine_uplift = tectonics::run_tectonics_fine(42, &plates, sim, SKELETON_STEPS);
+        let mut released_floor: Vec<_> = old_uplift
+            .iter()
+            .zip(&fine_uplift)
+            .filter_map(|(&old, &new)| (old == -220_000).then_some(new))
+            .collect();
+        released_floor.sort_unstable();
+        released_floor.dedup();
+        eprintln!(
+            "clamped rift cells={} of {}; fine distinct heights at those sites={}",
+            old_uplift.iter().filter(|&&h| h == -220_000).count(),
+            old_uplift.len(),
+            released_floor.len(),
+        );
     }
 }
 

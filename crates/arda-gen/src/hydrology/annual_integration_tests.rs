@@ -45,6 +45,7 @@ impl Drop for Directory {
 }
 fn mst_limits() -> MstLimits {
     MstLimits {
+        max_leaves: 1_000_000,
         ram_bytes: 1 << 24,
         scratch_bytes: 1 << 24,
         io_bytes: 1 << 30,

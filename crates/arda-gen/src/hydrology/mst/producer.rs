@@ -11,6 +11,8 @@ use std::path::Path;
 /// Whole-stage reservations; accepted sorting receives a checked partition.
 #[derive(Debug, Clone, Copy)]
 pub struct MstLimits {
+    /// Maximum closed terminals admitted by the enclosing world.
+    pub max_leaves: u64,
     /// Combined live ordinary RAM for cache, paths, fixed buffers and sorter.
     pub ram_bytes: u64,
     /// Combined producer and accepted-sort scratch lengths.
@@ -335,6 +337,13 @@ pub fn produce<S: RoutingStore>(
     let mut work = Work::default();
     let leaves = minimum_scan(routing, limits.routing_reads, &mut work, |_| Ok(()))?;
     work.leaves = leaves;
+    if u64::from(leaves) > limits.max_leaves {
+        return Err(StageError::ClosedLeafLimit {
+            observed: leaves,
+            limit: limits.max_leaves,
+        }
+        .into());
+    }
     if limits
         .routing_reads
         .checked_sub(work.routing_reads)

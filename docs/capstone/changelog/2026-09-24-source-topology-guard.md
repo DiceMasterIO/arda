@@ -1,0 +1,7 @@
+# Experimental source topology guard
+
+Auditing secondary-valley feasibility exposed two defects in the retained experimental source: 287 prescribed ridge/river constraints are absent from its triangle edges, and 18 refined control crossings impose conflicting heights. The original coarse backbone has no crossings. Exact stage replay traces the fixed crop's final ridge–river conflict to ridge perturbation.
+
+The one-path valley diagnostic is closed before height modification because its downstream chain encounters that conflict. A deterministic whole-parent geometry guard retains 357 paths and substitutes seven straight fallbacks, with all final junction anchors, network heights, IDs and flow preserved. Independent geometry checks pass. Only two fallback parents enter the crop and one enters the fixed Atlas views.
+
+The initial-surface reconstruction now enforces every constraint and preserves linear heights on 1,474 added protected nodes. Two fresh runs produce identical arrays and receipts; independent checks pass. Matched actual Arda views reproduce the original baseline images exactly and show a local junction correction, while broad folded faces remain. The guard is not selected as the broad-fold visual solution, and no erosion continuation follows from this result. No production integration or original-world write is claimed. The preferred rugged completed baseline remains the benchmark; reduced repetition must retain its rugged detail and grandeur.

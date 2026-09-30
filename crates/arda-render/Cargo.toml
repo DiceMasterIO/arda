@@ -9,6 +9,7 @@ description = "PNG and JSON export for arda worlds"
 [dependencies]
 arda-core.workspace = true
 png.workspace = true
+rayon.workspace = true
 serde.workspace = true
 serde_json.workspace = true
 thiserror.workspace = true

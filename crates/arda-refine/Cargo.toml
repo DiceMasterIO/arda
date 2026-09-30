@@ -1,0 +1,25 @@
+[package]
+name = "arda-refine"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+repository.workspace = true
+description = "Tactical terrain refinement: 5-ft squares with WFC natural ground for arda"
+
+[[bin]]
+name = "arda-refine"
+path = "src/bin/arda-refine.rs"
+
+[dependencies]
+arda.workspace = true
+arda-core.workspace = true
+arda-scene.workspace = true
+arda-tactical.workspace = true
+clap.workspace = true
+png.workspace = true
+serde.workspace = true
+serde_json.workspace = true
+thiserror.workspace = true
+
+[lints]
+workspace = true

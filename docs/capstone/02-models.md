@@ -1,19 +1,22 @@
 ---
-generated_at_commit: b0f93f22b969
-generated_date: 2026-09-08
-content_hash: 157306309024
+generated_at_commit: 14a70b9144dd
+generated_date: 2026-09-25
+content_hash: cbc3015b0844
 paths_covered: [":(top)crates/*/src/**"]
-absorbed_from: features/2026-09-07-area-water-terrain-realism@2026-09-08
+absorbed_from: [features/2026-09-07-area-water-terrain-realism@2026-09-08, features/2026-09-22-geographical-rendering-first-pass@2026-09-22, features/2026-09-23-terrain-corrections@2026-09-23]
 ---
 
 # Models
+
+> Evidence consolidated on September 25: the [study](features/2026-09-23-terrain-corrections/STUDY.md) and [experiment catalogue](features/2026-09-23-terrain-corrections/EXPERIMENTS.md) replace the raw terrain-corrections archive. Historical filenames below identify removed experiments; current evidence links lead to their retained summaries. Original/final worlds and the 32K output remain under `out/terrain-delivery/`.
+
 
 ## Entities
 
 | Name | Definition site | Storage | Purpose |
 |---|---|---|---|
 | Area | `crates/arda/src/world.rs:15` | in-memory | Owned cell and object layers for one requested area |
-| World | `crates/arda/src/world.rs:73` | in-memory | Manifest-first directory handle with separate lazy area/block caches |
+| World | `crates/arda/src/world.rs:78` | in-memory | Manifest-first directory handle with separate lazy area/block caches |
 | Cell | `crates/arda-core/src/cell.rs:103` | areas/*/cells.bin | 100 m terrain and hydrology facts |
 | SizeKm | `crates/arda-core/src/config.rs:17` | world.json.config | Requested extent |
 | LatitudeBand | `crates/arda-core/src/config.rs:34` | world.json.config | Latitude interval |
@@ -27,6 +30,8 @@ absorbed_from: features/2026-09-07-area-water-terrain-realism@2026-09-08
 | SquareCoord | `crates/arda-core/src/coords.rs:77` | in-memory | Bounds-checked block-square index |
 | KmCoord | `crates/arda-core/src/coords.rs:119` | in-memory | 1 km grid index |
 | HeightMm | `crates/arda-core/src/fixed.rs:9` | in-memory | Millimetre elevation wrapper |
+| TerrainPoint | `crates/arda-core/src/terrain.rs` | in-memory; canonical fine-field diagnostic | Absolute micrometre coordinate, distinct from 100 m cell indices |
+| TerrainField | `crates/arda-core/src/terrain.rs` | in-memory; canonical fine-field diagnostic | Immutable fine millimetre-height lattice with integer interpolation and explicit outside coverage |
 | TempCentiC | `crates/arda-core/src/fixed.rs:36` | in-memory | Centi-degree temperature wrapper |
 | RainfallMm | `crates/arda-core/src/fixed.rs:60` | in-memory | Millimetre rainfall wrapper |
 | DischargeMilli | `crates/arda-core/src/fixed.rs:78` | in-memory | Litre-per-second discharge wrapper |
@@ -91,6 +96,15 @@ absorbed_from: features/2026-09-07-area-water-terrain-realism@2026-09-08
 | PreparedTerrain | `crates/arda-gen/src/hydrology/types.rs:31` | in-memory; cropped private prepared files | Immutable slice of evolved physical heights, rain and unlapsed temperature arrays |
 | HydrologyLimits | `crates/arda-gen/src/hydrology/types.rs:84` | in-memory generation API | Explicit whole-generation resource and feature capacities |
 | SolvedCell | `crates/arda-gen/src/area/shared_compose.rs:15` | in-memory composition handoff | Immutable shared marine/lake, drainage, flow/order and HAND facts |
+| ImageQuality | `crates/arda-render/src/quality.rs:7` | in-memory render request | Validated PNG edge length independent of saved terrain resolution |
+| MapStyle | `crates/arda/src/lib.rs:28` | in-memory render request | Classic default or Atlas PNG presentation; never serialized in a world |
+| AreaImageScale | `crates/arda-render/src/channels.rs:13` | in-memory render request | Preview, detail or custom square area-image resolution |
+| AtlasNeighbor | `crates/arda-render/src/atlas.rs:47` | in-memory render context | Fixed eight adjacent-area directions |
+| AtlasHalo | `crates/arda-render/src/atlas.rs:77` | in-memory render scratch | 516² optional saved height/class/lake-depth context plus eight direction states |
+| AtlasTerrain | `crates/arda-render/src/atlas.rs:159` | in-memory render scratch | 514² derived palette RGB, Q12 lighting, terrain classes and saved millimetre heights |
+| OverviewRaster | `crates/arda-render/src/overview.rs:225` | in-memory buffered renderer | Exact or regular-size overview pixels, feature precedence and supplied-area tracking |
+| AreaRaster | `crates/arda-render/src/channels.rs:315` | in-memory streaming renderer | Prepared channel geometry, bounded candidate indexes and one reusable area scanline |
+| RasterBand | `crates/arda-render/src/overview/streaming.rs:148` | in-memory streaming helper | 256 output rows plus at most 14 halo rows on each side for RGB and feature classifications |
 | ChannelEdgeOut | `crates/arda-render/src/json.rs:81` | export JSON | Global centerline endpoints, widths and mean discharge |
 | AccountOut | `crates/arda-render/src/hydrology_json.rs:7` | export JSON | Tagged immediate receiving account with decimal identity payload |
 | SpillOut | `crates/arda-render/src/hydrology_json.rs:32` | export JSON | Physical spill geometry and receiving account |
@@ -133,14 +147,14 @@ Definition sites are in Entities. Required `no` denotes an optional field or ser
 | aspect_deg | `u16` | yes | — |
 | temperature | `TempCentiC` | yes | Produced from prepared reference and final signed physical-altitude lapse; marine altitude is zero |
 | rainfall | `RainfallMm` | yes | — |
-| moisture | `u8` | yes | Generation retains default; producer not built |
-| forest_density | `u8` | yes | Generation retains default; producer not built |
+| moisture | `u8` | yes | Recipe 4 estimates soil moisture from rainfall, continuous centi-degree temperature and broad absolute-coordinate soil variation; older producers retain default |
+| forest_density | `u8` | yes | Recipe 4 estimates potential canopy from growth limits and regional patchiness; older producers retain default |
 | drainage_area_cells | `u32` | yes | — |
 | discharge | `DischargeMilli` | yes | — |
 | watercourse_order | `u8` | yes | — |
 | watercourse_width_dm | `u32` | yes | — |
 | height_above_river_dm | `u16` | yes | u16::MAX where no downstream channel |
-| wetness | `u8` | yes | — |
+| wetness | `u8` | yes | Drainage/slope index; recipe 4 uses a logarithmic version with flat-ground headroom, while older producers retain the prior index (`crates/arda-gen/src/area/fields.rs:1`, `crates/arda-gen/src/orchestrator/fine_materials.rs`) |
 | road | `RoadClass` | yes | accepted: None, Track, Road, Highway; Generation retains default; producer not built |
 | built_by | `u16` | yes | Generation retains default; producer not built |
 
@@ -856,6 +870,93 @@ Copied global lake (`crates/arda-render/src/hydrology_json.rs:49`):
 | hand_mm | `u32` | yes | u32::MAX when no downstream channel exists |
 | hand_discharge | `DischargeMilli` | yes | — |
 
+### ImageQuality
+
+| Field | Type | Required | Notes |
+|---|---|---|---|
+| 0 | `u32` | yes | Accepted: 512–32,768 pixels; default 8,192 |
+
+### MapStyle
+
+| Field | Type | Required | Notes |
+|---|---|---|---|
+| variant | enum | yes | Classic is the default; Atlas is an explicit PNG presentation, with unchanged saved data |
+
+### AreaImageScale
+
+| Field | Type | Required | Notes |
+|---|---|---|---|
+| variant | enum | yes | accepted: Preview, Detail, Custom(ImageQuality); sides are 512, 4,096, or the validated custom edge |
+
+### AtlasNeighbor
+
+| Field | Type | Required | Notes |
+|---|---|---|---|
+| variant | enum | yes | North, NorthEast, East, SouthEast, South, SouthWest, West, NorthWest (`crates/arda-render/src/atlas.rs:47`) |
+
+### AtlasHalo
+
+| Field | Type | Required | Notes |
+|---|---|---|---|
+| context | `Option<SourceSample>[]` | yes | Fixed 516² saved height/class/optional-lake-depth/wetness samples for target plus two-cell cardinal strips and 2×2 diagonal corners (`crates/arda-render/src/atlas.rs:39`, `crates/arda-render/src/atlas.rs:82`, `crates/arda-render/src/atlas.rs:143`, `crates/arda-render/src/atlas.rs:263`) |
+| states | `NeighborState[8]` | yes | Every direction resolved once as Copied or WorldEdge; incomplete or contradictory context is refused (`crates/arda-render/src/atlas.rs:176`) |
+
+The layout test still measures each optional halo sample at 16 bytes after adding wetness; the fixed 516² context remains 4,260,096 bytes (`crates/arda-render/src/atlas/tests.rs:1118`). Lake validation uses at most one transient 512² `Option<u32>` depth lookup (2,097,152 bytes) per neighbor before copying its edge/corner and dropping it. `copy_neighbor_with_lakes` and `new_with_lakes` are additive APIs; existing constructors retain categorical fallback when saved surfaces are absent.
+
+### AtlasTerrain
+
+| Field | Type | Required | Notes |
+|---|---|---|---|
+| palette | `[u8; 3][]` | yes | 514² derived RGB terrain palette, including interpolation ghosts; older worlds tint land from saved wetness, recipe-4 worlds from climate moisture and canopy, before rock/snow blending (`crates/arda-render/src/atlas.rs`) |
+| light | `u16[]` | yes | 514² Q12 relief factors, applied only to land (`crates/arda-render/src/atlas.rs:241`) |
+| classes | `TerrainKind[]` | yes | 514² ownership classes for filtered sampling (`crates/arda-render/src/atlas.rs:168`) |
+| heights | `i32[]` | yes | 514² saved millimetre heights, including independently clamped outer ghosts; supports integer bilinear land/sea reconstruction (`crates/arda-render/src/atlas.rs:168`, `crates/arda-render/src/atlas.rs:412`) |
+| has_lake_depths | `bool` | yes | Target has supplied lake memberships; enables Atlas depth sampling while preserving older caller fallback |
+
+### OverviewRaster
+
+| Field | Type | Required | Notes |
+|---|---|---|---|
+| width | `u32` | yes | Final image width |
+| height | `u32` | yes | Final image height |
+| areas_wide | `i32` | yes | Validated 1–78 |
+| areas_high | `i32` | yes | Validated 1–78 |
+| rgb | `u8[]` | yes | Three bytes per output pixel |
+| features | `Feature[]` | yes | Private accepted variants: Sea, AtlasSea, Land, River(Light\|Mid\|Dark), Lake; AtlasSea blocks trunk widening |
+| supplied | `bool[]` | yes | One duplicate-detection flag per area |
+
+### AreaRaster
+
+| Field | Type | Required | Notes |
+|---|---|---|---|
+| cells | `&AreaCells` | yes | Immutable saved 100 m cell grid |
+| terrain | `Option<&AtlasTerrain>` | no | Atlas-derived palette/light/class grid; absent on Classic (`crates/arda-render/src/channels.rs:321`) |
+| lake_colours | `Option<[u8; 3]>[]` | yes | Per-cell validated saved-lake colour, absent outside lakes |
+| shapes | `Shape[]` | yes | Prepared saved channel strips, joins, terminals and preview marks |
+| starts | `usize[]` | yes | Shape indexes ordered by first raster row |
+| ends | `usize[]` | yes | Shape indexes ordered by last raster row |
+| next_start | `usize` | yes | Scanline event cursor |
+| next_end | `usize` | yes | Scanline event cursor |
+| active | `BTreeSet<usize>` | yes | Shape indexes active on the current row |
+| pixels | `Vec<usize>[]` | yes | Reused per-column candidate lists |
+| pixel_capacity | `usize` | yes | Bounded aggregate candidate allocation |
+| base_row | `u8[]` | yes | Reused terrain/lake RGB row |
+| base_cell_y | `Option<usize>` | no | Saved-cell row currently represented by base_row |
+| rgb | `u8[]` | yes | Reused final RGB row |
+| last_y | `Option<usize>` | no | Enforces forward sequential row requests |
+| side | `usize` | yes | Selected image edge |
+| work | `WorkBudget` | yes | Finite polygon coverage budget scaled from output side |
+
+### RasterBand
+
+| Field | Type | Required | Notes |
+|---|---|---|---|
+| width | `usize` | yes | Exact output width |
+| y0 | `u32` | yes | Inclusive band start row |
+| y1 | `u32` | yes | Exclusive band end row |
+| rgb | `u8[]` | yes | Reused RGB storage for 256 output rows plus up to 14 halo rows above and below |
+| features | `Feature[]` | yes | Saved lake/sea/land ownership masks connected world Atlas channels; legacy Atlas APIs also reuse these classifications for Mid/Dark symbol distance fields (`crates/arda-render/src/overview.rs:90`, `crates/arda-render/src/overview/channel_overlay.rs:407`) |
+
 ### ChannelEdgeOut
 
 | Field | Type | Required | Notes |
@@ -940,48 +1041,57 @@ Copied global lake (`crates/arda-render/src/hydrology_json.rs:49`):
 
 ## Relationships
 
-`World` owns its `Manifest`, derived `HydrologyDomain`, and independent `BTreeMap<AreaCoord, OnceLock<...>>` caches. `World::load` fills empty slots only; `area()` caches a requested `Area`, `read_area()` returns owned uncached data, and the first `block()` request decodes that area's complete `BlockArchive`. Each `Area` owns cells and objects; each archive maps `(cy,cx)` to a `Block` (`crates/arda/src/world.rs:73`, `crates/arda/src/world.rs:187`, `crates/arda/src/world.rs:203`, `crates/arda/src/world.rs:257`, `crates/arda-core/src/formats/blocks.rs:67`).
+`World` owns its `Manifest`, derived `HydrologyDomain`, and independent `BTreeMap<AreaCoord, OnceLock<...>>` caches. `World::load` fills empty slots only; `area()` caches a requested `Area`, `read_area()` returns owned uncached data, and the first `block()` request decodes that area's complete `BlockArchive`. Each `Area` owns cells and objects; each archive maps `(cy,cx)` to a `Block` (`crates/arda/src/world.rs:78`, `crates/arda/src/world.rs:192`, `crates/arda/src/world.rs:208`, `crates/arda/src/world.rs:274`, `crates/arda-core/src/formats/blocks.rs:67`).
 
 Published generation runs accepted `Continent` → one evolved `SharedTerrain` across the modeled union → immutable `PreparedTerrain` slices → shared fine ocean/routing/MST/hierarchy → representative annual support → signed fine flow and final metrics → immutable per-area composition. Shared terrain is released after slice persistence and before annual-water solving. Preparation/composition are sequential; final workers do not open another area's final files. `TileBundle` supplies climate patches for prepared cells; its raw edge samples and entering loads, local `WaterGrid`, `Basin`, and the local `generate_area` route remain diagnostic data rather than production boundary or published water authority (`crates/arda-gen/src/area/prepare.rs`, `crates/arda-gen/src/orchestrator.rs:416`, `crates/arda-gen/src/orchestrator/shared_solve.rs:385`, `crates/arda-gen/src/hydrology/area_output.rs:251`, `crates/arda-gen/src/area/mod.rs:1`).
 
-Shared preparation uses the normalized radial continent mask and bounded affine regional interpolation plus four aligned area-detail octave lattice spacings, 40/20/10/5 cells. Forty evolution iterations use whole-domain fractional MFD contributing area and a shared regional uplift maximum. Implicit downstream-first incision uses each receiver's updated bed while protecting actual submerged depressions; creep and collapse also cross area cuts. Only the actual modeled outer rim is fixed. Publication-area indices affect slicing, not the physical boundary conditions (`crates/arda-gen/src/continent/coast.rs`, `crates/arda-gen/src/continent/area_detail.rs`, `crates/arda-gen/src/area/evolution.rs`).
+Shared preparation uses the normalized radial continent mask and bounded affine regional interpolation plus four aligned area-detail octave lattice spacings, 40/20/10/5 cells. An absolute-coordinate structural addition uses integer-noise lattices spaced 8 and 4 km, gated by the range of nearby coarse heights about 5 km away. It changes the initial physical bed without adding a stored field; the unperturbed coarse field remains the uplift input (`crates/arda-gen/src/continent/structural_relief.rs:9`, `crates/arda-gen/src/area/prepare.rs:39`). The 160 shared evolution iterations use whole-domain fractional MFD contributing area and a shared regional uplift maximum. Implicit downstream-first incision uses each receiver's updated bed while protecting actual submerged depressions; creep and collapse also cross area cuts. Only the actual modeled outer rim is fixed. Publication-area indices affect slicing, not the physical boundary conditions. The initial-height gate reads the already owned coarse field within the modeled rectangle and samples the same coarse function beyond its true rim, matching direct bundle sampling (`crates/arda-gen/src/continent/coast.rs`, `crates/arda-gen/src/continent/area_detail.rs`, `crates/arda-gen/src/area/evolution.rs:20`, `crates/arda-gen/src/area/prepare.rs:104`, `crates/arda-gen/src/continent/bundles.rs:30`).
 
 `BasinNodeRow.parent` and child-table spans describe physical containment, independently of annual wet occupancy. `GlobalLake.basin` is shared by all its local `Lake.global_id` fragments; `GlobalReach.id` is shared by `RiverSegment.global_id` and crossings. `AnnualCatchment` keeps original contributing ownership separate from final drainage. `ReceivingAccount::Lake` can identify a dry physical basin; `representative_lake` identifies actual positive-depth water. `SharedCrossing` is an actual directed D8 adjacency across areas; its undirected key sorts endpoints by `(x,y)`. A public multi-cell reach can contain an internal crossing. `JunctionId` names an actual dry coordinate without a separate table; tagged point reaches represent physical terminals without an invented step (`crates/arda-core/src/hydrology.rs:54`, `crates/arda-core/src/hydrology.rs:141`, `crates/arda-core/src/hydrology.rs:240`, `crates/arda-core/src/formats/hydrology.rs:789`).
 
 `AreaHydrologyContext` carries the global records needed for that area's water and geometry, including neighboring channel halos. Referenced downstream identities may be outside that bounded copy; reading an area does not recursively fetch them. Local fragment IDs are `u32`; continent river IDs remain continent-local `u16` (`crates/arda-core/src/objects.rs:49`, `crates/arda-core/src/continent.rs:70`, `crates/arda-gen/src/hydrology/area_output.rs:155`, `crates/arda-core/src/formats/hydrology.rs:810`).
 
+`ImageQuality` validates a requested edge and maps an overview’s area-grid ratio to an exact long-edge size. `AreaImageScale::Custom` carries that validated quality into the same area renderer used by Preview and Detail. `OverviewRaster` owns a complete buffered image and tracks each supplied area; `OverviewRaster::push_atlas_with_channels` accepts complete saved-channel context. Streaming `write_overview_png` and `write_atlas_overview_png_with_channels` own 256-row output bands with up to 14 halo rows on each side and reload a saved area for each intersecting band. The world Atlas facade uses uncached `World::read_area` for target cells/objects, bounded `World::read_area_objects` for adjacent channel context, and `Area::into_render_parts` to transfer owned cells. Both quality paths stream PNG rows and publish through a unique temporary sibling followed by rename (`crates/arda-render/src/quality.rs:9`, `crates/arda-render/src/overview.rs:338`, `crates/arda-render/src/overview/streaming.rs:75`, `crates/arda/src/world.rs:245`, `crates/arda/src/export_quality.rs:125`).
+
 `Plate` remains transient generation state. Designed `Range`, `Region`, `Sea`, `Settlement`, `Road`, society/road `Crossing`, `Pass`, `Realm`, `Building`, `Npc`, and `Poi` still have no current struct/storage producer. Water `SharedCrossing` does not implement the designed road crossing. Named regions/rivers, society partitions, shared building layouts, notable NPC sheets, on-demand commoners and sparse block POIs remain plans in `logic/01-continent-generation.md`, `logic/02-area-generation.md`, `logic/03-block-generation.md` and `logic/06-society-generation.md`.
 
 ## Boundaries
 
-The in-memory `OverviewRaster` can use regular per-area scale or explicit image
-dimensions. Exact dimensions are bounded to 16,384 pixels per axis and
-134,217,728 pixels total, with at least one pixel per area per axis; the original
-constructor retains its 64-million-pixel cap. This is a rendering allocation
-contract, with no saved-format or terrain-resolution change
-(`crates/arda-render/src/overview.rs`).
+The in-memory `OverviewRaster` can use regular per-area scale or explicit image dimensions. Exact dimensions are bounded to 32,768 pixels per axis and 134,217,728 pixels total, with at least one pixel per area per axis; the original constructor retains 1–512 pixels per area and its 64-million-pixel cap. The streaming overview accepts the same exact axis and area bounds without the buffered pixel-total cap because it retains at most 256 output rows plus 14 halo rows on each side. These are rendering allocation contracts, with no saved-format or terrain-resolution change (`crates/arda-render/src/overview.rs:240`, `crates/arda-render/src/overview.rs:267`, `crates/arda-render/src/overview/streaming.rs:17`).
 
 The five-crate boundary remains: `arda-core` owns typed records/codecs; `arda-gen` owns continent, prepared/shared hydrology, immutable area composition and block generation; `arda-render` reads stored PNG/JSON inputs without a generator dependency; `arda` provides generation/load/export APIs; `arda-cli` dispatches Generate/Preview/Export. Golden-world tests are in the root workspace (`crates/arda-core/src/lib.rs:1`, `crates/arda-gen/src/lib.rs:1`, `crates/arda-render/src/lib.rs:1`, `crates/arda/src/lib.rs:1`, `crates/arda-cli/src/main.rs:26`, `tests/golden_world.rs:69`).
 
 Core codecs explicitly write little-endian fields; Rust padding is not persisted. The owned logical `BasinNode` view is distinct from the fixed `BasinNodeRow` plus streamed child table. JSON DTOs convert global IDs and `u128` annual litres to decimal strings; mean discharge keeps the existing `*_milli_cumecs` names and whole L/s units. Account JSON uses a snake_case `kind` discriminator and the corresponding identity field. There is no simulated month/calendar reservoir state (`crates/arda-core/src/formats/hydrology.rs:365`, `crates/arda-render/src/hydrology_json.rs:7`, `crates/arda-render/src/hydrology_json.rs:145`).
 
-`CellOut` still omits temperature, rainfall, moisture, forest_density, road and built_by; area JSON combines cells, objects, physical channel edges and hydrology in one document. `BlockOut` retains tile IDs/names without material/traversal/movement/cover/hazard attributes, POIs or buildings. Loaded continent-object queries and independently framed lazy block decoding remain unimplemented; `World::load` reads the manifest without loading continent or global hydrology tables (`crates/arda-render/src/json.rs:18`, `crates/arda-render/src/json.rs:66`, `crates/arda-render/src/json.rs:96`, `crates/arda/src/world.rs:88`).
+`CellOut` still omits temperature, rainfall, moisture, forest_density, road and built_by; area JSON combines cells, objects, physical channel edges and hydrology in one document. `BlockOut` retains tile IDs/names without material/traversal/movement/cover/hazard attributes, POIs or buildings. Loaded continent-object queries and independently framed lazy block decoding remain unimplemented; `World::load` reads the manifest without loading continent or global hydrology tables (`crates/arda-render/src/json.rs:18`, `crates/arda-render/src/json.rs:66`, `crates/arda-render/src/json.rs:96`, `crates/arda/src/world.rs:93`).
 
-Area Preview is 512² pixels with faint marks for subpixel streams; Detail is 4096² with physical channel coverage only. Both use the same 100 m cells and saved geometry. Supplied lake surfaces determine a disclosed integer blue-to-blue depth ramp; overview and direct fixtures without surface context retain categorical fill. These are display choices, not changed wet membership or finer terrain (`crates/arda-render/src/channels.rs:12`, `crates/arda-render/src/channels.rs:268`, `crates/arda-render/src/carto.rs:60`).
+Area Preview is 512² pixels with faint marks for subpixel streams; Detail is 4,096² and Custom is any validated 512–32,768² edge, both showing physical channel coverage only. Ordinary worlds resample the immutable 512² grid of 100 m cells and saved global D8 channel geometry; fine worlds additionally sample their canonical height field for land material and light. Atlas adds an ephemeral 516² halo and 514² palette/light/class/height grids; it creates no new saved record layout or world format. Supplied lake surfaces determine physical depth. Atlas area and overview use the same depth palette as Atlas sea; Classic area keeps its existing lake ramp and Classic overview keeps categorical fill. The world Atlas overview uses `OverviewChannelContext` to canonicalize all existing 3×3 saved-area channel records, then draws connected Q20 strips, terminal footprints and incident junction hulls. Recipe 4 uses display width `min(3 × saved_width_dm, 4_000 dm)` and 13/16 water opacity; older recipes retain `min(8 × saved_width_dm, 10_000 dm)` and full opacity. The overlay clips in source coordinates before projecting unequal area spans, unions bounded per-pixel coverage, and preserves sea/lake feature ownership. The older Atlas Mid/Dark width-derived chamfer symbols remain available only through legacy `write_atlas_overview_png` and `OverviewRaster::push_atlas`; Classic keeps its right/down Dark trunk extension (`crates/arda-render/src/overview/channel_overlay.rs:43`, `crates/arda-render/src/overview/channel_overlay.rs:168`, `crates/arda-render/src/overview/channel_overlay.rs:287`, `crates/arda-render/src/overview/streaming.rs:51`).
+
+Older worlds keep the bounded saved-wetness land tint. Recipe-4 worlds populate the existing moisture and canopy fields, which Atlas blends into dry, lush and forest tones before exposed rock and snow override them. Rock tint varies continuously from 1–2 km elevation and snow from 2.85–4.3 km. Local northwest light uses bounded Q12 modulation; recipe 4 adds a bounded 1–8 km sky-exposure term from the canonical height field. These are deterministic model and display rules, not simulated species, lithology or snow storage (`crates/arda-gen/src/orchestrator/fine_materials.rs`, `crates/arda-render/src/atlas.rs`, `crates/arda-render/src/atlas/fine.rs`). No serialized record or format version changes.
+
+For Linear×Linear output, Atlas reconstructs displayed land/sea ownership from four class-directed signed heights using exact rational pixel centers and i128 bilinear weights. Land samples are at least +1 mm and sea samples at most −1 mm. Positive chooses land, negative sea, and exact zero retains saved ownership. Saved lakes, quads touching lakes, alternating land/sea checkerboards, exact saved-cell centers and guarded one-cell islands/straits retain saved ownership. Any Box axis also retains the existing aggregation/ownership rule. Area colour and channel clipping and both overview paths use this same classifier; an internal AtlasSea feature prevents connected channel overlay and legacy river-trunk widening over reconstructed sea. Classic remains unchanged (`crates/arda-render/src/atlas.rs:412`, `crates/arda-render/src/channels.rs:451`, `crates/arda-render/src/overview.rs:428`, `crates/arda-render/src/overview/streaming.rs:92`).
 
 ## Validation
 
-`GenerateConfig::new` accepts axes 64–4000 km, density 1–200 and ordered latitudes within −80..80. Serde construction alone bypasses that constructor; both generation admission and `World::load` explicitly revalidate it. The loader also requires manifest area dimensions to match configuration before creating caches. Area counts retain integer division by 51 km while physical tiles span 51.2 km; default remains 9×19 = 171 areas. Each modeled axis is `max(requested_km × 10, exported_areas × 512)`, retaining requested fringe and any existing export overshoot (`crates/arda-core/src/config.rs:73`, `crates/arda-core/src/config.rs:133`, `crates/arda-gen/src/hydrology/prepared_domain.rs:40`, `crates/arda/src/world.rs:88`).
+`GenerateConfig::new` accepts axes 64–4000 km, density 1–200 and ordered latitudes within −80..80. Serde construction alone bypasses that constructor; both generation admission and `World::load` explicitly revalidate it. The loader also requires manifest area dimensions to match configuration before creating caches. Area counts retain integer division by 51 km while physical tiles span 51.2 km; default remains 9×19 = 171 areas. Each modeled axis is `max(requested_km × 10, exported_areas × 512)`, retaining requested fringe and any existing export overshoot (`crates/arda-core/src/config.rs:73`, `crates/arda-core/src/config.rs:133`, `crates/arda-gen/src/hydrology/prepared_domain.rs:40`, `crates/arda/src/world.rs:93`).
 
 The continent acceptance gate remains 250–900 per mille land and at least one sea-reaching major river within five attempts; the designed mountain-range gate remains absent. Published sea membership is the D8-connected nonpositive fine component touching the real modeled rim; enclosed negative land is not automatically marine (`crates/arda-gen/src/orchestrator.rs:369`, `crates/arda-gen/src/hydrology/ocean.rs:108`).
+
+`ImageQuality::new` accepts 512–32,768 pixels; parsing accepts a decimal pixel count or an integer `k`/`K` suffix where 1K is 1,024, and defaults to 8,192. Overview long-edge sizing requires 1–78 areas per axis, preserves the area-grid ratio and rounds the shorter edge to the nearest pixel. Exact overview validation also requires 1–32,768 pixels per axis and at least one pixel per area on each axis; only buffered `OverviewRaster::new_exact` adds the 134,217,728-pixel ceiling. Duplicate or out-of-range buffered area pushes are refused (`crates/arda-render/src/quality.rs:9`, `crates/arda-render/src/quality.rs:41`, `crates/arda-render/src/quality.rs:65`, `crates/arda-render/src/overview.rs:410`, `crates/arda-render/src/overview.rs:328`, `crates/arda-render/src/overview.rs:267`).
+
+CLI `--quality` is valid only for area or overview PNG output, conflicts with block output, and is refused for JSON; `--detail` remains area-PNG-only and conflicts with quality. Preview retains legacy `--px` at 1–512 pixels per area, mutually exclusive with quality; without it, Preview and PNG Export use the 8K quality default (`crates/arda-cli/src/main.rs:53`, `crates/arda-cli/src/main.rs:81`, `crates/arda-cli/src/main.rs:99`, `crates/arda-cli/src/main.rs:105`, `crates/arda-cli/src/main.rs:161`, `crates/arda-cli/src/main.rs:235`).
+
+`MapStyle::Classic` is the default. Explicit CLI `--style classic|atlas` is limited to preview and area/overview PNG, including Atlas area `--detail`; JSON, blocks and preview `--px` reject explicit style. Atlas halo construction requires all eight neighboring directions, accepts absent directions only beyond manifest bounds, and uses widened integer gradients with one-sided differences at the outside world edge. Output axes independently use center-based linear interpolation for partitions at least 512 pixels and half-open box footprints below 512; only samples of the selected terrain class contribute, with palette and light averaged separately (`crates/arda/src/lib.rs:28`, `crates/arda-cli/src/main.rs:60`, `crates/arda-cli/src/main.rs:134`, `crates/arda-render/src/atlas.rs:176`, `crates/arda-render/src/atlas.rs:483`, `crates/arda-render/src/atlas.rs:418`, `crates/arda-render/src/atlas.rs:302`).
+
+Area PNG output uses bounded reusable RGB row buffers. Channel candidates, polygon fragments, fixed-point coordinates and total geometry work are bounded with explicit caps; invalid saved D8 steps, nonpositive terminal widths, out-of-range raster coordinates and polygon-union excesses are typed refusals. Connected Atlas overview adds per-context limits of 262,144 edges, 1,048,576 shapes and 4,194,304 vertices; each pixel allows 4,096 candidate shapes. Its Q20 coverage subdivides a pixel only when the ordinary 64-piece union cannot finish, to depth 6 with a 250,000,000-unit work limit per tile construction and row. Overview streaming requires every saved area and may reload areas and their object-only neighbor context across bands. Facade quality exports write a temporary sibling, flush it and rename only after successful completion; ordinary failure preserves an earlier PNG and attempts partial-file cleanup (`crates/arda-render/src/overview/channel_overlay.rs:16`, `crates/arda-render/src/channel_geometry.rs:380`, `crates/arda-render/src/channel_geometry.rs:439`, `crates/arda-render/src/overview/streaming.rs:100`, `crates/arda/src/export_quality.rs:79`).
 
 For each 100 m cell, annual precipitation `P = rain_mm × 10,000 L`, evaporation `E = sum(monthly_evap_um) × 10 L`, land loss `A = min(P/2,E)`, runoff `R = P−A`, and additional wet-support cost `D = E−A`. Nested support/fill/spill operates on real physical bands and witnesses. Wet membership is strictly `bed < surface`; partially supported bands retain separately accounted marginal evaporation while remaining dry at their bed. This representative annual approximation makes no dated, seasonal-minimum or perennial claim. The former published 300-cell/4 m lake-retention filter and coarse seam-level substitution were replaced on 2026-09-08 (`crates/arda-gen/src/hydrology/annual_aggregation.rs:53`, `crates/arda-gen/src/hydrology/annual.rs:540`, `crates/arda-gen/src/area/shared_compose.rs:79`).
 
 Annual source and fine-flow passes require exact canonical coverage and actual spill ownership; whole-domain outflow is reconciled before composition. Final metrics verify lake membership, use the final directed graph for drainage/Strahler and HAND, and admit resource bounds independently of timing. Supported size validation does not constitute a measured maximum-world runtime guarantee (`crates/arda-gen/src/orchestrator/annual_source.rs:313`, `crates/arda-gen/src/hydrology/fine_flow.rs:447`, `crates/arda-gen/src/hydrology/flow_metrics.rs:155`, `crates/arda-gen/src/orchestrator/generation_limits.rs:161`).
 
-Resource admission includes two `i32` terrain inputs plus the shared kernel's scratch: 53 bytes per fine cell and container headers on the current 64-bit layout, in addition to coarse and water-stage reservations. This conservative sum admits MICRO and default sizes under 16 GiB; maximum 4000×4000 km refuses default RAM before output creation and needs explicitly larger limits. Candidate06 completes the five-world saved-data checks and reduces repeated shallow pond patterns through local-relief detail. Capacity and arithmetic checks do not close remaining drainage and regional-basin realism issues (`crates/arda-gen/src/area/evolution.rs`, `crates/arda-gen/src/orchestrator/generation_limits.rs`, `crates/arda-gen/src/orchestrator/generation_limits_tests.rs`).
+Resource admission includes two `i32` terrain inputs plus the shared kernel's scratch: 53 bytes per fine cell and container headers on the current 64-bit layout, in addition to coarse and water-stage reservations. This conservative sum admits MICRO and default sizes under 16 GiB; maximum 4000×4000 km refuses default RAM before output creation and needs explicitly larger limits. Structural relief reuses the existing coarse field, so its 160-step evolution changes declared work but not the 53-byte-per-cell terrain reservation (`crates/arda-gen/src/area/prepare.rs:104`, `crates/arda-gen/src/area/evolution.rs:82`, `crates/arda-gen/src/area/evolution.rs:117`). The earlier Candidate06 five-world checks documented the local-relief detail correction. Capacity and arithmetic checks do not close remaining drainage and regional-basin realism issues (`crates/arda-gen/src/area/evolution.rs`, `crates/arda-gen/src/orchestrator/generation_limits.rs`, `crates/arda-gen/src/orchestrator/generation_limits_tests.rs`).
 
-Current reads require format major exactly 4; preserved format-3 worlds are refused and no migration is implemented. Fixed codecs reject invalid tags, wrong lengths, noncanonical order, invalid mean/annual pairs, impossible physical spill/crossing geometry and unsupported model revision. Area objects enforce local identity/course, feeds-cycle and disjoint lake-member constraints. `World::read_area` bounds requested cells/objects bytes before allocation and validates copied global geometry against the manifest-derived domain. Block decoding still accepts any `u16` TileId; symbolic rendering reports unknown vocabulary IDs (`crates/arda-core/src/formats/manifest.rs:75`, `crates/arda-core/src/formats/hydrology.rs:486`, `crates/arda-core/src/formats/area_objects_v4.rs:290`, `crates/arda/src/world.rs:203`, `crates/arda/src/world.rs:306`, `crates/arda-render/src/symbolic.rs:30`).
+Current reads require format major exactly 4; preserved format-3 worlds are refused and no migration is implemented. Fixed codecs reject invalid tags, wrong lengths, noncanonical order, invalid mean/annual pairs, impossible physical spill/crossing geometry and unsupported model revision. Area objects enforce local identity/course, feeds-cycle and disjoint lake-member constraints. `World::read_area` bounds requested cells/objects bytes before allocation and validates copied global geometry against the manifest-derived domain. Block decoding still accepts any `u16` TileId; symbolic rendering reports unknown vocabulary IDs (`crates/arda-core/src/formats/manifest.rs:75`, `crates/arda-core/src/formats/hydrology.rs:486`, `crates/arda-core/src/formats/area_objects_v4.rs:290`, `crates/arda/src/world.rs:208`, `crates/arda/src/world.rs:242`, `crates/arda-render/src/symbolic.rs:30`).
 
 ## Schema
 
@@ -1012,3 +1122,10 @@ Every published `hydrology/*.bin` below begins with the 32-byte header `ARDAHYD4
 Field sequences and byte widths are defined by `structure!` and `FixedRecord` (`crates/arda-core/src/formats/hydrology.rs:293`, `crates/arda-core/src/formats/hydrology.rs:337`, `crates/arda-core/src/formats/hydrology.rs:379`, `crates/arda-core/src/formats/hydrology.rs:441`). Metadata's seven `Litres` ledger fields are each u128; global identities are u64 except CrossingId's two GlobalCells. Saved rates round annual litres down by 31,536,000 seconds, so positive annual overflow can have a zero whole-L/s mean (`crates/arda-core/src/hydrology.rs:202`, `crates/arda-core/src/hydrology.rs:221`).
 
 Schema-2 area JSON retains existing field names/units where meanings are unchanged and adds global IDs, channel edges and annual hydrology semantics; large identity/volume strings remain lossless in consumers without exact u64/u128 number support. The designed 200+ vocabulary remains 24 TileDef entries with id/name/group; no TileSet wrapper exists (`crates/arda-render/src/json.rs:33`, `crates/arda-render/src/hydrology_json.rs:145`, `crates/arda-core/src/tiles.rs:44`).
+
+
+## Canonical fine terrain file (source-surface format 1.0)
+
+`arda-core::formats::terrain` writes an 88-byte explicit little-endian header: magic 8, major/minor u16, finalized u32, originX/Y i64 micrometres, spacing/width/height/reserved u32, payload length u64, BLAKE3 digest 32. The digest covers finalized first 56 header bytes and all row-major i32 millimetre heights. Both axes include their first/last samples; outside queries return absence. A reader validates complete length/checksum and shares integer interpolation with TerrainField.
+
+The version is independent of world format 4. Opt-in worlds include `fine_terrain: { recipe_version, attempt }` (supported recipes 1–4) in their manifest and store the file at fixed `terrain/fine.bin`. Legacy manifests omit this optional field. Recipe 2 is the earlier accepted source; recipe 3 identifies the fine-specific macro/spectral raw source; recipe 4 identifies that field after source-stage valley formation. The production fine command publishes recipe 4. The producer receipt and explicit world-generation descriptor identify the source recipe; unknown recipes are rejected. `World::fine_terrain(max_transient_bytes)` validates checksum, origin, spacing and requested-plus-fringe coverage; a declared missing/corrupt file is an error, never a silent fallback. The default generation entry point does not create this field. The standalone writer streams exact rows; the reader admits 64 KiB verification plus two width×4-byte row buffers and excludes caller-owned I/O buffers. External mutation after opening is unsupported. [Earlier round-trip and rendered evidence](features/2026-09-23-terrain-corrections/EXPERIMENTS.md#fine-terrain-persistence).

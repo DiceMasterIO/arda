@@ -1,0 +1,18 @@
+{
+  "_note": "Original syllable sets for Arda; no names are copied from published lists.",
+  "default": "heartland",
+  "cultures": {
+    "heartland": {"onsets": ["b", "br", "d", "g", "h", "k", "l", "m", "n", "r", "s", "st", "t", "th", "w", "f", "c"], "nuclei": ["a", "e", "i", "o", "u", "ea", "ai", "oa"], "codas": ["n", "r", "l", "m", "s", "d", "th", "ck", "ld", "rn", "st"],
+      "given_m": ["ric", "win", "mund", "bert", "ald", "an", "ar", "wen"], "given_f": ["a", "wyn", "hild", "eth", "is", "ne", "ild"], "house": ["ford", "by", "wick", "ham", "ley", "ton", "more", "stead"], "place": ["ton", "ford", "ham", "ley", "stead", "bury", "well", "wick", "thorpe", "holm"]},
+    "highland": {"onsets": ["d", "g", "gr", "k", "kr", "m", "r", "t", "dr", "b", "br", "th", "v"], "nuclei": ["a", "o", "u", "ai", "e", "ur"], "codas": ["r", "n", "k", "g", "m", "rn", "rk", "st"],
+      "given_m": ["ain", "an", "och", "dan", "gar", "rum"], "given_f": ["a", "ra", "ai", "wen", "eth"], "house": ["mor", "dun", "ach", "ran", "gar"], "place": ["dun", "mor", "craig", "ach", "fell", "holt", "garth", "crag"]},
+    "coastal": {"onsets": ["s", "sk", "h", "v", "l", "m", "n", "t", "k", "br", "st", "f"], "nuclei": ["a", "e", "i", "o", "ae", "ei", "y"], "codas": ["n", "r", "l", "s", "nd", "rd", "k"],
+      "given_m": ["rik", "ulf", "var", "mund", "en", "ald"], "given_f": ["a", "dis", "run", "hild", "veig", "ny"], "house": ["sen", "ling", "vik", "strand", "dahl"], "place": ["vik", "holm", "ness", "havn", "by", "strand", "sund", "wick"]},
+    "southern": {"onsets": ["c", "v", "m", "l", "t", "r", "s", "d", "f", "p", "b", "g"], "nuclei": ["a", "e", "i", "o", "ia", "io", "ua"], "codas": ["n", "r", "l", "s", "nt", "st"],
+      "given_m": ["o", "io", "an", "enz", "ar", "ius"], "given_f": ["a", "ia", "ella", "ina", "ene"], "house": ["ari", "eni", "one", "asco", "ello"], "place": ["a", "ona", "ano", "era", "ino", "esca", "ia"]},
+    "sylvan": {"onsets": ["l", "el", "f", "th", "s", "n", "m", "r", "v", "gl", "al"], "nuclei": ["a", "e", "i", "ae", "ia", "ie", "y"], "codas": ["n", "l", "r", "th", "s", "nd"],
+      "given_m": ["ion", "as", "ar", "en", "il"], "given_f": ["iel", "wen", "a", "ith", "ra"], "house": ["wood", "leaf", "dell", "glen", "thorn", "brook"], "place": ["dell", "glade", "wood", "mere", "brook", "hollow", "glen"]},
+    "borderland": {"onsets": ["g", "k", "r", "z", "d", "t", "v", "gr", "kr", "h", "b"], "nuclei": ["a", "o", "u", "e", "ai"], "codas": ["k", "r", "g", "z", "n", "sh", "t"],
+      "given_m": ["ak", "osh", "ur", "an", "ek"], "given_f": ["a", "ka", "ra", "isha", "enn"], "house": ["gar", "rak", "osh", "vek", "dur"], "place": ["gard", "wall", "march", "keep", "burg", "hold", "tor"]}
+  }
+}

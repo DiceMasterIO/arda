@@ -1,0 +1,3 @@
+# Prefer procedural input; preview stronger relief
+
+Record the user's preference for the procedural input over the corrected particle erosion result, and their request for more daunting mountains. Preserve that source as the next visual baseline. Render one controlled comparison with 50% greater vertical relief, identical horizontal scale and unchanged Arda renderer. Both original millimetre render inputs reconstruct byte-exactly; source bytes are preserved. Taller render also changes height-driven snow coverage. Comparison awaits user judgement; no production adoption or full-world completion claim.

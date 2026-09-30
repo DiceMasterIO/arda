@@ -1,0 +1,18 @@
+## terrain-corrections/fold-skeleton-source@2026-09-24
+
+- **What:** completed one frozen multiscale ridge-forming uplift comparison through actual Atlas. This is an isolated source experiment; production and saved worlds remain unchanged.
+- **Control:** identical 148,992-node mesh, initial heights, material contacts, erosion law, boundaries and 5 Myr duration. Spatial fold allocation at nominal 7/3/1 km scales is compared with a smooth source having equal total area-weighted uplift.
+- **Preflight:** source geometry, scalar oracles, all-node rate formulas, exact rebuilt sites/areas, retained source/binary hashes, and unchanged material smoke are verified. Final independent runner review clears the exact selected source. The literal selected-edge rule creates dense polygonal networks; that limitation is declared before running.
+- **Run:** both arms finish 100 steps in 17.08 seconds combined. Root all-node bed identities, material ids, contributing areas and ledgers pass. Complete fields and actual Atlas outputs are retained with hashes.
+- **Visual result:** meaningful improvement from broad smooth principal crests and comb gullies to irregular broken ridges and rocky faces. Central conditional saddle-defined summits with at least 150 m prominence increase from 33 to 105; median slope stays near 23.8°. Counts do not establish visual acceptance.
+- **Remaining defect:** cellular hollows and angular benches. A fresh exact TIN audit finds 587 candidate local minima versus zero control; a declared-boundary raster flood finds central geometric spill-fill coverage of 11.04% versus 2.18%, with maxima of 509.11 m versus 104.36 m. These describe geometric capacity, not available water or canonical lakes.
+- **Decision:** retain the fold-source direction as real visual progress, withhold adoption of this dense variant, and diagnose ridge-graph connectivity. No equilibrium, fixed-integer determinism, Arda hydrology compatibility or full-world/reference completion is claimed.
+- **Evidence:** `features/2026-09-23-terrain-corrections/evidence/fold-skeleton-source/`, especially `root-assessment.md`, `atlas-pair.jpg`, `root-field-check.json`, `root-shape-check.json`, `sink-audit.md`, and the frozen manifests. Current status and active plan are updated; the full objective remains open.
+
+### Stricter edge-selection follow-up
+
+The read-only source-graph audit reproduces frozen geometry and identifies 5,888 independent cycles at 1 km. Requiring lower energy than all four dual chords leaves 146 cycles. This explicitly alternative interpretation is tested in isolation, not presented as a publication correction. The reviewed implementation changes one predicate, preserving the runner and original mesh/base-uplift bytes. Independent geometry/field checks and all 34 preflight hashes pass.
+
+The strict pair finishes 100 steps / 5 Myr in 11.51 seconds. Unchanged Atlas retains irregular rocky ridges with a more open pattern, but parallel bands, benches and hollows persist. Central saddle-defined peaks at least 150 m rise from 29 to 113 relative to its own smooth control. Geometric spill-fill coverage is 7.5813% versus 2.3006%, maximum depth 454.872 m versus 105.959 m. Its total uplift differs from the dense experiment, so direct cross-variant differences are contextual rather than a pure selection-rule effect.
+
+Retain the improved source direction, hold production adoption, and stop graph-rule/parameter sweeps. Canonical drainage/water compatibility and lake-aware appearance remain unverified. Full-world integration and the full reference-quality objective remain open. Evidence is under `features/2026-09-23-terrain-corrections/evidence/fold-strict-source/`; current status and active plan include both outcomes.

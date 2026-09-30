@@ -1,6 +1,18 @@
 use super::*;
 
 #[test]
+fn shared_duration_and_admitted_work_are_independent_of_legacy_tile_pass() {
+    assert_eq!(SHARED_ITERATIONS, 160);
+    assert_eq!(crate::area::erosion::ITERATIONS, 40);
+    let (width, height) = (640, 640);
+    let cells = (width * height) as u64;
+    let heap_levels = u64::from(u64::BITS - (cells - 1).leading_zeros());
+    let expected = cells * (640 + 160 * (184 + 8 * 9 + 8 * heap_levels));
+    assert_eq!(work_operations(width, height).unwrap(), expected);
+    assert!(expected > cells * (512 + 40 * (184 + 8 * 9 + 8 * heap_levels)));
+}
+
+#[test]
 fn nominal_area_cut_does_not_pin_or_taper_a_plateau() {
     // logic/02 shared terrain correction: 512-cell storage partitions are
     // not physical boundaries, including cells on both sides of the cut.
