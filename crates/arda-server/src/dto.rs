@@ -4,6 +4,7 @@ use crate::contract::convert::{discharge_m3s, height_m, mm_to_m};
 use crate::contract::CONTRACT_VERSION;
 use crate::query::WorldQuery;
 use arda_core::{CellCoord, Lake, RiverSegment, Terminus, AREA_CELLS};
+use schemars::JsonSchema;
 use serde::Serialize;
 use ts_rs::TS;
 
@@ -11,7 +12,7 @@ use ts_rs::TS;
 pub const API_VERSION: &str = "v1";
 
 /// Continent extent in kilometres (manifest `config.size_km`).
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, TS)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, TS, JsonSchema)]
 pub struct SizeKmDto {
     /// East–west extent.
     pub width: u32,
@@ -20,7 +21,7 @@ pub struct SizeKmDto {
 }
 
 /// Latitude belt the continent sits in, degrees north.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, TS)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, TS, JsonSchema)]
 pub struct LatitudeDto {
     /// Southern edge.
     pub south_deg: i16,
@@ -29,7 +30,7 @@ pub struct LatitudeDto {
 }
 
 /// Canonical fine terrain descriptor.
-#[derive(Debug, Clone, Copy, PartialEq, Serialize, TS)]
+#[derive(Debug, Clone, Copy, PartialEq, Serialize, TS, JsonSchema)]
 pub struct FineTerrainDto {
     /// Recipe that produced `terrain/fine.bin`.
     pub recipe_version: u16,
@@ -38,7 +39,7 @@ pub struct FineTerrainDto {
 }
 
 /// Slippy overview tile pyramid geometry.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, TS)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, TS, JsonSchema)]
 pub struct TilePyramidDto {
     /// Tile edge, pixels.
     pub tile_px: u32,
@@ -56,7 +57,7 @@ pub struct TilePyramidDto {
 }
 
 /// `/v1/world`: identity, size and grids of the served world.
-#[derive(Debug, Clone, PartialEq, Serialize, TS)]
+#[derive(Debug, Clone, PartialEq, Serialize, TS, JsonSchema)]
 pub struct WorldInfo {
     /// Cell contract version.
     pub contract_version: u32,
@@ -128,7 +129,7 @@ impl WorldInfo {
 }
 
 /// `/v1/health`.
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, TS)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, TS, JsonSchema)]
 pub struct Health {
     /// Always `"ok"` when the service answers.
     pub status: String,
@@ -139,7 +140,7 @@ pub struct Health {
 }
 
 /// How a river segment ends.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, TS)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, TS, JsonSchema)]
 #[serde(rename_all = "snake_case")]
 pub enum TerminusDto {
     /// Flows into another segment at a confluence.
@@ -168,7 +169,7 @@ const fn terminus(t: Terminus) -> TerminusDto {
 }
 
 /// One saved watercourse reach fragment inside an area.
-#[derive(Debug, Clone, PartialEq, Serialize, TS)]
+#[derive(Debug, Clone, PartialEq, Serialize, TS, JsonSchema)]
 pub struct RiverDto {
     /// Tile-local id, 1-based.
     pub id: u32,
@@ -189,7 +190,7 @@ pub struct RiverDto {
 }
 
 /// One saved lake fragment inside an area.
-#[derive(Debug, Clone, PartialEq, Serialize, TS)]
+#[derive(Debug, Clone, PartialEq, Serialize, TS, JsonSchema)]
 pub struct LakeDto {
     /// Tile-local id, 1-based.
     pub id: u32,
@@ -206,7 +207,7 @@ pub struct LakeDto {
 }
 
 /// `/v1/area/{ax}/{ay}/rivers`.
-#[derive(Debug, Clone, PartialEq, Serialize, TS)]
+#[derive(Debug, Clone, PartialEq, Serialize, TS, JsonSchema)]
 pub struct AreaRivers {
     /// Cell contract version.
     pub contract_version: u32,
@@ -219,7 +220,7 @@ pub struct AreaRivers {
 }
 
 /// `/v1/area/{ax}/{ay}/lakes`.
-#[derive(Debug, Clone, PartialEq, Serialize, TS)]
+#[derive(Debug, Clone, PartialEq, Serialize, TS, JsonSchema)]
 pub struct AreaLakes {
     /// Cell contract version.
     pub contract_version: u32,

@@ -451,11 +451,19 @@ pub fn place_name(lang: &Language, spec: &PlaceSpec) -> Name {
     fallback(lang, spec)
 }
 
-/// The plain head word, glossed by itself (lexicon roots are never blocked).
+/// The plain head word, glossed by itself. Lexicon roots are never blocked
+/// (`Language::fresh_root`), but a dialect's sound changes can respell one
+/// into a blocked word; then the root is used as it stands (review round 2
+/// #42: the fallback skipped the blocklist).
 fn fallback(lang: &Language, spec: &PlaceSpec) -> Name {
     let head = kind_head(spec.kind);
     let p = part(lang, head);
-    let spoken = lang.speak(&p.ph);
+    let changed = lang.speak(&p.ph);
+    let spoken = if lang.blocklist.blocks(&lang.spell(&changed)) {
+        p.ph.clone()
+    } else {
+        changed
+    };
     Name {
         native: lang.spell(&spoken),
         gloss: head.info().modifier.to_string(),

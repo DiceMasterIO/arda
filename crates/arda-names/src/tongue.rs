@@ -14,17 +14,21 @@ use serde::{Deserialize, Serialize};
 
 /// Everything needed to rebuild a place's local language.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[cfg_attr(feature = "schema", derive(schemars::JsonSchema))]
 pub struct Tongue {
     /// The culture's preset.
     pub preset: Preset,
     /// Seed of the culture's standard language.
     #[serde(with = "crate::ids")]
+    #[cfg_attr(feature = "schema", schemars(with = "String"))]
     pub language_seed: u64,
     /// Seed of the world's shared substrate tongue.
     #[serde(with = "crate::ids")]
+    #[cfg_attr(feature = "schema", schemars(with = "String"))]
     pub substrate_seed: u64,
     /// Seed of the dialect map of the culture region.
     #[serde(with = "crate::ids")]
+    #[cfg_attr(feature = "schema", schemars(with = "String"))]
     pub dialect_seed: u64,
     /// Width of the dialect map, in the caller's units (cells).
     pub width: i64,

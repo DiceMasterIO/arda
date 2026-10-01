@@ -2,7 +2,7 @@ import { describe, expect, it, test } from "vitest";
 import { rulesOverlay, tokenMarks, waterFill } from "./tacticalOverlay.ts";
 
 describe("rulesOverlay", () => {
-  const rules = { format_version: 2, width: 2, height: 1, squares: [{ difficult: true, water_depth_ft: 6 }, { cover: "half" as const }] };
+  const rules = { width: 2, squares: [{ difficult: true, water_depth_ft: 6 }, { cover: "half" as const }] };
   it("draws only the enabled layers, in square units", () => {
     expect(rulesOverlay(rules, { difficult: true, water: false, cover: false })).toEqual([{ kind: "rect", x: 0, y: 0, w: 1, h: 1, hatch: true }]);
     const all = rulesOverlay(rules, { difficult: true, water: true, cover: true });

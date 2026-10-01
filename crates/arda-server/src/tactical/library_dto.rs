@@ -2,12 +2,13 @@
 //! viewer's layout editor (ground keys, wall kits and placeable assets).
 
 use arda_tactical::Library;
+use schemars::JsonSchema;
 use serde::Serialize;
 use std::collections::BTreeMap;
 use ts_rs::TS;
 
 /// The loaded asset library, summarised.
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, TS)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, TS, JsonSchema)]
 pub struct TacticalLibraryDto {
     /// Library name.
     pub library: String,
@@ -24,7 +25,7 @@ pub struct TacticalLibraryDto {
 }
 
 /// One ground key and how many texture variants back it.
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, TS)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, TS, JsonSchema)]
 pub struct GroundKeyDto {
     /// The key, e.g. `cobbles`.
     pub key: String,
@@ -35,7 +36,7 @@ pub struct GroundKeyDto {
 }
 
 /// One wall kit and the roles it has pieces for.
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, TS)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, TS, JsonSchema)]
 pub struct WallKitDto {
     /// Kit name, e.g. `stone`.
     pub kit: String,
@@ -44,7 +45,7 @@ pub struct WallKitDto {
 }
 
 /// One placeable asset.
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, TS)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, TS, JsonSchema)]
 pub struct LibraryAssetDto {
     /// Asset id for `AssetRef::Id`.
     pub id: String,

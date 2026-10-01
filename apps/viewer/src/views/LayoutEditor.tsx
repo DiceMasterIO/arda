@@ -7,7 +7,7 @@ import { SquareInfo, SquareReadout } from "../components/SquareInfo.tsx";
 import { TacticalMap, type SquareRef } from "../components/TacticalMap.tsx";
 import { squareLabel } from "../geo/coords.ts";
 import { tacticalPyramid } from "../geo/tacticalTiles.ts";
-import { useAsync } from "../hooks.ts";
+import { useAsync, whileLive } from "../hooks.ts";
 import { editMarks, pointerMarks } from "../render/tacticalOverlay.ts";
 
 function layoutFromHash(): string | null {
@@ -96,7 +96,9 @@ function Editor({
   const render = useCallback(
     (l: TacticalLayoutDto, signal?: AbortSignal) => {
       const edits = l.squares.filter((s, i) => original.squares[i]?.ground !== s.ground).length;
-      client.renderLayout(l, { ppsq }, signal ? { signal } : undefined).then(
+      whileLive(
+        signal,
+        client.renderLayout(l, { ppsq }, signal ? { signal } : undefined),
         (img) => {
           record(img);
           const url = URL.createObjectURL(img.blob);
@@ -105,9 +107,7 @@ function Editor({
             return { state: "ok", url, meta: img, edits };
           });
         },
-        (e: unknown) => {
-          if (!signal?.aborted) setResult({ state: "error", message: describeError(e) });
-        },
+        (e) => { setResult({ state: "error", message: describeError(e) }); },
       );
     },
     [client, ppsq, record, original],

@@ -9,7 +9,6 @@ import {
   parseLayouts,
   parseNotYet,
   parseRules,
-  parseTokens,
   squareAt,
   wallLine,
   wallsAround,
@@ -146,6 +145,7 @@ describe("parseRules", () => {
       1,
       2,
     );
+    expect(got?.edges).toEqual([]);
     expect(got?.squares).toEqual([
       { difficult: true, cover: "total", lightly_obscured: true },
       { water_depth_ft: 5, deck: true, ext: { feature: "bridge" } },
@@ -163,14 +163,5 @@ describe("parseRules", () => {
     expect(rules?.squares[2]).toMatchObject({ water_depth_ft: 3 });
     expect(rules?.squares[3]).toMatchObject({ difficult: true });
     expect(rules?.squares[0]?.cover).toBe("half");
-  });
-});
-
-describe("parseTokens", () => {
-  it("keeps well-formed tokens and drops the rest", () => {
-    const good = { npc_id: "10166616894566488805", name: "Brelil Fyler", x: 24, y: 9, building_id: "5", settlement_id: "118", kind: "worker" };
-    expect(parseTokens({ tokens: [good, { ...good, x: "1" }, { ...good, kind: "ghost" }] })).toEqual([good]);
-    expect(parseTokens(null)).toEqual([]);
-    expect(parseTokens({ scene: {} })).toEqual([]);
   });
 });

@@ -11,9 +11,11 @@ use std::collections::BTreeMap;
 
 /// One building as society sees it.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[cfg_attr(feature = "schema", derive(schemars::JsonSchema))]
 pub struct BuildingRef {
     /// Building id, unique within the settlement.
     #[serde(with = "crate::ids::str")]
+    #[cfg_attr(feature = "schema", schemars(with = "String"))]
     pub id: u64,
     /// Building-function key (plain snake_case).
     pub function: String,

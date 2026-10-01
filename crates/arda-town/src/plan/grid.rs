@@ -267,6 +267,7 @@ impl PlanGrid {
 #[derive(
     Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash, serde::Serialize, serde::Deserialize,
 )]
+#[cfg_attr(feature = "schema", derive(schemars::JsonSchema))]
 #[serde(rename_all = "snake_case")]
 pub enum Side {
     /// Towards −y.
@@ -332,6 +333,7 @@ impl Side {
 
 /// A half-open rectangle of global squares.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, serde::Serialize, serde::Deserialize)]
+#[cfg_attr(feature = "schema", derive(schemars::JsonSchema))]
 pub struct SquareRect {
     /// First column.
     pub x0: i64,

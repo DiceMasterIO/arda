@@ -1,10 +1,11 @@
 //! Mirrors of the `arda-npc` SRD 5.1 sheet types.
 
+use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 use ts_rs::TS;
 
 /// One of the six abilities, in SRD order.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, TS)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, TS, JsonSchema)]
 pub enum Ability {
     /// Strength.
     #[serde(rename = "STR")]
@@ -27,7 +28,7 @@ pub enum Ability {
 }
 
 /// What the sheet is built from.
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, TS)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, TS, JsonSchema)]
 #[serde(rename_all = "snake_case", tag = "type")]
 pub enum SheetKind {
     /// An SRD NPC stat block.
@@ -53,7 +54,7 @@ pub enum SheetKind {
 }
 
 /// Flavour background of a class build.
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, TS)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, TS, JsonSchema)]
 #[serde(deny_unknown_fields)]
 pub struct Background {
     /// Name.
@@ -65,7 +66,7 @@ pub struct Background {
 }
 
 /// A saving throw.
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, TS)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, TS, JsonSchema)]
 #[serde(deny_unknown_fields)]
 pub struct SaveBonus {
     /// Ability.
@@ -77,7 +78,7 @@ pub struct SaveBonus {
 }
 
 /// A proficient skill.
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, TS)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, TS, JsonSchema)]
 #[serde(deny_unknown_fields)]
 pub struct SkillBonus {
     /// SRD skill name.
@@ -91,7 +92,7 @@ pub struct SkillBonus {
 }
 
 /// Melee or ranged.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, TS)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, TS, JsonSchema)]
 #[serde(rename_all = "snake_case")]
 pub enum AttackKind {
     /// Melee.
@@ -101,7 +102,7 @@ pub enum AttackKind {
 }
 
 /// One attack line.
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, TS)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, TS, JsonSchema)]
 #[serde(deny_unknown_fields)]
 pub struct Attack {
     /// Name.
@@ -123,7 +124,7 @@ pub struct Attack {
 }
 
 /// An item and how many.
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, TS)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, TS, JsonSchema)]
 #[serde(deny_unknown_fields)]
 pub struct Item {
     /// SRD item name.
@@ -133,7 +134,7 @@ pub struct Item {
 }
 
 /// Coins carried.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, TS)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, TS, JsonSchema)]
 #[serde(deny_unknown_fields)]
 pub struct Coins {
     /// Gold.
@@ -145,7 +146,7 @@ pub struct Coins {
 }
 
 /// A spell known or prepared.
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, TS)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, TS, JsonSchema)]
 #[serde(deny_unknown_fields)]
 pub struct SpellRef {
     /// SRD spell name.
@@ -155,7 +156,7 @@ pub struct SpellRef {
 }
 
 /// Spellcasting block.
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, TS)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, TS, JsonSchema)]
 #[serde(deny_unknown_fields)]
 pub struct Spellcasting {
     /// Casting ability.
@@ -173,7 +174,7 @@ pub struct Spellcasting {
 }
 
 /// A full SRD 5.1 sheet.
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, TS)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, TS, JsonSchema)]
 #[serde(deny_unknown_fields)]
 pub struct Sheet {
     /// Stat block or class build.

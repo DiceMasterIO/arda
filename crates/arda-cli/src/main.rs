@@ -12,6 +12,7 @@ use std::path::{Path, PathBuf};
 mod generate;
 mod society;
 mod tactical;
+mod tactical_import;
 
 #[cfg(test)]
 use generate::parse_latitude;

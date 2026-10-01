@@ -1,0 +1,1083 @@
+{
+  "$defs": {
+    "Ability": {
+      "description": "One of the six abilities, in SRD order.",
+      "oneOf": [
+        {
+          "const": "STR",
+          "description": "Strength.",
+          "type": "string"
+        },
+        {
+          "const": "DEX",
+          "description": "Dexterity.",
+          "type": "string"
+        },
+        {
+          "const": "CON",
+          "description": "Constitution.",
+          "type": "string"
+        },
+        {
+          "const": "INT",
+          "description": "Intelligence.",
+          "type": "string"
+        },
+        {
+          "const": "WIS",
+          "description": "Wisdom.",
+          "type": "string"
+        },
+        {
+          "const": "CHA",
+          "description": "Charisma.",
+          "type": "string"
+        }
+      ]
+    },
+    "Attack": {
+      "additionalProperties": false,
+      "description": "One attack line.",
+      "properties": {
+        "average": {
+          "description": "Average damage.",
+          "format": "int16",
+          "maximum": 32767,
+          "minimum": -32768,
+          "type": "integer"
+        },
+        "damage": {
+          "description": "Damage dice.",
+          "type": "string"
+        },
+        "damage_type": {
+          "description": "Damage type.",
+          "type": "string"
+        },
+        "extra": {
+          "description": "Extra effects.",
+          "items": {
+            "type": "string"
+          },
+          "type": "array"
+        },
+        "kind": {
+          "$ref": "#/$defs/AttackKind",
+          "description": "Melee or ranged."
+        },
+        "name": {
+          "description": "Name.",
+          "type": "string"
+        },
+        "range": {
+          "description": "Reach or range.",
+          "type": "string"
+        },
+        "to_hit": {
+          "description": "Attack bonus.",
+          "format": "int8",
+          "maximum": 127,
+          "minimum": -128,
+          "type": "integer"
+        }
+      },
+      "required": [
+        "name",
+        "kind",
+        "to_hit",
+        "damage",
+        "average",
+        "damage_type",
+        "range",
+        "extra"
+      ],
+      "type": "object"
+    },
+    "AttackKind": {
+      "description": "Melee or ranged.",
+      "oneOf": [
+        {
+          "const": "melee",
+          "description": "Melee.",
+          "type": "string"
+        },
+        {
+          "const": "ranged",
+          "description": "Ranged.",
+          "type": "string"
+        }
+      ]
+    },
+    "Background": {
+      "additionalProperties": false,
+      "description": "Flavour background of a class build.",
+      "properties": {
+        "name": {
+          "description": "Name.",
+          "type": "string"
+        },
+        "skills": {
+          "description": "Granted skills.",
+          "items": {
+            "type": "string"
+          },
+          "type": "array"
+        },
+        "text": {
+          "description": "Description.",
+          "type": "string"
+        }
+      },
+      "required": [
+        "name",
+        "text",
+        "skills"
+      ],
+      "type": "object"
+    },
+    "Coins": {
+      "additionalProperties": false,
+      "description": "Coins carried.",
+      "properties": {
+        "cp": {
+          "description": "Copper.",
+          "format": "uint32",
+          "minimum": 0,
+          "type": "integer"
+        },
+        "gp": {
+          "description": "Gold.",
+          "format": "uint32",
+          "minimum": 0,
+          "type": "integer"
+        },
+        "sp": {
+          "description": "Silver.",
+          "format": "uint32",
+          "minimum": 0,
+          "type": "integer"
+        }
+      },
+      "required": [
+        "gp",
+        "sp",
+        "cp"
+      ],
+      "type": "object"
+    },
+    "HouseholdId": {
+      "additionalProperties": false,
+      "description": "A household: its home building and index inside it.",
+      "properties": {
+        "building": {
+          "description": "Home building id.",
+          "type": "string"
+        },
+        "index": {
+          "description": "Index among the building's households.",
+          "format": "uint32",
+          "minimum": 0,
+          "type": "integer"
+        }
+      },
+      "required": [
+        "building",
+        "index"
+      ],
+      "type": "object"
+    },
+    "Ideal": {
+      "additionalProperties": false,
+      "description": "An ideal and its alignment lean.",
+      "properties": {
+        "alignment": {
+          "description": "Alignment lean.",
+          "type": "string"
+        },
+        "name": {
+          "description": "Short name.",
+          "type": "string"
+        },
+        "tags": {
+          "description": "Coherence tags.",
+          "items": {
+            "type": "string"
+          },
+          "type": "array"
+        },
+        "text": {
+          "description": "The ideal in the person's words.",
+          "type": "string"
+        }
+      },
+      "required": [
+        "name",
+        "text",
+        "alignment",
+        "tags"
+      ],
+      "type": "object"
+    },
+    "Item": {
+      "additionalProperties": false,
+      "description": "An item and how many.",
+      "properties": {
+        "name": {
+          "description": "SRD item name.",
+          "type": "string"
+        },
+        "quantity": {
+          "description": "Quantity.",
+          "format": "uint16",
+          "maximum": 65535,
+          "minimum": 0,
+          "type": "integer"
+        }
+      },
+      "required": [
+        "name",
+        "quantity"
+      ],
+      "type": "object"
+    },
+    "Job": {
+      "additionalProperties": false,
+      "description": "A person's occupation.",
+      "properties": {
+        "category": {
+          "$ref": "#/$defs/JobCategory",
+          "description": "Broad category."
+        },
+        "key": {
+          "description": "Occupation key.",
+          "type": "string"
+        },
+        "title": {
+          "description": "Display title.",
+          "type": "string"
+        }
+      },
+      "required": [
+        "key",
+        "title",
+        "category"
+      ],
+      "type": "object"
+    },
+    "JobCategory": {
+      "description": "Broad kind of work.",
+      "oneOf": [
+        {
+          "const": "agriculture",
+          "description": "Fields and herds.",
+          "type": "string"
+        },
+        {
+          "const": "craft",
+          "description": "Workshops and trades.",
+          "type": "string"
+        },
+        {
+          "const": "trade",
+          "description": "Buying and selling.",
+          "type": "string"
+        },
+        {
+          "const": "service",
+          "description": "Inns, kitchens and households.",
+          "type": "string"
+        },
+        {
+          "const": "religion",
+          "description": "Clergy.",
+          "type": "string"
+        },
+        {
+          "const": "military",
+          "description": "Soldiers and watch.",
+          "type": "string"
+        },
+        {
+          "const": "government",
+          "description": "Officials.",
+          "type": "string"
+        },
+        {
+          "const": "maritime",
+          "description": "Boats and docks.",
+          "type": "string"
+        },
+        {
+          "const": "extraction",
+          "description": "Mines and forests.",
+          "type": "string"
+        },
+        {
+          "const": "scholar",
+          "description": "Books and teaching.",
+          "type": "string"
+        },
+        {
+          "const": "labour",
+          "description": "Unskilled work.",
+          "type": "string"
+        },
+        {
+          "const": "nobility",
+          "description": "Nobles.",
+          "type": "string"
+        },
+        {
+          "const": "dependent",
+          "description": "Children and the retired.",
+          "type": "string"
+        }
+      ]
+    },
+    "Lifestyle": {
+      "description": "SRD 5.1 lifestyle.",
+      "oneOf": [
+        {
+          "const": "wretched",
+          "description": "Wretched.",
+          "type": "string"
+        },
+        {
+          "const": "squalid",
+          "description": "Squalid.",
+          "type": "string"
+        },
+        {
+          "const": "poor",
+          "description": "Poor.",
+          "type": "string"
+        },
+        {
+          "const": "modest",
+          "description": "Modest.",
+          "type": "string"
+        },
+        {
+          "const": "comfortable",
+          "description": "Comfortable.",
+          "type": "string"
+        },
+        {
+          "const": "wealthy",
+          "description": "Wealthy.",
+          "type": "string"
+        },
+        {
+          "const": "aristocratic",
+          "description": "Aristocratic.",
+          "type": "string"
+        }
+      ]
+    },
+    "Name": {
+      "additionalProperties": false,
+      "description": "A person's name.",
+      "properties": {
+        "byname": {
+          "description": "Optional nickname or epithet.",
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "family": {
+          "description": "Family name.",
+          "type": "string"
+        },
+        "given": {
+          "description": "Given name.",
+          "type": "string"
+        }
+      },
+      "required": [
+        "given",
+        "family"
+      ],
+      "type": "object"
+    },
+    "NpcId": {
+      "description": "An inhabitant's id: the `arda-ids` u64 as a decimal string.",
+      "type": "string"
+    },
+    "Personality": {
+      "additionalProperties": false,
+      "description": "Personality.",
+      "properties": {
+        "bond": {
+          "description": "One bond.",
+          "type": "string"
+        },
+        "flaw": {
+          "description": "One flaw.",
+          "type": "string"
+        },
+        "ideal": {
+          "$ref": "#/$defs/Ideal",
+          "description": "One ideal."
+        },
+        "mannerism": {
+          "description": "A voice or mannerism hook.",
+          "type": "string"
+        },
+        "summary": {
+          "description": "One-line summary.",
+          "type": "string"
+        },
+        "traits": {
+          "description": "Two traits.",
+          "items": {
+            "type": "string"
+          },
+          "type": "array"
+        }
+      },
+      "required": [
+        "traits",
+        "ideal",
+        "bond",
+        "flaw",
+        "mannerism",
+        "summary"
+      ],
+      "type": "object"
+    },
+    "RelationKind": {
+      "description": "How two people are related.",
+      "oneOf": [
+        {
+          "const": "spouse",
+          "description": "Husband or wife.",
+          "type": "string"
+        },
+        {
+          "const": "parent",
+          "description": "Mother or father.",
+          "type": "string"
+        },
+        {
+          "const": "child",
+          "description": "Son or daughter.",
+          "type": "string"
+        },
+        {
+          "const": "sibling",
+          "description": "Brother or sister.",
+          "type": "string"
+        },
+        {
+          "const": "landlord",
+          "description": "Householder a lodger rents from.",
+          "type": "string"
+        },
+        {
+          "const": "lodger",
+          "description": "Lodger.",
+          "type": "string"
+        },
+        {
+          "const": "employer",
+          "description": "Master of the workplace.",
+          "type": "string"
+        },
+        {
+          "const": "employee",
+          "description": "Works under this person.",
+          "type": "string"
+        },
+        {
+          "const": "friend",
+          "description": "Close friend.",
+          "type": "string"
+        },
+        {
+          "const": "rival",
+          "description": "Rival or enemy.",
+          "type": "string"
+        }
+      ]
+    },
+    "Relationship": {
+      "additionalProperties": false,
+      "description": "One relationship: `other` is this person's `kind`.",
+      "properties": {
+        "kind": {
+          "$ref": "#/$defs/RelationKind",
+          "description": "What the other person is to this one."
+        },
+        "other": {
+          "$ref": "#/$defs/NpcId",
+          "description": "The other person."
+        }
+      },
+      "required": [
+        "kind",
+        "other"
+      ],
+      "type": "object"
+    },
+    "SaveBonus": {
+      "additionalProperties": false,
+      "description": "A saving throw.",
+      "properties": {
+        "ability": {
+          "$ref": "#/$defs/Ability",
+          "description": "Ability."
+        },
+        "bonus": {
+          "description": "Total bonus.",
+          "format": "int8",
+          "maximum": 127,
+          "minimum": -128,
+          "type": "integer"
+        },
+        "proficient": {
+          "description": "Whether proficiency applies.",
+          "type": "boolean"
+        }
+      },
+      "required": [
+        "ability",
+        "bonus",
+        "proficient"
+      ],
+      "type": "object"
+    },
+    "Sex": {
+      "description": "Biological sex.",
+      "oneOf": [
+        {
+          "const": "female",
+          "description": "Female.",
+          "type": "string"
+        },
+        {
+          "const": "male",
+          "description": "Male.",
+          "type": "string"
+        }
+      ]
+    },
+    "Sheet": {
+      "additionalProperties": false,
+      "description": "A full SRD 5.1 sheet.",
+      "properties": {
+        "abilities": {
+          "description": "STR, DEX, CON, INT, WIS, CHA.",
+          "items": {
+            "format": "uint8",
+            "maximum": 255,
+            "minimum": 0,
+            "type": "integer"
+          },
+          "maxItems": 6,
+          "minItems": 6,
+          "type": "array"
+        },
+        "armor": {
+          "description": "Worn armour and shield.",
+          "items": {
+            "type": "string"
+          },
+          "type": "array"
+        },
+        "armor_class": {
+          "description": "Armour class.",
+          "format": "uint8",
+          "maximum": 255,
+          "minimum": 0,
+          "type": "integer"
+        },
+        "attacks": {
+          "description": "Attacks.",
+          "items": {
+            "$ref": "#/$defs/Attack"
+          },
+          "type": "array"
+        },
+        "coins": {
+          "$ref": "#/$defs/Coins",
+          "description": "Coins."
+        },
+        "damage_resistances": {
+          "description": "Damage resistances.",
+          "items": {
+            "type": "string"
+          },
+          "type": "array"
+        },
+        "equipment": {
+          "description": "Equipment.",
+          "items": {
+            "$ref": "#/$defs/Item"
+          },
+          "type": "array"
+        },
+        "features": {
+          "description": "Features by name.",
+          "items": {
+            "type": "string"
+          },
+          "type": "array"
+        },
+        "hit_dice": {
+          "description": "Hit dice.",
+          "type": "string"
+        },
+        "hit_points": {
+          "description": "Hit points.",
+          "format": "uint16",
+          "maximum": 65535,
+          "minimum": 0,
+          "type": "integer"
+        },
+        "kind": {
+          "$ref": "#/$defs/SheetKind",
+          "description": "Stat block or class build."
+        },
+        "languages": {
+          "description": "Languages.",
+          "items": {
+            "type": "string"
+          },
+          "type": "array"
+        },
+        "modifiers": {
+          "description": "Their modifiers.",
+          "items": {
+            "format": "int8",
+            "maximum": 127,
+            "minimum": -128,
+            "type": "integer"
+          },
+          "maxItems": 6,
+          "minItems": 6,
+          "type": "array"
+        },
+        "passive_perception": {
+          "description": "Passive Wisdom (Perception).",
+          "format": "uint8",
+          "maximum": 255,
+          "minimum": 0,
+          "type": "integer"
+        },
+        "proficiency_bonus": {
+          "description": "Proficiency bonus.",
+          "format": "int8",
+          "maximum": 127,
+          "minimum": -128,
+          "type": "integer"
+        },
+        "saves": {
+          "description": "All six saving throws.",
+          "items": {
+            "$ref": "#/$defs/SaveBonus"
+          },
+          "type": "array"
+        },
+        "senses": {
+          "description": "Senses.",
+          "items": {
+            "type": "string"
+          },
+          "type": "array"
+        },
+        "size": {
+          "description": "Size category.",
+          "type": "string"
+        },
+        "skills": {
+          "description": "Proficient skills.",
+          "items": {
+            "$ref": "#/$defs/SkillBonus"
+          },
+          "type": "array"
+        },
+        "speed": {
+          "description": "Walking speed, feet.",
+          "format": "uint8",
+          "maximum": 255,
+          "minimum": 0,
+          "type": "integer"
+        },
+        "spellcasting": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/Spellcasting"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "description": "Spellcasting, for casters."
+        }
+      },
+      "required": [
+        "kind",
+        "size",
+        "abilities",
+        "modifiers",
+        "proficiency_bonus",
+        "saves",
+        "skills",
+        "hit_points",
+        "hit_dice",
+        "armor_class",
+        "armor",
+        "speed",
+        "senses",
+        "passive_perception",
+        "languages",
+        "damage_resistances",
+        "attacks",
+        "features",
+        "equipment",
+        "coins"
+      ],
+      "type": "object"
+    },
+    "SheetKind": {
+      "description": "What the sheet is built from.",
+      "oneOf": [
+        {
+          "description": "An SRD NPC stat block.",
+          "properties": {
+            "challenge_rating": {
+              "description": "Challenge rating.",
+              "type": "string"
+            },
+            "name": {
+              "description": "Stat block name.",
+              "type": "string"
+            },
+            "type": {
+              "const": "stat_block",
+              "type": "string"
+            },
+            "xp": {
+              "description": "Experience points.",
+              "format": "uint32",
+              "minimum": 0,
+              "type": "integer"
+            }
+          },
+          "required": [
+            "type",
+            "name",
+            "challenge_rating",
+            "xp"
+          ],
+          "type": "object"
+        },
+        {
+          "description": "A class build.",
+          "properties": {
+            "background": {
+              "$ref": "#/$defs/Background",
+              "description": "Flavour background."
+            },
+            "class": {
+              "description": "Class name.",
+              "type": "string"
+            },
+            "level": {
+              "description": "Class level.",
+              "format": "uint8",
+              "maximum": 255,
+              "minimum": 0,
+              "type": "integer"
+            },
+            "subclass": {
+              "description": "SRD subclass.",
+              "type": [
+                "string",
+                "null"
+              ]
+            },
+            "type": {
+              "const": "class",
+              "type": "string"
+            }
+          },
+          "required": [
+            "type",
+            "class",
+            "level",
+            "background"
+          ],
+          "type": "object"
+        }
+      ]
+    },
+    "SkillBonus": {
+      "additionalProperties": false,
+      "description": "A proficient skill.",
+      "properties": {
+        "ability": {
+          "$ref": "#/$defs/Ability",
+          "description": "Ability used."
+        },
+        "bonus": {
+          "description": "Total bonus.",
+          "format": "int8",
+          "maximum": 127,
+          "minimum": -128,
+          "type": "integer"
+        },
+        "expertise": {
+          "description": "Whether proficiency is doubled.",
+          "type": "boolean"
+        },
+        "name": {
+          "description": "SRD skill name.",
+          "type": "string"
+        }
+      },
+      "required": [
+        "name",
+        "ability",
+        "bonus",
+        "expertise"
+      ],
+      "type": "object"
+    },
+    "SocialRank": {
+      "description": "Standing in local society.",
+      "oneOf": [
+        {
+          "const": "dependent",
+          "description": "Children and dependants.",
+          "type": "string"
+        },
+        {
+          "const": "labourer",
+          "description": "Labourers, hands and servants.",
+          "type": "string"
+        },
+        {
+          "const": "tradesfolk",
+          "description": "Journeymen, clerks and small traders.",
+          "type": "string"
+        },
+        {
+          "const": "master",
+          "description": "Masters, owners and minor officials.",
+          "type": "string"
+        },
+        {
+          "const": "gentry",
+          "description": "Clergy leads, officers and magistrates.",
+          "type": "string"
+        },
+        {
+          "const": "noble",
+          "description": "Lords and ladies.",
+          "type": "string"
+        }
+      ]
+    },
+    "SpellRef": {
+      "additionalProperties": false,
+      "description": "A spell known or prepared.",
+      "properties": {
+        "level": {
+          "description": "Spell level, 0 for cantrips.",
+          "format": "uint8",
+          "maximum": 255,
+          "minimum": 0,
+          "type": "integer"
+        },
+        "name": {
+          "description": "SRD spell name.",
+          "type": "string"
+        }
+      },
+      "required": [
+        "name",
+        "level"
+      ],
+      "type": "object"
+    },
+    "Spellcasting": {
+      "additionalProperties": false,
+      "description": "Spellcasting block.",
+      "properties": {
+        "ability": {
+          "$ref": "#/$defs/Ability",
+          "description": "Casting ability."
+        },
+        "attack_bonus": {
+          "description": "Spell attack bonus.",
+          "format": "int8",
+          "maximum": 127,
+          "minimum": -128,
+          "type": "integer"
+        },
+        "pact_magic": {
+          "description": "Pact Magic slots.",
+          "type": "boolean"
+        },
+        "save_dc": {
+          "description": "Spell save DC.",
+          "format": "uint8",
+          "maximum": 255,
+          "minimum": 0,
+          "type": "integer"
+        },
+        "slots": {
+          "description": "Slots per spell level (index 0 = 1st level).",
+          "items": {
+            "format": "uint8",
+            "maximum": 255,
+            "minimum": 0,
+            "type": "integer"
+          },
+          "type": "array"
+        },
+        "spells": {
+          "description": "Cantrips and spells.",
+          "items": {
+            "$ref": "#/$defs/SpellRef"
+          },
+          "type": "array"
+        }
+      },
+      "required": [
+        "ability",
+        "save_dc",
+        "attack_bonus",
+        "slots",
+        "pact_magic",
+        "spells"
+      ],
+      "type": "object"
+    }
+  },
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "additionalProperties": false,
+  "description": "One inhabitant with a full SRD 5.1 sheet (`logic/13` §npc-game-schema).",
+  "properties": {
+    "age": {
+      "description": "Age in years.",
+      "format": "uint16",
+      "maximum": 65535,
+      "minimum": 0,
+      "type": "integer"
+    },
+    "ancestry": {
+      "description": "SRD race key.",
+      "type": "string"
+    },
+    "ancestry_name": {
+      "description": "SRD race display name.",
+      "type": "string"
+    },
+    "employer": {
+      "anyOf": [
+        {
+          "$ref": "#/$defs/NpcId"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "description": "Master of the workplace, for employees."
+    },
+    "home_building": {
+      "description": "Home building id.",
+      "type": "string"
+    },
+    "household": {
+      "$ref": "#/$defs/HouseholdId",
+      "description": "Household."
+    },
+    "id": {
+      "$ref": "#/$defs/NpcId",
+      "description": "Stable id."
+    },
+    "job": {
+      "$ref": "#/$defs/Job",
+      "description": "Occupation."
+    },
+    "lifestyle": {
+      "$ref": "#/$defs/Lifestyle",
+      "description": "SRD lifestyle."
+    },
+    "name": {
+      "$ref": "#/$defs/Name",
+      "description": "Name."
+    },
+    "notable": {
+      "description": "Whether the person is a stored notable.",
+      "type": "boolean"
+    },
+    "personality": {
+      "$ref": "#/$defs/Personality",
+      "description": "Personality."
+    },
+    "relationships": {
+      "description": "Ties, sorted.",
+      "items": {
+        "$ref": "#/$defs/Relationship"
+      },
+      "type": "array"
+    },
+    "sex": {
+      "$ref": "#/$defs/Sex",
+      "description": "Sex."
+    },
+    "sheet": {
+      "$ref": "#/$defs/Sheet",
+      "description": "SRD 5.1 character sheet."
+    },
+    "social_rank": {
+      "$ref": "#/$defs/SocialRank",
+      "description": "Social standing."
+    },
+    "subrace": {
+      "description": "SRD subrace.",
+      "type": [
+        "string",
+        "null"
+      ]
+    },
+    "wealth": {
+      "description": "Wealth, 0–255.",
+      "format": "uint8",
+      "maximum": 255,
+      "minimum": 0,
+      "type": "integer"
+    },
+    "workplace_building": {
+      "description": "Workplace building id.",
+      "type": [
+        "string",
+        "null"
+      ]
+    }
+  },
+  "required": [
+    "id",
+    "name",
+    "ancestry",
+    "ancestry_name",
+    "age",
+    "sex",
+    "job",
+    "home_building",
+    "household",
+    "social_rank",
+    "wealth",
+    "lifestyle",
+    "personality",
+    "relationships",
+    "sheet",
+    "notable"
+  ],
+  "title": "Npc",
+  "type": "object"
+}

@@ -131,7 +131,9 @@ up and going down.
 
 - `dim_ft` is the outer radius of the dim light. As with the SRD's torch,
   lantern and candle, dim light extends beyond the bright radius by the
-  bright radius again, so `dim_ft = 2 × bright_ft`.
+  bright radius again, so `dim_ft = 2 × bright_ft`. The SRD lamp (15 ft
+  bright, 30 ft more dim) does not follow that rule; there is no lamp asset,
+  and one would need a light with two radii.
 - `asset` is missing for free layout lights.
 - Free lights come first, then emissive assets in placement order.
 
@@ -155,8 +157,8 @@ up and going down.
 - `open`: squares, row-major, that are normal, have no cover and are clear,
   and whose eight neighbours are the same and reachable in one step.
 - `entrances`: `{ "wall": <index into walls>, "squares": [[x,y], ...] }`, one
-  for each door, gate or secret door, listing the enterable squares on both
-  sides.
+  for each door or gate, listing the enterable squares on both sides. Secret
+  doors are left out: they look like wall until found.
 - `exits`: `{ "edge": "N", "from": [x,y], "to": [x,y] }`, runs of enterable
   border squares, inclusive, with no movement-blocking wall on the map edge.
   They are listed in N, E, S, W order and are meant for seamless travel to the
@@ -253,7 +255,8 @@ of these from the JSON.
     wall arms at that vertex and `heavy` squares beside the line.
   - So a line may graze a wall end or the outside of a corner, but it cannot
     slip through a closed corner or between two diagonally touching opaque
-    squares.
+    squares. This vertex rule is a house rule: SRD 5.1 has no grid
+    line-of-sight procedure.
 - `visible_squares(from, radius_ft)` returns the squares within
   `distance_ft` of `from` that `from` can see, row-major, `from` included.
 - `path_cost(a, b)` and `shortest_path(a, b)` apply the SRD 5.1 movement
@@ -267,10 +270,13 @@ of these from the JSON.
     separate rules, so they add up.
   - Impassable squares and movement-blocking edges stop a step.
   - A diagonal may not cut a vertex that any movement-blocking wall touches,
-    and may not squeeze between two impassable squares.
+    and may not squeeze between two impassable squares. Both are house
+    rules; SRD 5.1 does not cover grid corners.
   - `distance_ft(a, b)` measures range the same way: 5 ft × the larger of
     the two axis differences.
-- `cover_between(attacker, target)` applies the SRD degrees of cover.
+- `cover_between(attacker, target)` applies the SRD degrees of cover, read
+  off the grid with the DMG's optional four-corner procedure, used here as a
+  house rule (SRD 5.1 gives no grid procedure).
   - The attacker uses the corner of its square that sees the target best.
     Lines run from that corner to the target square's four corners, each
     inset by 1/8 square.

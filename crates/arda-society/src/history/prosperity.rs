@@ -17,6 +17,7 @@ const FADE: i64 = 35;
 
 /// Direction of a settlement's fortunes now.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+#[cfg_attr(feature = "schema", derive(schemars::JsonSchema))]
 #[serde(rename_all = "snake_case")]
 pub enum Trend {
     /// Trade surplus, growing.
@@ -31,6 +32,7 @@ pub enum Trend {
 
 /// Prosperity history of one settlement.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[cfg_attr(feature = "schema", derive(schemars::JsonSchema))]
 pub struct Prosperity {
     /// Present wealth, 0–255 (the input value).
     pub present: u8,
@@ -60,16 +62,24 @@ pub fn prosperity(
     econ: &EconomyRun,
     at_war: &[u64],
 ) -> Vec<Prosperity> {
+    // Each settlement's shocks in timeline order, gathered in one pass
+    // (review round 2 #29: a scan of every event per settlement).
+    let mut shocks: std::collections::BTreeMap<u64, Vec<(i32, i64)>> = Default::default();
+    for e in &tl.events {
+        let hit = (e.year, shock(e.kind) * i64::from(e.severity.max(1)));
+        if hit.1 <= 0 {
+            continue;
+        }
+        for (k, id) in e.settlements.iter().enumerate() {
+            if !e.settlements[..k].contains(id) {
+                shocks.entry(*id).or_default().push(hit);
+            }
+        }
+    }
     (0..ctx.n())
         .map(|i| {
             let s = ctx.s(i);
-            let hits: Vec<(i32, i64)> = tl
-                .events
-                .iter()
-                .filter(|e| e.settlements.contains(&s.id))
-                .map(|e| (e.year, shock(e.kind) * i64::from(e.severity.max(1))))
-                .filter(|h| h.1 > 0)
-                .collect();
+            let hits: &[(i32, i64)] = shocks.get(&s.id).map_or(&[], Vec::as_slice);
             let w = i64::from(s.wealth);
             let start = w * 35 / 100 + 10;
             let (f0, p) = (f.year[i], ctx.present);

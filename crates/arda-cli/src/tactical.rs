@@ -11,11 +11,14 @@ use std::path::{Path, PathBuf};
 
 #[derive(Subcommand)]
 pub(crate) enum TacticalCommand {
-    /// Validate an asset library directory (its `catalog.json` and images).
+    /// Validate an asset library directory (its `catalog.json` and images),
+    /// or a `top:…:bottom` stack of libraries.
     Validate {
-        /// Library directory.
+        /// Library directory or stack.
         dir: PathBuf,
     },
+    /// Turn a folder of raw AI-generated images into a valid library.
+    Import(crate::tactical_import::ImportArgs),
     /// Generate the placeholder library.
     Placeholders {
         /// Directory to write into.
@@ -33,7 +36,9 @@ pub(crate) enum TacticalCommand {
         /// layout `.json` file.
         #[arg(long)]
         layout: String,
-        /// Asset library directory.
+        /// Asset library directory, or a `top:…:bottom` stack such as
+        /// `out/art:assets/tactical/placeholder` (missing assets fall back
+        /// to the lower libraries).
         #[arg(long, default_value = "assets/tactical/placeholder")]
         library: PathBuf,
         /// Output pixels per square.
@@ -60,6 +65,7 @@ pub(crate) enum TacticalCommand {
 pub(crate) fn run(command: TacticalCommand) -> Result<()> {
     match command {
         TacticalCommand::Validate { dir } => validate(&dir),
+        TacticalCommand::Import(args) => crate::tactical_import::run(&args),
         TacticalCommand::Placeholders { out, seed } => {
             let catalog = placeholders::write(&out, seed)?;
             println!(
@@ -85,7 +91,7 @@ pub(crate) fn run(command: TacticalCommand) -> Result<()> {
                 lighting: !no_lighting,
             };
             let style = Style { grade: !no_grade };
-            let lib = Library::load(&library)
+            let lib = Library::load_stack(&library)
                 .with_context(|| format!("loading {}", library.display()))?;
             if layout == "all" {
                 for l in layouts::all() {
@@ -144,6 +150,19 @@ fn render_one(
 }
 
 fn validate(dir: &std::path::Path) -> Result<()> {
+    if arda_tactical::library_stack::stack_dirs(dir).len() > 1 {
+        let lib =
+            Library::load_stack(dir).with_context(|| format!("loading stack {}", dir.display()))?;
+        println!(
+            "{}: ok ({} assets after fallback, library {} {}, {} px/square)",
+            dir.display(),
+            lib.catalog.assets.len(),
+            lib.catalog.library,
+            lib.catalog.library_version,
+            lib.catalog.pixels_per_square
+        );
+        return Ok(());
+    }
     let issues = library::check_dir(dir, &Thresholds::default())
         .with_context(|| format!("reading library {}", dir.display()))?;
     if issues.is_empty() {

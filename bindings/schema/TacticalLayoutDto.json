@@ -1,0 +1,376 @@
+{
+  "$defs": {
+    "AssetClassDto": {
+      "description": "Catalogue asset classes.",
+      "oneOf": [
+        {
+          "const": "ground",
+          "description": "Tileable ground texture.",
+          "type": "string"
+        },
+        {
+          "const": "wall",
+          "description": "Wall-kit piece.",
+          "type": "string"
+        },
+        {
+          "const": "prop",
+          "description": "Furniture, goods, vehicles and structures.",
+          "type": "string"
+        },
+        {
+          "const": "vegetation",
+          "description": "Trees, bushes, reeds and rocks.",
+          "type": "string"
+        },
+        {
+          "const": "water",
+          "description": "Tileable water texture.",
+          "type": "string"
+        }
+      ]
+    },
+    "AssetRefDto": {
+      "description": "An asset chosen by id or by a deterministic tag query.",
+      "oneOf": [
+        {
+          "additionalProperties": false,
+          "description": "A specific asset id.",
+          "properties": {
+            "id": {
+              "type": "string"
+            }
+          },
+          "required": [
+            "id"
+          ],
+          "type": "object"
+        },
+        {
+          "additionalProperties": false,
+          "description": "Any asset of the class carrying every tag.",
+          "properties": {
+            "query": {
+              "properties": {
+                "class": {
+                  "anyOf": [
+                    {
+                      "$ref": "#/$defs/AssetClassDto"
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ],
+                  "default": null,
+                  "description": "Restrict to a class."
+                },
+                "tags": {
+                  "description": "Required tags.",
+                  "items": {
+                    "type": "string"
+                  },
+                  "type": "array"
+                }
+              },
+              "required": [
+                "tags"
+              ],
+              "type": "object"
+            }
+          },
+          "required": [
+            "query"
+          ],
+          "type": "object"
+        }
+      ]
+    },
+    "EdgeAxisDto": {
+      "description": "Which edge of a square a segment lies on.",
+      "oneOf": [
+        {
+          "const": "horizontal",
+          "description": "The north edge of square `(x, y)`.",
+          "type": "string"
+        },
+        {
+          "const": "vertical",
+          "description": "The west edge of square `(x, y)`.",
+          "type": "string"
+        }
+      ]
+    },
+    "LightSourceDto": {
+      "additionalProperties": false,
+      "description": "A light source not attached to an asset.",
+      "properties": {
+        "colour": {
+          "description": "RGB colour.",
+          "items": {
+            "format": "uint8",
+            "maximum": 255,
+            "minimum": 0,
+            "type": "integer"
+          },
+          "maxItems": 3,
+          "minItems": 3,
+          "type": "array"
+        },
+        "radius_ft": {
+          "description": "Bright-light radius in feet.",
+          "format": "uint16",
+          "maximum": 65535,
+          "minimum": 0,
+          "type": "integer"
+        },
+        "x": {
+          "description": "Position in squares.",
+          "format": "float",
+          "type": "number"
+        },
+        "y": {
+          "description": "Position in squares.",
+          "format": "float",
+          "type": "number"
+        }
+      },
+      "required": [
+        "x",
+        "y",
+        "radius_ft",
+        "colour"
+      ],
+      "type": "object"
+    },
+    "PlacementDto": {
+      "additionalProperties": false,
+      "description": "A prop or vegetation placement.",
+      "properties": {
+        "asset": {
+          "$ref": "#/$defs/AssetRefDto",
+          "description": "What to place."
+        },
+        "mirror": {
+          "default": false,
+          "description": "Horizontal mirror, applied before rotation.",
+          "type": "boolean"
+        },
+        "rotation": {
+          "default": 0,
+          "description": "Clockwise rotation in degrees.",
+          "format": "uint16",
+          "maximum": 65535,
+          "minimum": 0,
+          "type": "integer"
+        },
+        "x": {
+          "description": "Anchor position in squares (`3.5` is a square centre).",
+          "format": "float",
+          "type": "number"
+        },
+        "y": {
+          "description": "Anchor position in squares.",
+          "format": "float",
+          "type": "number"
+        }
+      },
+      "required": [
+        "asset",
+        "x",
+        "y"
+      ],
+      "type": "object"
+    },
+    "SquareDto": {
+      "additionalProperties": false,
+      "description": "One 5-ft square.",
+      "properties": {
+        "elevation_ft": {
+          "default": 0,
+          "description": "Elevation in feet.",
+          "format": "int16",
+          "maximum": 32767,
+          "minimum": -32768,
+          "type": "integer"
+        },
+        "ground": {
+          "description": "Ground type key, matching a texture's `ground` field.",
+          "type": "string"
+        },
+        "water_depth_ft": {
+          "default": 0,
+          "description": "Water depth in feet; zero is dry land.",
+          "format": "uint8",
+          "maximum": 255,
+          "minimum": 0,
+          "type": "integer"
+        }
+      },
+      "required": [
+        "ground"
+      ],
+      "type": "object"
+    },
+    "WallRoleDto": {
+      "description": "Wall-kit piece roles; layouts use the edge roles `run`, `door`, `window`, `gate`.",
+      "oneOf": [
+        {
+          "const": "run",
+          "description": "Plain wall along one edge.",
+          "type": "string"
+        },
+        {
+          "const": "door",
+          "description": "Doorway along one edge.",
+          "type": "string"
+        },
+        {
+          "const": "window",
+          "description": "Wall with a window along one edge.",
+          "type": "string"
+        },
+        {
+          "const": "gate",
+          "description": "Wide gate along one edge.",
+          "type": "string"
+        },
+        {
+          "const": "corner",
+          "description": "Joint with arms east and south.",
+          "type": "string"
+        },
+        {
+          "const": "tee",
+          "description": "Joint with arms east, south and west.",
+          "type": "string"
+        },
+        {
+          "const": "cross",
+          "description": "Joint with arms in all four directions.",
+          "type": "string"
+        },
+        {
+          "const": "end",
+          "description": "Joint with one arm, east.",
+          "type": "string"
+        },
+        {
+          "const": "post",
+          "description": "Optional joint on a straight run.",
+          "type": "string"
+        }
+      ]
+    },
+    "WallSegmentDto": {
+      "additionalProperties": false,
+      "description": "A wall-kit edge feature.",
+      "properties": {
+        "axis": {
+          "$ref": "#/$defs/EdgeAxisDto",
+          "description": "Which edge."
+        },
+        "kind": {
+          "$ref": "#/$defs/WallRoleDto",
+          "description": "Edge role."
+        },
+        "kit": {
+          "description": "Wall kit name.",
+          "type": "string"
+        },
+        "x": {
+          "description": "Square column.",
+          "format": "uint32",
+          "minimum": 0,
+          "type": "integer"
+        },
+        "y": {
+          "description": "Square row.",
+          "format": "uint32",
+          "minimum": 0,
+          "type": "integer"
+        }
+      },
+      "required": [
+        "x",
+        "y",
+        "axis",
+        "kind",
+        "kit"
+      ],
+      "type": "object"
+    }
+  },
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "additionalProperties": false,
+  "description": "Mirror of `arda_tactical::TacticalLayout`: a W × H battle map.",
+  "properties": {
+    "height": {
+      "description": "Height in squares.",
+      "format": "uint32",
+      "minimum": 0,
+      "type": "integer"
+    },
+    "lights": {
+      "default": [],
+      "description": "Free-standing light sources.",
+      "items": {
+        "$ref": "#/$defs/LightSourceDto"
+      },
+      "type": "array"
+    },
+    "name": {
+      "description": "Layout name.",
+      "type": "string"
+    },
+    "origin": {
+      "description": "World square of square `(0, 0)` (I10); absent for layouts with no\nworld position.",
+      "items": {
+        "format": "int64",
+        "type": "integer"
+      },
+      "maxItems": 2,
+      "minItems": 2,
+      "type": [
+        "array",
+        "null"
+      ]
+    },
+    "placements": {
+      "default": [],
+      "description": "Props and vegetation.",
+      "items": {
+        "$ref": "#/$defs/PlacementDto"
+      },
+      "type": "array"
+    },
+    "squares": {
+      "description": "Row-major squares, `width × height` of them.",
+      "items": {
+        "$ref": "#/$defs/SquareDto"
+      },
+      "type": "array"
+    },
+    "walls": {
+      "default": [],
+      "description": "Wall, door, window and gate segments on square edges.",
+      "items": {
+        "$ref": "#/$defs/WallSegmentDto"
+      },
+      "type": "array"
+    },
+    "width": {
+      "description": "Width in squares.",
+      "format": "uint32",
+      "minimum": 0,
+      "type": "integer"
+    }
+  },
+  "required": [
+    "name",
+    "width",
+    "height",
+    "squares"
+  ],
+  "title": "TacticalLayoutDto",
+  "type": "object"
+}

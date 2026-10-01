@@ -16,7 +16,7 @@ The synthetic sites are `aldermere`, a riverside market town of 2,600 at a bridg
 
 `block` takes these options:
 
-- `--library`: the library directory, `assets/tactical/placeholder` by default;
+- `--library`: the library directory, or a `top:…:bottom` stack such as `out/art:assets/tactical/placeholder` whose lower libraries fill in what the upper ones lack (see the arda-tactical README); `assets/tactical/placeholder` by default;
 - `--ppsq`: output pixels per square, 48 by default;
 - `--grid`: draw the square grid.
 

@@ -51,7 +51,7 @@ pub fn ways(ctx: &OverlayCtx<'_>, off: (i64, i64)) -> Result<OverlayLayer, Block
         .iter()
         .enumerate()
         .map(|(i, r)| arda_ways::Road {
-            id: u32::try_from(i + 1).unwrap_or(u32::MAX),
+            id: u64::try_from(i + 1).unwrap_or(u64::MAX),
             class: ways_class(r.class),
             segments: vec![r
                 .points

@@ -6,8 +6,8 @@
 
 use crate::columnar::{AreaCells, AreaColumns, Legend};
 use crate::contract::{
-    CellSample, CoastSample, CoverDto, FineHeights, HeightSource, LakeMembership, PointSample,
-    RiverMembership, RoadDto, SnowSample, TerrainKindDto, CONTRACT_VERSION,
+    CellSample, CoastSample, CoverDto, FineHeights, HeightSource, LakeMembership, LandUseDto,
+    PointSample, RiverMembership, RoadDto, SnowSample, TerrainKindDto, CONTRACT_VERSION,
 };
 use crate::dto::{
     AreaLakes, AreaRivers, FineTerrainDto, Health, LakeDto, LatitudeDto, RiverDto, SizeKmDto,
@@ -26,6 +26,13 @@ use crate::tactical::prefetch::{PrefetchAccepted, PrefetchCell, PrefetchRequest,
 use crate::tactical::rules_dto::{
     CoverLevelDto, EdgeRoleDto, EdgeRuleDto, RulesCellDto, RulesSidecarDto,
 };
+use crate::tactical::scene::{SceneTime, TacticalScene};
+use crate::tactical::scene_dto::{
+    BlockerKindDto, EdgeDto, EdgeExitDto, EntranceDto, MovementDto, ObscurementDto, RegionDto,
+    RegionKindDto, Runs, SceneDto, SceneLightDto, SceneWallDto, SpawnHintsDto, SqDto, TokenSlotDto,
+    VisionBlockerDto, WallKindDto,
+};
+use crate::tactical::tokens::{Token, TokenKind};
 use std::path::PathBuf;
 use ts_rs::TS;
 
@@ -75,6 +82,7 @@ exported!(
     TerrainKindDto,
     CoverDto,
     RoadDto,
+    LandUseDto,
     CoastSample,
     SnowSample,
     RiverMembership,
@@ -166,6 +174,27 @@ exported!(
     PrefetchStatus,
     PrefetchCell,
     PrefetchAccepted,
+    Runs<u8>,
+    SqDto,
+    MovementDto,
+    ObscurementDto,
+    WallKindDto,
+    SceneWallDto,
+    BlockerKindDto,
+    VisionBlockerDto,
+    SceneLightDto,
+    RegionKindDto,
+    RegionDto,
+    EdgeDto,
+    EdgeExitDto,
+    EntranceDto,
+    SpawnHintsDto,
+    TokenSlotDto,
+    SceneDto,
+    SceneTime,
+    TokenKind,
+    Token,
+    TacticalScene,
 );
 
 #[cfg(test)]

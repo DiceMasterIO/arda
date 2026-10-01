@@ -1,0 +1,729 @@
+{
+  "$defs": {
+    "BlockerKindDto": {
+      "description": "Where a vision blocker comes from.",
+      "oneOf": [
+        {
+          "const": "canopy",
+          "description": "A tree canopy.",
+          "type": "string"
+        },
+        {
+          "const": "prop",
+          "description": "A prop that blocks sight.",
+          "type": "string"
+        }
+      ]
+    },
+    "CoverLevelDto": {
+      "description": "SRD 5.1 degrees of cover.",
+      "oneOf": [
+        {
+          "const": "none",
+          "description": "No cover.",
+          "type": "string"
+        },
+        {
+          "const": "half",
+          "description": "Half cover: +2 AC and Dexterity saves.",
+          "type": "string"
+        },
+        {
+          "const": "three_quarters",
+          "description": "Three-quarters cover: +5.",
+          "type": "string"
+        },
+        {
+          "const": "total",
+          "description": "Total cover: cannot be targeted directly.",
+          "type": "string"
+        }
+      ]
+    },
+    "EdgeDto": {
+      "description": "A map edge.",
+      "oneOf": [
+        {
+          "const": "N",
+          "description": "North (y = 0).",
+          "type": "string"
+        },
+        {
+          "const": "E",
+          "description": "East.",
+          "type": "string"
+        },
+        {
+          "const": "S",
+          "description": "South.",
+          "type": "string"
+        },
+        {
+          "const": "W",
+          "description": "West (x = 0).",
+          "type": "string"
+        }
+      ]
+    },
+    "EdgeExitDto": {
+      "additionalProperties": false,
+      "description": "A run of enterable squares along one map edge.",
+      "properties": {
+        "edge": {
+          "$ref": "#/$defs/EdgeDto",
+          "description": "Which edge."
+        },
+        "from": {
+          "$ref": "#/$defs/SqDto",
+          "description": "First square of the run."
+        },
+        "to": {
+          "$ref": "#/$defs/SqDto",
+          "description": "Last square of the run (inclusive)."
+        }
+      },
+      "required": [
+        "edge",
+        "from",
+        "to"
+      ],
+      "type": "object"
+    },
+    "EntranceDto": {
+      "additionalProperties": false,
+      "description": "Squares beside a door or gate.",
+      "properties": {
+        "squares": {
+          "description": "Enterable squares on either side of it.",
+          "items": {
+            "$ref": "#/$defs/SqDto"
+          },
+          "type": "array"
+        },
+        "wall": {
+          "description": "Index into `walls`.",
+          "format": "uint32",
+          "minimum": 0,
+          "type": "integer"
+        }
+      },
+      "required": [
+        "wall",
+        "squares"
+      ],
+      "type": "object"
+    },
+    "MovementDto": {
+      "description": "How a creature moves through a square (SRD 5.1 \"Movement\").",
+      "oneOf": [
+        {
+          "const": "normal",
+          "description": "Ordinary ground.",
+          "type": "string"
+        },
+        {
+          "const": "difficult",
+          "description": "Difficult terrain: every foot costs 1 extra foot.",
+          "type": "string"
+        },
+        {
+          "const": "wade",
+          "description": "Shallow water (1–4 ft): wading, as difficult terrain.",
+          "type": "string"
+        },
+        {
+          "const": "swim",
+          "description": "Water 5 ft deep or more: swimming.",
+          "type": "string"
+        },
+        {
+          "const": "impassable",
+          "description": "Solid obstacle; cannot be entered.",
+          "type": "string"
+        }
+      ]
+    },
+    "ObscurementDto": {
+      "description": "SRD 5.1 vision obscurement of a square.",
+      "oneOf": [
+        {
+          "const": "clear",
+          "description": "Clear.",
+          "type": "string"
+        },
+        {
+          "const": "light",
+          "description": "Lightly obscured.",
+          "type": "string"
+        },
+        {
+          "const": "heavy",
+          "description": "Heavily obscured or opaque.",
+          "type": "string"
+        }
+      ]
+    },
+    "RegionDto": {
+      "additionalProperties": false,
+      "description": "Merged squares of one kind as closed rings on grid vertices (even-odd fill).",
+      "properties": {
+        "kind": {
+          "$ref": "#/$defs/RegionKindDto",
+          "description": "What the region marks."
+        },
+        "rings": {
+          "description": "Closed rings of `[x, y]` vertices (first point not repeated).",
+          "items": {
+            "items": {
+              "items": {
+                "format": "uint32",
+                "minimum": 0,
+                "type": "integer"
+              },
+              "maxItems": 2,
+              "minItems": 2,
+              "type": "array"
+            },
+            "type": "array"
+          },
+          "type": "array"
+        }
+      },
+      "required": [
+        "kind",
+        "rings"
+      ],
+      "type": "object"
+    },
+    "RegionKindDto": {
+      "description": "What a region marks.",
+      "oneOf": [
+        {
+          "const": "difficult",
+          "description": "Difficult terrain on land.",
+          "type": "string"
+        },
+        {
+          "const": "shallow_water",
+          "description": "Shallow water (wading).",
+          "type": "string"
+        },
+        {
+          "const": "deep_water",
+          "description": "Deep water (swimming).",
+          "type": "string"
+        }
+      ]
+    },
+    "Runs": {
+      "description": "A row-major per-square layer as runs `[[count, value], …]`, expanding to\n`width × height` values (`arda_scene::Grid`).",
+      "items": {
+        "maxItems": 2,
+        "minItems": 2,
+        "prefixItems": [
+          {
+            "format": "uint32",
+            "minimum": 0,
+            "type": "integer"
+          },
+          {
+            "$ref": "#/$defs/MovementDto"
+          }
+        ],
+        "type": "array"
+      },
+      "type": "array"
+    },
+    "Runs2": {
+      "description": "A row-major per-square layer as runs `[[count, value], …]`, expanding to\n`width × height` values (`arda_scene::Grid`).",
+      "items": {
+        "maxItems": 2,
+        "minItems": 2,
+        "prefixItems": [
+          {
+            "format": "uint32",
+            "minimum": 0,
+            "type": "integer"
+          },
+          {
+            "format": "uint8",
+            "maximum": 255,
+            "minimum": 0,
+            "type": "integer"
+          }
+        ],
+        "type": "array"
+      },
+      "type": "array"
+    },
+    "Runs3": {
+      "description": "A row-major per-square layer as runs `[[count, value], …]`, expanding to\n`width × height` values (`arda_scene::Grid`).",
+      "items": {
+        "maxItems": 2,
+        "minItems": 2,
+        "prefixItems": [
+          {
+            "format": "uint32",
+            "minimum": 0,
+            "type": "integer"
+          },
+          {
+            "$ref": "#/$defs/CoverLevelDto"
+          }
+        ],
+        "type": "array"
+      },
+      "type": "array"
+    },
+    "Runs4": {
+      "description": "A row-major per-square layer as runs `[[count, value], …]`, expanding to\n`width × height` values (`arda_scene::Grid`).",
+      "items": {
+        "maxItems": 2,
+        "minItems": 2,
+        "prefixItems": [
+          {
+            "format": "uint32",
+            "minimum": 0,
+            "type": "integer"
+          },
+          {
+            "$ref": "#/$defs/ObscurementDto"
+          }
+        ],
+        "type": "array"
+      },
+      "type": "array"
+    },
+    "Runs5": {
+      "description": "A row-major per-square layer as runs `[[count, value], …]`, expanding to\n`width × height` values (`arda_scene::Grid`).",
+      "items": {
+        "maxItems": 2,
+        "minItems": 2,
+        "prefixItems": [
+          {
+            "format": "uint32",
+            "minimum": 0,
+            "type": "integer"
+          },
+          {
+            "format": "int16",
+            "maximum": 32767,
+            "minimum": -32768,
+            "type": "integer"
+          }
+        ],
+        "type": "array"
+      },
+      "type": "array"
+    },
+    "SceneLightDto": {
+      "additionalProperties": false,
+      "description": "A light source with SRD bright and dim radii.",
+      "properties": {
+        "asset": {
+          "description": "Emitting asset id; absent for a free layout light.",
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "bright_ft": {
+          "description": "Bright-light radius in feet.",
+          "format": "uint16",
+          "maximum": 65535,
+          "minimum": 0,
+          "type": "integer"
+        },
+        "colour": {
+          "description": "RGB colour.",
+          "items": {
+            "format": "uint8",
+            "maximum": 255,
+            "minimum": 0,
+            "type": "integer"
+          },
+          "maxItems": 3,
+          "minItems": 3,
+          "type": "array"
+        },
+        "dim_ft": {
+          "description": "Outer edge of dim light in feet.",
+          "format": "uint16",
+          "maximum": 65535,
+          "minimum": 0,
+          "type": "integer"
+        },
+        "x": {
+          "description": "Position in squares.",
+          "format": "float",
+          "type": "number"
+        },
+        "y": {
+          "description": "Position in squares.",
+          "format": "float",
+          "type": "number"
+        }
+      },
+      "required": [
+        "x",
+        "y",
+        "bright_ft",
+        "dim_ft",
+        "colour"
+      ],
+      "type": "object"
+    },
+    "SceneWallDto": {
+      "additionalProperties": false,
+      "description": "A wall polyline on grid vertices.",
+      "properties": {
+        "blocks_light": {
+          "description": "Blocks light in its current state.",
+          "type": "boolean"
+        },
+        "blocks_movement": {
+          "description": "Blocks movement in its current state.",
+          "type": "boolean"
+        },
+        "blocks_sight": {
+          "description": "Blocks line of sight in its current state.",
+          "type": "boolean"
+        },
+        "cover": {
+          "$ref": "#/$defs/CoverLevelDto",
+          "description": "Cover it grants when it does not block sight."
+        },
+        "kind": {
+          "$ref": "#/$defs/WallKindDto",
+          "description": "Feature type."
+        },
+        "kit": {
+          "description": "Wall kit name.",
+          "type": "string"
+        },
+        "open": {
+          "description": "Open state of doors, gates and secret doors; absent otherwise.",
+          "type": [
+            "boolean",
+            "null"
+          ]
+        },
+        "points": {
+          "description": "Grid vertices `[x, y]`, at least two.",
+          "items": {
+            "items": {
+              "format": "uint32",
+              "minimum": 0,
+              "type": "integer"
+            },
+            "maxItems": 2,
+            "minItems": 2,
+            "type": "array"
+          },
+          "type": "array"
+        }
+      },
+      "required": [
+        "kind",
+        "points",
+        "blocks_sight",
+        "blocks_movement",
+        "blocks_light",
+        "cover",
+        "kit"
+      ],
+      "type": "object"
+    },
+    "SpawnHintsDto": {
+      "additionalProperties": false,
+      "description": "Where tokens may be put.",
+      "properties": {
+        "entrances": {
+          "description": "Squares by doors and gates.",
+          "items": {
+            "$ref": "#/$defs/EntranceDto"
+          },
+          "type": "array"
+        },
+        "exits": {
+          "description": "Enterable runs along the map edges, N, E, S, W order.",
+          "items": {
+            "$ref": "#/$defs/EdgeExitDto"
+          },
+          "type": "array"
+        },
+        "open": {
+          "description": "Open normal-movement squares, row-major.",
+          "items": {
+            "$ref": "#/$defs/SqDto"
+          },
+          "type": "array"
+        }
+      },
+      "required": [
+        "open",
+        "entrances",
+        "exits"
+      ],
+      "type": "object"
+    },
+    "SqDto": {
+      "description": "A square `[x, y]` (column, row) in the scene's own squares.",
+      "maxItems": 2,
+      "minItems": 2,
+      "prefixItems": [
+        {
+          "format": "uint32",
+          "minimum": 0,
+          "type": "integer"
+        },
+        {
+          "format": "uint32",
+          "minimum": 0,
+          "type": "integer"
+        }
+      ],
+      "type": "array"
+    },
+    "TokenSlotDto": {
+      "additionalProperties": false,
+      "description": "Where an NPC's token stands (scene token slot).",
+      "properties": {
+        "facing": {
+          "description": "Facing in degrees clockwise from north, `0..360`.",
+          "format": "uint16",
+          "maximum": 65535,
+          "minimum": 0,
+          "type": "integer"
+        },
+        "npc_id": {
+          "description": "NPC id, a decimal string.",
+          "type": "string"
+        },
+        "x": {
+          "description": "Token centre in squares (`3.5` is a square centre).",
+          "format": "float",
+          "type": "number"
+        },
+        "y": {
+          "description": "Token centre in squares.",
+          "format": "float",
+          "type": "number"
+        }
+      },
+      "required": [
+        "npc_id",
+        "x",
+        "y",
+        "facing"
+      ],
+      "type": "object"
+    },
+    "VisionBlockerDto": {
+      "additionalProperties": false,
+      "description": "A polygon that obscures vision.",
+      "properties": {
+        "asset": {
+          "description": "Asset id.",
+          "type": "string"
+        },
+        "kind": {
+          "$ref": "#/$defs/BlockerKindDto",
+          "description": "Source class."
+        },
+        "obscurement": {
+          "$ref": "#/$defs/ObscurementDto",
+          "description": "`light` for foliage, `heavy` for opaque."
+        },
+        "polygon": {
+          "description": "Closed polygon in squares, clockwise in y-down coordinates.",
+          "items": {
+            "items": {
+              "format": "float",
+              "type": "number"
+            },
+            "maxItems": 2,
+            "minItems": 2,
+            "type": "array"
+          },
+          "type": "array"
+        }
+      },
+      "required": [
+        "kind",
+        "asset",
+        "obscurement",
+        "polygon"
+      ],
+      "type": "object"
+    },
+    "WallKindDto": {
+      "description": "The type of a wall-edge feature.",
+      "oneOf": [
+        {
+          "const": "wall",
+          "description": "Solid wall.",
+          "type": "string"
+        },
+        {
+          "const": "door",
+          "description": "Door; has an open state.",
+          "type": "string"
+        },
+        {
+          "const": "window",
+          "description": "Window: blocks movement, not sight.",
+          "type": "string"
+        },
+        {
+          "const": "gate",
+          "description": "Gate; has an open state.",
+          "type": "string"
+        },
+        {
+          "const": "secret",
+          "description": "Secret door; has an open state.",
+          "type": "string"
+        }
+      ]
+    }
+  },
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "additionalProperties": false,
+  "description": "`arda-scene` `Scene` format 1: everything the game needs to run a map.",
+  "properties": {
+    "climb": {
+      "$ref": "#/$defs/Runs2",
+      "description": "Per-square climb mask: bit `d` (0 N, 1 NE, … 7 NW) set means the step\nto that neighbour crosses 10 ft or more and needs climbing."
+    },
+    "cover": {
+      "$ref": "#/$defs/Runs3",
+      "description": "Per-square cover granted by what stands in the square."
+    },
+    "elevation_ft": {
+      "$ref": "#/$defs/Runs5",
+      "description": "Per-square elevation in feet."
+    },
+    "format_version": {
+      "description": "Schema version (1).",
+      "format": "uint32",
+      "minimum": 0,
+      "type": "integer"
+    },
+    "height": {
+      "description": "Height in squares.",
+      "format": "uint32",
+      "minimum": 0,
+      "type": "integer"
+    },
+    "library": {
+      "description": "Library name.",
+      "type": "string"
+    },
+    "library_version": {
+      "description": "Library art version.",
+      "type": "string"
+    },
+    "lights": {
+      "description": "Light sources.",
+      "items": {
+        "$ref": "#/$defs/SceneLightDto"
+      },
+      "type": "array"
+    },
+    "movement": {
+      "$ref": "#/$defs/Runs",
+      "description": "Per-square movement."
+    },
+    "name": {
+      "description": "Layout name.",
+      "type": "string"
+    },
+    "obscured": {
+      "$ref": "#/$defs/Runs4",
+      "description": "Per-square obscurement."
+    },
+    "origin_gs": {
+      "description": "World square of square `(0, 0)` (I17): present in\n`TacticalBlockDto.scene`, absent in `TacticalScene.scene`, whose\nenvelope carries it.",
+      "items": {
+        "format": "int64",
+        "type": "integer"
+      },
+      "maxItems": 2,
+      "minItems": 2,
+      "type": [
+        "array",
+        "null"
+      ]
+    },
+    "regions": {
+      "description": "Difficult-terrain and water regions.",
+      "items": {
+        "$ref": "#/$defs/RegionDto"
+      },
+      "type": "array"
+    },
+    "seed": {
+      "description": "Seed the asset queries were resolved with, a decimal string.",
+      "type": "string"
+    },
+    "spawn_hints": {
+      "$ref": "#/$defs/SpawnHintsDto",
+      "description": "Token placement hints."
+    },
+    "tokens": {
+      "description": "NPC token slots.",
+      "items": {
+        "$ref": "#/$defs/TokenSlotDto"
+      },
+      "type": "array"
+    },
+    "vision_blockers": {
+      "description": "Canopy and prop polygons that obscure vision.",
+      "items": {
+        "$ref": "#/$defs/VisionBlockerDto"
+      },
+      "type": "array"
+    },
+    "walls": {
+      "description": "Wall, door, window, gate and secret-door polylines.",
+      "items": {
+        "$ref": "#/$defs/SceneWallDto"
+      },
+      "type": "array"
+    },
+    "water_depth_ft": {
+      "$ref": "#/$defs/Runs2",
+      "description": "Per-square water depth in feet."
+    },
+    "width": {
+      "description": "Width in squares.",
+      "format": "uint32",
+      "minimum": 0,
+      "type": "integer"
+    }
+  },
+  "required": [
+    "format_version",
+    "name",
+    "width",
+    "height",
+    "seed",
+    "library",
+    "library_version",
+    "movement",
+    "climb",
+    "cover",
+    "obscured",
+    "elevation_ft",
+    "water_depth_ft",
+    "walls",
+    "vision_blockers",
+    "lights",
+    "regions",
+    "spawn_hints",
+    "tokens"
+  ],
+  "title": "SceneDto",
+  "type": "object"
+}

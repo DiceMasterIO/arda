@@ -125,7 +125,7 @@ pub mod id_serde {
     /// Serializer failure.
     // serde's serialize_with hands a reference.
     #[allow(clippy::trivially_copy_pass_by_ref)]
-    pub fn serialize<S: Serializer>(v: &u32, s: S) -> Result<S::Ok, S::Error> {
+    pub fn serialize<S: Serializer>(v: &u64, s: S) -> Result<S::Ok, S::Error> {
         s.serialize_str(&v.to_string())
     }
 
@@ -133,12 +133,11 @@ pub mod id_serde {
     ///
     /// # Errors
     /// Neither form, or out of range.
-    pub fn deserialize<'de, D: Deserializer<'de>>(d: D) -> Result<u32, D::Error> {
-        let n = match Raw::deserialize(d)? {
+    pub fn deserialize<'de, D: Deserializer<'de>>(d: D) -> Result<u64, D::Error> {
+        Ok(match Raw::deserialize(d)? {
             Raw::Num(n) => n,
             Raw::Str(s) => s.parse::<u64>().map_err(de::Error::custom)?,
-        };
-        u32::try_from(n).map_err(de::Error::custom)
+        })
     }
 }
 
@@ -149,9 +148,9 @@ fn default_wealth() -> u8 {
 /// One road object (`arda-settle` `Road`).
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct Road {
-    /// 1-based id in build order.
+    /// 1-based id in build order (u64, as `arda-settle` writes it).
     #[serde(with = "id_serde")]
-    pub id: u32,
+    pub id: u64,
     /// Class.
     pub class: RoadClass,
     /// Stretches as polylines of `[x_m, y_m]` world metres (x east, y south).
@@ -177,9 +176,9 @@ pub enum CrossingKind {
 /// One crossing object (`arda-settle` `Crossing`).
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct Crossing {
-    /// 1-based id.
+    /// 1-based id (u64, as `arda-settle` writes it).
     #[serde(with = "id_serde")]
-    pub id: u32,
+    pub id: u64,
     /// Bridge, ford or ferry.
     pub kind: CrossingKind,
     /// What is crossed: `river`, `sea` or `lake`.
@@ -207,7 +206,7 @@ pub struct Crossing {
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct RiverChannel {
     /// Stable id (for reports).
-    pub id: u32,
+    pub id: u64,
     /// Centreline in world metres, upstream first.
     pub centreline: Vec<[f64; 2]>,
     /// Bank-to-bank width, metres.

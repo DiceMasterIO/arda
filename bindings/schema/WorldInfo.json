@@ -1,0 +1,225 @@
+{
+  "$defs": {
+    "FineTerrainDto": {
+      "description": "Canonical fine terrain descriptor.",
+      "properties": {
+        "recipe_version": {
+          "description": "Recipe that produced `terrain/fine.bin`.",
+          "format": "uint16",
+          "maximum": 65535,
+          "minimum": 0,
+          "type": "integer"
+        },
+        "spacing_m": {
+          "description": "Lattice spacing, metres (39.0625).",
+          "format": "double",
+          "type": "number"
+        }
+      },
+      "required": [
+        "recipe_version",
+        "spacing_m"
+      ],
+      "type": "object"
+    },
+    "LatitudeDto": {
+      "description": "Latitude belt the continent sits in, degrees north.",
+      "properties": {
+        "north_deg": {
+          "description": "Northern edge.",
+          "format": "int16",
+          "maximum": 32767,
+          "minimum": -32768,
+          "type": "integer"
+        },
+        "south_deg": {
+          "description": "Southern edge.",
+          "format": "int16",
+          "maximum": 32767,
+          "minimum": -32768,
+          "type": "integer"
+        }
+      },
+      "required": [
+        "south_deg",
+        "north_deg"
+      ],
+      "type": "object"
+    },
+    "SizeKmDto": {
+      "description": "Continent extent in kilometres (manifest `config.size_km`).",
+      "properties": {
+        "height": {
+          "description": "North–south extent.",
+          "format": "uint32",
+          "minimum": 0,
+          "type": "integer"
+        },
+        "width": {
+          "description": "East–west extent.",
+          "format": "uint32",
+          "minimum": 0,
+          "type": "integer"
+        }
+      },
+      "required": [
+        "width",
+        "height"
+      ],
+      "type": "object"
+    },
+    "TilePyramidDto": {
+      "description": "Slippy overview tile pyramid geometry.",
+      "properties": {
+        "base_px": {
+          "description": "Edge of the square pyramid at `max_zoom`, pixels (`tile_px << max_zoom`).",
+          "format": "uint32",
+          "minimum": 0,
+          "type": "integer"
+        },
+        "image_height_px": {
+          "description": "Overview image height inside the base square, pixels.",
+          "format": "uint32",
+          "minimum": 0,
+          "type": "integer"
+        },
+        "image_width_px": {
+          "description": "Overview image width inside the base square, pixels.",
+          "format": "uint32",
+          "minimum": 0,
+          "type": "integer"
+        },
+        "max_zoom": {
+          "description": "Deepest zoom; zoom 0 is the whole world in one tile.",
+          "format": "uint32",
+          "minimum": 0,
+          "type": "integer"
+        },
+        "relief_max_zoom": {
+          "description": "Deepest zoom of `/v1/tiles/relief` (levels `max_zoom + 1..=` this);\nequal to `max_zoom` when the world has no relief levels.",
+          "format": "uint32",
+          "minimum": 0,
+          "type": "integer"
+        },
+        "tile_px": {
+          "description": "Tile edge, pixels.",
+          "format": "uint32",
+          "minimum": 0,
+          "type": "integer"
+        }
+      },
+      "required": [
+        "tile_px",
+        "max_zoom",
+        "base_px",
+        "image_width_px",
+        "image_height_px",
+        "relief_max_zoom"
+      ],
+      "type": "object"
+    }
+  },
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "description": "`/v1/world`: identity, size and grids of the served world.",
+  "properties": {
+    "api_version": {
+      "description": "HTTP API version.",
+      "type": "string"
+    },
+    "arda_version": {
+      "description": "Generator version that wrote the world.",
+      "type": "string"
+    },
+    "area_cells": {
+      "description": "Cells along an area edge (512).",
+      "format": "uint32",
+      "minimum": 0,
+      "type": "integer"
+    },
+    "areas_high": {
+      "description": "Area tile rows.",
+      "format": "int32",
+      "type": "integer"
+    },
+    "areas_wide": {
+      "description": "Area tiles per row.",
+      "format": "int32",
+      "type": "integer"
+    },
+    "cell_size_m": {
+      "description": "Cell spacing, metres (100).",
+      "format": "uint32",
+      "minimum": 0,
+      "type": "integer"
+    },
+    "cells_high": {
+      "description": "Global cell rows (`areas_high × 512`).",
+      "format": "uint32",
+      "minimum": 0,
+      "type": "integer"
+    },
+    "cells_wide": {
+      "description": "Global cell columns (`areas_wide × 512`).",
+      "format": "uint32",
+      "minimum": 0,
+      "type": "integer"
+    },
+    "contract_version": {
+      "description": "Cell contract version.",
+      "format": "uint32",
+      "minimum": 0,
+      "type": "integer"
+    },
+    "fine_terrain": {
+      "anyOf": [
+        {
+          "$ref": "#/$defs/FineTerrainDto"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "description": "Fine terrain, when the world has it."
+    },
+    "format_version": {
+      "description": "Stored format major.",
+      "format": "uint32",
+      "minimum": 0,
+      "type": "integer"
+    },
+    "latitude": {
+      "$ref": "#/$defs/LatitudeDto",
+      "description": "Latitude belt."
+    },
+    "seed": {
+      "description": "World seed as a decimal string (u64 does not fit a JS number).",
+      "type": "string"
+    },
+    "size_km": {
+      "$ref": "#/$defs/SizeKmDto",
+      "description": "Nominal continent extent."
+    },
+    "tiles": {
+      "$ref": "#/$defs/TilePyramidDto",
+      "description": "Overview tile pyramid."
+    }
+  },
+  "required": [
+    "contract_version",
+    "api_version",
+    "seed",
+    "arda_version",
+    "format_version",
+    "size_km",
+    "latitude",
+    "areas_wide",
+    "areas_high",
+    "area_cells",
+    "cell_size_m",
+    "cells_wide",
+    "cells_high",
+    "tiles"
+  ],
+  "title": "WorldInfo",
+  "type": "object"
+}

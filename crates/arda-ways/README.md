@@ -47,6 +47,14 @@ Ids are read from either a JSON number or a string and written as strings
   that depend on neighbouring squares, such as retaining walls, agree across
   the border. Props anchored up to three squares outside the window are
   kept, so a sprite that straddles the border is drawn on both sides.
+- A window plans only the roads that can shape it (`plan::relevant::relevant_roads`):
+  roads whose vertices come within 500 m of it (the 400 m densify margin,
+  the widest switchback and a snap), then, to a fixed point, every road
+  passing within 64 m of a kept road's endpoint, since it may snap that
+  endpoint. The result is byte-identical to planning every road, so a
+  window's cost follows its neighbourhood, not the world's network. The
+  report's `switchbacks`, `over_grade` and `junctions` count only ways and
+  junctions near the window.
 - The tests check this directly. A 128-square window equals its two
   64-square halves exactly: squares, sidecar, walls and placements. This
   holds both east–west (across a bridge) and north–south (along
@@ -100,11 +108,18 @@ guide crossings (flow direction, width, depth) and paint no water. Every
 stretch where a way's centreline runs over that water gets a crossing
 (`plan::wet`): the nearest river crossing record within 120 m lends its id
 and kind, otherwise highways and roads bridge and tracks and footpaths
-ford (ids with bit 30 set; no toll house). The span may move up to three
+ford (ids with bit 62 set; no toll house). The span may move up to three
 rows across its axis to the narrowest water, covers all water in its rows
 (dry gaps up to five squares included), and a road never paints over the
 raster's water elsewhere. Crossings of open water (ferries) are laid from
 their records as below.
+
+**Standing water.** Squares the input layout already holds as water (a
+lake or the sea from arda-refine, any `water_depth_ft > 0`) keep their
+depth, ground and elevation: no road band claims them, no channel repaints
+them, and a crossing whose foot lies in them gets no synthetic river (its
+synthetic channel only orients it). Squares outside the window are dry for
+this rule, so it depends only on each square's own water and seams agree.
 
 **Crossings.** Each crossing is matched to its nearest way (the same class
 is preferred) and its nearest channel. When no channel is given, a

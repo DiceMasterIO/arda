@@ -4,7 +4,9 @@
 //! library's nearest ones, and renders `out/ways/*.png` with the layout
 //! JSON, the sidecar JSON and a report of fallbacks.
 //!
-//! Run with `cargo run -p arda-ways --example crossings --release`.
+//! Run with `cargo run -p arda-ways --example crossings --release`; add
+//! `-- --library top:…:bottom` to render with a library directory or stack
+//! instead of the placeholder library.
 
 mod scenes;
 
@@ -87,9 +89,25 @@ fn base_layout(s: &scenes::Scene, channels: &[ChannelPlan]) -> TacticalLayout {
     l
 }
 
+/// The library named by `--library <dir or top:…:bottom stack>`, else the
+/// placeholder library.
+fn library_arg(root: &Path) -> PathBuf {
+    let mut args = std::env::args().skip(1);
+    while let Some(a) = args.next() {
+        if a == "--library" {
+            if let Some(spec) = args.next() {
+                return PathBuf::from(spec);
+            }
+        } else if let Some(spec) = a.strip_prefix("--library=") {
+            return PathBuf::from(spec);
+        }
+    }
+    root.join("assets/tactical/placeholder")
+}
+
 fn run() -> Result<(), WaysError> {
     let root = PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../..");
-    let lib = Library::load(&root.join("assets/tactical/placeholder"))?;
+    let lib = Library::load_stack(&library_arg(&root))?;
     let out = root.join("out/ways");
     std::fs::create_dir_all(&out).map_err(|source| WaysError::Io {
         path: out.clone(),

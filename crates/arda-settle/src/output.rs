@@ -17,16 +17,20 @@ pub const FORMAT_VERSION: u32 = 1;
 pub const LANDUSE_MAGIC: &[u8; 8] = b"ARDALND\0";
 /// Realm raster magic.
 pub const REALMS_MAGIC: &[u8; 8] = b"ARDARLM\0";
+/// Road raster magic.
+pub const ROADS_MAGIC: &[u8; 8] = b"ARDARDS\0";
 /// Fixed zstd level so the bytes are reproducible.
 const ZSTD_LEVEL: i32 = 9;
 
 /// `settlements.json`.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[cfg_attr(feature = "schema", derive(schemars::JsonSchema))]
 pub struct SettlementsFile {
     /// Format version.
     pub format_version: u32,
     /// World seed.
     #[serde(with = "crate::ids::string")]
+    #[cfg_attr(feature = "schema", schemars(with = "String"))]
     pub seed: u64,
     /// Grid cells across (100 m each).
     pub width_cells: u32,
@@ -120,16 +124,26 @@ pub struct NamesFile {
     pub regions: Vec<NamedRegion>,
 }
 
-/// Writes pretty JSON.
+/// Pretty JSON with a final newline, as [`write_json`] stores it; `path`
+/// only names the file in errors.
 ///
 /// # Errors
-/// JSON and I/O errors.
-pub fn write_json<T: Serialize>(path: &Path, value: &T) -> Result<(), SettleError> {
+/// JSON errors.
+pub fn json_bytes<T: Serialize>(path: &Path, value: &T) -> Result<Vec<u8>, SettleError> {
     let mut bytes = serde_json::to_vec_pretty(value).map_err(|source| SettleError::Json {
         path: path.display().to_string(),
         source,
     })?;
     bytes.push(b'\n');
+    Ok(bytes)
+}
+
+/// Writes pretty JSON.
+///
+/// # Errors
+/// JSON and I/O errors.
+pub fn write_json<T: Serialize>(path: &Path, value: &T) -> Result<(), SettleError> {
+    let bytes = json_bytes(path, value)?;
     std::fs::write(path, bytes).map_err(|e| SettleError::io(path, e))
 }
 
@@ -145,14 +159,14 @@ pub fn read_json<T: for<'de> Deserialize<'de>>(path: &Path) -> Result<T, SettleE
     })
 }
 
-/// Header plus a zstd payload.
-fn write_raster(
+/// Header plus a zstd payload; `path` only names the file in errors.
+fn raster_bytes(
     path: &Path,
     magic: &[u8; 8],
     width: usize,
     height: usize,
     payload: &[u8],
-) -> Result<(), SettleError> {
+) -> Result<Vec<u8>, SettleError> {
     let mut out = Vec::with_capacity(payload.len() / 8 + 32);
     out.extend_from_slice(magic);
     out.extend_from_slice(&FORMAT_VERSION.to_le_bytes());
@@ -160,7 +174,11 @@ fn write_raster(
     out.extend_from_slice(&crate::num::u32_of(height).to_le_bytes());
     let packed = zstd::bulk::compress(payload, ZSTD_LEVEL).map_err(|e| SettleError::io(path, e))?;
     out.extend_from_slice(&packed);
-    std::fs::write(path, out).map_err(|e| SettleError::io(path, e))
+    Ok(out)
+}
+
+fn put(path: &Path, bytes: &[u8]) -> Result<(), SettleError> {
+    std::fs::write(path, bytes).map_err(|e| SettleError::io(path, e))
 }
 
 /// Largest raster a reader accepts, in cells: 2^28, over five times the
@@ -217,12 +235,26 @@ pub fn write_landuse(
     codes: &[u8],
     owner: &[u32],
 ) -> Result<(), SettleError> {
+    put(path, &landuse_bytes(path, width, height, codes, owner)?)
+}
+
+/// The bytes of `landuse.bin` ([`write_landuse`]).
+///
+/// # Errors
+/// Compression errors.
+pub fn landuse_bytes(
+    path: &Path,
+    width: usize,
+    height: usize,
+    codes: &[u8],
+    owner: &[u32],
+) -> Result<Vec<u8>, SettleError> {
     let mut payload = Vec::with_capacity(codes.len() * 5);
     payload.extend_from_slice(codes);
     for o in owner {
         payload.extend_from_slice(&o.to_le_bytes());
     }
-    write_raster(path, LANDUSE_MAGIC, width, height, &payload)
+    raster_bytes(path, LANDUSE_MAGIC, width, height, &payload)
 }
 
 /// Reads `landuse.bin`: `(width, height, codes, owners)`.
@@ -252,8 +284,21 @@ pub fn write_realm_map(
     height: usize,
     map: &[u16],
 ) -> Result<(), SettleError> {
+    put(path, &realm_map_bytes(path, width, height, map)?)
+}
+
+/// The bytes of `realms.bin` ([`write_realm_map`]).
+///
+/// # Errors
+/// Compression errors.
+pub fn realm_map_bytes(
+    path: &Path,
+    width: usize,
+    height: usize,
+    map: &[u16],
+) -> Result<Vec<u8>, SettleError> {
     let payload: Vec<u8> = map.iter().flat_map(|v| v.to_le_bytes()).collect();
-    write_raster(path, REALMS_MAGIC, width, height, &payload)
+    raster_bytes(path, REALMS_MAGIC, width, height, &payload)
 }
 
 /// Reads `realms.bin`.
@@ -273,10 +318,68 @@ pub fn read_realm_map(path: &Path) -> Result<(usize, usize, Vec<u16>), SettleErr
     ))
 }
 
+/// Writes `roads.bin`: the most important road class per cell as its
+/// stored code (`arda_ids::RoadClass::code`: 0 none, 1 track, 2 road,
+/// 3 highway, 4 footpath).
+///
+/// # Errors
+/// I/O errors.
+pub fn write_road_map(
+    path: &Path,
+    width: usize,
+    height: usize,
+    codes: &[u8],
+) -> Result<(), SettleError> {
+    put(path, &road_map_bytes(path, width, height, codes)?)
+}
+
+/// The bytes of `roads.bin` ([`write_road_map`]).
+///
+/// # Errors
+/// Compression errors.
+pub fn road_map_bytes(
+    path: &Path,
+    width: usize,
+    height: usize,
+    codes: &[u8],
+) -> Result<Vec<u8>, SettleError> {
+    raster_bytes(path, ROADS_MAGIC, width, height, codes)
+}
+
+/// Reads `roads.bin`: `(width, height, codes)`.
+///
+/// # Errors
+/// I/O and format errors.
+pub fn read_road_map(path: &Path) -> Result<(usize, usize, Vec<u8>), SettleError> {
+    read_raster(path, ROADS_MAGIC, 1)
+}
+
 /// Writes `stats.json`.
 ///
 /// # Errors
 /// JSON and I/O errors.
 pub fn write_stats(path: &Path, stats: &Stats) -> Result<(), SettleError> {
     write_json(path, stats)
+}
+
+#[cfg(all(test, feature = "schema"))]
+mod schema_tests {
+    use super::SettlementsFile;
+    use crate::model::Settlement;
+
+    #[test]
+    fn settlement_schemas_are_draft_2020_12_with_known_fields() {
+        let one = serde_json::to_value(schemars::schema_for!(Settlement)).unwrap();
+        assert_eq!(
+            one["$schema"],
+            "https://json-schema.org/draft/2020-12/schema"
+        );
+        for key in ["id", "realm_id", "buildings", "tongue"] {
+            assert!(one["properties"][key].is_object(), "{key}");
+        }
+        assert!(one["properties"]["tag_bits"].is_null());
+        let file = serde_json::to_value(schemars::schema_for!(SettlementsFile)).unwrap();
+        assert_eq!(file["properties"]["seed"]["type"], "string");
+        assert!(file["properties"]["settlements"].is_object());
+    }
 }

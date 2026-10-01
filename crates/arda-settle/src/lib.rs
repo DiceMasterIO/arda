@@ -54,57 +54,102 @@ use std::path::{Path, PathBuf};
 /// Directory under the world that holds this stage's files.
 pub const SOCIETY_DIR: &str = "society";
 
+/// Every society file as `(name, bytes)`, in write order.
+///
+/// # Errors
+/// Serialisation errors.
+pub fn encode(
+    dir: &Path,
+    g: &Grid,
+    seed: u64,
+    s: &Society,
+) -> Result<Vec<(&'static str, Vec<u8>)>, SettleError> {
+    let v = output::FORMAT_VERSION;
+    let at = |name: &str| dir.join(name);
+    let (w, h) = (g.width, g.height);
+    Ok(vec![
+        (
+            "settlements.json",
+            output::json_bytes(
+                &at("settlements.json"),
+                &output::SettlementsFile {
+                    format_version: v,
+                    seed,
+                    width_cells: num::u32_of(g.width),
+                    height_cells: num::u32_of(g.height),
+                    settlements: s.settlements.clone(),
+                },
+            )?,
+        ),
+        (
+            "roads.json",
+            output::json_bytes(
+                &at("roads.json"),
+                &output::RoadsFile {
+                    format_version: v,
+                    roads: s.network.roads.clone(),
+                    crossings: s.crossings.clone(),
+                    passes: s.passes.clone(),
+                },
+            )?,
+        ),
+        (
+            "realms.json",
+            output::json_bytes(
+                &at("realms.json"),
+                &output::RealmsFile {
+                    format_version: v,
+                    realms: s.realms.realms.clone(),
+                },
+            )?,
+        ),
+        (
+            "names.json",
+            output::json_bytes(
+                &at("names.json"),
+                &output::NamesFile {
+                    format_version: v,
+                    rivers: s.rivers.clone(),
+                    mountains: s.mountains.clone(),
+                    regions: s.regions.clone(),
+                },
+            )?,
+        ),
+        (
+            "landuse.bin",
+            output::landuse_bytes(&at("landuse.bin"), w, h, &s.landuse.codes, &s.landuse.owner)?,
+        ),
+        (
+            "realms.bin",
+            output::realm_map_bytes(&at("realms.bin"), w, h, &s.realms.map)?,
+        ),
+        (
+            "roads.bin",
+            output::road_map_bytes(&at("roads.bin"), w, h, &s.network.raster)?,
+        ),
+        (
+            "stats.json",
+            output::json_bytes(&at("stats.json"), &s.stats)?,
+        ),
+    ])
+}
+
 /// Writes every society file into `dir` (created if missing).
+///
+/// Every file is encoded before the first is written, so a failure while
+/// encoding (an allocation refused on a large world) leaves `dir` as it
+/// was instead of a mix of new and old files (review round 2 #31).
 ///
 /// # Errors
 /// I/O and serialisation errors.
 pub fn write(dir: &Path, g: &Grid, seed: u64, s: &Society) -> Result<(), SettleError> {
+    let files = encode(dir, g, seed, s)?;
     std::fs::create_dir_all(dir).map_err(|e| SettleError::io(dir, e))?;
-    let v = output::FORMAT_VERSION;
-    output::write_json(
-        &dir.join("settlements.json"),
-        &output::SettlementsFile {
-            format_version: v,
-            seed,
-            width_cells: num::u32_of(g.width),
-            height_cells: num::u32_of(g.height),
-            settlements: s.settlements.clone(),
-        },
-    )?;
-    output::write_json(
-        &dir.join("roads.json"),
-        &output::RoadsFile {
-            format_version: v,
-            roads: s.network.roads.clone(),
-            crossings: s.crossings.clone(),
-            passes: s.passes.clone(),
-        },
-    )?;
-    output::write_json(
-        &dir.join("realms.json"),
-        &output::RealmsFile {
-            format_version: v,
-            realms: s.realms.realms.clone(),
-        },
-    )?;
-    output::write_json(
-        &dir.join("names.json"),
-        &output::NamesFile {
-            format_version: v,
-            rivers: s.rivers.clone(),
-            mountains: s.mountains.clone(),
-            regions: s.regions.clone(),
-        },
-    )?;
-    output::write_landuse(
-        &dir.join("landuse.bin"),
-        g.width,
-        g.height,
-        &s.landuse.codes,
-        &s.landuse.owner,
-    )?;
-    output::write_realm_map(&dir.join("realms.bin"), g.width, g.height, &s.realms.map)?;
-    output::write_stats(&dir.join("stats.json"), &s.stats)
+    for (name, bytes) in files {
+        let path = dir.join(name);
+        std::fs::write(&path, bytes).map_err(|e| SettleError::io(&path, e))?;
+    }
+    Ok(())
 }
 
 /// Loads the world at `world_dir`, runs every stage and writes

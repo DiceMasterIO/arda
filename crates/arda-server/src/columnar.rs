@@ -4,20 +4,24 @@
 //! cell, row-major (`index = cy * 512 + cx`). Floats are f32; enums are the
 //! stored discriminants listed in [`Legend`]; ids use 0 for "none".
 
-use crate::contract::{CellSample, CoverDto, RoadDto, TerrainKindDto, CONTRACT_VERSION};
+use crate::contract::{
+    CellSample, CoverDto, LandUseDto, RoadDto, TerrainKindDto, CONTRACT_VERSION,
+};
 use crate::error::{ServerError, ServerResult};
+use schemars::JsonSchema;
 use serde::Serialize;
 use ts_rs::TS;
 
 /// Binary magic.
 pub const MAGIC: &[u8; 8] = b"ARDACOLS";
-/// Binary layout version.
-pub const LAYOUT_VERSION: u32 = 1;
+/// Binary layout version: 2 adds the `land_use` and `realm_id` columns and
+/// the `footpath` road code (logic/16 §api-cell-society).
+pub const LAYOUT_VERSION: u32 = 2;
 /// Fixed header bytes before the column table.
 pub const HEADER_BYTES: usize = 48;
 
 /// Enum codes: a column value `i` means the `i`-th entry.
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, TS)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, TS, JsonSchema)]
 pub struct Legend {
     /// Codes of the `terrain` column.
     pub terrain: Vec<TerrainKindDto>,
@@ -25,6 +29,8 @@ pub struct Legend {
     pub cover: Vec<CoverDto>,
     /// Codes of the `road` column.
     pub road: Vec<RoadDto>,
+    /// Codes of the `land_use` column (0 also when the world has no `society/`).
+    pub land_use: Vec<LandUseDto>,
 }
 
 impl Default for Legend {
@@ -50,7 +56,9 @@ impl Default for Legend {
                 RoadDto::Track,
                 RoadDto::Road,
                 RoadDto::Highway,
+                RoadDto::Footpath,
             ],
+            land_use: (0..=10).map(crate::contract::convert::land_use).collect(),
         }
     }
 }
@@ -58,7 +66,7 @@ impl Default for Legend {
 macro_rules! columns {
     ($( $name:ident : $ty:ty => $dtype:ident, |$s:ident| $get:expr, $doc:literal; )*) => {
         /// One array per [`CellSample`] field, each 512 × 512 long.
-        #[derive(Debug, Clone, Default, PartialEq, Serialize, TS)]
+        #[derive(Debug, Clone, Default, PartialEq, Serialize, TS, JsonSchema)]
         pub struct AreaColumns {
             $( #[doc = $doc] pub $name: Vec<$ty>, )*
         }
@@ -165,7 +173,29 @@ const fn road_code(r: RoadDto) -> u8 {
         RoadDto::Track => 1,
         RoadDto::Road => 2,
         RoadDto::Highway => 3,
+        RoadDto::Footpath => 4,
     }
+}
+
+const fn land_use_code(l: Option<LandUseDto>) -> u8 {
+    match l {
+        None | Some(LandUseDto::None) => 0,
+        Some(LandUseDto::Built) => 1,
+        Some(LandUseDto::Field) => 2,
+        Some(LandUseDto::Pasture) => 3,
+        Some(LandUseDto::Orchard) => 4,
+        Some(LandUseDto::Woodland) => 5,
+        Some(LandUseDto::Mill) => 6,
+        Some(LandUseDto::Mine) => 7,
+        Some(LandUseDto::Meadow) => 8,
+        Some(LandUseDto::Fallow) => 9,
+        Some(LandUseDto::Farmstead) => 10,
+    }
+}
+
+/// A decimal id string as a u32 column value, 0 for none.
+fn id_code(id: Option<&str>) -> u32 {
+    id.and_then(|v| v.parse().ok()).unwrap_or(0)
 }
 
 columns! {
@@ -185,7 +215,9 @@ columns! {
     watercourse_width_m: f32 => F32, |s| f(s.watercourse_width_m), "Channel width, m.";
     height_above_river_m: f32 => F32, |s| f(s.height_above_river_m), "Height above channel, m.";
     road: u8 => U8, |s| road_code(s.road), "Road code ([`Legend::road`]).";
-    built_by: u32 => U32, |s| s.built_by.map_or(0, u32::from), "Settlement id, 0 = none.";
+    built_by: u32 => U32, |s| id_code(s.built_by.as_deref()), "Settlement id, 0 = none.";
+    land_use: u8 => U8, |s| land_use_code(s.land_use), "Land-use code ([`Legend::land_use`]).";
+    realm_id: u32 => U32, |s| id_code(s.realm_id.as_deref()), "Realm id, 0 = none.";
     is_coast: u8 => U8, |s| u8::from(s.coast.is_coast), "1 on coast cells.";
     coast_distance_m: Option<f32> => OptF32, |s| s.coast.distance_m.map(f), "Coast distance, m; null beyond 5 km.";
     snow_fraction: f32 => F32, |s| f(s.snow.fraction), "Snow proxy of the cell, 0–1.";
@@ -201,7 +233,7 @@ columns! {
 }
 
 /// `/v1/area/{ax}/{ay}/cells` JSON body.
-#[derive(Debug, Clone, PartialEq, Serialize, TS)]
+#[derive(Debug, Clone, PartialEq, Serialize, TS, JsonSchema)]
 pub struct AreaCells {
     /// Cell contract version.
     pub contract_version: u32,
@@ -248,7 +280,7 @@ pub fn build(samples: &[CellSample]) -> ServerResult<AreaCells> {
     })
 }
 
-/// Encodes the documented `ARDACOLS` v1 binary layout (see `API.md`).
+/// Encodes the documented `ARDACOLS` v2 binary layout (see `API.md`).
 ///
 /// # Errors
 /// [`ServerError::ResourceLimit`] when the buffer cannot be reserved.
@@ -324,5 +356,22 @@ mod tests {
         assert_eq!(offset % 4, 0);
         assert_eq!(bytes.len(), offset, "no cells, no data");
         assert_eq!(bytes[HEADER_BYTES] as usize, "height_m".len());
+    }
+
+    #[test]
+    fn legend_codes_match_the_column_codes() {
+        let legend = Legend::default();
+        for (i, r) in legend.road.iter().enumerate() {
+            assert_eq!(usize::from(road_code(*r)), i);
+        }
+        for (i, l) in legend.land_use.iter().enumerate() {
+            assert_eq!(usize::from(land_use_code(Some(*l))), i);
+            // Legend code i is the stored landuse.bin code i.
+            assert_eq!(usize::from(arda_ids::LandUse::ALL[i].code()), i);
+        }
+        assert_eq!(legend.land_use.len(), arda_ids::LandUse::ALL.len());
+        assert_eq!(land_use_code(None), 0);
+        assert_eq!(id_code(Some("4000000000")), 4_000_000_000);
+        assert_eq!(id_code(None), 0);
     }
 }

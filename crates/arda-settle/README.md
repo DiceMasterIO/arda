@@ -350,13 +350,13 @@ The file holds `{format_version, rivers, mountains, regions}`.
 - A mountain holds `name`, `name_gloss`, `at_m` and `height_m`.
 - A region holds `id`, `name`, `name_gloss`, `culture` and `land_ha`.
 
-### `landuse.bin` and `realms.bin`
+### `landuse.bin`, `roads.bin` and `realms.bin`
 
-Both rasters share one layout:
+The three rasters share one layout:
 
 | bytes | content |
 |---|---|
-| 0–7 | magic: `ARDALND\0` for land use, `ARDARLM\0` for realms |
+| 0–7 | magic: `ARDALND\0` for land use, `ARDARDS\0` for roads, `ARDARLM\0` for realms |
 | 8–11 | `format_version`, u32 LE (1) |
 | 12–15 | width in cells, u32 LE |
 | 16–19 | height in cells, u32 LE |
@@ -368,10 +368,15 @@ Both rasters share one layout:
   4 orchard, 5 woodland, 6 mill, 7 mine_quarry, 8 meadow, 9 fallow and
   10 farmstead (a hamlet's footprint); `landuse::code::name` gives the
   class name. Farmland is arable, fallow and orchard.
+- **`roads.bin`** has one plane of `width × height` u8 road codes, the most
+  important class through each cell: 0 none, 1 track, 2 road, 3 highway,
+  4 footpath (`arda_ids::RoadClass::code`). The server reads it for the
+  cell contract's `road` (logic/16 §api-cell-society).
 - **`realms.bin`** has one plane of `width × height` u16 LE realm ids, with
   0 on water.
 
-`output::read_landuse` and `output::read_realm_map` decode them.
+`output::read_landuse`, `output::read_road_map` and `output::read_realm_map`
+decode them.
 
 ### `stats.json`
 

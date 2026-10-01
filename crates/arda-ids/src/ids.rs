@@ -58,6 +58,29 @@ macro_rules! u64_id {
             }
         }
 
+        #[cfg(feature = "schema")]
+        impl schemars::JsonSchema for $name {
+            fn schema_name() -> std::borrow::Cow<'static, str> {
+                stringify!($name).into()
+            }
+
+            fn schema_id() -> std::borrow::Cow<'static, str> {
+                concat!(module_path!(), "::", stringify!($name)).into()
+            }
+
+            fn inline_schema() -> bool {
+                true
+            }
+
+            /// Always written as a decimal string (I5).
+            fn json_schema(_: &mut schemars::SchemaGenerator) -> schemars::Schema {
+                schemars::json_schema!({
+                    "type": "string",
+                    "pattern": "^[0-9]+$",
+                })
+            }
+        }
+
         impl<'de> Deserialize<'de> for $name {
             fn deserialize<D: Deserializer<'de>>(d: D) -> Result<Self, D::Error> {
                 d.deserialize_any(U64Visitor).map(Self)

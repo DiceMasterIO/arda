@@ -88,13 +88,35 @@ pub trait Source {
     fn fine_mm(&self, kx: i64, ky: i64) -> Result<Option<i32>, RefineError>;
 
     /// The dry playa surface of `at` (recipe-7 arid basins: salt crust or
-    /// mudflat), if any. Worlds without stored pans have none.
+    /// mudflat), if any. Worlds without stored pans answer `Ok(None)`.
+    ///
+    /// Required, with no default: a wrapping source that forgot to forward
+    /// it would silently answer "no pan" (the `SharedSource` bug of v0.4).
+    ///
+    /// ```compile_fail
+    /// use arda_refine::source::{Edge, LakeInfo};
+    /// use arda_refine::{CellKey, RefineError, Source};
+    ///
+    /// /// A wrapper that forwards everything but the playa query.
+    /// struct Wrapper(arda_refine::source::GridSource);
+    ///
+    /// impl Source for Wrapper {
+    ///     fn seed(&self) -> u64 { self.0.seed() }
+    ///     fn cells_wide_high(&self) -> (i64, i64) { self.0.cells_wide_high() }
+    ///     fn cell(&self, at: CellKey) -> Result<arda::Cell, RefineError> { self.0.cell(at) }
+    ///     fn lake(&self, at: CellKey) -> Result<Option<LakeInfo>, RefineError> { self.0.lake(at) }
+    ///     fn edges_touching(&self, at: CellKey) -> Result<Vec<Edge>, RefineError> {
+    ///         self.0.edges_touching(at)
+    ///     }
+    ///     fn fine_mm(&self, kx: i64, ky: i64) -> Result<Option<i32>, RefineError> {
+    ///         self.0.fine_mm(kx, ky)
+    ///     }
+    /// }
+    /// ```
     ///
     /// # Errors
     /// A layer failed to load.
-    fn pan(&self, _at: CellKey) -> Result<Option<PanKind>, RefineError> {
-        Ok(None)
-    }
+    fn pan(&self, at: CellKey) -> Result<Option<PanKind>, RefineError>;
 
     /// Clamps a key into the world.
     fn clamp(&self, at: CellKey) -> CellKey {
@@ -219,5 +241,49 @@ impl Source for GridSource {
         Ok(usize::try_from(y * w + x)
             .ok()
             .and_then(|i| samples.get(i).copied()))
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    #![allow(clippy::unwrap_used)]
+
+    use super::*;
+
+    /// The `compile_fail` example on [`Source::pan`] with the one missing
+    /// method added: it compiles, so that example fails only for the pan.
+    struct Wrapper(GridSource);
+
+    impl Source for Wrapper {
+        fn seed(&self) -> u64 {
+            self.0.seed()
+        }
+        fn cells_wide_high(&self) -> (i64, i64) {
+            self.0.cells_wide_high()
+        }
+        fn cell(&self, at: CellKey) -> Result<Cell, RefineError> {
+            self.0.cell(at)
+        }
+        fn lake(&self, at: CellKey) -> Result<Option<LakeInfo>, RefineError> {
+            self.0.lake(at)
+        }
+        fn edges_touching(&self, at: CellKey) -> Result<Vec<Edge>, RefineError> {
+            self.0.edges_touching(at)
+        }
+        fn fine_mm(&self, kx: i64, ky: i64) -> Result<Option<i32>, RefineError> {
+            self.0.fine_mm(kx, ky)
+        }
+        fn pan(&self, at: CellKey) -> Result<Option<PanKind>, RefineError> {
+            self.0.pan(at)
+        }
+    }
+
+    #[test]
+    fn a_wrapper_must_forward_the_playa_query() {
+        let mut grid = GridSource::new(3, 3, 3, Cell::default());
+        grid.set_pan(CellKey::new(2, 1), PanKind::SaltCrust);
+        let w = Wrapper(grid);
+        assert_eq!(w.pan(CellKey::new(2, 1)).unwrap(), Some(PanKind::SaltCrust));
+        assert_eq!(w.pan(CellKey::new(0, 0)).unwrap(), None);
     }
 }

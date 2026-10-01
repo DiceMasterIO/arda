@@ -10,6 +10,11 @@ publish = false
 [dependencies]
 serde.workspace = true
 thiserror.workspace = true
+schemars = { workspace = true, optional = true }
+
+[features]
+# JSON Schema derives for the serialised types (`schemars`).
+schema = ["dep:schemars"]
 
 [dev-dependencies]
 serde_json.workspace = true

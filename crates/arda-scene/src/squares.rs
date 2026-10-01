@@ -120,20 +120,37 @@ pub struct Layers {
 }
 
 /// Derives every per-square layer.
-#[must_use]
+///
+/// # Errors
+/// [`SceneError::Schema`] when the layout's square list is not
+/// `width × height` long, or the sidecar does not match its size (review
+/// round 2 #39: this public entry point indexed without
+/// `TacticalLayout::check`).
 pub fn derive(
     layout: &TacticalLayout,
     placed: &[Placed<'_>],
     rules: Option<&RulesSidecar>,
-) -> Layers {
+) -> Result<Layers, SceneError> {
     let (w, h) = (layout.width, layout.height);
     let n = w as usize * h as usize;
+    if layout.squares.len() != n {
+        return Err(SceneError::Schema(format!(
+            "a {w}x{h} layout lists {} squares",
+            layout.squares.len()
+        )));
+    }
+    if let Some(r) = rules {
+        r.check(w, h)?;
+    }
     let idx = |x: u32, y: u32| y as usize * w as usize + x as usize;
     let mut blocked = vec![false; n];
     let mut difficult = vec![false; n];
     let mut bridged = vec![false; n];
     let mut cover = vec![CoverLevel::None; n];
     let mut obscured = vec![Obscurement::Clear; n];
+    // Squares under a canopy: a sidecar that clears their heavy obscurement
+    // leaves the foliage's light obscurement (review round 2 #39).
+    let mut foliage = vec![false; n];
     for p in placed {
         let a = p.asset;
         let sight = if a.blocks_sight {
@@ -147,7 +164,10 @@ pub fn derive(
             match a.layer {
                 // A canopy overhangs: it obscures its whole footprint but
                 // only the trunk square stops movement or grants cover.
-                Layer::Canopy => obscured[i] = obscured[i].max(sight),
+                Layer::Canopy => {
+                    obscured[i] = obscured[i].max(sight);
+                    foliage[i] = true;
+                }
                 Layer::Floor => bridged[i] = true,
                 _ => {
                     blocked[i] |= a.blocks_movement;
@@ -180,7 +200,11 @@ pub fn derive(
             match c.blocks_sight {
                 Some(true) => obscured[i] = Obscurement::Heavy,
                 Some(false) if obscured[i] == Obscurement::Heavy => {
-                    obscured[i] = Obscurement::Clear;
+                    obscured[i] = if foliage[i] {
+                        Obscurement::Light
+                    } else {
+                        Obscurement::Clear
+                    };
                 }
                 _ => {}
             }
@@ -211,7 +235,7 @@ pub fn derive(
         })
         .collect();
     let elevation: Vec<i16> = layout.squares.iter().map(|s| s.elevation_ft).collect();
-    Layers {
+    Ok(Layers {
         movement: Grid(movement),
         climb: Grid(climb_masks(&elevation, w, h)),
         cover: Grid(cover),
@@ -219,7 +243,7 @@ pub fn derive(
         elevation_ft: Grid(elevation),
         water_depth_ft: Grid(water),
         bridged,
-    }
+    })
 }
 
 #[allow(clippy::cast_possible_truncation, clippy::cast_sign_loss)]

@@ -111,6 +111,11 @@ impl Default for Thresholds {
 /// Loaded images by asset id; `Err` carries the load failure.
 pub type Images = BTreeMap<String, Result<Rgba, String>>;
 
+/// Largest footprint side, in squares: at 128 px per square one cached
+/// sprite variant is then at most 2048 × 2048 px (16 MiB), eight variants
+/// 128 MiB.
+pub const MAX_FOOTPRINT_SQUARES: u32 = 16;
+
 /// Runs every rule and returns all issues, sorted by asset then rule.
 #[must_use]
 pub fn validate(catalog: &Catalog, images: &Images, t: &Thresholds) -> Vec<Issue> {
@@ -253,6 +258,17 @@ fn image_rules(
     t: &Thresholds,
     push: &mut impl FnMut(&str, Rule, String),
 ) {
+    // Sprites are cached at footprint × render ppsq for every turn and
+    // mirror and are not counted by canvas admission, so a footprint side
+    // is capped (review round 1 #14); the placeholder library's largest is 4.
+    if a.footprint.w > MAX_FOOTPRINT_SQUARES || a.footprint.h > MAX_FOOTPRINT_SQUARES {
+        let msg = format!(
+            "footprint {}x{} exceeds the {MAX_FOOTPRINT_SQUARES}-square limit per side",
+            a.footprint.w, a.footprint.h
+        );
+        push(&a.id, Rule::ImageSize, msg);
+        return;
+    }
     // Catalogue JSON is external input: an absurd footprint is an issue, not an overflow.
     let size = a
         .footprint

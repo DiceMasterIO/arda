@@ -10,8 +10,13 @@ publish = false
 [dependencies]
 blake3 = { workspace = true }
 serde = { workspace = true }
+schemars = { workspace = true, optional = true }
 serde_json = { workspace = true }
 thiserror = { workspace = true }
+
+[features]
+# JSON Schema derives for the settlement society records (`schemars`).
+schema = ["dep:schemars"]
 
 [lints]
 workspace = true

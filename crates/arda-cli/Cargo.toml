@@ -15,6 +15,7 @@ arda.workspace = true
 arda-people.workspace = true
 arda-settle.workspace = true
 arda-tactical.workspace = true
+arda-art-import.workspace = true
 clap.workspace = true
 anyhow.workspace = true
 

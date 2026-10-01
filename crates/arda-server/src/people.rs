@@ -13,6 +13,7 @@
 
 use crate::error::{ServerError, ServerResult};
 use crate::routes::{blocking, params, parse, segments, Params, Segments};
+use crate::sheet_map::NpcAt;
 use crate::AppState;
 use arda_people::{PeopleError, World};
 use axum::extract::State;
@@ -105,11 +106,11 @@ pub(crate) async fn plan(State(state): Shared, path: Segments) -> ServerResult<R
 pub(crate) async fn npcs(State(state): Shared, path: Segments) -> ServerResult<Response> {
     let p = segments(path, 1)?;
     let id = settlement_id(&p[0])?;
-    let body = blocking(state, move |s| {
+    blocking(state, move |s| {
         let w = people(s)?;
         w.files.settlement(id).map_err(people_error)?;
-        Ok(json!({ "settlement_id": id.to_string(), "npcs": w.notables_of(id) }))
+        let body = json!({ "settlement_id": id.to_string(), "npcs": w.notables_of(id) });
+        s.npc_response(&body, NpcAt::List("/npcs", None))
     })
-    .await?;
-    Ok(Json(body).into_response())
+    .await
 }

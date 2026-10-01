@@ -1,0 +1,9 @@
+{
+  "format": "arda-sheet-mapping",
+  "version": 1,
+  "name": "identity",
+  "description": "Serves Arda's own Npc shape unchanged: the starting point for a game's mapping.",
+  "base": "copy",
+  "rules": [],
+  "drop": []
+}

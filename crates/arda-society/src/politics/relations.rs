@@ -102,21 +102,16 @@ pub fn relations(
             let (ra, rb) = (&ctx.realms[a], &ctx.realms[b]);
             let roads = border.get(&(a, b)).cloned().unwrap_or_default();
             let trade_sp = trade.get(&(a, b)).copied().unwrap_or(0);
-            let wars: Vec<&crate::history::War> = h
-                .wars
-                .iter()
+            // Indexed by pair (review round 2 #29: every war and shift was
+            // scanned for each of the R² pairs).
+            let wars: Vec<&crate::history::War> = hist
+                .index
+                .wars_between(h, ra.id, rb.id)
                 .filter(|w| w.realms == [ra.id, rb.id] || w.realms == [rb.id, ra.id])
                 .collect();
             let ongoing = wars.iter().any(|w| w.to.is_none());
             let last_end = wars.iter().filter_map(|w| w.to).max();
-            let taken = h
-                .border_shifts
-                .iter()
-                .filter(|s| {
-                    (s.from_realm == ra.id && s.to_realm == rb.id)
-                        || (s.from_realm == rb.id && s.to_realm == ra.id)
-                })
-                .count();
+            let taken = hist.index.shifts_between(ra.id, rb.id);
             let same_culture = ctx.s(ra.seat).culture == ctx.s(rb.seat).culture;
             let key = crate::rng::hash(0, "pair", ra.id, rb.id);
             let marriage = hereditary[a]

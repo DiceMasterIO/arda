@@ -15,11 +15,13 @@ use serde::{Deserialize, Serialize};
 
 /// One faction.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[cfg_attr(feature = "schema", derive(schemars::JsonSchema))]
 pub struct Faction {
     /// Stable id (`f<settlement>.<kind>`).
     pub id: String,
     /// Settlement.
     #[serde(with = "crate::ids::str")]
+    #[cfg_attr(feature = "schema", schemars(with = "String"))]
     pub settlement: u64,
     /// Kind key.
     pub kind: String,
@@ -39,6 +41,7 @@ pub struct Faction {
 
 /// How two factions stand.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Serialize, Deserialize)]
+#[cfg_attr(feature = "schema", derive(schemars::JsonSchema))]
 #[serde(rename_all = "snake_case")]
 pub enum FactionStance {
     /// Working together.
@@ -66,6 +69,7 @@ impl FactionStance {
 
 /// Stance between factions `a < b` (by id) of one settlement.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[cfg_attr(feature = "schema", derive(schemars::JsonSchema))]
 pub struct FactionRelation {
     /// Lower faction id.
     pub a: String,
@@ -86,6 +90,8 @@ pub struct Local<'h> {
     pub tax_pct: u32,
     /// History.
     pub history: &'h History,
+    /// Lookups over `history`.
+    pub index: &'h crate::history::index::HistoryIndex,
 }
 
 /// Factions and their relations for node `i`.
@@ -111,19 +117,13 @@ pub fn factions(
         .iter()
         .find_map(|b| b.craft().map(str::to_string))
         .unwrap_or_else(|| "weaver".to_string());
-    let recent_woe = local.history.events.iter().any(|e| {
-        e.settlements.contains(&s.id)
-            && matches!(
-                e.kind,
-                EventKind::Plague | EventKind::Famine | EventKind::Flood
-            )
-            && ctx.present - e.year < 40
+    let recent_woe = local.index.events_of(local.history, s.id).any(|e| {
+        matches!(
+            e.kind,
+            EventKind::Plague | EventKind::Famine | EventKind::Flood
+        ) && ctx.present - e.year < 40
     });
-    let captured = local
-        .history
-        .border_shifts
-        .iter()
-        .any(|b| b.settlement == s.id);
+    let captured = local.index.first_shift(local.history, s.id).is_some();
     let slots = Slots::new()
         .with("settlement", s.name.clone())
         .with(

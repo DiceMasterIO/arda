@@ -23,11 +23,13 @@ type Shared = State<Arc<AppState>>;
 /// `X-Arda-Cache`: whether an image came from cache.
 pub const X_ARDA_CACHE: HeaderName = HeaderName::from_static("x-arda-cache");
 const SERVER_TIMING: HeaderName = HeaderName::from_static("server-timing");
-/// `Cache-Control` of images of built-in layouts.
-pub const NAMED_CACHE_CONTROL: &str = "public, max-age=3600";
+/// `Cache-Control` of images of built-in layouts: revalidate by `ETag`,
+/// since the bytes depend on the world seed and library version, which the
+/// URL does not name (review round 2 #44).
+pub const NAMED_CACHE_CONTROL: &str = "no-cache";
 /// `Cache-Control` of world-derived tactical bodies and images
-/// (logic/16 §api-cache).
-pub const TACTICAL_CACHE_CONTROL: &str = "public, max-age=3600";
+/// (logic/16 §api-cache): revalidate by `ETag`, as above.
+pub const TACTICAL_CACHE_CONTROL: &str = "no-cache";
 /// `Cache-Control` of `POST /render` responses: revalidate by ETag.
 pub const POSTED_CACHE_CONTROL: &str = "no-cache";
 

@@ -1,0 +1,43 @@
+{
+  "$defs": {
+    "ApiErrorBody": {
+      "description": "Machine-readable code, HTTP status and human message.",
+      "properties": {
+        "code": {
+          "description": "Stable code: `bad_request`, `out_of_range`, `not_found`, `no_block`, `payload_too_large`,\n`unsupported_media_type`, `invalid_layout`, `resource_limit`, `not_implemented` or `internal`.",
+          "type": "string"
+        },
+        "message": {
+          "description": "Human-readable detail; not stable.",
+          "type": "string"
+        },
+        "status": {
+          "description": "HTTP status repeated in the body.",
+          "format": "uint16",
+          "maximum": 65535,
+          "minimum": 0,
+          "type": "integer"
+        }
+      },
+      "required": [
+        "code",
+        "status",
+        "message"
+      ],
+      "type": "object"
+    }
+  },
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "description": "JSON body of every error response.",
+  "properties": {
+    "error": {
+      "$ref": "#/$defs/ApiErrorBody",
+      "description": "The error details."
+    }
+  },
+  "required": [
+    "error"
+  ],
+  "title": "ApiError",
+  "type": "object"
+}

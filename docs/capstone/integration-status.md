@@ -1,8 +1,8 @@
 ---
 generated_date: 2026-10-01
-branch: integrate/v0.3 (earlier sections: integrate/product)
-base: 7996e9c (v0.2.0)
-status: v0.3 branches merged onto v0.2.0 with follow-up fixes; version still 0.2.0; all gates green; not merged to main, not tagged
+branch: integrate/v0.5 (earlier sections: fix/v4-hardening, feat/v4-schemas, integrate/v0.4, integrate/v0.3, integrate/product)
+base: c28e2bf (integrate/v0.4, released as 0.4.0)
+status: v0.5 integration — hardening, schemas and art import merged; version still 0.4.0; all gates green; not merged to main, not pushed, not tagged
 ---
 
 # Integration status: phases A to E, release 0.2.0
@@ -238,8 +238,8 @@ world re-baseline and belongs to phase E with the maintainer's approval.
 | A8 | Sidecar format 2 | Done on integrate/tactical. |
 | A9 | `BlockSource` → `RefinedBlock` | **Done** with real society overlays (`SocietyOverlays`). |
 | A10 | Global art seeding | Done on integrate/tactical. |
-| A11 | Cell contract 2 | **Partly**: `road`/`built_by`/`land_use`/`realm_id` from `society/` and ARDACOLS layout 2 are still pending. |
-| A12 | TS mirrors | NPC, tactical block and rules mirrors done; the new token/scene, settlement and plan bodies are served as domain JSON without ts-rs mirrors (the viewer parses tokens by hand). |
+| A11 | Cell contract 2 | **Done** on fix/v4-hardening as cell contract 3 (`e9f0a8c`): `road`/`built_by`/`land_use`/`realm_id` from `society/`, ARDACOLS layout 2. |
+| A12 | TS mirrors | **Done for scenes** (feat/v4-schemas): `SceneDto` and its parts, `TacticalScene`, `Token`; the viewer uses them. Settlement and plan bodies have JSON Schemas (from the domain types) but no TS types yet. |
 | A13 | Tokens | **Done** (stored notables; commoners get no tokens). |
 | A14 | Offices and houses | **Done** (explicit plan buildings to society; slots with house names to arda-npc). |
 | A15 | Tag namespaces | Done on integrate/tactical. |
@@ -475,14 +475,16 @@ Server log: no errors.
   overview's fades small channels out); a deliberate mid-zoom choice, but visible at the switch.
 - **Variant Q sign-off:** the look is approved per the brief; `2026-09-30-world-integration.md`
   still says "Not signed off".
-- **A11**: `CellSample.road`, `built_by`, `land_use`, `realm_id` from `society/`.
+- ~~**A11**: `CellSample.road`, `built_by`, `land_use`, `realm_id` from `society/`~~: closed on
+  fix/v4-hardening (cell contract 3, see the last section).
 - **A12**: ts-rs mirrors for `TacticalScene`/`Token`, settlement records, `TownPlan`.
 - ~~`/v1/npc/{id}` serves stored notables only~~: closed on feat/v3-api (see below);
   commoners resolve by reference `<settlement>.<building>.<index>`.
-- Round-2 items still open: #29 (other quadratic scans in society), #30, #31 (settle A* and
-  admission), #32 (tactical encode bound), #33–#38 (ways/fields), plus the low ones.
-- Files over ~500 lines that came with merged branches: `arda-society/src/hooks/settlement.rs`
-  (615), `arda-cli/src/main.rs` (778, 762 before this phase), `arda-settle/tests/society.rs`.
+- ~~Round-2 items still open: #29 (other quadratic scans in society), #30, #31 (settle A* and
+  admission), #32 (tactical encode bound), #33–#38 (ways/fields), plus the low ones~~: closed
+  on fix/v4-hardening except #30, #41 and parts of #38, #42, #43 (reasons in the last section).
+- ~~Files over ~500 lines that came with merged branches~~: split (the v0.4 file-size branch and
+  fix/v4-hardening).
 - Earlier phase A items still open: `logic/13`/`logic/16` still describe `NpcId` as a composite
   string; `JOURNAL-tactical.md` (I34).
 - The e2e test is `#[ignore]` (the plan's release gate): run
@@ -678,10 +680,233 @@ shows the saline lake on its white pan; `/v1/tiles/relief/9/76/146.webp` 200;
 - Not done by instruction: no version bump (still 0.3.0), no merge to main, no tag, no push.
   Changelog fragments stay unfolded.
 - **Recipe 7** is the default since v0.4.0 (maintainer approval, 2026-10-01); `--recipe 6` reproduces v0.2–v0.3 worlds.
-- `Source::pan` has a default (`Ok(None)`): a future wrapping source that forgets to forward it
-  fails silently, as `SharedSource` did. Making it required would catch that at compile time.
-- Test files the split itself left just over 500 lines stay as they are:
-  `hydrology/flow_metrics_tests.rs` (583), `render/src/channels/tests.rs` (580),
-  `arda-settle/tests/society.rs` (576), `arda/tests/area_exports.rs` (536),
-  `arda-ways/tests/ways.rs` (502).
-- Earlier open items above still stand (A11, A12, round-2 items).
+- ~~`Source::pan` has a default (`Ok(None)`)~~: required on fix/v4-hardening (`24691ec`).
+- ~~Test files the split itself left just over 500 lines~~: split by pure moves on
+  fix/v4-hardening.
+- Earlier open items above still stand: A12 (A11 and the round-2 items are closed on
+  fix/v4-hardening).
+
+## v0.4 hardening (fix/v4-hardening)
+
+Branched from `integrate/v0.4` at `7b1d1a0`; 37 commits, no merges. Every fix has a
+regression test that cannot pass on the unfixed code; for most items this was checked by
+running the test with the fix stashed. Exceptions are noted. Outputs: MICRO 42 `settle` and `society build` files are byte-identical to
+integrate/v0.4's apart from the new `roads.bin` and the last digit of the rank-size fit in
+`stats.json`; the golden recipes replay unchanged.
+
+### Contract and trait changes
+
+| Commit | Change |
+|---|---|
+| `24691ec` | `arda_refine::Source::pan` has no default: a wrapper that does not forward it fails to compile (a `compile_fail` doctest pins it; a unit test shows the same wrapper with `pan` compiles). Audit of the other defaulted trait methods: `arda_ways::Terrain` (`slope`, `channels`, `rivers_rasterised`, `river_water`, `wet_ground`) and `arda_blocks::Overlays` (`ways`, `fields`, `town`) default to "feature off" and have no wrapping implementation (each implementor is a leaf); `Source::clamp` is derived from `cells_wide_high`. Left as they are. |
+| `f11e283` | `arda settle` writes `society/roads.bin` (`ARDARDS`, u8 `RoadClass` codes; logic/08 listed it, settle never wrote it); `output::read_road_map`. |
+| `e9f0a8c` | **Cell contract 3 (A11).** With `society/`, `road` comes from `roads.bin` (gains `footpath`), `built_by` from the `landuse.bin` owners and is a settlement id **string**, and `land_use` and `realm_id` (string) are new. Without `society/` the stored `road`/`built_by` stand and the new fields are `null`; a society without `roads.bin` keeps the stored road. A society raster of another size stops startup. `ARDACOLS` layout 2 adds `land_use` (u8) and `realm_id` (u32) and the `footpath` code. Bindings regenerated (`LandUseDto` new); the viewer accepts contract 3 and layout 2 and shows land use and realm; API.md, logic/16 and the e2e test updated. |
+
+### Review items closed
+
+| Item | Commit | Fix |
+|---|---|---|
+| R1 #14 | `0cdf2c0` | Catalogue footprints over 16 squares a side are an `image_size` issue (cached sprites stay ≤ 2048² px a variant). |
+| R1 #15 | `cfe82c4` | Error bodies shorten absolute paths to `…/<file>`; 5xx errors are logged in full. |
+| R1 #16 | `00c3f8b` | Overview qualities: 512 doubling to `--max-overview-px` (plus the limit); others are 400 before any render. |
+| R1 #17 | `8687758` | The out-of-world message cannot underflow; a world with no areas is refused at open. |
+| R1 #18 | `d245eb9` | The 20k-city wall-clock bound moves to an ignored release test (best of three); storage checks stay. No fail-before test (a flake). |
+| R1 #19 | `6645772` | `whileLive` drops responses that land after their request was aborted (cell fetch, tactical PNG, prefetch, tokens, layout renders, `useAsync`). |
+| R1 #20 | `51ea42f` | Resistances drop non-adjacent duplicates. |
+| R1 #21 | `6e14e3d` | Weighted draws over totals beyond u32 use a 64-bit draw; totals within u32 roll as before. |
+| R2 #23, #24 | (earlier) | Verified closed by A8 on integrate/tactical: ways and fields emit a format-2 `RulesSidecar` (round-trip tests), the scene takes parapet `blocks_sight` from the sidecar edges. |
+| R2 #25 | `012fb70` | Ways ids are u64; unrecorded crossings set bit 62 (bit 30 hid real ids from toll houses); synthetic channels carry their crossing's id. |
+| R2 #29 | `ba3657c` | Society: `HistoryIndex`, `HookLookups`, per-run flow sums and indexed realm lookups replace per-settlement and per-pair scans, keeping record order. 8,000 settlements 1.0 s (5.1 s before); 2,000 → 8,000 settlements costs 5.8× (16.4× before; realm relations stay R² by format). MICRO 42 `society.json`/`notables.json` and the tiled world's JSON digest unchanged. Tests: `lookups.rs` (every index against its scan), ignored release gate `society_time_grows_near_linearly`. |
+| R2 #31 | `da7e503`, `5c33283` | `encode` builds every society file before `write` touches the directory; `tests/memory.rs` measures the peak (56–78 B a cell past a 16 MiB fixed allowance; about 90 B a cell for MICRO 42 in all) against the admitted 128 B. No fail-before test for the write order (it needs an allocation failure). |
+| R2 #32 | `f566465` | Tactical PNG encodes and pyramid builds share one slot across both lanes; admission counts one transient encode (10 B/px at the limit). |
+| R2 #33 | `f0f0365` | Ways leave the layout's lakes and sea unpaved, unrepainted and at their elevation; a crossing over them gets a guide-only synthetic channel. |
+| R2 #34 | `130da2b` | A crossing is planned in every window its synthetic channel reaches (`max(1.5w + 150, 150 + max(3w, 60) + w/2 + 1 square)`). |
+| R2 #35 | `045342f` | A way is reindexed right after a crossing straightens it. |
+| R2 #36 | `a679f44`, `34ce7c4`, `1e77077` | `plan::relevant::relevant_roads`: roads within 500 m of the window plus, to a fixed point, roads within 64 m of a kept road's endpoint; a unit test checks the window draws byte-identically to planning every road. Report counts now near-window only. |
+| R2 #37 | `c9edd9c` | Mines and quarries move to the first of eight sites 16 squares around their own that is clear of roads, else give up the road squares. |
+| R2 #38 a–c | `6792bfa` | Open fields are `complete` when the window holds all their squares; `LandUseGrid::filled` refuses rasters over 2²⁸ cells; furrows take the edge square's weight past the window edge. |
+| R2 #39 | `158ea40` | `squares::derive` checks the square count and sidecar size; a sidecar clearing a canopy's heavy obscurement leaves it light; secret doors are no spawn entrances; the light doc names the lamp's two radii. No fail-before run for `derive` (its old signature cannot compile the test). |
+| R2 #40 | `f7be2b3` | The four-corner cover count (DMG grid procedure), the sightline vertex rule and the diagonal corner and squeeze rules are labelled house rules in code and README. Docs only. |
+| R2 #42 (part) | `bedc92c` | `fresh_root` keeps drawing (to 4,096) instead of returning a blocked or repeated root; the place fallback never respells into a blocked word. The whole-word blocklist was already fixed (fragments). |
+| R2 #43 (part) | `cef5b6e` | The rank-size fit in `stats.json` uses `num::ln` (IEEE basic operations only) instead of libm's `ln`. |
+| R2 #44 | `c79f79c` | Every image (overview, relief, tactical) carries a strong ETag and `Cache-Control: no-cache`; `If-None-Match` answers 304. |
+| R2 #45 | `669fa48` | `tests/support/fixture_dir.rs` builds shared fixtures in a private sibling and renames them into place (server, settle, people, midzoom fixtures); `tests/fixture_dir.rs` races six builders. |
+
+### Skipped, with reasons
+
+- **R2 #30** (settle A* window and heuristic): the search is already one multi-target A* per
+  village over a bounded window; a stronger heuristic or candidate pruning changes heap order
+  and therefore road output, which needs a settle re-baseline approved by the maintainer and a
+  full-size measurement. MICRO 42 settles in 2.5 s.
+- **R2 #38 d** (compounds rebuilt per window): performance only; a cross-window compound
+  cache needs shared state in the blocks' fields layer. The e2e goal-50 checks pass and a cold
+  village block serves in 0.2 s.
+- **R2 #41** (roots keyed by meaning hash behind a language version): renames every existing
+  world; a language-version change for the maintainer.
+- **R2 #42 rest**: the CV fallback that ignores `no_initial` and harmony runs only after 48
+  failed draws and yields a valid-looking name; a head-first toponymic family name keeping only
+  the place phonemes in `word` changes every such family name (golden languages and every
+  world's NPC names), so it needs a names re-baseline.
+- **R2 #43 rest** (`cap_cities` clamps a demoted city to 7,999 after land use and roads are
+  sized): the goal-35 model's intent, not a defect; land use stays sized for the pre-cap town.
+
+### Files split (pure moves, same test names and counts)
+
+`1003a47` `hydrology/flow_metrics_tests.rs` 583 → 477 (+`flow_metrics_tests/limits.rs`, 13
+tests); `bf84a69` `channels/tests.rs` 580 → 407 (+`tests/atlas.rs`, 14); `bd2272b`
+`arda-settle/tests/society.rs` 591 → 450 (+`society/realms.rs`, 19); `bbd658e`
+`arda/tests/area_exports.rs` 536 → 439 (+`area_exports/reload.rs`, 12); `08c098d`
+`arda-ways/tests/ways.rs` 502 → 470 (+`ways/refusals.rs`, 17); and, for files the fixes grew,
+`24aa6f0` (`tactical/admit.rs`), `34ce7c4` (`plan/relevant.rs`), crossing tests into
+`plan/crossing_tests.rs`. Each split was checked by diffing the test lists before and after.
+
+### Gate on `5c33283`
+
+- `cargo fmt --check`, `cargo clippy --workspace --all-targets -- -D warnings`: clean.
+- `cargo test --workspace --no-fail-fast`: 113 binaries report `test result: ok. N` with
+  N ≥ 1 (1,573 passed, 0 failed, 21 ignored; integrate/v0.4: 100, 1,534, 19).
+- `cargo test --release --test e2e_village -- --ignored`: passes (93 s);
+  `--test zoom_continuity -- --ignored`: both pass (102 s); `--test golden_recipes`: 4 pass
+  (it has no ignored tests; recipe 5, 6 and 7 replay byte for byte).
+- `apps/viewer`: `npm test` (83 tests in 11 files), `npm run lint`, `npm run build` pass.
+- Fixture: `arda generate --seed 42 --micro --terrain fine` (8 areas, land 293‰, 8 rivers),
+  `arda settle` (629 settlements, 648 roads, 3 realms), `arda society build` (629 plans,
+  91,896 inhabitants, 3,397 stored notables).
+
+### Smoke test (release `arda-server --world out/micro42 --port 8963`, stopped by PID)
+
+| Request | Result |
+|---|---|
+| `/v1/world` | 200, contract 3, recipe 6 |
+| `/v1/cell/432/904` (village 10) | `"road":"road","built_by":"10","land_use":"built","realm_id":"1"` |
+| `/v1/area/0/1/cells?format=bin` | 200, 27.0 MB, layout 2, contract 3 |
+| `/v1/tiles/overview/2/1/2.webp` with its ETag in `If-None-Match` | 304 |
+| `/v1/tiles/relief/7/55/95.webp` | 200, `no-cache`, ETag |
+| `/v1/overview.png?quality=600` / `quality=1024` | 400 `bad_request` naming the ladder / 200 |
+| `/v1/tactical/cell/432/904`, `/scene`, `.png?ppsq=32` | 200 (0.2 s cold), 4 tokens, PNG `no-cache` |
+| `/v1/cell/99999/1` | 400 `out_of_range` |
+
+Server log: no errors.
+
+### Left open
+
+- Not done by instruction: no merge, no push, no tag, no version bump; changelog fragments
+  unfolded (`2026-10-01-v4-hardening.md` added).
+- **A12**: ts-rs mirrors for `TacticalScene`/`Token`, settlement records, `TownPlan`.
+- Review items skipped above: R2 #30, #38 d, #41, the rest of #42 and #43.
+- From earlier sections, still standing: I1 generator side (`FINE_FRAME_OFFSET_UM` → 0 needs a
+  re-baseline); shore classes step at close zoom; relief draws
+  more small streams than the overview; `logic/13`/`logic/16` still call the composite
+  reference the `NpcId`; a bare commoner u64 id needs `?settlement=`; realm-wide NPC queries
+  cost ~0.15 s per scanned settlement cold; prefetch is explicit; the v0.3 WFC notes;
+  `JOURNAL-tactical.md` (I34).
+- `arda-fields/src/synthetic.rs` is 507 lines (+9 from the land-use bound).
+
+## v0.4 schemas and sheet mapping (feat/v4-schemas)
+
+Goal 69 preparation and adapter A12, on `integrate/v0.4`:
+
+- **JSON Schemas** (logic/16 §api-schema): 30 draft 2020-12 schemas generated by
+  `schemars` (MIT/Apache-2.0) from the server DTOs and, through a new optional `schema`
+  feature, from `arda_settle::model::Settlement`, `arda_society::SettlementSociety` and
+  `arda_town::TownPlan`. Committed in `bindings/schema/`, served at `GET /v1/schema` and
+  `/v1/schema/{Name}.json`, staleness-tested with the TS bindings. `tests/world_api/schemas.rs`
+  validates real MICRO seed-42 responses of every route with `jsonschema` (MIT, dev-only).
+- **Typed scenes (A12)**: server mirror `SceneDto` (run-length `Runs<T>`, `SqDto`, string
+  seed, walls, lights, regions, spawn hints, token slots), round-trip tested against
+  `arda_scene::Scene`; `TacticalScene`, `Token`, `TokenKind`, `SceneTime` typed;
+  `TacticalBlockDto.scene` is `SceneDto | null` instead of `unknown`. The viewer reads
+  scenes through them (`apps/viewer/src/api/scene.ts`) and dropped its hand-written
+  `TokenView`, `RulesCellView`, `RulesSidecarView` and `CoverLevel`.
+- **Sheet mapping** (logic/16 §api-sheet-mapping): `--sheet-mapping game.json` reshapes
+  every served `Npc`; checked and dry-run at startup; `X-Arda-Sheet-Mapping` on mapped
+  bodies. Examples `identity.json` and `5e-srd-monster.json` in
+  `crates/arda-server/mappings/`; maintainer guide in `API.md` §"Sheet mapping".
+
+Still open:
+
+- The maintainer's own game schema: write `game.json` from it (goal 69 stays 🟡 until then).
+- No TS types for `Settlement`, `SettlementSociety` and `TownPlan` (they would need server
+  mirrors or ts-rs in the domain crates); their schemas exist.
+- The schemas describe Arda's NPC shape only; a mapping has no output schema, so a mapped
+  server's `Npc` bodies are not described by `/v1/schema`.
+- `Faction.seat_building` in arda-society is written as a JSON number, an exception to the
+  "ids as strings" convention (I5); the schema records it faithfully.
+- Map keys such as `Settlement.buildings` (`BuildingFunction` → count) are schema'd as
+  free `additionalProperties`, without restricting keys to the enum names.
+
+## v0.5 integration (integrate/v0.5)
+
+`integrate/v0.5` starts at `c28e2bf` (integrate/v0.4, whose tree is main's 0.4.0, recipe 7 the
+default). The three branches were cut at `7b1d1a0`, before the recipe-7 commit, and are merged
+with `--no-ff` in this order, each followed by the full gate:
+
+| Merge | Branch | Conflicts and resolution |
+|---|---|---|
+| `fa80cbf` | fix/v4-hardening | `API.md` (contract 3 with `arda_version` 0.4.0); this file (recipe 7 is the default, hardening's struck-out open items kept). |
+| `0a751b7` | feat/v4-schemas | `TacticalCellView.tsx` (the typed scene fetch kept, wrapped in hardening's `whileLive`); `arda-server/Cargo.toml` (schema features); `lib.rs` and `world_api/main.rs` (both modules); this file (A11 done, A12 done for scenes). Contract: hardening's new `LandUseDto` gains `JsonSchema`; bindings and schemas re-blessed with `ARDA_BLESS_BINDINGS=1`: `CellSample`, `PointSample` and `AreaCells` now describe `land_use`, `realm_id` and `footpath` (the TS bindings were already contract 3). |
+| `7a163b2` | feat/v4-art-import | `Cargo.toml` (the 0.4.0 path versions, `arda-art-import` added); `Cargo.lock` regenerated and pinned to the branch's tested versions (`toml` 0.8.2, `toml_edit` 0.20.2, `winnow` 0.5.40, `jpeg-decoder` 0.3.1, `indexmap` 2.14.0, …). |
+
+No test of the three branches was pinned to recipe-6 default fixture values: every gate passed
+with fixture worlds generated at the recipe-7 default, and e2e stays pinned to recipe 6.
+
+### Commits after the merges
+
+| Commit | Change |
+|---|---|
+| `f26915a` | `tests/support/fixture_dir.rs` holds an exclusive lock on `<name>.lock` while building. The first gate failed `racing_builders_publish_one_complete_fixture`: between a builder's `ready` and `exists` checks another could publish, and the late builder moved the complete fixture aside as stale. |
+| `81acd79` | The server tests reuse `out/micro42` or the cached fixture only when it is a recipe-7 world, so the schemas are never checked on a stale recipe-6 world. New `contract_3_society_cells_validate_on_the_default_recipe`: the world is recipe 7 and contract 3, and a village cell (`built_by` = the village, `land_use`, `realm_id` set) validates against `CellSample`, as does its area against `AreaCells`. |
+| `c6d57bf` | Library stacks against the footprint cap: `Library::layered` refuses to rescale a lower layer's asset past `MAX_RESCALED_SIDE_PX` (16 squares × 128 px = 2,048 px a side). A top layer at 1,024 px/square would otherwise blow the placeholder's 4 × 4 assets up to 4,096 px (each layer and the merge were validated, but the rescale ran before the merged validation). |
+| `e6fdb90` | `import.toml` footprints of 0 or over 16 squares a side are refused when the manifest is read, before any image is fitted to `footprint × ppsq`. |
+| `17482b0` | `arda-town block --library`, and a `--library` argument for the arda-scene `debug` and arda-ways `crossings` examples, take a `top:…:bottom` stack (`Library::load_stack`); both READMEs say so. |
+| `17a2238` | CHANGELOG "Unreleased (v0.5)"; `API.md`'s `/v1/world` example shows recipe 7; the `FINE_TERRAIN_LATEST_RECIPE_VERSION` doc no longer calls recipe 7 opt-in. |
+
+### Gate on `17a2238`
+
+| Gate | After hardening | After schemas | After art import | Final |
+|---|---|---|---|---|
+| `cargo fmt --check`, clippy `-D warnings` | clean | clean | clean | clean |
+| `cargo test --workspace --no-fail-fast`: binaries with `ok. N ≥ 1` | 112 + 1 failed (fixture race, fixed) | 113 | 115 | 115 |
+| passed / failed / ignored | 1,572 / 1 / 21 | 1,600 / 0 / 21 | 1,633 / 0 / 21 | 1,635 / 0 / 21 |
+| `e2e_village`, `zoom_continuity` (`--release --ignored`) | 1 + 2 pass | 1 + 2 pass | 1 + 2 pass | 1 + 2 pass |
+| `golden_recipes` (5, 6, 7 byte for byte) | 4 pass | 4 pass | 4 pass | 4 pass |
+| viewer `npm ci`, `build`, `lint`, `test` | 83 tests, 11 files | 86, 12 | (unchanged) | 86, 12 |
+| `arda tactical validate assets/tactical/placeholder` | ok, 217 assets | ok | ok | ok |
+
+### Smoke test
+
+Release `arda-server` on a copy of the recipe-7 MICRO 42 society fixture, with
+`--library <imported>:assets/tactical/placeholder` and
+`--sheet-mapping crates/arda-server/mappings/5e-srd-monster.json`, port 8964, stopped by PID.
+The imported library was made with the `synthetic_raw` example and `arda tactical import`
+(11 imported, 0 rejected, 2 flagged); `arda tactical validate` passes on the stack (216 assets).
+
+| Request | Result |
+|---|---|
+| `/v1/world` | 200, contract 3, `arda_version` 0.4.0, recipe 7 |
+| `/v1/schema` / `/v1/schema/Npc.json` | 200, draft 2020-12, 30 schemas / `application/schema+json` |
+| `/v1/schema/CellSample.json` | lists `land_use` and `realm_id` |
+| `/v1/cell/564/778` (village 142) | `"road":"road","built_by":"142","land_use":"built","realm_id":"1"` |
+| `/v1/area/1/1/cells?format=bin` | 200, 27.0 MB |
+| `/v1/settlements/142/npcs`, `/v1/npc/<notable id>`, `/v1/npc/142.5.0` | 200, `X-Arda-Sheet-Mapping: 5e-srd-monster`, 5e SRD monster bodies with an `arda` block |
+| `/v1/tactical/library` | `"library":"synthetic-ai:placeholder"` |
+| `/v1/tactical/cell/564/778.png?ppsq=32`, `/scene` | 200 PNG; 4 tokens |
+| `/v1/cell/99999/1` | 400 |
+
+Server log: no errors. `arda-town block --site thornby` and both examples also rendered with
+the same stack.
+
+### Left open
+
+- Not done by instruction: no version bump (still 0.4.0), no merge to main, no tag, no push.
+  Changelog fragments stay unfolded (`2026-10-01-v5-integration.md` added; the art-import
+  branch had none, so it describes that branch too).
+- A mapped server's `Npc` bodies have no schema (the mapping has no output schema); the smoke
+  test checks their shape by hand, and the schema tests run unmapped.
+- No TS types for `Settlement`, `SettlementSociety` and `TownPlan` (schemas exist).
+- `pixels_per_square` itself has no upper bound in the validator; the stack rescale and the
+  footprint cap bound sprites, but one huge single library is still only bounded by its own
+  image files.
+- Earlier items still standing: the maintainer's own `game.json` (goal 69); review items R2
+  #30, #38 d, #41, the rest of #42 and #43; I1 generator side; the other items listed under
+  v0.4 hardening.

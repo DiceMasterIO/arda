@@ -8,6 +8,7 @@
 //! bytes, whether cold or cached. The compositor seed derives from the world
 //! seed and the anchor ([`key::render_seed`]).
 
+pub mod admit;
 pub mod block;
 pub mod cells;
 pub mod dto;
@@ -22,6 +23,7 @@ pub mod refine_blocks;
 pub mod routes;
 pub mod rules_dto;
 pub mod scene;
+pub mod scene_dto;
 pub mod tokens;
 pub mod world_grade;
 pub mod world_routes;
@@ -83,13 +85,26 @@ impl Default for TacticalLimits {
 
 impl TacticalLimits {
     /// Worst-case resident bytes: full caches plus one transient render
-    /// (RGBA, compositor buffers of about 6 bytes a pixel, and its pyramid).
+    /// (RGBA, compositor buffers of about 6 bytes a pixel, and its pyramid)
+    /// and one transient encode.
     #[must_use]
     pub fn admitted_bytes(&self) -> u64 {
         let caches = self.render_cache_bytes + self.pyramid_cache_bytes;
         // PNGs, tiles and JSON bodies, plus the composed-block cache.
         let encoded = 3 * self.encoded_cache_bytes + refine_blocks::COMPOSED_CACHE_BYTES;
-        (caches + encoded) as u64 + self.transient_render_bytes() + self.max_body_bytes as u64
+        (caches + encoded) as u64
+            + self.transient_render_bytes()
+            + self.transient_encode_bytes()
+            + self.max_body_bytes as u64
+    }
+
+    /// Bytes of the one encode in flight (PNG encoding or a pyramid build
+    /// run one at a time across both lanes): the render it reads, which the
+    /// cache may already have evicted (4 bytes a pixel), and its PNG or
+    /// copy plus pyramid levels (about 6 bytes a pixel).
+    #[must_use]
+    pub const fn transient_encode_bytes(&self) -> u64 {
+        self.max_render_px * (4 + 6)
     }
 
     /// Bytes of one render in flight: RGBA, compositor buffers of about 6
@@ -98,76 +113,6 @@ impl TacticalLimits {
     pub const fn transient_render_bytes(&self) -> u64 {
         self.max_render_px * (4 + 6 + 6)
     }
-}
-
-/// Longest layout name `POST /render` accepts, bytes. The name keys the
-/// cache anchor and is echoed into logs and error messages.
-pub const MAX_NAME_BYTES: usize = 128;
-/// Squares a placement or light may sit outside the map (sprite overhang).
-pub const POSITION_MARGIN_SQ: f32 = 16.0;
-/// Placements allowed per square (plus [`PLACEMENT_SLACK`]).
-pub const PLACEMENTS_PER_SQUARE: u64 = 4;
-/// Placements allowed on top of the per-square allowance.
-pub const PLACEMENT_SLACK: u64 = 64;
-/// Lit pixels allowed per output pixel, summed over every free light.
-pub const LIGHT_WORK_PER_PX: u64 = 16;
-
-/// Refuses layouts whose size limits pass but whose work does not: long
-/// names (cache-key and log bytes), unbounded placement counts, lights whose
-/// summed pools cover the image many times over, and positions far off the
-/// map (which overflow the compositor's pixel arithmetic). Refused, never
-/// trimmed (goal-prompt §8).
-fn admit_work(layout: &TacticalLayout, ppsq: u32, px: u64) -> ServerResult<()> {
-    if layout.name.len() > MAX_NAME_BYTES || layout.name.chars().any(char::is_control) {
-        return Err(ServerError::InvalidLayout(format!(
-            "layout names are at most {MAX_NAME_BYTES} bytes without control characters"
-        )));
-    }
-    let squares = u64::from(layout.width) * u64::from(layout.height);
-    let max_placements = squares * PLACEMENTS_PER_SQUARE + PLACEMENT_SLACK;
-    if layout.placements.len() as u64 > max_placements {
-        return Err(ServerError::PayloadTooLarge(format!(
-            "{} placements; the limit for this map is {max_placements}",
-            layout.placements.len()
-        )));
-    }
-    let (w, h) = (layout.width as f32, layout.height as f32);
-    let on_map = |x: f32, y: f32| {
-        x.is_finite()
-            && y.is_finite()
-            && (-POSITION_MARGIN_SQ..=w + POSITION_MARGIN_SQ).contains(&x)
-            && (-POSITION_MARGIN_SQ..=h + POSITION_MARGIN_SQ).contains(&y)
-    };
-    if let Some(i) = layout.placements.iter().position(|p| !on_map(p.x, p.y)) {
-        return Err(ServerError::InvalidLayout(format!(
-            "placement {i} lies more than {POSITION_MARGIN_SQ} squares off the map"
-        )));
-    }
-    if let Some(i) = layout.lights.iter().position(|l| !on_map(l.x, l.y)) {
-        return Err(ServerError::InvalidLayout(format!(
-            "light {i} lies more than {POSITION_MARGIN_SQ} squares off the map"
-        )));
-    }
-    // Each light visits its pool's box clipped to the image (compose/lighting).
-    let (wpx, hpx) = (
-        u64::from(layout.width) * u64::from(ppsq),
-        u64::from(layout.height) * u64::from(ppsq),
-    );
-    let work: u64 = layout
-        .lights
-        .iter()
-        .map(|l| {
-            let side = 2 * u64::from(l.radius_ft) * u64::from(ppsq) / 5;
-            side.min(wpx) * side.min(hpx)
-        })
-        .fold(0u64, u64::saturating_add);
-    let budget = px.saturating_mul(LIGHT_WORK_PER_PX);
-    if work > budget {
-        return Err(ServerError::PayloadTooLarge(format!(
-            "the lights would light {work} px; the limit is {budget}"
-        )));
-    }
-    Ok(())
 }
 
 /// An encoded image and its strong ETag.
@@ -233,12 +178,14 @@ fn cached<K: Ord + Clone, V>(m: &Mutex<ByteLru<K, V>>, key: &K) -> ServerResult<
 }
 
 impl Tactical {
-    /// Loads and validates the library at `dir` for the world of `world_seed`.
+    /// Loads and validates the library (or `top:…:bottom` library stack,
+    /// see [`arda_tactical::library_stack`]) at `dir` for the world of
+    /// `world_seed`.
     ///
     /// # Errors
     /// [`ServerError::Tactical`] when loading or validation fails.
     pub fn open(dir: &Path, world_seed: u64, limits: TacticalLimits) -> ServerResult<Self> {
-        let library = Library::load(dir)?;
+        let library = Library::load_stack(dir)?;
         // Scale the ground textures for every served ppsq once, up front,
         // instead of in the first render at each (goal 50).
         {
@@ -421,8 +368,10 @@ impl Tactical {
             return Ok((hit, Hit::Hit));
         }
         let img = self.raw(key, layout)?;
+        let slot = self.lanes.encode_slot();
         let start = Instant::now();
         let encoded = Encoded::new(encode::encode_png(img.width, img.height, &img.data)?);
+        drop(slot);
         stage("png encode", &img, start);
         let bytes = encoded.bytes.len();
         let value = lock(&self.pngs)?.insert(key.clone(), Arc::new(encoded), bytes);
@@ -443,8 +392,10 @@ impl Tactical {
             return Ok(hit);
         }
         let img = self.raw_in(key, layout, lane)?;
+        let slot = self.lanes.encode_slot();
         let start = Instant::now();
         let p = Pyramid::build(Rgba::clone(&img));
+        drop(slot);
         stage("pyramid", &img, start);
         let bytes = p.bytes();
         Ok(lock(&self.pyramids)?.insert(key.clone(), Arc::new(p), bytes))
@@ -483,5 +434,9 @@ impl Tactical {
     }
 }
 
+use admit::admit_work;
+pub use admit::{
+    LIGHT_WORK_PER_PX, MAX_NAME_BYTES, PLACEMENTS_PER_SQUARE, PLACEMENT_SLACK, POSITION_MARGIN_SQ,
+};
 use images::stage;
 pub use images::{crop, encode_webp, tiles_dto, tiles_dto_sized};

@@ -11,6 +11,7 @@ pub use trade::{Ledger, TradeFlow};
 
 /// How a key good moves through a market.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Serialize, Deserialize)]
+#[cfg_attr(feature = "schema", derive(schemars::JsonSchema))]
 #[serde(rename_all = "snake_case")]
 pub enum GoodRole {
     /// Mostly sent out.
@@ -23,6 +24,7 @@ pub enum GoodRole {
 
 /// One of a market's key trade goods.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[cfg_attr(feature = "schema", derive(schemars::JsonSchema))]
 pub struct KeyGood {
     /// Good key.
     pub good: String,
@@ -34,6 +36,7 @@ pub struct KeyGood {
 
 /// Economy of one settlement.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[cfg_attr(feature = "schema", derive(schemars::JsonSchema))]
 pub struct SettlementEconomy {
     /// Where every load went.
     pub ledger: Ledger,

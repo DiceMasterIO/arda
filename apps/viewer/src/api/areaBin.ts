@@ -1,4 +1,4 @@
-// Parser for the `ARDACOLS` v1 binary area layout (`/v1/area/{ax}/{ay}/cells?format=bin`).
+// Parser for the `ARDACOLS` v2 binary area layout (`/v1/area/{ax}/{ay}/cells?format=bin`).
 // See crates/arda-server/API.md. Columns are wrapped as zero-copy typed-array views.
 
 import type { AreaColumns, Legend } from "@arda";
@@ -19,7 +19,7 @@ export interface BinAreaColumns {
 }
 
 const MAGIC = "ARDACOLS";
-export const ARDACOLS_LAYOUT_VERSION = 1;
+export const ARDACOLS_LAYOUT_VERSION = 2;
 const DTYPE_U8 = 1;
 const DTYPE_U32 = 2;
 const DTYPE_F32 = 3;
@@ -87,5 +87,8 @@ export function parseAreaColumnsBin(buf: ArrayBuffer): BinAreaColumns {
 export const BIN_LEGEND: Legend = {
   terrain: ["sea", "land", "lake"],
   cover: ["bare", "grass", "scrub", "forest", "marsh", "rock", "ice"],
-  road: ["none", "track", "road", "highway"],
+  road: ["none", "track", "road", "highway", "footpath"],
+  land_use: [
+    "none", "built", "field", "pasture", "orchard", "woodland", "mill", "mine", "meadow", "fallow", "farmstead",
+  ],
 };

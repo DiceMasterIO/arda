@@ -68,7 +68,7 @@ pub fn build_scene(
         r.check(layout.width, layout.height)?;
     }
     let placed = squares::resolve_all(layout, lib, seed)?;
-    let layers = squares::derive(layout, &placed, rules);
+    let layers = squares::derive(layout, &placed, rules)?;
     let regions = regions::build(&layers.movement.0, layout.width, layout.height);
     let mut scene = Scene {
         format_version: SCENE_FORMAT_VERSION,

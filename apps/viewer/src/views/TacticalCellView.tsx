@@ -1,14 +1,14 @@
 import { useEffect, useMemo, useState } from "react";
 import { describeError, type ArdaClient } from "../api/client.ts";
-import { demoBlock, parseRules, type NotYetError, type RulesSidecarView, type TacticalBlockDto } from "../api/tactical.ts";
+import { demoBlock, parseRules, type NotYetError, type RulesSidecarDto, type TacticalBlockDto } from "../api/tactical.ts";
 import { CacheCorner } from "../components/CacheCorner.tsx";
 import { useImageLog } from "../imageLog.ts";
 import { SquareInfo, SquareReadout } from "../components/SquareInfo.tsx";
 import { TacticalMap, type MapSource, type SquareRef, type TileLoader } from "../components/TacticalMap.tsx";
 import { tacticalPyramid } from "../geo/tacticalTiles.ts";
-import { useAsync } from "../hooks.ts";
+import { useAsync, whileLive } from "../hooks.ts";
 import { COVER_COLOURS, pointerMarks, rulesOverlay, tokenMarks, waterFill, type RulesToggles } from "../render/tacticalOverlay.ts";
-import type { TokenView } from "../api/tactical.ts";
+import { sceneGrids, sceneSquare, type TacticalScene } from "../api/scene.ts";
 import { cellFromHash, cellHash, demoFromHash, gradeFromHash, neighbour, type CellExtent, type Direction } from "../geo/cellWalk.ts";
 import { CellLookToggles } from "../components/CellLookToggles.tsx";
 import { EdgeArrows, type Walk } from "../components/EdgeArrows.tsx";
@@ -267,7 +267,7 @@ function BlockView({
   const [image, setImage] = useState<{ url: string } | { error: string } | null>(null);
   const { log, record } = useImageLog();
   const [showTokens, setShowTokens] = useState(true);
-  const [tokens, setTokens] = useState<TokenView[]>([]);
+  const [scene, setScene] = useState<TacticalScene | null>(null);
   const [prefetch, setPrefetch] = useState<string | null>(null);
 
   // Server blocks: warm the 8 neighbours in the background (goal 67), so
@@ -275,33 +275,33 @@ function BlockView({
   useEffect(() => {
     if (!cell) return;
     const ctl = new AbortController();
-    client.tacticalPrefetch(cell.gx, cell.gy, { radius: 1, ppsq: RENDER_PPSQ, demo: cell.overlays }, { signal: ctl.signal }).then(
+    whileLive(
+      ctl.signal,
+      client.tacticalPrefetch(cell.gx, cell.gy, { radius: 1, ppsq: RENDER_PPSQ, demo: cell.overlays }, { signal: ctl.signal }),
       (r) => {
         const queued = r.cells.filter((c) => c.status !== "dropped").length;
         setPrefetch(`${queued}/${r.cells.length} neighbours prefetching`);
       },
-      (e: unknown) => {
-        if (!ctl.signal.aborted) setPrefetch(`prefetch: ${describeError(e)}`);
-      },
+      (e) => { setPrefetch(`prefetch: ${describeError(e)}`); },
     );
     return () => {
       ctl.abort();
     };
   }, [client, cell]);
 
-  // Server blocks: the NPC tokens of the block's scene (A13).
+  // Server blocks: the block's scene and its NPC tokens (A12, A13).
   useEffect(() => {
     if (!cell) return;
     const ctl = new AbortController();
-    client.tacticalTokens(cell.gx, cell.gy, { signal: ctl.signal }, { demo: cell.overlays }).then(setTokens, () => {
-      if (!ctl.signal.aborted) setTokens([]);
-    });
+    whileLive(ctl.signal, client.tacticalScene(cell.gx, cell.gy, { signal: ctl.signal }, { demo: cell.overlays }), setScene, () => { setScene(null); });
     return () => {
       ctl.abort();
     };
   }, [client, cell]);
 
-  const rules = useMemo((): { ok: RulesSidecarView | null } | { error: string } => {
+  const tokens = useMemo(() => scene?.tokens ?? [], [scene]);
+  const grids = useMemo(() => (scene ? sceneGrids(scene.scene) : null), [scene]);
+  const rules = useMemo((): { ok: RulesSidecarDto | null } | { error: string } => {
     try {
       return { ok: parseRules(block.rules, layout.width, layout.height) };
     } catch (e) {
@@ -326,15 +326,15 @@ function BlockView({
     if (cell) return;
     const ctl = new AbortController();
     let url: string | null = null;
-    client.renderLayout(layout, { ppsq: RENDER_PPSQ, origin: block.origin }, { signal: ctl.signal }).then(
+    whileLive(
+      ctl.signal,
+      client.renderLayout(layout, { ppsq: RENDER_PPSQ, origin: block.origin }, { signal: ctl.signal }),
       (img) => {
         record(img);
         url = URL.createObjectURL(img.blob);
         setImage({ url });
       },
-      (e: unknown) => {
-        if (!ctl.signal.aborted) setImage({ error: describeError(e) });
-      },
+      (e) => { setImage({ error: describeError(e) }); },
     );
     return () => {
       ctl.abort();
@@ -469,7 +469,7 @@ function BlockView({
           ))}
         </dl>
         {shown ? (
-          <SquareInfo layout={layout} at={shown} pinned={picked !== null} rules={sidecar ? rulesCell : null} />
+          <SquareInfo layout={layout} at={shown} pinned={picked !== null} rules={sidecar ? rulesCell : null} scene={grids ? sceneSquare(grids, shown.sx, shown.sy) : null} />
         ) : (
           <p className="muted">Hover or click a square.</p>
         )}

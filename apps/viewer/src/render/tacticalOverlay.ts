@@ -1,7 +1,8 @@
 // Overlay shapes in tactical square units, drawn by TacticalMap as SVG.
 // Building them is pure so it can be tested without a DOM.
 
-import { wallLine, wallsAround, type RulesSidecarView, type TacticalLayoutDto, type TokenView } from "../api/tactical.ts";
+import type { Token } from "../api/scene.ts";
+import { wallLine, wallsAround, type RulesSidecarDto, type TacticalLayoutDto } from "../api/tactical.ts";
 
 export interface SquareRef {
   sx: number;
@@ -39,7 +40,7 @@ export function waterFill(depthFt: number): string | null {
 }
 
 /** Shapes for the enabled rules layers. */
-export function rulesOverlay(rules: RulesSidecarView, on: RulesToggles): OverlayShape[] {
+export function rulesOverlay(rules: Pick<RulesSidecarDto, "width" | "squares">, on: RulesToggles): OverlayShape[] {
   const out: OverlayShape[] = [];
   rules.squares.forEach((cell, i) => {
     const x = i % rules.width;
@@ -80,7 +81,7 @@ export function editMarks(edited: Iterable<SquareRef>): OverlayShape[] {
 }
 
 /** NPC token discs (square markers): workers red, residents blue. */
-export function tokenMarks(tokens: readonly TokenView[]): OverlayShape[] {
+export function tokenMarks(tokens: readonly Token[]): OverlayShape[] {
   return tokens.map((t) => ({
     kind: "rect",
     x: t.x + 0.18,

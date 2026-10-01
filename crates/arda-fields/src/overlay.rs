@@ -4,7 +4,9 @@
 //! cannot live in the texture. The sidecar records it per square, and this
 //! pass darkens the render in rows across it, in global coordinates so the
 //! rows run on unbroken across windows. Rows fade out over the last square
-//! of a field and stop under anything standing on it.
+//! of a field and stop under anything standing on it. Past the window edge
+//! the edge square's field is taken to continue, so rows run on into the
+//! neighbouring window instead of fading at the seam.
 
 use crate::sidecar::Sidecar;
 use arda_tactical::compose::candidates;
@@ -48,17 +50,7 @@ pub fn paint_furrows(
             }
         }
     }
-    let weight = |x: i64, y: i64| -> f64 {
-        if x < 0 || y < 0 || x as usize >= w || y as usize >= h {
-            return 0.0;
-        }
-        let i = y as usize * w + x as usize;
-        if side.squares[i].furrow.is_some() && !blocked[i] {
-            1.0
-        } else {
-            0.0
-        }
-    };
+    let weight = |x: i64, y: i64| furrow_weight(side, &blocked, (w, h), x, y);
     let s = f64::from(ppsq);
     let (ox, oy) = (side.origin_square[0] as f64, side.origin_square[1] as f64);
     for py in 0..img.height {
@@ -89,5 +81,72 @@ pub fn paint_furrows(
             }
             img.set(px, py, c);
         }
+    }
+}
+
+/// Furrow weight of square `(x, y)` of a `w × h` window: 1 on an unblocked
+/// furrowed square, else 0. Squares past the window edge take the edge
+/// square's weight (review round 2 #38: they counted as unfurrowed, so rows
+/// faded over the last half square at every window edge).
+fn furrow_weight(side: &Sidecar, blocked: &[bool], (w, h): (usize, usize), x: i64, y: i64) -> f64 {
+    if w == 0 || h == 0 {
+        return 0.0;
+    }
+    let clamp = |v: i64, n: usize| usize::try_from(v.max(0)).map_or(n - 1, |v| v.min(n - 1));
+    let (x, y) = (clamp(x, w), clamp(y, h));
+    let i = y * w + x;
+    let furrowed = side.squares.get(i).is_some_and(|q| q.furrow.is_some());
+    if furrowed && !blocked.get(i).copied().unwrap_or(true) {
+        1.0
+    } else {
+        0.0
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::sidecar::{SquareRules, SrdCover, SIDECAR_VERSION};
+
+    fn square(furrow: bool) -> SquareRules {
+        SquareRules {
+            ground: "ploughed".into(),
+            difficult: true,
+            water_depth_ft: 0,
+            cover: SrdCover::None,
+            blocks_sight: false,
+            blocks_movement: false,
+            deck: false,
+            crop: None,
+            furrow: furrow.then_some([1.0, 0.0]),
+            field: None,
+        }
+    }
+
+    #[test]
+    fn furrows_run_on_past_the_window_edge() {
+        // A 3 × 2 window: furrowed but for its east column.
+        let side = Sidecar {
+            format_version: SIDECAR_VERSION,
+            name: "t".into(),
+            seed: "1".into(),
+            width: 3,
+            height: 2,
+            origin_square: [0, 0],
+            square_m: 1.5625,
+            squares: (0..6).map(|i| square(i % 3 != 2)).collect(),
+            edges: Vec::new(),
+            fields: Vec::new(),
+            compounds: Vec::new(),
+        };
+        let blocked = vec![false; 6];
+        let wt = |x, y| furrow_weight(&side, &blocked, (3, 2), x, y);
+        // West and north of the window, the edge squares' field continues.
+        assert!((wt(-1, 0) - 1.0).abs() < f64::EPSILON);
+        assert!((wt(0, -1) - 1.0).abs() < f64::EPSILON);
+        assert!((wt(-3, 5) - 1.0).abs() < f64::EPSILON);
+        // East of it, the unfurrowed edge column continues unfurrowed.
+        assert!(wt(3, 1).abs() < f64::EPSILON);
+        assert!(wt(2, 0).abs() < f64::EPSILON);
     }
 }

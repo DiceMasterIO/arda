@@ -1,5 +1,27 @@
 import { useEffect, useState } from "react";
 
+/**
+ * Hands `request`'s outcome to `onOk` or `onError` only while `signal` is
+ * live. A response that resolves just before its request is aborted would
+ * otherwise show the previous selection until the next one lands (review
+ * round 1 #19).
+ */
+export function whileLive<T>(
+  signal: AbortSignal | undefined,
+  request: Promise<T>,
+  onOk: (value: T) => void,
+  onError: (error: unknown) => void = () => undefined,
+): void {
+  request.then(
+    (value) => {
+      if (!signal?.aborted) onOk(value);
+    },
+    (error: unknown) => {
+      if (!signal?.aborted) onError(error);
+    },
+  );
+}
+
 export type Async<T> =
   | { state: "loading" }
   | { state: "ok"; value: T }
@@ -17,13 +39,11 @@ export function useAsync<T>(load: (signal: AbortSignal) => Promise<T>, deps: rea
   const [settled, setSettled] = useState<{ deps: readonly unknown[]; result: Async<T> } | null>(null);
   useEffect(() => {
     const ctl = new AbortController();
-    load(ctl.signal).then(
-      (value) => {
-        if (!ctl.signal.aborted) setSettled({ deps, result: { state: "ok", value } });
-      },
-      (error: unknown) => {
-        if (!ctl.signal.aborted) setSettled({ deps, result: { state: "error", error } });
-      },
+    whileLive(
+      ctl.signal,
+      load(ctl.signal),
+      (value) => { setSettled({ deps, result: { state: "ok", value } }); },
+      (error) => { setSettled({ deps, result: { state: "error", error } }); },
     );
     return () => {
       ctl.abort();

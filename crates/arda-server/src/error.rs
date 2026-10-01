@@ -9,6 +9,7 @@ use crate::tactical::block::BlockError;
 use axum::http::StatusCode;
 use axum::response::{IntoResponse, Response};
 use axum::Json;
+use schemars::JsonSchema;
 use serde::Serialize;
 use ts_rs::TS;
 
@@ -57,20 +58,24 @@ pub enum ServerError {
     /// A block source could not supply a world-derived tactical block.
     #[error(transparent)]
     Block(#[from] crate::tactical::block::BlockError),
+    /// The `--sheet-mapping` file was refused at startup, or could not
+    /// reshape an NPC (logic/16 §api-sheet-mapping).
+    #[error("sheet mapping: {0}")]
+    SheetMapping(String),
     /// An invariant broke inside the service.
     #[error("internal: {0}")]
     Internal(String),
 }
 
 /// JSON body of every error response.
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, TS)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, TS, JsonSchema)]
 pub struct ApiError {
     /// The error details.
     pub error: ApiErrorBody,
 }
 
 /// The 501 body of a feature whose source crate does not exist yet.
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, TS)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, TS, JsonSchema)]
 pub struct NotYetError {
     /// The error details; `code` is `not_implemented`.
     pub error: ApiErrorBody,
@@ -79,7 +84,7 @@ pub struct NotYetError {
 }
 
 /// Machine-readable code, HTTP status and human message.
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, TS)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, TS, JsonSchema)]
 pub struct ApiErrorBody {
     /// Stable code: `bad_request`, `out_of_range`, `not_found`, `no_block`, `payload_too_large`,
     /// `unsupported_media_type`, `invalid_layout`, `resource_limit`, `not_implemented` or `internal`.
@@ -123,6 +128,7 @@ impl ServerError {
                 (StatusCode::UNSUPPORTED_MEDIA_TYPE, "unsupported_media_type")
             }
             Self::InvalidLayout(_) => (StatusCode::UNPROCESSABLE_ENTITY, "invalid_layout"),
+            Self::SheetMapping(_) => (StatusCode::INTERNAL_SERVER_ERROR, "sheet_mapping"),
             Self::Block(BlockError::NotYet { .. }) => {
                 (StatusCode::NOT_IMPLEMENTED, "not_implemented")
             }
@@ -141,15 +147,75 @@ impl ServerError {
             error: ApiErrorBody {
                 code: code.to_owned(),
                 status: status.as_u16(),
-                message: self.to_string(),
+                message: redact_paths(&self.to_string()),
             },
         }
     }
 }
 
+/// Characters that end a path token in an error message.
+const fn delimits(c: char) -> bool {
+    c.is_whitespace()
+        || matches!(
+            c,
+            '"' | '\'' | '`' | '(' | ')' | '[' | ']' | '{' | '}' | ',' | ';'
+        )
+}
+
+/// Whether a token is an absolute filesystem path (`/…`, `~/…`, `C:\…`).
+fn absolute(token: &str) -> bool {
+    let b = token.as_bytes();
+    token.starts_with('/')
+        || token.starts_with("~/")
+        || (b.len() > 2
+            && b[0].is_ascii_alphabetic()
+            && b[1] == b':'
+            && matches!(b[2], b'\\' | b'/'))
+}
+
+/// Replaces every absolute path in `message` by `…/` and its last
+/// component, so error bodies name the file without disclosing where the
+/// server keeps its worlds (review round 1 #15). The full message goes to
+/// the server log.
+#[must_use]
+pub fn redact_paths(message: &str) -> String {
+    let mut out = String::with_capacity(message.len());
+    let mut token = String::new();
+    let flush = |token: &mut String, out: &mut String| {
+        let core = token.trim_end_matches([':', '.']);
+        if absolute(core) {
+            let tail = &token[core.len()..];
+            let last = core
+                .rsplit(['/', '\\'])
+                .find(|p| !p.is_empty())
+                .unwrap_or("");
+            out.push_str("…/");
+            out.push_str(last);
+            out.push_str(tail);
+        } else {
+            out.push_str(token);
+        }
+        token.clear();
+    };
+    for c in message.chars() {
+        if delimits(c) {
+            flush(&mut token, &mut out);
+            out.push(c);
+        } else {
+            token.push(c);
+        }
+    }
+    flush(&mut token, &mut out);
+    out
+}
+
 impl IntoResponse for ServerError {
     fn into_response(self) -> Response {
         let (status, _) = self.classify();
+        if status.is_server_error() {
+            // The body is redacted; the log keeps the full detail.
+            eprintln!("arda-server: {status} {self}");
+        }
         if let Self::Block(BlockError::NotYet { planned_source }) = &self {
             let body = NotYetError {
                 error: self.body().error,
@@ -208,6 +274,33 @@ mod tests {
         assert_eq!(housing.classify(), (StatusCode::BAD_REQUEST, "bad_request"));
         let big = ServerError::PayloadTooLarge("x".into());
         assert_eq!(big.classify().0, StatusCode::PAYLOAD_TOO_LARGE);
+    }
+
+    #[test]
+    fn error_bodies_never_disclose_absolute_paths() {
+        let io = ServerError::Load(arda_core::LoadError::Corrupt {
+            source: arda_core::FormatError::Io {
+                path: "/home/someone/worlds/micro42/areas/1_2/cells.bin".into(),
+                source: std::io::Error::from(std::io::ErrorKind::PermissionDenied),
+            },
+        });
+        assert!(io.to_string().contains("/home/someone"), "{io}");
+        let body = io.body().error.message;
+        assert!(!body.contains("/home"), "{body}");
+        assert!(body.contains("…/cells.bin"), "{body}");
+        let cases = [
+            (
+                "open \"/srv/w/world.json\": denied",
+                "open \"…/world.json\": denied",
+            ),
+            ("read /a/b/c.bin: gone.", "read …/c.bin: gone."),
+            ("at C:\\worlds\\x\\fine.bin (x)", "at …/fine.bin (x)"),
+            ("cell 3/4 and ratio 1/2 stay", "cell 3/4 and ratio 1/2 stay"),
+            ("~/w/x.bin", "…/x.bin"),
+        ];
+        for (raw, want) in cases {
+            assert_eq!(redact_paths(raw), want);
+        }
     }
 
     #[test]

@@ -51,7 +51,7 @@ The canonical tactical keys (copied from `docs/goal-prompts/vocabulary.md`, whic
 | `class_fields` | a texture without `ground`, a wall without `wall`, a non-wall with `wall` |
 | `wall_kit` | a kit lacks `run`, `corner`, `tee`, `cross` or `end` |
 | `image_missing` | unreadable, or the path leaves the library |
-| `image_size` | not `footprint × pixels_per_square` |
+| `image_size` | not `footprint × pixels_per_square`, or a footprint side over 16 squares (cached sprites stay bounded) |
 | `alpha_opaque` | a cut-out with no transparent pixel |
 | `alpha_fringe` | > 0.5 % of pixels have alpha 1–239 and lie > 2 px from an opaque pixel |
 | `texture_alpha` | a texture with any alpha < 255 |

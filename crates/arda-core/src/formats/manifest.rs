@@ -58,7 +58,7 @@ pub const FINE_TERRAIN_PATH: &str = "terrain/fine.bin";
 pub const FINE_TERRAIN_RECIPE_VERSION: u16 = 7;
 
 /// The newest fine-terrain recipe this build generates and reads (recipe 7,
-/// opt-in). Manifests may name any recipe from 1 to this one.
+/// the default since 0.4.0). Manifests may name any recipe from 1 to this one.
 pub const FINE_TERRAIN_LATEST_RECIPE_VERSION: u16 = 7;
 
 /// Everything needed to identify, verify, or regenerate a world.

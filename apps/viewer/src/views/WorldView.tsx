@@ -7,6 +7,7 @@ import { fitOnResize } from "../geo/fitOnResize.ts";
 import { pyramidCrs, unitsToLatLng } from "../geo/leafletCrs.ts";
 import { deepestZoom, hasRelief, metresPerPx, offersTactical } from "../geo/relief.ts";
 import { cellHash } from "../geo/cellWalk.ts";
+import { whileLive } from "../hooks.ts";
 import { CellInspector } from "./CellInspector.tsx";
 
 type Selected = { cell: CellRef; seq: number } & ({ state: "loading" } | { state: "ok"; sample: CellSample } | { state: "error"; message: string });
@@ -169,13 +170,11 @@ export function WorldView({ client, world }: { client: ArdaClient; world: WorldI
     const ctl = new AbortController();
     const cell = { gx: selGx, gy: selGy };
     const seq = selSeq ?? 0;
-    client.cell(selGx, selGy, { signal: ctl.signal }).then(
-      (sample) => {
-        setSelected({ cell, seq, state: "ok", sample });
-      },
-      (e: unknown) => {
-        if (!ctl.signal.aborted) setSelected({ cell, seq, state: "error", message: describeError(e) });
-      },
+    whileLive(
+      ctl.signal,
+      client.cell(selGx, selGy, { signal: ctl.signal }),
+      (sample) => { setSelected({ cell, seq, state: "ok", sample }); },
+      (e) => { setSelected({ cell, seq, state: "error", message: describeError(e) }); },
     );
     return () => {
       ctl.abort();

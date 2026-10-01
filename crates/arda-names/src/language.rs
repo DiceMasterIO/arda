@@ -49,6 +49,10 @@ pub struct Options {
     pub blocklist: Option<Blocklist>,
 }
 
+/// Most draws [`Language`] makes for one root before it settles for the
+/// last; far more than any built-in inventory needs.
+const ROOT_ATTEMPTS: usize = 4096;
+
 /// A complete naming language, deterministic in `(seed, preset)`.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct Language {
@@ -145,10 +149,20 @@ impl Language {
     }
 
     /// A root whose spelling is new and not blocked.
+    ///
+    /// The first 64 attempts are the original search (a syllable longer
+    /// from the 41st). It used to return its last, possibly blocked or
+    /// repeated, attempt (review round 2 #42); it now keeps drawing,
+    /// alternating plain and one-syllable-longer words, up to
+    /// [`ROOT_ATTEMPTS`]. Roots found within 64 attempts are unchanged.
     fn fresh_root(&self, rng: &mut Rng, seen: &mut BTreeSet<String>, shape: Shape) -> Vec<Ph> {
         let mut w = Vec::new();
-        for attempt in 0..64 {
-            let longer = usize::from(attempt >= 40);
+        for attempt in 0..ROOT_ATTEMPTS {
+            let longer = if attempt < 64 {
+                usize::from(attempt >= 40)
+            } else {
+                (attempt / 64) % 2
+            };
             let len = self.phonology.root_len(rng);
             w = match shape {
                 Shape::Affix => self.phonology.affix(rng),

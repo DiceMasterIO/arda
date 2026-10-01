@@ -25,7 +25,10 @@ pub mod people;
 pub mod query;
 pub mod relief;
 pub mod routes;
+pub mod schema;
 pub mod serve;
+pub mod sheet_map;
+pub mod society_cells;
 pub mod tactical;
 pub mod tiles;
 
@@ -64,6 +67,9 @@ pub struct ServerConfig {
     pub serve: serve::ServeLimits,
     /// Tactical prefetch worker threads (goal 67; 0 disables prefetch).
     pub prefetch_workers: usize,
+    /// Sheet mapping file (`--sheet-mapping`, goal 69): reshapes every NPC
+    /// the server sends; `None` serves Arda's own shape.
+    pub sheet_mapping: Option<PathBuf>,
 }
 
 /// Worst-case transient bytes of one `/area/.../cells` build: 262,144
@@ -88,6 +94,7 @@ impl ServerConfig {
             area_builds: 2,
             serve: serve::ServeLimits::default(),
             prefetch_workers: tactical::prefetch::DEFAULT_WORKERS,
+            sheet_mapping: None,
         }
     }
 
@@ -151,6 +158,8 @@ pub struct AppState {
     pub people: Option<std::sync::Arc<arda_people::World>>,
     /// The tactical prefetch queue and workers.
     pub prefetch: tactical::prefetch::Prefetcher,
+    /// The checked `--sheet-mapping`, applied to every NPC served.
+    pub sheet_mapping: Option<sheet_map::SheetMapping>,
 }
 
 impl AppState {
@@ -161,6 +170,12 @@ impl AppState {
     /// Admission, library validation, world loading or limit failures.
     pub fn open(config: &ServerConfig) -> ServerResult<Self> {
         config.admit()?;
+        // Goal 69: a bad mapping refuses startup before the world loads.
+        let sheet_mapping = config
+            .sheet_mapping
+            .as_deref()
+            .map(sheet_map::SheetMapping::load)
+            .transpose()?;
         let query = WorldQuery::open(&config.world, config.query)?;
         let mut tactical = Tactical::open(&config.library, query.world().seed(), config.tactical)?;
         // Adapter A9: world-derived blocks from arda-refine composed with the
@@ -206,7 +221,27 @@ impl AppState {
             area_builds: tokio::sync::Semaphore::new(config.area_builds.max(1)),
             people,
             prefetch: tactical::prefetch::Prefetcher::new(config.prefetch_workers),
+            sheet_mapping,
         })
+    }
+
+    /// Replaces the sheet mapping (tests and embedders).
+    #[must_use]
+    pub fn with_sheet_mapping(mut self, mapping: Option<sheet_map::SheetMapping>) -> Self {
+        self.sheet_mapping = mapping;
+        self
+    }
+
+    /// Sends a body holding NPCs through the sheet mapping, if any.
+    ///
+    /// # Errors
+    /// Serialisation or mapping failures.
+    pub fn npc_response<T: serde::Serialize>(
+        &self,
+        body: &T,
+        at: sheet_map::NpcAt,
+    ) -> ServerResult<axum::response::Response> {
+        sheet_map::respond(self.sheet_mapping.as_ref(), body, at)
     }
 
     /// Plugs in the source of world-derived tactical blocks.
@@ -227,10 +262,16 @@ mod tests {
         assert!(config.admit().is_ok());
         // Caches, the pyramid base, two area builds, 64 buffered bodies,
         // the tactical caches sized for world cells at 128 px per square
-        // (logic/16 §api-cache: renders and tiles within 4 GiB) and one
-        // transient render per lane (request and prefetch).
-        assert!(config.admitted_bytes() < 14 << 30);
-        assert!(config.tactical.admitted_bytes() < 5 << 30);
+        // (logic/16 §api-cache: renders and tiles within 4 GiB), one
+        // transient render per lane (request and prefetch) and the one
+        // transient encode both lanes share (review round 2 #32).
+        assert!(config.admitted_bytes() < 15 << 30);
+        assert!(config.tactical.admitted_bytes() < 6 << 30);
+        assert!(
+            config.tactical.admitted_bytes()
+                > config.tactical.transient_render_bytes()
+                    + config.tactical.transient_encode_bytes()
+        );
         let mut big = config.clone();
         big.query.area_bytes = 16 << 30;
         assert!(matches!(big.admit(), Err(ServerError::ResourceLimit(_))));

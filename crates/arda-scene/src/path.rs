@@ -10,7 +10,8 @@
 //!   separate rules, so they add: climbing out of a wade costs 15 ft.
 //! - Impassable squares and wall edges that block movement stop a step; a
 //!   diagonal step may not cut a vertex any movement-blocking wall touches,
-//!   nor squeeze between two impassable squares.
+//!   nor squeeze between two impassable squares. These two corner rules are
+//!   Arda house rules (SRD 5.1 says nothing about grid corners).
 
 use crate::index::SceneIndex;
 use crate::squares::DIRS;

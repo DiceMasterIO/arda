@@ -303,3 +303,19 @@ fn overflowing_footprints_are_an_image_size_issue_not_a_panic() {
     };
     assert_only(&run(&c, &i), "prop.barrel", Rule::ImageSize);
 }
+
+#[test]
+fn footprints_beyond_the_sprite_cap_are_an_image_size_issue() {
+    let (mut c, mut i) = good();
+    let side = crate::validate::MAX_FOOTPRINT_SQUARES + 1;
+    c.assets[0].footprint = Footprint { w: side, h: 1 };
+    // The image matches the footprint, so only the cap can object.
+    let mut img = Rgba::new(side * PPSQ, PPSQ);
+    for x in 0..side * PPSQ {
+        img.set(x, 8, [120, 80, 40, 255]);
+    }
+    i.insert("prop.barrel".into(), Ok(img));
+    let issues = run(&c, &i);
+    assert_only(&issues, "prop.barrel", Rule::ImageSize);
+    assert!(issues[0].to_string().contains("limit"), "{}", issues[0]);
+}

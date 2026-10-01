@@ -2,6 +2,7 @@
 //! from something that actually happened to it in the timeline.
 
 use super::founding::{site_phrase, Founding};
+use super::index::HistoryIndex;
 use super::{EventKind, History};
 use crate::ctx::Ctx;
 use crate::economy::EconomyRun;
@@ -12,6 +13,7 @@ use serde::{Deserialize, Serialize};
 
 /// One line of settlement history.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[cfg_attr(feature = "schema", derive(schemars::JsonSchema))]
 pub struct HistoryHook {
     /// The line.
     pub text: String,
@@ -21,13 +23,41 @@ pub struct HistoryHook {
     pub refs: Vec<EntityRef>,
 }
 
-/// History hooks per node.
-#[must_use]
-pub fn lore(ctx: &Ctx<'_>, f: &Founding, h: &History, econ: &EconomyRun) -> Vec<Vec<HistoryHook>> {
-    (0..ctx.n()).map(|i| one(ctx, f, h, econ, i)).collect()
+/// What one settlement's lore reads.
+struct Sources<'a> {
+    f: &'a Founding,
+    h: &'a History,
+    ix: &'a HistoryIndex,
+    econ: &'a EconomyRun,
+    /// Flow indices by exporting settlement, in flow order.
+    flows_from: std::collections::BTreeMap<u64, Vec<usize>>,
 }
 
-fn one(ctx: &Ctx<'_>, f: &Founding, h: &History, econ: &EconomyRun, i: usize) -> Vec<HistoryHook> {
+/// History hooks per node.
+#[must_use]
+pub fn lore(
+    ctx: &Ctx<'_>,
+    f: &Founding,
+    h: &History,
+    ix: &HistoryIndex,
+    econ: &EconomyRun,
+) -> Vec<Vec<HistoryHook>> {
+    let mut flows_from: std::collections::BTreeMap<u64, Vec<usize>> = Default::default();
+    for (k, fl) in econ.economy.flows.iter().enumerate() {
+        flows_from.entry(fl.from).or_default().push(k);
+    }
+    let src = Sources {
+        f,
+        h,
+        ix,
+        econ,
+        flows_from,
+    };
+    (0..ctx.n()).map(|i| one(ctx, &src, i)).collect()
+}
+
+fn one(ctx: &Ctx<'_>, src: &Sources<'_>, i: usize) -> Vec<HistoryHook> {
+    let (f, h, ix) = (src.f, src.h, src.ix);
     let s = ctx.s(i);
     let t = &ctx.t.history;
     let mut rng = Stream::new(ctx.seed, "lore", s.id, 0);
@@ -79,14 +109,12 @@ fn one(ctx: &Ctx<'_>, f: &Founding, h: &History, econ: &EconomyRun, i: usize) ->
             vec![EntityRef::settlement(s.id)],
         ),
     }
-    if let Some(b) = h.border_shifts.iter().find(|b| b.settlement == s.id) {
+    if let Some(b) = ix.first_shift(h, s.id) {
         let former = ctx
             .realm_ix(b.from_realm)
             .map_or(String::new(), |r| ctx.realms[r].name.clone());
-        let war = h
-            .wars
-            .iter()
-            .find(|w| w.event == b.war_event)
+        let war = ix
+            .war_of_event(h, b.war_event)
             .map_or(String::new(), |w| w.name.clone());
         let sl = base
             .clone()
@@ -109,10 +137,9 @@ fn one(ctx: &Ctx<'_>, f: &Founding, h: &History, econ: &EconomyRun, i: usize) ->
             ],
         );
     }
-    let worst = h
-        .events
-        .iter()
-        .filter(|e| e.settlements.contains(&s.id) && e.severity >= 2)
+    let worst = ix
+        .events_of(h, s.id)
+        .filter(|e| e.severity >= 2)
         .filter(|e| {
             matches!(
                 e.kind,
@@ -145,7 +172,8 @@ fn one(ctx: &Ctx<'_>, f: &Founding, h: &History, econ: &EconomyRun, i: usize) ->
             vec![EntityRef::Event { id: e.id }],
         );
     }
-    if let Some(r) = ctx.realms.iter().find(|r| r.seat == i) {
+    let seat_of = || ctx.realms.iter().find(|r| r.seat == i);
+    if let Some(r) = ctx.is_seat(i).then(seat_of).flatten() {
         if let Some(d) = h
             .dynasties
             .iter()
@@ -165,7 +193,7 @@ fn one(ctx: &Ctx<'_>, f: &Founding, h: &History, econ: &EconomyRun, i: usize) ->
             );
         }
     }
-    if let Some(r) = h.ruins.iter().find(|r| r.near == s.id) {
+    if let Some(r) = ix.ruin_near(h, s.id) {
         let sl = base
             .clone()
             .with("ruin", r.name.clone())
@@ -179,11 +207,13 @@ fn one(ctx: &Ctx<'_>, f: &Founding, h: &History, econ: &EconomyRun, i: usize) ->
             vec![EntityRef::Ruin { id: r.id }],
         );
     }
-    let top = econ
-        .economy
-        .flows
-        .iter()
-        .filter(|fl| fl.from == s.id)
+    let flows = &src.econ.economy.flows;
+    let top = src
+        .flows_from
+        .get(&s.id)
+        .into_iter()
+        .flatten()
+        .filter_map(|&k| flows.get(k))
         .max_by(|a, b| a.value_sp.cmp(&b.value_sp).then(b.to.cmp(&a.to)));
     if let Some(fl) = top {
         let dest = ctx

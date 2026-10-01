@@ -4,12 +4,13 @@
 //! sidecar through the mirror to keep the two in step.
 
 use super::dto::EdgeAxisDto;
+use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 use std::collections::BTreeMap;
 use ts_rs::TS;
 
 /// SRD 5.1 degrees of cover.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, TS)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, TS, JsonSchema)]
 #[serde(rename_all = "snake_case")]
 pub enum CoverLevelDto {
     /// No cover.
@@ -23,7 +24,7 @@ pub enum CoverLevelDto {
 }
 
 /// Why a rules edge exists.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, TS)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, TS, JsonSchema)]
 #[serde(rename_all = "snake_case")]
 pub enum EdgeRoleDto {
     /// Bridge parapet: blocks movement, not sight.
@@ -39,7 +40,7 @@ pub enum EdgeRoleDto {
 }
 
 /// One square's rules; an absent field means "no opinion".
-#[derive(Debug, Clone, Default, PartialEq, Serialize, Deserialize, TS)]
+#[derive(Debug, Clone, Default, PartialEq, Serialize, Deserialize, TS, JsonSchema)]
 #[serde(deny_unknown_fields)]
 pub struct RulesCellDto {
     /// Difficult terrain.
@@ -78,7 +79,7 @@ pub struct RulesCellDto {
 }
 
 /// Movement and sight rules of one unit edge.
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, TS)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, TS, JsonSchema)]
 #[serde(deny_unknown_fields)]
 pub struct EdgeRuleDto {
     /// Square column.
@@ -103,7 +104,7 @@ const fn no_cover() -> CoverLevelDto {
 }
 
 /// The per-square rules sidecar, format 2.
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, TS)]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, TS, JsonSchema)]
 #[serde(deny_unknown_fields)]
 pub struct RulesSidecarDto {
     /// Always 2.

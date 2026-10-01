@@ -31,6 +31,10 @@ pub(crate) enum Lane {
 pub(crate) struct Lanes {
     request: Mutex<()>,
     prefetch: Mutex<()>,
+    /// PNG encoding and pyramid building after a render: one at a time
+    /// across both lanes, so admission counts one transient encode (review
+    /// round 2 #32: they ran outside the render locks, unbounded).
+    encode: Mutex<()>,
     inflight: Mutex<BTreeSet<RenderKey>>,
     done: Condvar,
 }
@@ -51,6 +55,14 @@ impl Drop for InFlight<'_> {
         set.remove(&self.key);
         drop(set);
         self.lanes.done.notify_all();
+    }
+}
+
+impl Lanes {
+    /// Holds the single encode slot until the guard drops; waits for it
+    /// when another encode runs. Poisoning is ignored: the lock guards no data.
+    pub(crate) fn encode_slot(&self) -> std::sync::MutexGuard<'_, ()> {
+        self.encode.lock().unwrap_or_else(PoisonError::into_inner)
     }
 }
 
@@ -125,5 +137,43 @@ impl Tactical {
         stage("render", &img, start);
         let bytes = img.data.len();
         Ok(lock(&self.renders)?.insert(key.clone(), Arc::new(img), bytes))
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    /// Review round 2 #32: PNG encodes and pyramid builds share one slot,
+    /// so admission's single transient encode holds however many requests
+    /// finish their renders at once.
+    #[test]
+    fn one_encode_runs_at_a_time() {
+        let lanes = Arc::new(Lanes::default());
+        let running = Arc::new(Mutex::new((0_u32, 0_u32)));
+        let threads: Vec<_> = (0..8)
+            .map(|_| {
+                let (lanes, running) = (Arc::clone(&lanes), Arc::clone(&running));
+                std::thread::spawn(move || {
+                    let _slot = lanes.encode_slot();
+                    {
+                        let mut r = running.lock().unwrap();
+                        r.0 += 1;
+                        r.1 = r.1.max(r.0);
+                    }
+                    std::thread::sleep(std::time::Duration::from_millis(5));
+                    running.lock().unwrap().0 -= 1;
+                })
+            })
+            .collect();
+        for t in threads {
+            t.join().unwrap();
+        }
+        assert_eq!(running.lock().unwrap().1, 1);
+        // A slot held elsewhere makes the next encode wait.
+        let held = lanes.encode_slot();
+        assert!(lanes.encode.try_lock().is_err());
+        drop(held);
+        assert!(lanes.encode.try_lock().is_ok());
     }
 }

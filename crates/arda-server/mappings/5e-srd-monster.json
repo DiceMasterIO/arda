@@ -1,0 +1,439 @@
+{
+  "format": "arda-sheet-mapping",
+  "version": 1,
+  "name": "5e-srd-monster",
+  "description": "Arda Npc -> the open 5e SRD JSON monster layout (5e-database / dnd5eapi.co field names, which Open5e shares for the core stats). Written from public SRD 5.1 field conventions only; the values are Arda's own and no SRD text is copied. Class builds have no challenge rating, so challenge_rating and xp appear for stat-block NPCs only.",
+  "base": "empty",
+  "tables": {
+    "ability_index": {
+      "STR": "str",
+      "DEX": "dex",
+      "CON": "con",
+      "INT": "int",
+      "WIS": "wis",
+      "CHA": "cha"
+    },
+    "size": {
+      "Tiny": "Tiny",
+      "Small": "Small",
+      "Medium": "Medium",
+      "Large": "Large",
+      "Huge": "Huge",
+      "Gargantuan": "Gargantuan"
+    },
+    "damage_name": {
+      "acid": "Acid",
+      "bludgeoning": "Bludgeoning",
+      "cold": "Cold",
+      "fire": "Fire",
+      "force": "Force",
+      "lightning": "Lightning",
+      "necrotic": "Necrotic",
+      "piercing": "Piercing",
+      "poison": "Poison",
+      "psychic": "Psychic",
+      "radiant": "Radiant",
+      "slashing": "Slashing",
+      "thunder": "Thunder"
+    },
+    "challenge": {
+      "0": 0,
+      "1/8": 0.125,
+      "1/4": 0.25,
+      "1/2": 0.5,
+      "1": 1,
+      "2": 2,
+      "3": 3,
+      "4": 4,
+      "5": 5,
+      "6": 6,
+      "7": 7,
+      "8": 8,
+      "9": 9,
+      "10": 10,
+      "11": 11,
+      "12": 12,
+      "13": 13,
+      "14": 14,
+      "15": 15,
+      "16": 16,
+      "17": 17,
+      "18": 18,
+      "19": 19,
+      "20": 20,
+      "21": 21,
+      "22": 22,
+      "23": 23,
+      "24": 24,
+      "25": 25,
+      "26": 26,
+      "27": 27,
+      "28": 28,
+      "29": 29,
+      "30": 30
+    },
+    "attack_kind": {
+      "melee": "Melee Weapon Attack",
+      "ranged": "Ranged Weapon Attack"
+    }
+  },
+  "rules": [
+    {
+      "to": "/index",
+      "from": "/id"
+    },
+    {
+      "to": "/name",
+      "template": "{/name/given} {/name/family}"
+    },
+    {
+      "to": "/size",
+      "from": "/sheet/size",
+      "convert": [
+        {
+          "op": "table",
+          "table": "size"
+        }
+      ]
+    },
+    {
+      "to": "/type",
+      "const": "humanoid"
+    },
+    {
+      "to": "/subtype",
+      "from": "/ancestry_name",
+      "convert": [
+        {
+          "op": "case",
+          "to": "lower"
+        }
+      ]
+    },
+    {
+      "to": "/alignment",
+      "const": "any alignment"
+    },
+    {
+      "to": "/armor_class/0/type",
+      "const": "armor"
+    },
+    {
+      "to": "/armor_class/0/value",
+      "from": "/sheet/armor_class"
+    },
+    {
+      "to": "/armor_class/0/armor",
+      "from": "/sheet/armor",
+      "fields": [
+        {
+          "to": "/index",
+          "from": "",
+          "convert": [
+            {
+              "op": "case",
+              "to": "kebab"
+            }
+          ]
+        },
+        {
+          "to": "/name",
+          "from": ""
+        }
+      ]
+    },
+    {
+      "to": "/hit_points",
+      "from": "/sheet/hit_points"
+    },
+    {
+      "to": "/hit_dice",
+      "from": "/sheet/hit_dice"
+    },
+    {
+      "to": "/speed/walk",
+      "from": "/sheet/speed",
+      "convert": [
+        {
+          "op": "format",
+          "pattern": "{} ft."
+        }
+      ]
+    },
+    {
+      "to": "/strength",
+      "from": "/sheet/abilities/0"
+    },
+    {
+      "to": "/dexterity",
+      "from": "/sheet/abilities/1"
+    },
+    {
+      "to": "/constitution",
+      "from": "/sheet/abilities/2"
+    },
+    {
+      "to": "/intelligence",
+      "from": "/sheet/abilities/3"
+    },
+    {
+      "to": "/wisdom",
+      "from": "/sheet/abilities/4"
+    },
+    {
+      "to": "/charisma",
+      "from": "/sheet/abilities/5"
+    },
+    {
+      "to": "/proficiency_bonus",
+      "from": "/sheet/proficiency_bonus"
+    },
+    {
+      "to": "/proficiencies",
+      "from": "/sheet/saves",
+      "where": {
+        "/proficient": true
+      },
+      "fields": [
+        {
+          "to": "/value",
+          "from": "/bonus"
+        },
+        {
+          "to": "/proficiency/index",
+          "from": "/ability",
+          "convert": [
+            {
+              "op": "table",
+              "table": "ability_index"
+            },
+            {
+              "op": "format",
+              "pattern": "saving-throw-{}"
+            }
+          ]
+        },
+        {
+          "to": "/proficiency/name",
+          "from": "/ability",
+          "convert": [
+            {
+              "op": "format",
+              "pattern": "Saving Throw: {}"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "to": "/proficiencies",
+      "append": true,
+      "from": "/sheet/skills",
+      "fields": [
+        {
+          "to": "/value",
+          "from": "/bonus"
+        },
+        {
+          "to": "/proficiency/index",
+          "from": "/name",
+          "convert": [
+            {
+              "op": "case",
+              "to": "kebab"
+            },
+            {
+              "op": "format",
+              "pattern": "skill-{}"
+            }
+          ]
+        },
+        {
+          "to": "/proficiency/name",
+          "from": "/name",
+          "convert": [
+            {
+              "op": "format",
+              "pattern": "Skill: {}"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "to": "/damage_vulnerabilities",
+      "const": []
+    },
+    {
+      "to": "/damage_resistances",
+      "from": "/sheet/damage_resistances"
+    },
+    {
+      "to": "/damage_immunities",
+      "const": []
+    },
+    {
+      "to": "/condition_immunities",
+      "const": []
+    },
+    {
+      "to": "/senses/passive_perception",
+      "from": "/sheet/passive_perception"
+    },
+    {
+      "to": "/languages",
+      "from": "/sheet/languages",
+      "convert": [
+        {
+          "op": "join",
+          "sep": ", "
+        }
+      ]
+    },
+    {
+      "to": "/challenge_rating",
+      "from": "/sheet/kind/challenge_rating",
+      "optional": true,
+      "convert": [
+        {
+          "op": "table",
+          "table": "challenge"
+        }
+      ]
+    },
+    {
+      "to": "/xp",
+      "from": "/sheet/kind/xp",
+      "optional": true
+    },
+    {
+      "to": "/special_abilities",
+      "from": "/sheet/features",
+      "fields": [
+        {
+          "to": "/name",
+          "from": ""
+        }
+      ]
+    },
+    {
+      "to": "/actions",
+      "from": "/sheet/attacks",
+      "fields": [
+        {
+          "to": "/name",
+          "from": "/name"
+        },
+        {
+          "to": "/attack_bonus",
+          "from": "/to_hit"
+        },
+        {
+          "to": "/desc",
+          "template": "+{/to_hit} to hit, {/range}. Hit: {/average} ({/damage}) {/damage_type} damage."
+        },
+        {
+          "to": "/action_type",
+          "from": "/kind",
+          "convert": [
+            {
+              "op": "table",
+              "table": "attack_kind"
+            }
+          ]
+        },
+        {
+          "to": "/damage/0/damage_type/index",
+          "from": "/damage_type"
+        },
+        {
+          "to": "/damage/0/damage_type/name",
+          "from": "/damage_type",
+          "convert": [
+            {
+              "op": "table",
+              "table": "damage_name"
+            }
+          ]
+        },
+        {
+          "to": "/damage/0/damage_dice",
+          "from": "/damage",
+          "convert": [
+            {
+              "op": "replace",
+              "find": " ",
+              "with": ""
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "to": "/spellcasting",
+      "from": "/sheet/spellcasting",
+      "optional": true,
+      "fields": [
+        {
+          "to": "/ability/index",
+          "from": "/ability",
+          "convert": [
+            {
+              "op": "table",
+              "table": "ability_index"
+            }
+          ]
+        },
+        {
+          "to": "/dc",
+          "from": "/save_dc"
+        },
+        {
+          "to": "/modifier",
+          "from": "/attack_bonus"
+        },
+        {
+          "to": "/slots",
+          "from": "/slots"
+        },
+        {
+          "to": "/spells",
+          "from": "/spells",
+          "fields": [
+            {
+              "to": "/name",
+              "from": "/name"
+            },
+            {
+              "to": "/index",
+              "from": "/name",
+              "convert": [
+                {
+                  "op": "case",
+                  "to": "kebab"
+                }
+              ]
+            },
+            {
+              "to": "/level",
+              "from": "/level"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "to": "/arda/npc_id",
+      "from": "/id"
+    },
+    {
+      "to": "/arda/job",
+      "from": "/job/key"
+    },
+    {
+      "to": "/arda/home_building",
+      "from": "/home_building"
+    }
+  ],
+  "drop": []
+}

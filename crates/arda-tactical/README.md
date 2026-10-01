@@ -16,6 +16,8 @@ arda tactical placeholders --out assets/tactical/placeholder [--seed 58]
 arda tactical render --layout riverside --library assets/tactical/placeholder \
     --ppsq 128 --out out/tactical/riverside.png [--seed 1] [--grid] [--no-lighting] [--no-grade]
 arda tactical render --layout all --out out/tactical       # every built-in layout
+arda tactical import raw/ --out art/ [--manifest import.toml] [--contact-sheet sheet.png]
+arda tactical render --layout riverside --library art:assets/tactical/placeholder   # a stack
 ```
 
 `--layout` takes one of these:
@@ -33,6 +35,8 @@ arda tactical render --layout all --out out/tactical       # every built-in layo
 ```
 
 The library is read at run time, so you can swap in a new directory without recompiling. Image paths must be relative and must stay inside the directory.
+
+**Library stacks.** Wherever a library is named (`render --library`, `validate`, the server's `--library`, `arda-town block --library`, and the `--library` argument of the arda-scene `debug` and arda-ways `crossings` examples), a `top:…:bottom` stack also works, like `PATH`: the leftmost library wins and the rest fill in what it lacks. Fallback is per thing the compositor picks among, so styles never mix inside one pick: props and vegetation per id, ground and water per `ground` key (all of a key's variants come from one library), and wall pieces per kit and role. Each layer is validated on its own except for `wall_kit` (an upper layer may hold part of a kit); the merged stack is validated in full.
 
 Images are 8-bit PNGs, usually RGBA; RGB and grey are also accepted. Alpha is straight, not premultiplied.
 
@@ -127,7 +131,7 @@ Every kit must provide `run`, `corner`, `tee`, `cross` and `end`. If a kit has s
 | `class_fields` | a ground or water texture has no `ground` key; a wall asset has no `wall`; a non-wall asset has one |
 | `wall_kit` | a kit lacks `run`, `corner`, `tee`, `cross` or `end` |
 | `image_missing` | the image is unreadable or its path leaves the library |
-| `image_size` | the image is not `footprint × pixels_per_square` |
+| `image_size` | the image is not `footprint × pixels_per_square`, or a footprint side exceeds 16 squares |
 | `alpha_opaque` | a cut-out (wall, prop or vegetation) has no transparent pixels |
 | `alpha_fringe` | more than 0.5 % of pixels are semi-transparent (alpha 1–239) *and* more than 2 px from an opaque pixel (haze, halos or glow); a normal anti-aliased edge passes |
 | `texture_alpha` | a ground or water texture has any alpha below 255 |
@@ -190,3 +194,73 @@ cargo test --release -p arda-tactical --test timing -- --ignored --nocapture
 - *Ground* is painted on a wrapping brush tile: periodic rotated noise, hundreds of translucent dabs, grass tufts, pebbles, angular stones and wandering cracks, all toroidal so every texture passes the seam rule.
 - *Cut-outs* are painted on a relief: colour, coverage, a height field and ink per pixel, then shaded from the top-left and outlined. Canopies are layered leaf clusters; rocks are irregular outlines with soft facets; nothing is painted outside a shape, so no shadow is baked.
 - Props carry `function` tags for dressing queries (`function:inn` finds the bar counter, cask rack, tables and hearth; `function:smithy` the anvil, forge and grindstone) and workshop tools a `craft:*` free tag.
+
+## Importing AI art (`arda tactical import`)
+
+`arda tactical import` (crate `arda-art-import`) turns a folder of raw generator output (ComfyUI with SDXL or FLUX.1-schnell, say) into a library that passes the validator, and writes a report of what it fixed and what needs your eye. The workflow:
+
+1. **Generate** into one folder, subfolders allowed. Name each file after the asset it should become; anything after `__`, or after the id's own parts, is ignored:
+
+   | file | becomes |
+   |---|---|
+   | `prop.anvil__ComfyUI_00012_.png` | prop `prop.anvil` |
+   | `veg.tree_oak.v3.png` | vegetation `veg.tree_oak` |
+   | `ground.grass.anything.png` | a `grass` variant (`ground.grass.0`, `.1`, … in file order) |
+   | `water.water_shallow.2.png` | a `water_shallow` variant |
+   | `wall.stone.corner__take2.png` | the `corner` piece of kit `stone` |
+
+   A second file for the same cut-out becomes `<id>.alt1` and so on, which queries can pick. Files you cannot rename are mapped in the manifest. Ids missing from `docs/goal-prompts/vocabulary.md` are imported but flagged ("did you mean `anvil`?"), because no layout asks for them.
+
+2. **Prompt for what the importer expects.** Cut-outs: top-down, one object, centred, on a plain light or grey backdrop (or with real transparency), even light from the top-left, "no shadow". Walls: one square canvas with the joint vertex (or the edge midpoint) at the centre and arms reaching the borders; the orientation is fixed for you. Ground: a flat, evenly lit top-down surface with no vignette; structured surfaces (cobbles, flagstones, boards, rugs, furrows, strata) should all show the same layout across variants.
+
+3. **Write `import.toml`** (optional, but it is where provenance and the licence come from):
+
+   ```toml
+   [library]
+   name = "arda-ai"            # default "imported"
+   version = "0.1.0"
+   licence = "CC0-1.0"         # required by the validator; flagged when missing
+   tool = "ComfyUI"
+   model = "FLUX.1-schnell"
+   author = "…"
+   # pixels_per_square = 128   # default: the base library's
+
+   [grade]                     # optional global colour grade
+   reference = "assets/reference/tactical-target/4.jpg"   # or palette = ["#6f7f4a", …]
+   strength = 0.5
+
+   [[asset]]
+   file = "ComfyUI_00012_.png" # map a file by name…
+   id = "prop.anvil"
+   prompt = "top-down iron anvil, …"
+   seed = 812734
+   [[asset]]
+   id = "prop.table"           # …or override every file of an id
+   footprint = [2, 1]
+   height_ft = 3
+   cover = "half"
+   tags = { function = ["inn", "tavern"], free = ["furniture"] }
+   shadow = "keep"             # never strip; only flag
+   ```
+
+   Per-asset keys: `prompt`, `seed`, `tool`, `model`, `licence`, `footprint`, `height_ft`, `cover`, `layer`, `blocks_sight`, `blocks_movement`, `difficult_terrain`, `tags`, `structured` and `shadow`. Prompt, seed and model are also read from the PNG's own ComfyUI (`prompt` graph) or A1111 (`parameters`) metadata when the manifest does not give them.
+
+4. **Run it:**
+
+   ```sh
+   arda tactical import raw/ --out art/ --manifest import.toml --contact-sheet art-sheet.png
+   arda tactical render --layout all --library art:assets/tactical/placeholder --out out/art
+   ```
+
+   `--base` (default `assets/tactical/placeholder`, or `--no-base`) supplies default metadata, the coverage list and the stacked validation; `--reference` and `--grade-strength` override the manifest's grade.
+
+5. **Curate.** Read `art/report.md` and look at the contact sheet: green frames are clean, amber ones carry flags, red ones were rejected (their processed image is kept in `art/rejected/` and their slot falls back to the placeholder). Textures appear tiled 2 × 2, so a seam shows. Fix by re-generating, renaming or overriding in the manifest, then run the import again; it is deterministic, so unchanged inputs give byte-identical outputs.
+
+What the importer does, per class:
+
+- **Props, vegetation and walls.** Without alpha, the backdrop is estimated from the border and flooded by colour distance with a tolerance. A baked drop shadow (the backdrop colour darkened: same chromaticity, smooth, connected to the backdrop) is stripped when it is large and off-centre, and flagged when it is doubtful; on images that already have alpha, a dark, grey, soft-alpha region reaching past the silhouette is treated the same way. The edge is then unmixed against the local backdrop colour (soft matte and defringe), halos and haze beyond 2 px and stray specks are removed, and the object is cropped, centred and fitted to `footprint × ppsq` with a Mitchell filter in premultiplied alpha, turned 90° if that fits a non-square footprint much better. Wall pieces keep their canvas and are turned to the canonical arms (edge pieces west–east, `corner` E+S, `tee` E+S+W, `end` E). A grey or dark south-east rim left on the object is flagged as a possible painted shadow.
+- **Ground and water.** Centre-cropped to the footprint's aspect, resized to the tile, broad contrast divided out, and made tileable: natural surfaces by offset-and-blend (variance preserving), structured ones by an edge blend that leaves the layout in place. Structured variants are registered against the first one (a shifted layout is rolled into place) and flagged if they still differ.
+- **Grade.** One affine colour transform for the whole library, matching mean and spread to the reference or palette in an opponent colour space, scaled by `strength` (default 0.5). The reference maps are finished renders that already carry the compositor's warm grade, so a strong match can warm the result twice; start at 0.3–0.5.
+- **Catalogue.** Metadata comes from the base library's record of the same id, ground key or kit role (footprint, tags, layer, blocking, cover, `height_ft`, `structured`), else from class and name defaults (trees on the canopy layer, 3 × 3 and 30 ft; rocks block movement; reeds are difficult terrain; walls give total cover). The manifest overrides both.
+
+The report (`report.md` and `report.json`) lists the fixes applied to each asset, the flags for review, skipped files, the validator result for the library alone and stacked over the base, partial kits, and vocabulary coverage: which slots the import provides, which still fall back to the placeholders, and which no library has.

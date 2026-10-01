@@ -169,7 +169,7 @@ fn cells_cover_their_hundred_metre_square_from_the_north_west_corner() {
     assert_eq!(f64::from(last.cell.gx), end_x / 100.0 - 1.0);
     assert!(s.query.sample_point(end_x, 50.0).is_err());
     let cell = s.query.cell(3, 4).unwrap();
-    assert_eq!(cell.contract_version, 2);
+    assert_eq!(cell.contract_version, arda_server::CONTRACT_VERSION);
     assert_eq!((cell.centre_x_m, cell.centre_y_m), (350.0, 450.0));
 }
 

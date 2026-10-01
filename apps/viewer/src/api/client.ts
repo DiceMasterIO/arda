@@ -24,13 +24,12 @@ import {
   parseLayout,
   parseLibrary,
   parseLayouts,
-  parseTokens,
   type TacticalCellResult,
   type TacticalLayoutDto,
   type TacticalLayouts,
   type TacticalLibraryDto,
-  type TokenView,
 } from "./tactical.ts";
+import { parseScene, type TacticalScene } from "./scene.ts";
 
 /** Options of world-derived tactical cells: `?ppsq`, `?demo_overlays=1`, `?world_grade=1`. */
 export interface CellOptions {
@@ -373,9 +372,9 @@ export class ArdaClient {
    * `GET /v1/tactical/cell/{gx}/{gy}`: a Block, or the 501 "not yet" state,
    * which is a normal result here, not an error. Other failures throw.
    */
-  /** `GET /v1/tactical/cell/{gx}/{gy}/scene`: the NPC tokens of the block (A13). */
-  async tacticalTokens(gx: number, gy: number, init?: RequestInit, opts: CellOptions = {}): Promise<TokenView[]> {
-    return parseTokens(await this.json(`/v1/tactical/cell/${gx}/${gy}/scene${cellQuery(opts)}`, init));
+  /** `GET /v1/tactical/cell/{gx}/{gy}/scene`: the block's scene (walls, lights, run-length grids) and its NPC tokens (A12, A13). */
+  async tacticalScene(gx: number, gy: number, init?: RequestInit, opts: CellOptions = {}): Promise<TacticalScene> {
+    return parseScene(await this.json(`/v1/tactical/cell/${gx}/${gy}/scene${cellQuery(opts)}`, init));
   }
 
   async tacticalCell(gx: number, gy: number, init?: RequestInit, opts: CellOptions = {}): Promise<TacticalCellResult> {

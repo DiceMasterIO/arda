@@ -57,7 +57,9 @@ fn entrances(ix: &SceneIndex<'_>) -> Vec<Entrance> {
         .walls
         .iter()
         .enumerate()
-        .filter(|(_, w)| w.kind.opens())
+        // A secret door looks like wall until found: it is no spawn
+        // entrance (review round 2 #39).
+        .filter(|(_, w)| w.kind.opens() && w.kind != crate::types::WallKind::Secret)
         .map(|(i, w)| {
             let mut squares = Vec::new();
             for (axis, x, y) in unit_edges(w) {
@@ -121,9 +123,11 @@ fn exits(ix: &SceneIndex<'_>) -> Vec<EdgeExit> {
     out
 }
 
-/// Free layout lights first, then emissive assets in placement order. The
-/// SRD light sources (candle, torch, lamp, lantern) all shed dim light for
-/// an additional distance equal to their bright radius.
+/// Free layout lights first, then emissive assets in placement order. A
+/// light has one radius, its bright light; dim light reaches as far again,
+/// as for the SRD candle, torch and lanterns. The SRD lamp (15 ft bright,
+/// 30 ft more dim) does not fit that rule; no lamp asset exists, and one
+/// needs a two-radius light schema (review round 2 #39).
 #[must_use]
 pub fn lights(layout: &TacticalLayout, placed: &[Placed<'_>]) -> Vec<SceneLight> {
     let free = layout.lights.iter().map(|l| SceneLight {

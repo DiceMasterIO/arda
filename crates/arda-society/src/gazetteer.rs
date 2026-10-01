@@ -214,8 +214,15 @@ pub fn render(society: &Society, world: &WorldSettlements) -> String {
             s.id,
         )
     });
+    // First record per id, as a scan per settlement found it (review round
+    // 2 #29: that scan made the gazetteer quadratic).
+    let mut by_id: std::collections::BTreeMap<u64, &crate::SettlementSociety> =
+        std::collections::BTreeMap::new();
+    for x in &society.settlements {
+        by_id.entry(x.id).or_insert(x);
+    }
     for s in order {
-        let Some(ss) = society.settlements.iter().find(|x| x.id == s.id) else {
+        let Some(&ss) = by_id.get(&s.id) else {
             continue;
         };
         push(&mut o, "");

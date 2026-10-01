@@ -8,6 +8,7 @@ pub mod settlement;
 
 use crate::ctx::Ctx;
 use crate::economy::EconomyRun;
+use crate::history::index::HistoryIndex;
 use crate::history::History;
 use crate::politics::factions::{Faction, FactionRelation};
 use crate::politics::realm::RealmState;
@@ -27,6 +28,7 @@ const STRONG: i64 = 30;
 
 /// One plot hook.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[cfg_attr(feature = "schema", derive(schemars::JsonSchema))]
 pub struct Hook {
     /// Stable id (`h<settlement>.<kind>` or `hr<realm>.<kind>`).
     pub id: String,
@@ -68,6 +70,35 @@ impl Candidate {
     }
 }
 
+/// Lookups every hook shares, built once (review round 2 #29: a linear
+/// scan per road, relation or realm made the hooks quadratic).
+#[derive(Debug, Clone, Default)]
+pub struct HookLookups {
+    traffic: std::collections::BTreeMap<u64, u64>,
+    relations_of: std::collections::BTreeMap<u64, Vec<usize>>,
+    relation_at: std::collections::BTreeMap<(u64, u64), usize>,
+}
+
+impl HookLookups {
+    /// Indexes road traffic and relations; the first record of a key wins,
+    /// as the scans it replaces found it.
+    #[must_use]
+    pub fn new(econ: &EconomyRun, relations: &[Relation]) -> Self {
+        let mut l = Self::default();
+        for t in &econ.economy.road_traffic {
+            l.traffic.entry(t.road).or_insert(t.value_sp);
+        }
+        for (k, r) in relations.iter().enumerate() {
+            l.relations_of.entry(r.a).or_default().push(k);
+            if r.b != r.a {
+                l.relations_of.entry(r.b).or_default().push(k);
+            }
+            l.relation_at.entry((r.a, r.b)).or_insert(k);
+        }
+        l
+    }
+}
+
 /// Everything hooks read.
 #[derive(Debug, Clone, Copy)]
 pub struct HookWorld<'a> {
@@ -85,9 +116,35 @@ pub struct HookWorld<'a> {
     pub faction_rel: &'a [Vec<FactionRelation>],
     /// Roles per node.
     pub roles: &'a [Vec<NpcRole>],
+    /// Lookups over `history`.
+    pub index: &'a HistoryIndex,
+    /// Lookups over traffic and relations.
+    pub lookups: &'a HookLookups,
 }
 
-impl HookWorld<'_> {
+impl<'a> HookWorld<'a> {
+    /// Relations naming realm `id`, in list order.
+    pub fn relations_of(&self, id: u64) -> impl Iterator<Item = &'a Relation> + use<'a> {
+        let list = self.relations;
+        self.lookups
+            .relations_of
+            .get(&id)
+            .into_iter()
+            .flatten()
+            .filter_map(move |&k| list.get(k))
+    }
+
+    /// The relation between realms `x` and `y` in either order
+    /// ([`crate::politics::relations::relation`], by index).
+    #[must_use]
+    pub fn relation(&self, x: u64, y: u64) -> Option<&'a Relation> {
+        let key = (x.min(y), x.max(y));
+        self.lookups
+            .relation_at
+            .get(&key)
+            .and_then(|&k| self.relations.get(k))
+    }
+
     /// Role of `kind` at node `i`, if the settlement has one.
     #[must_use]
     pub fn role<'r>(&'r self, i: usize, kind: &str) -> Option<&'r NpcRole> {
@@ -103,12 +160,7 @@ impl HookWorld<'_> {
     /// Traffic value on road `id`.
     #[must_use]
     pub fn traffic(&self, id: u64) -> u64 {
-        self.econ
-            .economy
-            .road_traffic
-            .iter()
-            .find(|t| t.road == id)
-            .map_or(0, |t| t.value_sp)
+        self.lookups.traffic.get(&id).copied().unwrap_or(0)
     }
 }
 

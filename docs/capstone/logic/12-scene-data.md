@@ -92,6 +92,7 @@ Tokens are not in scene format 1; they are added by the service (format 2 of the
 - `tokens: [{npc_id, x, y, building_id, kind}]` where `npc_id` is the wire form of 13 §npc-id, `(x, y)` a square, and `kind` is `resident` or `worker`.
 - Placement: for the default time `day`, workers stand in their workplace building and everyone else in their home (the building must be at least partly inside the scene); `night` puts everyone at home. Inside a building, tokens take free floor squares nearest the room centre of the room whose tag suits the job (for example the innkeeper in the `common` room), by hash of the NPC id; never an impassable, wall-adjacent doorway or water square (assumed, tunable).
 - Only notables and people whose building lies in the scene get tokens; commoners are enumerated by `(building, index)` without being stored (13 §npc-regeneration).
+- Wire types (adapter A12): the scene is the server mirror `SceneDto` (round-trip tested against `arda_scene::Scene`), the envelope `TacticalScene` with `Token` and `TokenKind`; both are generated to TypeScript and JSON Schema (16 §api-bindings, §api-schema).
 
 ## Steps
 

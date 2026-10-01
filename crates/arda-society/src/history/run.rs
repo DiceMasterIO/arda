@@ -22,6 +22,8 @@ pub struct HistoryRun {
     pub prosperity: Vec<Prosperity>,
     /// History hooks per node.
     pub lore: Vec<Vec<HistoryHook>>,
+    /// Lookups over `history`.
+    pub index: super::index::HistoryIndex,
 }
 
 /// Present trade value between each realm-index pair `(low, high)`.
@@ -72,14 +74,15 @@ pub fn run(ctx: &Ctx<'_>, econ: &EconomyRun, regimes: &[Regime]) -> HistoryRun {
     for e in &mut founding.event {
         *e = remap(&map, *e);
     }
+    // The first shift of each settlement, as a scan per settlement found it.
+    let mut first_from: std::collections::BTreeMap<u64, u64> = Default::default();
+    for b in &wr.shifts {
+        first_from.entry(b.settlement).or_insert(b.from_realm);
+    }
     let allegiances = (0..ctx.n())
         .map(|i| {
             let s = ctx.s(i);
-            let first_realm = wr
-                .shifts
-                .iter()
-                .find(|b| b.settlement == s.id)
-                .map_or(s.realm_id, |b| b.from_realm);
+            let first_realm = first_from.get(&s.id).copied().unwrap_or(s.realm_id);
             super::Allegiance {
                 settlement: s.id,
                 first_realm,
@@ -99,12 +102,14 @@ pub fn run(ctx: &Ctx<'_>, econ: &EconomyRun, regimes: &[Regime]) -> HistoryRun {
         ruins,
         allegiances,
     };
-    let lore = lore::lore(ctx, &founding, &history, econ);
+    let index = super::index::HistoryIndex::new(&history);
+    let lore = lore::lore(ctx, &founding, &history, &index, econ);
     HistoryRun {
         history,
         founding,
         formed,
         prosperity,
         lore,
+        index,
     }
 }

@@ -22,7 +22,7 @@ pub const LANDING_SQ: i64 = 3;
 #[derive(Debug, Clone, PartialEq)]
 pub struct CrossingPlan {
     /// Crossing id.
-    pub id: u32,
+    pub id: u64,
     /// Bridge, ford or ferry.
     pub kind: CrossingKind,
     /// Index of the way.
@@ -83,16 +83,17 @@ pub fn plan_all(
     ways: &mut [WayPlan],
     channels: &mut Vec<ChannelPlan>,
     terrain: &dyn Terrain,
-) -> (Vec<CrossingPlan>, Vec<u32>) {
+    standing: &crate::standing::Standing,
+) -> (Vec<CrossingPlan>, Vec<u64>) {
     let mut sorted: Vec<&Crossing> = crossings.iter().collect();
     sorted.sort_by_key(|c| c.id);
     let (mut out, mut orphans) = (Vec::new(), Vec::new());
     for c in sorted {
         let pos = [c.x_m as f64, c.y_m as f64];
-        if win.dist_m(pos) > f64::from(c.width_m) * 1.5 + 150.0 {
+        if win.dist_m(pos) > reach_m(c) {
             continue;
         }
-        match plan_one(c, pos, ways, channels, terrain) {
+        match plan_one(c, pos, ways, channels, terrain, standing) {
             Some(p) => out.push(p),
             None => orphans.push(c.id),
         }
@@ -116,16 +117,34 @@ fn pick_way(c: &Crossing, pos: P, ways: &[WayPlan]) -> Option<(usize, curve::Hit
     best.map(|(_, i, h)| (i, h))
 }
 
+/// Half-length of a synthetic channel of width `w` metres.
+fn synthetic_half(w: f64) -> f64 {
+    (3.0 * w).max(60.0)
+}
+
+/// How far from a crossing record its work can reach, metres: the foot on
+/// its way lies within 150 m of it, and a synthetic channel runs its
+/// half-length plus half its width (and a bank square) from the foot.
+/// A window this far away must plan it, or a neighbour that does paints
+/// water this one lacks (review round 2 #34: `1.5 w + 150` fell short for
+/// crossings wider than 75 m).
+#[must_use]
+pub fn reach_m(c: &Crossing) -> f64 {
+    let w = f64::from(c.width_m).max(3.0);
+    let structure = f64::from(c.width_m) * 1.5 + 150.0;
+    structure.max(150.0 + synthetic_half(w) + w / 2.0 + SQUARE_M)
+}
+
 fn synthetic_channel(c: &Crossing, foot: P, dir: P) -> ChannelPlan {
     let w = f64::from(c.width_m).max(3.0);
-    let half = (3.0 * w).max(60.0);
+    let half = synthetic_half(w);
     let n = [-dir[1], dir[0]];
     let depth = match c.kind {
         CrossingKind::Ford => 0.5,
         _ => 0.8 + 0.4 * f64::from(c.order),
     };
     ChannelPlan::new(&RiverChannel {
-        id: c.id | (1 << 31),
+        id: c.id,
         centreline: vec![
             [foot[0] - n[0] * half, foot[1] - n[1] * half],
             [foot[0] + n[0] * half, foot[1] + n[1] * half],
@@ -176,6 +195,7 @@ pub(super) fn plan_one(
     ways: &mut [WayPlan],
     channels: &mut Vec<ChannelPlan>,
     terrain: &dyn Terrain,
+    standing: &crate::standing::Standing,
 ) -> Option<CrossingPlan> {
     let (wi, hit) = pick_way(c, pos, ways)?;
     let ci = channels
@@ -188,7 +208,11 @@ pub(super) fn plan_one(
     let ci = match ci {
         Some(i) => i,
         None => {
-            channels.push(synthetic_channel(c, hit.foot, hit.dir));
+            let mut ch = synthetic_channel(c, hit.foot, hit.dir);
+            // A crossing over a lake or the sea already has its water: the
+            // synthetic channel only orients it and paints nothing.
+            ch.guide = standing.at(square_of(hit.foot[0]), square_of(hit.foot[1]));
+            channels.push(ch);
             channels.len() - 1
         }
     };
@@ -219,7 +243,14 @@ pub(super) fn plan_one(
         water: water?,
         width_m: ch.width_m,
     };
-    finish(&lay, ways, terrain).map(|x| x.0)
+    let out = finish(&lay, ways, terrain).map(|x| x.0);
+    // `straighten` spliced stations into this way: rebuild its chunk index
+    // now, so the next crossing's nearest-way query sees the moved stations
+    // (review round 2 #35).
+    if let Some(w) = ways.get_mut(wi) {
+        w.dense = Dense::new(std::mem::take(&mut w.dense.runs));
+    }
+    out
 }
 
 /// The across-axis rows a crossing of `kind` on `way` occupies around
@@ -251,7 +282,7 @@ pub(super) fn rows_for(
 /// A crossing placed on the lattice, before its structure and approach.
 pub(super) struct Lay {
     /// Crossing id.
-    pub id: u32,
+    pub id: u64,
     /// Bridge, ford or ferry.
     pub kind: CrossingKind,
     /// Index of the way.
@@ -423,3 +454,7 @@ fn straighten(
     run.splice(lo..=hi, fresh);
     Some((a.s, b.s))
 }
+
+#[cfg(test)]
+#[path = "crossing_tests.rs"]
+mod tests;

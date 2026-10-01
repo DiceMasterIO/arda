@@ -7,6 +7,7 @@
 use super::{cell_centre, facing, CSquare, Compound, CompoundKind, Local};
 use crate::geom::{h2, h3, s11, u01, Sq};
 use crate::input::FieldInputs;
+use crate::linear::RoadNet;
 use arda_tactical::catalog::WallRole;
 use arda_tactical::layout::EdgeAxis::{Horizontal as H, Vertical as V};
 use arda_tactical::noise::fbm;
@@ -36,19 +37,74 @@ fn downhill(inputs: &FieldInputs<'_>, s: Sq, h: u64) -> [i64; 2] {
     super::axis_towards([-g[0], -g[1]])
 }
 
+/// Shifts, in squares, tried in turn when a mine's footprint would cut a
+/// road; the first is its usual site.
+const SHIFTS: [(i64, i64); 9] = [
+    (0, 0),
+    (16, 0),
+    (-16, 0),
+    (0, 16),
+    (0, -16),
+    (16, 16),
+    (-16, 16),
+    (16, -16),
+    (-16, -16),
+];
+
+/// Whether square `s` lies on a carriageway or its edge square.
+fn on_road(net: &RoadNet, s: Sq) -> bool {
+    net.near(s.centre(), 0.5)
+}
+
 /// Builds the mine (or quarry) of a cell; `None` if its centre is under water.
+///
+/// Roads win (review round 2 #37: compounds are laid over every cover, so a
+/// pit or spoil heap cut a road that arda-ways still painted): the mine
+/// moves to the first of [`SHIFTS`] whose squares are all off the road
+/// net, and if none is, keeps its site and gives up the squares and props
+/// on the road.
 #[must_use]
 pub fn build(
     inputs: &FieldInputs<'_>,
+    net: &RoadNet,
     seed: u64,
     cell: (i64, i64),
     quarry: bool,
 ) -> Option<Compound> {
+    let first = build_at(inputs, seed, cell, quarry, SHIFTS[0])?;
+    let clear = |c: &Compound| !c.squares.keys().any(|&s| on_road(net, s));
+    if clear(&first) {
+        return Some(first);
+    }
+    for &shift in &SHIFTS[1..] {
+        if let Some(c) = build_at(inputs, seed, cell, quarry, shift).filter(clear) {
+            return Some(c);
+        }
+    }
+    let mut c = first;
+    c.squares.retain(|&s, _| !on_road(net, s));
+    #[allow(clippy::cast_possible_truncation)] // anchors are within the world
+    c.placements
+        .retain(|p| !on_road(net, Sq::new(p.x.floor() as i64, p.y.floor() as i64)));
+    c.walls.retain(|w| {
+        let (a, b) = w.edge.sides();
+        !on_road(net, a) && !on_road(net, b)
+    });
+    Some(c)
+}
+
+fn build_at(
+    inputs: &FieldInputs<'_>,
+    seed: u64,
+    cell: (i64, i64),
+    quarry: bool,
+    shift: (i64, i64),
+) -> Option<Compound> {
     let h = h2(seed, SALT, cell.0, cell.1);
     #[allow(clippy::cast_possible_truncation)] // jitter of a few squares
     let c = cell_centre(cell).offset(
-        (s11(h) * 6.0).round() as i64,
-        (s11(h >> 9) * 6.0).round() as i64,
+        (s11(h) * 6.0).round() as i64 + shift.0,
+        (s11(h >> 9) * 6.0).round() as i64 + shift.1,
     );
     let m = c.centre_m();
     if inputs.terrain.sample(m[0], m[1]).water_depth_m > 0.0 {

@@ -1,0 +1,143 @@
+{
+  "$defs": {
+    "RiverDto": {
+      "description": "One saved watercourse reach fragment inside an area.",
+      "properties": {
+        "course": {
+          "description": "Global cells `[gx, gy]`, upstream to downstream.",
+          "items": {
+            "items": {
+              "format": "uint32",
+              "minimum": 0,
+              "type": "integer"
+            },
+            "maxItems": 2,
+            "minItems": 2,
+            "type": "array"
+          },
+          "type": "array"
+        },
+        "discharge_m3s": {
+          "description": "Mean discharge, m³/s.",
+          "format": "double",
+          "type": "number"
+        },
+        "ends": {
+          "$ref": "#/$defs/TerminusDto",
+          "description": "How the segment ends."
+        },
+        "feeds": {
+          "description": "Local downstream segment at a confluence, if any.",
+          "format": "uint32",
+          "minimum": 0,
+          "type": [
+            "integer",
+            "null"
+          ]
+        },
+        "global_id": {
+          "description": "Stable global reach id, decimal string.",
+          "type": "string"
+        },
+        "id": {
+          "description": "Tile-local id, 1-based.",
+          "format": "uint32",
+          "minimum": 0,
+          "type": "integer"
+        },
+        "order": {
+          "description": "Strahler order.",
+          "format": "uint8",
+          "maximum": 255,
+          "minimum": 0,
+          "type": "integer"
+        },
+        "width_m": {
+          "description": "Channel width, metres.",
+          "format": "double",
+          "type": "number"
+        }
+      },
+      "required": [
+        "id",
+        "global_id",
+        "order",
+        "width_m",
+        "discharge_m3s",
+        "ends",
+        "course"
+      ],
+      "type": "object"
+    },
+    "TerminusDto": {
+      "description": "How a river segment ends.",
+      "oneOf": [
+        {
+          "const": "junction",
+          "description": "Flows into another segment at a confluence.",
+          "type": "string"
+        },
+        {
+          "const": "sea",
+          "description": "Reaches the sea.",
+          "type": "string"
+        },
+        {
+          "const": "lake",
+          "description": "Enters a lake.",
+          "type": "string"
+        },
+        {
+          "const": "off_tile",
+          "description": "Leaves the tile.",
+          "type": "string"
+        },
+        {
+          "const": "basin",
+          "description": "Enters a basin without a positive-depth lake.",
+          "type": "string"
+        },
+        {
+          "const": "divergence",
+          "description": "Splits into several outgoing reaches.",
+          "type": "string"
+        }
+      ]
+    }
+  },
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "description": "`/v1/area/{ax}/{ay}/rivers`.",
+  "properties": {
+    "ax": {
+      "description": "Area column.",
+      "format": "int32",
+      "type": "integer"
+    },
+    "ay": {
+      "description": "Area row.",
+      "format": "int32",
+      "type": "integer"
+    },
+    "contract_version": {
+      "description": "Cell contract version.",
+      "format": "uint32",
+      "minimum": 0,
+      "type": "integer"
+    },
+    "rivers": {
+      "description": "Segments in stored order.",
+      "items": {
+        "$ref": "#/$defs/RiverDto"
+      },
+      "type": "array"
+    }
+  },
+  "required": [
+    "contract_version",
+    "ax",
+    "ay",
+    "rivers"
+  ],
+  "title": "AreaRivers",
+  "type": "object"
+}

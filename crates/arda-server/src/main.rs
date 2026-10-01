@@ -35,7 +35,8 @@ struct Args {
     /// Tile pyramid base edge (256 × a power of two), pixels.
     #[arg(long, default_value_t = 4096)]
     tile_base_px: u32,
-    /// Tactical asset library directory; validated at startup.
+    /// Tactical asset library directory, or a `top:…:bottom` stack whose
+    /// lower libraries fill in what the upper ones lack; validated at startup.
     #[arg(long, default_value = arda_server::tactical::DEFAULT_LIBRARY)]
     library: PathBuf,
     /// Seconds a client may take to send a complete request head.
@@ -47,6 +48,10 @@ struct Args {
     /// Background threads warming prefetched tactical cells (0 disables).
     #[arg(long, default_value_t = arda_server::tactical::prefetch::DEFAULT_WORKERS)]
     prefetch_workers: usize,
+    /// Sheet mapping file reshaping every served NPC into the game's schema
+    /// (goal 69); checked at startup, a bad file refuses to start.
+    #[arg(long)]
+    sheet_mapping: Option<PathBuf>,
 }
 
 async fn run(args: Args) -> Result<(), String> {
@@ -61,6 +66,7 @@ async fn run(args: Args) -> Result<(), String> {
         max_connections: args.max_connections,
     };
     config.prefetch_workers = args.prefetch_workers;
+    config.sheet_mapping = args.sheet_mapping;
     let limits = config.serve;
     let state = tokio::task::spawn_blocking(move || AppState::open(&config))
         .await
@@ -71,10 +77,11 @@ async fn run(args: Args) -> Result<(), String> {
         .await
         .map_err(|e| format!("binding {addr}: {e}"))?;
     println!(
-        "arda-server {} serving seed {} on http://{addr}/v1 (tactical library {})",
+        "arda-server {} serving seed {} on http://{addr}/v1 (tactical library {}, sheet mapping {})",
         env!("CARGO_PKG_VERSION"),
         state.query.world().seed(),
-        state.tactical.library_version()
+        state.tactical.library_version(),
+        state.sheet_mapping.as_ref().map_or("none", |m| m.name())
     );
     serve(listener, router(Arc::new(state)), limits, async {
         let _ = tokio::signal::ctrl_c().await;

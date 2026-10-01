@@ -4,6 +4,7 @@
 //! and writes the same JSON (tested below).
 
 use crate::npc_dto;
+use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 use ts_rs::TS;
 
@@ -11,7 +12,7 @@ use ts_rs::TS;
 pub const NPC_PAGE_FORMAT: u32 = 1;
 
 /// One person of a query page.
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, TS)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, TS, JsonSchema)]
 #[serde(deny_unknown_fields)]
 pub struct NpcEntry {
     /// `"<settlement>.<building>.<index>"`: resolves with `GET /v1/npc/{ref}`,
@@ -26,7 +27,7 @@ pub struct NpcEntry {
 }
 
 /// A page of people (TS `NpcPage`).
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, TS)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, TS, JsonSchema)]
 #[serde(deny_unknown_fields)]
 pub struct NpcPage {
     /// [`NPC_PAGE_FORMAT`].

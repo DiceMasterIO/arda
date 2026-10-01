@@ -1,0 +1,127 @@
+{
+  "$defs": {
+    "TacticalLayoutSummary": {
+      "description": "One built-in layout.",
+      "properties": {
+        "height": {
+          "description": "Height in 5-ft squares.",
+          "format": "uint32",
+          "minimum": 0,
+          "type": "integer"
+        },
+        "name": {
+          "description": "Name used in `/v1/tactical/layout/{name}`.",
+          "type": "string"
+        },
+        "tiles": {
+          "$ref": "#/$defs/TacticalTilesDto",
+          "description": "Tile pyramid geometry at the default ppsq."
+        },
+        "width": {
+          "description": "Width in 5-ft squares.",
+          "format": "uint32",
+          "minimum": 0,
+          "type": "integer"
+        }
+      },
+      "required": [
+        "name",
+        "width",
+        "height",
+        "tiles"
+      ],
+      "type": "object"
+    },
+    "TacticalTilesDto": {
+      "description": "Tile pyramid geometry of one render.",
+      "properties": {
+        "format": {
+          "description": "Tile file extension: `webp`.",
+          "type": "string"
+        },
+        "image_height_px": {
+          "description": "Full-resolution render height, pixels.",
+          "format": "uint32",
+          "minimum": 0,
+          "type": "integer"
+        },
+        "image_width_px": {
+          "description": "Full-resolution render width, pixels.",
+          "format": "uint32",
+          "minimum": 0,
+          "type": "integer"
+        },
+        "max_zoom": {
+          "description": "Deepest zoom; it is the render at full resolution.",
+          "format": "uint32",
+          "minimum": 0,
+          "type": "integer"
+        },
+        "ppsq": {
+          "description": "Output pixels per square of the render the pyramid is cut from.",
+          "format": "uint32",
+          "minimum": 0,
+          "type": "integer"
+        },
+        "tile_px": {
+          "description": "Tile edge in pixels (512).",
+          "format": "uint32",
+          "minimum": 0,
+          "type": "integer"
+        }
+      },
+      "required": [
+        "tile_px",
+        "ppsq",
+        "image_width_px",
+        "image_height_px",
+        "max_zoom",
+        "format"
+      ],
+      "type": "object"
+    }
+  },
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "description": "`GET /v1/tactical/layouts`: the built-in test layouts.",
+  "properties": {
+    "default_ppsq": {
+      "description": "Default output pixels per square.",
+      "format": "uint32",
+      "minimum": 0,
+      "type": "integer"
+    },
+    "layouts": {
+      "description": "Layouts in name order.",
+      "items": {
+        "$ref": "#/$defs/TacticalLayoutSummary"
+      },
+      "type": "array"
+    },
+    "library_version": {
+      "description": "`library_version` of the loaded catalogue; part of every render cache key.",
+      "type": "string"
+    },
+    "ppsq_options": {
+      "description": "Output pixels per square clients may request.",
+      "items": {
+        "format": "uint32",
+        "minimum": 0,
+        "type": "integer"
+      },
+      "type": "array"
+    },
+    "world_seed": {
+      "description": "Seed of the served world (a decimal string); part of every render seed and cache key.",
+      "type": "string"
+    }
+  },
+  "required": [
+    "world_seed",
+    "library_version",
+    "ppsq_options",
+    "default_ppsq",
+    "layouts"
+  ],
+  "title": "TacticalLayouts",
+  "type": "object"
+}
