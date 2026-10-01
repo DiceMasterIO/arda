@@ -50,6 +50,35 @@ pub fn router(max_body_bytes: usize) -> Router<Arc<AppState>> {
         .route("/window", get(super::world_routes::window))
         .route("/window.png", get(super::world_routes::window_png))
         .route("/library", get(super::world_routes::library))
+        .route("/prefetch", post(prefetch))
+}
+
+/// `POST /v1/tactical/prefetch`: queues the neighbours of a cell for the
+/// background workers and answers `202` at once (goal 67).
+async fn prefetch(
+    State(state): Shared,
+    body: Result<Json<super::prefetch::PrefetchRequest>, axum::extract::rejection::JsonRejection>,
+) -> ServerResult<Response> {
+    let start = Instant::now();
+    let Json(request) = body.map_err(|e| {
+        if e.status() == StatusCode::UNSUPPORTED_MEDIA_TYPE {
+            ServerError::UnsupportedMediaType(e.body_text())
+        } else {
+            ServerError::BadRequest(e.body_text())
+        }
+    })?;
+    let accepted = state.prefetch.submit(&state, &request)?;
+    log(
+        "prefetch",
+        &format!(
+            "cell {},{} radius={}",
+            request.gx, request.gy, accepted.radius
+        ),
+        Hit::Miss,
+        accepted.cells.len(),
+        start,
+    );
+    Ok((StatusCode::ACCEPTED, Json(accepted)).into_response())
 }
 
 /// Render options parsed from `?ppsq=64|96|128&grid=0|1`; `origin` is

@@ -14,6 +14,8 @@ import {
   type CellSample,
   type Health,
   type PointSample,
+  type PrefetchAccepted,
+  type PrefetchRequest,
   type WorldInfo,
 } from "@arda";
 import { parseAreaColumnsBin, type BinAreaColumns } from "./areaBin.ts";
@@ -261,9 +263,9 @@ export class ArdaClient {
     return this.url(`/v1/overview.png${qs ? `?${qs}` : ""}`);
   }
 
-  /** Leaflet-style template for the overview pyramid. */
-  overviewTileTemplate(): string {
-    return this.url("/v1/tiles/overview/{z}/{x}/{y}.png");
+  /** Leaflet-style template for the overview pyramid: lossless WebP (goal 68); `.png` stays served for older clients. */
+  overviewTileTemplate(format: "webp" | "png" = "webp"): string {
+    return this.url(`/v1/tiles/overview/{z}/{x}/{y}.${format}`);
   }
 
   /** Leaflet-style template for the mid-zoom relief levels past the overview. */
@@ -314,6 +316,27 @@ export class ArdaClient {
   /** A WebP tile of a world-derived cell (rendered with its apron, seamless). */
   tacticalCellTile(gx: number, gy: number, z: number, x: number, y: number, opts: CellOptions = {}, init?: RequestInit): Promise<ImageFetch> {
     return this.image(`cell ${gx},${gy} tile ${z}/${x}/${y}`, `/v1/tactical/cell/${gx}/${gy}/tiles/${z}/${x}/${y}.webp${cellQuery(opts)}`, init);
+  }
+
+  /**
+   * `POST /v1/tactical/prefetch`: asks the server to warm the neighbours of a
+   * cell in the background (goal 67). It answers 202 at once; nothing waits.
+   */
+  async tacticalPrefetch(gx: number, gy: number, opts: CellOptions & { radius?: number } = {}, init?: RequestInit): Promise<PrefetchAccepted> {
+    const body: PrefetchRequest = { gx, gy };
+    if (opts.radius !== undefined) body.radius = opts.radius;
+    if (opts.ppsq !== undefined) body.ppsq = opts.ppsq;
+    if (opts.demo) body.demo_overlays = true;
+    const out = await this.json("/v1/tactical/prefetch", {
+      ...init,
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify(body),
+    });
+    if (typeof out !== "object" || out === null || !Array.isArray((out as { cells?: unknown }).cells)) {
+      throw new ApiRequestError(this.url("/v1/tactical/prefetch"), 202, "bad_body", "prefetch: the body has no cells");
+    }
+    return out as PrefetchAccepted;
   }
 
   /** `POST /v1/tactical/render`: renders a client-supplied layout to PNG. */

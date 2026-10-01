@@ -12,6 +12,8 @@ pub mod grade;
 pub mod ground;
 pub mod lighting;
 pub mod sample;
+mod shadows;
+pub mod stamp;
 pub mod terrain;
 pub mod walls;
 pub mod water;
@@ -24,7 +26,9 @@ use crate::noise::{hash2, hash_str};
 use crate::raster::Rgba;
 use lighting::{Buffers, Lighting, Pool};
 use rayon::prelude::*;
+use stamp::{Op, Stamp};
 use std::collections::BTreeMap;
+use std::sync::Arc;
 use terrain::Terrain;
 
 /// Ground key of shallow water textures.
@@ -91,33 +95,36 @@ pub fn resolve<'a>(lib: &'a Library, r: &AssetRef, seed: u64, index: usize) -> O
 struct Sprites<'a> {
     lib: &'a Library,
     ppsq: u32,
-    cache: BTreeMap<(String, u8, bool), Rgba>,
+    cache: BTreeMap<(String, u8, bool), Arc<Rgba>>,
 }
 
 impl Sprites<'_> {
-    fn get(&mut self, a: &Asset, turns: u8, mirror: bool) -> Option<&Rgba> {
+    fn get(&mut self, a: &Asset, turns: u8, mirror: bool) -> Option<Arc<Rgba>> {
         let key = (a.id.clone(), turns % 4, mirror);
-        if !self.cache.contains_key(&key) {
-            let src = self.lib.image(&a.id)?;
-            let mut img = src.resized(a.footprint.w * self.ppsq, a.footprint.h * self.ppsq);
-            if mirror {
-                img = img.mirrored();
-            }
-            self.cache.insert(key.clone(), img.rotated(turns));
+        if let Some(hit) = self.cache.get(&key) {
+            return Some(Arc::clone(hit));
         }
-        self.cache.get(&key)
+        let src = self.lib.image(&a.id)?;
+        let mut img = src.resized(a.footprint.w * self.ppsq, a.footprint.h * self.ppsq);
+        if mirror {
+            img = img.mirrored();
+        }
+        let img = Arc::new(img.rotated(turns));
+        self.cache.insert(key, Arc::clone(&img));
+        Some(img)
     }
-}
 
-/// What a stamped sprite contributes to the lighting buffers.
-#[derive(Clone, Copy)]
-struct Stamp {
-    /// Height above the ground in 1/256 ft, if it sweeps a shadow.
-    height: Option<i32>,
-    /// Whether it darkens its surroundings (ambient occlusion).
-    occludes: bool,
-    /// Offset of a canopy's cast silhouette in pixels, if it is a canopy.
-    crown: Option<i64>,
+    /// Queues `a` at top-left pixel `at`.
+    fn push(&mut self, ops: &mut Vec<Op>, a: &Asset, turns: u8, mirror: bool, at: (i64, i64)) {
+        if let Some(sprite) = self.get(a, turns, mirror) {
+            ops.push(Op {
+                sprite,
+                ox: at.0,
+                oy: at.1,
+                stamp: stamp_of(a, self.ppsq),
+            });
+        }
+    }
 }
 
 /// Swept shadows are capped at this height (ft): about two-thirds of a
@@ -129,53 +136,6 @@ struct Canvas<'a> {
     buf: Buffers,
     casts: lighting::Casts,
     terrain: &'a Terrain<'a>,
-}
-
-impl Canvas<'_> {
-    fn stamp(&mut self, sprite: &Rgba, ox: i64, oy: i64, s: Stamp) {
-        let (cw, ch) = (i64::from(self.img.width), i64::from(self.img.height));
-        for sy in 0..sprite.height {
-            let y = oy + i64::from(sy);
-            if y < 0 || y >= ch {
-                continue;
-            }
-            for sx in 0..sprite.width {
-                let x = ox + i64::from(sx);
-                if x < 0 || x >= cw {
-                    continue;
-                }
-                let px = sprite.get(sx, sy);
-                if px[3] == 0 {
-                    continue;
-                }
-                let (ux, uy) = (u32::try_from(x).unwrap_or(0), u32::try_from(y).unwrap_or(0));
-                self.img.blend(ux, uy, px);
-                let i = usize::try_from(y * cw + x).unwrap_or(0);
-                let a = u32::from(px[3]);
-                self.buf.water[i] =
-                    crate::raster::to_u8(u32::from(self.buf.water[i]) * (255 - a) / 255);
-                if s.occludes {
-                    self.buf.occluders[i] = self.buf.occluders[i].max(px[3]);
-                }
-                if let Some(off) = s.crown {
-                    self.casts.tops[i] = self.casts.tops[i].max(px[3]);
-                    let (sx2, sy2) = (x + off, y + off);
-                    if sx2 < cw && sy2 < ch {
-                        let j = usize::try_from(sy2 * cw + sx2).unwrap_or(0);
-                        self.casts.silhouettes[j] = self.casts.silhouettes[j].max(px[3]);
-                    }
-                }
-                if let Some(hgt) = s.height {
-                    if px[3] >= 128 {
-                        #[allow(clippy::cast_precision_loss)]
-                        let base =
-                            terrain::to_units(self.terrain.height(x as f32 + 0.5, y as f32 + 0.5));
-                        self.buf.height_map[i] = self.buf.height_map[i].max(base + hgt);
-                    }
-                }
-            }
-        }
-    }
 }
 
 /// Top-left pixel of a sprite whose anchor lands at `(x, y)` squares.
@@ -234,6 +194,51 @@ pub fn render_with(
     opts: &RenderOptions,
     style: &Style,
 ) -> Result<Rgba, TacticalError> {
+    render_clip(layout, lib, seed, opts, style, None)
+}
+
+/// Renders only the pixels `[x, y, w, h]` of a layout's image: equal to
+/// cropping [`render`]'s output, but the per-pixel passes (ground, lighting
+/// and grade) skip the pixels outside, so rendering a block within an
+/// apron costs less (goal 50). Everything that reaches across pixels
+/// (heights, sprites, shadows and blurs) is still computed over the whole
+/// layout.
+///
+/// # Errors
+/// Layout/library inconsistencies, out-of-range options or a region
+/// outside the image.
+pub fn render_region(
+    layout: &TacticalLayout,
+    lib: &Library,
+    seed: u64,
+    opts: &RenderOptions,
+    [x, y, w, h]: [u32; 4],
+) -> Result<Rgba, TacticalError> {
+    let clip = [x, y, x.saturating_add(w), y.saturating_add(h)];
+    render_clip(layout, lib, seed, opts, &Style::default(), Some(clip))
+}
+
+/// Copies pixels `[x0, y0, x1, y1)` out of `img`.
+fn cut(img: &Rgba, [x0, y0, x1, y1]: [u32; 4]) -> Rgba {
+    let mut out = Rgba::new(x1 - x0, y1 - y0);
+    let (src_w, row) = (img.width as usize * 4, (x1 - x0) as usize * 4);
+    for (r, dst) in out.data.chunks_mut(row.max(1)).enumerate() {
+        let from = (y0 as usize + r) * src_w + x0 as usize * 4;
+        if let Some(src) = img.data.get(from..from + row) {
+            dst.copy_from_slice(src);
+        }
+    }
+    out
+}
+
+fn render_clip(
+    layout: &TacticalLayout,
+    lib: &Library,
+    seed: u64,
+    opts: &RenderOptions,
+    style: &Style,
+    clip: Option<[u32; 4]>,
+) -> Result<Rgba, TacticalError> {
     if !(8..=1024).contains(&opts.ppsq) {
         return Err(TacticalError::Options(format!(
             "ppsq {} is outside 8–1024",
@@ -242,6 +247,12 @@ pub fn render_with(
     }
     let ppsq = opts.ppsq;
     let (w, h) = canvas_size(layout, ppsq)?;
+    if clip.is_some_and(|[x0, y0, x1, y1]| x0 >= x1 || y0 >= y1 || x1 > w || y1 > h) {
+        return Err(TacticalError::Options(format!(
+            "region {clip:?} lies outside the {w}x{h} image"
+        )));
+    }
+    let area = clip.unwrap_or([0, 0, w, h]);
     layout.check(lib)?;
     let seed = seed ^ hash_str(0, &lib.catalog.library_version);
     let frame = field::Frame::of(layout, ppsq);
@@ -253,7 +264,7 @@ pub fn render_with(
         terrain: &terrain,
     };
     cv.buf.height_map = terrain.heights(w, h);
-    let textures = ground::TextureSet::new(lib, ppsq);
+    let textures = lib.texture_set(ppsq);
     let Some(g) = ground::Ground::new(layout, &textures, frame, seed, &terrain, &cv.buf.height_map)
     else {
         return Err(TacticalError::Layout {
@@ -261,7 +272,7 @@ pub fn render_with(
             message: "a ground type has no texture".into(),
         });
     };
-    g.paint(&mut cv.img);
+    g.paint_clipped(&mut cv.img, area);
     cv.buf.water = ground::paint_water(&mut cv.img, layout, &textures, seed, ppsq);
 
     let mut sprites = Sprites {
@@ -279,26 +290,25 @@ pub fn render_with(
     }
     placed.sort_by_key(|(layer, z, i, _)| (*layer, *z, *i));
     let mut pools = Vec::new();
+    let mut ops = Vec::new();
     let mut walls_done = false;
     for (layer, _, i, a) in &placed {
         if *layer > Layer::Wall && !walls_done {
-            draw_walls(&mut cv, &mut sprites, lib, seed, layout);
+            draw_walls(&mut ops, &mut sprites, lib, seed, layout);
             walls_done = true;
         }
         let p = &layout.placements[*i];
         let turns = u8::try_from(p.rotation / 90).unwrap_or(0);
-        let (ox, oy) = anchor_origin(a, p.x, p.y, turns, p.mirror, ppsq);
-        let st = stamp_of(a, ppsq);
-        if let Some(sprite) = sprites.get(a, turns, p.mirror) {
-            cv.stamp(sprite, ox, oy, st);
-        }
+        let at = anchor_origin(a, p.x, p.y, turns, p.mirror, ppsq);
+        sprites.push(&mut ops, a, turns, p.mirror, at);
         if let Some(light) = a.light {
             pools.push(pool(p.x, p.y, light.radius_ft, light.colour, ppsq));
         }
     }
     if !walls_done {
-        draw_walls(&mut cv, &mut sprites, lib, seed, layout);
+        draw_walls(&mut ops, &mut sprites, lib, seed, layout);
     }
+    stamp::stamp_all(&mut cv.img, &mut cv.buf, &mut cv.casts, cv.terrain, &ops);
     pools.extend(
         layout
             .lights
@@ -307,22 +317,25 @@ pub fn render_with(
     );
     let mut img = cv.img;
     if opts.lighting {
-        lighting::apply_with(
+        lighting::apply_clipped(
             &mut img,
-            &cv.buf,
-            &cv.casts,
+            (&cv.buf, &cv.casts),
             ppsq,
             &Lighting::default(),
             &pools,
+            area,
         );
         if style.grade {
-            grade::warm(&mut img);
+            grade::warm_clipped(&mut img, area);
         }
     }
     if opts.grid {
         draw_grid(&mut img, ppsq);
     }
-    Ok(img)
+    Ok(match clip {
+        Some(c) => cut(&img, c),
+        None => img,
+    })
 }
 
 /// Goal-prompt §8 memory ceiling for one render.
@@ -371,9 +384,9 @@ fn pick<'a>(pieces: &[&'a Asset], seed: u64, a: u32, b: u32) -> Option<&'a Asset
     pieces.get(i).copied()
 }
 
-/// Draws edge pieces, then joints over their ends.
+/// Queues edge pieces, then joints over their ends.
 fn draw_walls(
-    cv: &mut Canvas<'_>,
+    ops: &mut Vec<Op>,
     sprites: &mut Sprites<'_>,
     lib: &Library,
     seed: u64,
@@ -390,10 +403,7 @@ fn draw_walls(
             i64::from(e.centre2.0) * p / 2,
             i64::from(e.centre2.1) * p / 2,
         );
-        let st = stamp_of(a, sprites.ppsq);
-        if let Some(sprite) = sprites.get(a, e.turns, false) {
-            cv.stamp(sprite, cx - p / 2, cy - p / 2, st);
-        }
+        sprites.push(ops, a, e.turns, false, (cx - p / 2, cy - p / 2));
     }
     for j in &joints {
         let pieces = lib.wall_pieces(j.kit, j.role);
@@ -401,10 +411,7 @@ fn draw_walls(
             continue;
         };
         let (cx, cy) = (i64::from(j.vertex.0) * p, i64::from(j.vertex.1) * p);
-        let st = stamp_of(a, sprites.ppsq);
-        if let Some(sprite) = sprites.get(a, j.turns, false) {
-            cv.stamp(sprite, cx - p / 2, cy - p / 2, st);
-        }
+        sprites.push(ops, a, j.turns, false, (cx - p / 2, cy - p / 2));
     }
 }
 

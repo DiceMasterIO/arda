@@ -22,7 +22,16 @@ async fn health_and_world_describe_the_served_world() {
         (world["cells_wide"].as_u64(), world["cells_high"].as_u64()),
         (Some(1024), Some(2048))
     );
-    assert_eq!(world["fine_terrain"]["recipe_version"], 5);
+    // The manifest's recipe, passed through: 6 for a freshly generated
+    // fixture (a v0.2.0 `out/micro42` records 5).
+    let manifest = arda::World::load(crate::support::world_dir()).unwrap();
+    assert_eq!(
+        world["fine_terrain"]["recipe_version"].as_u64(),
+        manifest
+            .manifest()
+            .fine_terrain
+            .map(|f| u64::from(f.recipe_version))
+    );
     assert_eq!(world["tiles"]["max_zoom"], 1);
     assert_eq!(world["tiles"]["image_width_px"], 256);
 }
@@ -140,6 +149,50 @@ async fn overview_png_and_tiles_are_pngs_within_the_pyramid() {
     }
 }
 
+fn png_rgba(bytes: &[u8]) -> (u32, u32, Vec<u8>) {
+    let mut reader = png::Decoder::new(std::io::Cursor::new(bytes))
+        .read_info()
+        .unwrap();
+    let mut buf = vec![0; reader.output_buffer_size()];
+    let info = reader.next_frame(&mut buf).unwrap();
+    assert_eq!(info.color_type, png::ColorType::Rgba);
+    buf.truncate(info.buffer_size());
+    (info.width, info.height, buf)
+}
+
+fn webp_rgba(bytes: &[u8]) -> (u32, u32, Vec<u8>) {
+    let mut d = image_webp::WebPDecoder::new(std::io::Cursor::new(bytes)).unwrap();
+    let (w, h) = d.dimensions();
+    let mut buf = vec![0; d.output_buffer_size().unwrap()];
+    d.read_image(&mut buf).unwrap();
+    assert!(d.has_alpha());
+    (w, h, buf)
+}
+
+/// Goal 68: the overview pyramid is served as lossless WebP too, with the
+/// same pixels as the PNG tiles, and the same bounds.
+#[tokio::test]
+async fn overview_tiles_are_served_as_lossless_webp_with_the_png_pixels() {
+    for (z, x, y) in [(0, 0, 0), (1, 0, 1), (1, 1, 1)] {
+        let webp = get(&format!("/v1/tiles/overview/{z}/{x}/{y}.webp")).await;
+        assert_eq!(webp.status, StatusCode::OK);
+        assert_eq!(webp.headers["content-type"], "image/webp");
+        assert_eq!(webp.headers["cache-control"], "public, max-age=3600");
+        let png = get(&format!("/v1/tiles/overview/{z}/{x}/{y}.png")).await;
+        let (w, h, pixels) = webp_rgba(&webp.body);
+        assert_eq!((w, h), (256, 256));
+        assert_eq!(pixels, png_rgba(&png.body).2, "{z}/{x}/{y}");
+        assert_ne!(webp.body, png.body);
+    }
+    for uri in [
+        "/v1/tiles/overview/2/0/0.webp",
+        "/v1/tiles/overview/1/2/0.webp",
+        "/v1/tiles/overview/0/0/0.WEBP",
+    ] {
+        assert_eq!(get(uri).await.status, StatusCode::NOT_FOUND, "{uri}");
+    }
+}
+
 #[tokio::test]
 async fn errors_are_typed_json_with_documented_statuses() {
     let cases = [
@@ -221,6 +274,7 @@ async fn identical_requests_give_identical_bytes_even_from_a_cold_state() {
         "/v1/area/1/1/rivers",
         "/v1/overview.png?quality=512",
         "/v1/tiles/overview/1/1/0.png",
+        "/v1/tiles/overview/1/1/0.webp",
     ];
     let cold = Arc::new(
         tokio::task::spawn_blocking(|| AppState::open(&config()).unwrap())

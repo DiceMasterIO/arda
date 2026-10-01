@@ -149,4 +149,36 @@ impl Settlement {
     pub fn has(&self, f: Function) -> bool {
         self.functions.contains(&f)
     }
+
+    /// A bare settlement at a cell, for unit tests.
+    #[cfg(test)]
+    #[must_use]
+    pub fn bare(id: u64, cell_x: u32, cell_y: u32, tier: Tier, population: u32) -> Self {
+        Self {
+            id: SettlementId(id),
+            name: String::new(),
+            tier,
+            population,
+            functions: Vec::new(),
+            wealth: 0,
+            culture: String::new(),
+            realm_id: RealmId(0),
+            biome: Biome::default(),
+            coastal: false,
+            riverine: false,
+            name_gloss: String::new(),
+            x_m: i64::from(cell_x) * 100,
+            y_m: i64::from(cell_y) * 100,
+            cell_x,
+            cell_y,
+            height_m: 0,
+            rank: 0,
+            site_tags: Vec::new(),
+            history: String::new(),
+            buildings: BTreeMap::new(),
+            tongue: None,
+            tag_bits: 0,
+            score: 0,
+        }
+    }
 }

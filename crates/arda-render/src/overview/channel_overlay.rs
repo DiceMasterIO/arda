@@ -213,7 +213,27 @@ fn display_width(width: u32, style: super::ChannelStyle) -> Result<i64, RenderEr
     };
     i64::try_from(dm).map_err(|_| bad("display width conversion overflow"))
 }
-/// Blue-teal river water for recipe 5, deepening downstream (goal 28).
+/// Recipe-5 river water as v0.1 drew it.
+const fn formed_river_colour_v5(band: super::RiverBand) -> [u8; 3] {
+    match band {
+        super::RiverBand::Light => [70, 150, 172],
+        super::RiverBand::Mid => [44, 128, 164],
+        super::RiverBand::Dark => [28, 100, 150],
+    }
+}
+
+/// Recipe-5 minimum on-screen width by discharge, pixels Q8 (v0.1 steps).
+const fn min_width_px_q8_v5(discharge: u64) -> i64 {
+    if discharge >= 50_000 {
+        410
+    } else if discharge >= 5_000 {
+        256
+    } else {
+        0
+    }
+}
+
+/// Blue-teal formed river water, deepening downstream (goal 28; recipe 6).
 pub(crate) const fn formed_river_colour(band: super::RiverBand) -> [u8; 3] {
     match band {
         super::RiverBand::Light => [66, 142, 166],
@@ -393,6 +413,9 @@ fn braid_threads(
 /// Prepared one-area coverage over exact global output pixel bounds.
 pub(super) struct ChannelTile {
     style: super::ChannelStyle,
+    /// Recipe-6 formed rivers (curved, tapered, v0.2 colours); false keeps
+    /// the recipe-5 drawing (logic/04 §atlas-formed recipes).
+    v6: bool,
     shapes: Vec<Shape>,
     bounds: [u32; 4],
     starts: Vec<usize>,
@@ -426,6 +449,7 @@ impl ChannelTile {
         terrain: Option<&crate::AtlasTerrain>,
     ) -> Result<Self, RenderError> {
         let formed = terrain.filter(|t| t.is_formed());
+        let v6 = formed.is_none_or(crate::AtlasTerrain::is_formed_v6);
         // Snapped node positions, computed once per node.
         let mut snapped: BTreeMap<GlobalCell, Point> = BTreeMap::new();
         if let Some(t) = formed {
@@ -439,7 +463,7 @@ impl ChannelTile {
                 }
             }
         }
-        let network = formed.map(|_| {
+        let network = formed.filter(|_| v6).map(|_| {
             Network::new(
                 context
                     .edges(at)
@@ -496,7 +520,11 @@ impl ChannelTile {
                 // Minimum on-screen width by discharge (goals 7, 28): one
                 // output pixel is 512 / span saved cells.
                 let span = i64::from(bounds[1] - bounds[0]).max(1);
-                let min_px_q8 = min_width_px_q8(edge.discharge.raw());
+                let min_px_q8 = if v6 {
+                    min_width_px_q8(edge.discharge.raw())
+                } else {
+                    min_width_px_q8_v5(edge.discharge.raw())
+                };
                 let min_w = min_px_q8 * 512 * Q / (span * 256);
                 wa = wa.max(min_w);
                 wb = wb.max(min_w);
@@ -602,6 +630,7 @@ impl ChannelTile {
             .map_err(|_| RenderError::ExactOverviewDimensions)?;
         Ok(Self {
             style,
+            v6,
             shapes,
             bounds,
             starts,
@@ -692,7 +721,8 @@ impl ChannelTile {
             }
             let band = super::river_band(c.maximum_discharge).unwrap_or(super::RiverBand::Light);
             let water = match self.style {
-                super::ChannelStyle::Formed => formed_river_colour(band),
+                super::ChannelStyle::Formed if self.v6 => formed_river_colour(band),
+                super::ChannelStyle::Formed => formed_river_colour_v5(band),
                 _ => atlas_river_colour(band),
             };
             let a = match self.style {

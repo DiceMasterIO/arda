@@ -97,7 +97,7 @@ checksum = "330a5ed07fa54e4702c9d6c4174f74427fc0ef6e214bbd677ae50a5099946470"
 
 [[package]]
 name = "arda"
-version = "0.2.0"
+version = "0.3.0"
 dependencies = [
  "arda-core",
  "arda-gen",
@@ -107,7 +107,7 @@ dependencies = [
 
 [[package]]
 name = "arda-blocks"
-version = "0.2.0"
+version = "0.3.0"
 dependencies = [
  "arda",
  "arda-fields",
@@ -119,13 +119,14 @@ dependencies = [
  "arda-tactical",
  "arda-town",
  "arda-ways",
+ "rayon",
  "serde_json",
  "thiserror 1.0.69",
 ]
 
 [[package]]
 name = "arda-cli"
-version = "0.2.0"
+version = "0.3.0"
 dependencies = [
  "anyhow",
  "arda",
@@ -137,7 +138,7 @@ dependencies = [
 
 [[package]]
 name = "arda-core"
-version = "0.2.0"
+version = "0.3.0"
 dependencies = [
  "blake3",
  "rand_chacha",
@@ -150,10 +151,11 @@ dependencies = [
 
 [[package]]
 name = "arda-fields"
-version = "0.2.0"
+version = "0.3.0"
 dependencies = [
  "arda-scene",
  "arda-tactical",
+ "rayon",
  "serde",
  "serde_json",
  "thiserror 1.0.69",
@@ -161,7 +163,7 @@ dependencies = [
 
 [[package]]
 name = "arda-gen"
-version = "0.2.0"
+version = "0.3.0"
 dependencies = [
  "arda-core",
  "criterion",
@@ -174,7 +176,7 @@ dependencies = [
 
 [[package]]
 name = "arda-ids"
-version = "0.2.0"
+version = "0.3.0"
 dependencies = [
  "blake3",
  "serde",
@@ -183,7 +185,7 @@ dependencies = [
 
 [[package]]
 name = "arda-midzoom"
-version = "0.2.0"
+version = "0.3.0"
 dependencies = [
  "arda",
  "arda-core",
@@ -196,7 +198,7 @@ dependencies = [
 
 [[package]]
 name = "arda-names"
-version = "0.2.0"
+version = "0.3.0"
 dependencies = [
  "serde",
  "serde_json",
@@ -205,7 +207,7 @@ dependencies = [
 
 [[package]]
 name = "arda-npc"
-version = "0.2.0"
+version = "0.3.0"
 dependencies = [
  "arda-ids",
  "arda-names",
@@ -217,7 +219,7 @@ dependencies = [
 
 [[package]]
 name = "arda-people"
-version = "0.2.0"
+version = "0.3.0"
 dependencies = [
  "arda",
  "arda-core",
@@ -228,6 +230,7 @@ dependencies = [
  "arda-settle",
  "arda-society",
  "arda-town",
+ "rayon",
  "serde",
  "serde_json",
  "thiserror 1.0.69",
@@ -235,12 +238,13 @@ dependencies = [
 
 [[package]]
 name = "arda-refine"
-version = "0.2.0"
+version = "0.3.0"
 dependencies = [
  "arda",
  "arda-core",
  "arda-scene",
  "arda-tactical",
+ "arda-wfc",
  "clap",
  "png",
  "serde",
@@ -250,7 +254,7 @@ dependencies = [
 
 [[package]]
 name = "arda-render"
-version = "0.2.0"
+version = "0.3.0"
 dependencies = [
  "arda-core",
  "png",
@@ -262,7 +266,7 @@ dependencies = [
 
 [[package]]
 name = "arda-scene"
-version = "0.2.0"
+version = "0.3.0"
 dependencies = [
  "arda-tactical",
  "png",
@@ -273,7 +277,7 @@ dependencies = [
 
 [[package]]
 name = "arda-server"
-version = "0.2.0"
+version = "0.3.0"
 dependencies = [
  "arda",
  "arda-blocks",
@@ -285,10 +289,13 @@ dependencies = [
  "arda-people",
  "arda-refine",
  "arda-scene",
+ "arda-settle",
  "arda-tactical",
  "axum",
  "blake3",
  "clap",
+ "crc32fast",
+ "flate2",
  "http-body-util",
  "hyper",
  "hyper-util",
@@ -306,7 +313,7 @@ dependencies = [
 
 [[package]]
 name = "arda-settle"
-version = "0.2.0"
+version = "0.3.0"
 dependencies = [
  "ab_glyph",
  "arda",
@@ -325,7 +332,7 @@ dependencies = [
 
 [[package]]
 name = "arda-society"
-version = "0.2.0"
+version = "0.3.0"
 dependencies = [
  "blake3",
  "serde",
@@ -335,7 +342,7 @@ dependencies = [
 
 [[package]]
 name = "arda-tactical"
-version = "0.2.0"
+version = "0.3.0"
 dependencies = [
  "blake3",
  "png",
@@ -347,11 +354,13 @@ dependencies = [
 
 [[package]]
 name = "arda-town"
-version = "0.2.0"
+version = "0.3.0"
 dependencies = [
  "arda-scene",
  "arda-tactical",
+ "arda-wfc",
  "clap",
+ "rayon",
  "serde",
  "serde_json",
  "thiserror 1.0.69",
@@ -359,7 +368,7 @@ dependencies = [
 
 [[package]]
 name = "arda-ways"
-version = "0.2.0"
+version = "0.3.0"
 dependencies = [
  "arda-scene",
  "arda-tactical",
@@ -369,14 +378,22 @@ dependencies = [
 ]
 
 [[package]]
+name = "arda-wfc"
+version = "0.3.0"
+dependencies = [
+ "thiserror 1.0.69",
+]
+
+[[package]]
 name = "arda-workspace-tests"
-version = "0.2.0"
+version = "0.3.0"
 dependencies = [
  "arda",
  "arda-npc",
  "arda-people",
  "arda-server",
  "arda-settle",
+ "arda-town",
  "axum",
  "blake3",
  "http-body-util",

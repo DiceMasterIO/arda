@@ -3,7 +3,7 @@
 use anyhow::{bail, Context, Result};
 use arda::{
     export_area_with_quality_and_style, export_area_with_scale, export_block, export_overview,
-    export_overview_with_quality_and_style, generate, generate_from_fine_source, AreaImageScale,
+    export_overview_with_quality_and_style, generate, generate_from_fine_recipe, AreaImageScale,
     ExportFormat, FineDeliveryLimits, GenerateConfig, ImageQuality, LatitudeBand, MapStyle, SizeKm,
     World,
 };
@@ -40,9 +40,14 @@ enum Command {
         /// World directory to create.
         #[arg(long)]
         out: PathBuf,
-        /// Terrain source. Fine uses recipe 5 (stream-power formation) and a fixed five-attempt gate.
+        /// Terrain source. Fine uses stream-power formation (recipe 6 unless
+        /// --recipe says otherwise) and a fixed five-attempt gate.
         #[arg(long, value_enum, default_value_t = Terrain::Legacy)]
         terrain: Terrain,
+        /// Fine-terrain recipe: 6 (default), 5 (v0.1 formation, replayed
+        /// exactly) or 4 (spectral valleys). Fine mode only.
+        #[arg(long, value_parser = clap::value_parser!(u16).range(4..=6))]
+        recipe: Option<u16>,
         /// Fine-source RAM ceiling in bytes (default 16 GiB; fine mode only).
         #[arg(long)]
         fine_ram_bytes: Option<u128>,
@@ -197,15 +202,27 @@ fn parse_size(text: &str) -> Result<SizeKm> {
     ))
 }
 
+/// Fine-terrain generation options (`--recipe` and resource ceilings).
+#[derive(Clone, Copy)]
+struct FineOptions {
+    recipe: Option<u16>,
+    ram_bytes: Option<u128>,
+    file_bytes: Option<u128>,
+}
+
 fn run_generate(
     seed: u64,
     size: &str,
     micro: bool,
     out: &Path,
     terrain: Terrain,
-    fine_ram_bytes: Option<u128>,
-    fine_file_bytes: Option<u128>,
+    fine: FineOptions,
 ) -> Result<()> {
+    let FineOptions {
+        recipe,
+        ram_bytes: fine_ram_bytes,
+        file_bytes: fine_file_bytes,
+    } = fine;
     let config = if micro {
         GenerateConfig::MICRO
     } else {
@@ -222,6 +239,9 @@ fn run_generate(
     if terrain == Terrain::Legacy && (fine_ram_bytes.is_some() || fine_file_bytes.is_some()) {
         bail!("fine resource ceilings require --terrain fine");
     }
+    if terrain == Terrain::Legacy && recipe.is_some() {
+        bail!("--recipe requires --terrain fine");
+    }
     println!("stages: continent → prepared terrain → shared water → areas → blocks");
 
     let manifest = match terrain {
@@ -234,7 +254,8 @@ fn run_generate(
             if let Some(bytes) = fine_file_bytes {
                 limits.source.max_file_bytes = bytes;
             }
-            generate_from_fine_source(seed, config, out, limits)?
+            let recipe = recipe.unwrap_or(arda::FINE_TERRAIN_RECIPE_VERSION);
+            generate_from_fine_recipe(seed, config, out, limits, recipe)?
         }
     };
     println!(
@@ -392,6 +413,7 @@ fn main() -> Result<()> {
             micro,
             out,
             terrain,
+            recipe,
             fine_ram_bytes,
             fine_file_bytes,
         } => run_generate(
@@ -400,8 +422,11 @@ fn main() -> Result<()> {
             micro,
             &out,
             terrain,
-            fine_ram_bytes,
-            fine_file_bytes,
+            FineOptions {
+                recipe,
+                ram_bytes: fine_ram_bytes,
+                file_bytes: fine_file_bytes,
+            },
         ),
         Command::Preview {
             seed,
@@ -528,6 +553,63 @@ mod tests {
                 ..
             }
         ));
+    }
+
+    #[test]
+    fn recipe_is_a_fine_option_from_4_to_6() {
+        let parse = |recipe: &str| {
+            Cli::try_parse_from([
+                "arda",
+                "generate",
+                "--seed",
+                "42",
+                "--micro",
+                "--out",
+                "world",
+                "--terrain",
+                "fine",
+                "--recipe",
+                recipe,
+            ])
+        };
+        assert!(matches!(
+            parse("5").unwrap().command,
+            Command::Generate {
+                recipe: Some(5),
+                ..
+            }
+        ));
+        assert!(parse("3").is_err());
+        assert!(parse("7").is_err());
+        let default = Cli::try_parse_from([
+            "arda",
+            "generate",
+            "--seed",
+            "42",
+            "--out",
+            "world",
+            "--terrain",
+            "fine",
+        ])
+        .unwrap();
+        assert!(matches!(
+            default.command,
+            Command::Generate { recipe: None, .. }
+        ));
+        // Legacy terrain has no recipe.
+        let legacy = run_generate(
+            42,
+            "500x1000",
+            true,
+            Path::new("unused-world"),
+            Terrain::Legacy,
+            FineOptions {
+                recipe: Some(5),
+                ram_bytes: None,
+                file_bytes: None,
+            },
+        );
+        assert!(legacy.unwrap_err().to_string().contains("--recipe"));
     }
 
     #[test]

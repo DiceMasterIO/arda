@@ -109,6 +109,14 @@ pub struct LevelFields<'a> {
     pub creep: &'a [u8],
     /// Rock-strength talus multiplier, 128 = 1 (Q7).
     pub rock: &'a [u8],
+    /// Recipe-6 maturity and relief scaling; `None` runs recipe 5.
+    pub shape: Option<ShapeFields<'a>>,
+}
+
+/// Recipe-6 per-cell fields (logic/02 §fine-formation maturity and relief
+/// scaling).
+#[derive(Clone, Copy)]
+pub struct ShapeFields<'a> {
     /// Landscape maturity, 0 (fully dissected) ..= 255 (rounded upland).
     /// Scales fine-level hillslope creep, channel initiation and relative
     /// uplift (logic/02 §fine-formation maturity).
@@ -154,10 +162,11 @@ pub fn run(
                 params.lambda_q16 * (i64::from(scratch.target_blur[i]) - i64::from(scratch.bz[i]));
             // Mature (rounded) ground is uplifting less at fine levels, so
             // it keeps broad arched crests and rolling uplands.
-            let damp = if params.hill_kappa_q16 > 0 {
-                256 - i64::from(fields.soft[i]) * 150 / 255
-            } else {
-                256
+            let damp = match fields.shape {
+                Some(shape) if params.hill_kappa_q16 > 0 => {
+                    256 - i64::from(shape.soft[i]) * 150 / 255
+                }
+                _ => 256,
             };
             let up = params.uplift_mm * i64::from(fields.uplift[i]) * damp / 256;
             let nz = i64::from(*z) + corr.div_euclid(65_536) + up.div_euclid(128);
@@ -216,9 +225,15 @@ pub fn run(
             let mut nz = (zi * 65_536 + f * zr).div_euclid(65_536 + f);
             let base_cap = if code < 4 { cap_card } else { cap_diag };
             // Quadratic ramp: hills stay gentle until relief is substantial.
-            let rq = i64::from(fields.relief[i]);
-            let relief_scale = 25 + 230 * rq * rq * rq / (255 * 255 * 255);
-            let cap = zr + base_cap * i64::from(fields.rock[i]) / 128 * relief_scale / 255;
+            let cap = match fields.shape {
+                Some(shape) => {
+                    let rq = i64::from(shape.relief[i]);
+                    let relief_scale = 25 + 230 * rq * rq * rq / (255 * 255 * 255);
+                    zr + base_cap * i64::from(fields.rock[i]) / 128 * relief_scale / 255
+                }
+                // Recipe 5: rock strength alone scales the talus cap.
+                None => zr + base_cap * i64::from(fields.rock[i]) / 128,
+            };
             // Land never erodes to the base level (see LAND_FLOOR_MM).
             nz = nz.min(cap).max(zr).max(i64::from(params.floor_mm));
             g.z[i] = i32::try_from(nz).unwrap_or(g.z[i]);
@@ -325,7 +340,9 @@ fn diffuse(
             // Creep rounds divides into convex, arched crests; its rate
             // follows landscape maturity (0.25x to 4x the base number).
             let hill = if area[i] < threshold {
-                params.hill_kappa_q16 * (32 + 4 * i64::from(fields.soft[i])) / 128
+                fields.shape.map_or(params.hill_kappa_q16, |shape| {
+                    params.hill_kappa_q16 * (32 + 4 * i64::from(shape.soft[i])) / 128
+                })
             } else {
                 0
             };
@@ -352,6 +369,8 @@ fn diffuse(
 /// mature patch had raised the threshold 3.7x); gentle hills (slope below
 /// 22°) keep the base threshold, so low hills are not incised more.
 /// Maturity still rounds crests through hillslope creep (see [`diffuse`]).
+/// Recipe 5 (no [`ShapeFields`]) scales the base area by rock strength
+/// squared only.
 fn initiation_q8(
     params: &LevelParams,
     fields: &LevelFields<'_>,
@@ -360,8 +379,11 @@ fn initiation_q8(
     dist_um: i64,
 ) -> u64 {
     let rock = u64::from(fields.rock[i]);
-    let soft = u64::from(fields.soft[i]);
-    let flat = 255 - u64::from(fields.relief[i]);
+    let Some(shape) = fields.shape else {
+        return params.channel_area_q8 * rock * rock / (128 * 128);
+    };
+    let soft = u64::from(shape.soft[i]);
+    let flat = 255 - u64::from(shape.relief[i]);
     // Strong relief (mask near 255) starts channels at down to 0.35x the
     // base area, cubically, so only real mountains gain channel heads.
     let rq = 255 - flat;

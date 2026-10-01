@@ -6,6 +6,8 @@ mod cells;
 mod contract;
 mod endpoints;
 mod npc;
+mod people;
+mod prefetch;
 mod relief;
 mod support;
 mod tactical;

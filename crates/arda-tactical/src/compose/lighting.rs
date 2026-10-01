@@ -91,7 +91,7 @@ pub struct Pool {
 }
 
 /// Height below the sun line (1/256 ft) at which a shadow is fully dark.
-const FADE: i32 = 3 * 256;
+pub(super) const FADE: i32 = 3 * 256;
 
 /// Offset silhouettes cast by tree canopies, and canopy coverage, both
 /// 0–255 per pixel. Canopies do not sweep a shadow along their height: a
@@ -186,6 +186,21 @@ pub fn apply_with(
     l: &Lighting,
     pools: &[Pool],
 ) {
+    let all = [0, 0, canvas.width, canvas.height];
+    apply_clipped(canvas, (buf, casts), ppsq, l, pools, all);
+}
+
+/// [`apply_with`] on pixels `[x0, y0, x1, y1)` only. The masks still cover
+/// the whole canvas (they reach across pixels); only the per-pixel shading
+/// and the light pools are clipped, so the pixels inside are unchanged.
+pub fn apply_clipped(
+    canvas: &mut Rgba,
+    (buf, casts): (&Buffers, &Casts),
+    ppsq: u32,
+    l: &Lighting,
+    pools: &[Pool],
+    [x0, y0, x1, y1]: [u32; 4],
+) {
     let (w, h) = (buf.width as usize, buf.height as usize);
     let (hw, hh) = (w.div_ceil(2), h.div_ceil(2));
     let hp = (ppsq / 2).max(1);
@@ -202,7 +217,13 @@ pub fn apply_with(
     let max4 = |v: [u8; 4]| v[0].max(v[1]).max(v[2]).max(v[3]);
     let mean4 =
         |v: [u8; 4]| crate::raster::to_u8((v.iter().map(|&x| u32::from(x)).sum::<u32>() + 2) / 4);
-    let sweep = soften(&drop_shadows(&half_buf, hp, l), hw, hh, (hp / 26).max(1), 3);
+    let sweep = soften(
+        &super::shadows::drop_shadows(&half_buf, hp, l),
+        hw,
+        hh,
+        (hp / 26).max(1),
+        3,
+    );
     let crown = soften(
         &half(&casts.silhouettes, w, h, mean4),
         hw,
@@ -228,8 +249,15 @@ pub fn apply_with(
         .par_chunks_mut(w * 4)
         .enumerate()
         .for_each(|(y, row)| {
+            if y < y0 as usize || y >= y1 as usize {
+                return;
+            }
             let ty = yt[y];
+            let span = x0 as usize..(x1 as usize).min(w);
             for (x, p) in row.as_chunks_mut::<4>().0.iter_mut().enumerate() {
+                if !span.contains(&x) {
+                    continue;
+                }
                 let i = y * w + x;
                 let tx = xt[x];
                 // Canopy shadows: slightly darker than a sweep, never on
@@ -254,50 +282,7 @@ pub fn apply_with(
                 }
             }
         });
-    add_pools(canvas, pools);
-}
-
-/// Graded shadow mask: light from the top-left at 45°. `reach` carries the
-/// tallest occluder height seen along each diagonal, falling by the sun
-/// slope each step; a pixel is shadowed where it lies below that line, the
-/// more the deeper. Rows are processed in order, each row in parallel.
-fn drop_shadows(buf: &Buffers, ppsq: u32, l: &Lighting) -> Vec<u8> {
-    let (w, h) = (buf.width as usize, buf.height as usize);
-    // Height lost per diagonal pixel step, in 1/256 ft: a step covers √2 px
-    // (≈ 1448/1024) and one foot casts `shadow_len·ppsq/1024` px.
-    let per_ft = u64::from(l.shadow_len) * u64::from(ppsq);
-    let drop = i32::try_from((256 * 1448 / per_ft.max(1)).max(1)).unwrap_or(i32::MAX);
-    let mut mask = vec![0u8; w * h];
-    let mut prev = vec![i32::MIN / 2; w];
-    let mut cur = vec![i32::MIN / 2; w];
-    let chunk = 1024;
-    for (y, mrow) in mask.chunks_mut(w).enumerate() {
-        let hrow = &buf.height_map[y * w..(y + 1) * w];
-        let prev_ref = &prev;
-        cur.par_chunks_mut(chunk)
-            .zip(mrow.par_chunks_mut(chunk))
-            .enumerate()
-            .for_each(|(ci, (c, m))| {
-                for j in 0..c.len() {
-                    let x = ci * chunk + j;
-                    let own = hrow[x];
-                    let carried = if x > 0 && y > 0 {
-                        prev_ref[x - 1] - drop
-                    } else {
-                        i32::MIN / 2
-                    };
-                    let below = carried - own - 128;
-                    m[j] = if below > 0 {
-                        u8::try_from((below * 255 / FADE).min(255)).unwrap_or(255)
-                    } else {
-                        0
-                    };
-                    c[j] = own.max(carried);
-                }
-            });
-        std::mem::swap(&mut prev, &mut cur);
-    }
-    mask
+    add_pools(canvas, pools, [x0, y0, x1, y1]);
 }
 
 /// `passes` separable box blurs of radius `r`: a cheap soft edge.
@@ -376,31 +361,35 @@ fn blur_line(
     }
 }
 
-/// Adds every light pool, row-parallel.
-fn add_pools(canvas: &mut Rgba, pools: &[Pool]) {
+/// Adds every light pool to pixels `[x0, y0, x1, y1)`, row-parallel.
+fn add_pools(canvas: &mut Rgba, pools: &[Pool], [x0, y0, x1, y1]: [u32; 4]) {
     if pools.is_empty() {
         return;
     }
     let w = canvas.width as usize;
+    let span = (i64::from(x0), i64::from(x1));
     canvas
         .data
         .par_chunks_mut(w * 4)
         .enumerate()
         .for_each(|(y, row)| {
+            if y < y0 as usize || y >= y1 as usize {
+                return;
+            }
             let y = i64::try_from(y).unwrap_or(0);
             for p in pools {
                 if y < p.y - p.r || y >= p.y + p.r {
                     continue;
                 }
-                add_pool_row(row, y, p);
+                add_pool_row(row, y, p, span);
             }
         });
 }
 
-fn add_pool_row(row: &mut [u8], y: i64, p: &Pool) {
+fn add_pool_row(row: &mut [u8], y: i64, p: &Pool, (sx0, sx1): (i64, i64)) {
     let r2 = p.r * p.r;
-    let w = i64::try_from(row.len() / 4).unwrap_or(0);
-    for x in (p.x - p.r).max(0)..(p.x + p.r).min(w) {
+    let w = i64::try_from(row.len() / 4).unwrap_or(0).min(sx1);
+    for x in (p.x - p.r).max(0).max(sx0)..(p.x + p.r).min(w) {
         let d2 = (x - p.x) * (x - p.x) + (y - p.y) * (y - p.y);
         if d2 >= r2 {
             continue;
@@ -420,22 +409,6 @@ fn add_pool_row(row: &mut [u8], y: i64, p: &Pool) {
 #[cfg(test)]
 mod tests {
     use super::*;
-
-    #[test]
-    fn a_tall_block_shadows_its_bottom_right_only() {
-        let (w, h) = (40u32, 40u32);
-        let mut buf = Buffers::new(w, h);
-        for y in 10..20 {
-            for x in 10..20 {
-                buf.height_map[y * 40 + x] = 256 * 10;
-            }
-        }
-        let m = drop_shadows(&buf, 32, &Lighting::default());
-        assert_eq!(m[22 * 40 + 22], 255, "below-right is shadowed");
-        assert_eq!(m[8 * 40 + 8], 0, "above-left is lit");
-        assert_eq!(m[15 * 40 + 15], 0, "the block's top is lit");
-        assert_eq!(m[39 * 40 + 39], 0, "shadow length is finite");
-    }
 
     #[test]
     fn blur_preserves_flat_fields() {

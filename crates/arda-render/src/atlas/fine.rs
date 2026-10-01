@@ -70,6 +70,9 @@ pub struct AtlasFineWorldBounds {
 pub(super) struct FineAtlas {
     /// Recipe-5 multi-scale shading (logic/04 §atlas-formed).
     formed: bool,
+    /// The recipe-6 look of formed shading; false draws a recipe-5 world
+    /// exactly as v0.1 did (logic/04 §atlas-formed recipes).
+    v6: bool,
     field: TerrainField,
     origin_x: i128,
     origin_y: i128,
@@ -279,6 +282,7 @@ impl FineAtlas {
         }
         let this = Self {
             formed,
+            v6: true,
             field,
             origin_x,
             origin_y,
@@ -480,6 +484,16 @@ impl FineAtlas {
 
     pub(super) fn is_formed(&self) -> bool {
         self.formed
+    }
+
+    /// Whether formed shading uses the recipe-6 look.
+    pub(super) const fn is_v6(&self) -> bool {
+        self.v6
+    }
+
+    /// Selects the formed look for a world's recipe (6 and later: v0.2).
+    pub(super) fn set_recipe(&mut self, recipe_version: u16) {
+        self.v6 = recipe_version >= 6;
     }
 
     /// Recipe-5 channel vertex: the lowest fine node inside the saved 100 m
@@ -694,6 +708,7 @@ impl FineAtlas {
             moisture: saved.moisture,
             wetness: saved.wetness,
             shore: saved.shore,
+            v6: self.v6,
         }))
     }
 
@@ -734,7 +749,7 @@ impl FineAtlas {
                     lake_surface_near(px, py, (self.origin_x, self.origin_y), lake_surface)?;
                 let color = if surface.is_some_and(|s| height < s) {
                     let depth = i64::from(surface.unwrap_or(height)) - i64::from(height);
-                    super::formed::lake(depth)
+                    super::formed::lake(depth, self.v6)
                 } else if height > 0 {
                     let (saved, temperature) = self.land_inputs(px, py, height, saved)?;
                     self.formed_color(qx, qy, height, (saved, temperature), footprint, None)?
@@ -1063,6 +1078,7 @@ mod tests {
         );
         let atlas = FineAtlas {
             formed: false,
+            v6: true,
             field,
             origin_x: 0,
             origin_y: 0,
@@ -1133,6 +1149,7 @@ mod tests {
         };
         let left = FineAtlas {
             formed: false,
+            v6: true,
             field: source.clone(),
             origin_x: 0,
             origin_y: 0,
@@ -1142,6 +1159,7 @@ mod tests {
         };
         let right = FineAtlas {
             formed: false,
+            v6: true,
             field: source,
             origin_x: AREA_UM,
             origin_y: 0,
@@ -1189,6 +1207,7 @@ mod tests {
         );
         let atlas = FineAtlas {
             formed: false,
+            v6: true,
             field: source,
             origin_x: 0,
             origin_y: 0,
@@ -1272,6 +1291,7 @@ mod tests {
         };
         let mut atlas = FineAtlas {
             formed: false,
+            v6: true,
             field: source,
             origin_x: 0,
             origin_y: 0,

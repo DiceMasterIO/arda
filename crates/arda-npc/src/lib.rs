@@ -26,6 +26,7 @@ pub mod rng;
 pub mod rules;
 pub mod sample;
 pub mod sheet;
+pub mod skeleton;
 pub mod text;
 
 pub use error::NpcError;
@@ -39,6 +40,7 @@ pub use npc::{
 };
 pub use population::{Household, HouseholdRelation, Population, RosterEntry};
 pub use sheet::Sheet;
+pub use skeleton::Resident;
 
 use plan::Plan;
 

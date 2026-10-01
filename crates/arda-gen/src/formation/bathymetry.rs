@@ -22,6 +22,8 @@ use super::FormationError;
 
 /// Shelf width off low (passive) coasts, metres.
 pub const SHELF_PASSIVE_M: i64 = 60_000;
+/// Recipe-5 shelf width off low (passive) coasts, metres.
+pub const SHELF_PASSIVE_V5_M: i64 = 80_000;
 /// Shelf width off mountainous (active) coasts, metres.
 pub const SHELF_ACTIVE_M: i64 = 8_000;
 /// Depth at the shelf break, millimetres.
@@ -265,6 +267,117 @@ pub fn shelf_fill(
         }
     }
     Ok(raised)
+}
+
+/// Recipe-5 shelf width for a coastal relief in metres.
+fn shelf_m_v5(relief_m: i64) -> i64 {
+    let a = relief_m.clamp(0, ACTIVE_RELIEF_M);
+    SHELF_PASSIVE_V5_M - (SHELF_PASSIVE_V5_M - SHELF_ACTIVE_M) * a / ACTIVE_RELIEF_M
+}
+
+/// Recipe 5: labelled two-pass chamfer from non-ocean cells, distance in
+/// metres and the macro relief (m) of the source cell.
+fn distance_and_label_chamfer(
+    open: &[u8],
+    relief_m: &[i32],
+    w: usize,
+    h: usize,
+    d_m: i32,
+) -> Result<(Vec<i32>, Vec<i32>), FormationError> {
+    let n = w * h;
+    let mut dist: Vec<i32> = alloc(n)?;
+    let mut label: Vec<i32> = alloc(n)?;
+    for i in 0..n {
+        if open[i] & FIXED == 0 {
+            label[i] = relief_m[i];
+        } else {
+            dist[i] = i32::MAX / 2;
+        }
+    }
+    let diag = d_m * 181 / 128;
+    let mut relax = |i: usize, j: usize, step: i32, dist: &mut [i32]| {
+        let c = dist[j].saturating_add(step);
+        if c < dist[i] {
+            dist[i] = c;
+            label[i] = label[j];
+        }
+    };
+    for y in 0..h {
+        for x in 0..w {
+            let i = y * w + x;
+            if x > 0 {
+                relax(i, i - 1, d_m, &mut dist);
+            }
+            if y > 0 {
+                relax(i, i - w, d_m, &mut dist);
+                if x > 0 {
+                    relax(i, i - w - 1, diag, &mut dist);
+                }
+                if x + 1 < w {
+                    relax(i, i - w + 1, diag, &mut dist);
+                }
+            }
+        }
+    }
+    for y in (0..h).rev() {
+        for x in (0..w).rev() {
+            let i = y * w + x;
+            if x + 1 < w {
+                relax(i, i + 1, d_m, &mut dist);
+            }
+            if y + 1 < h {
+                relax(i, i + w, d_m, &mut dist);
+                if x + 1 < w {
+                    relax(i, i + w + 1, diag, &mut dist);
+                }
+                if x > 0 {
+                    relax(i, i + w - 1, diag, &mut dist);
+                }
+            }
+        }
+    }
+    Ok((dist, label))
+}
+
+/// Recipe 5 (v0.1): replaces open-ocean macro depths with the relief-only
+/// margin profile ([`SHELF_PASSIVE_V5_M`] passive shelves, chamfer
+/// distance). Beyond the margin, deeper macro ocean is kept.
+///
+/// # Errors
+/// Allocation failure.
+pub fn apply_v5(macro_mm: &mut Lattice, relief_m: &Lattice) -> Result<(), FormationError> {
+    let (w, h) = (macro_mm.width, macro_mm.height);
+    let n = w * h;
+    let d_m = i32::try_from(macro_mm.spacing_um / 1_000_000)
+        .map_err(|_| FormationError::ArithmeticOverflow)?
+        .max(1);
+    let mut open: Vec<u8> = alloc(n)?;
+    open_sea_flags(&macro_mm.z, w, h, &mut open);
+    // The domain rim is flagged even where it is land; only open water
+    // below sea level counts as ocean here.
+    for (f, &z) in open.iter_mut().zip(&macro_mm.z) {
+        if z > 0 {
+            *f = 0;
+        }
+    }
+    let (dist, label) = distance_and_label_chamfer(&open, &relief_m.z, w, h, d_m)?;
+    let mut tmp: Vec<i32> = alloc(n)?;
+    let mut smooth: Vec<i32> = alloc(n)?;
+    blur_into(&label, w, h, LABEL_BLUR_CELLS, &mut tmp, &mut smooth);
+    for i in 0..n {
+        if open[i] & FIXED == 0 || dist[i] >= i32::MAX / 2 {
+            continue;
+        }
+        let dist_m = i64::from(dist[i]);
+        let shelf = shelf_m_v5(i64::from(smooth[i]));
+        let target = -profile_mm(dist_m, shelf);
+        let z = i64::from(macro_mm.z[i]);
+        // Only deepen: coasts, land fraction and shallow macro shelves are
+        // unchanged; active margins become narrow and steep.
+        let nz = z.min(target);
+        macro_mm.z[i] = i32::try_from(nz).unwrap_or(macro_mm.z[i]);
+    }
+    Ok(())
 }
 
 #[cfg(test)]

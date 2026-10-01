@@ -137,7 +137,9 @@ fn towns_keep_their_distance_and_follow_rank_size() {
         "{}",
         st.rank_size_slope
     );
-    assert!(st.rank_size_r2 > 0.95);
+    // Primate capitals (one city per realm, `primacy.rs`) bend the top of
+    // the list, so the fit is looser than a pure rank-size list's.
+    assert!(st.rank_size_r2 > 0.8, "{}", st.rank_size_r2);
     let hamlets = st.count_by_tier["hamlet"];
     let villages = st.count_by_tier["village"];
     assert!(hamlets > villages && villages > towns.len() as u64);

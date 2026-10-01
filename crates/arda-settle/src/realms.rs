@@ -1,7 +1,8 @@
 //! Realms (spec step 6; `logic/06` steps 1–3).
 //!
-//! 1. Seats are the N largest towns, N ≈ population / 8,000 (min 2), capped
-//!    at a third of the towns so every realm has a hinterland.
+//! 1. Seats are chosen in `seats.rs` (spread, balanced large towns) and
+//!    grown into primate cities in `primacy.rs`; here they are ranked by
+//!    population, so realm 1 has the largest capital.
 //! 2. Allegiance: every cell swears to the seat cheapest to reach over the
 //!    road and terrain cost surface (one multi-source Dijkstra); ties go to
 //!    the higher-ranked seat. Settlements take the realm of their cell.
@@ -25,8 +26,6 @@ use std::collections::{BTreeMap, BTreeSet, BinaryHeap};
 /// A unit border edge between two cell corners.
 type Segment = ((i64, i64), (i64, i64));
 
-/// People per realm seat (`logic/06` step 1 default).
-const PEOPLE_PER_SEAT: u64 = 8000;
 /// Toll for stepping over a river of order ≥ 3, metre-equivalents.
 const RIVER_TOLL: u64 = 800;
 /// Toll for stepping onto a ridge crest.
@@ -82,16 +81,6 @@ pub struct Realms {
     pub natural_land_pm: u32,
 }
 
-/// Number of seats for a population and town count.
-#[must_use]
-pub fn seat_count(population: u64, towns: usize) -> usize {
-    if towns < 2 {
-        return 1;
-    }
-    let by_pop = usize::try_from(population / PEOPLE_PER_SEAT).unwrap_or(usize::MAX);
-    by_pop.min(towns / 3).max(2)
-}
-
 /// Ridge crests, thickened by a cell so diagonal steps cannot slip through.
 fn ridges(g: &Grid, sites: &Sites) -> Result<Vec<bool>, SettleError> {
     let crest = |i: usize| g.is_land(i) && g.drainage[i] <= 1 && sites.prominence_m[i] >= 40;
@@ -111,24 +100,17 @@ pub fn partition(
     sites: &Sites,
     cs: &CostSurface,
     net: &Network,
+    seats: &[usize],
     settlements: &mut [Settlement],
 ) -> Result<Realms, SettleError> {
-    let mut urban: Vec<usize> = (0..settlements.len())
-        .filter(|&k| settlements[k].tier.is_urban())
-        .collect();
-    urban.sort_by(|&a, &b| {
+    // Seats in rank order: the largest capital is realm 1.
+    let mut seats = seats.to_vec();
+    seats.sort_by(|&a, &b| {
         settlements[b]
             .population
             .cmp(&settlements[a].population)
             .then(settlements[a].id.cmp(&settlements[b].id))
     });
-    if urban.is_empty() {
-        urban = (0..settlements.len().min(1)).collect();
-    }
-    let people: u64 = settlements.iter().map(|s| u64::from(s.population)).sum();
-    let n = seat_count(people, urban.len()).min(urban.len());
-    let seats: Vec<usize> = urban.into_iter().take(n).collect();
-
     let ridge = ridges(g, sites)?;
     let on_road = |i: usize| net.raster[i] != 0;
     let mut best = filled(g.len(), u64::MAX, "allegiance cost")?;
@@ -186,7 +168,8 @@ pub fn partition(
     for s in settlements.iter_mut() {
         s.realm_id = arda_ids::RealmId(u64::from(map[s.index(g.width)]));
     }
-    cap_cities(settlements);
+    cap_cities(settlements, &seats);
+    crate::primacy::rerank(settlements);
     let realms = records(g, &map, &seats, settlements);
     let natural_land_pm = natural_land(g, &map, &line);
     Ok(Realms {
@@ -214,14 +197,16 @@ fn natural_land(g: &Grid, map: &[u16], line: &[bool]) -> u32 {
     u32::try_from(land_near * 1000 / land.max(1)).unwrap_or(0)
 }
 
-/// Keeps at most two cities per realm; extras become large towns.
-fn cap_cities(settlements: &mut [Settlement]) {
+/// Keeps at most two cities per realm; extras become large towns. Seats
+/// count first, so a capital is never the one demoted.
+fn cap_cities(settlements: &mut [Settlement], seats: &[usize]) {
     let mut seen: BTreeMap<u64, usize> = BTreeMap::new();
     let mut order: Vec<usize> = (0..settlements.len()).collect();
     order.sort_by(|&a, &b| {
-        settlements[b]
-            .population
-            .cmp(&settlements[a].population)
+        seats
+            .contains(&b)
+            .cmp(&seats.contains(&a))
+            .then(settlements[b].population.cmp(&settlements[a].population))
             .then(settlements[a].id.cmp(&settlements[b].id))
     });
     for k in order {
@@ -364,14 +349,6 @@ fn simplify(line: &[(i64, i64)]) -> Vec<[i64; 2]> {
 #[cfg(test)]
 mod tests {
     use super::*;
-
-    #[test]
-    fn seats_scale_with_people_and_towns() {
-        assert_eq!(seat_count(1_000_000, 1), 1);
-        assert_eq!(seat_count(1000, 2), 2);
-        assert_eq!(seat_count(90_000, 9), 3);
-        assert_eq!(seat_count(20_000, 30), 2);
-    }
 
     #[test]
     fn chaining_joins_segments() {

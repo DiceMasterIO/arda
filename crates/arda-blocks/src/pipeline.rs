@@ -220,15 +220,24 @@ impl Pipeline {
                 };
                 compose_all(&ctx, o, &mut layout, &mut rules, &mut owners)?
             }
-            None => Vec::new(),
+            None => crate::overlays::Applied::default(),
         };
         layout.origin = Some([gsx0, gsy0]);
+        // Relaxed overlay fills (the town WFC's) join the refiner's review
+        // record (goal 47).
+        let mut meta = map.meta;
+        if !applied.review.is_empty() {
+            meta.relaxed = true;
+            meta.review.extend(&applied.review);
+            meta.review.sort_unstable();
+            meta.review.dedup();
+        }
         Ok(Composed {
             layout,
             rules,
-            meta: map.meta,
+            meta,
             owners,
-            overlays: applied,
+            overlays: applied.layers,
         })
     }
 }

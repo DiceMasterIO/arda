@@ -21,7 +21,7 @@ not produced" non-goal.
 
 ## Steps
 
-1. **Realm seats**: the N largest towns, N scaling with continent population (default ≈ population/8,000, min 2 — assumed, tunable).
+1. **Realm seats**: N large towns spread over the land and balanced over its people, N scaling with population and habitable land (min 2); each capital grows into a primate city. The parameters are in [08 §realm-seats](08-settlements-roads-realms.md).
 2. **Allegiance**: every settlement swears to the seat cheapest to reach over the road/terrain cost surface (roads cheap, terrain per the artifact's road-cost table).
 3. **Borders**: realm territory = watershed of allegiance over land cells; the boundary snaps to a river or ridge line when one lies within ~2 cells (assumed). Realms are named with the region-naming scheme.
 4. **Buildings**: for each settlement, the deterministic building-layout function (block stage, `logic/03`) yields the building list: id, type from a tier-scaled mix (hamlet: houses+barns; village: +church, inn, mill, smithy; town: +market hall, warehouses, keep), footprint squares, settlement id. Written to area objects; the same function constrains the block tiles — objects and drawings cannot disagree.

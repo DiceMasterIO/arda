@@ -81,6 +81,19 @@ Recipes 2–4 and Classic output are unchanged. Source:
 [formed.rs](../../../crates/arda-render/src/atlas/formed.rs),
 [fine.rs](../../../crates/arda-render/src/atlas/fine.rs).
 
+### §atlas-formed recipes
+
+The export reads the manifest recipe and passes it to
+`AtlasTerrain::with_recipe`. Recipe-6 worlds get the v0.2 look described in
+this section: the v0.2 palette and lake stops, surface mottling and sub-grid
+detail, stored shore classes, snow sky light and the highlight shoulder;
+curved, relaxed, source-tapered rivers with the log-scaled minimum width and
+v0.2 river colours; braid threads where water forms are stored. Recipe-5
+worlds render exactly as v0.1 drew them: the frozen shader in
+[formed/v5.rs](../../../crates/arda-render/src/atlas/formed/v5.rs), straight
+river strips between snapped nodes, the stepped minimum widths and the v0.1
+river colours. Constructors default to recipe 6.
+
 ### §atlas-formed light
 
 A single north-west light at 42° elevation. The relief term is a weighted sum

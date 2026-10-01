@@ -2,11 +2,13 @@
 //! rebuild (goal 60).
 
 use crate::catalog::{self, Asset, AssetClass, Catalog, WallRole};
+use crate::compose::sample::TextureSet;
 use crate::error::TacticalError;
 use crate::raster::Rgba;
 use crate::validate::{validate, Images, Issue, Thresholds};
 use std::collections::BTreeMap;
 use std::path::{Component, Path, PathBuf};
+use std::sync::{Arc, Mutex};
 
 /// The catalogue file name inside a library directory.
 pub const CATALOG_FILE: &str = "catalog.json";
@@ -17,6 +19,33 @@ pub struct Library {
     /// The parsed catalogue.
     pub catalog: Catalog,
     images: BTreeMap<String, Rgba>,
+    derived: Derived,
+}
+
+/// Scaled texture sets kept across renders (goal 50), keyed by output ppsq
+/// and a fingerprint of the catalogue's textures, so a changed catalogue
+/// never reuses stale art. A clone starts empty.
+#[derive(Default)]
+struct Derived {
+    textures: Mutex<TextureSets>,
+}
+
+/// Texture sets by `(ppsq, catalogue fingerprint)`.
+type TextureSets = BTreeMap<(u32, u64), Arc<TextureSet>>;
+
+/// Texture sets kept; more are dropped wholesale.
+const DERIVED_SETS: usize = 8;
+
+impl Clone for Derived {
+    fn clone(&self) -> Self {
+        Self::default()
+    }
+}
+
+impl std::fmt::Debug for Derived {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.debug_struct("Derived").finish_non_exhaustive()
+    }
 }
 
 /// Reads and parses `<dir>/catalog.json`.
@@ -79,7 +108,11 @@ impl Library {
             .into_iter()
             .filter_map(|(id, img)| img.ok().map(|i| (id, i)))
             .collect();
-        Ok(Self { catalog, images })
+        Ok(Self {
+            catalog,
+            images,
+            derived: Derived::default(),
+        })
     }
 
     /// Builds a library from in-memory parts after validating them.
@@ -98,7 +131,48 @@ impl Library {
         if !issues.is_empty() {
             return Err(TacticalError::Invalid(issues));
         }
-        Ok(Self { catalog, images })
+        Ok(Self {
+            catalog,
+            images,
+            derived: Derived::default(),
+        })
+    }
+
+    /// Every ground and water texture scaled to `ppsq`, built once per
+    /// ppsq and catalogue and then shared (the result equals
+    /// [`TextureSet::new`]).
+    #[must_use]
+    pub fn texture_set(&self, ppsq: u32) -> Arc<TextureSet> {
+        let key = (ppsq, self.texture_fingerprint());
+        if let Some(hit) = self.derived_sets().and_then(|m| m.get(&key).cloned()) {
+            return hit;
+        }
+        let set = Arc::new(TextureSet::new(self, ppsq));
+        if let Some(mut m) = self.derived_sets() {
+            if m.len() >= DERIVED_SETS {
+                m.clear();
+            }
+            m.insert(key, Arc::clone(&set));
+        }
+        set
+    }
+
+    fn derived_sets(&self) -> Option<std::sync::MutexGuard<'_, TextureSets>> {
+        self.derived.textures.lock().ok()
+    }
+
+    /// A hash of what [`TextureSet::new`] reads from the catalogue.
+    fn texture_fingerprint(&self) -> u64 {
+        let mut h = 0;
+        for a in self.catalog.assets.iter().filter(|a| a.class.is_texture()) {
+            h = crate::noise::hash_str(h, &a.id);
+            h = crate::noise::hash_str(h, a.ground.as_deref().unwrap_or(""));
+            h = crate::noise::hash2(h, i64::from(a.footprint.w), i64::from(a.footprint.h));
+            for t in &a.tags.free {
+                h = crate::noise::hash_str(h, t);
+            }
+        }
+        h
     }
 
     /// Source pixels per square.

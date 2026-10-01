@@ -9,6 +9,8 @@ import { tacticalPyramid } from "../geo/tacticalTiles.ts";
 import { useAsync } from "../hooks.ts";
 import { COVER_COLOURS, pointerMarks, rulesOverlay, tokenMarks, waterFill, type RulesToggles } from "../render/tacticalOverlay.ts";
 import type { TokenView } from "../api/tactical.ts";
+import { cellHash, neighbour, type CellExtent, type Direction } from "../geo/cellWalk.ts";
+import { EdgeArrows, type Walk } from "../components/EdgeArrows.tsx";
 
 const RENDER_PPSQ = 64;
 
@@ -24,7 +26,7 @@ function cellFromHash(): { gx: number; gy: number } | null {
 }
 
 /** The "cell" tab: `/v1/tactical/cell/{gx}/{gy}`, its 501 state, and the Block view. */
-export function TacticalCellView({ client }: { client: ArdaClient }) {
+export function TacticalCellView({ client, world = null }: { client: ArdaClient; world?: CellExtent | null }) {
   const [cell, setCell] = useState(cellFromHash);
   const [overlays, setOverlays] = useState(demoFromHash);
   const [draft, setDraft] = useState(() => ({ gx: String(cell?.gx ?? 512), gy: String(cell?.gy ?? 1036) }));
@@ -47,8 +49,18 @@ export function TacticalCellView({ client }: { client: ArdaClient }) {
     const gx = Number(draft.gx);
     const gy = Number(draft.gy);
     if (!Number.isInteger(gx) || !Number.isInteger(gy) || gx < 0 || gy < 0) return;
-    window.location.hash = `#/cell?gx=${gx}&gy=${gy}${overlays ? "&demo=1" : ""}`;
+    window.location.hash = cellHash({ gx, gy }, overlays);
     setCell({ gx, gy });
+  };
+
+  // Walking off an edge opens the neighbour, which joins this cell seamlessly
+  // (its image is rendered with an apron) and was prefetched when this one opened.
+  const walk = (dir: Direction) => {
+    const next = cell ? neighbour(cell, dir, world) : null;
+    if (!next) return;
+    window.location.hash = cellHash(next, overlays);
+    setCell(next);
+    setDraft({ gx: String(next.gx), gy: String(next.gy) });
   };
 
   return (
@@ -100,7 +112,14 @@ export function TacticalCellView({ client }: { client: ArdaClient }) {
         </span>
       </form>
       {cell ? (
-        <CellResult key={`${cell.gx},${cell.gy},${overlays ? 1 : 0}`} client={client} gx={cell.gx} gy={cell.gy} overlays={overlays} />
+        <CellResult
+          key={`${cell.gx},${cell.gy},${overlays ? 1 : 0}`}
+          client={client}
+          gx={cell.gx}
+          gy={cell.gy}
+          overlays={overlays}
+          walk={{ onWalk: walk, can: (d) => neighbour(cell, d, world) !== null }}
+        />
       ) : (
         <p className="notice">Enter a global cell.</p>
       )}
@@ -108,7 +127,7 @@ export function TacticalCellView({ client }: { client: ArdaClient }) {
   );
 }
 
-function CellResult({ client, gx, gy, overlays }: { client: ArdaClient; gx: number; gy: number; overlays: boolean }) {
+function CellResult({ client, gx, gy, overlays, walk }: { client: ArdaClient; gx: number; gy: number; overlays: boolean; walk: Walk }) {
   const res = useAsync((signal) => client.tacticalCell(gx, gy, { signal }, { ppsq: RENDER_PPSQ, demo: overlays }), [client, gx, gy, overlays]);
   const [demo, setDemo] = useState<TacticalBlockDto | null>(null);
 
@@ -123,7 +142,7 @@ function CellResult({ client, gx, gy, overlays }: { client: ArdaClient; gx: numb
       </div>
     );
   }
-  if (res.value.kind === "block") return <BlockView client={client} block={res.value.block} demo={false} cell={{ gx, gy, overlays }} />;
+  if (res.value.kind === "block") return <BlockView client={client} block={res.value.block} demo={false} cell={{ gx, gy, overlays }} walk={walk} />;
   if (demo) {
     return (
       <>
@@ -217,12 +236,15 @@ function BlockView({
   block,
   demo,
   cell,
+  walk,
 }: {
   client: ArdaClient;
   block: TacticalBlockDto;
   demo: boolean;
   /** Set for server blocks: images come from the cell's own seamless tiles. */
   cell?: { gx: number; gy: number; overlays: boolean };
+  /** Set for server blocks: the edge arrows open the neighbouring cell. */
+  walk?: Walk;
 }) {
   const { layout } = block;
   const [toggles, setToggles] = useState<RulesToggles>({ difficult: true, water: true, cover: true });
@@ -233,6 +255,26 @@ function BlockView({
   const { log, record } = useImageLog();
   const [showTokens, setShowTokens] = useState(true);
   const [tokens, setTokens] = useState<TokenView[]>([]);
+  const [prefetch, setPrefetch] = useState<string | null>(null);
+
+  // Server blocks: warm the 8 neighbours in the background (goal 67), so
+  // walking off an edge finds them cached. Fire and forget: nothing waits.
+  useEffect(() => {
+    if (!cell) return;
+    const ctl = new AbortController();
+    client.tacticalPrefetch(cell.gx, cell.gy, { radius: 1, ppsq: RENDER_PPSQ, demo: cell.overlays }, { signal: ctl.signal }).then(
+      (r) => {
+        const queued = r.cells.filter((c) => c.status !== "dropped").length;
+        setPrefetch(`${queued}/${r.cells.length} neighbours prefetching`);
+      },
+      (e: unknown) => {
+        if (!ctl.signal.aborted) setPrefetch(`prefetch: ${describeError(e)}`);
+      },
+    );
+    return () => {
+      ctl.abort();
+    };
+  }, [client, cell]);
 
   // Server blocks: the NPC tokens of the block's scene (A13).
   useEffect(() => {
@@ -331,6 +373,7 @@ function BlockView({
           onClick={setPicked}
         />
         <SquareReadout hover={hover} hint="hover for square data · click to pin" />
+        {walk && <EdgeArrows walk={walk} at={cell ?? null} />}
         <CacheCorner log={log} source={cell ? "cell tiles" : "POST /render"} />
         <div className="map-tools">
           <label>
@@ -370,6 +413,11 @@ function BlockView({
               </span>
             ))}
           </span>
+          {prefetch && (
+            <span className="muted small" data-testid="prefetch-status">
+              {prefetch}
+            </span>
+          )}
           {!sidecar && "ok" in rules && <span className="muted">this block has no rules sidecar</span>}
           {"error" in rules && <span className="error">{rules.error}</span>}
           {image && "error" in image && <span className="error">render: {image.error}</span>}
@@ -416,3 +464,4 @@ function BlockView({
     </div>
   );
 }
+

@@ -13,6 +13,7 @@ path = "src/bin/arda-refine.rs"
 [dependencies]
 arda.workspace = true
 arda-core.workspace = true
+arda-wfc.workspace = true
 arda-scene.workspace = true
 arda-tactical.workspace = true
 clap.workspace = true

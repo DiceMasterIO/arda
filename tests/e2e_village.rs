@@ -16,6 +16,7 @@ use serde_json::Value;
 use std::collections::BTreeSet;
 use std::path::{Path, PathBuf};
 use std::sync::Arc;
+use std::time::{Duration, Instant};
 use tower::ServiceExt;
 
 fn workspace() -> PathBuf {
@@ -78,13 +79,19 @@ fn world() -> PathBuf {
     let dir = workspace().join(format!("target/e2e-village-{}", std::process::id()));
     let _ = std::fs::remove_dir_all(&dir);
     std::fs::create_dir_all(dir.parent().unwrap()).unwrap();
-    arda::generate_from_fine_source(
+    let manifest = arda::generate_from_fine_recipe(
         42,
         arda::GenerateConfig::MICRO,
         &dir,
         arda::FineDeliveryLimits::default(),
+        6,
     )
     .expect("generating the MICRO world");
+    assert_eq!(
+        manifest.fine_terrain.map(|f| f.recipe_version),
+        Some(6),
+        "the village gate runs on recipe 6"
+    );
     arda_settle::generate(&dir, arda_settle::grid::MEMORY_BUDGET).expect("settle");
     arda_people::build(&dir).expect("society build");
     dir
@@ -246,6 +253,45 @@ async fn town_bridges_sit_on_the_river(state: &Arc<AppState>, all: &Value) {
     panic!("no riverine town with a bridge");
 }
 
+/// Budgets of goal 50 at 64 px per square: a battle-map block and a
+/// quarter-block window.
+const BLOCK_BUDGET: Duration = Duration::from_millis(500);
+const QUARTER_BUDGET: Duration = Duration::from_millis(250);
+
+/// Goal 50 (release build, idle machine): a freshly opened server serves
+/// the village's centre block as a 64 px-per-square PNG in under 500 ms,
+/// its plan, refinement, overlays, render and encode all cold, and then a
+/// quarter-block window it has not rendered in under 250 ms. Best of three
+/// fresh servers, so a loaded machine does not flake.
+async fn cold_images_are_quick(dir: &Path, gx: u64, gy: u64) {
+    let (mut block, mut quarter) = (Duration::MAX, Duration::MAX);
+    for _ in 0..3 {
+        let state = open(dir);
+        let t = Instant::now();
+        let png = ok(&state, &format!("/v1/tactical/cell/{gx}/{gy}.png?ppsq=64")).await;
+        block = block.min(t.elapsed());
+        assert_eq!(png.body[..8], *b"\x89PNG\r\n\x1a\n");
+        // A quarter block across the corner of four cells.
+        let (x, y) = (gx * 64 + 48, gy * 64 + 48);
+        let uri = format!("/v1/tactical/window.png?gsx={x}&gsy={y}&w=32&h=32&ppsq=64");
+        let t = Instant::now();
+        let q = ok(&state, &uri).await;
+        quarter = quarter.min(t.elapsed());
+        let info = png::Decoder::new(std::io::Cursor::new(&q.body))
+            .read_info()
+            .unwrap()
+            .info()
+            .clone();
+        assert_eq!((info.width, info.height), (32 * 64, 32 * 64));
+    }
+    println!("goal 50: cold block {block:?}, cold quarter window {quarter:?} (best of 3)");
+    assert!(block < BLOCK_BUDGET, "cold block took {block:?}");
+    assert!(
+        quarter < QUARTER_BUDGET,
+        "cold quarter window took {quarter:?}"
+    );
+}
+
 #[test]
 #[ignore = "release gate: generates a world (cargo test --release --test e2e_village -- --ignored)"]
 fn a_village_tactical_map_with_its_people_is_served_over_http() {
@@ -365,6 +411,8 @@ fn a_village_tactical_map_with_its_people_is_served_over_http() {
         assert_eq!(ok(&fresh, &uri).await.body, block_reply.body);
         let scene_again = ok(&fresh, &format!("{uri}/scene")).await.json();
         assert_eq!(scene_again["tokens"], scene["tokens"]);
+        // Step 12: goal 50, cold images (see `cold_images_are_quick`).
+        cold_images_are_quick(&dir, gx, gy).await;
         // Step 13: artefacts for review.
         let out = workspace().join("out/e2e");
         std::fs::create_dir_all(&out).unwrap();
@@ -402,5 +450,30 @@ fn a_village_tactical_map_with_its_people_is_served_over_http() {
         );
     });
     drop(state);
+    town_wfc_relaxed_rate(&dir);
     let _ = std::fs::remove_dir_all(&dir);
+}
+
+/// Goal 47 on the town WFC: over every plan of the world (interiors and
+/// outdoor chunks), under 1 % of the problems fall back to the relaxed
+/// fill.
+fn town_wfc_relaxed_rate(dir: &Path) {
+    let world = arda_people::World::open(dir).unwrap();
+    let mut total = arda_town::block::wfc::Report::default();
+    for s in &world.files.settlements.settlements {
+        if let Some(plan) = world.plan(s.id.get()).unwrap().as_ref() {
+            total.add(&arda_town::block::wfc::report(plan));
+        }
+    }
+    #[allow(clippy::cast_precision_loss)]
+    let rate = total.relaxed() as f64 / total.problems().max(1) as f64;
+    println!(
+        "town WFC: {} of {} problems relaxed ({:.3} %): {:?}",
+        total.relaxed(),
+        total.problems(),
+        rate * 100.0,
+        total.relaxed_by_function
+    );
+    assert!(total.problems() > 10_000, "{total:?}");
+    assert!(rate < 0.01, "town WFC relaxed-fill rate {rate}: {total:?}");
 }

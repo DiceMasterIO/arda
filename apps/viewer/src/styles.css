@@ -123,3 +123,12 @@ button { cursor: pointer; }
 .inspector .toolbar { margin: 0.75rem 0 0.25rem; }
 button.primary { background: var(--accent); color: #fff; border: 1px solid var(--accent); border-radius: 4px; padding: 0.25rem 0.7rem; }
 button.primary:disabled { opacity: 0.6; }
+
+/* Cell tab: arrows on the map edges open the seamless neighbour. */
+.edge-walk { position: absolute; z-index: 500; width: 2rem; height: 2rem; padding: 0; font-size: 1.1rem; line-height: 1; border: 1px solid var(--line); border-radius: 50%; background: var(--panel); color: var(--ink); opacity: 0.85; cursor: pointer; }
+.edge-walk:hover:not(:disabled) { opacity: 1; }
+.edge-walk:disabled { opacity: 0.3; cursor: default; }
+.edge-north { top: 0.5rem; left: 50%; transform: translateX(-50%); }
+.edge-south { bottom: 2.5rem; left: 50%; transform: translateX(-50%); }
+.edge-west { left: 0.5rem; top: 50%; transform: translateY(-50%); }
+.edge-east { right: 0.5rem; top: 50%; transform: translateY(-50%); }

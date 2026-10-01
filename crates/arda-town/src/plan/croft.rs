@@ -15,6 +15,7 @@ use super::grid::{Kind, PlanGrid};
 use crate::num::floor_i;
 use crate::rng::{hash_i, mix, noise2, unit};
 use crate::site::Tier;
+use rayon::prelude::*;
 
 /// Rows in a band of croft parcels.
 const BAND: i64 = 12;
@@ -126,7 +127,9 @@ pub fn fill(g: &mut PlanGrid, tier: Tier, seed: u64) {
         let (x, y) = ((g.gx0 + i) as f64, (g.gy0 + j) as f64);
         3.0 * noise2(seed ^ tag, x / 11.0, y / 11.0) + noise2(seed ^ tag ^ 1, x / 4.0, y / 4.0)
     };
+    // Two noise lookups a cell: in parallel, which changes no value.
     let grown: Vec<bool> = (0..near.len())
+        .into_par_iter()
         .map(|k| near[k] <= r1 + wobble(k, 0xC20F))
         .collect();
     let outside: Vec<bool> = grown.iter().map(|&x| !x).collect();

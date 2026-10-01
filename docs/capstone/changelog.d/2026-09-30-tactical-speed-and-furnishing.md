@@ -1,0 +1,18 @@
+## 2026-09-30 - perf/feat: cold tactical images under half a second, varied furnishing (goals 50, 64)
+key: feat/2026-09-30-v3-tactical
+
+- **Goal 50, cold tactical images.** Release, MICRO seed 42, 64 px per square, 32 threads:
+  - a cold block PNG, before → after: city centre 2.0 s → ~0.34 s; village centre, on a freshly opened server, 0.93 s → ~0.42 s; a block next to one already served ~0.52 s → ~0.28 s;
+  - a quarter-block window (32 × 32 squares), 0.20 s → ~0.10 s;
+  - output is unchanged pixel for pixel wherever the furnishing did not change (checked against v0.2.0 on road, field and river cells, a 2 × 2 window and a WebP tile); the seam tests still pass.
+- Where the time went and what changed:
+  - **Compositor** (render 340 → ~200 ms for a 76 × 76-square apron block): sprites are stamped in parallel bands of rows, each replaying every sprite in draw order (byte-identical); the drop-shadow sweep runs per diagonal in parallel; ground textures are scaled once per ppsq and cached in the `Library`; `render_region` paints, shades and grades only the block's own pixels while heights, sprites, shadows and blurs still cover the apron.
+  - **PNG encode** (90 → ~35 ms): strips of 64 rows are filtered and deflated in parallel and joined into one zlib stream; opaque maps are written as RGB.
+  - **Composition** (neighbour block 85 → ~47 ms): the ways, fields and town layers run at once and are composed in the fixed order; arda-fields samples terrain and assigns field sites in parallel.
+  - **Town plans** (city plan 1.2 s → ~0.24 s): arda-town samples its plan grid, measures river crossings, finds the nearest channel and wobbles the croft footprint in parallel; plans near a window are drawn at once.
+  - **Startup**: the server scales textures for every ppsq and draws the town and city plans (about 0.5 s on MICRO), so no request waits for them.
+- `GET /v1/tactical/window[.png]?gsx=&gsy=&w=&h=` takes a window in squares (logic/16), for example a quarter block.
+- New example `tactical_timing` (arda-server) prints the stages of a cold block, a quarter window and a neighbour. `tests/e2e_village.rs` (release gate) holds a cold block under 500 ms and a quarter window under 250 ms, best of three fresh servers (measured: 333 ms and 88 ms for the village Ylkin at cell 570,702).
+- **Goal 64, furnishing without repetition.** Homes are furnished by wealth, size, storeys and the building's own stream: a town house picks one of five partitions (open hall, back chambers, side chamber, front workroom, cross passage) and sometimes a household trade (weaver, cooper, carpenter, fisher, scribe, chandler) that brings its own pieces; hearth or fire pit, table and seats, beds with chests, storage and clutter (barrels, sacks, crates, rugs, chests, woodpiles by the fire) stand on randomly chosen walls, corners and spots. Cottages, farmhouses (byre side, gate and stock vary) and manors vary too. Each building's interior has a salt chosen once per plan so that no two adjacent buildings share an interior; the choice depends only on the plan, so seams are unaffected.
+- Yards and crofts: a home's yard draws 0–6 props from a pool by function and wealth along its back and sides, one or two squares out; each croft parcel has its own density and a secondary use (hay in a meadow, tools in a kitchen garden, favoured stacks in a work yard).
+- Diversity on the seed-42 city (Ofylyel, 1,868 homes), before → after: 400 → 1,868 distinct interiors, 91.6 % → 0 % of homes sharing an interior with another, 20 → 0 adjacent pairs alike (`crates/arda-people/tests/interiors.rs`; threshold 5 %).

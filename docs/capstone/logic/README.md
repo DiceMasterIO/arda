@@ -32,7 +32,7 @@ The generation, export, loading and preview chapters (01–07) describe current 
 |---|---|
 | 08 | §world-frame, §settle-suitability, §settle-refusals, §settle-sites, §settle-tiers, §settle-placement, §settle-functions, §settle-building-mix, §landuse, §roads, §crossings, §passes, §realm-seats |
 | 09 | §square-frame, §elevation, §linear-features, §reservations, §ground-field, §wfc, §scatter, §rules-sidecar, §hash |
-| 10 | §town-frame, §town-footprint, §town-streets, §town-plots, §town-functions, §town-footprints, §town-walls, §town-interiors, §town-capacity, §town-building-spec, §town-function-keys, §town-clip |
+| 10 | §town-frame, §town-footprint, §town-streets, §town-plots, §town-functions, §town-footprints, §town-walls, §town-interiors, §town-wfc, §town-capacity, §town-building-spec, §town-function-keys, §town-clip |
 | 11 | §catalogue, §vocabulary, §tag-query, §validator, §placeholders, §compose-order, §ground-blend, §walls-assembly, §seam-art, §lighting, §dress, §ppsq, §render-identity |
 | 12 | §scene-frame, §scene-movement, §scene-climb, §scene-diagonal, §scene-cover, §scene-sight, §scene-lights, §scene-regions, §scene-spawn, §scene-sidecar, §scene-tokens |
 | 13 | §npc-inputs, §npc-id, §npc-seed, §npc-regeneration, §npc-storage, §npc-households, §npc-jobs, §npc-personality, §npc-relationships, §npc-sheet, §npc-notables, §npc-queries, §npc-game-schema |

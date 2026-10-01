@@ -103,6 +103,15 @@ fn society_simulates_the_micro_settlement_files() {
             .find(|r| matches!(r.kind.as_str(), "ruler" | "lord" | "reeve" | "elder"));
         assert!(head.is_some(), "settlement {} has no head role", s.id);
     }
+    // History ends at the present partition, with the present seats.
+    let replayed = society.history.replay_partition().unwrap();
+    for w in &world.settlements {
+        assert_eq!(replayed[&w.id], w.realm_id, "{} ends in its realm", w.name);
+    }
+    for r in &world.realms {
+        let st = society.realms.iter().find(|x| x.state.id == r.id).unwrap();
+        assert_eq!(st.state.seat, r.seat);
+    }
     let again = arda_society::simulate_society(42, &world).unwrap();
     assert_eq!(
         arda_society::output::to_json(&society).unwrap(),

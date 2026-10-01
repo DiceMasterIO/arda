@@ -113,6 +113,9 @@ pub struct Stats {
     /// Per mille of mining settlements with another within
     /// [`MINING_CLUSTER_M`] (1000 means every mine has a neighbour).
     pub mining_clustered_pm: u32,
+    /// Cities per realm, seat spread and realm balance.
+    #[serde(default)]
+    pub realm: crate::realm_stats::RealmStats,
 }
 
 /// Inland share, nearest-neighbour index and mean nearest-town distance

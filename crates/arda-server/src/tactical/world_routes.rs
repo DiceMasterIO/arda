@@ -4,7 +4,8 @@
 //! - `GET /v1/tactical/cell/{gx}/{gy}.png[?ppsq&grid&demo_overlays&demo_at]`;
 //! - `GET /v1/tactical/cell/{gx}/{gy}/tiles/{z}/{x}/{y}.webp[?…]`;
 //! - `GET /v1/tactical/window?gx0&gy0&w&h[&…]` (JSON) and
-//!   `GET /v1/tactical/window.png?…`, up to 3 × 3 cells;
+//!   `GET /v1/tactical/window.png?…`, up to 3 × 3 cells, or by squares
+//!   with `?gsx&gsy&w&h` (for example a 32 × 32 quarter block);
 //! - `GET /v1/tactical/library`: the catalogue summary.
 //!
 //! `demo_overlays=1` composes the synthetic ways, fields and town samples
@@ -210,7 +211,9 @@ pub(super) async fn cell_tile(
     ))
 }
 
-/// The window of `?gx0&gy0&w&h` (cells; `w`, `h` in `1..=3`).
+/// The window of `?gx0&gy0&w&h` (cells; `w`, `h` in `1..=3`), or of
+/// `?gsx&gsy&w&h` (squares, logic/16 §api-tactical; `w`, `h` in
+/// `1..=192`), for example a quarter block of 32 × 32 squares.
 fn window_request(
     state: &AppState,
     q: &BTreeMap<String, String>,
@@ -221,23 +224,36 @@ fn window_request(
             .ok_or_else(|| ServerError::BadRequest(format!("missing ?{k}=")))
             .and_then(|t| parse::<u32>(k, t))
     };
-    let (gx0, gy0, w, h) = (get("gx0")?, get("gy0")?, get("w")?, get("h")?);
-    if !(1..=MAX_WINDOW_CELLS).contains(&w) || !(1..=MAX_WINDOW_CELLS).contains(&h) {
+    let squares = q.contains_key("gsx") || q.contains_key("gsy");
+    let (x0, y0, w, h) = if squares {
+        (get("gsx")?, get("gsy")?, get("w")?, get("h")?)
+    } else {
+        let (gx0, gy0, w, h) = (get("gx0")?, get("gy0")?, get("w")?, get("h")?);
+        if !(1..=MAX_WINDOW_CELLS).contains(&w) || !(1..=MAX_WINDOW_CELLS).contains(&h) {
+            return Err(ServerError::PayloadTooLarge(format!(
+                "a window is 1..={MAX_WINDOW_CELLS} cells a side, not {w}x{h}"
+            )));
+        }
+        let cells = |v: u32| v.saturating_mul(64);
+        (cells(gx0), cells(gy0), cells(w), cells(h))
+    };
+    let side = MAX_WINDOW_CELLS * 64;
+    if !(1..=side).contains(&w) || !(1..=side).contains(&h) {
         return Err(ServerError::PayloadTooLarge(format!(
-            "a window is 1..={MAX_WINDOW_CELLS} cells a side, not {w}x{h}"
+            "a window is 1..={side} squares a side, not {w}x{h}"
         )));
     }
-    let ((cw, ch), _) = extent(state);
-    if gx0.saturating_add(w) > cw || gy0.saturating_add(h) > ch {
+    let (_, (sw, sh)) = extent(state);
+    if i64::from(x0) + i64::from(w) > sw || i64::from(y0) + i64::from(h) > sh {
         return Err(ServerError::OutOfRange(format!(
-            "window {gx0},{gy0} {w}x{h} leaves the {cw}x{ch}-cell world"
+            "window {x0},{y0} {w}x{h} (squares) leaves the {sw}x{sh}-square world"
         )));
     }
-    let mut r = BlockRequest::cell(gx0, gy0);
-    r.w = w * 64;
-    r.h = h * 64;
+    let mut r = BlockRequest::cell(0, 0);
+    (r.gsx0, r.gsy0, r.w, r.h) = (i64::from(x0), i64::from(y0), w, h);
     if o.demo {
-        r.demo_at = Some(o.demo_at.unwrap_or([i64::from(gx0), i64::from(gy0)]));
+        let at = [r.gsx0.div_euclid(64), r.gsy0.div_euclid(64)];
+        r.demo_at = Some(o.demo_at.unwrap_or(at));
     }
     Ok(r)
 }

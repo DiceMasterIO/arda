@@ -8,6 +8,7 @@
 use crate::geom::{v2, Vec2};
 use crate::num::floor_i;
 use crate::site::TerrainInput;
+use rayon::prelude::*;
 
 /// Edge length of one tactical square in metres.
 pub const SQUARE_M: f64 = 100.0 / 64.0;
@@ -126,16 +127,29 @@ impl PlanGrid {
             slope: vec![0; n],
             depth: vec![0; n],
         };
-        for j in 0..h {
-            for i in 0..w {
-                let p = g.centre(i, j);
-                let k = g.lin(i, j);
-                if (terrain.water)(p) {
-                    g.kind[k] = Kind::Water;
-                }
-                g.height[k] = crate::num::f32_of((terrain.height)(p) - base_height);
-                g.slope[k] = crate::num::round_u8((terrain.slope)(p));
+        // Every cell samples the terrain on its own, so rows run in
+        // parallel without changing a value (goal 50).
+        let rows: Vec<Vec<(bool, f32, u8)>> = (0..h)
+            .into_par_iter()
+            .map(|j| {
+                (0..w)
+                    .map(|i| {
+                        let p = g.centre(i, j);
+                        (
+                            (terrain.water)(p),
+                            crate::num::f32_of((terrain.height)(p) - base_height),
+                            crate::num::round_u8((terrain.slope)(p)),
+                        )
+                    })
+                    .collect()
+            })
+            .collect();
+        for (k, (wet, height, slope)) in rows.into_iter().flatten().enumerate() {
+            if wet {
+                g.kind[k] = Kind::Water;
             }
+            g.height[k] = height;
+            g.slope[k] = slope;
         }
         g.compute_depth();
         g

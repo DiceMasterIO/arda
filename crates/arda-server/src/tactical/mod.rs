@@ -11,10 +11,13 @@
 pub mod block;
 pub mod cells;
 pub mod dto;
+pub mod encode;
 pub mod images;
 pub mod key;
 pub mod library_dto;
+pub mod prefetch;
 pub mod pyramid;
+mod raw;
 pub mod refine_blocks;
 pub mod routes;
 pub mod rules_dto;
@@ -24,7 +27,7 @@ pub mod world_routes;
 
 use crate::cache::ByteLru;
 use crate::error::{lock, ServerError, ServerResult};
-use arda_tactical::{layouts, render, Library, RenderOptions, Rgba, TacticalLayout};
+use arda_tactical::{layouts, Library, Rgba, TacticalLayout};
 use axum::body::Bytes;
 use block::{BlockSource, PendingBlocks};
 use dto::{TacticalLayoutSummary, TacticalLayouts};
@@ -85,8 +88,14 @@ impl TacticalLimits {
         let caches = self.render_cache_bytes + self.pyramid_cache_bytes;
         // PNGs, tiles and JSON bodies, plus the composed-block cache.
         let encoded = 3 * self.encoded_cache_bytes + refine_blocks::COMPOSED_CACHE_BYTES;
-        let transient = self.max_render_px * (4 + 6 + 6);
-        (caches + encoded) as u64 + transient + self.max_body_bytes as u64
+        (caches + encoded) as u64 + self.transient_render_bytes() + self.max_body_bytes as u64
+    }
+
+    /// Bytes of one render in flight: RGBA, compositor buffers of about 6
+    /// bytes a pixel, and its pyramid.
+    #[must_use]
+    pub const fn transient_render_bytes(&self) -> u64 {
+        self.max_render_px * (4 + 6 + 6)
     }
 }
 
@@ -203,7 +212,7 @@ pub struct Tactical {
     pngs: Mutex<ByteLru<RenderKey, Encoded>>,
     tiles: Mutex<ByteLru<TileKey, Encoded>>,
     bodies: Mutex<ByteLru<cells::BodyKey, Encoded>>,
-    render: Mutex<()>,
+    lanes: raw::Lanes,
 }
 
 impl std::fmt::Debug for Tactical {
@@ -227,6 +236,19 @@ impl Tactical {
     /// [`ServerError::Tactical`] when loading or validation fails.
     pub fn open(dir: &Path, world_seed: u64, limits: TacticalLimits) -> ServerResult<Self> {
         let library = Library::load(dir)?;
+        // Scale the ground textures for every served ppsq once, up front,
+        // instead of in the first render at each (goal 50).
+        {
+            use rayon::prelude::*;
+            PPSQ_OPTIONS
+                .iter()
+                .chain(&world_routes::WINDOW_PPSQ)
+                .collect::<Vec<_>>()
+                .par_iter()
+                .for_each(|&&p| {
+                    let _ = library.texture_set(p);
+                });
+        }
         let named = layouts::all()
             .into_iter()
             .map(|l| (l.name.clone(), l))
@@ -242,7 +264,7 @@ impl Tactical {
             pngs: Mutex::new(ByteLru::new(limits.encoded_cache_bytes)),
             tiles: Mutex::new(ByteLru::new(limits.encoded_cache_bytes)),
             bodies: Mutex::new(ByteLru::new(limits.encoded_cache_bytes)),
-            render: Mutex::new(()),
+            lanes: raw::Lanes::default(),
         })
     }
 
@@ -381,37 +403,6 @@ impl Tactical {
         })
     }
 
-    /// The full-resolution render, one render at a time.
-    fn raw(&self, key: &RenderKey, layout: &TacticalLayout) -> ServerResult<Arc<Rgba>> {
-        if let Some(hit) = cached(&self.renders, key)? {
-            return Ok(hit);
-        }
-        // The guard protects no data, so a panicked render must not wedge
-        // every later one behind a poisoned lock.
-        let _one = self
-            .render
-            .lock()
-            .unwrap_or_else(std::sync::PoisonError::into_inner);
-        if let Some(hit) = cached(&self.renders, key)? {
-            return Ok(hit);
-        }
-        self.admit(layout, key.ppsq)?;
-        let opts = RenderOptions {
-            ppsq: key.ppsq,
-            grid: key.grid,
-            lighting: true,
-        };
-        let start = Instant::now();
-        let img = render(layout, &self.library, key.seed(), &opts)?;
-        stage("render", &img, start);
-        let img = match key.crop {
-            Some(c) => crop(&img, c, key.ppsq)?,
-            None => img,
-        };
-        let bytes = img.data.len();
-        Ok(lock(&self.renders)?.insert(key.clone(), Arc::new(img), bytes))
-    }
-
     /// The PNG of `layout`.
     ///
     /// # Errors
@@ -426,9 +417,7 @@ impl Tactical {
         }
         let img = self.raw(key, layout)?;
         let start = Instant::now();
-        let encoded = Encoded::new(crate::tiles::encode_rgba_fast(
-            img.width, img.height, &img.data,
-        )?);
+        let encoded = Encoded::new(encode::encode_png(img.width, img.height, &img.data)?);
         stage("png encode", &img, start);
         let bytes = encoded.bytes.len();
         let value = lock(&self.pngs)?.insert(key.clone(), Arc::new(encoded), bytes);
@@ -436,10 +425,19 @@ impl Tactical {
     }
 
     fn pyramid(&self, layout: &TacticalLayout, key: &RenderKey) -> ServerResult<Arc<Pyramid>> {
+        self.pyramid_in(layout, key, raw::Lane::Request)
+    }
+
+    fn pyramid_in(
+        &self,
+        layout: &TacticalLayout,
+        key: &RenderKey,
+        lane: raw::Lane,
+    ) -> ServerResult<Arc<Pyramid>> {
         if let Some(hit) = cached(&self.pyramids, key)? {
             return Ok(hit);
         }
-        let img = self.raw(key, layout)?;
+        let img = self.raw_in(key, layout, lane)?;
         let start = Instant::now();
         let p = Pyramid::build(Rgba::clone(&img));
         stage("pyramid", &img, start);

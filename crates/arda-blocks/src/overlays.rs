@@ -101,6 +101,9 @@ pub struct OverlayLayer {
     /// the world's terrain) or keep the base's (a layer built on synthetic
     /// terrain, such as the demo samples).
     pub elevation: bool,
+    /// Row-major: squares filled by a relaxed fill and marked for review
+    /// (goal 47; the town WFC's `TownBlock::relaxed`); empty for none.
+    pub review: Vec<bool>,
 }
 
 /// Supplies the ways, fields and town layers of a window. Every method
@@ -270,23 +273,61 @@ pub fn compose_all(
     layout: &mut TacticalLayout,
     rules: &mut RulesSidecar,
     owners: &mut [Owner],
-) -> Result<Vec<&'static str>, BlocksError> {
+) -> Result<Applied, BlocksError> {
     let mut applied = Vec::new();
+    let mut review = Vec::new();
     let steps: [(Owner, LayerFn); 3] = [
         (Owner::Ways, |o, c| o.ways(c)),
         (Owner::Fields, |o, c| o.fields(c)),
         (Owner::Town, |o, c| o.town(c)),
     ];
-    for (owner, get) in steps {
-        if let Some(layer) = get(overlays, ctx)? {
+    // Each provider reads only the context, never another's layer, so the
+    // three run at once (goal 50); they are composed in the fixed order.
+    let layers: Vec<Result<Option<OverlayLayer>, BlocksError>> = std::thread::scope(|s| {
+        let handles: Vec<_> = steps
+            .iter()
+            .map(|&(_, get)| s.spawn(move || get(overlays, ctx)))
+            .collect();
+        handles
+            .into_iter()
+            .map(|h| h.join().unwrap_or(Err(BlocksError::Poisoned)))
+            .collect()
+    });
+    for ((owner, _), layer) in steps.into_iter().zip(layers) {
+        if let Some(layer) = layer? {
             if compose(layout, rules, owners, &layer, owner)? > 0 {
                 applied.push(owner.name());
             }
+            // Review marks count only where the layer kept its claim.
+            let kept = |i: usize| {
+                owners
+                    .get(i)
+                    .is_some_and(|&o| o == owner || o == owner.soft())
+            };
+            review.extend(
+                (0..layer.review.len())
+                    .filter(|&i| layer.review[i] && kept(i))
+                    .filter_map(|i| u32::try_from(i).ok()),
+            );
         }
     }
     rules.edges.sort_by_key(|e| (e.axis, e.y, e.x));
     layout.walls.sort_by_key(|w| (w.axis, w.y, w.x));
-    Ok(applied)
+    review.sort_unstable();
+    review.dedup();
+    Ok(Applied {
+        layers: applied,
+        review,
+    })
+}
+
+/// What [`compose_all`] applied.
+#[derive(Debug, Clone, Default, PartialEq, Eq)]
+pub struct Applied {
+    /// Overlay layers that claimed at least one square, in order.
+    pub layers: Vec<&'static str>,
+    /// Row-major squares an overlay filled with a relaxed fill (goal 47).
+    pub review: Vec<u32>,
 }
 
 #[cfg(test)]
@@ -305,6 +346,7 @@ mod tests {
             owned,
             soft,
             elevation: false,
+            review: Vec::new(),
         }
     }
 
@@ -327,5 +369,45 @@ mod tests {
         assert_eq!(owners, [Owner::Ways, Owner::Croft, Owner::Town]);
         let grounds: Vec<&str> = base.squares.iter().map(|s| s.ground.as_str()).collect();
         assert_eq!(grounds, ["dirt", "grass", "grass"]);
+    }
+
+    #[derive(Debug)]
+    struct Relaxing;
+
+    impl Overlays for Relaxing {
+        fn ways(&self, _: &OverlayCtx<'_>) -> Result<Option<OverlayLayer>, BlocksError> {
+            Ok(Some(layer("dirt", vec![true, false, false], Vec::new())))
+        }
+
+        fn town(&self, _: &OverlayCtx<'_>) -> Result<Option<OverlayLayer>, BlocksError> {
+            let mut town = layer("grass", vec![true; 3], vec![true, false, false]);
+            town.review = vec![true; 3];
+            Ok(Some(town))
+        }
+    }
+
+    #[test]
+    fn relaxed_overlay_squares_are_reviewed_where_the_layer_keeps_them() {
+        let dir = std::path::Path::new(env!("CARGO_MANIFEST_DIR"))
+            .join("../../assets/tactical/placeholder");
+        let library = Library::load(&dir).unwrap();
+        let base = TacticalLayout::new("t", 3, 1, "forest_floor");
+        let ctx = OverlayCtx {
+            gsx0: 0,
+            gsy0: 0,
+            width: 3,
+            height: 1,
+            seed: 1,
+            base: &base,
+            library: &library,
+        };
+        let mut layout = base.clone();
+        let mut rules = RulesSidecar::empty(3, 1);
+        let mut owners = vec![Owner::Natural; 3];
+        let applied = compose_all(&ctx, &Relaxing, &mut layout, &mut rules, &mut owners).unwrap();
+        // The road keeps square 0 from the town's soft croft claim.
+        assert_eq!(owners, [Owner::Ways, Owner::Town, Owner::Town]);
+        assert_eq!(applied.layers, ["ways", "town"]);
+        assert_eq!(applied.review, [1, 2]);
     }
 }

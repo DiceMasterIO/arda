@@ -1,8 +1,8 @@
 ---
-generated_date: 2026-09-30
-branch: integrate/product
-base: 7f32695
-status: phases A, B, D and E merged, plus feat/midzoom-refine; version 0.2.0; all gates green; not merged to main, not tagged
+generated_date: 2026-10-01
+branch: integrate/v0.3 (earlier sections: integrate/product)
+base: 7996e9c (v0.2.0)
+status: v0.3 branches merged onto v0.2.0 with follow-up fixes; version still 0.2.0; all gates green; not merged to main, not tagged
 ---
 
 # Integration status: phases A to E, release 0.2.0
@@ -473,8 +473,8 @@ Server log: no errors.
   still says "Not signed off".
 - **A11**: `CellSample.road`, `built_by`, `land_use`, `realm_id` from `society/`.
 - **A12**: ts-rs mirrors for `TacticalScene`/`Token`, settlement records, `TownPlan`.
-- `/v1/npc/{id}` serves stored notables only; commoners are regenerated but not addressable by
-  id (the id is a hash without its settlement).
+- ~~`/v1/npc/{id}` serves stored notables only~~: closed on feat/v3-api (see below);
+  commoners resolve by reference `<settlement>.<building>.<index>`.
 - Round-2 items still open: #29 (other quadratic scans in society), #30, #31 (settle A* and
   admission), #32 (tactical encode bound), #33–#38 (ways/fields), plus the low ones.
 - Files over ~500 lines that came with merged branches: `arda-society/src/hooks/settlement.rs`
@@ -483,3 +483,131 @@ Server log: no errors.
   string; `JOURNAL-tactical.md` (I34).
 - The e2e test is `#[ignore]` (the plan's release gate): run
   `cargo test --release --test e2e_village -- --ignored`.
+
+## v3 API: goals 51, 57, 67, 68 (feat/v3-api)
+
+| Commit | Change |
+|---|---|
+| `6da5532` | `/v1/npc/{id}` resolves commoners by reference `<s>.<b>.<i>` (or u64 id with `?settlement=`); `/v1/npcs` paged queries (settlement, building, job, realm, notable; ≤ 200 people and ≤ 16 settlement skeletons a page); `/v1/buildings/{s}.{b}/residents` and `/workers`; lazy skeleton access in arda-npc; `NpcPage`/`NpcEntry` bindings. |
+| `b488b22`, `ce2c37d` | `/v1/tiles/overview/{z}/{x}/{y}.webp` (lossless, same pixels as the PNG); the viewer uses it. |
+| `0aa4637` | `POST /v1/tactical/prefetch` with a bounded background worker pool and a separate prefetch render lane; cache key confirmed (seed, origin, `library_version`). |
+| `fb36b4b` | Viewer: the Cell tab prefetches the 8 neighbours; edge arrows walk to the seamless neighbour. |
+
+### Gate
+
+- `cargo fmt --check`, `cargo clippy --workspace --all-targets -- -D warnings`: clean.
+- `cargo test --workspace --no-fail-fast`: 90 binaries report `test result: ok. N` with N ≥ 1
+  (1,428 passed, 0 failed, 14 ignored).
+- `cargo test --release --test e2e_village -- --ignored`: passes (77 s).
+- `apps/viewer`: `npm run build`, `npm run lint`, `npm test` (77 tests in 9 files) pass.
+
+### Smoke test (`arda-server --world out/micro42 --port 8797`, release, stopped by PID)
+
+Fixture: `arda generate --seed 42 --micro --terrain fine`, `arda settle`, `arda society build`
+(629 settlements, 91,966 inhabitants, 3,384 stored notables).
+
+| Request | Result |
+|---|---|
+| `/v1/npcs?settlement=85&notable=false&limit=3` | 200, 0.39 s cold; refs `85.5.1`, `85.6.1`, `85.6.2` |
+| `/v1/npc/85.5.1` | 200, 4 ms, an acolyte with its sheet |
+| `/v1/npc/{its u64 id}?settlement=85` / without `?settlement=` | 200 / 404 |
+| `/v1/npcs?realm=2&job=smith&limit=20` | 200, 2.5 s cold, 19 smiths, 16 settlements scanned, cursor `89.0` |
+| `/v1/buildings/85.5/residents`, `/v1/buildings/85.{workplace}/workers` | 200 |
+| the village block's first scene token through `/v1/npc/{id}` | 200 |
+| `/v1/tiles/overview/2/1/2.webp` | 200, `image/webp`, lossless with alpha; `.png` still 200 |
+| `POST /v1/tactical/prefetch {632,707, ppsq 64}` | 202, 8 cells queued with images; each warmed in 0.57–1.1 s by 2 workers; meanwhile the centre's tile answered in 0.73 s and `/v1/cell` in 0.12 s |
+| the east neighbour afterwards | JSON `X-Arda-Cache: hit`; a z3 tile in 5 ms |
+| `radius: 3` | 400 `bad_request` |
+
+### Left open
+
+- A bare u64 id of a commoner needs `?settlement=`: the id is a hash of (settlement, building,
+  index) and resolving it alone would need a world-wide index (goal 56).
+- Realm- or world-wide queries cost about 0.15 s per scanned settlement cold (town plan and
+  skeleton); the plan cache holds 64 settlements.
+- Prefetch is explicit (the viewer posts it); `GET /v1/tactical/cell` does not enqueue its
+  neighbours by itself as logic/16 §api-prefetch sketches. At 128 px per square the default
+  caches warm images for one neighbour only.
+- logic/13 §npc-id and logic/16 still call the composite string the `NpcId`; on the wire it is
+  now the NPC *reference*, beside the u64 id.
+
+## v0.3 integration (integrate/v0.3)
+
+Five branches, each off `main` at v0.2.0 (`7996e9c`), merged with `git merge --no-ff` in this
+order, with the Rust gate (fmt, clippy, workspace tests) green after each merge:
+
+| # | Branch | Merge | Textual conflicts | Tests passed after merge |
+|---|---|---|---|---|
+| 1 | feat/v3-recipe6 | `129018f` | none | 1,420 (91 suites) |
+| 2 | feat/v3-realms | `62493a5` | none | 1,426 (92) |
+| 3 | feat/v3-api | `f30c519` | none (Cargo.lock, API.md, bindings, e2e auto-merged); viewer build, lint, 77 tests pass | 1,442 (92) |
+| 4 | feat/v3-tactical | `47ca664` | `arda-server/src/tactical/mod.rs`: v3-api moved the render into `raw.rs` (request and prefetch lanes); v3-tactical's region render for crops now runs inside `raw_in` | 1,453 (94) |
+| 5 | feat/v3-town-wfc | `7a9c8a0` | `arda-town/src/block/mod.rs` module list: both `block::yard` and `block::wfc` kept; `generate` defaults to `TownFill::Wfc`, `TownFill::Rules` and every relaxed WFC fill use v3-tactical's varied interiors | 1,475 (97) |
+
+### Commits after the merges
+
+| Commit | Change |
+|---|---|
+| `e77bc21`, `184de67` | **Varied interiors feed the WFC.** A home's partition, trade, beds, fire and clutter pools (v3-tactical's choices, keyed by the interior salt) become its WFC programme; the WFC keys carry the salt. Trades work in a back room (an open hall keeps its trade), small houses stay one room, clutter uses low-weight pieces, so relaxed homes stay at the v3-town-wfc level. Seed-42 city: 1,665 distinct WFC home interiors of 1,673, 1.0 % repeated, no adjacent pair alike (`wfc::indoor::diversity`). |
+| `43afd0b` | **PNG encoder fix (found while rendering).** v3-tactical's parallel encoder could end a strip before its sync flush was complete, corrupting every strip after it; the 2048 × 2432 px window of the city warehouses was served as a broken PNG. A strip now ends only on its `00 00 FF FF` marker. |
+| `bb17425` | **Follow-up 1, ordered furniture.** `block::wfc::rows` lays pews (aligned rows either side of a clear central aisle), dormitory beds and reading-room bookshelves (along both long walls), warehouse racks and market-hall tables (free-standing rows with walks and end passages) by rule before pass B; the WFC fills around them. Tests: `arda-town/tests/wfc_rows.rs` (nave pews in aligned rows with a clear central aisle; dormitory beds) and `arda-people/tests/interiors.rs` (the seed-42 city's barracks, warehouses, libraries, market hall and temples). |
+| `2a8e4b0` | **Follow-up 2, v0.2.0 worlds.** `read_manifest` reads "recipe 5 and `terrain/shore.bin`" as recipe 6 (logic/02 §fine-formation recipes); world.json is untouched. A v0.2.0 MICRO seed-42 world now reports recipe 6 from `/v1/world`. |
+| `b35bcef` | **Follow-up 3, relaxed fills in meta.** The town layer marks the squares of `TownBlock.relaxed` problems; `compose_all` returns them (`Applied.review`) and the pipeline merges them into the block meta, so cell and window `meta.relaxed` and `meta.review_squares` count them (cell 565,651: a relaxed 6 × 5 house, `true`, 30 squares). |
+| `18931fd` | **Follow-up 4, `prop.drain`.** Art-free (`outdoor_vocab::ART_FREE`): the WFC still places drains along paved kerbs, but their props stay out of town layouts, so no fallback is logged and nothing unknown reaches a library. |
+
+Relaxed WFC fills on MICRO seed 42: 43 of 44,819 problems (0.096 %; v3-town-wfc alone: 45 of
+47,247; realm primacy changes the plans).
+
+### Renders (MICRO seed 42, city Yefborkitre, 64 ppsq; market 32 ppsq)
+
+`out/v3-integrate/before/` (after the five merges) and `out/v3-integrate/after/` (this
+branch): `temple.png`, `warehouse.png`, `market.png`, `barracks.png`, `library.png`, each with
+a 1600 px `.jpg`. After: temple pews stand in aligned rows with a clear central aisle; barracks
+beds line both long walls; library bookshelves line the long walls; warehouse racks stand in
+rows; the market hall's tables stand in two rows (the market stalls themselves are plan-fixed
+and were already in rows).
+
+### Gate on `18931fd`
+
+- `cargo fmt --check`, `cargo clippy --workspace --all-targets -- -D warnings`: clean.
+- `cargo test --workspace --no-fail-fast`: 98 binaries report `test result: ok. N` with N ≥ 1
+  (1,483 passed, 0 failed, 17 ignored), including `tests/golden_recipes.rs` (recipe 5 replays
+  v0.1 and recipe 6 replays v0.2.0 byte for byte).
+- `cargo test --release --test e2e_village -- --ignored`: passes (91 s); goal 50: cold block
+  316 ms, cold quarter window 85 ms (best of 3); town WFC relaxed rate 0.096 %.
+- `apps/viewer`: `npm run build`, `npm run lint`, `npm test` (77 tests in 9 files) pass.
+- `arda tactical validate assets/tactical/placeholder`: ok (207 assets).
+
+### Smoke test (`arda-server --world out/micro42 --port 8931`, release, stopped by PID)
+
+Fixture: `arda generate --seed 42 --micro --terrain fine`, `arda settle`, `arda society build`
+(629 settlements, 91,896 inhabitants, 3,397 stored notables, 3 realms).
+
+| Request | Result |
+|---|---|
+| `/v1/world` | 200; recipe 6 |
+| `/v1/npcs?settlement=85&notable=false&limit=3` | 200, 90 ms; first ref `85.5.1` |
+| `/v1/npc/85.5.1`, `/v1/buildings/85.5/residents` | 200, 4 ms each |
+| `/v1/npcs?realm=2&job=smith&limit=20` | 200, 0.41 s |
+| `/v1/tiles/overview/2/1/2.webp` / `.png` | 200 `image/webp` (4.1 s cold) / 200 `image/png` |
+| `POST /v1/tactical/prefetch {570,702, radius 1, ppsq 64}` | 202, 8 cells queued with images; `radius: 3` is 400 |
+| `/v1/tactical/window.png?gsx=36528&gsy=44976&w=32&h=32&ppsq=64` | 200, 0.25 s, decodes |
+| `/v1/tactical/window.png?gsx=36434&gsy=41784&w=32&h=38&ppsq=64` | 200, decodes (was corrupt before `43afd0b`) |
+| `/v1/tactical/cell/565/651`, window over it | `meta.relaxed` true, `review_squares` 30 |
+| `/v1/tactical/cell/570/702/scene` | 200 |
+
+Server log: no errors.
+
+### Left open
+
+- Not done by instruction: no version bump, no merge to main, no tag, no push.
+- The front-workroom partition of the rule programmes is drawn by the WFC as a hall with the
+  workroom behind it: a workroom at the street left the WFC no legal fill for the hall.
+- Yards and crofts: under `TownFill::Wfc` the outdoor WFC dresses them; v3-tactical's yard and
+  croft dressing (`block::yard`) serves the rules fill only.
+- The placeholder `prop.cask_rack` and `prop.shelf` art is narrower than the WFC footprints
+  (racks read as 1-square sprites on 2-square footprints); new rack art would read better.
+- The encoder test does not reproduce the lost flush synthetically; the warehouse window above
+  is the reproduction (checked by decoding it).
+- Earlier open items above still stand (A11, A12, round-2 items, files over ~500 lines).
+

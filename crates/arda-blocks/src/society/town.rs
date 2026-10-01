@@ -9,6 +9,7 @@ use arda_people::World;
 use arda_scene::RulesSidecar;
 use arda_town::plan::grid::Kind;
 use arda_town::TownPlan;
+use rayon::prelude::*;
 use std::sync::Arc;
 
 fn err(message: String) -> BlocksError {
@@ -45,7 +46,9 @@ pub fn plans_near(
         .map(|x| x.id.get())
         .collect();
     near.sort_unstable();
-    near.into_iter()
+    // Plans are independent and cached by the world: draw the missing ones
+    // at once (goal 50), keeping id order.
+    near.into_par_iter()
         .map(|id| {
             world
                 .plan(id)
@@ -127,6 +130,7 @@ pub fn town(ctx: &OverlayCtx<'_>, world: &World) -> Result<Option<OverlayLayer>,
     let mut layout = ctx.base.clone();
     let mut rules = RulesSidecar::empty(w, h);
     let mut owners = vec![Owner::Natural; n];
+    let mut review = vec![false; n];
     let mut any = false;
     for (id, plan) in plans_near(ctx, world, 0.0)? {
         let Some(plan) = plan.as_ref() else {
@@ -165,12 +169,14 @@ pub fn town(ctx: &OverlayCtx<'_>, world: &World) -> Result<Option<OverlayLayer>,
                 arda_town::block::ground::kind(plan, gx, gy) == Kind::Croft
             })
             .collect();
+        mark_relaxed(ctx, plan, &blk.relaxed, &mut review);
         let layer = OverlayLayer {
             layout: part,
             rules: part_rules,
             owned: blk.owned.clone(),
             soft,
             elevation: false,
+            review: Vec::new(),
         };
         any |= compose(&mut layout, &mut rules, &mut owners, &layer, Owner::Town)? > 0;
     }
@@ -182,11 +188,51 @@ pub fn town(ctx: &OverlayCtx<'_>, world: &World) -> Result<Option<OverlayLayer>,
         .map(|&o| matches!(o, Owner::Town | Owner::Croft))
         .collect();
     let soft = owners.iter().map(|&o| o == Owner::Croft).collect();
+    let review = review
+        .iter()
+        .zip(&owners)
+        .map(|(&r, &o)| r && matches!(o, Owner::Town | Owner::Croft))
+        .collect();
     Ok(Some(OverlayLayer {
         layout,
         rules,
         owned,
         soft,
         elevation: false,
+        review,
     }))
+}
+
+/// Marks the window squares of a plan's relaxed WFC problems: a relaxed
+/// interior's footprint, a relaxed outdoor chunk's squares (goal 47).
+fn mark_relaxed(
+    ctx: &OverlayCtx<'_>,
+    plan: &TownPlan,
+    relaxed: &[arda_town::block::Relaxed],
+    review: &mut [bool],
+) {
+    use arda_town::block::wfc::outdoor::CHUNK;
+    use arda_town::block::Relaxed;
+    let (w, h) = (i64::from(ctx.width), i64::from(ctx.height));
+    for r in relaxed {
+        let [x0, y0, x1, y1] = match *r {
+            Relaxed::Interior { building } => {
+                let Some(b) = plan.buildings.iter().find(|b| b.id.0 == building) else {
+                    continue;
+                };
+                [b.rect.x0, b.rect.y0, b.rect.x1, b.rect.y1]
+            }
+            Relaxed::Outdoor { cx, cy } => {
+                [cx * CHUNK, cy * CHUNK, (cx + 1) * CHUNK, (cy + 1) * CHUNK]
+            }
+        };
+        for gy in y0.max(ctx.gsy0)..y1.min(ctx.gsy0 + h) {
+            for gx in x0.max(ctx.gsx0)..x1.min(ctx.gsx0 + w) {
+                let i = (gy - ctx.gsy0) * w + (gx - ctx.gsx0);
+                if let Some(m) = usize::try_from(i).ok().and_then(|i| review.get_mut(i)) {
+                    *m = true;
+                }
+            }
+        }
+    }
 }

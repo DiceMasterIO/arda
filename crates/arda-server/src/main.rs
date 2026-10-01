@@ -44,6 +44,9 @@ struct Args {
     /// Most connections served at once; further clients wait.
     #[arg(long, default_value_t = 64)]
     max_connections: usize,
+    /// Background threads warming prefetched tactical cells (0 disables).
+    #[arg(long, default_value_t = arda_server::tactical::prefetch::DEFAULT_WORKERS)]
+    prefetch_workers: usize,
 }
 
 async fn run(args: Args) -> Result<(), String> {
@@ -57,6 +60,7 @@ async fn run(args: Args) -> Result<(), String> {
         header_read_timeout: Duration::from_secs(args.header_timeout_s),
         max_connections: args.max_connections,
     };
+    config.prefetch_workers = args.prefetch_workers;
     let limits = config.serve;
     let state = tokio::task::spawn_blocking(move || AppState::open(&config))
         .await

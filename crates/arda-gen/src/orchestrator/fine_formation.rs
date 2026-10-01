@@ -1,5 +1,5 @@
-//! Recipe-5 canonical fine terrain: stream-power formation written to the
-//! canonical fine terrain file (logic/02 §fine-formation).
+//! Recipe-5 and recipe-6 canonical fine terrain: stream-power formation
+//! written to the canonical fine terrain file (logic/02 §fine-formation).
 
 use std::{
     fs::OpenOptions,
@@ -11,16 +11,17 @@ use arda_core::{GenerateConfig, HeightMm, TerrainFileWriter, TerrainPoint};
 
 use crate::{
     continent::ContinentGrid,
-    formation::{form_world, water::WaterFeatures, FormationError, FINE_SPACING_UM},
+    formation::{form_world, water::WaterFeatures, FormationError, Recipe, FINE_SPACING_UM},
 };
 
 use super::{fine_source, GenError};
 
-/// Recipe version recorded for formed terrain.
-pub const RECIPE_VERSION: u16 = 5;
+/// Recipe version recorded for formed terrain by default.
+pub const RECIPE_VERSION: u16 = Recipe::DEFAULT.version();
 
-/// Forms and writes one candidate. `destination` must not exist. Returns
-/// the rivers and lakes formation shaped (logic/02 §world-water).
+/// Forms and writes one `recipe` candidate. `destination` must not exist.
+/// Returns the rivers and lakes formation shaped (logic/02 §world-water),
+/// which only recipe 6 records; only recipe 6 stages a shore layer.
 ///
 /// # Errors
 /// Geometry/file admission, formation RAM admission, allocation or I/O.
@@ -31,7 +32,8 @@ pub fn generate(
     macro_grid: &ContinentGrid,
     destination: &Path,
     limits: fine_source::FineSourceLimits,
-) -> Result<WaterFeatures, GenError> {
+    recipe: Recipe,
+) -> Result<Option<WaterFeatures>, GenError> {
     // Geometry and file-size admission are shared with the spectral source;
     // its FFT RAM estimate does not apply, so RAM is admitted by `form`.
     let geometry_limits = fine_source::FineSourceLimits {
@@ -43,9 +45,9 @@ pub fn generate(
         seed,
         attempt,
         macro_grid,
-        plan.fine_width,
-        plan.fine_height,
+        (plan.fine_width, plan.fine_height),
         limits.max_ram_bytes,
+        recipe,
     )?;
     let (lattice, shore, water) = (formed.lattice, formed.shore, formed.water);
     let io = |source: std::io::Error| GenError::Write {
@@ -54,12 +56,13 @@ pub fn generate(
     };
     // logic/02 §fine-formation shore: the shore layer travels beside the
     // candidate and is published with it (`terrain/shore.bin`).
-    let sidecar = super::fine_world::shore_sidecar(destination);
-    std::fs::write(&sidecar, shore.encode()).map_err(|source| GenError::Write {
-        path: sidecar.display().to_string(),
-        source,
-    })?;
-    drop(shore);
+    if let Some(shore) = shore {
+        let sidecar = super::fine_world::shore_sidecar(destination);
+        std::fs::write(&sidecar, shore.encode()).map_err(|source| GenError::Write {
+            path: sidecar.display().to_string(),
+            source,
+        })?;
+    }
     let file = OpenOptions::new()
         .write(true)
         .read(true)

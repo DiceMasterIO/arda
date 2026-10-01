@@ -45,6 +45,8 @@ pub(crate) fn sample(g: &Lattice, x_um: i128, y_um: i128) -> i32 {
 
 /// Makes the `spacing_um` point-sampled lattice of `g` free of closed
 /// depressions over land. Returns the number of fine nodes raised.
+/// Recipe 6: the sea is eight-connected and filled pockets are levelled
+/// whole.
 ///
 /// # Errors
 /// Allocation failure.
@@ -52,6 +54,28 @@ pub fn drain_sampled(
     g: &mut Lattice,
     spacing_um: i64,
     basin: &(dyn Fn(i64, i64) -> bool + Sync),
+) -> Result<usize, FormationError> {
+    drain(g, spacing_um, basin, true)
+}
+
+/// [`drain_sampled`] as recipe 5 ran it: a four-connected sea, and only
+/// the support nodes of a filled sample are raised.
+///
+/// # Errors
+/// Allocation failure.
+pub fn drain_sampled_v5(
+    g: &mut Lattice,
+    spacing_um: i64,
+    basin: &(dyn Fn(i64, i64) -> bool + Sync),
+) -> Result<usize, FormationError> {
+    drain(g, spacing_um, basin, false)
+}
+
+fn drain(
+    g: &mut Lattice,
+    spacing_um: i64,
+    basin: &(dyn Fn(i64, i64) -> bool + Sync),
+    v6: bool,
 ) -> Result<usize, FormationError> {
     let s = i128::from(spacing_um);
     let span_x = (g.width as i128 - 1) * i128::from(g.spacing_um);
@@ -75,8 +99,12 @@ pub fn drain_sampled(
                 }
             });
         }
-        // The sea as the hydrology finds it: eight-connected.
-        super::drainage::open_sea_flags_d8(&z, w, h, &mut flags);
+        // The sea as the hydrology finds it: eight-connected (recipe 6).
+        if v6 {
+            super::drainage::open_sea_flags_d8(&z, w, h, &mut flags);
+        } else {
+            super::drainage::open_sea_flags(&z, w, h, &mut flags);
+        }
         // Tectonic basins are deliberate closed depressions.
         flags.par_iter_mut().enumerate().for_each(|(i, f)| {
             let (x, y) = ((i % w) as i64 * spacing_um, (i / w) as i64 * spacing_um);
@@ -104,7 +132,7 @@ pub fn drain_sampled(
             for (dx, dy) in [(0, 0), (1, 0), (0, 1), (1, 1)] {
                 lift.push(((y + dy) * g.width + x + dx, deficit));
             }
-            if deficit >= POCKET_MM {
+            if v6 && deficit >= POCKET_MM {
                 // A filled pocket (an enclosed lagoon, a closed hollow):
                 // level every fine node nearer this sample than any other,
                 // not only the four support nodes, or the render shows the
@@ -223,6 +251,16 @@ mod tests {
         drain_sampled(&mut g, 100_000_000, &|_, _| false).unwrap();
         let s = sample(&g, 800_000_000, 800_000_000);
         assert!(s <= -4_000, "lagoon sample raised to {s}");
+    }
+
+    #[test]
+    fn recipe_5_keeps_its_four_connected_sea() {
+        // Recipe 5 replays v0.1: the diagonal lagoon is not sea there, so
+        // it is filled (logic/02 §fine-formation recipes).
+        let mut g = from_samples(lagoon(true));
+        drain_sampled_v5(&mut g, 100_000_000, &|_, _| false).unwrap();
+        let s = sample(&g, 800_000_000, 800_000_000);
+        assert!(s > -4_000, "recipe-5 lagoon sample left at {s}");
     }
 
     #[test]

@@ -14,7 +14,7 @@ use crate::plan::grid::{Kind, Side};
 use crate::plan::{Building, TownPlan, WealthLevel};
 use crate::rng::{hash_i, unit, Rng};
 
-fn kind(plan: &TownPlan, x: i64, y: i64) -> Kind {
+pub(super) fn kind(plan: &TownPlan, x: i64, y: i64) -> Kind {
     super::ground::kind(plan, x, y)
 }
 
@@ -24,7 +24,7 @@ fn free_building(plan: &TownPlan, x: i64, y: i64) -> bool {
         .is_some_and(|k| plan.grid.building[k] == 0)
 }
 
-fn prop(id: &'static str, x0: i64, y0: i64, rot: u16) -> GProp {
+pub(super) fn prop(id: &'static str, x0: i64, y0: i64, rot: u16) -> GProp {
     let (w, h) = size(id);
     let (w, h) = if rot % 180 == 90 { (h, w) } else { (w, h) };
     #[allow(clippy::cast_precision_loss)]
@@ -38,73 +38,9 @@ fn prop(id: &'static str, x0: i64, y0: i64, rot: u16) -> GProp {
     }
 }
 
-fn all(plan: &TownPlan, x0: i64, y0: i64, w: i64, h: i64, ok: &[Kind]) -> bool {
+pub(super) fn all(plan: &TownPlan, x0: i64, y0: i64, w: i64, h: i64, ok: &[Kind]) -> bool {
     (y0..y0 + h)
         .all(|y| (x0..x0 + w).all(|x| ok.contains(&kind(plan, x, y)) && free_building(plan, x, y)))
-}
-
-/// Croft dressing: fruit trees in rows in orchards, a trough or tall grass
-/// in paddocks, flowers in meadows, stacks in yards, bushes and young trees
-/// on the rim. A prop stands only on squares of its own parcel.
-fn croft(plan: &TownPlan, x: i64, y: i64, pick: u64, out: &mut Vec<GProp>) {
-    use crate::plan::croft::{parcel, rim, use_of, Use};
-    let s = plan.seed;
-    let p = parcel(s, x, y);
-    let own = |w: i64, h: i64| {
-        all(plan, x, y, w, h, &[Kind::Croft])
-            && (y..y + h).all(|b| (x..x + w).all(|a| parcel(s, a, b) == p))
-    };
-    if rim(s, |a, b| kind(plan, a, b) == Kind::Open, x, y) {
-        if pick < 70 {
-            out.push(prop("veg.bush", x, y, 0));
-        } else if pick < 85 && own(2, 2) {
-            out.push(prop("veg.tree_birch", x, y, 0));
-        } else if pick < 130 {
-            out.push(prop("veg.tall_grass", x, y, 0));
-        }
-        return;
-    }
-    let rot = if p & 2 == 0 { 0 } else { 90 };
-    match use_of(p) {
-        Use::Orchard => {
-            let (ox, oy) = (
-                i64::try_from(p % 4).unwrap_or(0),
-                i64::try_from((p >> 8) % 4).unwrap_or(0),
-            );
-            if (x - ox).rem_euclid(4) == 0 && (y - oy).rem_euclid(4) == 0 && pick < 850 && own(2, 2)
-            {
-                out.push(prop("veg.tree_fruit", x, y, 0));
-            }
-        }
-        Use::Paddock => {
-            if pick < 4 && own(2, 1) {
-                out.push(prop("prop.trough", x, y, 0));
-            } else if (4..30).contains(&pick) {
-                out.push(prop("veg.tall_grass", x, y, 0));
-            }
-        }
-        Use::Meadow => {
-            if pick < 35 {
-                out.push(prop("veg.flower_patch", x, y, 0));
-            } else if pick < 60 {
-                out.push(prop("veg.tall_grass", x, y, 0));
-            }
-        }
-        Use::Kitchen => {
-            if pick < 5 && own(1, 1) {
-                out.push(prop("prop.bucket", x, y, 0));
-            }
-        }
-        Use::Yard => {
-            if pick < 8 && own(2, 2) {
-                out.push(prop("prop.hay_bale", x, y, rot));
-            } else if (8..14).contains(&pick) && own(2, 2) {
-                out.push(prop("prop.woodpile", x, y, rot));
-            } else if (14..18).contains(&pick) && own(2, 2) {
-                out.push(prop("prop.cart", x, y, rot));
-            }
-        }
-    }
 }
 
 /// Per-square dressing anchored at square `(x, y)` (its top-left cell).
@@ -163,7 +99,7 @@ fn cell(plan: &TownPlan, x: i64, y: i64, out: &mut Vec<GProp>) {
                 out.push(prop("veg.stones", x, y, 0));
             }
         }
-        Kind::Croft => croft(plan, x, y, pick, out),
+        Kind::Croft => super::yard::croft(plan, x, y, pick, out),
         Kind::Green => {
             if pick < 4 && all(plan, x, y, 3, 3, &[Kind::Green]) {
                 out.push(prop("veg.tree_oak", x, y, 0));
@@ -188,12 +124,25 @@ fn cell(plan: &TownPlan, x: i64, y: i64, out: &mut Vec<GProp>) {
 
 /// A free outside square next to a building side, walking along it.
 fn beside(plan: &TownPlan, b: &Building, side: Side, k: i64, ok: &[Kind]) -> Option<(i64, i64)> {
+    beside_at(plan, b, side, k, 1, ok)
+}
+
+/// A free outside square `depth` squares out from a building side, `k`
+/// squares along it, away from its doors.
+pub(super) fn beside_at(
+    plan: &TownPlan,
+    b: &Building,
+    side: Side,
+    k: i64,
+    depth: i64,
+    ok: &[Kind],
+) -> Option<(i64, i64)> {
     let r = b.rect;
     let (x, y) = match side {
-        Side::North => (r.x0 + k, r.y0 - 1),
-        Side::South => (r.x0 + k, r.y1),
-        Side::West => (r.x0 - 1, r.y0 + k),
-        Side::East => (r.x1, r.y0 + k),
+        Side::North => (r.x0 + k, r.y0 - depth),
+        Side::South => (r.x0 + k, r.y1 + depth - 1),
+        Side::West => (r.x0 - depth, r.y0 + k),
+        Side::East => (r.x1 + depth - 1, r.y0 + k),
     };
     let inside = match side {
         Side::North | Side::South => k < r.w(),
@@ -283,15 +232,6 @@ fn building(plan: &TownPlan, b: &Building, out: &mut Vec<GProp>, lights: &mut Ve
                 out,
             );
         }
-        F::Farmhouse | F::Cottage => {
-            drop(
-                &["prop.woodpile", "prop.barrel", "prop.bucket"],
-                back,
-                &yard_ok,
-                &mut rng,
-                out,
-            );
-        }
         F::Barn | F::Stable => drop(
             &["prop.hay_bale", "prop.hay_bale", "prop.wheelbarrow"],
             b.front,
@@ -299,20 +239,7 @@ fn building(plan: &TownPlan, b: &Building, out: &mut Vec<GProp>, lights: &mut Ve
             &mut rng,
             out,
         ),
-        F::House | F::Bakery | F::Brewery | F::Workshop | F::Tannery => {
-            if rng.chance(0.6) {
-                drop(
-                    &["prop.woodpile", "prop.barrel"],
-                    back,
-                    &yard_ok,
-                    &mut rng,
-                    out,
-                );
-            }
-            if b.wealth_level != WealthLevel::Poor && rng.chance(0.25) {
-                drop(&["prop.bench"], b.front, &[Kind::Front], &mut rng, out);
-            }
-        }
+        f if super::yard::dressed(f) => super::yard::home(plan, b, &mut rng, out),
         F::Stall => stall(plan, b, &mut rng, out),
         F::Dock => dock(plan, b, &mut rng, out),
         _ => {}
@@ -431,4 +358,72 @@ pub fn dress(plan: &TownPlan, x0: i64, y0: i64, x1: i64, y1: i64) -> (Vec<GProp>
     };
     props.retain(inside);
     (props, lights)
+}
+
+/// The plan-fixed exterior dressing the town WFC keeps (goal 44 seam with
+/// `block::wfc::outdoor`): reeds on banks, bridge decking and trees in
+/// open country, cargo and boats at docks, the market well and braziers,
+/// and the lanterns at inn doors. Streets, squares, yards, gardens,
+/// churchyards, greens, crofts and walls are left to the WFC.
+#[must_use]
+pub fn fixed(plan: &TownPlan, x0: i64, y0: i64, x1: i64, y1: i64) -> (Vec<GProp>, Vec<GLight>) {
+    let mut props = Vec::new();
+    let mut lights = Vec::new();
+    let m = 3;
+    for y in y0 - m..y1 + m {
+        for x in x0 - m..x1 + m {
+            if matches!(kind(plan, x, y), Kind::Water | Kind::Bridge | Kind::Open) {
+                cell(plan, x, y, &mut props);
+            }
+        }
+    }
+    let near = crate::plan::grid::SquareRect {
+        x0: x0 - 3,
+        y0: y0 - 3,
+        x1: x1 + 3,
+        y1: y1 + 3,
+    };
+    for b in plan
+        .buildings
+        .iter()
+        .filter(|b| b.rect.grown(2).overlaps(&near))
+    {
+        match b.function {
+            F::Dock => dock(
+                plan,
+                b,
+                &mut Rng::keyed(plan.seed, 0xE7E5, b.id.0),
+                &mut props,
+            ),
+            F::Inn | F::Tavern => {
+                let mut all = Vec::new();
+                building(plan, b, &mut all, &mut lights);
+            }
+            _ => {}
+        }
+    }
+    square(plan, &mut props);
+    let inside = |p: &GProp| {
+        #[allow(clippy::cast_precision_loss)]
+        let (a, b, c, d) = (x0 as f64, y0 as f64, x1 as f64, y1 as f64);
+        p.extent[0] < c && p.extent[2] > a && p.extent[1] < d && p.extent[3] > b
+    };
+    props.retain(inside);
+    (props, lights)
+}
+
+/// Squares the market well and braziers take, global.
+#[must_use]
+pub fn square_features(plan: &TownPlan) -> Vec<(i64, i64)> {
+    let mut props = Vec::new();
+    square(plan, &mut props);
+    props
+        .iter()
+        .map(|p| {
+            (
+                crate::num::floor_i(p.extent[0]),
+                crate::num::floor_i(p.extent[1]),
+            )
+        })
+        .collect()
 }

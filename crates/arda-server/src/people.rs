@@ -5,11 +5,11 @@
 //! - `GET /v1/settlements/{id}`: the record and its society (history,
 //!   economy, factions, offices, hooks);
 //! - `GET /v1/settlements/{id}/plan`: its `arda-town` plan;
-//! - `GET /v1/settlements/{id}/npcs`: its stored notables;
-//! - `GET /v1/npc/{npc_id}`: one stored notable of the world.
+//! - `GET /v1/settlements/{id}/npcs`: its stored notables.
 //!
-//! Only notables are stored (goal 56); a world without `society/` answers
-//! 404 `not_found` on every route here.
+//! People (`/v1/npc/{id}`, `/v1/npcs`, `/v1/buildings/{id}/…`) are served by
+//! [`crate::npcs`]. Only notables are stored (goal 56); a world without
+//! `society/` answers 404 `not_found` on every route here.
 
 use crate::error::{ServerError, ServerResult};
 use crate::routes::{blocking, params, parse, segments, Params, Segments};
@@ -109,21 +109,6 @@ pub(crate) async fn npcs(State(state): Shared, path: Segments) -> ServerResult<R
         let w = people(s)?;
         w.files.settlement(id).map_err(people_error)?;
         Ok(json!({ "settlement_id": id.to_string(), "npcs": w.notables_of(id) }))
-    })
-    .await?;
-    Ok(Json(body).into_response())
-}
-
-/// `GET /v1/npc/{npc_id}`: a stored notable.
-pub(crate) async fn npc(State(state): Shared, path: Segments) -> ServerResult<Response> {
-    let p = segments(path, 1)?;
-    let id = crate::npc::parse_npc_id(&p[0])?;
-    let body = blocking(state, move |s| {
-        let w = people(s)?;
-        let (npc, _) = w
-            .notable(id)
-            .ok_or_else(|| ServerError::NotFound(format!("no stored NPC {id}")))?;
-        Ok(npc.clone())
     })
     .await?;
     Ok(Json(body).into_response())

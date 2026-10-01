@@ -82,6 +82,7 @@ pub fn ways(ctx: &OverlayCtx<'_>, off: (i64, i64)) -> Result<OverlayLayer, Block
         owned,
         soft: Vec::new(),
         elevation: false,
+        review: Vec::new(),
     })
 }
 
@@ -111,6 +112,7 @@ pub fn fields(
         owned: win.owned,
         soft: Vec::new(),
         elevation: false,
+        review: Vec::new(),
     })
 }
 
@@ -134,6 +136,7 @@ pub fn town(
         owned: blk.owned.clone(),
         soft: Vec::new(),
         elevation: false,
+        review: Vec::new(),
     })
 }
 

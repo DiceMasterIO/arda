@@ -69,12 +69,43 @@ impl Style {
     }
 }
 
+/// Encoding of an overview tile (goal 68: WebP; PNG kept for compatibility).
+#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord)]
+pub enum TileFormat {
+    /// RGBA PNG.
+    Png,
+    /// Lossless RGBA WebP.
+    Webp,
+}
+
+impl TileFormat {
+    /// Splits `{y}.png` or `{y}.webp` into the row text and the format.
+    #[must_use]
+    pub fn split(file: &str) -> Option<(&str, Self)> {
+        file.strip_suffix(".png")
+            .map(|y| (y, Self::Png))
+            .or_else(|| file.strip_suffix(".webp").map(|y| (y, Self::Webp)))
+    }
+
+    /// The response `Content-Type`.
+    #[must_use]
+    pub const fn content_type(self) -> &'static str {
+        match self {
+            Self::Png => "image/png",
+            Self::Webp => "image/webp",
+        }
+    }
+}
+
+/// Cache identity of an encoded overview tile: `(z, x, y, format)`.
+type TileKey = (u32, u32, u32, TileFormat);
+
 /// Overview renders, the decoded pyramid base and cut tiles, all bounded.
 pub struct Overview {
     limits: OverviewLimits,
     pyramid: TilePyramidDto,
     pngs: Mutex<ByteLru<(u32, Style), Vec<u8>>>,
-    tiles: Mutex<ByteLru<(u32, u32, u32), Vec<u8>>>,
+    tiles: Mutex<ByteLru<TileKey, Vec<u8>>>,
     base: Mutex<Option<Arc<Rgb>>>,
     render: Mutex<()>,
 }
@@ -169,12 +200,18 @@ impl Overview {
         Ok(Arc::clone(slot.get_or_insert(rgb)))
     }
 
-    /// Slippy tile `(z, x, y)` as a 256 px RGBA PNG.
+    /// Slippy tile `(z, x, y)` as a 256 px RGBA PNG or lossless WebP. Both
+    /// encode the same pixels.
     ///
     /// # Errors
     /// [`ServerError::NotFound`] outside the pyramid; render or encode failures.
-    pub fn tile(&self, query: &WorldQuery, z: u32, x: u32, y: u32) -> ServerResult<Arc<Vec<u8>>> {
-        let key = (z, x, y);
+    pub fn tile(
+        &self,
+        query: &WorldQuery,
+        (z, x, y): (u32, u32, u32),
+        format: TileFormat,
+    ) -> ServerResult<Arc<Vec<u8>>> {
+        let key = (z, x, y, format);
         if z > self.pyramid.max_zoom || x >= (1 << z) || y >= (1 << z) {
             return Err(ServerError::NotFound(format!(
                 "tile {z}/{x}/{y} is outside the pyramid (zoom 0..={})",
@@ -186,9 +223,12 @@ impl Overview {
         }
         let base = self.base(query)?;
         let rgba = tiles::cut(&base, self.pyramid.max_zoom, z, x, y)?;
-        let png = Arc::new(tiles::encode_rgba(TILE_PX, TILE_PX, &rgba)?);
-        let size = png.len();
-        Ok(lock(&self.tiles)?.insert(key, png, size))
+        let bytes = Arc::new(match format {
+            TileFormat::Png => tiles::encode_rgba(TILE_PX, TILE_PX, &rgba)?,
+            TileFormat::Webp => crate::tactical::images::encode_webp(&rgba, TILE_PX)?,
+        });
+        let size = bytes.len();
+        Ok(lock(&self.tiles)?.insert(key, bytes, size))
     }
 }
 

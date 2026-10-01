@@ -3,10 +3,13 @@
 //! canonical frame into rooms and furnishes them with vocabulary props.
 
 mod civic;
-mod homes;
+pub mod clutter;
+pub(crate) mod homes;
+pub(crate) mod stock;
 mod trade;
+pub mod variety;
 
-use super::frame::{Canon, Frame, Want};
+pub use super::frame::{Canon, Frame, Want};
 use super::kits;
 use crate::function::BuildingFunction as F;
 use crate::plan::grid::{Side, SquareRect};
@@ -174,7 +177,7 @@ fn side_to_canonical(side: Side, turns: u8) -> Side {
 }
 
 /// Canonical edge of a door: `(x, y, horizontal)`.
-fn door_edge(f: &Frame, d: &Door) -> Option<(i64, i64, bool)> {
+pub(crate) fn door_edge(f: &Frame, d: &Door) -> Option<(i64, i64, bool)> {
     let (u, v) = f.inverse_cell(d.x, d.y)?;
     Some(match side_to_canonical(d.side, f.turns) {
         Side::North => (u, v, true),
@@ -184,7 +187,7 @@ fn door_edge(f: &Frame, d: &Door) -> Option<(i64, i64, bool)> {
     })
 }
 
-fn wide_entrance(f: F) -> bool {
+pub(crate) fn wide_entrance(f: F) -> bool {
     matches!(
         f,
         F::Barn | F::Stable | F::Warehouse | F::Smithy | F::Boathouse | F::MarketHall
@@ -194,11 +197,20 @@ fn wide_entrance(f: F) -> bool {
 /// Builds the interior of one building.
 #[must_use]
 pub fn build(plan: &TownPlan, b: &Building) -> Interior {
+    let (c, frame) = canon(plan, b, plan.interior_salt(b));
+    to_global(&c, &frame)
+}
+
+/// The interior of `b` drawn with `salt`, in its canonical frame.
+#[must_use]
+pub fn canon(plan: &TownPlan, b: &Building, salt: u8) -> (Canon, Frame) {
     let frame = Frame::new(b.rect, b.front.turns());
     let t = kits::tradition(&plan.culture);
+    // Salt 0 keeps the building's original stream.
+    let key = 0xB01D ^ (u64::from(salt) << 20);
     let mut ctx = Ctx {
         b,
-        rng: Rng::keyed(plan.seed, 0xB01D, b.id.0),
+        rng: Rng::keyed(plan.seed, key, b.id.0),
         kit: kits::shell(b, t),
         pkit: kits::partition(b),
         floor: kits::floor(b),
@@ -238,10 +250,10 @@ pub fn build(plan: &TownPlan, b: &Building) -> Interior {
         }
         _ => trade::furnish(&mut c, &mut ctx, front_x),
     }
-    to_global(&c, &frame)
+    (c, frame)
 }
 
-fn to_global(c: &Canon, f: &Frame) -> Interior {
+pub(crate) fn to_global(c: &Canon, f: &Frame) -> Interior {
     let mut floors = Vec::new();
     for y in 0..c.d {
         for x in 0..c.w {

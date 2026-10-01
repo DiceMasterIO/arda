@@ -11,9 +11,9 @@ use std::path::{Path, PathBuf};
 pub use arda_core::{
     AreaCells, AreaObjects, Block, Cell, Cover, GenerateConfig, Island, IslandCause, Lake,
     LatitudeBand, LoadError, Manifest, RiverSegment, RoadClass, ShoreClass, ShoreLayer, SizeKm,
-    TerrainKind, TileId, ValidationStats,
+    TerrainKind, TileId, ValidationStats, FINE_TERRAIN_RECIPE_VERSION,
 };
-pub use arda_gen::orchestrator::FineDeliveryLimits;
+pub use arda_gen::orchestrator::{FineDeliveryLimits, FineRecipe};
 pub use arda_gen::{GenError, HydrologyLimits};
 pub use arda_render::{AreaImageScale, ImageQuality};
 mod atlas;
@@ -58,8 +58,9 @@ pub fn generate_with_limits(
     arda_gen::generate_world_with_limits(seed, config, out, limits)
 }
 
-/// Generates a complete world from the first validated canonical recipe-2 fine
-/// source in the fixed deterministic attempt ladder. Legacy generation remains
+/// Generates a complete world from the first validated canonical fine
+/// source of the default recipe ([`arda_core::FINE_TERRAIN_RECIPE_VERSION`])
+/// in the fixed deterministic attempt ladder. Legacy generation remains
 /// available through [`generate`].
 ///
 /// # Errors
@@ -71,6 +72,26 @@ pub fn generate_from_fine_source(
     limits: FineDeliveryLimits,
 ) -> Result<Manifest, GenError> {
     arda_gen::orchestrator::generate_world_with_fine_source(seed, config, out, limits)
+}
+
+/// [`generate_from_fine_source`] with an explicit fine-terrain recipe:
+/// 4 (spectral valleys), 5 (v0.1 formation, replayed exactly) or 6 (the
+/// default). The manifest records it, and loading and rendering follow it.
+///
+/// # Errors
+/// [`GenError::Validation`] for a recipe this build cannot generate, else
+/// as [`generate_from_fine_source`].
+pub fn generate_from_fine_recipe(
+    seed: u64,
+    config: GenerateConfig,
+    out: &Path,
+    limits: FineDeliveryLimits,
+    recipe_version: u16,
+) -> Result<Manifest, GenError> {
+    let recipe = FineRecipe::from_version(recipe_version).ok_or_else(|| GenError::Validation {
+        check: format!("unsupported fine terrain recipe {recipe_version} (expected 4, 5 or 6)"),
+    })?;
+    arda_gen::orchestrator::generate_world_with_fine_recipe(seed, config, out, limits, recipe)
 }
 
 /// Output format for `export` (`mockup/03`).

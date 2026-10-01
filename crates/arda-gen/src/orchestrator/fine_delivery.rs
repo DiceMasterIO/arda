@@ -131,12 +131,48 @@ fn refuse_occupied(out: &Path) -> Result<(), GenError> {
 pub enum FineRecipe {
     /// Recipe 4: spectral source plus carved bent valleys (exact replay).
     Valleys,
-    /// Recipe 5: multi-resolution stream-power formation (logic/02
-    /// §fine-formation).
+    /// Recipe 6, the default: multi-resolution stream-power formation with
+    /// margins, coasts and water forms (logic/02 §fine-formation).
     Formation,
+    /// Recipe 5: stream-power formation exactly as v0.1 shipped it.
+    FormationV5,
 }
 
-/// Generate one recipe-5 world; see [`generate_world_with_fine_recipe`].
+impl FineRecipe {
+    /// The manifest `recipe_version` this recipe records.
+    #[must_use]
+    pub const fn version(self) -> u16 {
+        match self {
+            Self::Valleys => 4,
+            Self::FormationV5 => 5,
+            Self::Formation => 6,
+        }
+    }
+
+    /// The recipe that generates `recipe_version`, if this build has one
+    /// (recipes 4, 5 and 6).
+    #[must_use]
+    pub const fn from_version(recipe_version: u16) -> Option<Self> {
+        match recipe_version {
+            4 => Some(Self::Valleys),
+            5 => Some(Self::FormationV5),
+            6 => Some(Self::Formation),
+            _ => None,
+        }
+    }
+
+    /// The formation rule set, for the stream-power recipes.
+    const fn formation(self) -> Option<crate::formation::Recipe> {
+        match self {
+            Self::Valleys => None,
+            Self::FormationV5 => Some(crate::formation::Recipe::V5),
+            Self::Formation => Some(crate::formation::Recipe::V6),
+        }
+    }
+}
+
+/// Generate one default-recipe (6) world; see
+/// [`generate_world_with_fine_recipe`].
 ///
 /// # Errors
 /// As [`generate_world_with_fine_recipe`].
@@ -168,9 +204,9 @@ pub fn generate_world_with_fine_recipe(
     limits: FineDeliveryLimits,
     recipe: FineRecipe,
 ) -> Result<Manifest, GenError> {
-    let plan = match recipe {
-        FineRecipe::Valleys => fine_source::admit(config, limits.source)?,
-        FineRecipe::Formation => {
+    let plan = match recipe.formation() {
+        None => fine_source::admit(config, limits.source)?,
+        Some(_) => {
             let plan = fine_source::admit(
                 config,
                 fine_source::FineSourceLimits {
@@ -230,27 +266,26 @@ pub fn generate_world_with_fine_recipe(
     let valley_path = stage.valleys();
     let mut last_check = String::new();
     for attempt in 0..CONTINENT_ATTEMPTS {
-        let macro_grid = match recipe {
-            FineRecipe::Formation => {
-                crate::continent::generate_continent_attempt_formed(seed, config, attempt)
-            }
-            FineRecipe::Valleys => generate_continent_attempt_fine(seed, config, attempt),
+        let macro_grid = match recipe.formation() {
+            Some(_) => crate::continent::generate_continent_attempt_formed(seed, config, attempt),
+            None => generate_continent_attempt_fine(seed, config, attempt),
         };
         let mut water = None;
-        let recipe_version = match recipe {
-            FineRecipe::Formation => {
-                water = Some(fine_formation::generate(
+        let recipe_version = match recipe.formation() {
+            Some(formation) => {
+                water = fine_formation::generate(
                     seed,
                     attempt,
                     config,
                     &macro_grid,
                     &path,
                     limits.source,
-                )?);
+                    formation,
+                )?;
                 drop(macro_grid);
-                fine_formation::RECIPE_VERSION
+                formation.version()
             }
-            FineRecipe::Valleys => {
+            None => {
                 let receipt = fine_source::generate(
                     seed,
                     attempt,
