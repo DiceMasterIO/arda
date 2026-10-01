@@ -14,8 +14,10 @@ pub type Weights = [f64; COUNT];
 
 /// How strongly the WFC follows the prior (exponent on the weights).
 pub const SHARPNESS: f64 = 5.5;
-/// Patch-noise amplitude in log-weight units.
-const PATCH: f64 = 2.0;
+/// Patch-noise amplitude in log-weight units: enough to break up uniform
+/// ground, small enough that the landform terms below decide where each
+/// ground lies (hollows wetter, knolls rockier), not noise blobs.
+const PATCH: f64 = 1.0;
 
 /// Base weights for one cell.
 #[must_use]
@@ -46,7 +48,7 @@ pub fn cell_weights(c: &Cell) -> Weights {
             }
             Cover::Grass => {
                 set(Grass, 1.0);
-                set(Meadow, 0.3 + 0.5 * moist);
+                set(Meadow, 0.2 + 0.35 * moist);
                 set(Scrub, 0.08);
                 set(Heath, 0.05);
                 set(Dirt, 0.03);
@@ -161,6 +163,7 @@ impl Prior {
     /// Log-weights (scores) at a vertex, from interpolated cell weights,
     /// local slope and northness, and per-class patch noise.
     #[must_use]
+    #[allow(clippy::too_many_arguments)]
     pub fn scores(
         &self,
         ctx: &Ctx,
@@ -169,6 +172,7 @@ impl Prior {
         slope: f64,
         north: f64,
         river_d: f64,
+        shape: crate::shape::Shape,
     ) -> Weights {
         use Class::*;
         let (ix, fx) = split((u - 32.0) / 64.0);
@@ -201,6 +205,7 @@ impl Prior {
         w[Heath.index()] *= 1.0 + 0.8 * (-facing).max(0.0);
         w[Scrub.index()] *= 1.0 + 0.4 * (-facing).max(0.0);
         w[Meadow.index()] *= 1.0 + 0.3 * (-facing).max(0.0);
+        landform(ctx, &mut w, u, v, slope, north, shape);
         // Riparian strip: soft ground and reeds along slow channels.
         let strip = (1.0 - smoothstep(0.0, 5.0, river_d)) * (1.0 - steep);
         w[Mud.index()] += 0.25 * strip;
@@ -218,6 +223,41 @@ impl Prior {
         }
         s
     }
+}
+
+/// Ground follows the landform (goals 19, 20 and 43): knolls and ridges
+/// carry thin soil, rock and heath; hollows collect water, deeper meadow,
+/// moss and marsh; in cold country snow lingers in shaded hollows and on
+/// north-facing slopes long after it has left the sunny ones.
+fn landform(
+    ctx: &Ctx,
+    w: &mut Weights,
+    u: f64,
+    v: f64,
+    slope: f64,
+    north: f64,
+    shape: crate::shape::Shape,
+) {
+    use Class::*;
+    let (ridge, bowl) = (shape.ridge(), shape.bowl());
+    let land = 1.0 - w[Water.index()].min(1.0);
+    let steepish = smoothstep(6.0, 24.0, slope);
+    w[Rock.index()] += land * ridge * (0.12 + 0.45 * steepish);
+    w[Scree.index()] += land * 0.3 * shape.talus;
+    w[Heath.index()] += 0.25 * ridge * (w[Grass.index()] + w[Scrub.index()]).min(1.0);
+    w[Dirt.index()] += 0.06 * ridge * w[Grass.index()].min(1.0);
+    w[Grass.index()] *= 1.0 - 0.35 * ridge;
+    w[Meadow.index()] *= 1.0 + 2.0 * bowl - 0.6 * ridge;
+    w[Moss.index()] += 0.2 * bowl * (w[ForestFloor.index()] + w[Rock.index()]).min(1.0);
+    let wet = ctx.bilinear(u, v, |c, _| f64::from(c.wetness) / 255.0);
+    w[Marsh.index()] += 0.5 * bowl * smoothstep(0.35, 0.8, wet) * (1.0 - steepish);
+    w[Mud.index()] += 0.12 * bowl * smoothstep(0.45, 0.9, wet) * (1.0 - steepish);
+    // Snow patches: cold country only, in proportion to shade.
+    let temp = ctx.bilinear(u, v, |c, _| f64::from(c.temperature.raw()) / 100.0);
+    let cold = smoothstep(5.0, 0.0, temp);
+    let shade = (north * smoothstep(4.0, 22.0, slope)).max(0.0);
+    let lie = smoothstep(0.45, 0.9, 0.55 * shade + 0.8 * bowl + 0.15 * north);
+    w[Snow.index()] += 1.8 * cold * lie;
 }
 
 fn split(t: f64) -> (i64, f64) {

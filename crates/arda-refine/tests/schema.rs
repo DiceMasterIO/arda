@@ -24,7 +24,8 @@ mod scene {
     pub use arda_scene::{CoverLevel, RulesSidecar};
 }
 
-const GROUND: [&str; 20] = [
+const GROUND: [&str; 23] = [
+    "trail",
     "grass",
     "dirt",
     "mud",
@@ -45,9 +46,15 @@ const GROUND: [&str; 20] = [
     "ice",
     "marsh",
     "reed_bed",
+    "salt_crust",
+    "mudflat",
 ];
 
-const VEG: [&str; 25] = [
+const VEG: [&str; 29] = [
+    "tree_alder",
+    "tree_stunted",
+    "juniper",
+    "rock_outcrop",
     "tree_oak",
     "tree_elm",
     "tree_birch",

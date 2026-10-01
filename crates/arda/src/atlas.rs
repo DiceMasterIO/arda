@@ -32,6 +32,50 @@ fn offset(direction: &AtlasNeighbor) -> (i32, i32) {
     }
 }
 
+/// Recipe-7 arid water codes (`arda_render::SALT_*`) of every coded cell of
+/// the area at `(ax, ay)` and its eight neighbours, by global cell: saline
+/// lake cells from the stored lake forms, salt crust and mudflat from the
+/// stored playa runs (logic/04 §atlas-formed arid basins).
+pub(crate) fn arid_cells(
+    world: &World,
+    ax: i32,
+    ay: i32,
+) -> Result<std::collections::HashMap<(i64, i64), u8>, ExportError> {
+    let mut out = std::collections::HashMap::new();
+    for y in ay - 1..=ay + 1 {
+        for x in ax - 1..=ax + 1 {
+            if !inside(world, x, y) {
+                continue;
+            }
+            let objects = world.read_area_objects(x, y)?;
+            let Some(water) = world.read_area_water(x, y)? else {
+                continue;
+            };
+            let (ox, oy) = (i64::from(x) * 512, i64::from(y) * 512);
+            for (lake, form) in objects.lakes.iter().zip(&water.lakes) {
+                if form.saline {
+                    for c in &lake.cells {
+                        out.insert(
+                            (ox + i64::from(c.x()), oy + i64::from(c.y())),
+                            arda_render::SALT_SALINE_LAKE,
+                        );
+                    }
+                }
+            }
+            for run in &water.pans {
+                let code = match run.kind {
+                    arda_core::water::PanKind::SaltCrust => arda_render::SALT_CRUST,
+                    arda_core::water::PanKind::Mudflat => arda_render::SALT_MUDFLAT,
+                };
+                for dx in 0..run.len {
+                    out.insert((ox + i64::from(run.x0 + dx), oy + i64::from(run.y)), code);
+                }
+            }
+        }
+    }
+    Ok(out)
+}
+
 fn inside(world: &World, x: i32, y: i32) -> bool {
     x >= 0 && y >= 0 && x < world.manifest().areas_wide && y < world.manifest().areas_high
 }
@@ -92,6 +136,19 @@ pub(crate) fn atlas_terrain(
                 let terrain = match shore {
                     Some(layer) => terrain.with_shore(layer, at),
                     None => terrain,
+                };
+                // logic/04 §atlas-formed arid basins (recipe 7): saline
+                // lakes and salt pans.
+                let terrain = if recipe >= 7 {
+                    let cells = arid_cells(world, ax, ay)?;
+                    terrain.with_salt(at, |gx, gy| {
+                        cells
+                            .get(&(gx, gy))
+                            .copied()
+                            .unwrap_or(arda_render::SALT_NONE)
+                    })
+                } else {
+                    terrain
                 };
                 // Worlds with stored water forms carry their meanders in the
                 // saved courses (logic/02 §world-water).

@@ -9,7 +9,9 @@
 //!    relief, roughness and cover, keeping every 39 m cell mean and every
 //!    saved river and lake where it is;
 //! 2. [`tile`]: relief tiles shaded by the formed Atlas shader, continuing
-//!    the overview pyramid past native resolution.
+//!    the overview pyramid past native resolution, with rivers, lakes,
+//!    coasts and pools from the tactical layer's water geometry
+//!    ([`water`]), so both zooms put every shore in the same place.
 //!
 //! Every value is integer and a pure function of the seed and the global
 //! position, so tiles are deterministic and join pixel-exactly.
@@ -21,20 +23,23 @@ pub mod detail;
 pub mod error;
 pub mod fixed;
 pub mod height;
+pub mod lattice;
 pub mod masks;
 pub mod pyramid;
 pub mod refine;
-pub mod rivers;
 pub mod source;
 pub mod tile;
+pub mod water;
 pub mod world;
 
 pub use error::MidzoomError;
 pub use height::{HeightTile, SurfacePoint};
+pub use lattice::{world_lattice, Lattice};
 pub use pyramid::Pyramid;
 pub use refine::{refine_nodes, refine_nodes_for};
 pub use source::{CellInfo, GridTerrain, Terrain, WorldTerrain, FINE_UM};
 pub use tile::{render_tile, render_window, Rgba};
+pub use water::{water_mask, WindowWater};
 pub use world::ReliefWorld;
 
 /// Refines the square world window `[x0_m, x0_m + size_m)²` (world metres,

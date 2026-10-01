@@ -95,7 +95,14 @@ fn ground_assets(seed: u64) -> Vec<(Asset, Rgba)> {
             a.ground = Some(kind.to_string());
             a.difficult_terrain = matches!(
                 kind,
-                "mud" | "water_shallow" | "marsh" | "reed_bed" | "scree" | "ice" | "cliff"
+                "mud"
+                    | "mudflat"
+                    | "water_shallow"
+                    | "marsh"
+                    | "reed_bed"
+                    | "scree"
+                    | "ice"
+                    | "cliff"
             );
             a.blocks_movement = kind == "water_deep";
             if ground::STRUCTURED.contains(&kind) {

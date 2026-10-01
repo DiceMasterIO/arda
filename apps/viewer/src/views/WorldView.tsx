@@ -6,6 +6,7 @@ import { areasHigh, areasWide, basePxToCell, cellBoundsBasePx, cellToArea, type 
 import { fitOnResize } from "../geo/fitOnResize.ts";
 import { pyramidCrs, unitsToLatLng } from "../geo/leafletCrs.ts";
 import { deepestZoom, hasRelief, metresPerPx, offersTactical } from "../geo/relief.ts";
+import { cellHash } from "../geo/cellWalk.ts";
 import { CellInspector } from "./CellInspector.tsx";
 
 type Selected = { cell: CellRef; seq: number } & ({ state: "loading" } | { state: "ok"; sample: CellSample } | { state: "error"; message: string });
@@ -15,6 +16,13 @@ export function WorldView({ client, world }: { client: ArdaClient; world: WorldI
   const [hover, setHover] = useState<CellRef | null>(null);
   const [selected, setSelected] = useState<Selected | null>(null);
   const [showAreas, setShowAreas] = useState(true);
+  // Opt-in looks, off by default: the oblique overview (goal 24) and the
+  // world grade carried into the tactical map (goal 49).
+  const [oblique, setOblique] = useState(false);
+  const [grade, setGrade] = useState(false);
+  const overviewRef = useRef<L.TileLayer | null>(null);
+  const reliefRef = useRef<L.TileLayer | null>(null);
+  const obliqueShownRef = useRef(false);
   const [zoom, setZoom] = useState(0);
   const [centre, setCentre] = useState<CellRef | null>(null);
   const mapRef = useRef<L.Map | null>(null);
@@ -39,7 +47,8 @@ export function WorldView({ client, world }: { client: ArdaClient; world: WorldI
     });
     // The overview pyramid, upscaled past native zoom as a backdrop while
     // relief tiles load.
-    L.tileLayer(client.overviewTileTemplate(), {
+    obliqueShownRef.current = false;
+    overviewRef.current = L.tileLayer(client.overviewTileTemplate(), {
       tileSize: tiles.tile_px,
       minZoom: 0,
       maxNativeZoom: tiles.max_zoom,
@@ -49,7 +58,7 @@ export function WorldView({ client, world }: { client: ArdaClient; world: WorldI
     }).addTo(map);
     // Past native zoom: on-demand ~10 m relief (GET /v1/tiles/relief).
     if (hasRelief(world)) {
-      L.tileLayer(client.reliefTileTemplate(), {
+      reliefRef.current = L.tileLayer(client.reliefTileTemplate(), {
         tileSize: tiles.tile_px,
         minZoom: tiles.max_zoom + 1,
         maxNativeZoom: tiles.relief_max_zoom,
@@ -117,8 +126,31 @@ export function WorldView({ client, world }: { client: ArdaClient; world: WorldI
       mapRef.current = null;
       areasRef.current = null;
       markRef.current = null;
+      overviewRef.current = null;
+      reliefRef.current = null;
     };
   }, [client, world]);
+
+  // The oblique pyramid (goal 24) replaces the overview tiles. Relief
+  // levels are drawn top-down, so they are hidden while it is on: ground
+  // would jump north-south by up to tilt × height at the switch.
+  useEffect(() => {
+    const map = mapRef.current;
+    const old = overviewRef.current;
+    if (map && old && obliqueShownRef.current !== oblique) {
+      // A fresh layer with the same geometry (setUrl redraws at the
+      // fractional view zoom instead of the tile zoom).
+      const next = L.tileLayer(client.overviewTileTemplate("webp", { oblique }), old.options).addTo(map);
+      next.bringToBack();
+      old.remove();
+      overviewRef.current = next;
+      obliqueShownRef.current = oblique;
+    }
+    const relief = reliefRef.current;
+    if (!map || !relief) return;
+    if (oblique) relief.remove();
+    else relief.addTo(map);
+  }, [client, world, oblique]);
 
   useEffect(() => {
     const map = mapRef.current;
@@ -192,12 +224,35 @@ export function WorldView({ client, world }: { client: ArdaClient; world: WorldI
             />{" "}
             area grid
           </label>
+          <label title="?oblique=1 (goal 24, opt-in): the overview seen slightly obliquely; ground shifts north with its height, coasts stay put. Relief levels are hidden while it is on.">
+            <input
+              type="checkbox"
+              aria-label="oblique"
+              checked={oblique}
+              onChange={(e) => {
+                setOblique(e.target.checked);
+              }}
+            />{" "}
+            oblique
+          </label>
+          <label title="Open tactical maps with ?world_grade=1 (goal 49, opt-in): ground and water pulled toward the world map's colours">
+            <input
+              type="checkbox"
+              aria-label="world grade"
+              checked={grade}
+              onChange={(e) => {
+                setGrade(e.target.checked);
+              }}
+            />{" "}
+            world grade
+          </label>
           <span className="muted" data-testid="scale-readout">
             {metresPerPx(world, zoom).toFixed(metresPerPx(world, zoom) < 10 ? 2 : 0)} m/px
-            {zoom > world.tiles.max_zoom && hasRelief(world) ? " · relief" : ""}
+            {zoom > world.tiles.max_zoom && hasRelief(world) && !oblique ? " · relief" : ""}
+            {oblique ? " · oblique" : ""}
           </span>
           {offersTactical(world, zoom) && centre && (
-            <a className="tab active" data-testid="open-tactical" href={`#/cell?gx=${centre.gx}&gy=${centre.gy}`}>
+            <a className="tab active" data-testid="open-tactical" href={cellHash(centre, false, grade)}>
               Open tactical map here
             </a>
           )}

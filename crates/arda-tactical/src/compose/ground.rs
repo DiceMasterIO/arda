@@ -27,8 +27,10 @@ use super::field::{
 };
 pub use super::sample::TextureSet;
 use super::sample::{sample, CellTable, KeyTextures};
+use super::snow::{Snow, SNOW};
 use super::terrain::Terrain;
 pub use super::water::paint_water;
+use super::weights::Weights;
 use crate::layout::TacticalLayout;
 use crate::noise::{hash_str, mix};
 use crate::raster::Rgba;
@@ -49,7 +51,8 @@ pub fn cover_class(key: &str) -> u8 {
     match key {
         "grass" | "meadow" | "pasture" | "heath" | "scrub" | "moss" | "forest_floor"
         | "leaf_litter" | "marsh" | "reed_bed" => 2,
-        "dirt" | "mud" | "sand" | "gravel" | "packed_earth" | "farmland" | "scree" | "snow" => 1,
+        "dirt" | "mud" | "sand" | "gravel" | "packed_earth" | "farmland" | "scree" | "snow"
+        | "mudflat" => 1,
         // Laid surfaces hold their edges against loose ground.
         "cobbles" | "flagstone" | "stone_floor" | "planks" | "rug" => 1,
         _ => 0,
@@ -77,35 +80,8 @@ pub struct Ground<'a> {
     fields: Fields<6>,
     terrain: &'a Terrain<'a>,
     heights: &'a [i32],
-}
-
-/// Blend weights at a pixel: up to four `(key, weight)` pairs.
-#[derive(Clone, Copy, Default)]
-struct Weights {
-    n: usize,
-    k: [(usize, f32); 4],
-}
-
-impl Weights {
-    fn one(key: usize) -> Self {
-        Self {
-            n: 1,
-            k: [(key, 1.0), (0, 0.0), (0, 0.0), (0, 0.0)],
-        }
-    }
-
-    fn add(&mut self, key: usize, w: f32) {
-        for e in &mut self.k[..self.n] {
-            if e.0 == key {
-                e.1 += w;
-                return;
-            }
-        }
-        if self.n < 4 {
-            self.k[self.n] = (key, w);
-            self.n += 1;
-        }
-    }
+    /// Soft snow cover, when the layout has snow.
+    snow: Option<Snow>,
 }
 
 impl<'a> Ground<'a> {
@@ -166,6 +142,8 @@ impl<'a> Ground<'a> {
                 c(0x3AC1, u, v, 9.0),
             ]
         });
+        let snow_key = keys.iter().position(|k| k.name == SNOW);
+        let snow = Snow::new(layout, &grid, snow_key, &frame, seed);
         Some(Self {
             layout,
             frame,
@@ -176,6 +154,7 @@ impl<'a> Ground<'a> {
             fields,
             terrain,
             heights,
+            snow,
         })
     }
 
@@ -321,22 +300,77 @@ impl<'a> Ground<'a> {
         self.weights(bx, by, &f)
     }
 
+    /// Samples and height-blends the keys of `w` at a pixel (unshaded).
+    fn blend(&self, px: u32, py: u32, w: &Weights, cw: (f32, f32)) -> ([f32; 3], usize) {
+        let mut samples = [[0.0f32; 3]; 4];
+        for (i, e) in w.k[..w.n].iter().enumerate() {
+            let key = &self.keys[e.0];
+            samples[i] = sample(key.tex, &key.cells, &self.frame, px, py, cw);
+        }
+        if w.n > 1 {
+            self.height_blend(w, &samples)
+        } else {
+            (samples[0], w.k[0].0)
+        }
+    }
+
+    /// The soft snow cover governing a pixel, if its square is near a snow
+    /// border away from walls: the cover and the ground under it.
+    #[allow(clippy::cast_precision_loss)]
+    fn soft_snow(&self, px: u32, py: u32) -> Option<(&Snow, usize)> {
+        let snow = self.snow.as_ref()?;
+        let s = self.frame.ppsq as f32;
+        let own = own_square(self.layout, (px as f32 + 0.5) / s, (py as f32 + 0.5) / s);
+        let oi = usize::try_from(own.1 * i64::from(self.layout.width) + own.0).unwrap_or(0);
+        let under = snow.soft_at(oi)?;
+        (!self.walls.near(own.0, own.1)).then_some((snow, under))
+    }
+
+    /// Snow laid over the ground beneath it (`super::snow`): the pixel's
+    /// other keys, or the commonest other key nearby, blended as usual,
+    /// then the snow texture at the cover's opacity.
+    fn snow_blend(
+        &self,
+        (px, py): (u32, u32),
+        w: &Weights,
+        cw: (f32, f32),
+        (snow, under): (&Snow, usize),
+    ) -> ([f32; 3], usize) {
+        let mut rest = Weights::default();
+        let mut sum = 0.0;
+        for e in &w.k[..w.n] {
+            if e.0 != snow.key {
+                rest.add(e.0, e.1);
+                sum += e.1;
+            }
+        }
+        if rest.n == 0 {
+            rest = Weights::one(under);
+        } else {
+            for e in &mut rest.k[..rest.n] {
+                e.1 /= sum.max(1e-9);
+            }
+        }
+        let (ground, best) = self.blend(px, py, &rest, cw);
+        let a = snow.alpha(self.layout, &self.grid, &self.frame, px, py);
+        if a <= 0.0 {
+            return (ground, best);
+        }
+        let key = &self.keys[snow.key];
+        let white = Snow::tint(sample(key.tex, &key.cells, &self.frame, px, py, cw), a);
+        let c = std::array::from_fn(|k| ground[k] + (white[k] - ground[k]) * a);
+        (c, if a >= 0.5 { snow.key } else { best })
+    }
+
     /// The blended ground colour and the dominant key at a pixel.
     #[allow(clippy::cast_precision_loss)]
     fn colour(&self, px: u32, py: u32, w: &Weights) -> ([f32; 3], usize) {
         let (fx, fy) = (px as f32 + 0.5, py as f32 + 0.5);
         let f = self.fields.at(fx, fy);
         let cw = (0.35 * f[2], 0.35 * f[3]);
-        let w = *w;
-        let mut samples = [[0.0f32; 3]; 4];
-        for (i, e) in w.k[..w.n].iter().enumerate() {
-            let key = &self.keys[e.0];
-            samples[i] = sample(key.tex, &key.cells, &self.frame, px, py, cw);
-        }
-        let (c, best) = if w.n > 1 {
-            self.height_blend(&w, &samples)
-        } else {
-            (samples[0], w.k[0].0)
+        let (c, best) = match self.soft_snow(px, py) {
+            Some(soft) => self.snow_blend((px, py), w, cw, soft),
+            None => self.blend(px, py, w, cw),
         };
         let (m1, m2) = (f[4], f[5]);
         let shade = self

@@ -286,3 +286,24 @@ pub fn dead(r: &mut Relief, seed: u64) {
         INK,
     );
 }
+
+/// A stunted tree near the tree line (krummholz): a small, sparse,
+/// greyed conifer with a few dead branches poking through.
+pub fn stunted(r: &mut Relief, seed: u64, leaf: Rgb) {
+    let (w, h) = (r.width as f32, r.height as f32);
+    let c = (w / 2.0, h / 2.0);
+    let big = w.min(h) * 0.46;
+    let mut rng = Rng::new(seed);
+    for _ in 0..4 {
+        let (dx, dy) = rng.dir();
+        let tip = (c.0 + dx * big, c.1 + dy * big);
+        r.part(
+            Bounds::span(c.0, c.1, tip.0, tip.1, 4.0),
+            taper(c, tip, 2.4, 0.7),
+            wood(rng.next_u64(), [112, 100, 86], (dx, dy), 0.0),
+            dome(30.0, 2.0, 2.0),
+            INK,
+        );
+    }
+    conifer(r, seed, leaf, false);
+}

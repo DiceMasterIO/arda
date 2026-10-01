@@ -94,6 +94,25 @@ worlds render exactly as v0.1 drew them: the frozen shader in
 river strips between snapped nodes, the stepped minimum widths and the v0.1
 river colours. Constructors default to recipe 6.
 
+### §atlas-formed arid basins
+
+Recipe-7 worlds (logic/02 §world-water arid basins) also pass the arid water
+of the area and its neighbours to `AtlasTerrain::with_salt`: saline lake
+cells (from each lake's stored saline flag), and salt crust and mudflat
+cells (from the stored playa runs). Per fine sub-sample, with bilinear
+weights over the four surrounding cells:
+- **Saline lakes** use lighter turquoise depth stops instead of the fresh
+  lake stops: `#a8e2d6` at 0 m, `#78cfc6` at 1.5 m, `#4fb3b4` at 5 m,
+  `#3593a2` at 15 m, `#267890` from 40 m.
+- **Salt pans** paint over the shaded land colour: mudflat `#d9cdb0` at
+  13/16 of its weight, then crust `#f0ece2` at 7/8, so a little light and
+  shade remain.
+- **Dry land below sea level** inside the continent (all four cells land)
+  is land, not sea: a dried basin floor below sea level used to take the
+  sea ramp.
+
+Recipe 6 and earlier pass nothing and draw exactly as before.
+
 ### §atlas-formed light
 
 A single north-west light at 42° elevation. The relief term is a weighted sum

@@ -30,6 +30,9 @@ pub struct Piece {
     pub surface: Vec<f64>,
     /// Full channel depth at the thalweg at each point, metres.
     pub depth: Vec<f64>,
+    /// Saved discharge of the channel edge the piece draws, milli-m³/s
+    /// (relief tiles colour rivers by it, logic/17 §rivers).
+    pub discharge_milli: u64,
 }
 
 fn pair_key(a: CellKey, b: CellKey) -> (CellKey, CellKey) {
@@ -283,6 +286,7 @@ fn cell_pieces_into(ctx: &Ctx, c: CellKey, out: &mut Vec<Piece>) {
             surface: here,
             depth: channel_depth(e.to_width_dm),
         };
+        let before = out.len();
         hermite(
             seed,
             (c.x * 8 + e.from.x - c.x, c.y * 8 + e.from.y - c.y),
@@ -290,6 +294,7 @@ fn cell_pieces_into(ctx: &Ctx, c: CellKey, out: &mut Vec<Piece>) {
             &b,
             out,
         );
+        tag_discharge(out, before, e.discharge_milli);
     }
     for e in &outs {
         let from = if inc.is_empty() {
@@ -312,7 +317,15 @@ fn cell_pieces_into(ctx: &Ctx, c: CellKey, out: &mut Vec<Piece>) {
             depth: channel_depth((e.from_width_dm + e.to_width_dm) / 2),
         };
         let tag = (c.x * 8 + 4 + e.to.x - c.x, c.y * 8 + 4 + e.to.y - c.y);
+        let before = out.len();
         hermite(seed, tag, &a, &b, out);
+        tag_discharge(out, before, e.discharge_milli);
+    }
+}
+
+fn tag_discharge(out: &mut [Piece], from: usize, discharge_milli: u64) {
+    for p in out.iter_mut().skip(from) {
+        p.discharge_milli = discharge_milli;
     }
 }
 

@@ -21,5 +21,6 @@ describe("walking between cells", () => {
   it("builds the tab's hash", () => {
     expect(cellHash({ gx: 3, gy: 4 }, false)).toBe("#/cell?gx=3&gy=4");
     expect(cellHash({ gx: 3, gy: 4 }, true)).toBe("#/cell?gx=3&gy=4&demo=1");
+    expect(cellHash({ gx: 3, gy: 4 }, false, true)).toBe("#/cell?gx=3&gy=4&grade=1");
   });
 });

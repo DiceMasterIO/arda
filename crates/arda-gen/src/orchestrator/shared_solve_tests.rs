@@ -349,3 +349,126 @@ fn bridge_and_reservation_arithmetic_refuse_before_any_stage_file_creation() {
     assert!(bridge_ram(&t.0, u64::MAX, u64::MAX).is_none());
     assert_eq!(std::fs::read_dir(&t.0).unwrap().count(), 0);
 }
+
+/// An island with a closed 7 x 7 bowl (beds 1-4 m) inside a 20 m rim:
+/// a closed basin whose lake either fills to the rim and spills, or,
+/// where evaporation exceeds inflow, stands below it with no outflow.
+fn bowl_height(x: u32, y: u32) -> i32 {
+    let (dx, dy) = (x.abs_diff(14), y.abs_diff(14));
+    let d = dx.max(dy);
+    if d > 6 {
+        -1000
+    } else if d <= 3 {
+        i32::try_from(1 + d).unwrap() * 1000
+    } else {
+        20_000
+    }
+}
+
+/// Solves the bowl under uniform `rain_mm` and `temperature_centi`.
+fn solve_bowl(
+    rain_mm: u16,
+    temperature_centi: i16,
+) -> (
+    Vec<arda_core::hydrology::GlobalLake>,
+    arda_core::hydrology::AnnualWaterBalance,
+    u128,
+) {
+    let temp = Temp::new();
+    let output = crate::orchestrator::publication::WorldOutput::begin(&temp.0).unwrap();
+    let prepared_dir = output.scratch().join("prepared");
+    let solve_dir = output.scratch().join("solve");
+    std::fs::create_dir(&prepared_dir).unwrap();
+    std::fs::create_dir(&solve_dir).unwrap();
+    let config = config();
+    let domain = PreparedDomain::for_config(config).unwrap();
+    let extent = Extent::new(domain.width(), domain.height()).unwrap();
+    let prepared_limits = prepared_files::Limits {
+        ram_bytes: prepared_files::ram_required(&prepared_dir, domain, 2).unwrap(),
+        scratch_bytes: prepared_files::scratch_required(domain),
+        cache_tiles: 2,
+        io_bytes: 1 << 32,
+        io_operations: 1_000_000,
+        tile_queries: 4 * u64::from(extent.cells()),
+    };
+    let mut writer = PreparedWriter::new(&prepared_dir, domain, prepared_limits).unwrap();
+    for i in [2, 3, 1, 0] {
+        let e = domain.entry(i).unwrap();
+        let (ax, ay) = (
+            u32::try_from(e.area.x).unwrap() * 512,
+            u32::try_from(e.area.y).unwrap() * 512,
+        );
+        let heights = (0..512u32)
+            .flat_map(|y| (0..512u32).map(move |x| HeightMm::new(bowl_height(ax + x, ay + y))))
+            .collect();
+        writer
+            .write(&PreparedTerrain {
+                area: e.area,
+                valid: e.valid,
+                heights,
+                annual_rain: vec![RainfallMm::new(rain_mm); 262144],
+                temperature_base_centi: vec![i32::from(temperature_centi); 262144],
+            })
+            .unwrap();
+    }
+    let mut prepared = writer.finish().unwrap();
+    let grid = ContinentGrid {
+        width: 64,
+        height: 64,
+        height_mm: vec![0; 4096],
+    };
+    let climate = ContinentClimate {
+        temperature: vec![temperature_centi; 4096],
+        rainfall: vec![rain_mm; 4096],
+        regime: vec![ClimateRegime::Temperate; 4096],
+        moisture: vec![0; 4096],
+        ocean: vec![true; 4096],
+        ocean_distance_km: vec![0; 4096],
+    };
+    let l = limits(&solve_dir, extent);
+    let artifacts = solve(&mut prepared, &grid, &climate, config, &solve_dir, l).unwrap();
+    let exterior = artifacts.work.flow.exterior_litres;
+    (artifacts.lakes.clone(), artifacts.balance, exterior)
+}
+
+/// Goal 21 with evaporation as an explicit ledger term: precipitation on
+/// land and lakes equals land loss, lake and marginal evaporation and the
+/// exports, exactly.
+fn assert_ledger_closes(b: &arda_core::hydrology::AnnualWaterBalance, exterior: u128) {
+    assert_eq!(
+        b.land_precipitation.0 + b.lake_precipitation.0,
+        b.land_loss.0
+            + b.lake_evaporation.0
+            + b.marginal_evaporation.0
+            + b.sea_outflow.0
+            + b.domain_outflow.0
+    );
+    assert_eq!(b.sea_outflow.0 + b.domain_outflow.0, exterior);
+}
+
+#[test]
+fn an_arid_closed_basin_holds_a_terminal_lake_below_its_spill() {
+    // logic/02 §world-water arid basins: 150 mm of rain at 28 °C.
+    let (lakes, balance, exterior) = solve_bowl(150, 2_800);
+    assert_eq!(lakes.len(), 1, "{lakes:?}");
+    let lake = &lakes[0];
+    assert_eq!(lake.annual_outflow, Litres(0), "terminal: no outflow");
+    assert!(lake.surface.raw() < 20_000, "below the spill: {lake:?}");
+    assert!(
+        lake.submerged_cells < 49,
+        "only part of the floor: {lake:?}"
+    );
+    assert!(balance.lake_evaporation.0 > 0);
+    assert_ledger_closes(&balance, exterior);
+}
+
+#[test]
+fn a_humid_closed_basin_fills_and_spills() {
+    // The same bowl under 2,000 mm at 10 °C: no terminal lake.
+    let (lakes, balance, exterior) = solve_bowl(2_000, 1_000);
+    assert_eq!(lakes.len(), 1, "{lakes:?}");
+    assert!(lakes[0].annual_outflow.0 > 0, "{:?}", lakes[0]);
+    assert_eq!(lakes[0].submerged_cells, 49);
+    assert!(balance.lake_evaporation.0 > 0);
+    assert_ledger_closes(&balance, exterior);
+}

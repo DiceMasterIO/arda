@@ -11,7 +11,8 @@ use std::path::{Path, PathBuf};
 pub use arda_core::{
     AreaCells, AreaObjects, Block, Cell, Cover, GenerateConfig, Island, IslandCause, Lake,
     LatitudeBand, LoadError, Manifest, RiverSegment, RoadClass, ShoreClass, ShoreLayer, SizeKm,
-    TerrainKind, TileId, ValidationStats, FINE_TERRAIN_RECIPE_VERSION,
+    TerrainKind, TileId, ValidationStats, FINE_TERRAIN_LATEST_RECIPE_VERSION,
+    FINE_TERRAIN_RECIPE_VERSION,
 };
 pub use arda_gen::orchestrator::{FineDeliveryLimits, FineRecipe};
 pub use arda_gen::{GenError, HydrologyLimits};
@@ -19,8 +20,8 @@ pub use arda_render::{AreaImageScale, ImageQuality};
 mod atlas;
 mod export_quality;
 pub use export_quality::{
-    export_area_with_quality, export_area_with_quality_and_style, export_overview_with_quality,
-    export_overview_with_quality_and_style,
+    export_area_with_quality, export_area_with_quality_and_style, export_overview_with_look,
+    export_overview_with_quality, export_overview_with_quality_and_style, OverviewLook,
 };
 mod world;
 pub use atlas::area_atlas_terrain;
@@ -89,7 +90,7 @@ pub fn generate_from_fine_recipe(
     recipe_version: u16,
 ) -> Result<Manifest, GenError> {
     let recipe = FineRecipe::from_version(recipe_version).ok_or_else(|| GenError::Validation {
-        check: format!("unsupported fine terrain recipe {recipe_version} (expected 4, 5 or 6)"),
+        check: format!("unsupported fine terrain recipe {recipe_version} (expected 4, 5, 6 or 7)"),
     })?;
     arda_gen::orchestrator::generate_world_with_fine_recipe(seed, config, out, limits, recipe)
 }

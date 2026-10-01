@@ -12,6 +12,8 @@ use std::collections::{BTreeMap, HashMap};
 use std::fs::File;
 use std::sync::{Arc, Mutex};
 
+/// Fine samples memoised before the cache starts over.
+const FINE_CACHE_MAX: usize = 1 << 21;
 /// Fine terrain lattice spacing in micrometres.
 const FINE_SPACING_UM: i64 = 39_062_500;
 
@@ -19,6 +21,7 @@ const FINE_SPACING_UM: i64 = 39_062_500;
 struct AreaIndex {
     lakes: BTreeMap<CellKey, LakeInfo>,
     edges: BTreeMap<CellKey, Vec<Edge>>,
+    pans: BTreeMap<CellKey, arda_core::water::PanKind>,
 }
 
 struct Fine {
@@ -139,6 +142,17 @@ impl<'w> WorldSource<'w> {
                 ix.lakes.insert(key, info);
             }
         }
+        if let Some(water) = area.water() {
+            for run in &water.pans {
+                for dx in 0..run.len {
+                    let key = CellKey::new(
+                        origin.0 + i64::from(run.x0 + dx),
+                        origin.1 + i64::from(run.y),
+                    );
+                    ix.pans.insert(key, run.kind);
+                }
+            }
+        }
         for e in area.channel_edges() {
             let edge = Edge {
                 from: CellKey::new(i64::from(e.from.x), i64::from(e.from.y)),
@@ -180,6 +194,11 @@ impl Source for WorldSource<'_> {
         Ok(self.area_index(ax, ay)?.lakes.get(&self.clamp(at)).copied())
     }
 
+    fn pan(&self, at: CellKey) -> Result<Option<arda_core::water::PanKind>, RefineError> {
+        let (ax, ay, _, _) = self.split(at)?;
+        Ok(self.area_index(ax, ay)?.pans.get(&self.clamp(at)).copied())
+    }
+
     fn edges_touching(&self, at: CellKey) -> Result<Vec<Edge>, RefineError> {
         if self.clamp(at) != at {
             return Ok(Vec::new());
@@ -209,6 +228,12 @@ impl Source for WorldSource<'_> {
         };
         let v = fine.reader.sample(point)?.map(|h| h.raw());
         if let Some(v) = v {
+            // A pure memo: dropping it never changes an answer, and the
+            // bound keeps long-lived owners (relief tiles pan the whole
+            // world) from growing without limit.
+            if fine.cache.len() >= FINE_CACHE_MAX {
+                fine.cache.clear();
+            }
             fine.cache.insert((kx, ky), v);
         }
         Ok(v)

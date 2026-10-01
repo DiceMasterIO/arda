@@ -19,9 +19,11 @@
 //! All arithmetic is integer; the result is identical for any thread count.
 //!
 //! Recipe 5 is formation as v0.1 shipped it and replays byte for byte.
-//! Recipe 6 (the default) adds tectonic margins, the basin audit, belt
-//! relief, maturity and relief scaling, pre-erosion roughness, the coast
-//! stages and the water forms; every such rule is gated on [`Recipe`].
+//! Recipe 6 adds tectonic margins, the basin audit, belt relief, maturity
+//! and relief scaling, pre-erosion roughness, the coast stages and the
+//! water forms. Recipe 7 adds climate: runoff-weighted area and arid
+//! endorheic basins with playas ([`arid`]). Every such rule is gated on
+//! [`Recipe`].
 #![allow(
     clippy::cast_possible_truncation,
     clippy::cast_possible_wrap,
@@ -30,6 +32,7 @@
 // Index casts in this module are bounded by the admitted lattice size,
 // which [`plan`] limits to fewer than 2^31 cells per level.
 
+pub mod arid;
 pub mod basins;
 pub mod bathymetry;
 pub mod canyon;
@@ -56,6 +59,7 @@ mod surface;
 pub mod terrace;
 pub mod water;
 
+use arda_core::LatitudeBand;
 use thiserror::Error;
 
 use crate::continent::ContinentGrid;
@@ -151,6 +155,19 @@ pub fn plan(
     fine_height: u32,
     max_ram_bytes: u128,
 ) -> Result<FormationPlan, FormationError> {
+    plan_recipe(fine_width, fine_height, max_ram_bytes, Recipe::V6)
+}
+
+/// [`plan`] for `recipe`: recipe 7 also holds a runoff weight per node.
+///
+/// # Errors
+/// Overflow, or a peak beyond `max_ram_bytes`.
+pub fn plan_recipe(
+    fine_width: u32,
+    fine_height: u32,
+    max_ram_bytes: u128,
+    recipe: Recipe,
+) -> Result<FormationPlan, FormationError> {
     let mut dims = [(0, 0); LEVELS];
     for (k, dim) in dims.iter_mut().enumerate() {
         let f = 1_u64 << (LEVELS - 1 - k);
@@ -169,7 +186,7 @@ pub fn plan(
     let (pw, ph) = dims[LEVELS - 2];
     // Level lattice, scratch, three u8 fields, the parent during upsampling,
     // and a 64 MiB allowance for bucket heads, masks and row buffers.
-    let per_cell = 4 + Scratch::BYTES_PER_CELL + 3;
+    let per_cell = 4 + Scratch::BYTES_PER_CELL + 3 + if recipe >= Recipe::V7 { 2 } else { 0 };
     let peak = fine * per_cell + (pw * ph) as u128 * 4 + (64 << 20);
     if peak > max_ram_bytes {
         return Err(FormationError::ResourceLimit {
@@ -190,13 +207,19 @@ pub enum Recipe {
     /// v0.1 formation, replayed byte for byte.
     V5,
     /// v0.2 formation: margins, belt relief, maturity, roughness, coasts
-    /// and water forms (the default).
+    /// and water forms.
     V6,
+    /// Recipe 6 plus climate: runoff-weighted channels and incision, and
+    /// arid endorheic basins with terminal lakes and playas.
+    V7,
 }
 
 impl Recipe {
-    /// The recipe new worlds use.
-    pub const DEFAULT: Self = Self::V6;
+    /// The recipe new worlds use: recipe 7.
+    pub const DEFAULT: Self = Self::V7;
+
+    /// The newest recipe this build forms.
+    pub const LATEST: Self = Self::V7;
 
     /// The manifest `recipe_version` of this recipe.
     #[must_use]
@@ -204,6 +227,7 @@ impl Recipe {
         match self {
             Self::V5 => 5,
             Self::V6 => 6,
+            Self::V7 => 7,
         }
     }
 
@@ -213,6 +237,7 @@ impl Recipe {
         match version {
             5 => Some(Self::V5),
             6 => Some(Self::V6),
+            7 => Some(Self::V7),
             _ => None,
         }
     }
@@ -239,6 +264,7 @@ pub fn form(
         (fine_width, fine_height),
         max_ram_bytes,
         Recipe::DEFAULT,
+        arda_core::GenerateConfig::MICRO.latitude_band(),
     )
     .map(|f| f.lattice)
 }
@@ -264,6 +290,7 @@ pub fn form_with_water(
         (fine_width, fine_height),
         max_ram_bytes,
         Recipe::V6,
+        arda_core::GenerateConfig::MICRO.latitude_band(),
     )
     .map(|f| (f.lattice, f.water.unwrap_or_default()))
 }
@@ -289,7 +316,8 @@ pub struct Formed {
 /// the coast (infill, terraces, shelf, shore rework, littoral, canyons);
 /// then water (deltas, channels, basins); drainage guarantees; the shore
 /// survey last, so it describes the published surface. Recipe 5 runs the
-/// v0.1 stages ([`recipe5`]).
+/// v0.1 stages ([`recipe5`]). Recipe 7 reads the climate of `band`
+/// ([`arid`]); earlier recipes ignore it.
 ///
 /// # Errors
 /// Admission or allocation failure.
@@ -300,8 +328,9 @@ pub fn form_world(
     (fine_width, fine_height): (u32, u32),
     max_ram_bytes: u128,
     recipe: Recipe,
+    band: LatitudeBand,
 ) -> Result<Formed, FormationError> {
-    let plan = plan(fine_width, fine_height, max_ram_bytes)?;
+    let plan = plan_recipe(fine_width, fine_height, max_ram_bytes, recipe)?;
     let (mut macro_mm, mut relief_m) = macro_lattices(grid)?;
     let base_seed = seed ^ (u64::from(attempt) << 56) ^ 0x0F0E_5A11_0000_0005;
     let extent_um = (
@@ -325,6 +354,7 @@ pub fn form_world(
             seed: base_seed,
             extent_um,
             v6: false,
+            water: None,
         };
         let sinks = macro_basins(&view, base.0, base.1, base.2)?;
         let is_basin = |x_um: i64, y_um: i64| in_sink(&sinks, x_um, y_um);
@@ -363,6 +393,12 @@ pub fn form_world(
     // broad crests and valley axes are not classed as low hills.
     let belt_m = relief::belt_relief(&relief_m)?;
     let ocean = basins::lowstand_ocean(&macro_mm.z, macro_mm.width, macro_mm.height, LOWSTAND_MM)?;
+    // logic/02 §fine-formation climate runoff (recipe 7): the continent's
+    // annual water balance drives channels, incision and basin lakes.
+    let water = match recipe {
+        Recipe::V7 => Some(arid::macro_water(grid, band)?),
+        _ => None,
+    };
     let view = MacroView {
         height: &macro_mm,
         relief: &relief_m,
@@ -371,8 +407,10 @@ pub fn form_world(
         seed: base_seed,
         extent_um,
         v6: true,
+        water: water.as_ref().map(|m| (&m.runoff, &m.deficit)),
     };
     let sinks = macro_basins(&view, base.0, base.1, base.2)?;
+    let arid_basins = arid::classify(&view, base, &sinks)?;
     let is_basin = |x_um: i64, y_um: i64| in_sink(&sinks, x_um, y_um);
     let g = levels::run(&plan, &view, base_seed, &is_basin)?;
     finish::run(
@@ -385,6 +423,7 @@ pub fn form_world(
             shelf: &shelf,
             volcanoes: &volcanoes,
             landforms,
+            arid: &arid_basins,
         },
     )
 }

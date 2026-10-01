@@ -23,6 +23,7 @@ pub mod routes;
 pub mod rules_dto;
 pub mod scene;
 pub mod tokens;
+pub mod world_grade;
 pub mod world_routes;
 
 use crate::cache::ByteLru;
@@ -213,6 +214,8 @@ pub struct Tactical {
     tiles: Mutex<ByteLru<TileKey, Encoded>>,
     bodies: Mutex<ByteLru<cells::BodyKey, Encoded>>,
     lanes: raw::Lanes,
+    /// Where the opt-in world grade reads world-map colours (goal 49).
+    tint_source: Option<Arc<arda_midzoom::ReliefWorld>>,
 }
 
 impl std::fmt::Debug for Tactical {
@@ -265,6 +268,7 @@ impl Tactical {
             tiles: Mutex::new(ByteLru::new(limits.encoded_cache_bytes)),
             bodies: Mutex::new(ByteLru::new(limits.encoded_cache_bytes)),
             lanes: raw::Lanes::default(),
+            tint_source: None,
         })
     }
 
@@ -400,6 +404,7 @@ impl Tactical {
             grid,
             library_version: self.library_version().to_owned(),
             crop,
+            world_grade: false,
         })
     }
 

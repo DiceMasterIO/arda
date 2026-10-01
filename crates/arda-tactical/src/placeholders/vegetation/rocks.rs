@@ -233,3 +233,43 @@ pub fn stump(r: &mut Relief, seed: u64) {
         SOFT_INK,
     );
 }
+
+/// A rock outcrop (3 × 3): bedrock breaking the turf in a few tilted,
+/// lichen-spotted slabs with fallen blocks and grit at their foot.
+pub fn outcrop(r: &mut Relief, seed: u64) {
+    let (w, h) = (r.width as f32, r.height as f32);
+    let mut rng = Rng::new(seed);
+    // Grit and small fallen pieces around the base.
+    for _ in 0..16 {
+        let (dx, dy) = rng.dir();
+        let off = w * rng.range(0.3, 0.45);
+        let p = (w * 0.5 + dx * off, h * 0.5 + dy * off * 0.85);
+        let base = tone(drift([136, 130, 118], rng.f()), rng.range(0.82, 1.08));
+        rock(
+            r,
+            rng.next_u64(),
+            p,
+            w * rng.range(0.015, 0.035),
+            base,
+            0.0,
+            false,
+        );
+    }
+    // Slabs: the bedrock's strike runs one way, so they line up in two
+    // offset rows, overlapping into one mass.
+    let (ax, ay) = heading(rng.f());
+    for i in 0..7 {
+        let t = (i % 4) as f32 / 3.0 - 0.5;
+        let row = if i < 4 { -0.09 } else { 0.1 };
+        let side = row + rng.range(-0.04, 0.04);
+        let along = t * if i < 4 { 0.5 } else { 0.36 };
+        let p = (
+            w * (0.5 + ax * along - ay * side),
+            h * (0.5 + ay * along + ax * side),
+        );
+        let rad = w * rng.range(0.15, 0.2) * (1.0 - 0.3 * t.abs());
+        let base = tone(drift([142, 136, 122], rng.f()), rng.range(0.88, 1.06));
+        let z = 4.0 + 8.0 * (1.0 - 2.0 * t.abs()) + if i < 4 { 0.0 } else { 6.0 };
+        rock(r, rng.next_u64(), p, rad, base, z, true);
+    }
+}

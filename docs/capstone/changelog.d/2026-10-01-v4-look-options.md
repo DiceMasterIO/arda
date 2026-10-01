@@ -1,0 +1,7 @@
+## 2026-10-01 - feat: opt-in oblique overview and tactical world grade
+key: feat/2026-10-01-v4-look-options
+
+- **Oblique overview (goal 24, opt-in).** `arda export --overview --style atlas-oblique`, `GET /v1/overview.png?style=atlas-oblique` and `GET /v1/tiles/overview/{z}/{x}/{y}.webp?oblique=1`: the finished Atlas rows are warped north by 0.5 × a smooth 400 m surface (sea and lakes at 0, so coasts never move; south flanks stretch, north flanks compress, Catmull-Rom across rows), plus aerial perspective (≤ 6 % in deep valleys, ≤ 4 % on low ground), valley occlusion (≤ 9 %), crest lift and sky fill. Streams with a bounded row window. Recipe-5+ Atlas only.
+- **Tactical world grade (goal 49, opt-in).** `?world_grade=1` on world cell/window images and tiles: ground and water are pulled toward the formed relief colour at their world position (12.5 m world-anchored lattice, `arda_midzoom::world_lattice`), relative to a 7 × 7-square regional texture mean so detail survives; streets and floors take a quarter, farmland half. Seam invariant holds.
+- **Viewer:** World view toggles `oblique` (hides relief levels while on) and `world grade` (carried into "Open tactical map here"); Cell view toggles `world grade` and `world hand-off` (relief at the switch-over zoom, a cross-fade and the tactical map side by side).
+- Defaults are byte-identical: the recipe-5/6 4K Atlas goldens pass; `world_grade=0`/`oblique=0` equal the plain requests. Comparisons: `out/v4-look/`.

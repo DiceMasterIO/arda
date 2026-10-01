@@ -159,6 +159,28 @@ fn run() -> Result<(), Box<dyn std::error::Error>> {
                 b.items.len()
             );
             println!("{counts:?}");
+            let mut assets = std::collections::BTreeMap::new();
+            for it in &b.items {
+                *assets
+                    .entry((it.asset, format!("{:?}", it.kind)))
+                    .or_insert(0) += 1;
+            }
+            println!("{assets:?}");
+            let ctx = arda_refine::context::Ctx::gather(&src, CellKey::new(gx, gy))?;
+            let pieces = arda_refine::rivers::pieces(&ctx);
+            let mut phys =
+                arda_refine::terrain::physical(&ctx, &pieces, gx * 64 - 8, gy * 64 - 8, 80);
+            arda_refine::terrain::slopes(&mut phys);
+            let sh = arda_refine::shape::shapes(&phys, gx * 64, gy * 64, 64);
+            let mut hist = [0_u32; 11];
+            let mut talus = 0;
+            for f in &sh.data {
+                #[allow(clippy::cast_possible_truncation, clippy::cast_sign_loss)]
+                let b = ((f.hollow + 1.0) * 5.0).round().clamp(0.0, 10.0) as usize;
+                hist[b] += 1;
+                talus += u32::from(f.talus > 0.3);
+            }
+            println!("hollow -1..1 by 0.2: {hist:?}; talus squares {talus}");
             println!("{:?}", src.cell(CellKey::new(gx, gy))?);
             println!("tiles {}", arda_refine::tiles::TILE_COUNT);
         }
@@ -181,6 +203,9 @@ fn arda_refine_survey(src: &WorldSource) -> Result<(), RefineError> {
         "sea_coast",
         "scree",
         "marsh",
+        "high_meadow",
+        "pasture",
+        "stream_valley",
     ];
     let mut found: Vec<Vec<(i64, i64)>> = vec![Vec::new(); names.len()];
     for y in (2..h - 2).step_by(2) {
@@ -197,6 +222,7 @@ fn arda_refine_survey(src: &WorldSource) -> Result<(), RefineError> {
             }
             let count = |f: &dyn Fn(&arda::Cell) -> bool| n.iter().filter(|m| f(m)).count();
             let slope = f64::from(c.slope_milli_deg) / 1000.0;
+            let temp = f64::from(c.temperature.raw()) / 100.0;
             let lake = count(&|m| m.terrain == TerrainKind::Lake);
             let sea = count(&|m| m.terrain == TerrainKind::Sea);
             let fd = |m: &arda::Cell| i32::from(m.forest_density);
@@ -222,6 +248,9 @@ fn arda_refine_survey(src: &WorldSource) -> Result<(), RefineError> {
                 (1..=7).contains(&sea) && slope < 15.0,
                 land && c.cover == Cover::Rock && (28.0..42.0).contains(&slope),
                 land && c.cover == Cover::Marsh && count(&|m| m.cover == Cover::Marsh) >= 5,
+                land && c.cover == Cover::Grass && temp < 5.0 && fd(&c) < 60,
+                land && c.cover == Cover::Grass && temp > 8.0 && slope < 4.0 && fd(&c) < 40,
+                land && (1..=2).contains(&c.watercourse_order) && slope > 6.0,
             ];
             for (i, t) in tags.iter().enumerate() {
                 if *t && found[i].len() < 40 {

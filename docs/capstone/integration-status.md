@@ -115,6 +115,10 @@ the absence of FAILED.
   - `/v1/point` uses floor.
   - Caveat, documented in API.md: the generator still samples the stored cell values at the
     corner. Changing that is a world-format change (phase E).
+  - Relief water (goal 49): relief tiles no longer read lakes, coasts or rivers from the
+    stored field in their own frame. They query `arda_refine::region::WaterRegion` at pixel
+    centres in global square units, so the one I1 conversion (`FINE_ORIGIN_SQ`, 32 squares)
+    serves both layers and z9 water agrees square for square with the tactical blocks.
 
 ## Phases B and D
 
@@ -611,3 +615,73 @@ Server log: no errors.
   is the reproduction (checked by decoding it).
 - Earlier open items above still stand (A11, A12, round-2 items, files over ~500 lines).
 
+
+## v0.4 integration (integrate/v0.4)
+
+Four merges onto `main` at v0.3.0 (`225db90`), `git merge --no-ff` in this order, with
+fmt, clippy and the workspace tests after each. fix/v4-zoom-geometry carries
+feat/v4-open-country (it was branched from it).
+
+| # | Branch | Merge | Conflicts and how they were resolved | Workspace tests after merge |
+|---|---|---|---|---|
+| 1 | refactor/v4-file-size (48 pure-move splits) | `b2de9f7` | none | 1,482 passed, 1 failed: the known `arda-people --test interiors` fixture race (fixed in `7bddafb`) |
+| 2 | fix/v4-zoom-geometry (+ open country) | `e784299` | `arda-render/src/atlas.rs`, `atlas/fine.rs`: import lists only; the split's module imports kept, the relief exports become `formed_river_rgb, ReliefGeometry, ReliefSurface` | 1,501 (99 suites) |
+| 3 | feat/v4-arid | `8a0ebd3` | Tests inlined on the branch but moved by the split (`formation/drainage.rs`, `water/delta.rs`, `water/oxbow.rs`, `arda-cli/src/main.rs`, `atlas/tests.rs`): the branch's edits (u16 runoff weights, the `runoff` argument, `--latitude` and recipe-7 CLI tests, the `salt` fixture field) re-applied in `*/tests.rs` and `tests/shore.rs`. Arid atlas code re-applied in the split modules: `with_salt` in `atlas/sampling.rs`, `salt_near`/`arid_near` in `atlas/fine/saved.rs`, the saline-lake and pan colours in `atlas/fine/shading.rs`, `salt` in the formed `SavedFields`. `arda-refine`: the playa field joins geo's `Ctx::assemble` (blocks and `WaterRegion` both gather `pans`); `block.rs` keeps open country's `trail` ground first, then salt crust and mudflat, and drops scatter on the playa after open country's new `scatter`. Ground `TYPES` 31 (trail + salt_crust + mudflat), schema `GROUND` 23, `Cargo.lock`/`Cargo.toml` dev-deps (`arda-core`, `arda-midzoom`). `catalog.json` regenerated (`arda tactical placeholders`): every committed PNG of both branches is byte-identical to the regenerated one; library 217 assets (207 + 6 open country + 4 arid), no id clashes. `docs/goal-prompts/vocabulary.md`: the tracked file, plus the open-country additions | 1,518 passed, 1 failed (`world::tests::declared_fine_layer…`, fixed in `70dd879`) |
+| 4 | feat/v4-look-options | `651a77b` | `arda-midzoom/src/tile.rs`: geo's `shade_pixel` (water from `WindowWater`) returns look's land flag; the world-grade lattice (`lattice.rs`) gathers a `WindowWater` over its own bounds (`WindowWater::gather_um`), so the grade's land and water are the tactical geometry. `overview.rs` module list (split's `rivers`/`sampling` + `oblique`/`oblique_rows`); the streaming test and CLI style test edits re-applied in the split test files; `compose/mod.rs` keeps `weights` and `world_tint` | 1,533 (100) |
+
+### Commits after the merges
+
+| Commit | Change |
+|---|---|
+| `7bddafb` | **Interiors fixture race.** Both tests of `arda-people --test interiors` generated `target/arda-people-fixture/micro42` at once (`OutputNotEmpty`); the world is now resolved once per test binary (`OnceLock`). Checked from an empty fixture directory. |
+| `2608d11`, `70dd879` | **Recipe 6 stays the default.** `FINE_TERRAIN_RECIPE_VERSION`, `Recipe::DEFAULT`, the new `FineRecipe::DEFAULT` (used by `generate_from_fine_source`, so every fixture world) and the CLI default are 6 again. The newest readable recipe is the new `FINE_TERRAIN_LATEST_RECIPE_VERSION` (7): manifests, `World::load` and the orchestrator accept 1..=7. Recipe 7 stays available with `--recipe 7` and pinned by `recipe_7_is_pinned`; a unit test pins the default at 6 on every path. CLI help, logic/02, `CHANGELOG.md` and the arid changelog fragment say recipe 7 is opt-in pending review. |
+| `67656f7` | **Recipe-7 tactical ground through the server.** `arda_people::shared::SharedSource` (the server's block source) did not forward `Source::pan`, whose default answers "no pan", so salt pans showed ordinary ground on served tactical maps although `arda-refine` drew them. Forwarded, with a test. |
+| `77547c8` | Close-zoom relief draws recipe-7 saline lakes and salt pans as the overview does (empty `salt` before recipe 7, so relief bytes of recipes 5 and 6 are unchanged). |
+| `8cb137d` | **Zoom continuity on an arid world.** `tests/zoom_continuity.rs` adds `relief_and_tactical_water_agree_on_an_arid_world`: MICRO seed 74, `--recipe 7 --latitude 15,35` (or `ARDA_ZOOM_ARID_WORLD`); 8 saline-lake shore cells plus 3 salt-crust and 3 mudflat cells, chosen from the stored lake forms and playa runs. IoU 1.0 over 30,225 water squares; the pan cells are dry `salt_crust` (7,033 squares) and `mudflat` (7,783). |
+| `c14c602`, `85f3657`, `0408281` | Files back under ~500 lines: `arda-cli` `generate.rs` out of `main.rs` (511 → 418), `fine_delivery` tests into their module (510 → 410), `area/lakes/tests.rs` (570 → 352, `tests/diagonal.rs`) and `area_objects_v4/tests.rs` (546 → 424, `tests/divergence.rs`). |
+
+### Gate on `0408281` (docs commit aside)
+
+- `cargo fmt --check`, `cargo clippy --workspace --all-targets -- -D warnings`: clean.
+- `cargo test --workspace --no-fail-fast`: 100 binaries report `test result: ok. N` with N ≥ 1
+  (1,534 passed, 0 failed, 19 ignored), including `tests/golden_recipes.rs` (recipe 5 replays
+  v0.1, recipe 6 replays v0.2.0, recipe 7 its pinned first output; the oblique look is opt-in)
+  and `tests/arid_recipe7.rs`.
+- `cargo test --release --test e2e_village -- --ignored`: passes (90 s); goal 50: cold block
+  324 ms, cold quarter window 85 ms (best of 3); town WFC relaxed 43 of 44,819 (0.096 %).
+- `cargo test --release --test zoom_continuity -- --ignored`: both pass on freshly generated
+  worlds. MICRO 42 (recipe 6): IoU 1.0 over 5,102 water squares in 11 cells; MICRO 74
+  recipe 7: IoU 1.0 over 30,225.
+- `apps/viewer`: `npm run build`, `npm run lint`, `npm test` (79 tests in 10 files) pass.
+- `arda tactical validate assets/tactical/placeholder`: ok (217 assets).
+
+### Smoke test (release `arda-server`, each stopped by PID)
+
+MICRO 42 (recipe 6, settled, society built) on port 8941:
+
+| Request | Result |
+|---|---|
+| `/v1/world` | 200; `fine_terrain.recipe_version` 6 |
+| `/v1/cell/570/702`, `/v1/tactical/cell/570/702/scene`, `/v1/npcs?settlement=85&notable=false&limit=3` | 200 |
+| `/v1/tiles/overview/2/1/2.webp`, `?oblique=1` | 200 `image/webp` (4.0 s / 4.2 s cold) |
+| `/v1/overview.png?quality=1024&style=atlas-oblique` | 200 |
+| `/v1/tiles/relief/7/55/95.webp` | 200, 0.12 s |
+| `/v1/tactical/cell/465/1166` (JSON, PNG) | 200; `world_grade=0` is byte-identical to the plain PNG, `world_grade=1` differs |
+
+MICRO 74 recipe 7 at 15–35° on port 8942: `/v1/world` reports recipe 7; the 1024 px overview
+shows the saline lake on its white pan; `/v1/tiles/relief/9/76/146.webp` 200;
+`/v1/tactical/cell/304/1169` is 3,148 `salt_crust` and 461 `mudflat` squares;
+`world_grade=1` PNG 200. Both server logs: no errors.
+
+### Left open
+
+- Not done by instruction: no version bump (still 0.3.0), no merge to main, no tag, no push.
+  Changelog fragments stay unfolded.
+- **Recipe 7** is the default since v0.4.0 (maintainer approval, 2026-10-01); `--recipe 6` reproduces v0.2–v0.3 worlds.
+- `Source::pan` has a default (`Ok(None)`): a future wrapping source that forgets to forward it
+  fails silently, as `SharedSource` did. Making it required would catch that at compile time.
+- Test files the split itself left just over 500 lines stay as they are:
+  `hydrology/flow_metrics_tests.rs` (583), `render/src/channels/tests.rs` (580),
+  `arda-settle/tests/society.rs` (576), `arda/tests/area_exports.rs` (536),
+  `arda-ways/tests/ways.rs` (502).
+- Earlier open items above still stand (A11, A12, round-2 items).

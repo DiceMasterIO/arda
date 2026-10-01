@@ -84,7 +84,7 @@ pub fn render_seed(world_seed: u64, anchor: &Anchor) -> u64 {
 }
 
 /// Cache identity of one render: world seed, anchor, layout hash, ppsq,
-/// grid, crop and catalogue version.
+/// grid, crop, catalogue version and the opt-in world grade.
 #[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord)]
 pub struct RenderKey {
     /// Seed of the served world.
@@ -102,6 +102,9 @@ pub struct RenderKey {
     /// `Some([x, y, w, h])` in squares: render the whole layout (the block
     /// plus its apron, logic/11 §seam-art 2), then keep only this part.
     pub crop: Option<[u32; 4]>,
+    /// Pull ground and water toward the world map's colours (goal 49,
+    /// opt-in `?world_grade=1`).
+    pub world_grade: bool,
 }
 
 impl RenderKey {

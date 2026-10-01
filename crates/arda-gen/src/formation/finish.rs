@@ -14,9 +14,9 @@ use rayon::prelude::*;
 use super::lattice::{alloc, Lattice};
 use super::macro_view::MacroView;
 use super::{
-    bathymetry, canyon, coast, coastal, drainage, flats, flow, glacial, littoral, margin, sampled,
-    shore, surface, terrace, water, FormationError, Formed, LOWSTAND_MM, PREPARED_SPACING_UM,
-    RELIEF_FULL_M, SINK_RADIUS_UM, TROUGH_SINK_RADIUS_UM,
+    arid, bathymetry, canyon, coast, coastal, drainage, flats, flow, glacial, littoral, margin,
+    sampled, shore, surface, terrace, water, FormationError, Formed, LOWSTAND_MM,
+    PREPARED_SPACING_UM, RELIEF_FULL_M, SINK_RADIUS_UM, TROUGH_SINK_RADIUS_UM,
 };
 
 /// What the macro stages hand the recipe-6 finish.
@@ -29,6 +29,8 @@ pub(super) struct Context<'a> {
     pub shelf: &'a bathymetry::Shelf,
     pub volcanoes: &'a [margin::Volcano],
     pub landforms: Vec<arda_core::Landform>,
+    /// Arid endorheic basins (recipe 7; empty before).
+    pub arid: &'a [arid::AridBasin],
 }
 
 /// Finishes the formed lattice `g` (logic/02 §fine-formation, recipe 6).
@@ -44,6 +46,7 @@ pub(super) fn run(mut g: Lattice, ctx: Context<'_>) -> Result<Formed, FormationE
         shelf,
         volcanoes,
         mut landforms,
+        arid: arid_basins,
     } = ctx;
     // logic/02 §fine-formation drowned coasts: estuarine infill beyond the
     // relief-dependent ria reach.
@@ -129,6 +132,12 @@ pub(super) fn run(mut g: Lattice, ctx: Context<'_>) -> Result<Formed, FormationE
     // after the shore rework and the littoral headland retreat, which would
     // otherwise smooth the lobes away or cut them back into cliffs.
     let mut features = water::WaterFeatures::default();
+    // logic/02 §fine-formation climate runoff (recipe 7): channels are
+    // sized from runoff-weighted area.
+    let runoff = match view.water {
+        Some(_) => Some(arid::weights(view, g.width, g.height, g.spacing_um)?),
+        None => None,
+    };
     // The macro surface is sampled again here rather than held through the
     // littoral stages, to keep the peak allocation down.
     let mut macro_fine: Vec<i32> = alloc(g.z.len())?;
@@ -144,6 +153,7 @@ pub(super) fn run(mut g: Lattice, ctx: Context<'_>) -> Result<Formed, FormationE
         &relief_q8,
         base_seed ^ 0xDE17A,
         &mut features,
+        runoff.as_deref(),
     )?;
     drop(macro_fine);
     // Final drainage (logic/02 §fine-formation sampled drainage): every fine
@@ -152,14 +162,36 @@ pub(super) fn run(mut g: Lattice, ctx: Context<'_>) -> Result<Formed, FormationE
     // Raising its support nodes can leave a few isolated fine pits, which
     // no downstream stage reads.
     fine_fill(&mut g, is_basin)?;
+    // logic/02 §world-water arid basins (recipe 7): sediment-filled playas
+    // around the sinks of basins whose lakes can never spill. Built on the
+    // drained surface, where a flood from the sink rises monotonically to
+    // the spill, and drained again before the channels are shaped.
+    if !arid_basins.is_empty() {
+        arid::carve_pans(
+            &mut g,
+            arid_basins,
+            (SINK_RADIUS_UM as i64, PREPARED_SPACING_UM),
+            &mut features,
+        )?;
+        fine_fill(&mut g, is_basin)?;
+        let flags = surface::sea_and_sinks(&g, is_basin)?;
+        flats::regrade(&mut g, &flags, base_seed ^ 0xF1A7_5007)?;
+    }
     // logic/02 §world-water: braided belts and meanders, drained again,
     // then oxbows and karst poljes; their closed basins become protected
     // sinks for every later drainage guarantee.
-    let shaped = water::shape_channels(&mut g, &relief_q8, base_seed ^ 0x3A7E_5000, &mut features)?;
+    let shaped = water::shape_channels(
+        &mut g,
+        &relief_q8,
+        base_seed ^ 0x3A7E_5000,
+        &mut features,
+        runoff.as_deref(),
+    )?;
     drop(relief_q8);
     fine_fill(&mut g, is_basin)?;
-    water::shape_basins(&mut g, &shaped, &mut features)?;
+    water::shape_basins(&mut g, &shaped, &mut features, runoff.as_deref())?;
     drop(shaped);
+    drop(runoff);
     features.index();
     let is_shaped = |x_um: i64, y_um: i64| is_basin(x_um, y_um) || features.is_sink(x_um, y_um);
     fine_fill(&mut g, &is_shaped)?;
@@ -188,6 +220,16 @@ pub(super) fn run(mut g: Lattice, ctx: Context<'_>) -> Result<Formed, FormationE
         SINK_RADIUS_UM,
         TROUGH_SINK_RADIUS_UM,
     );
+    if !arid_basins.is_empty() {
+        for s in &mut features.sinks {
+            if s.kind == water::SinkKind::Tectonic
+                && arid_basins.iter().any(|b| b.sink == (s.x_um, s.y_um))
+            {
+                s.kind = water::SinkKind::AridTerminal;
+            }
+        }
+        features.index();
+    }
     // logic/02 §fine-formation shore: classes and island census, last, so
     // they describe the published surface.
     let built = shore::Builders {

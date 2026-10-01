@@ -424,6 +424,41 @@ pub(super) fn shore_water(c: [u8; 3], depth_mm: i64, w: &[i64; 8]) -> [u8; 3] {
     out.map(|v| u8::try_from(v.clamp(0, 255)).unwrap_or(255))
 }
 
+/// Saline lake water by depth (mm): lighter turquoise than fresh lakes,
+/// over pale evaporite shallows (goal 12, recipe 7).
+const SALINE_STOPS: [(i64, u32); 5] = [
+    (0, 0xa8_e2d6),
+    (1_500, 0x78_cfc6),
+    (5_000, 0x4f_b3b4),
+    (15_000, 0x35_93a2),
+    (40_000, 0x26_7890),
+];
+
+/// Saline lake colour for one fine point below the saved water surface.
+pub(super) fn saline_lake(depth_mm: i64) -> [u8; 3] {
+    let d = depth_mm.max(0);
+    let mut c = rgb(SALINE_STOPS[SALINE_STOPS.len() - 1].1);
+    for pair in SALINE_STOPS.windows(2) {
+        let (d0, c0) = pair[0];
+        let (d1, c1) = pair[1];
+        if d < d1 {
+            c = mix(rgb(c0), rgb(c1), (d - d0) * ONE / (d1 - d0));
+            break;
+        }
+    }
+    std::array::from_fn(|ch| u8::try_from(c[ch].clamp(0, 255)).unwrap_or(255))
+}
+
+/// A dry salt pan over land colour `c`: white evaporite crust (Q12 weight
+/// `crust`) and pale clay mudflats (`mudflat`) keep a little of the land's
+/// light and shade (goal 12, recipe 7).
+pub(super) fn pan(c: [u8; 3], crust: i64, mudflat: i64) -> [u8; 3] {
+    let base = c.map(i64::from);
+    let out = mix(base, rgb(0xd9_cdb0), mudflat * 13 / 16);
+    let out = mix(out, rgb(0xf0_ece2), crust * 7 / 8);
+    out.map(|v| u8::try_from(v.clamp(0, 255)).unwrap_or(255))
+}
+
 /// Lake water by depth (mm): a lighter shallow margin grading to deep blue
 /// (goal 29).
 const LAKE_STOPS: [(i64, u32); 6] = [

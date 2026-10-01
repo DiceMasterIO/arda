@@ -21,6 +21,9 @@ type Shore = Option<Arc<Option<arda_core::ShoreLayer>>>;
 /// A world ready for relief rendering.
 pub struct ReliefWorld {
     terrain: WorldTerrain,
+    /// The tactical layer's view of the world, which relief water is
+    /// drawn from (logic/17 §water).
+    water: arda_refine::WorldSource<'static>,
     contexts: Mutex<Contexts>,
     /// Serialises context builds so peak memory stays bounded; it also
     /// holds the shore layer, which every context paints from.
@@ -42,6 +45,7 @@ impl ReliefWorld {
     /// No fine terrain layer, or it is unreadable.
     pub fn new(world: Arc<World>) -> Result<Self, MidzoomError> {
         Ok(Self {
+            water: arda_refine::WorldSource::shared(Arc::clone(&world))?,
             terrain: WorldTerrain::new(world)?,
             contexts: Mutex::new(BTreeMap::new()),
             build: Mutex::new(None),
@@ -52,6 +56,12 @@ impl ReliefWorld {
     #[must_use]
     pub const fn terrain(&self) -> &WorldTerrain {
         &self.terrain
+    }
+
+    /// The world as the tactical layer reads it.
+    #[must_use]
+    pub const fn water_source(&self) -> &arda_refine::WorldSource<'static> {
+        &self.water
     }
 
     /// The world.

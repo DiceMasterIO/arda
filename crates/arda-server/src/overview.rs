@@ -8,7 +8,7 @@ use crate::dto::TilePyramidDto;
 use crate::error::{lock, ServerError, ServerResult};
 use crate::query::WorldQuery;
 use crate::tiles::{self, Rgb, TILE_PX};
-use arda::{ImageQuality, MapStyle};
+use arda::{ImageQuality, MapStyle, OverviewLook};
 use std::path::{Path, PathBuf};
 use std::sync::atomic::{AtomicU64, Ordering};
 use std::sync::{Arc, Mutex};
@@ -44,10 +44,12 @@ pub enum Style {
     Atlas,
     /// Categorical cartography.
     Classic,
+    /// Atlas relief seen slightly obliquely (goal 24, opt-in).
+    AtlasOblique,
 }
 
 impl Style {
-    /// Parses `atlas` or `classic`.
+    /// Parses `atlas`, `classic` or `atlas-oblique`.
     ///
     /// # Errors
     /// [`ServerError::BadRequest`] for other names.
@@ -55,16 +57,23 @@ impl Style {
         match name {
             "atlas" => Ok(Self::Atlas),
             "classic" => Ok(Self::Classic),
+            "atlas-oblique" => Ok(Self::AtlasOblique),
             other => Err(ServerError::BadRequest(format!(
-                "style must be atlas or classic, not {other:?}"
+                "style must be atlas, classic or atlas-oblique, not {other:?}"
             ))),
         }
     }
 
     const fn map_style(self) -> MapStyle {
         match self {
-            Self::Atlas => MapStyle::Atlas,
+            Self::Atlas | Self::AtlasOblique => MapStyle::Atlas,
             Self::Classic => MapStyle::Classic,
+        }
+    }
+
+    const fn look(self) -> OverviewLook {
+        OverviewLook {
+            oblique: matches!(self, Self::AtlasOblique),
         }
     }
 }
@@ -97,8 +106,8 @@ impl TileFormat {
     }
 }
 
-/// Cache identity of an encoded overview tile: `(z, x, y, format)`.
-type TileKey = (u32, u32, u32, TileFormat);
+/// Cache identity of an encoded overview tile: `(z, x, y, format, oblique)`.
+type TileKey = (u32, u32, u32, TileFormat, bool);
 
 /// Overview renders, the decoded pyramid base and cut tiles, all bounded.
 pub struct Overview {
@@ -106,7 +115,8 @@ pub struct Overview {
     pyramid: TilePyramidDto,
     pngs: Mutex<ByteLru<(u32, Style), Vec<u8>>>,
     tiles: Mutex<ByteLru<TileKey, Vec<u8>>>,
-    base: Mutex<Option<Arc<Rgb>>>,
+    /// Decoded pyramid bases: default, then oblique (goal 24).
+    base: Mutex<[Option<Arc<Rgb>>; 2]>,
     render: Mutex<()>,
 }
 
@@ -135,7 +145,7 @@ impl Overview {
             },
             pngs: Mutex::new(ByteLru::new(limits.cache_bytes)),
             tiles: Mutex::new(ByteLru::new(limits.cache_bytes)),
-            base: Mutex::new(None),
+            base: Mutex::new([None, None]),
             render: Mutex::new(()),
         })
     }
@@ -190,18 +200,25 @@ impl Overview {
         Ok(lock(&self.pngs)?.insert(key, bytes, size))
     }
 
-    fn base(&self, query: &WorldQuery) -> ServerResult<Arc<Rgb>> {
-        if let Some(base) = lock(&self.base)?.as_ref() {
+    fn base(&self, query: &WorldQuery, oblique: bool) -> ServerResult<Arc<Rgb>> {
+        let i = usize::from(oblique);
+        if let Some(base) = lock(&self.base)?[i].as_ref() {
             return Ok(Arc::clone(base));
         }
-        let png = self.png(query, self.limits.tile_base_px, Style::Atlas)?;
+        let style = if oblique {
+            Style::AtlasOblique
+        } else {
+            Style::Atlas
+        };
+        let png = self.png(query, self.limits.tile_base_px, style)?;
         let rgb = Arc::new(tiles::decode_rgb(&png)?);
-        let mut slot = lock(&self.base)?;
-        Ok(Arc::clone(slot.get_or_insert(rgb)))
+        let mut slots = lock(&self.base)?;
+        Ok(Arc::clone(slots[i].get_or_insert(rgb)))
     }
 
     /// Slippy tile `(z, x, y)` as a 256 px RGBA PNG or lossless WebP. Both
-    /// encode the same pixels.
+    /// encode the same pixels. `oblique` cuts the tile from the oblique
+    /// pyramid (goal 24, opt-in) instead of the default one.
     ///
     /// # Errors
     /// [`ServerError::NotFound`] outside the pyramid; render or encode failures.
@@ -209,9 +226,9 @@ impl Overview {
         &self,
         query: &WorldQuery,
         (z, x, y): (u32, u32, u32),
-        format: TileFormat,
+        (format, oblique): (TileFormat, bool),
     ) -> ServerResult<Arc<Vec<u8>>> {
-        let key = (z, x, y, format);
+        let key = (z, x, y, format, oblique);
         if z > self.pyramid.max_zoom || x >= (1 << z) || y >= (1 << z) {
             return Err(ServerError::NotFound(format!(
                 "tile {z}/{x}/{y} is outside the pyramid (zoom 0..={})",
@@ -221,7 +238,7 @@ impl Overview {
         if let Some(hit) = lock(&self.tiles)?.get(&key) {
             return Ok(hit);
         }
-        let base = self.base(query)?;
+        let base = self.base(query, oblique)?;
         let rgba = tiles::cut(&base, self.pyramid.max_zoom, z, x, y)?;
         let bytes = Arc::new(match format {
             TileFormat::Png => tiles::encode_rgba(TILE_PX, TILE_PX, &rgba)?,
@@ -266,11 +283,12 @@ fn render(query: &WorldQuery, quality_px: u32, style: Style) -> ServerResult<Vec
         .map_err(|e| ServerError::BadRequest(format!("quality: {e}")))?;
     let stem = format!("arda-server-{}", std::process::id());
     let dir = scratch_in(&std::env::temp_dir(), &stem, &NEXT)?;
-    let path = arda::export_overview_with_quality_and_style(
+    let path = arda::export_overview_with_look(
         query.world(),
         &dir.0,
         quality,
         style.map_style(),
+        style.look(),
     )?;
     std::fs::read(&path).map_err(|e| ServerError::Internal(format!("reading render: {e}")))
 }

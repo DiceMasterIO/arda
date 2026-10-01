@@ -27,10 +27,14 @@ pub struct Network {
 }
 
 /// Builds receivers, area and main donors for `g` against the open sea.
+/// With `runoff` weights (Q8, 256 = the nominal 500 mm/yr; recipe 7) the
+/// area counts runoff-equivalent cells, so every size rule downstream sees
+/// discharge rather than catchment (logic/02 §fine-formation climate
+/// runoff).
 ///
 /// # Errors
 /// Allocation failure.
-pub fn build(g: &Lattice) -> Result<Network, FormationError> {
+pub fn build(g: &Lattice, runoff: Option<&[u16]>) -> Result<Network, FormationError> {
     let (w, h) = (g.width, g.height);
     let n = w * h;
     let mut flags: Vec<u8> = alloc(n)?;
@@ -43,13 +47,18 @@ pub fn build(g: &Lattice) -> Result<Network, FormationError> {
         let mut order: Vec<u32> = alloc(n)?;
         let mut indeg: Vec<u8> = alloc(n)?;
         upstream_order(&rcv, w, h, &mut indeg, &mut order);
-        area.fill(1);
-        for &i in &order {
-            let i = i as usize;
-            let r = receiver_index(i, w, h, rcv[i]);
-            if r != i {
-                area[r] = area[r].saturating_add(area[i]);
+        match runoff {
+            None => {
+                area.fill(1);
+                for &i in &order {
+                    let i = i as usize;
+                    let r = receiver_index(i, w, h, rcv[i]);
+                    if r != i {
+                        area[r] = area[r].saturating_add(area[i]);
+                    }
+                }
             }
+            Some(weight) => weighted_area(&rcv, w, h, &order, weight, &mut area)?,
         }
     }
     let mut main: Vec<u8> = alloc(n)?;
@@ -70,6 +79,36 @@ pub fn build(g: &Lattice) -> Result<Network, FormationError> {
         });
     }
     Ok(Network { rcv, area, main })
+}
+
+/// Runoff-weighted contributing area in cells (at least one), accumulated
+/// in Q8 over the upstream-first `order`.
+///
+/// # Errors
+/// Allocation failure.
+pub fn weighted_area(
+    rcv: &[u8],
+    w: usize,
+    h: usize,
+    order: &[u32],
+    weight: &[u16],
+    area: &mut [u32],
+) -> Result<(), FormationError> {
+    let mut q8: Vec<u64> = alloc(rcv.len())?;
+    for (a, &wt) in q8.iter_mut().zip(weight) {
+        *a = u64::from(wt);
+    }
+    for &i in order {
+        let i = i as usize;
+        let r = receiver_index(i, w, h, rcv[i]);
+        if r != i {
+            q8[r] += q8[i];
+        }
+    }
+    for (a, &v) in area.iter_mut().zip(&q8) {
+        *a = u32::try_from((v + 128) >> 8).unwrap_or(u32::MAX).max(1);
+    }
+    Ok(())
 }
 
 /// One main stem, upstream to downstream. The last cell is where it ends:
@@ -231,7 +270,7 @@ mod tests {
                 };
             }
         }
-        let net = build(&g).unwrap();
+        let net = build(&g, None).unwrap();
         let s = streams(&g, &net, 400, 3);
         assert_eq!(s.len(), 1, "one trunk");
         let t = &s[0];

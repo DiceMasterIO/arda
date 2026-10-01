@@ -43,17 +43,28 @@ pub fn square_rules(b: &Block, items: &[Item], illegal: &BTreeSet<usize>) -> Vec
     let mut out = Vec::with_capacity(SIDE * SIDE);
     let mut cover = vec![CoverRule::None; SIDE * SIDE];
     let mut hard = vec![false; SIDE * SIDE];
+    let mut wall = vec![false; SIDE * SIDE];
     for it in items {
-        let (i, j) = (floor_i(it.x) - b.origin.0, floor_i(it.y) - b.origin.1);
-        let (Ok(i), Ok(j)) = (usize::try_from(i), usize::try_from(j)) else {
-            continue;
-        };
-        if i >= SIDE || j >= SIDE {
-            continue;
+        // An outcrop fills the 3 × 3 squares around its anchor.
+        let r = if it.kind == Kind::Outcrop { 1 } else { 0 };
+        for dy in -r..=r {
+            for dx in -r..=r {
+                let (i, j) = (
+                    floor_i(it.x) + dx - b.origin.0,
+                    floor_i(it.y) + dy - b.origin.1,
+                );
+                let (Ok(i), Ok(j)) = (usize::try_from(i), usize::try_from(j)) else {
+                    continue;
+                };
+                if i >= SIDE || j >= SIDE {
+                    continue;
+                }
+                let (c, d) = rules_of(it);
+                cover[j * SIDE + i] = cover[j * SIDE + i].max(c);
+                hard[j * SIDE + i] |= d;
+                wall[j * SIDE + i] |= r > 0;
+            }
         }
-        let (c, d) = rules_of(it);
-        cover[j * SIDE + i] = cover[j * SIDE + i].max(c);
-        hard[j * SIDE + i] |= d;
     }
     let trunks: Vec<&Item> = items
         .iter()
@@ -78,7 +89,7 @@ pub fn square_rules(b: &Block, items: &[Item], illegal: &BTreeSet<usize>) -> Vec
                 blocks_sight: canopy >= CANOPY_BLOCKS && depth == 0,
                 lightly_obscured: ((CANOPY_LIGHT..CANOPY_BLOCKS).contains(&canopy) && depth == 0)
                     || b.ground[k] == "reed_bed",
-                blocks_movement: false,
+                blocks_movement: wall[k],
                 review: b.relaxed && illegal.contains(&k),
             });
         }

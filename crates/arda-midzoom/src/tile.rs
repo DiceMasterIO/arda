@@ -6,12 +6,12 @@
 use crate::fixed::{organic_q12, smooth, ONE};
 use crate::pyramid::{Pyramid, TILE_PX};
 use crate::refine::refine_nodes_for;
-use crate::rivers::paint_rivers;
 use crate::source::FINE_UM;
+use crate::water::WindowWater;
 use crate::world::{ReliefWorld, AREA_UM};
 use crate::{HeightTile, MidzoomError};
 use arda_core::FINE_FRAME_OFFSET_UM;
-use arda_render::{AtlasTerrain, ReliefGeometry};
+use arda_render::{formed_river_rgb, AtlasTerrain, ReliefGeometry, ReliefSurface};
 use rayon::prelude::*;
 use std::collections::BTreeMap;
 use std::sync::Arc;
@@ -21,7 +21,7 @@ const RING_NODES: i64 = 2;
 /// Weight of the refined concavity in the shader's valley/crest terms, Q12.
 const RING_WEIGHT_Q12: i64 = 8_192;
 /// Refined nodes kept around the pixels (spline support plus the ring).
-const MARGIN_NODES: i64 = RING_NODES + 3;
+pub(crate) const MARGIN_NODES: i64 = RING_NODES + 3;
 
 /// A rendered RGBA window.
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -86,6 +86,7 @@ pub fn render_window(
     let heights = refine_nodes_for(rw.terrain(), (i0, j0, nw, nh), n, 4 * pyramid.pixel_um(z))?;
     let (world_w, world_h) = pyramid.world_um();
     let areas = areas_touching(rw, pyramid, z, origin, (w, h))?;
+    let water = WindowWater::gather(rw, pyramid, z, origin, (w, h))?;
     let pixel_um = pyramid.pixel_um(z);
     let rows: Vec<Result<Vec<u8>, MidzoomError>> = (0..h)
         .into_par_iter()
@@ -104,13 +105,7 @@ pub fn render_window(
                 let terrain = areas
                     .get(&key)
                     .ok_or_else(|| MidzoomError::Window("pixel area missing".into()))?;
-                let rgb = shade_pixel(
-                    terrain,
-                    &heights,
-                    wx - FINE_FRAME_OFFSET_UM,
-                    wy - FINE_FRAME_OFFSET_UM,
-                    pixel_um,
-                )?;
+                let (rgb, _) = shade_pixel(terrain, &heights, (&water, wx, wy), pixel_um)?;
                 let at = usize::try_from(px).unwrap_or(0) * 4;
                 row[at..at + 3].copy_from_slice(&rgb);
                 row[at + 3] = 255;
@@ -125,23 +120,28 @@ pub fn render_window(
     for r in rows {
         pixels.extend(r?);
     }
-    let mut out = Rgba {
+    Ok(Rgba {
         width: size.0,
         height: size.1,
         pixels,
-    };
-    paint_rivers(rw, pyramid, z, origin, &areas, &mut out)?;
-    Ok(out)
+    })
 }
 
-/// Colour of one pixel at fine-lattice micrometres.
-fn shade_pixel(
+/// Light-band colour for channels below the banded discharges (the
+/// overview's light band).
+const LIGHT: [u8; 3] = [66, 142, 166];
+
+/// Colour of one pixel at world micrometres `(wx, wy)`: the surface the
+/// water geometry decides (logic/17 §water), lit with the refined lattice,
+/// then any channel over land. The flag is true on land (false on sea and
+/// lake water).
+pub(crate) fn shade_pixel(
     terrain: &AtlasTerrain,
     heights: &HeightTile,
-    lx: i64,
-    ly: i64,
+    (water, wx, wy): (&WindowWater, i64, i64),
     pixel_um: i64,
-) -> Result<[u8; 3], MidzoomError> {
+) -> Result<([u8; 3], bool), MidzoomError> {
+    let (lx, ly) = (wx - FINE_FRAME_OFFSET_UM, wy - FINE_FRAME_OFFSET_UM);
     let missing = || MidzoomError::Window("refined support missing".into());
     let c = heights.sample(lx, ly).ok_or_else(missing)?;
     let r = RING_NODES * heights.spacing_um();
@@ -153,34 +153,50 @@ fn shade_pixel(
             .height_mm;
     }
     let concavity = (ring / 4 - c.height_mm) * RING_WEIGHT_Q12 / 4_096;
-    let (rgb, land) = terrain.relief_colour(
-        lx,
-        ly,
+    let surface = water.surface(wx, wy);
+    let rgb = terrain.relief_surface_colour(
+        (lx, ly),
         pixel_um,
         ReliefGeometry {
             height_mm: i32::try_from(c.height_mm).unwrap_or(0),
             gradient_q12: c.gradient_q12,
             concavity_mm: concavity,
         },
+        surface,
     )?;
-    if !land {
-        return Ok(rgb);
+    if surface != ReliefSurface::Land {
+        return Ok((rgb, false));
     }
-    // Ground-cover tone at tuft and clump scale (24 m and 11 m, rotated
-    // noise), ±5 %, only once pixels resolve it.
+    let rgb = ground_tone(rgb, lx, ly, pixel_um);
+    // logic/17 §rivers: channels over land, anti-aliased over one pixel.
+    let Some((cover, discharge)) = water.river(wx, wy) else {
+        return Ok((rgb, true));
+    };
+    let river = formed_river_rgb(discharge).unwrap_or(LIGHT);
+    let rgb = std::array::from_fn(|k| {
+        let base = i64::from(rgb[k]);
+        let v = base + (i64::from(river[k]) - base) * cover / ONE;
+        u8::try_from(v.clamp(0, 255)).unwrap_or(255)
+    });
+    Ok((rgb, true))
+}
+
+/// Ground-cover tone at tuft and clump scale (24 m and 11 m, rotated
+/// noise), ±5 %, only once pixels resolve it.
+fn ground_tone(rgb: [u8; 3], lx: i64, ly: i64, pixel_um: i64) -> [u8; 3] {
     let keep = ONE - smooth(4_000_000, 9_000_000, pixel_um);
     if keep == 0 {
-        return Ok(rgb);
+        return rgb;
     }
     let n = (2 * organic_q12(0x746f_6e65, 1, lx, ly, 24_000_000)
         + organic_q12(0x746f_6e65, 2, lx, ly, 11_000_000))
         / 3
         - ONE / 2;
     let k = ONE + n / 7 * keep / ONE;
-    Ok(rgb.map(|c| u8::try_from((i64::from(c) * k / ONE).clamp(0, 255)).unwrap_or(255)))
+    rgb.map(|c| u8::try_from((i64::from(c) * k / ONE).clamp(0, 255)).unwrap_or(255))
 }
 
-/// Atlas contexts of every area the window (plus river reach) touches.
+/// Atlas contexts of every area the window touches.
 pub(crate) fn areas_touching(
     rw: &ReliefWorld,
     pyramid: &Pyramid,
@@ -188,11 +204,10 @@ pub(crate) fn areas_touching(
     origin: (i64, i64),
     (w, h): (i64, i64),
 ) -> Result<BTreeMap<(i32, i32), Arc<AtlasTerrain>>, MidzoomError> {
-    let reach = 400_000_000;
     let (aw, ah) = rw.areas();
     let span = |a: i64, b: i64, max: i32| -> (i32, i32) {
-        let lo = i32::try_from((a - reach).max(0) / AREA_UM).unwrap_or(0);
-        let hi = i32::try_from((b + reach).max(0) / AREA_UM).unwrap_or(0);
+        let lo = i32::try_from(a.max(0) / AREA_UM).unwrap_or(0);
+        let hi = i32::try_from(b.max(0) / AREA_UM).unwrap_or(0);
         (lo.min(max - 1), hi.min(max - 1))
     };
     let (ax0, ax1) = span(

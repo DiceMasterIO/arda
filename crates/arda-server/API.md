@@ -110,7 +110,7 @@ curl http://127.0.0.1:8787/v1/world
 ```
 
 ```json
-{"contract_version":2,"api_version":"v1","seed":"42","arda_version":"0.3.0","format_version":4,
+{"contract_version":2,"api_version":"v1","seed":"42","arda_version":"0.4.0","format_version":4,
  "size_km":{"width":102,"height":204},"latitude":{"south_deg":35,"north_deg":55},
  "areas_wide":2,"areas_high":4,"area_cells":512,"cell_size_m":100,"cells_wide":1024,"cells_high":2048,
  "fine_terrain":{"recipe_version":6,"spacing_m":39.0625},
@@ -277,7 +277,10 @@ Returns the whole-world overview as PNG. It's the same bytes as
 
 - `quality` is the long edge in pixels, or `NK` where 1K is 1024 pixels. The range is
   512 to `--max-overview-px`, and the default is `2048`.
-- `style` is `atlas` (the default) or `classic`.
+- `style` is `atlas` (the default), `classic` or `atlas-oblique`. `atlas-oblique` (goal 24,
+  opt-in, recipe-5+ worlds only) is the Atlas render seen slightly obliquely: ground moves
+  north by half its height (coasts and sea stay exactly put), with gentle aerial
+  perspective, valley occlusion and sky light. It is `arda export --style atlas-oblique`.
 
 Renders are cached per `(quality, style)`, and only one render runs at a time.
 
@@ -302,6 +305,10 @@ is 4.
   show where the content ends.
 - `z > max_zoom`, `x ≥ 2^z`, `y ≥ 2^z` and a suffix other than `.webp` or `.png` all
   return **404 `not_found`**.
+- `?oblique=1` (goal 24, opt-in) cuts the tile from the `atlas-oblique` render instead;
+  `?oblique=0` or no parameter is the default pyramid, byte for byte. The relief levels
+  past `max_zoom` are always top-down, so a client showing the oblique pyramid should not
+  mix in relief tiles (ground would jump by up to half its height at the switch).
 ```sh
 curl -o tile.webp http://127.0.0.1:8787/v1/tiles/overview/2/1/3.webp
 curl -o tile.png http://127.0.0.1:8787/v1/tiles/overview/2/1/3.png
@@ -317,12 +324,14 @@ is `max(areas_wide, areas_high) × 51.2 km`. At the default 4096 px base on MICR
 
 - Heights come from `arda-midzoom`: the stored 39.0625 m field refined on demand to
   9.765625 m (19.53 m at z where pixels are coarser than 16 m) with drainage-aligned
-  gullies and ribs. Every stored 39 m cell mean, river and lake stays where it is.
+  gullies and ribs. Every stored 39 m cell mean stays where it is.
 - Pixels use the formed Atlas palette and light, so the look matches the overview at the
-  switch-over; rivers are drawn through the overview's own channel vertices.
+  switch-over. Rivers, lakes, coasts and marsh pools come from the tactical layer's own water
+  geometry (`arda_refine::region`), so at z = 9 every water pixel is a water square of
+  `/v1/tactical/cell` and the reverse (logic/17 §water).
 - Each pixel is a pure function of its global position: tiles are deterministic, cached
   (128 MiB by default) and join pixel-exactly. Pixels outside the world are transparent.
-- A warm tile renders in about 30–60 ms.
+- A cold tile renders in about 10–50 ms.
 - `z ≤ max_zoom`, `z > relief_max_zoom`, `x ≥ 2^z`, `y ≥ 2^z`, a non-`.webp` suffix or a
   world without formed (recipe-5) fine terrain return **404 `not_found`**.
 ```sh
@@ -592,10 +601,19 @@ curl -s $B/cell/618/689/scene | jq '.tokens[0]'
 #  "building_id":"5","settlement_id":"118","kind":"worker"}
 ```
 
-### `GET /v1/tactical/cell/{gx}/{gy}.png[?ppsq=16|32|64|96|128&grid=0|1&demo_overlays=&demo_at=]`
+### `GET /v1/tactical/cell/{gx}/{gy}.png[?ppsq=16|32|64|96|128&grid=0|1&demo_overlays=&demo_at=&world_grade=0|1]`
 
 The painted block, rendered with its apron and cropped (see "Seamless world images").
 `64·ppsq` pixels a side.
+
+`?world_grade=1` (goal 49, opt-in; also on the cell tiles and `/window.png`) pulls the
+ground and water layers toward the world map's own colours at their location, before
+any sprite is drawn: the formed relief shader is sampled on a world-anchored 12.5 m
+lattice (8 squares) and each channel is scaled by `1 − s + s·world/mean` (`s` = 0.7; a
+quarter on streets and floors, half on farmland), where `mean` is the regional texture
+mean, so grain and material contrast survive. Graded images keep the seam invariant;
+without the flag images are byte-identical to before. Prefetch warms ungraded images
+only.
 
 ```sh
 curl -s -o cell.png "$B/cell/530/810.png?ppsq=64"

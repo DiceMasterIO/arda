@@ -72,14 +72,6 @@ impl Network {
         }
     }
 
-    /// Main-stem upstream and downstream nodes of `node`.
-    pub(crate) fn main_stem(&self, node: GlobalCell) -> (Option<GlobalCell>, Option<GlobalCell>) {
-        (
-            self.prev.get(&node).map(|&(_, n)| n),
-            self.next.get(&node).map(|&(_, n)| n),
-        )
-    }
-
     /// Whether no channel flows into `node`, so a stream starts there.
     pub(crate) fn is_source(&self, node: GlobalCell) -> bool {
         !self.prev.contains_key(&node)

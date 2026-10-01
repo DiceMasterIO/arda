@@ -17,6 +17,9 @@ pub enum MidzoomError {
     /// Shading failed.
     #[error("relief shading failed: {0}")]
     Render(#[from] arda_render::RenderError),
+    /// The tactical layer's water geometry failed to read.
+    #[error("water geometry failed: {0}")]
+    Water(#[from] arda_refine::RefineError),
     /// The world has no recipe-5 fine terrain to refine.
     #[error("the world has no formed fine terrain layer")]
     NoFineTerrain,

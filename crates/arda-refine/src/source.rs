@@ -6,6 +6,7 @@
 
 use crate::error::RefineError;
 use arda::{Cell, TerrainKind};
+use arda_core::water::PanKind;
 use std::collections::BTreeMap;
 
 /// A global 100 m cell coordinate. Signed so neighbourhoods may step past
@@ -86,6 +87,15 @@ pub trait Source {
     /// The terrain file failed to read.
     fn fine_mm(&self, kx: i64, ky: i64) -> Result<Option<i32>, RefineError>;
 
+    /// The dry playa surface of `at` (recipe-7 arid basins: salt crust or
+    /// mudflat), if any. Worlds without stored pans have none.
+    ///
+    /// # Errors
+    /// A layer failed to load.
+    fn pan(&self, _at: CellKey) -> Result<Option<PanKind>, RefineError> {
+        Ok(None)
+    }
+
     /// Clamps a key into the world.
     fn clamp(&self, at: CellKey) -> CellKey {
         let (w, h) = self.cells_wide_high();
@@ -103,6 +113,7 @@ pub struct GridSource {
     lakes: BTreeMap<CellKey, LakeInfo>,
     edges: BTreeMap<CellKey, Vec<Edge>>,
     fine: Option<(i64, i64, Vec<i32>)>,
+    pans: BTreeMap<CellKey, PanKind>,
 }
 
 impl GridSource {
@@ -119,6 +130,7 @@ impl GridSource {
             lakes: BTreeMap::new(),
             edges: BTreeMap::new(),
             fine: None,
+            pans: BTreeMap::new(),
         }
     }
 
@@ -162,6 +174,11 @@ impl GridSource {
         }
     }
 
+    /// Marks a land cell as a dry playa surface.
+    pub fn set_pan(&mut self, at: CellKey, kind: PanKind) {
+        self.pans.insert(at, kind);
+    }
+
     /// Installs a fine terrain lattice of `w × h` samples.
     pub fn set_fine(&mut self, w: u32, h: u32, samples: Vec<i32>) {
         self.fine = Some((i64::from(w), i64::from(h), samples));
@@ -183,6 +200,10 @@ impl Source for GridSource {
 
     fn lake(&self, at: CellKey) -> Result<Option<LakeInfo>, RefineError> {
         Ok(self.lakes.get(&self.clamp(at)).copied())
+    }
+
+    fn pan(&self, at: CellKey) -> Result<Option<PanKind>, RefineError> {
+        Ok(self.pans.get(&self.clamp(at)).copied())
     }
 
     fn edges_touching(&self, at: CellKey) -> Result<Vec<Edge>, RefineError> {

@@ -1,0 +1,10 @@
+# Open country at tactical scale (goals 19, 20, 43)
+
+- **What:** open ground was flat meadow with blotchy heath, gravel and dirt. Two causes: the fields overlay claimed every field site without a land use and painted it with heath/scrub noise, and the refiner's own ground prior was dominated by patch noise while its scatter was even.
+- **Fields:** sites with no land use stay natural (`arda-fields` `window.rs`, `fringe.rs`).
+- **Ecology (`arda-refine` `ecology.rs`):** species from temperature corrected for aspect (±1.8 °C), growth to the tree line, wetness from hollows and water, and landform: conifers on cold and shaded ground, broadleaves low, willow and alder by water, stunted and dead trees at the tree line, juniper on cold open ground; low plants by shade, wetness and sun.
+- **Landform (`shape.rs`, `prior.rs`):** a curvature index and a talus index from the refined surface. Ridges carry rock and heath, hollows meadow, moss and marsh; snow lies in shaded hollows on north slopes in cold country. Patch noise halved.
+- **Structure (`density.rs`):** groves cut from a slow noise field at the forest-density quantile (copses in open land, glades in forest), stream tree lines, grove rims with young trees and undergrowth, rock outcrops on steep knolls, boulder fields on talus, clumped loose rocks, crevice plants, logs and stumps, drifts of flowers, tall grass, heather and ferns.
+- **Trails (`trails.rs`):** game trails and footpaths decided per cell edge from the two cells (water, settlement and pass bonuses), routed inside each cell by the cheapest path to its hub (the river node, a ford), continuous across blocks; ground key `trail`.
+- **Art:** placeholders for `trail`, `veg.tree_alder`, `veg.tree_stunted`, `veg.juniper`, `veg.rock_outcrop` (library 207 → 213 assets).
+- **Verification:** unit and integration tests for species versus altitude, aspect and water, snow on north faces, feature-count bounds, scatter and trail agreement across seams, trail continuity across block edges, determinism. Renders before and after in `out/v4-country/`.

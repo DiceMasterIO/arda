@@ -1,8 +1,8 @@
 //! Fine-recipe compatibility gate (`goal-prompt.md` §8: new behaviour goes
 //! behind recipe versions; logic/02 §fine-formation recipes).
 //!
-//! Recipe 5 must regenerate exactly as v0.1 (commit 7f32695) did and
-//! recipe 6 exactly as v0.2.0 did: every terrain, area and hydrology file,
+//! Recipe 5 must regenerate exactly as v0.1 (commit 7f32695) did,
+//! recipe 6 exactly as v0.2.0 did, and recipe 7 as v0.4 first wrote it: every terrain, area and hydrology file,
 //! and the Atlas 4K overview. `world.json` carries the build version, so it
 //! is checked field by field instead of hashed.
 //!
@@ -74,7 +74,7 @@ fn check(recipe: u16) {
     .expect("generation failed");
     let fine = manifest.fine_terrain.expect("a fine world");
     assert_eq!((fine.recipe_version, fine.attempt), (recipe, 0));
-    // Only recipe 6 publishes the shore layer and the water forms.
+    // Only recipes 6 and later publish the shore layer and the water forms.
     let optional = world_dir.join("terrain/shore.bin").exists()
         || world_dir.join("areas/00_00/water.bin").exists();
     assert_eq!(optional, recipe >= 6, "recipe {recipe} optional layers");
@@ -89,10 +89,11 @@ fn check(recipe: u16) {
         MapStyle::Atlas,
     )
     .expect("Atlas overview");
+    let default_png = std::fs::read(png).unwrap();
     let mut actual = fingerprint(&world_dir);
     actual.push(format!(
         "atlas-overview-4k.png  {}",
-        blake3::hash(&std::fs::read(png).unwrap()).to_hex()
+        blake3::hash(&default_png).to_hex()
     ));
     let actual = actual.join("\n");
 
@@ -108,6 +109,44 @@ fn check(recipe: u16) {
         expected.trim(),
         "recipe {recipe} output changed: new behaviour must go behind a new recipe"
     );
+    if recipe == 6 {
+        oblique_look_is_opt_in_and_deterministic(&world, &tmp.0, &default_png);
+    }
+}
+
+/// Goal 24's opt-in oblique look: the default render above is untouched
+/// (pinned by the golden hash), and the oblique one is a different,
+/// repeatable image of the same size.
+fn oblique_look_is_opt_in_and_deterministic(world: &World, tmp: &Path, default_png: &[u8]) {
+    let look = arda::OverviewLook { oblique: true };
+    let render = |tag: &str| {
+        let dir = tmp.join(tag);
+        std::fs::create_dir_all(&dir).unwrap();
+        let png = arda::export_overview_with_look(
+            world,
+            &dir,
+            ImageQuality::new(4_096).unwrap(),
+            MapStyle::Atlas,
+            look,
+        )
+        .expect("oblique overview");
+        std::fs::read(png).unwrap()
+    };
+    let (a, b) = (render("oblique-a"), render("oblique-b"));
+    assert_eq!(
+        blake3::hash(&a),
+        blake3::hash(&b),
+        "oblique is deterministic"
+    );
+    assert_ne!(a, default_png, "oblique differs from the default");
+    let refused = arda::export_overview_with_look(
+        world,
+        tmp,
+        ImageQuality::new(512).unwrap(),
+        MapStyle::Classic,
+        look,
+    );
+    assert!(refused.is_err(), "oblique needs the Atlas style");
 }
 
 #[test]
@@ -120,10 +159,16 @@ fn recipe_6_replays_v0_2_byte_for_byte() {
     check(6);
 }
 
+/// Recipe 7 (v0.4: climate, arid basins) is pinned from its first release.
+#[test]
+fn recipe_7_is_pinned() {
+    check(7);
+}
+
 #[test]
 fn unknown_recipes_are_refused_before_output() {
     let tmp = TempDir::new("r9");
-    for recipe in [0, 1, 3, 7] {
+    for recipe in [0, 1, 3, 8] {
         let err = arda::generate_from_fine_recipe(
             42,
             GenerateConfig::MICRO,

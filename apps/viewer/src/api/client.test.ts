@@ -31,12 +31,17 @@ describe("ArdaClient URLs", () => {
     expect(c.overviewTileTemplate()).toBe("http://h:1/v1/tiles/overview/{z}/{x}/{y}.webp");
     expect(c.overviewTileTemplate("png")).toBe("http://h:1/v1/tiles/overview/{z}/{x}/{y}.png");
     expect(c.reliefTileTemplate()).toBe("http://h:1/v1/tiles/relief/{z}/{x}/{y}.webp");
+    expect(c.overviewTileTemplate("webp", { oblique: true })).toBe("http://h:1/v1/tiles/overview/{z}/{x}/{y}.webp?oblique=1");
+    expect(c.reliefTileUrl(9, 3, 4)).toBe("http://h:1/v1/tiles/relief/9/3/4.webp");
+    expect(c.overviewPngUrl({ style: "atlas-oblique" })).toBe("http://h:1/v1/overview.png?style=atlas-oblique");
     expect(c.overviewPngUrl()).toBe("http://h:1/v1/overview.png");
     expect(c.overviewPngUrl({ quality: "2K", style: "classic" })).toBe("http://h:1/v1/overview.png?quality=2K&style=classic");
   });
   it("builds tactical URLs with encoded names", () => {
     expect(c.tacticalPngUrl("river side", { ppsq: 50, grid: true })).toBe("http://h:1/v1/tactical/layout/river%20side.png?ppsq=50&grid=1");
     expect(c.tacticalTileTemplate("a/b")).toBe("http://h:1/v1/tactical/layout/a%2Fb/tiles/{z}/{x}/{y}.webp");
+    expect(c.tacticalCellPngUrl(5, 6, { ppsq: 16, worldGrade: true })).toBe("http://h:1/v1/tactical/cell/5/6.png?ppsq=16&world_grade=1");
+    expect(c.tacticalCellPngUrl(5, 6)).toBe("http://h:1/v1/tactical/cell/5/6.png");
   });
 });
 

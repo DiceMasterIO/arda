@@ -9,11 +9,13 @@
 //! spacing intact and makes the expected count proportional to density.
 
 use crate::context::Ctx;
+use crate::density::{choose, density, woods};
+use crate::ecology::eco;
 use crate::grid::Grid;
 use crate::hash::{hash3, unit};
-use crate::noise::{fbm, smoothstep};
-use crate::terrain::{Phys, Water};
-use arda::Cover;
+use crate::shape::Shape;
+use crate::terrain::Phys;
+use crate::trails::Trails;
 
 /// What a placement stands for, independent of art.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord)]
@@ -36,6 +38,8 @@ pub enum Kind {
     Lilies,
     /// Low plants: flowers, tall grass, heather, ferns, mushrooms.
     Low,
+    /// A rock outcrop several squares across: total cover, impassable.
+    Outcrop,
 }
 
 /// One placed item in global square units.
@@ -64,7 +68,13 @@ struct Layer {
     radius: f64,
 }
 
-const LAYERS: [Layer; 8] = [
+const LAYERS: [Layer; 9] = [
+    Layer {
+        kind: Kind::Outcrop,
+        tag: 0x7009,
+        grid: 7.0,
+        radius: 7.5,
+    },
     Layer {
         kind: Kind::TreeLarge,
         tag: 0x7001,
@@ -86,8 +96,8 @@ const LAYERS: [Layer; 8] = [
     Layer {
         kind: Kind::Boulder,
         tag: 0x7004,
-        grid: 2.6,
-        radius: 2.2,
+        grid: 2.0,
+        radius: 1.7,
     },
     Layer {
         kind: Kind::Log,
@@ -110,8 +120,8 @@ const LAYERS: [Layer; 8] = [
     Layer {
         kind: Kind::Low,
         tag: 0x7008,
-        grid: 3.0,
-        radius: 2.5,
+        grid: 1.9,
+        radius: 1.4,
     },
 ];
 
@@ -160,226 +170,67 @@ fn hard_core(seed: u64, l: &Layer, x0: f64, y0: f64, x1: f64, y1: f64) -> Vec<(f
     out
 }
 
-/// Per-point fields a layer's density reads.
-struct Here<'a> {
-    p: &'a Phys,
-    fd: f64,
-    scrub: f64,
-    marsh: f64,
-    meadow: f64,
-    temp: f64,
-    rocky: f64,
-}
-
-fn frac(ctx: &Ctx, u: f64, v: f64, cover: Cover) -> f64 {
-    ctx.bilinear(u, v, |c, _| if c.cover == cover { 1.0 } else { 0.0 })
-}
-
-fn density(kind: Kind, h: &Here, ctx: &Ctx, x: f64, y: f64) -> f64 {
-    let p = h.p;
-    let dry = p.water == Water::Dry;
-    let firm = dry && p.slope_deg < 38.0 && p.river_d > 0.6 && p.stand_v < -0.34;
-    match kind {
-        Kind::TreeLarge | Kind::TreeSmall | Kind::Log => {
-            if !firm {
-                return 0.0;
-            }
-            // Groves and glades: the clumping factor averages about 0.78
-            // and never exceeds 1, so the count stays proportional to density.
-            let clump = smoothstep(-0.45, 0.45, fbm(ctx.seed, 0xC1, x, y, 18.0, 2, 0.5));
-            let f = h.fd * (0.55 + 0.45 * clump);
-            match kind {
-                Kind::TreeLarge => f,
-                Kind::TreeSmall => (0.3 * f + 0.15 * h.scrub).min(1.0),
-                _ => 0.18 * h.fd,
-            }
-        }
-        Kind::Undergrowth => {
-            if !firm {
-                return 0.0;
-            }
-            (0.22 * h.fd + 0.45 * h.scrub + 0.05).min(1.0)
-        }
-        Kind::Boulder | Kind::Rock => {
-            if !dry || p.river_d < 0.3 {
-                return 0.0;
-            }
-            (0.04 + 0.5 * h.rocky + 0.6 * smoothstep(20.0, 42.0, p.slope_deg)).min(0.9)
-        }
-        Kind::Reeds => {
-            let shore = if dry {
-                1.0 - smoothstep(0.3, 2.0, p.river_d.min(-p.stand_v * 30.0))
-            } else if p.depth_m < 0.6 {
-                0.8
-            } else {
-                0.0
-            };
-            let calm = if p.water == Water::Sea || p.stand_kind == Water::Sea {
-                0.1
-            } else {
-                1.0
-            };
-            (shore * calm * (0.35 + 0.6 * h.marsh) + 0.5 * h.marsh * f64::from(u8::from(dry)))
-                .min(0.95)
-                * (1.0 - smoothstep(4.0, 1.0, h.temp + 3.0))
-        }
-        Kind::Lilies => match p.water {
-            Water::Lake | Water::Pool if p.depth_m < 1.8 => 0.35,
-            _ => 0.0,
-        },
-        Kind::Low => {
-            if !firm {
-                return 0.0;
-            }
-            0.04 + 0.2 * h.meadow + 0.12 * h.scrub
-        }
+/// Clearance between two solid items, squares.
+fn clearance(a: Kind, b: Kind) -> f64 {
+    if a == Kind::Outcrop || b == Kind::Outcrop {
+        2.4
+    } else {
+        1.6
     }
 }
 
-fn choose(kind: Kind, h: &Here, r: f64) -> (&'static str, &'static str) {
-    match kind {
-        Kind::TreeLarge | Kind::TreeSmall => {
-            let cold = smoothstep(7.0, 2.0, h.temp);
-            let wet = 1.0 - smoothstep(0.5, 5.0, h.p.river_d.min(-h.p.stand_v * 40.0));
-            let large = kind == Kind::TreeLarge;
-            if r < 0.03 {
-                ("veg.tree_dead", "tree:dead")
-            } else if r < 0.03 + 0.5 * wet {
-                (
-                    "veg.tree_willow",
-                    if large {
-                        "tree:broadleaf:large"
-                    } else {
-                        "tree:broadleaf:small"
-                    },
-                )
-            } else if r < 0.2 + 0.75 * cold {
-                if r < 0.1 + 0.45 * cold {
-                    (
-                        "veg.tree_spruce",
-                        if large {
-                            "tree:conifer:large"
-                        } else {
-                            "tree:conifer:small"
-                        },
-                    )
-                } else {
-                    (
-                        "veg.tree_pine",
-                        if large {
-                            "tree:conifer:large"
-                        } else {
-                            "tree:conifer:small"
-                        },
-                    )
-                }
-            } else if !large || r > 0.85 {
-                ("veg.tree_birch", "tree:broadleaf:small")
-            } else if r > 0.62 {
-                ("veg.tree_elm", "tree:broadleaf:large")
-            } else {
-                ("veg.tree_oak", "tree:broadleaf:large")
-            }
-        }
-        Kind::Undergrowth => {
-            if h.fd > 0.5 && r < 0.45 {
-                ("veg.fern", "undergrowth:fern")
-            } else if r < 0.15 {
-                ("veg.bush_flowering", "undergrowth:bush")
-            } else {
-                ("veg.bush", "undergrowth:bush")
-            }
-        }
-        Kind::Boulder | Kind::Rock => {
-            if r < 0.18 {
-                ("veg.boulder", "rock:boulder")
-            } else if r < 0.4 {
-                ("veg.rock_large", "rock:large")
-            } else if h.p.slope_deg > 26.0 && r < 0.65 {
-                ("veg.scree_patch", "rock:scree")
-            } else if r < 0.8 {
-                ("veg.rock_small", "rock:small")
-            } else {
-                ("veg.stones", "rock:stones")
-            }
-        }
-        Kind::Log => {
-            if r < 0.65 {
-                ("veg.fallen_log", "deadwood:log")
-            } else {
-                ("veg.stump", "deadwood:stump")
-            }
-        }
-        Kind::Reeds => {
-            if r < 0.35 {
-                ("veg.cattail", "water_plant:cattail")
-            } else {
-                ("veg.reeds", "water_plant:reeds")
-            }
-        }
-        Kind::Lilies => ("veg.lily_pads", "water_plant:lily"),
-        Kind::Low => {
-            if h.fd > 0.55 {
-                if r < 0.08 {
-                    ("veg.mushroom_ring", "low:mushrooms")
-                } else {
-                    ("veg.fern", "low:fern")
-                }
-            } else if h.scrub > 0.4 {
-                ("veg.heather", "low:heather")
-            } else if r < 0.5 {
-                ("veg.flower_patch", "low:flowers")
-            } else {
-                ("veg.tall_grass", "low:tall_grass")
-            }
-        }
-    }
+/// Whether an item of `kind` stands clear of other solid items.
+fn solid(kind: Kind) -> bool {
+    matches!(
+        kind,
+        Kind::TreeLarge | Kind::TreeSmall | Kind::Boulder | Kind::Outcrop
+    )
 }
 
 /// Every item whose anchor lies in `[x0, x1) × [y0, y1)` (global squares).
-/// `phys` must cover those squares.
+/// `phys` and `shape` must cover those squares; `trails` must cover them
+/// too, and no item stands on or (if solid) beside a trail.
 #[must_use]
-pub fn scatter(ctx: &Ctx, phys: &Grid<Phys>, x0: f64, y0: f64, x1: f64, y1: f64) -> Vec<Item> {
+pub fn scatter(
+    ctx: &Ctx,
+    phys: &Grid<Phys>,
+    shape: &Grid<Shape>,
+    trails: &Trails,
+    (x0, y0, x1, y1): (f64, f64, f64, f64),
+) -> Vec<Item> {
     let mut items: Vec<Item> = Vec::new();
     for l in &LAYERS {
         for (x, y, h) in hard_core(ctx.seed, l, x0, y0, x1, y1) {
-            let Some(p) = phys.get(floor_i(x), floor_i(y)) else {
+            let (sx, sy) = (floor_i(x), floor_i(y));
+            let (Some(p), Some(s)) = (phys.get(sx, sy), shape.get(sx, sy)) else {
                 continue;
             };
-            let here = Here {
-                p,
-                fd: ctx.bilinear(x, y, |c, _| f64::from(c.forest_density) / 255.0),
-                scrub: frac(ctx, x, y, Cover::Scrub),
-                marsh: frac(ctx, x, y, Cover::Marsh),
-                meadow: frac(ctx, x, y, Cover::Grass)
-                    * ctx.bilinear(x, y, |c, _| f64::from(c.moisture) / 255.0),
-                temp: ctx.bilinear(x, y, |c, _| f64::from(c.temperature.raw()) / 100.0),
-                rocky: crate::fixed::rocky(ctx, x, y),
-            };
+            let big = solid(l.kind) || l.kind == Kind::Log;
+            if if big {
+                trails.near(sx, sy)
+            } else {
+                trails.at(sx, sy) != crate::trails::Way::None
+            } {
+                continue;
+            }
+            let e = eco(ctx, p, *s, x, y);
+            let w = woods(ctx, &e, x, y);
             let keep = unit(crate::hash::mix(h));
-            if keep >= density(l.kind, &here, ctx, x, y) {
+            if keep >= density(l.kind, &e, &w, p) {
                 continue;
             }
             // Keep trunks, boulders and logs apart across layers.
-            let solid = matches!(
-                l.kind,
-                Kind::TreeSmall | Kind::Undergrowth | Kind::Boulder | Kind::Log
-            );
-            if solid
+            if (big || l.kind == Kind::Undergrowth)
                 && items.iter().any(|o| {
-                    matches!(o.kind, Kind::TreeLarge | Kind::TreeSmall | Kind::Boulder)
-                        && (o.x - x) * (o.x - x) + (o.y - y) * (o.y - y) < 1.6 * 1.6
+                    let c = clearance(o.kind, l.kind);
+                    solid(o.kind) && (o.x - x) * (o.x - x) + (o.y - y) * (o.y - y) < c * c
                 })
             {
                 continue;
             }
             let r = unit(crate::hash::mix(h ^ 0x5EED));
-            let (asset, tag) = choose(l.kind, &here, r);
-            let kind = if l.kind == Kind::Boulder && !asset.contains("boulder") {
-                Kind::Rock
-            } else {
-                l.kind
-            };
+            let q = unit(crate::hash::mix(h ^ 0x0A1D));
+            let (kind, (asset, tag)) = choose(l.kind, &e, &w, r, q);
             items.push(Item {
                 x,
                 y,

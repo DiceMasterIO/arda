@@ -103,8 +103,9 @@ pub struct LevelFields<'a> {
     pub uplift: &'a [u8],
     /// Erodibility, 64 = 1.
     pub erodibility: &'a [u8],
-    /// Runoff weight, 255 ~ 1 (Q8); `None` is uniform.
-    pub runoff: Option<&'a [u8]>,
+    /// Runoff weight, 256 = the nominal 500 mm/yr (Q8); `None` is uniform
+    /// (recipes 5 and 6).
+    pub runoff: Option<&'a [u16]>,
     /// Lowland factor for soil creep, 255 ~ full lowland (Q8).
     pub creep: &'a [u8],
     /// Rock-strength talus multiplier, 128 = 1 (Q7).

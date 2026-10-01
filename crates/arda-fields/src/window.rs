@@ -4,6 +4,7 @@
 use crate::boundary::{self, Boundaries};
 use crate::dress::{dress, Dressed};
 use crate::error::FieldsError;
+use crate::fields::FieldKind;
 use crate::geom::{Sq, SQUARE_M};
 use crate::input::FieldInputs;
 use crate::plan::{Cover, Plan};
@@ -117,11 +118,14 @@ pub fn generate(
     let owned: Vec<bool> = dressed
         .ground
         .squares()
-        .map(|s| {
-            matches!(
-                plan.at(s),
-                Cover::Field(_) | Cover::Compound(_) | Cover::Lane | Cover::Apron
-            )
+        .map(|s| match plan.at(s) {
+            // Unused land keeps the refined natural ground: its ecology,
+            // rocks and trees follow the terrain, not a field's paint.
+            Cover::Field(_) => plan
+                .field_at(s)
+                .is_some_and(|(_, f)| f.kind != FieldKind::Wild),
+            Cover::Compound(_) | Cover::Lane | Cover::Apron => true,
+            _ => false,
         })
         .collect();
     // Rules are stated on the fringe too, for callers that take it.

@@ -141,6 +141,7 @@ fn main() -> Result<(), Box<dyn Error>> {
                 LakeOrigin::Glacial => "glacial",
                 LakeOrigin::Oxbow => "oxbow",
                 LakeOrigin::Karst => "karst",
+                LakeOrigin::AridTerminal => "arid_terminal",
             };
             origins
                 .entry(o.to_owned())

@@ -32,6 +32,9 @@ enum Look {
     Scree,
     Log,
     Stump,
+    Stunted,
+    Juniper,
+    Outcrop,
 }
 
 /// A vegetation description: id, size in squares, look, height, cover,
@@ -78,7 +81,7 @@ const WET: &[&str] = &["wetland"];
 const HILL: &[&str] = &["alpine"];
 
 #[rustfmt::skip]
-const VEGETATION: [VegSpec; 25] = [
+const VEGETATION: [VegSpec; 29] = [
     v("veg.tree_oak", (3, 3), Broadleaf([78, 112, 44], false, None), 30, Half, false, &["tree", "forest", "broadleaf"], &[]),
     v("veg.tree_elm", (3, 3), Broadleaf([62, 98, 50], false, None), 35, Half, false, &["tree", "forest", "broadleaf"], &[]),
     v("veg.tree_birch", (2, 2), Broadleaf([124, 152, 62], true, None), 25, Half, false, &["tree", "forest", "broadleaf"], &[]),
@@ -87,6 +90,9 @@ const VEGETATION: [VegSpec; 25] = [
     v("veg.tree_spruce", (2, 2), Conifer([44, 80, 64], true), 45, Half, false, &["tree", "forest", "conifer"], COLD),
     v("veg.tree_willow", (3, 3), Look::Willow, 30, Half, false, &["tree", "riverside", "broadleaf"], WET),
     v("veg.tree_dead", (2, 2), Look::Dead, 25, Open, false, &["tree", "dead"], COLD),
+    v("veg.tree_alder", (2, 2), Broadleaf([56, 88, 46], false, None), 30, Half, false, &["tree", "riverside", "broadleaf"], WET),
+    v("veg.tree_stunted", (1, 1), Look::Stunted, 8, Half, false, &["tree", "conifer", "stunted"], HILL),
+    v("veg.juniper", (1, 1), Look::Juniper, 4, Half, false, &["bush", "conifer"], HILL),
     v("veg.bush", (1, 1), Bush(false), 3, Half, false, &["bush"], &[]),
     v("veg.bush_flowering", (1, 1), Bush(true), 3, Half, false, &["bush", "flower"], &[]),
     v("veg.reeds", (1, 1), Look::Reeds, 5, Half, false, &["reeds", "water_plant"], WET),
@@ -104,6 +110,7 @@ const VEGETATION: [VegSpec; 25] = [
     v("veg.rock_small", (1, 1), Boulders(1), 3, Half, true, &["rock"], HILL),
     v("veg.rock_large", (2, 2), Look::RockLarge, 8, Cover::Full, true, &["rock"], HILL),
     v("veg.scree_patch", (2, 2), Look::Scree, 1, Open, false, &["rock", "scree"], HILL),
+    v("veg.rock_outcrop", (3, 3), Look::Outcrop, 10, Cover::Full, true, &["rock", "outcrop"], HILL),
 ];
 
 fn paint(look: Look, r: &mut Relief, seed: u64) {
@@ -135,6 +142,9 @@ fn paint(look: Look, r: &mut Relief, seed: u64) {
         Look::Scree => rocks::scree_patch(r, seed),
         Look::Log => rocks::fallen_log(r, seed),
         Look::Stump => rocks::stump(r, seed),
+        Look::Stunted => trees::stunted(r, seed, [74, 96, 66]),
+        Look::Juniper => plants::bush(r, seed, [66, 100, 72], false),
+        Look::Outcrop => rocks::outcrop(r, seed),
     }
 }
 

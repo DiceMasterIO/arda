@@ -50,6 +50,8 @@ const GROUND: &[(&str, &[&str])] = &[
     ("farmland", &["dirt"]),
     ("marsh", &["mud"]),
     ("reed_bed", &["mud"]),
+    ("salt_crust", &["sand", "gravel"]),
+    ("mudflat", &["mud", "sand"]),
     ("snow", &["sand"]),
     ("ice", &["sand"]),
     ("rug", &["planks"]),

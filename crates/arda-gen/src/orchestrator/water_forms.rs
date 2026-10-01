@@ -10,14 +10,16 @@
 //! straight otherwise. Each lake fragment gets the origin of the formation sink it
 //! holds and whether its connected lake is terminal (no annual outflow, so
 //! evaporation-balanced and saline). Deltas and dolines are listed by the
-//! area holding them.
+//! area holding them. Recipe 7 adds the arid terminal origin (a terminal lake
+//! in a basin formation found arid) and the playa runs of dry arid-basin
+//! floors (logic/02 §world-water arid basins).
 
 use std::collections::BTreeMap;
 
 use arda_core::hydrology::{channel_width_dm, GlobalLake};
 use arda_core::water::{
-    bankfull_depth_cm, AreaWater, ChannelPattern, DeltaForm, Doline, LakeForm, LakeOrigin,
-    SegmentForm,
+    bankfull_depth_cm, AreaWater, ChannelPattern, DeltaForm, Doline, LakeForm, LakeOrigin, PanKind,
+    PanRun, SegmentForm,
 };
 use arda_core::{AreaCells, AreaCoord, AreaObjects, BasinId, CellCoord, Litres, AREA_CELLS};
 
@@ -34,12 +36,22 @@ fn global_cell(x_um: i64, y_um: i64) -> (i64, i64) {
     )
 }
 
+/// Which origin names a lake holding several sinks: the arid terminal
+/// basin, then the tectonic basin, then the smaller forms it contains.
+fn rank(o: LakeOrigin) -> u8 {
+    match o {
+        LakeOrigin::AridTerminal => 0,
+        o => o as u8 + 1,
+    }
+}
+
 fn origin_of(kind: SinkKind) -> LakeOrigin {
     match kind {
         SinkKind::Tectonic => LakeOrigin::Tectonic,
         SinkKind::Glacial => LakeOrigin::Glacial,
         SinkKind::Oxbow => LakeOrigin::Oxbow,
         SinkKind::Karst => LakeOrigin::Karst,
+        SinkKind::AridTerminal => LakeOrigin::AridTerminal,
     }
 }
 
@@ -126,20 +138,30 @@ pub fn area_water(
             });
             if hit {
                 let o = origin_of(s.kind);
-                if origin == LakeOrigin::Unclassified || o < origin {
+                if origin == LakeOrigin::Unclassified || rank(o) < rank(origin) {
                     origin = o;
                 }
             }
-        }
-        if origin != LakeOrigin::Unclassified {
-            let e = origins.entry(l.global_id).or_insert(origin);
-            *e = (*e).min(origin);
         }
         let terminal = lakes
             .iter()
             .find(|g| g.basin == l.global_id)
             .is_some_and(|g| g.annual_outflow == Litres(0));
-        out.lakes.push(LakeForm { origin, terminal });
+        // An arid basin whose lake nevertheless spills is a tectonic lake.
+        if origin == LakeOrigin::AridTerminal && !terminal {
+            origin = LakeOrigin::Tectonic;
+        }
+        if origin != LakeOrigin::Unclassified {
+            let e = origins.entry(l.global_id).or_insert(origin);
+            if rank(origin) < rank(*e) {
+                *e = origin;
+            }
+        }
+        out.lakes.push(LakeForm {
+            origin,
+            terminal,
+            saline: terminal,
+        });
     }
     for d in &features.deltas {
         let (x, y) = global_cell(d.apex_um.0, d.apex_um.1);
@@ -151,6 +173,7 @@ pub fn area_water(
             });
         }
     }
+    out.pans = pan_runs(area, cells, &features.pan_cells);
     for d in &features.dolines {
         let (x, y) = global_cell(d.x_um, d.y_um);
         if let Some(at) = local(x, y) {
@@ -166,18 +189,62 @@ pub fn area_water(
     out
 }
 
+/// Row runs of the dry playa cells of `area` (lake and sea cells hold
+/// water, not a pan), sorted by `(y, x0)`. `pan_cells` is sorted
+/// ([`WaterFeatures::index`]).
+fn pan_runs(area: AreaCoord, cells: &AreaCells, pan_cells: &[(u32, u32, u8)]) -> Vec<PanRun> {
+    let side = u32::from(AREA_CELLS);
+    let (Ok(ox), Ok(oy)) = (u32::try_from(area.x), u32::try_from(area.y)) else {
+        return Vec::new();
+    };
+    let (ox, oy) = (ox * side, oy * side);
+    let mut runs: Vec<PanRun> = Vec::new();
+    let lo = pan_cells.partition_point(|c| (c.0, c.1) < (ox, 0));
+    let mut local: Vec<(u16, u16, PanKind)> = pan_cells[lo..]
+        .iter()
+        .take_while(|c| c.0 < ox + side)
+        .filter(|c| (oy..oy + side).contains(&c.1))
+        .filter_map(|&(x, y, k)| {
+            let (lx, ly) = (
+                u16::try_from(x.checked_sub(ox)?).ok()?,
+                u16::try_from(y.checked_sub(oy)?).ok()?,
+            );
+            let at = CellCoord::new(lx, ly)?;
+            (cells.get(at).terrain == arda_core::TerrainKind::Land).then_some((
+                ly,
+                lx,
+                PanKind::from_u8(k).unwrap_or(PanKind::Mudflat),
+            ))
+        })
+        .collect();
+    local.sort_unstable();
+    for (y, x, kind) in local {
+        match runs.last_mut() {
+            Some(r) if r.y == y && r.kind == kind && r.x0 + r.len == x => r.len += 1,
+            _ => runs.push(PanRun {
+                y,
+                x0: x,
+                len: 1,
+                kind,
+            }),
+        }
+    }
+    runs
+}
+
 /// Gives every unclassified fragment the origin found for its basin in any
-/// area.
+/// area, and every fragment of an arid terminal lake that origin.
 pub fn resolve_origins(
     water: &mut AreaWater,
     objects_lakes: &[BasinId],
     origins: &BTreeMap<BasinId, LakeOrigin>,
 ) {
     for (form, id) in water.lakes.iter_mut().zip(objects_lakes) {
-        if form.origin == LakeOrigin::Unclassified {
-            if let Some(&o) = origins.get(id) {
-                form.origin = o;
-            }
+        match origins.get(id) {
+            Some(&o) if form.origin == LakeOrigin::Unclassified => form.origin = o,
+            // Every fragment of an arid terminal lake is one (recipe 7).
+            Some(&LakeOrigin::AridTerminal) => form.origin = LakeOrigin::AridTerminal,
+            _ => {}
         }
     }
 }
@@ -326,3 +393,7 @@ mod tests {
         assert_eq!(far.lakes[0].origin, LakeOrigin::Oxbow);
     }
 }
+
+#[cfg(test)]
+#[path = "water_forms_arid_tests.rs"]
+mod arid_tests;

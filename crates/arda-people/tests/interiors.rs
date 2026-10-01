@@ -13,6 +13,7 @@ use arda_people::town;
 use arda_settle::model::Tier;
 use arda_town::block::interior::variety;
 use std::path::{Path, PathBuf};
+use std::sync::OnceLock;
 
 /// Most homes whose interior may equal another home's (goal 64).
 const MAX_REPEATED: f64 = 0.05;
@@ -23,7 +24,15 @@ fn ready(dir: &Path) -> bool {
             .is_ok_and(|w| w.manifest().fine_terrain.is_some() && w.seed() == 42)
 }
 
+/// The fixture world, resolved (and if need be generated) once per test
+/// binary: the tests run in parallel threads, and two of them generating
+/// the same directory at once fail with `OutputNotEmpty`.
 fn world_dir() -> PathBuf {
+    static DIR: OnceLock<PathBuf> = OnceLock::new();
+    DIR.get_or_init(resolve_world_dir).clone()
+}
+
+fn resolve_world_dir() -> PathBuf {
     if let Some(dir) = std::env::var_os("ARDA_TEST_WORLD") {
         return PathBuf::from(dir);
     }

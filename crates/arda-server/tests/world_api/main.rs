@@ -5,6 +5,7 @@
 mod cells;
 mod contract;
 mod endpoints;
+mod looks;
 mod npc;
 mod people;
 mod prefetch;

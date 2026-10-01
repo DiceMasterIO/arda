@@ -5,8 +5,8 @@
 //! stored shore layer.
 
 use super::{
-    lake_surface_near, saved_material, saved_temperature, shore_near, FineAtlas, SavedFields,
-    SavedMaterial, CELL_UM, KM_UM,
+    arid_near, lake_surface_near, saved_material, saved_temperature, shore_near, FineAtlas,
+    SavedFields, SavedMaterial, CELL_UM, KM_UM,
 };
 use crate::atlas::invalid;
 use crate::RenderError;
@@ -21,6 +21,25 @@ pub struct ReliefGeometry {
     /// Refined-scale concavity, millimetres (positive in gullies), added to
     /// the stored 156 m ring term.
     pub concavity_mm: i64,
+}
+
+/// Which surface a relief pixel shows when the caller supplies the water
+/// geometry (logic/17 §water): the tactical layer's own lakes, sea and
+/// shores rather than the stored field's.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum ReliefSurface {
+    /// Dry ground, lit with the refined geometry.
+    Land,
+    /// Lake water this deep, millimetres.
+    Lake {
+        /// Depth below the surface, millimetres.
+        depth_mm: i64,
+    },
+    /// Sea water this deep, millimetres.
+    Sea {
+        /// Depth below sea level, millimetres.
+        depth_mm: i64,
+    },
 }
 
 impl FineAtlas {
@@ -110,45 +129,70 @@ impl FineAtlas {
         ))
     }
 
-    /// Relief colour at an absolute fine-lattice position: water and coast
-    /// from the stored field, land lit with the refined geometry. The flag
-    /// is true for land.
-    pub(in crate::atlas) fn relief_colour(
+    /// Relief colour at an absolute fine-lattice position for a surface
+    /// the caller decided: lake and sea tints from the formed palette at
+    /// the given depth, land lit with the refined geometry wherever the
+    /// stored field would have drawn water or coast.
+    pub(in crate::atlas) fn relief_surface_colour(
         &self,
-        x: i128,
-        y: i128,
+        (x, y): (i128, i128),
         footprint_um: i128,
         geometry: ReliefGeometry,
+        surface: ReliefSurface,
         saved: &SavedFields<'_>,
-    ) -> Result<([u8; 3], bool), RenderError> {
+    ) -> Result<[u8; 3], RenderError> {
         if !self.formed {
             return Err(invalid("relief shading requires recipe-5 formed terrain"));
         }
         let point = self.clamp_source(x, y)?;
         let (qx, qy) = (i128::from(point.x_um), i128::from(point.y_um));
-        let height = self.height(qx, qy)?;
-        let surface = lake_surface_near(x, y, (self.origin_x, self.origin_y), saved.lake_surface)?;
-        if let Some(s) = surface.filter(|&s| height < s) {
-            return Ok((
-                crate::atlas::formed::lake(i64::from(s) - i64::from(height), self.v6),
-                false,
-            ));
+        // Depth tints follow the stored field wherever it holds water
+        // there, so open water shades as smoothly as the overview's; the
+        // caller's depth fills the margins only it calls water.
+        let stored = self.height(qx, qy)?;
+        match surface {
+            ReliefSurface::Lake { depth_mm } => {
+                let surface =
+                    lake_surface_near(x, y, (self.origin_x, self.origin_y), saved.lake_surface)?;
+                let depth = surface
+                    .filter(|&s| stored < s)
+                    .map_or(depth_mm, |s| i64::from(s) - i64::from(stored));
+                // Recipe 7: terminal lakes are saline (logic/04 §atlas-formed
+                // arid basins), as on the overview.
+                let arid = arid_near(x, y, (self.origin_x, self.origin_y), saved)?;
+                Ok(match arid {
+                    Some(a) if a.saline > 0 => crate::atlas::formed::saline_lake(depth.max(0)),
+                    _ => crate::atlas::formed::lake(depth.max(0), self.v6),
+                })
+            }
+            ReliefSurface::Sea { depth_mm } => {
+                let shore_mix = shore_near(x, y, (self.origin_x, self.origin_y), saved.shore)?;
+                let height = if stored < 0 {
+                    stored
+                } else {
+                    i32::try_from(-depth_mm.max(0)).unwrap_or(i32::MIN)
+                };
+                self.sea_colour(qx, qy, height, &shore_mix)
+            }
+            ReliefSurface::Land => {
+                // The tactical shore decides land; its ground stands
+                // above the water it borders, so the shading never reads
+                // a sub-sea height there.
+                let geometry = ReliefGeometry {
+                    height_mm: geometry.height_mm.max(1),
+                    ..geometry
+                };
+                let height = stored.max(1);
+                let inputs = self.land_inputs(x, y, geometry.height_mm, saved)?;
+                let c = self.formed_color(qx, qy, height, inputs, footprint_um, Some(geometry))?;
+                // Recipe-7 salt pans: white crust and pale mudflat margins.
+                Ok(
+                    match arid_near(x, y, (self.origin_x, self.origin_y), saved)? {
+                        Some(a) => crate::atlas::formed::pan(c, a.crust, a.mudflat),
+                        None => c,
+                    },
+                )
+            }
         }
-        if height <= 0 {
-            let shore_mix = shore_near(x, y, (self.origin_x, self.origin_y), saved.shore)?;
-            return Ok((self.sea_colour(qx, qy, height, &shore_mix)?, false));
-        }
-        let (material, temperature) = self.land_inputs(x, y, geometry.height_mm, saved)?;
-        Ok((
-            self.formed_color(
-                qx,
-                qy,
-                height,
-                (material, temperature),
-                footprint_um,
-                Some(geometry),
-            )?,
-            true,
-        ))
     }
 }

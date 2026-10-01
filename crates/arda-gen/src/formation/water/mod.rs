@@ -30,8 +30,9 @@ use arda_core::DischargeMilli;
 use super::lattice::Lattice;
 use super::FormationError;
 
-/// Runoff assumed when sizing channels during formation, before climate
-/// exists, millimetres per year.
+/// Runoff assumed when sizing channels during recipe-6 formation, which
+/// has no climate, millimetres per year. Recipe 7 weights area by real
+/// runoff relative to it.
 pub const NOMINAL_RUNOFF_MM: u64 = 500;
 /// Streams below this catchment are not shaped, km².
 pub const STREAM_MIN_KM2: u64 = 3;
@@ -47,6 +48,8 @@ pub enum SinkKind {
     Oxbow,
     /// Karst polje.
     Karst,
+    /// Arid endorheic tectonic basin: its lake is terminal (recipe 7).
+    AridTerminal,
 }
 
 /// A protected closed-basin sink: a disc kept at its carved depth by every
@@ -129,6 +132,9 @@ pub struct WaterFeatures {
     pub deltas: Vec<Delta>,
     /// Karst dolines.
     pub dolines: Vec<DolineSite>,
+    /// Playa floors of arid basins: 100 m cells `(x, y)` with their
+    /// surface, 0 salt crust or 1 mudflat (recipe 7), sorted.
+    pub pan_cells: Vec<(u32, u32, u8)>,
     /// Counters.
     pub stats: WaterStats,
 }
@@ -147,6 +153,8 @@ impl WaterFeatures {
         });
         self.braided_cells.sort_unstable();
         self.braided_cells.dedup_by_key(|c| (c.0, c.1));
+        self.pan_cells.sort_unstable();
+        self.pan_cells.dedup_by_key(|c| (c.0, c.1));
     }
 
     /// Whether a point lies in a protected sink disc. Requires [`Self::index`].
@@ -223,8 +231,10 @@ pub struct Shaped {
 
 /// First phase: braided belts and meanders are carved into a drained
 /// lattice. `relief_q8` is the macro relief mask on the same lattice (255 =
-/// mountainous). Drain the lattice again before [`shape_basins`], so pits
-/// the channels leave never merge with a deliberate basin.
+/// mountainous). `runoff` weights (recipe 7) size channels from real
+/// runoff instead of [`NOMINAL_RUNOFF_MM`]. Drain the lattice again before
+/// [`shape_basins`], so pits the channels leave never merge with a
+/// deliberate basin.
 ///
 /// # Errors
 /// Allocation failure.
@@ -233,8 +243,9 @@ pub fn shape_channels(
     relief_q8: &[u8],
     seed: u64,
     features: &mut WaterFeatures,
+    runoff: Option<&[u16]>,
 ) -> Result<Shaped, FormationError> {
-    let net = network::build(g)?;
+    let net = network::build(g, runoff)?;
     let min_cells = u32::try_from(STREAM_MIN_KM2 * 1_000_000 / cell_m2(g)).unwrap_or(u32::MAX);
     let smooth = usize::try_from(geom::m_to_q8(g, 400) / geom::CELL_Q8).unwrap_or(1);
     let mut streams = network::streams(g, &net, min_cells, smooth.max(1));
@@ -279,8 +290,9 @@ pub fn shape_basins(
     g: &mut Lattice,
     shaped: &Shaped,
     features: &mut WaterFeatures,
+    runoff: Option<&[u16]>,
 ) -> Result<(), FormationError> {
-    oxbow::carve_cutoffs(g, &shaped.cutoffs, features)?;
+    oxbow::carve_cutoffs(g, &shaped.cutoffs, features, runoff)?;
     karst::apply(
         g,
         &shaped.streams,
@@ -301,8 +313,8 @@ pub fn shape(
     seed: u64,
     features: &mut WaterFeatures,
 ) -> Result<(), FormationError> {
-    let shaped = shape_channels(g, relief_q8, seed, features)?;
-    shape_basins(g, &shaped, features)
+    let shaped = shape_channels(g, relief_q8, seed, features, None)?;
+    shape_basins(g, &shaped, features, None)
 }
 
 #[cfg(test)]
