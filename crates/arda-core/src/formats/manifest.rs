@@ -46,10 +46,20 @@ pub const FINE_TERRAIN_PATH: &str = "terrain/fine.bin";
 /// source, recipe 4 is that source after canonical valley formation, and
 /// recipe 5 is multi-resolution stream-power formation from the macro surface
 /// as v0.1 shipped it, and recipe 6 (v0.2) adds tectonic margins, belt
-/// relief, maturity, roughness, coast stages and stored water forms
-/// (`logic/02` §fine-formation recipes). Every older recipe still loads and
-/// renders as it did.
-pub const FINE_TERRAIN_RECIPE_VERSION: u16 = 6;
+/// relief, maturity, roughness, coast stages and stored water forms, and
+/// recipe 7 (v0.4) adds climate: runoff-weighted channels and arid
+/// endorheic basins with terminal lakes and playas (`logic/02`
+/// §fine-formation recipes). Every older recipe still loads and renders as
+/// it did.
+///
+/// This is the recipe new worlds use by default: recipe 7 (climate-driven
+/// runoff and arid basins), approved by the maintainer on 2026-10-01.
+/// `--recipe 6` reproduces v0.2–v0.3 worlds exactly.
+pub const FINE_TERRAIN_RECIPE_VERSION: u16 = 7;
+
+/// The newest fine-terrain recipe this build generates and reads (recipe 7,
+/// opt-in). Manifests may name any recipe from 1 to this one.
+pub const FINE_TERRAIN_LATEST_RECIPE_VERSION: u16 = 7;
 
 /// Everything needed to identify, verify, or regenerate a world.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]

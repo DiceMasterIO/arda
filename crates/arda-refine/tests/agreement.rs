@@ -125,15 +125,20 @@ fn water_is_where_the_cells_say_and_nowhere_else() {
 #[test]
 fn tree_density_follows_forest_density() {
     let src = common::world(42);
+    // Trees grow in groves and glades (logic/09 §scatter), so one cell's
+    // count varies with where the groves fall; each column of four cells
+    // shares one forest density, and its mean is what must follow it.
     let mut pts = Vec::new();
     for x in 0..9 {
+        let mut sum = 0.0;
+        let mut fd = 0.0;
         for y in 1..5 {
             let k = CellKey::new(x, y);
-            let fd = f64::from(src.cell(k).unwrap().forest_density) / 255.0;
+            fd = f64::from(src.cell(k).unwrap().forest_density) / 255.0;
             let b = refine(&src, k).unwrap();
-            let trees = b.items.iter().filter(|i| i.kind == Kind::TreeLarge).count() as f64;
-            pts.push((fd, trees));
+            sum += b.items.iter().filter(|i| i.kind == Kind::TreeLarge).count() as f64;
         }
+        pts.push((fd, sum / 4.0));
     }
     // Trees per unit density is roughly constant (within 35 %)...
     let dense: Vec<f64> = pts

@@ -13,10 +13,13 @@ pub mod ground;
 pub mod lighting;
 pub mod sample;
 mod shadows;
+pub mod snow;
 pub mod stamp;
 pub mod terrain;
 pub mod walls;
 pub mod water;
+mod weights;
+pub mod world_tint;
 
 use crate::catalog::{Asset, Layer};
 use crate::error::TacticalError;
@@ -194,7 +197,7 @@ pub fn render_with(
     opts: &RenderOptions,
     style: &Style,
 ) -> Result<Rgba, TacticalError> {
-    render_clip(layout, lib, seed, opts, style, None)
+    render_clip(layout, lib, seed, opts, style, None, None)
 }
 
 /// Renders only the pixels `[x, y, w, h]` of a layout's image: equal to
@@ -215,7 +218,34 @@ pub fn render_region(
     [x, y, w, h]: [u32; 4],
 ) -> Result<Rgba, TacticalError> {
     let clip = [x, y, x.saturating_add(w), y.saturating_add(h)];
-    render_clip(layout, lib, seed, opts, &Style::default(), Some(clip))
+    render_clip(layout, lib, seed, opts, &Style::default(), Some(clip), None)
+}
+
+/// [`render_region`] with the optional world grade (goal 49): the ground
+/// and water layers are pulled toward the world map's colours at their
+/// world position ([`world_tint`]). The layout must carry its world
+/// `origin`.
+///
+/// # Errors
+/// As [`render_region`], or a lattice that does not cover the layout.
+pub fn render_region_tinted(
+    layout: &TacticalLayout,
+    lib: &Library,
+    seed: u64,
+    opts: &RenderOptions,
+    [x, y, w, h]: [u32; 4],
+    tint: &world_tint::WorldTint,
+) -> Result<Rgba, TacticalError> {
+    let clip = [x, y, x.saturating_add(w), y.saturating_add(h)];
+    render_clip(
+        layout,
+        lib,
+        seed,
+        opts,
+        &Style::default(),
+        Some(clip),
+        Some(tint),
+    )
 }
 
 /// Copies pixels `[x0, y0, x1, y1)` out of `img`.
@@ -238,6 +268,7 @@ fn render_clip(
     opts: &RenderOptions,
     style: &Style,
     clip: Option<[u32; 4]>,
+    tint: Option<&world_tint::WorldTint>,
 ) -> Result<Rgba, TacticalError> {
     if !(8..=1024).contains(&opts.ppsq) {
         return Err(TacticalError::Options(format!(
@@ -274,6 +305,16 @@ fn render_clip(
     };
     g.paint_clipped(&mut cv.img, area);
     cv.buf.water = ground::paint_water(&mut cv.img, layout, &textures, seed, ppsq);
+    if let Some(t) = tint {
+        world_tint::apply(
+            &mut cv.img,
+            layout,
+            (&textures, &cv.buf.water),
+            ppsq,
+            t,
+            area,
+        )?;
+    }
 
     let mut sprites = Sprites {
         lib,
@@ -439,3 +480,5 @@ fn draw_grid(img: &mut Rgba, ppsq: u32) {
 mod tests;
 #[cfg(test)]
 mod tests_look;
+#[cfg(test)]
+mod tests_snow;

@@ -284,8 +284,14 @@ async fn overview_png(State(state): Shared, query: Params) -> ServerResult<Respo
     Ok(png(&bytes))
 }
 
-/// `/v1/tiles/overview/{z}/{x}/{y}.webp` (goal 68) and `.png`.
-async fn overview_tile(State(state): Shared, path: Segments) -> ServerResult<Response> {
+/// `/v1/tiles/overview/{z}/{x}/{y}.webp` (goal 68) and `.png`;
+/// `?oblique=1` serves the opt-in oblique pyramid (goal 24).
+async fn overview_tile(
+    State(state): Shared,
+    path: Segments,
+    query: Params,
+) -> ServerResult<Response> {
+    let oblique = crate::tactical::world_routes::flag(&params(query)?, "oblique")?;
     let p = segments(path, 3)?;
     let (y_text, format) = TileFormat::split(&p[2]).ok_or_else(|| {
         ServerError::NotFound("overview tiles are served as {y}.webp or {y}.png".into())
@@ -300,7 +306,10 @@ async fn overview_tile(State(state): Shared, path: Segments) -> ServerResult<Res
             "zoom {z} is outside the pyramid"
         )));
     }
-    let bytes = blocking(state, move |s| s.overview.tile(&s.query, (z, x, y), format)).await?;
+    let bytes = blocking(state, move |s| {
+        s.overview.tile(&s.query, (z, x, y), (format, oblique))
+    })
+    .await?;
     Ok(image(format.content_type(), &bytes))
 }
 

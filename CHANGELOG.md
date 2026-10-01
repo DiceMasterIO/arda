@@ -3,6 +3,14 @@
 Release notes for Arda. The design ledger (decisions, stage records and per-change detail)
 lives in `docs/capstone/changelog.md` and `docs/capstone/changelog.d/`.
 
+## 0.4.0 — 2026-10-01
+
+- **Recipe 7 is the new default: climate.** Rainfall now has a subtropical dry belt. Runoff weights channel initiation and incision, so wet uplands are more dissected and dry land less. Arid tectonic basins keep terminal saline lakes on salt pans, with mudflat margins. Atlas draws saline lakes and salt pans, and tactical maps get `salt_crust` and `mudflat` ground. Set the band with `arda generate --latitude S,N`. `--recipe 6` reproduces v0.2–v0.3 worlds byte for byte, and recipes 5, 6 and 7 are all golden-pinned. `water.bin` gains layout 2.
+- **Zoom continuity.** Close-zoom relief and tactical maps share one water geometry (`WaterRegion`), so rivers, lakes and coasts sit on the same squares at every zoom.
+- **Open country.** Species follow altitude, aspect, wetness and the tree line. There are groves and glades, rock outcrops, boulder fields, game trails and footpaths continuous across blocks, and soft snow cover. A fields bug that painted noise over unused land is fixed.
+- **Opt-in looks.** An oblique overview (`--style atlas-oblique`, `?oblique=1`) and a tactical world grade (`?world_grade=1`). Defaults are unchanged.
+- **Code health.** Every source file over about 550 lines is split, with byte-identical outputs. A flaky fixture race is fixed.
+
 ## 0.3.0 — 2026-10-01
 
 Closes the gaps found in the post-0.2 goal audit.

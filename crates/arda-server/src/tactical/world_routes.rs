@@ -8,6 +8,9 @@
 //!   with `?gsx&gsy&w&h` (for example a 32 × 32 quarter block);
 //! - `GET /v1/tactical/library`: the catalogue summary.
 //!
+//! `world_grade=1` (opt-in, goal 49) pulls the images' ground and water
+//! toward the world map's colours ([`super::world_grade`]).
+//!
 //! `demo_overlays=1` composes the synthetic ways, fields and town samples
 //! anchored at `demo_at=gx,gy` (default: the requested cell, or the
 //! window's first cell), until settlement data is integrated.
@@ -41,9 +44,15 @@ pub(super) struct Opts {
     grid: bool,
     demo: bool,
     demo_at: Option<[i64; 2]>,
+    /// Opt-in world grade (goal 49).
+    world_grade: bool,
 }
 
-fn flag(q: &BTreeMap<String, String>, name: &str) -> ServerResult<bool> {
+/// A `0`/`1` query flag; absent is `false`.
+///
+/// # Errors
+/// [`ServerError::BadRequest`] for any other value.
+pub(crate) fn flag(q: &BTreeMap<String, String>, name: &str) -> ServerResult<bool> {
     match q.get(name).map(String::as_str) {
         None | Some("0") => Ok(false),
         Some("1") => Ok(true),
@@ -84,6 +93,7 @@ pub(super) fn opts(
         grid: flag(q, "grid")?,
         demo: flag(q, "demo_overlays")?,
         demo_at,
+        world_grade: flag(q, "world_grade")?,
     })
 }
 
@@ -155,10 +165,10 @@ pub(super) async fn cell(
         o.ppsq,
         u8::from(req.demo_at.is_some())
     );
-    let (ppsq, grid) = (o.ppsq, o.grid);
+    let (ppsq, look) = (o.ppsq, (o.grid, o.world_grade));
     if png {
         let out = blocking(state, move |s| {
-            s.tactical.world_png(&req, world, ppsq, grid)
+            s.tactical.world_png_look(&req, world, ppsq, look)
         })
         .await?;
         return Ok(send(&headers, "cell.png", &detail, out, "image/png", start));
@@ -199,8 +209,11 @@ pub(super) async fn cell_tile(
         "cell {gx},{gy} tile {}/{}/{} ppsq={}",
         zxy.0, zxy.1, zxy.2, o.ppsq
     );
-    let pg = (o.ppsq, o.grid);
-    let out = blocking(state, move |s| s.tactical.world_tile(&req, world, pg, zxy)).await?;
+    let pg = (o.ppsq, o.grid, o.world_grade);
+    let out = blocking(state, move |s| {
+        s.tactical.world_tile_look(&req, world, pg, zxy)
+    })
+    .await?;
     Ok(send(
         &headers,
         "cell.tile",
@@ -296,9 +309,9 @@ pub(super) async fn window_png(
         "window {},{} {}x{} ppsq={}",
         req.gsx0, req.gsy0, req.w, req.h, o.ppsq
     );
-    let (ppsq, grid) = (o.ppsq, o.grid);
+    let (ppsq, look) = (o.ppsq, (o.grid, o.world_grade));
     let out = blocking(state, move |s| {
-        s.tactical.world_png(&req, world, ppsq, grid)
+        s.tactical.world_png_look(&req, world, ppsq, look)
     })
     .await?;
     Ok(send(

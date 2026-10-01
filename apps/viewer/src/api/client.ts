@@ -32,17 +32,20 @@ import {
   type TokenView,
 } from "./tactical.ts";
 
-/** Options of world-derived tactical cells: `?ppsq`, `?demo_overlays=1`. */
+/** Options of world-derived tactical cells: `?ppsq`, `?demo_overlays=1`, `?world_grade=1`. */
 export interface CellOptions {
   ppsq?: number;
   /** Compose the synthetic ways, fields and town samples anchored at this cell. */
   demo?: boolean;
+  /** Opt-in world grade (goal 49): ground and water pulled toward the world map's colours. */
+  worldGrade?: boolean;
 }
 
 function cellQuery(opts: CellOptions): string {
   const q = new URLSearchParams();
   if (opts.ppsq !== undefined) q.set("ppsq", String(opts.ppsq));
   if (opts.demo) q.set("demo_overlays", "1");
+  if (opts.worldGrade) q.set("world_grade", "1");
   const qs = q.toString();
   return qs ? `?${qs}` : "";
 }
@@ -255,7 +258,7 @@ export class ArdaClient {
     return this.contractJson<AreaLakes>(`/v1/area/${ax}/${ay}/lakes`, init);
   }
 
-  overviewPngUrl(opts: { quality?: number | string; style?: "atlas" | "classic" } = {}): string {
+  overviewPngUrl(opts: { quality?: number | string; style?: "atlas" | "classic" | "atlas-oblique" } = {}): string {
     const q = new URLSearchParams();
     if (opts.quality !== undefined) q.set("quality", String(opts.quality));
     if (opts.style !== undefined) q.set("style", opts.style);
@@ -263,14 +266,27 @@ export class ArdaClient {
     return this.url(`/v1/overview.png${qs ? `?${qs}` : ""}`);
   }
 
-  /** Leaflet-style template for the overview pyramid: lossless WebP (goal 68); `.png` stays served for older clients. */
-  overviewTileTemplate(format: "webp" | "png" = "webp"): string {
-    return this.url(`/v1/tiles/overview/{z}/{x}/{y}.${format}`);
+  /**
+   * Leaflet-style template for the overview pyramid: lossless WebP (goal 68); `.png` stays served for older clients.
+   * `oblique` selects the opt-in oblique pyramid (goal 24).
+   */
+  overviewTileTemplate(format: "webp" | "png" = "webp", opts: { oblique?: boolean } = {}): string {
+    return this.url(`/v1/tiles/overview/{z}/{x}/{y}.${format}${opts.oblique ? "?oblique=1" : ""}`);
   }
 
   /** Leaflet-style template for the mid-zoom relief levels past the overview. */
   reliefTileTemplate(): string {
     return this.url("/v1/tiles/relief/{z}/{x}/{y}.webp");
+  }
+
+  /** One mid-zoom relief tile. */
+  reliefTileUrl(z: number, x: number, y: number): string {
+    return this.url(`/v1/tiles/relief/${z}/${x}/${y}.webp`);
+  }
+
+  /** The PNG of a world cell's tactical map. */
+  tacticalCellPngUrl(gx: number, gy: number, opts: CellOptions = {}): string {
+    return this.url(`/v1/tactical/cell/${gx}/${gy}.png${cellQuery(opts)}`);
   }
 
   // --- Tactical maps (/v1/tactical) ---

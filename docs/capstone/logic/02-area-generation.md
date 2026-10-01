@@ -356,13 +356,14 @@ resume point. Source:
 [shared_compose.rs:125](../../../crates/arda-gen/src/area/shared_compose.rs:125),
 [area_output.rs:289](../../../crates/arda-gen/src/hydrology/area_output.rs:289).
 
-## Fine recipe-5 and recipe-6 formation
+## Fine recipe-5, recipe-6 and recipe-7 formation
 
 Recipe 5 replaces the recipe-3 spectral source and recipe-4 valley carving with
 stream-power landscape formation from the tectonic macro surface. Its output is
 the same canonical 39.0625 m fine terrain file, so continent derivation,
 climate, hydrology, publication and export are unchanged downstream. Recipe 6
-is recipe 5 plus every v0.2 rule below; it is the default.
+is recipe 5 plus every v0.2 rule below. Recipe 7 is recipe 6 plus climate
+(§climate runoff, §world-water arid basins); it is the default.
 Source: [formation/](../../../crates/arda-gen/src/formation/mod.rs),
 [fine_formation.rs](../../../crates/arda-gen/src/orchestrator/fine_formation.rs).
 
@@ -389,8 +390,15 @@ loading and rendering read it from there.
   before the finest level; 0.2 km² channel initiation; one seam pass;
   terraces, littoral, canyons and flats; the §world-water forms (deltas,
   braids, meanders, oxbows, karst); the eight-connected sampled drainage with
-  pocket levelling; and the shore survey. Only recipe 6 writes
+  pocket levelling; and the shore survey. Only recipes 6 and 7 write
   `terrain/shore.bin` and `areas/*/water.bin`.
+- **Recipe 7** (v0.4, the default since the maintainer approved its look
+  on 2026-10-01) adds climate: the subtropical-high
+  rainfall belt (logic/01 §Q6 subtropical highs); runoff-weighted
+  contributing area for incision, channel initiation and channel sizing
+  (§climate runoff); and arid endorheic basins with terminal saline lakes,
+  playas, salt crust and mudflats (§world-water arid basins), stored in
+  `water.bin` layout version 2. Recipe 6 keeps writing layout version 1.
 - **Rendering** follows the recipe too (logic/04 §atlas-formed recipes).
 - **v0.2.0 worlds.** v0.2.0 formed its terrain with what is now recipe 6
   but recorded `recipe_version: 5`, because recipe 6 did not yet exist as a
@@ -401,12 +409,19 @@ loading and rendering read it from there.
   manifest on disk is left as written; a true recipe-5 world has no shore
   layer and stays recipe 5.
 
-Choosing a recipe: `arda generate --terrain fine --recipe <4|5|6>` (default
-6); in code `arda::generate_from_fine_recipe` or
+Choosing a recipe: `arda generate --terrain fine --recipe <4|5|6|7>`
+(default 7: `arda_core::FINE_TERRAIN_RECIPE_VERSION`,
+`FineRecipe::DEFAULT`); in code `arda::generate_from_fine_recipe` or
 `arda_gen::orchestrator::FineRecipe` (`Valleys` = 4, `FormationV5` = 5,
-`Formation` = 6). Unknown numbers are refused before any output. The gate is
-`tests/golden_recipes.rs`: MICRO seed 42 with recipes 5 and 6 must match the
-v0.1 and v0.2.0 terrain, area, hydrology and Atlas 4K overview hashes.
+`FormationV6` = 6, `Formation` = 7). Recipe 7 changes every world (wet
+uplands more dissected, dry land less); `--recipe 6` reproduces v0.2–v0.3
+worlds exactly. Manifests may name any recipe up to
+`arda_core::FINE_TERRAIN_LATEST_RECIPE_VERSION` (7). Unknown numbers are refused before any
+output. The gate is `tests/golden_recipes.rs`: MICRO seed 42 with recipes 5
+and 6 must match the v0.1 and v0.2.0 terrain, area, hydrology and Atlas 4K
+overview hashes, and recipe 7 its own first release. The latitude band is
+`arda generate --latitude SOUTH,NORTH` (default 35,55); it only changes
+rainfall from recipe 7 on.
 Source: [formation/mod.rs](../../../crates/arda-gen/src/formation/mod.rs)
 (`Recipe`), [recipe5.rs](../../../crates/arda-gen/src/formation/recipe5.rs),
 [levels.rs](../../../crates/arda-gen/src/formation/levels.rs),
@@ -521,7 +536,30 @@ seed-42 east coast.
 
 ### §fine-formation climate relief
 
-For recipe ≥ 5, rainfall advection reads a box-smoothed copy of the formed 1 km land relief (5 km radius, 2 passes; sea unchanged), because orographic precipitation responds to topography at ~10 km and above. Temperature, regime and ocean masks keep the true grid. Legacy and recipe-4 climate are unchanged.
+For recipe ≥ 5, rainfall advection reads a box-smoothed copy of the formed 1 km land relief (5 km radius, 2 passes; sea unchanged), because orographic precipitation responds to topography at ~10 km and above. Temperature, regime and ocean masks keep the true grid. Legacy and recipe-4 climate are unchanged. Recipe 7 also scales rainfall by the subtropical-high factor (logic/01 §Q6 subtropical highs).
+
+### §fine-formation climate runoff
+
+Recipe 7 formation reads the continent's annual water balance on the macro
+grid before it forms anything (`continent::aridity`, `formation::arid`). Per
+1 km cell, with the same terms as the shared annual solve (Steps 4): `P` the
+recipe-7 rainfall, `E` the sum of twelve monthly Hamon depths at the cell's
+latitude, distance to the sea and temperature, dry-land loss
+`A = min(P/2, E)`, runoff `R = P − A`, and the extra loss of standing water
+`D = E − A`. Both are box-blurred over 12 km (twice) and sampled through
+the macro warp: rain on the unformed macro surface spikes on its 1 km cliffs
+(to 10 m/yr on seed-42 MICRO), and an unsmoothed weight left the seed-42 main
+divide a smooth band (crest roughness 0.32 of its flanks; the gate is 0.40).
+- **Runoff weights.** Every level's contributing area counts each cell as
+  `R / 500 mm` cells (Q8, kept within 1/16..4): channel initiation,
+  stream-power incision and hillslope creep below initiation see real
+  discharge, so arid ground has fewer, smaller channels. Recipe 6 assumed
+  500 mm everywhere, which is weight 1.
+- **Channel sizing.** The §world-water network, oxbow capture and the delta
+  distributaries use runoff-weighted area, so `nominal_discharge` of their
+  "equivalent km²" is real mean discharge. Delta sediment volume and the
+  delta threshold keep reading the catchment.
+- **Admission.** Recipe 7 holds 2 more bytes per finest node (a runoff weight).
 
 ### §fine-formation margins
 
@@ -706,8 +744,9 @@ reshape the bed, so water stays conserved exactly by the shared hydrology.
 **Network.** Steepest-descent receivers on the drained lattice; main stems of
 at least 3 km², where the larger donor continues at each confluence. Each
 stream carries a centreline smoothed over ±400 m, its down-valley direction and
-its bed profile. Channels are sized from a nominal 500 mm/yr runoff, since
-climate does not exist yet. Streams are shaped largest first.
+its bed profile. Recipe 6 sizes channels from a nominal 500 mm/yr runoff;
+recipe 7 from runoff-weighted area (§fine-formation climate runoff). Streams
+are shaped largest first.
 
 **Hydraulic geometry.** Bankfull width is `4 m × Q^0.5` and depth
 `0.3 m × Q^0.4`, with `Q` the mean discharge in m³/s. The braiding threshold is
@@ -837,9 +876,46 @@ after the shore rework, which would otherwise smooth it away.
   convexity-driven headland retreat would otherwise cut a fresh lobe back into
   cliffs; their lobes may bury barrier sand in front of the mouth.
 
+**Arid basins** (recipe 7, goal 12). Formation knows its climate, so it can
+tell which tectonic basins (§basins, each with an audited cause) can never
+spill (`formation::arid`):
+- **Balance.** On the 1,250 m base lattice, with every sink fixed, a graded
+  fill routes each cell to its sink. A basin's annual inflow is the runoff
+  `R` of its whole catchment; its capacity is the evaporation `D` its closed
+  depression would sustain at the spill level. Where inflow is below 90% of
+  capacity, evaporation wins: the basin is **arid** and its lake is terminal.
+  The equilibrium lake is the lowest floor whose `D` pays the inflow.
+- **Playa.** On the drained fine surface, after the deltas and before the
+  channels are shaped, a pan grows from the protected sink disc in height
+  order: the disc first, then every node draining into it, until the pan
+  covers three times the equilibrium lake (wet-year highstands; at least a
+  quarter of the depression, never past it) or the flood falls past the
+  spill. Its floor is filled with sediment: relief below the pan level
+  shrinks to an eighth, so its shape, routes and lake outline survive. The
+  surface is drained again and its fill flats regraded (§flats), so rivers
+  do not cross the pan along grid geodesics.
+- **Surfaces.** Each pan 100 m cell is salt crust from the lake's edge over
+  70% of the dry floor (flood order) and mudflat beyond. Crust survives only
+  where a 300 m disc fits inside it; thin valley-floor fingers are fan-mud
+  washes and become mudflat.
+- **Lakes.** The shared annual solve, unchanged, finds the terminal lake at
+  equilibrium on the pan (Steps 4). An arid basin's sink is recorded as
+  `AridTerminal`. Humid basins (inflow ≥ 90% of capacity) are untouched and
+  fill and spill as in recipe 6.
+- **Ledger.** Only the bed is shaped: lake and marginal evaporation are
+  explicit terms of the exact ledger (Invariants), so water stays conserved
+  in arid basins too.
+
+Measured on MICRO seed 74 (an audited rift basin) at 15–35° (land rain
+382 mm): a 482 km² terminal saline lake on a pan with 519 km² of salt crust
+and 178 km² of mudflat. Recipe 6 at the same band (1,297 mm) fills the basin
+to its spill: a 1,278 km² fresh lake 480 m deep. At 35–55° recipe 7 fills
+and spills it too (`tests/arid_recipe7.rs`).
+
 **Publication.** Worlds formed in the run write `areas/<ax>_<ay>/water.bin`
 (`arda_core::formats::water`), with forms in the order of the area's rivers and
-lakes.
+lakes. Recipe 6 writes layout version 1; recipe 7 writes version 2, which adds
+a saline flag per lake and the playa runs.
 - **Segments.** Bankfull width and depth come from saved discharge. Sinuosity
   and slope are measured over a 2 km window centred on the segment; the window
   follows the largest feeder upstream and the chain downstream. The pattern is
@@ -849,7 +925,13 @@ lakes.
 - **Lakes.** Each lake takes the origin of the sink it holds (tectonic,
   glacial, oxbow or karst), resolved across areas by basin. It is terminal,
   so evaporation-balanced and saline, when its connected lake has zero annual
-  outflow: an arid endorheic basin.
+  outflow: an arid endorheic basin. Recipe 7: a terminal lake on an arid sink
+  is `arid_terminal` (`LakeOrigin::AridTerminal`), which outranks every
+  smaller form it drowns and names every fragment of its lake; an arid
+  basin's lake that does spill is tectonic. The saline flag equals the
+  terminal flag.
+- **Playas** (recipe 7). Row runs `(y, x0, len, kind)` of the area's dry pan
+  cells, salt crust or mudflat; lake and sea cells hold water, not a pan.
 - **Other.** Deltas are listed by apex and dolines by cell.
 
 The final-write admission counts four calls per area for the layer. Loading

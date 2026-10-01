@@ -26,7 +26,7 @@ A library is a directory with `catalog.json` plus PNG images named by each asset
 
 The canonical tactical keys (copied from `docs/goal-prompts/vocabulary.md`, which is untracked; this list is normative once merged, and keys are only ever added, never renamed):
 
-- **Ground keys** (`Square.ground`): `grass`, `dirt`, `cobbles`, `mud`, `sand`, `gravel`, `stone_floor`, `planks`, `water_shallow`, `water_deep`, `meadow`, `forest_floor`, `leaf_litter`, `heath`, `scrub`, `moss`, `scree`, `rock`, `cliff`, `snow`, `ice`, `marsh`, `reed_bed`, `farmland`, `pasture`, `packed_earth`, `flagstone`, `rug`.
+- **Ground keys** (`Square.ground`): `grass`, `dirt`, `cobbles`, `mud`, `sand`, `gravel`, `stone_floor`, `planks`, `water_shallow`, `water_deep`, `meadow`, `forest_floor`, `leaf_litter`, `heath`, `scrub`, `moss`, `scree`, `rock`, `cliff`, `snow`, `ice`, `marsh`, `reed_bed`, `farmland`, `pasture`, `packed_earth`, `flagstone`, `rug`, `salt_crust`, `mudflat` (recipe-7 playas).
 - **Wall kits** (`WallSegment.kit`): `stone`, `timber`, `wattle`, `palisade`, `hedge`, `drystone`, `city_wall`.
 - **Building functions** (`function:` tags): see [10](10-town-layout.md) §town-function-keys, including the three additions `mine`, `lumber_camp`, `school`.
 - **Prop ids** (`prop.<name>`): barrel, crate, sacks, chest, table, bench, bed, cart, rowboat, market_stall, tent, fence, dock_planks, bridge_deck, crane, well, brazier, woodpile, chair, stool, cupboard, shelf, bookshelf, hearth, oven, bar_counter, cask_rack, anvil, forge, workbench, loom, grindstone, weapon_rack, armour_stand, altar, pew, candle_stand, statue, hay_bale, trough, millstone, bucket, wheelbarrow, ladder, throne, banner, rug_small, lantern, signpost, grave, haycart.
@@ -75,6 +75,10 @@ Draw order is ground → water → floor → prop → wall → canopy, then ligh
 ### §ground-blend
 
 Each texture key has one or more variants; a square's variant is chosen by the canonical hash of its **global** square coordinate and the render seed, and neighbouring variants cross-fade. Borders between ground keys are soft and noise-shaped: each pixel's position is domain-warped by value noise sampled through integer rotation matrices (never axis-aligned), the warped position interpolates the per-square ground weights, per-key noise roughens them, and a sharpening curve sets the border width. Borders never cross a wall. Water uses the same warp at lower amplitude and a 1.5 px threshold, so its edge stays clean; depth (capped at 8 ft) blends `water_shallow` to `water_deep` (about 2 ft reads shallow, ≥ 7 ft deep; values from feat/tactical-catalogue).
+
+### §snow-cover
+
+Snow is a cover laid over the ground, not a key with a painted border (goal 49; `compose/snow.rs`). On squares with both snow and other ground within 4 squares (and no wall near), the ground under the snow is the pixel's other keys (or the commonest other key nearby), blended by §ground-blend; the snow texture goes over it at an opacity from a smooth snow weight (a 0.75-square cross kernel over the snow squares at a position warped by up to 1.5 squares, 3.2-square features). Rotated noise at 1.3 and 0.42 squares breaks the weight inside the border band only (`4·w·(1 − w)`), so solid snow stays solid and clear ground clear: a ragged core edge eased over about 0.4 of the weight, a speckled dusting up to half opacity ahead of it, and thin cover tinted grey-blue. Every term is a function of world position and squares within reach, so seams stay pixel-exact.
 
 ### §walls-assembly
 

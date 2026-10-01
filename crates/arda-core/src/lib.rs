@@ -14,6 +14,7 @@ pub mod fixed;
 pub mod formats;
 pub mod hydrology;
 pub mod objects;
+pub mod playa;
 pub mod rng;
 pub mod terrain;
 pub mod tiles;
@@ -34,7 +35,8 @@ pub use formats::blocks::{decode_blocks, encode_blocks, Block, BlockArchive, ZST
 pub use formats::cells::{decode_cells, encode_cells, AreaCells, CELL_BYTES};
 pub use formats::manifest::{
     read_manifest, write_manifest, FineTerrainDescriptor, Manifest, ValidationStats,
-    FINE_TERRAIN_PATH, FINE_TERRAIN_RECIPE_VERSION, MANIFEST_NAME,
+    FINE_TERRAIN_LATEST_RECIPE_VERSION, FINE_TERRAIN_PATH, FINE_TERRAIN_RECIPE_VERSION,
+    MANIFEST_NAME,
 };
 pub use formats::objects::{
     decode_continent_objects, decode_objects, encode_continent_objects, encode_objects,
@@ -47,7 +49,7 @@ pub use formats::shore::{
     Island, IslandCause, Landform, LandformCause, LandformKind, ShoreClass, ShoreLayer, SHORE_PATH,
 };
 pub use formats::terrain::{TerrainFileError, TerrainFileReader, TerrainFileWriter};
-pub use formats::water::{decode_water, encode_water, WATER_MAGIC};
+pub use formats::water::{decode_water, encode_water, encode_water_v2, WATER_MAGIC};
 pub use formats::FORMAT_VERSION;
 pub use hydrology::{BasinId, Litres};
 pub use objects::{AreaObjects, Lake, RiverSegment, Terminus};

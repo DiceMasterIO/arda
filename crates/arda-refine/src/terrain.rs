@@ -149,6 +149,48 @@ fn nearest_standing(ctx: &Ctx, u: f64, v: f64) -> Option<(Water, f64, f64)> {
     Some((Water::Lake, level, depth.clamp(0.5, 40.0)))
 }
 
+/// Standing water near a point (logic/09 §linear-features, Shores).
+#[derive(Debug, Clone, Copy, PartialEq)]
+pub struct Standing {
+    /// Lake or sea.
+    pub kind: Water,
+    /// Water level, metres.
+    pub level: f64,
+    /// Full depth of the nearest water cell, metres.
+    pub full: f64,
+    /// Indicator: positive is water, the bank shaping runs above -0.6.
+    pub v: f64,
+}
+
+impl Standing {
+    /// Water depth where the indicator is positive, metres.
+    #[must_use]
+    pub fn depth_m(&self) -> f64 {
+        (self.full * smoothstep(0.0, 0.7, self.v)).max(0.3)
+    }
+
+    /// Whether the point is standing water.
+    #[must_use]
+    pub fn is_water(&self) -> bool {
+        self.v > 0.0
+    }
+}
+
+/// The standing water the shore rule sees at `(u, v)` over land at
+/// `land()` metres, or `None` where no water cell is near enough to shape
+/// the ground. The one rule blocks and relief tiles share.
+#[must_use]
+pub fn standing_water(ctx: &Ctx, u: f64, v: f64, land: impl FnOnce() -> f64) -> Option<Standing> {
+    let (kind, level, full) = nearest_standing(ctx, u, v)?;
+    let sv = standing(ctx, u, v, level, land());
+    (sv > -0.6).then_some(Standing {
+        kind,
+        level,
+        full,
+        v: sv,
+    })
+}
+
 /// How far beyond the bank the valley is shaped, squares.
 const CARVE_REACH: f64 = 20.0;
 /// Bank rise per square away from the water, metres (about 18 degrees).
@@ -219,15 +261,14 @@ pub fn physical(ctx: &Ctx, pieces: &[Piece], x0: i64, y0: i64, side: usize) -> G
             elev_m: land,
             ..Phys::default()
         };
-        let near = nearest_standing(ctx, u, v);
-        let sv = near.map_or(-1.0, |(_, level, _)| standing(ctx, u, v, level, land));
-        if let Some((kind, level, full)) = near.filter(|_| sv > -0.6) {
+        if let Some(st) = standing_water(ctx, u, v, || land) {
+            let (sv, kind, level) = (st.v, st.kind, st.level);
             p.stand_v = sv;
             p.stand_kind = kind;
             if sv > 0.0 {
                 p.water = kind;
                 p.elev_m = level;
-                p.depth_m = (full * smoothstep(0.0, 0.7, sv)).max(0.3);
+                p.depth_m = st.depth_m();
             } else {
                 let t = smoothstep(-0.45, 0.0, sv);
                 p.elev_m = land + (level + 0.3 - land) * t;

@@ -9,31 +9,27 @@ import { tacticalPyramid } from "../geo/tacticalTiles.ts";
 import { useAsync } from "../hooks.ts";
 import { COVER_COLOURS, pointerMarks, rulesOverlay, tokenMarks, waterFill, type RulesToggles } from "../render/tacticalOverlay.ts";
 import type { TokenView } from "../api/tactical.ts";
-import { cellHash, neighbour, type CellExtent, type Direction } from "../geo/cellWalk.ts";
+import { cellFromHash, cellHash, demoFromHash, gradeFromHash, neighbour, type CellExtent, type Direction } from "../geo/cellWalk.ts";
+import { CellLookToggles } from "../components/CellLookToggles.tsx";
 import { EdgeArrows, type Walk } from "../components/EdgeArrows.tsx";
+import { HandoffCompare } from "../components/HandoffCompare.tsx";
+import type { ReliefGrid } from "../geo/relief.ts";
 
 const RENDER_PPSQ = 64;
 
-function demoFromHash(): boolean {
-  return new URLSearchParams(window.location.hash.split("?")[1] ?? "").get("demo") === "1";
-}
-
-function cellFromHash(): { gx: number; gy: number } | null {
-  const q = new URLSearchParams(window.location.hash.split("?")[1] ?? "");
-  const gx = Number(q.get("gx"));
-  const gy = Number(q.get("gy"));
-  return q.has("gx") && q.has("gy") && Number.isInteger(gx) && Number.isInteger(gy) && gx >= 0 && gy >= 0 ? { gx, gy } : null;
-}
-
 /** The "cell" tab: `/v1/tactical/cell/{gx}/{gy}`, its 501 state, and the Block view. */
-export function TacticalCellView({ client, world = null }: { client: ArdaClient; world?: CellExtent | null }) {
+export function TacticalCellView({ client, world = null }: { client: ArdaClient; world?: (CellExtent & Partial<ReliefGrid>) | null }) {
   const [cell, setCell] = useState(cellFromHash);
   const [overlays, setOverlays] = useState(demoFromHash);
+  const [grade, setGrade] = useState(gradeFromHash);
+  const [handoff, setHandoff] = useState(false);
+  const relief = world && world.tiles && world.areas_wide !== undefined ? (world as ReliefGrid) : null;
   const [draft, setDraft] = useState(() => ({ gx: String(cell?.gx ?? 512), gy: String(cell?.gy ?? 1036) }));
 
   useEffect(() => {
     const onHash = () => {
       const c = cellFromHash();
+      setGrade(gradeFromHash());
       if (c) {
         setCell(c);
         setDraft({ gx: String(c.gx), gy: String(c.gy) });
@@ -49,7 +45,7 @@ export function TacticalCellView({ client, world = null }: { client: ArdaClient;
     const gx = Number(draft.gx);
     const gy = Number(draft.gy);
     if (!Number.isInteger(gx) || !Number.isInteger(gy) || gx < 0 || gy < 0) return;
-    window.location.hash = cellHash({ gx, gy }, overlays);
+    window.location.hash = cellHash({ gx, gy }, overlays, grade);
     setCell({ gx, gy });
   };
 
@@ -58,7 +54,7 @@ export function TacticalCellView({ client, world = null }: { client: ArdaClient;
   const walk = (dir: Direction) => {
     const next = cell ? neighbour(cell, dir, world) : null;
     if (!next) return;
-    window.location.hash = cellHash(next, overlays);
+    window.location.hash = cellHash(next, overlays, grade);
     setCell(next);
     setDraft({ gx: String(next.gx), gy: String(next.gy) });
   };
@@ -106,18 +102,21 @@ export function TacticalCellView({ client, world = null }: { client: ArdaClient;
           />{" "}
           demo overlays
         </label>
+        <CellLookToggles grade={grade} onGrade={setGrade} handoff={handoff} onHandoff={setHandoff} canHandoff={relief !== null} />
         <button type="submit">Load</button>
         <span className="muted small">
           or pick a cell in the World view and use “Open tactical map here”. <code>GET /v1/tactical/cell/&#123;gx&#125;/&#123;gy&#125;</code>
         </span>
       </form>
+      {cell && handoff && relief && <HandoffCompare client={client} world={relief} gx={cell.gx} gy={cell.gy} worldGrade={grade} />}
       {cell ? (
         <CellResult
-          key={`${cell.gx},${cell.gy},${overlays ? 1 : 0}`}
+          key={`${cell.gx},${cell.gy},${overlays ? 1 : 0},${grade ? 1 : 0}`}
           client={client}
           gx={cell.gx}
           gy={cell.gy}
           overlays={overlays}
+          grade={grade}
           walk={{ onWalk: walk, can: (d) => neighbour(cell, d, world) !== null }}
         />
       ) : (
@@ -127,7 +126,21 @@ export function TacticalCellView({ client, world = null }: { client: ArdaClient;
   );
 }
 
-function CellResult({ client, gx, gy, overlays, walk }: { client: ArdaClient; gx: number; gy: number; overlays: boolean; walk: Walk }) {
+function CellResult({
+  client,
+  gx,
+  gy,
+  overlays,
+  grade,
+  walk,
+}: {
+  client: ArdaClient;
+  gx: number;
+  gy: number;
+  overlays: boolean;
+  grade: boolean;
+  walk: Walk;
+}) {
   const res = useAsync((signal) => client.tacticalCell(gx, gy, { signal }, { ppsq: RENDER_PPSQ, demo: overlays }), [client, gx, gy, overlays]);
   const [demo, setDemo] = useState<TacticalBlockDto | null>(null);
 
@@ -142,7 +155,7 @@ function CellResult({ client, gx, gy, overlays, walk }: { client: ArdaClient; gx
       </div>
     );
   }
-  if (res.value.kind === "block") return <BlockView client={client} block={res.value.block} demo={false} cell={{ gx, gy, overlays }} walk={walk} />;
+  if (res.value.kind === "block") return <BlockView client={client} block={res.value.block} demo={false} cell={{ gx, gy, overlays, grade }} walk={walk} />;
   if (demo) {
     return (
       <>
@@ -242,7 +255,7 @@ function BlockView({
   block: TacticalBlockDto;
   demo: boolean;
   /** Set for server blocks: images come from the cell's own seamless tiles. */
-  cell?: { gx: number; gy: number; overlays: boolean };
+  cell?: { gx: number; gy: number; overlays: boolean; grade: boolean };
   /** Set for server blocks: the edge arrows open the neighbouring cell. */
   walk?: Walk;
 }) {
@@ -301,7 +314,7 @@ function BlockView({
   // neighbouring blocks so edges join (logic/11 §seam-art).
   const loadTile = useMemo<TileLoader | null>(
     () =>
-      cell ? (z, x, y, signal) => client.tacticalCellTile(cell.gx, cell.gy, z, x, y, { ppsq: RENDER_PPSQ, demo: cell.overlays }, { signal }).then((img) => {
+      cell ? (z, x, y, signal) => client.tacticalCellTile(cell.gx, cell.gy, z, x, y, { ppsq: RENDER_PPSQ, demo: cell.overlays, worldGrade: cell.grade }, { signal }).then((img) => {
         record(img);
         return img;
       }) : null,
@@ -361,7 +374,7 @@ function BlockView({
           geometry={geometry}
           source={
             loadTile && cell
-              ? ({ kind: "tiles", key: `cell ${cell.gx},${cell.gy},${cell.overlays ? 1 : 0}`, load: loadTile } satisfies MapSource)
+              ? ({ kind: "tiles", key: `cell ${cell.gx},${cell.gy},${cell.overlays ? 1 : 0},${cell.grade ? 1 : 0}`, load: loadTile } satisfies MapSource)
               : image && "url" in image
                 ? { kind: "image", key: image.url, url: image.url }
                 : { kind: "none" }

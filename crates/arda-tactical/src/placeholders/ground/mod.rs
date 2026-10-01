@@ -13,11 +13,13 @@
     clippy::cast_possible_wrap
 )]
 
+mod arid;
 mod built;
 mod earthy;
 mod grassy;
 mod kit;
 mod rocky;
+mod trail;
 mod water;
 
 use super::brush::Tile;
@@ -26,7 +28,7 @@ use crate::noise::{fbm, hash2, mix as mix64, unit};
 use crate::raster::Rgba;
 
 /// Ground types, their variant counts and whether they are water.
-pub const TYPES: [(&str, u32, bool); 28] = [
+pub const TYPES: [(&str, u32, bool); 31] = [
     ("grass", 3, false),
     ("dirt", 3, false),
     ("cobbles", 3, false),
@@ -55,6 +57,9 @@ pub const TYPES: [(&str, u32, bool); 28] = [
     ("packed_earth", 2, false),
     ("flagstone", 2, false),
     ("rug", 2, false),
+    ("trail", 2, false),
+    ("salt_crust", 2, false),
+    ("mudflat", 2, false),
 ];
 
 /// Ground kinds whose variants share a layout that must stay aligned: the
@@ -205,6 +210,9 @@ pub fn texture(kind: &str, seed: u64, structure: u64, ppsq: u32) -> Rgba {
         "flagstone" => built::flagstone(&t),
         "planks" => built::planks(&t),
         "rug" => built::rug(&t),
+        "trail" => trail::trail(&t),
+        "salt_crust" => arid::salt_crust(&t),
+        "mudflat" => arid::mudflat(&t),
         "water_shallow" => water::shallow(&t),
         _ => water::deep(&t),
     };

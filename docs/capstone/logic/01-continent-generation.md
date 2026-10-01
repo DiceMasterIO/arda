@@ -277,6 +277,19 @@ Built shape of steps 5–6 plus persistence (`continent/climate.rs`,
    construction (the rim is ocean and the routing surface is filled
    from it). Sea cells store zero catchment and discharge.
 
+**§Q6 subtropical highs (recipe 7, 2026-10-01).** The advected rainfall
+above has no latitude term, so a continent at 20° was as wet as one at
+45°: MICRO seeds at 35–55° get 1,050–1,400 mm everywhere and no basin is
+ever arid. Recipe-7 worlds scale each row's rainfall by the subsiding
+branch of the Hadley cell (`continent::aridity::subtropical_permille`):
+100% poleward of 38°, falling linearly to 30% at 26°, 30% from 26° to
+15°, rising to 120% at 5° and the equator (the equatorial trough).
+Earth's great deserts lie in that 15–30° belt. The default 35–55° band
+loses at most 12% at its southern edge; `--latitude 15,35` puts a MICRO
+continent's southern half in the dry belt (seed 74: land mean 382 mm, against 1,297 mm unscaled). Earlier recipes keep the
+unscaled field. Formation reads the same field (logic/02 §fine-formation
+climate runoff).
+
 Persistence: `continent/overview.bin` is real — 18-byte little-endian
 records (height, temperature, rainfall, regime, downstream 0–7 with
 255 = none, catchment, discharge) behind `ARDAOVR\0` + dims;

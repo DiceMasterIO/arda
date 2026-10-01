@@ -6,6 +6,7 @@
 
 use crate::coords::CellCoord;
 use crate::fixed::DischargeMilli;
+pub use crate::playa::{PanKind, PanRun};
 
 /// Bankfull depth in centimetres from mean discharge: `0.3 m × Q^0.4`
 /// with `Q` in m³/s (Leopold & Maddock at-a-station exponent 0.4; the
@@ -309,6 +310,10 @@ pub enum LakeOrigin {
     Oxbow = 3,
     /// Karst polje.
     Karst = 4,
+    /// Terminal lake of an arid endorheic tectonic basin: evaporation
+    /// exceeds inflow, so it stands at its equilibrium level below the
+    /// basin's spill (recipe 7, logic/02 §world-water arid basins).
+    AridTerminal = 5,
 }
 
 impl LakeOrigin {
@@ -321,6 +326,7 @@ impl LakeOrigin {
             2 => Some(Self::Glacial),
             3 => Some(Self::Oxbow),
             4 => Some(Self::Karst),
+            5 => Some(Self::AridTerminal),
             _ => None,
         }
     }
@@ -349,8 +355,12 @@ pub struct SegmentForm {
 pub struct LakeForm {
     /// Geological origin.
     pub origin: LakeOrigin,
-    /// No surface outflow: a terminal, evaporation-balanced (saline) lake.
+    /// No surface outflow: a terminal, evaporation-balanced lake.
     pub terminal: bool,
+    /// Saline: solutes concentrate because the lake loses water only by
+    /// evaporation. Every terminal lake is saline; layout version 1 stores
+    /// no separate flag and reads it from `terminal`.
+    pub saline: bool,
 }
 
 /// A river-mouth delta whose apex lies in this area.
@@ -386,6 +396,8 @@ pub struct AreaWater {
     pub deltas: Vec<DeltaForm>,
     /// Karst dolines in this area.
     pub dolines: Vec<Doline>,
+    /// Dry arid-basin floors (recipe 7): row runs sorted by `(y, x0)`.
+    pub pans: Vec<PanRun>,
 }
 
 #[cfg(test)]

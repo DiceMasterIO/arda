@@ -10,7 +10,9 @@
 
 use super::{cached, stage, RenderKey, Tactical};
 use crate::error::{lock, ServerResult};
-use arda_tactical::{render, render_region, RenderOptions, Rgba, TacticalLayout};
+use arda_tactical::{
+    render, render_region, render_region_tinted, RenderOptions, Rgba, TacticalLayout,
+};
 use std::collections::BTreeSet;
 use std::sync::{Arc, Condvar, Mutex, PoisonError};
 use std::time::Instant;
@@ -106,12 +108,19 @@ impl Tactical {
         };
         let start = Instant::now();
         // A crop renders only its own pixels (the apron still shapes them).
-        let img = match key.crop {
-            Some(c) => {
+        let img = match (key.crop, key.world_grade) {
+            (Some(c), false) => {
                 let px = c.map(|v| v.saturating_mul(key.ppsq));
                 render_region(layout, &self.library, key.seed(), &opts, px)?
             }
-            None => render(layout, &self.library, key.seed(), &opts)?,
+            (None, false) => render(layout, &self.library, key.seed(), &opts)?,
+            // The opt-in world grade (goal 49).
+            (crop, true) => {
+                let c = crop.unwrap_or([0, 0, layout.width, layout.height]);
+                let px = c.map(|v| v.saturating_mul(key.ppsq));
+                let tint = self.world_tint(layout)?;
+                render_region_tinted(layout, &self.library, key.seed(), &opts, px, &tint)?
+            }
         };
         stage("render", &img, start);
         let bytes = img.data.len();

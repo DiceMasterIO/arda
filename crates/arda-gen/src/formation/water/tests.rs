@@ -206,7 +206,7 @@ fn oxbows_survive_the_drainage_guarantees_whole() {
     let mut g = valley(w, h, 20, 800, 12, 20_000);
     let relief = vec![0_u8; w * h];
     let mut f = WaterFeatures::default();
-    let shaped = shape_channels(&mut g, &relief, 5, &mut f).unwrap();
+    let shaped = shape_channels(&mut g, &relief, 5, &mut f, None).unwrap();
     let drain = |g: &mut Lattice, f: &WaterFeatures| {
         let mut flags = vec![0_u8; w * h];
         open_sea_flags(&g.z, w, h, &mut flags);
@@ -220,7 +220,7 @@ fn oxbows_survive_the_drainage_guarantees_whole() {
     };
     f.index();
     drain(&mut g, &f);
-    shape_basins(&mut g, &shaped, &mut f).unwrap();
+    shape_basins(&mut g, &shaped, &mut f, None).unwrap();
     f.index();
     assert!(f.stats.oxbows >= 1, "{:?}", f.stats);
     drain(&mut g, &f);

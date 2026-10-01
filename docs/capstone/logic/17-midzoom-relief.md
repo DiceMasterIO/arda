@@ -2,7 +2,7 @@
 generated_date: 2026-09-30
 scenario: midzoom-relief
 status: normative design; implementation on feat/midzoom-refine (crate arda-midzoom, route /v1/tiles/relief)
-goals: 1, 2, 9, 22, 27, 32, 33
+goals: 1, 2, 9, 22, 27, 32, 33, 49
 ---
 
 # 17 — Mid-zoom relief: on-demand ~10 m refinement between the world map and tactical maps
@@ -37,13 +37,16 @@ Two rounds restore every stored node's 39 m cell mean (trapezoid over its refine
 Two passes lift every land node lower than its eight neighbours to 1 mm above the lowest.
 
 ### §render
-Relief tile pixels are shaded by the formed Atlas shader (logic/04 §atlas-formed) through `AtlasTerrain::relief_colour`: the finest light, height and a 20 m concavity (weight 2) come from the refined surface (Catmull-Rom, C1); broader light, sky, materials, climate, lakes, sea and coast come from the stored field and saved cells exactly as in the overview, including the stored shore classes (`shore.bin`, logic/04 §atlas-formed shore) on land and in the shallows. Below 9 m/px land gets a ±5 % ground-cover tone at 24 and 11 m.
+Relief tile pixels are shaded by the formed Atlas shader (logic/04 §atlas-formed) through `AtlasTerrain::relief_surface_colour`: the finest light, height and a 20 m concavity (weight 2) come from the refined surface (Catmull-Rom, C1); broader light, sky, materials and climate come from the stored field and saved cells exactly as in the overview, including the stored shore classes (`shore.bin`, logic/04 §atlas-formed shore) on land and in the shallows. Which surface a pixel shows (land, lake or sea) comes from §water, not from the stored field; lake and sea depth tints read the stored field wherever it holds water there, and §water's depth at the margins only §water calls wet. Below 9 m/px land gets a ±5 % ground-cover tone at 24 and 11 m.
+
+### §water
+One water geometry serves every zoom (goal 49): relief tiles draw rivers, lakes, coasts and marsh pools from `arda_refine::region::WaterRegion`, which gathers the same global cells, channel edges and fine lattice nodes a refined block reads (`Ctx::gather_region`, in the I1 frame of logic/09 §square-frame) and answers with the blocks' own rules (logic/09 §linear-features: `standing_water` for shores, the centreline pieces for channels, pools). At a square's centre the region's water is the block's water, so at z9 (one pixel per square on MICRO) relief and tactical water agree square for square. A pixel is sampled at its centre in global square units (world µm / 1,562,500); pools show at ≤ 3.2 m/px.
 
 ### §rivers
-Saved channel edges follow the overview's own centreline (logic/04 §atlas-formed rivers): vertices from `AtlasTerrain::river_vertex_um` (cell centre plus thalweg and meander offsets), relaxed once along main stems, then the uniform cubic B-spline over the main-stem chain (`FormedRiverNetwork`, `formed_river_centreline`), drawn as anti-aliased capsules tapering from a quarter width at sources. Width is physical × 4 at 25 m/px easing to × 1.5 at ≤ 9 m/px, at least 1.2 px; colour is the formed overview's discharge band.
+Channels are the tactical layer's centreline pieces (logic/09 §linear-features: hashed edge crossings, the cell's low node, cubic Hermite with a bow), drawn over land with coverage `clamp(0.5 − d / pixel, 0, 1)`, where `d` is the signed distance to the drawn banks, so coverage passes one half exactly at the banks. Drawn half-width is `max(half · gain, 0.6 px)` with `gain = clamp(pixel / 6.25 m, 1, 4)`: the overview's ×4 symbol at 25 m/px, the true banks at ≤ 6.25 m/px. Colour is the formed overview's discharge band of the piece's saved edge. Channels are not drawn over lakes or the sea, which the blocks mark as standing water.
 
 ### §pyramid
 Relief levels continue the overview pyramid: level `z ∈ (max_zoom, max_zoom + 8]` has `max(areas) × 51.2 km / (256 · 2^z)` metres per pixel; pixel `p` covers world `[p·m, (p+1)·m)`. Subdivision: n = 4 at ≤ 16 m/px, n = 2 at ≤ 32 m/px, else 1. Pixels outside the world are transparent. The viewer switches to these tiles past native zoom and offers the tactical map (logic/09) at ≤ 2 m/px.
 
 ## Checks
-Seams (windows and adjacent tiles pixel-exact), 39 m means (mean error ≤ 0.3 m, worst ≤ 2.5 m on a synthetic massif), pits (none deeper than 0.5 m), drainage (≥ 90 % of refined channels draining ≥ 0.3 km² lie within 60 m of stored D8 channels), isotropy (detail energy within 10 % over twelve azimuths), gentle plains stay smooth, and a warm 256 px tile at 9.77 m renders in < 150 ms.
+Water agreement (`tests/zoom_continuity.rs`, release gate: relief z9 and tactical water squares on MICRO 42 rivers, an inlet and coasts, IoU ≥ 0.9 per cell; `region_water_matches_the_refined_blocks` on the synthetic world, lakes included). Seams (windows and adjacent tiles pixel-exact), 39 m means (mean error ≤ 0.3 m, worst ≤ 2.5 m on a synthetic massif), pits (none deeper than 0.5 m), drainage (≥ 90 % of refined channels draining ≥ 0.3 km² lie within 60 m of stored D8 channels), isotropy (detail energy within 10 % over twelve azimuths), gentle plains stay smooth, and a warm 256 px tile at 9.77 m renders in < 150 ms.

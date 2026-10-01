@@ -53,12 +53,36 @@ fn fields_reach_the_plans_footprint_instead_of_the_density_disc() {
         .collect();
     let owned = |w: &arda_fields::FieldsWindow| ring.iter().filter(|&&i| w.owned[i]).count();
     assert_eq!(owned(&disc), 0, "the density disc keeps fields out");
+    // The plan's fields reach the footprint. Field sites with no land use
+    // (the village's own cells here) are planned but left unclaimed, so the
+    // refiner's natural ground shows there (logic/09 §reservations).
+    let win = arda_fields::window::window_rect(origin, SIDE, SIDE).unwrap();
+    let planned = arda_fields::plan::Plan::build(&inputs, win, SEED);
+    let fields = ring
+        .iter()
+        .filter(|&&i| {
+            let s = arda_fields::geom::Sq::new(
+                win.0 + (i % SIDE as usize) as i64,
+                win.1 + (i / SIDE as usize) as i64,
+            );
+            matches!(planned.at(s), arda_fields::plan::Cover::Field(_))
+        })
+        .count();
     assert!(
-        owned(&plan) * 10 > ring.len() * 8,
-        "fields fill the ring outside the footprint: {} of {}",
-        owned(&plan),
+        fields * 10 > ring.len() * 8,
+        "fields fill the ring outside the footprint: {fields} of {}",
         ring.len()
     );
+    for &i in &ring {
+        let s = arda_fields::geom::Sq::new(
+            win.0 + (i % SIDE as usize) as i64,
+            win.1 + (i / SIDE as usize) as i64,
+        );
+        let wild = planned
+            .field_at(s)
+            .is_some_and(|(_, f)| f.kind == arda_fields::fields::FieldKind::Wild);
+        assert!(!(wild && plan.owned[i]), "unused land {i} is claimed");
+    }
     for (i, d) in around(origin) {
         if d < 8.0 {
             assert!(!plan.owned[i], "square {i} inside the footprint is farmed");

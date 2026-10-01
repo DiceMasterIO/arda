@@ -54,4 +54,29 @@ impl Source for SharedSource {
     fn fine_mm(&self, kx: i64, ky: i64) -> Result<Option<i32>, RefineError> {
         self.0.fine_mm(kx, ky)
     }
+
+    fn pan(&self, at: CellKey) -> Result<Option<arda_core::water::PanKind>, RefineError> {
+        self.0.pan(at)
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    #![allow(clippy::unwrap_used)]
+
+    use super::*;
+    use arda_core::water::PanKind;
+    use arda_refine::source::GridSource;
+
+    /// Every query reaches the wrapped source, including the recipe-7
+    /// playa (a default trait method would silently answer "no pan").
+    #[test]
+    fn shared_source_forwards_playa_queries() {
+        let mut grid = GridSource::new(7, 4, 4, arda::Cell::default());
+        let at = CellKey::new(1, 2);
+        grid.set_pan(at, PanKind::Mudflat);
+        let shared = SharedSource(Arc::new(grid));
+        assert_eq!(shared.pan(at).unwrap(), Some(PanKind::Mudflat));
+        assert_eq!(shared.pan(CellKey::new(0, 0)).unwrap(), None);
+    }
 }

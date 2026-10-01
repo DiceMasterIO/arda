@@ -48,6 +48,7 @@ pub fn generate(
         (plan.fine_width, plan.fine_height),
         limits.max_ram_bytes,
         recipe,
+        config.latitude_band(),
     )?;
     let (lattice, shore, water) = (formed.lattice, formed.shore, formed.water);
     let io = |source: std::io::Error| GenError::Write {

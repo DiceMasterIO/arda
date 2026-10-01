@@ -129,7 +129,46 @@ pub fn export_overview_with_quality_and_style(
     quality: ImageQuality,
     style: MapStyle,
 ) -> Result<PathBuf, ExportError> {
+    export_overview_with_look(world, out, quality, style, OverviewLook::default())
+}
+
+/// Opt-in looks of an overview render. The default draws exactly what
+/// [`export_overview_with_quality_and_style`] always drew.
+#[derive(Debug, Clone, Copy, Default, PartialEq, Eq)]
+pub struct OverviewLook {
+    /// Goal 24: a slightly oblique, soft 3-D view (recipe-5 Atlas only):
+    /// ground shifts north with its height (coasts stay put) and takes
+    /// aerial perspective, valley occlusion and sky light.
+    pub oblique: bool,
+}
+
+/// [`export_overview_with_quality_and_style`] with an opt-in [`OverviewLook`].
+///
+/// # Errors
+/// As [`export_overview_with_quality_and_style`]; the oblique look also
+/// refuses anything but a recipe-5 (formed) Atlas overview.
+pub fn export_overview_with_look(
+    world: &World,
+    out: &Path,
+    quality: ImageQuality,
+    style: MapStyle,
+    look: OverviewLook,
+) -> Result<PathBuf, ExportError> {
     let manifest = world.manifest();
+    let formed = manifest
+        .fine_terrain
+        .is_some_and(|fine| fine.recipe_version >= 5);
+    let oblique = if look.oblique {
+        if style != MapStyle::Atlas || !formed {
+            return Err(arda_render::RenderError::AtlasContext {
+                reason: "the oblique look needs a recipe-5 Atlas overview",
+            }
+            .into());
+        }
+        Some(oblique_relief(world)?)
+    } else {
+        None
+    };
     let (width, height) = quality.overview_dimensions(manifest.areas_wide, manifest.areas_high)?;
     let mut fine = match style {
         MapStyle::Classic => None,
@@ -191,10 +230,16 @@ pub fn export_overview_with_quality_and_style(
             let recipe4 = manifest
                 .fine_terrain
                 .is_some_and(|fine| fine.recipe_version >= 4);
-            let formed = manifest
-                .fine_terrain
-                .is_some_and(|fine| fine.recipe_version >= 5);
-            if formed {
+            if let Some(relief) = oblique.as_ref() {
+                arda_render::write_atlas_overview_png_with_channels_oblique(
+                    manifest.areas_wide,
+                    manifest.areas_high,
+                    (width, height),
+                    writer,
+                    relief,
+                    load_area,
+                )
+            } else if formed {
                 arda_render::write_atlas_overview_png_with_channels_formed(
                     manifest.areas_wide,
                     manifest.areas_high,
@@ -225,6 +270,19 @@ pub fn export_overview_with_quality_and_style(
         }
     })?;
     Ok(path)
+}
+
+/// The smooth surface fields of the oblique look, from every saved area.
+fn oblique_relief(world: &World) -> Result<arda_render::ObliqueRelief, ExportError> {
+    let m = world.manifest();
+    let mut builder = arda_render::ObliqueReliefBuilder::new(m.areas_wide, m.areas_high)?;
+    for y in 0..m.areas_high {
+        for x in 0..m.areas_wide {
+            let area = world.read_area(x, y)?;
+            builder.add_area(arda_core::AreaCoord::new(x, y), area.cells())?;
+        }
+    }
+    Ok(builder.finish(arda_render::DEFAULT_TILT_Q12)?)
 }
 
 // A failed stream must not truncate the last usable export. This is export I/O,

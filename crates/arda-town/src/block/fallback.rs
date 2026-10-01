@@ -54,6 +54,8 @@ pub fn ground_chain(key: &str) -> &'static [&'static str] {
         "rug" => &["planks", "stone_floor"],
         "scree" | "rock" | "cliff" => &["gravel", "stone_floor", "dirt"],
         "marsh" | "reed_bed" => &["mud", "grass"],
+        "salt_crust" => &["sand", "gravel"],
+        "mudflat" => &["mud", "sand", "dirt"],
         "snow" | "ice" => &["sand", "gravel"],
         _ => &["grass", "dirt"],
     }

@@ -8,6 +8,9 @@ use super::{
     slots::{SlotStore, SlotWork},
 };
 use std::path::Path;
+
+mod minimums;
+pub use minimums::MinimumReader;
 /// Whole-stage reservations; accepted sorting receives a checked partition.
 #[derive(Debug, Clone, Copy)]
 pub struct MstLimits {
@@ -81,112 +84,6 @@ pub struct MstProduct {
     pub extent: Extent,
     /// Completed producer measurements.
     pub work: Work,
-}
-/// One4096-byte minimum stream buffer with the producer's remaining I/O budget.
-pub struct MinimumReader {
-    file: Scratch,
-    extent: Extent,
-    count: u32,
-    at: u32,
-    buffer: Box<[u8; 4096]>,
-    start: u32,
-    loaded: u32,
-    meter: Meter,
-    previous: Option<CellIndex>,
-    comparisons: u64,
-    comparison_limit: u64,
-    failed: bool,
-}
-impl MinimumReader {
-    fn new(
-        mut file: Scratch,
-        extent: Extent,
-        count: u32,
-        mut meter: Meter,
-        comparisons: u64,
-        comparison_limit: u64,
-    ) -> Result<Self, StageError> {
-        let mut h = [0; 64];
-        file.read(0, &mut h, &mut meter)?;
-        if h != io::header(extent, 0, u64::from(count), 16)?
-            || file.length(&mut meter)? != 64 + u64::from(count) * 16
-        {
-            return Err(StageError::Invalid("minimum header/length"));
-        }
-        Ok(Self {
-            file,
-            extent,
-            count,
-            at: 0,
-            buffer: Box::new([0; 4096]),
-            start: 0,
-            loaded: 0,
-            meter,
-            previous: None,
-            comparisons,
-            comparison_limit,
-            failed: false,
-        })
-    }
-    /// Declared exact number of closed minima.
-    pub fn count(&self) -> u32 {
-        self.count
-    }
-    /// Producer I/O including minimum stream reads already consumed.
-    pub fn io_work(&self) -> IoWork {
-        self.meter.work
-    }
-    /// Producer ordering comparisons including final minimum-order validation.
-    pub fn comparisons(&self) -> u64 {
-        self.comparisons
-    }
-    /// Exact private table path; no directory discovery is needed.
-    pub fn path(&self) -> &Path {
-        &self.file.path
-    }
-    fn read_next(&mut self) -> Result<Minimum, StageError> {
-        if self.at >= self.start + self.loaded {
-            self.start = self.at;
-            self.loaded = (self.count - self.at).min(256);
-            let n = usize::try_from(self.loaded)
-                .map_err(|_| StageError::Invalid("minimum batch"))?
-                * 16;
-            self.file.read(
-                64 + u64::from(self.at) * 16,
-                &mut self.buffer[..n],
-                &mut self.meter,
-            )?;
-        }
-        let i = usize::try_from(self.at - self.start)
-            .map_err(|_| StageError::Invalid("minimum index"))?
-            * 16;
-        let m = io::minimum(&self.buffer[i..i + 16], self.extent)?;
-        if self.previous.is_some() {
-            if self.comparisons >= self.comparison_limit {
-                return Err(StageError::Limit("key comparisons"));
-            }
-            self.comparisons += 1;
-        }
-        if self.previous.is_some_and(|p| p >= m.at) {
-            return Err(StageError::Invalid("minimum order"));
-        }
-        self.previous = Some(m.at);
-        self.at += 1;
-        Ok(m)
-    }
-}
-impl Iterator for MinimumReader {
-    type Item = Result<Minimum, StageError>;
-    fn next(&mut self) -> Option<Self::Item> {
-        if self.failed || self.at == self.count {
-            return None;
-        }
-        let result = self.read_next();
-        if result.is_err() {
-            self.failed = true;
-        }
-        Some(result)
-    }
 }
 fn minimum_scan<S: RoutingStore>(
     routing: &mut S,
@@ -518,86 +415,4 @@ pub fn produce<S: RoutingStore>(
 }
 
 #[cfg(test)]
-mod tests {
-    use super::super::test_support::Directory;
-    use super::*;
-
-    #[test]
-    fn final_minimum_reader_owns_remaining_comparison_and_io_budgets() {
-        for comparison_failure in [false, true] {
-            let directory = Directory::new();
-            let extent = Extent::new(3, 3).unwrap();
-            let mut meter = Meter::new(u128::MAX, u64::MAX);
-            let mut file = Scratch::create(directory.0.join("minima"), &mut meter).unwrap();
-            file.write(0, &io::header(extent, 0, 2, 16).unwrap(), &mut meter)
-                .unwrap();
-            for i in 0..2 {
-                file.write(
-                    64 + u64::from(i) * 16,
-                    &io::minimum_bytes(Minimum {
-                        at: CellIndex::new(i, extent).unwrap(),
-                        floor_mm: 0,
-                    }),
-                    &mut meter,
-                )
-                .unwrap();
-            }
-            let mut reader = MinimumReader::new(file, extent, 2, meter, 0, 0).unwrap();
-            if comparison_failure {
-                assert!(reader.next().unwrap().is_ok());
-                assert!(matches!(
-                    reader.next(),
-                    Some(Err(StageError::Limit("key comparisons")))
-                ));
-            } else {
-                reader.meter.bytes = reader.meter.work.bytes;
-                assert!(matches!(
-                    reader.next(),
-                    Some(Err(StageError::Limit("I/O bytes")))
-                ));
-            }
-            assert!(reader.next().is_none());
-        }
-    }
-
-    #[test]
-    fn disconnected_frozen_component_is_a_typed_failure() {
-        let directory = Directory::new();
-        let extent = Extent::new(3, 3).unwrap();
-        let mut meter = Meter::new(u128::MAX, u64::MAX);
-        let mut minima = Scratch::create(directory.0.join("minima"), &mut meter).unwrap();
-        minima
-            .write(0, &io::header(extent, 0, 1, 16).unwrap(), &mut meter)
-            .unwrap();
-        minima
-            .write(
-                64,
-                &io::minimum_bytes(Minimum {
-                    at: CellIndex::new(4, extent).unwrap(),
-                    floor_mm: 0,
-                }),
-                &mut meter,
-            )
-            .unwrap();
-        let mut slots = SlotStore::create(
-            &directory.0,
-            extent,
-            1,
-            &mut minima,
-            meter,
-            super::super::slots::Limits {
-                cache_pages: 1,
-                reads: 100,
-                writes: 100,
-                comparisons: 100,
-            },
-        )
-        .unwrap();
-        let cap = SortLimits::required(&directory.0, 1, 2).unwrap();
-        let mut sorter = AcceptedSorter::create(&directory.0, extent, 1, cap).unwrap();
-        assert!(matches!(
-            finish_round(&mut slots, &mut sorter, &mut Work::default()),
-            Err(MstError::Stage(StageError::Disconnected))
-        ));
-    }
-}
+mod tests;

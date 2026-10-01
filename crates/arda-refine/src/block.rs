@@ -11,13 +11,19 @@ use crate::grid::Grid;
 use crate::prior::{Prior, SHARPNESS};
 use crate::rules::{CoverRule, SquareRules};
 use crate::scatter::{scatter, Item, Kind};
+use crate::shape::{shapes, Shape};
 use crate::source::{CellKey, Source};
 use crate::terrain::{physical, slopes, Phys, Water};
 use crate::tiles::dominant_land;
+use crate::trails::{trails, Way, TRAIL};
 use crate::wfc::{solve, Problem};
 
 /// Squares per block side.
 pub const SIDE: usize = 64;
+/// Physical-grid margin around the block: the landform reads
+/// [`crate::shape::REACH`] squares beyond the scatter halo, and slopes at
+/// the grid's own rim are one-sided, so they stay out of reach.
+const MARGIN: usize = 8;
 /// Metres per foot.
 const FOOT_M: f64 = 0.3048;
 /// Deepest water still waded rather than swum, feet: under 5 ft is
@@ -80,19 +86,25 @@ pub fn depth_ft(p: &Phys) -> u8 {
 fn vertex_scores(
     ctx: &Ctx,
     prior: &Prior,
-    phys: &Grid<Phys>,
+    (phys, shape): (&Grid<Phys>, &Grid<Shape>),
     mask: Mask,
     x: i64,
     y: i64,
 ) -> [f64; COUNT] {
-    let around = [(x - 1, y - 1), (x, y - 1), (x - 1, y), (x, y)].map(|(a, b)| *phys.clamped(a, b));
+    let corners = [(x - 1, y - 1), (x, y - 1), (x - 1, y), (x, y)];
+    let around = corners.map(|(a, b)| *phys.clamped(a, b));
+    let forms = corners.map(|(a, b)| *shape.clamped(a, b));
+    let form = Shape {
+        hollow: forms.iter().map(|f| f.hollow).sum::<f64>() / 4.0,
+        talus: forms.iter().map(|f| f.talus).sum::<f64>() / 4.0,
+    };
     let slope = around.iter().map(|p| p.slope_deg).sum::<f64>() / 4.0;
     let north = around.iter().map(|p| p.north).sum::<f64>() / 4.0;
     let river = around
         .iter()
         .map(|p| p.river_d)
         .fold(f64::INFINITY, f64::min);
-    let mut s = prior.scores(ctx, x as f64, y as f64, slope, north, river);
+    let mut s = prior.scores(ctx, x as f64, y as f64, slope, north, river, form);
     let water = Class::Water.bit();
     if mask & water != 0 && mask != water {
         // A bank corner: favour the bank classes so the margin shows.
@@ -153,8 +165,12 @@ pub fn refine(src: &dyn Source, cell: CellKey) -> Result<Block, RefineError> {
     let ctx = Ctx::gather(src, cell)?;
     let (x0, y0) = (cell.x * N, cell.y * N);
     let pieces = crate::rivers::pieces(&ctx);
-    let mut phys = physical(&ctx, &pieces, x0 - 3, y0 - 3, SIDE + 6);
+    let side = SIDE + 2 * MARGIN;
+    let m = span(MARGIN);
+    let mut phys = physical(&ctx, &pieces, x0 - m, y0 - m, side);
     slopes(&mut phys);
+    let shape = shapes(&phys, x0 - 2, y0 - 2, SIDE + 4);
+    let ways = trails(&ctx);
 
     let mut fixed: Grid<FixedSquare> = Grid::new(
         x0 - 2,
@@ -173,7 +189,7 @@ pub fn refine(src: &dyn Source, cell: CellKey) -> Result<Block, RefineError> {
     let prior = Prior::new(&ctx);
     let mut scores = Grid::new(x0 - 1, y0 - 1, SIDE + 3, SIDE + 3, [0.0; COUNT]);
     for (i, (x, y)) in scores.coords().collect::<Vec<_>>().into_iter().enumerate() {
-        scores.data[i] = vertex_scores(&ctx, &prior, &phys, *masks.clamped(x, y), x, y);
+        scores.data[i] = vertex_scores(&ctx, &prior, (&phys, &shape), *masks.clamped(x, y), x, y);
     }
     let lat = Lattice { masks, scores };
 
@@ -267,7 +283,17 @@ pub fn refine(src: &dyn Source, cell: CellKey) -> Result<Block, RefineError> {
                 Fixed::Water => "water_shallow",
                 Fixed::Cliff => Class::Cliff.ground_key(),
                 Fixed::Shore(k) => k.ground_key(),
-                Fixed::Open => dominant_land(c).unwrap_or(Class::Mud).ground_key(),
+                Fixed::Open if d == 0 && ways.at(x, y) != Way::None => TRAIL,
+                Fixed::Open => {
+                    // logic/09 §arid basins (recipe 7): dry playa floors are
+                    // salt crust with mudflat margins; nothing grows there.
+                    #[allow(clippy::cast_precision_loss)]
+                    match ctx.pan_square(x as f64 + 0.5, y as f64 + 0.5) {
+                        Some(arda_core::water::PanKind::SaltCrust) => "salt_crust",
+                        Some(arda_core::water::PanKind::Mudflat) => "mudflat",
+                        None => dominant_land(c).unwrap_or(Class::Mud).ground_key(),
+                    }
+                }
             };
             block.ground.push(key);
             block.elevation_ft.push(contour_ft(p.elev_m));
@@ -277,7 +303,15 @@ pub fn refine(src: &dyn Source, cell: CellKey) -> Result<Block, RefineError> {
     }
     let x0f = x0 as f64;
     let y0f = y0 as f64;
-    let all = scatter(&ctx, &phys, x0f - 2.0, y0f - 2.0, x0f + 66.0, y0f + 66.0);
+    let mut all = scatter(
+        &ctx,
+        &phys,
+        &shape,
+        &ways,
+        (x0f - 2.0, y0f - 2.0, x0f + 66.0, y0f + 66.0),
+    );
+    // Bare playa: no plants or rocks on salt crust and mudflat.
+    all.retain(|it| ctx.pan_square(it.x, it.y).is_none());
     let illegal: std::collections::BTreeSet<usize> = sol.illegal.iter().copied().collect();
     block.rules = crate::output::square_rules(&block, &all, &illegal);
     block.items = all
@@ -293,7 +327,7 @@ pub fn difficult_ground(key: &str, depth: u8) -> bool {
     (depth > 0 && depth <= WADE_FT)
         || matches!(
             key,
-            "scree" | "mud" | "marsh" | "reed_bed" | "snow" | "ice" | "scrub" | "cliff"
+            "scree" | "mud" | "mudflat" | "marsh" | "reed_bed" | "snow" | "ice" | "scrub" | "cliff"
         )
 }
 
@@ -301,6 +335,7 @@ pub fn difficult_ground(key: &str, depth: u8) -> bool {
 #[must_use]
 pub const fn item_rules(kind: Kind) -> (CoverRule, bool) {
     match kind {
+        Kind::Outcrop => (CoverRule::Total, false),
         Kind::TreeLarge | Kind::Boulder => (CoverRule::ThreeQuarters, false),
         Kind::TreeSmall | Kind::Rock => (CoverRule::Half, false),
         Kind::Log => (CoverRule::Half, true),

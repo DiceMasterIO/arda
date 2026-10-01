@@ -64,6 +64,10 @@ pub(super) struct MacroView<'a> {
     pub extent_um: (i64, i64),
     /// Recipe-6 sampling (clamped cubic, ocean mask).
     pub v6: bool,
+    /// Recipe-7 annual runoff and standing-water deficit (mm/yr) on the
+    /// macro lattice (logic/02 §fine-formation climate runoff); `None`
+    /// before recipe 7, which assumed a nominal runoff.
+    pub water: Option<(&'a Lattice, &'a Lattice)>,
 }
 
 impl MacroView<'_> {
@@ -120,6 +124,20 @@ impl MacroView<'_> {
         self.ocean
             .get((cy * w + cx) as usize)
             .is_some_and(|&o| o != 0)
+    }
+
+    /// Annual runoff (mm/yr) at a point, recipe 7 only.
+    pub(super) fn runoff_mm(&self, x_um: i64, y_um: i64) -> Option<i64> {
+        let (runoff, _) = self.water?;
+        let (x, y) = self.warp(x_um, y_um);
+        Some(i64::from(runoff.sample_um_bounded(x, y)).max(0))
+    }
+
+    /// Extra annual loss of standing water (mm/yr) at a point, recipe 7 only.
+    pub(super) fn deficit_mm(&self, x_um: i64, y_um: i64) -> Option<i64> {
+        let (_, deficit) = self.water?;
+        let (x, y) = self.warp(x_um, y_um);
+        Some(i64::from(deficit.sample_um_bounded(x, y)).max(0))
     }
 
     /// Belt relief (see [`super::relief::belt_relief`]) for the level

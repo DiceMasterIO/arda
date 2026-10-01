@@ -132,3 +132,12 @@ button.primary:disabled { opacity: 0.6; }
 .edge-south { bottom: 2.5rem; left: 50%; transform: translateX(-50%); }
 .edge-west { left: 0.5rem; top: 50%; transform: translateY(-50%); }
 .edge-east { right: 0.5rem; top: 50%; transform: translateY(-50%); }
+
+/* Cell tab: the relief → tactical hand-off (goal 49). */
+.handoff { padding: 0.5rem 1rem; background: var(--panel); border-bottom: 1px solid var(--line); }
+.handoff-row { display: flex; flex-wrap: wrap; gap: 1rem; }
+.handoff figure { margin: 0; }
+.handoff figcaption { font-size: 0.85rem; color: var(--muted, inherit); padding-top: 0.25rem; }
+.handoff-pane { position: relative; overflow: hidden; border: 1px solid var(--line); }
+.handoff-pane img { position: absolute; display: block; }
+.handoff-pane .handoff-pane { position: absolute; inset: 0; border: 0; }

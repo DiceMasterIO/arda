@@ -66,6 +66,20 @@ impl Tactical {
         ppsq: u32,
         grid: bool,
     ) -> ServerResult<(Block, RenderKey)> {
+        self.world_render_look(req, world, ppsq, (grid, false))
+    }
+
+    /// As [`Self::world_render`], with the opt-in world grade (goal 49).
+    ///
+    /// # Errors
+    /// Block source failures.
+    pub fn world_render_look(
+        &self,
+        req: &BlockRequest,
+        world: (i64, i64),
+        ppsq: u32,
+        (grid, world_grade): (bool, bool),
+    ) -> ServerResult<(Block, RenderKey)> {
         let apron = req.with_apron(APRON, world);
         let block = self.world_block(&apron)?;
         let off = |a: i64, b: i64| u32::try_from(a - b).unwrap_or(0);
@@ -76,7 +90,8 @@ impl Tactical {
             req.h,
         ];
         let anchor = Anchor::Origin(req.gsx0, req.gsy0);
-        let key = self.key_cropped(&block.layout, anchor, ppsq, grid, Some(crop))?;
+        let mut key = self.key_cropped(&block.layout, anchor, ppsq, grid, Some(crop))?;
+        key.world_grade = world_grade;
         Ok((block, key))
     }
 
@@ -91,7 +106,21 @@ impl Tactical {
         ppsq: u32,
         grid: bool,
     ) -> ServerResult<(Arc<Encoded>, Hit)> {
-        let (block, key) = self.world_render(req, world, ppsq, grid)?;
+        self.world_png_look(req, world, ppsq, (grid, false))
+    }
+
+    /// As [`Self::world_png`], with the opt-in world grade (goal 49).
+    ///
+    /// # Errors
+    /// Block, limit, render or encoding failures.
+    pub fn world_png_look(
+        &self,
+        req: &BlockRequest,
+        world: (i64, i64),
+        ppsq: u32,
+        look: (bool, bool),
+    ) -> ServerResult<(Arc<Encoded>, Hit)> {
+        let (block, key) = self.world_render_look(req, world, ppsq, look)?;
         self.png(&block.layout, &key)
     }
 
@@ -106,7 +135,21 @@ impl Tactical {
         (ppsq, grid): (u32, bool),
         zxy: (u32, u32, u32),
     ) -> ServerResult<(Arc<Encoded>, Hit)> {
-        let (block, key) = self.world_render(req, world, ppsq, grid)?;
+        self.world_tile_look(req, world, (ppsq, grid, false), zxy)
+    }
+
+    /// As [`Self::world_tile`], with the opt-in world grade (goal 49).
+    ///
+    /// # Errors
+    /// [`ServerError::NotFound`] outside the pyramid; block or render failures.
+    pub fn world_tile_look(
+        &self,
+        req: &BlockRequest,
+        world: (i64, i64),
+        (ppsq, grid, world_grade): (u32, bool, bool),
+        zxy: (u32, u32, u32),
+    ) -> ServerResult<(Arc<Encoded>, Hit)> {
+        let (block, key) = self.world_render_look(req, world, ppsq, (grid, world_grade))?;
         self.tile(&block.layout, &key, zxy)
     }
 

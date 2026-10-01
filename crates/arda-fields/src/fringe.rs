@@ -48,7 +48,10 @@ pub fn fringe(plan: &Plan) -> Vec<Option<f32>> {
     for y in y0..y0 + h {
         for x in x0..x0 + w {
             let s = Sq::new(x, y);
-            if !matches!(plan.at(s), Cover::Wild | Cover::Rough) {
+            let unused = plan
+                .field_at(s)
+                .is_some_and(|(_, f)| f.kind == FieldKind::Wild);
+            if !unused && !matches!(plan.at(s), Cover::Wild | Cover::Rough) {
                 out.push(None);
                 continue;
             }

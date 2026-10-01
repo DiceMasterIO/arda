@@ -30,7 +30,7 @@ pub const RELIEF_WORKING_BYTES: u64 = 768 << 20;
 
 /// Relief levels of one served world.
 pub struct Relief {
-    world: Option<ReliefWorld>,
+    world: Option<Arc<ReliefWorld>>,
     pyramid: Pyramid,
     tiles: Mutex<ByteLru<(u32, u32, u32), Vec<u8>>>,
 }
@@ -68,7 +68,7 @@ impl Relief {
         };
         let formed = m.fine_terrain.is_some_and(|f| f.recipe_version >= 5);
         let world = if formed {
-            Some(ReliefWorld::new(world).map_err(|e| internal(&e))?)
+            Some(Arc::new(ReliefWorld::new(world).map_err(|e| internal(&e))?))
         } else {
             None
         };
@@ -77,6 +77,12 @@ impl Relief {
             pyramid,
             tiles: Mutex::new(ByteLru::new(limits.cache_bytes)),
         })
+    }
+
+    /// The relief world, shared with the tactical world grade (goal 49).
+    #[must_use]
+    pub fn shared_world(&self) -> Option<Arc<ReliefWorld>> {
+        self.world.clone()
     }
 
     /// Deepest relief zoom (the overview's own when relief is unavailable).

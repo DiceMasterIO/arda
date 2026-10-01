@@ -194,6 +194,9 @@ impl AppState {
         let overview = overview::Overview::new(&query, config.overview)?;
         let relief =
             relief::Relief::open(&config.world, overview.pyramid().max_zoom, config.relief)?;
+        if let Some(world) = relief.shared_world() {
+            tactical.set_tint_source(world);
+        }
         Ok(Self {
             query,
             overview,

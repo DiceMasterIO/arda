@@ -75,6 +75,7 @@ impl KeyTextures {
 }
 
 /// Ground and water texture variants by key, scaled to the output ppsq.
+#[derive(Default)]
 pub struct TextureSet {
     by_key: BTreeMap<String, KeyTextures>,
 }

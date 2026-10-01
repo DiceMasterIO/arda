@@ -258,7 +258,7 @@ fn fine_descriptor() -> arda_core::FineTerrainDescriptor {
 fn fine_world_rejects_unknown_recipe_before_output() {
     let directory = Directory::new();
     let out = directory.0.join("world");
-    for recipe_version in [0, arda_core::FINE_TERRAIN_RECIPE_VERSION + 1] {
+    for recipe_version in [0, arda_core::FINE_TERRAIN_LATEST_RECIPE_VERSION + 1] {
         let result = generate_world_from_fine_terrain(
             42,
             arda_core::FineTerrainDescriptor {

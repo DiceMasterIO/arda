@@ -110,6 +110,12 @@ pub(super) fn run(
             // v in about ±1.5 * 32768; map to 0..255 with a soft centre.
             *o = (128 + v * 200 / (3 * 32_768)).clamp(0, 255) as u8;
         });
+        // logic/02 §fine-formation climate runoff (recipe 7): contributing
+        // area counts runoff, so arid ground forms fewer, smaller channels.
+        let runoff = match view.water {
+            Some(_) => super::arid::weights(view, w, h, d)?,
+            None => Vec::new(),
+        };
         rock.par_iter_mut().enumerate().for_each(|(i, r)| {
             let (xm, ym) = xy_m(i);
             // Rotated 37° so lattice cells do not imprint axis-aligned
@@ -233,7 +239,7 @@ pub(super) fn run(
             flags: &flags,
             uplift: &uplift,
             erodibility: &erod,
-            runoff: None,
+            runoff: (!runoff.is_empty()).then_some(runoff.as_slice()),
             creep: &lowland,
             rock: &rock,
             shape: v6.then_some(incision::ShapeFields {

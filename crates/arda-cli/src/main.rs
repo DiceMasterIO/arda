@@ -3,15 +3,19 @@
 use anyhow::{bail, Context, Result};
 use arda::{
     export_area_with_quality_and_style, export_area_with_scale, export_block, export_overview,
-    export_overview_with_quality_and_style, generate, generate_from_fine_recipe, AreaImageScale,
-    ExportFormat, FineDeliveryLimits, GenerateConfig, ImageQuality, LatitudeBand, MapStyle, SizeKm,
-    World,
+    export_overview_with_look, generate, AreaImageScale, ExportFormat, GenerateConfig,
+    ImageQuality, LatitudeBand, MapStyle, OverviewLook, World,
 };
 use clap::{Parser, Subcommand, ValueEnum};
 use std::path::{Path, PathBuf};
 
+mod generate;
 mod society;
 mod tactical;
+
+#[cfg(test)]
+use generate::parse_latitude;
+use generate::{parse_size, run_generate, FineOptions};
 
 #[derive(Parser)]
 #[command(
@@ -40,14 +44,19 @@ enum Command {
         /// World directory to create.
         #[arg(long)]
         out: PathBuf,
-        /// Terrain source. Fine uses stream-power formation (recipe 6 unless
+        /// Terrain source. Fine uses stream-power formation (recipe 7 unless
         /// --recipe says otherwise) and a fixed five-attempt gate.
         #[arg(long, value_enum, default_value_t = Terrain::Legacy)]
         terrain: Terrain,
-        /// Fine-terrain recipe: 6 (default), 5 (v0.1 formation, replayed
-        /// exactly) or 4 (spectral valleys). Fine mode only.
-        #[arg(long, value_parser = clap::value_parser!(u16).range(4..=6))]
+        /// Fine-terrain recipe: 7 (default: climate, arid basins), 6 (v0.2
+        /// formation), 5 (v0.1 formation, replayed exactly) or 4 (spectral
+        /// valleys). Fine mode only.
+        #[arg(long, value_parser = clap::value_parser!(u16).range(4..=7))]
         recipe: Option<u16>,
+        /// Latitude band as SOUTH,NORTH degrees (default 35,55). Recipe 7
+        /// dries the subtropical belt (15-26°), e.g. `--latitude 15,35`.
+        #[arg(long)]
+        latitude: Option<String>,
         /// Fine-source RAM ceiling in bytes (default 16 GiB; fine mode only).
         #[arg(long)]
         fine_ram_bytes: Option<u128>,
@@ -142,6 +151,8 @@ enum Format {
 enum Style {
     Classic,
     Atlas,
+    /// Atlas seen slightly obliquely (goal 24, overviews only, opt-in).
+    AtlasOblique,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, ValueEnum)]
@@ -154,7 +165,7 @@ impl From<Style> for MapStyle {
     fn from(value: Style) -> Self {
         match value {
             Style::Classic => Self::Classic,
-            Style::Atlas => Self::Atlas,
+            Style::Atlas | Style::AtlasOblique => Self::Atlas,
         }
     }
 }
@@ -180,6 +191,9 @@ impl ImageOptions {
         if self.style.is_some() && (block.is_some() || matches!(format, Format::Json)) {
             bail!("--style is valid only for area or overview PNG exports");
         }
+        if self.look().oblique && !overview {
+            bail!("--style atlas-oblique is valid only for overview exports");
+        }
         Ok(())
     }
 
@@ -190,82 +204,12 @@ impl ImageOptions {
     fn style(self) -> MapStyle {
         self.style.map_or(MapStyle::Classic, Into::into)
     }
-}
 
-fn parse_size(text: &str) -> Result<SizeKm> {
-    let Some((w, h)) = text.split_once('x') else {
-        bail!("size must look like 500x1000, got {text}");
-    };
-    Ok(SizeKm::new(
-        w.parse().context("size width must be a number")?,
-        h.parse().context("size height must be a number")?,
-    ))
-}
-
-/// Fine-terrain generation options (`--recipe` and resource ceilings).
-#[derive(Clone, Copy)]
-struct FineOptions {
-    recipe: Option<u16>,
-    ram_bytes: Option<u128>,
-    file_bytes: Option<u128>,
-}
-
-fn run_generate(
-    seed: u64,
-    size: &str,
-    micro: bool,
-    out: &Path,
-    terrain: Terrain,
-    fine: FineOptions,
-) -> Result<()> {
-    let FineOptions {
-        recipe,
-        ram_bytes: fine_ram_bytes,
-        file_bytes: fine_file_bytes,
-    } = fine;
-    let config = if micro {
-        GenerateConfig::MICRO
-    } else {
-        GenerateConfig::new(parse_size(size)?, LatitudeBand::new(35, 55), 15)?
-    };
-
-    println!(
-        "arda {} — deterministic worldgen (seed {seed}, size {}x{}km, {} areas)",
-        env!("CARGO_PKG_VERSION"),
-        config.size_km().width,
-        config.size_km().height,
-        config.areas_wide() * config.areas_high()
-    );
-    if terrain == Terrain::Legacy && (fine_ram_bytes.is_some() || fine_file_bytes.is_some()) {
-        bail!("fine resource ceilings require --terrain fine");
-    }
-    if terrain == Terrain::Legacy && recipe.is_some() {
-        bail!("--recipe requires --terrain fine");
-    }
-    println!("stages: continent → prepared terrain → shared water → areas → blocks");
-
-    let manifest = match terrain {
-        Terrain::Legacy => generate(seed, config, out)?,
-        Terrain::Fine => {
-            let mut limits = FineDeliveryLimits::default();
-            if let Some(bytes) = fine_ram_bytes {
-                limits.source.max_ram_bytes = bytes;
-            }
-            if let Some(bytes) = fine_file_bytes {
-                limits.source.max_file_bytes = bytes;
-            }
-            let recipe = recipe.unwrap_or(arda::FINE_TERRAIN_RECIPE_VERSION);
-            generate_from_fine_recipe(seed, config, out, limits, recipe)?
+    fn look(self) -> OverviewLook {
+        OverviewLook {
+            oblique: matches!(self.style, Some(Style::AtlasOblique)),
         }
-    };
-    println!(
-        "done — {} · {} areas · land {}‰ · {} rivers",
-        out.display(),
-        manifest.stats.area_count,
-        manifest.stats.land_fraction_permille,
-        manifest.stats.river_count
-    );
-    Ok(())
+    }
 }
 
 fn run_preview(
@@ -301,11 +245,16 @@ fn run_preview(
     let world = World::load(&world_dir)?;
     let path = match px {
         Some(px) => export_overview(&world, out, px)?,
-        None => export_overview_with_quality_and_style(
+        None => export_overview_with_look(
             &world,
             out,
             quality.unwrap_or_default(),
             style.map_or(MapStyle::Classic, Into::into),
+            ImageOptions {
+                style,
+                ..ImageOptions::default()
+            }
+            .look(),
         )?,
     };
     println!("wrote {}", path.display());
@@ -352,7 +301,7 @@ fn run_export(
         let world = World::load(world)?;
         std::fs::create_dir_all(out).context("cannot create the output directory")?;
         let path =
-            export_overview_with_quality_and_style(&world, out, image.quality(), image.style())?;
+            export_overview_with_look(&world, out, image.quality(), image.style(), image.look())?;
         println!("wrote {}", path.display());
         return Ok(());
     }
@@ -414,6 +363,7 @@ fn main() -> Result<()> {
             out,
             terrain,
             recipe,
+            latitude,
             fine_ram_bytes,
             fine_file_bytes,
         } => run_generate(
@@ -426,6 +376,7 @@ fn main() -> Result<()> {
                 recipe,
                 ram_bytes: fine_ram_bytes,
                 file_bytes: fine_file_bytes,
+                latitude,
             },
         ),
         Command::Preview {
@@ -464,397 +415,4 @@ fn main() -> Result<()> {
 }
 
 #[cfg(test)]
-mod tests {
-    #![allow(clippy::unwrap_used)]
-
-    use super::*;
-
-    #[test]
-    fn style_parses_and_omission_defaults_to_classic() {
-        for (text, expected) in [("classic", MapStyle::Classic), ("atlas", MapStyle::Atlas)] {
-            let cli = Cli::try_parse_from([
-                "arda", "export", "--world", "saved", "--out", "exports", "--style", text,
-            ])
-            .unwrap();
-            let Command::Export {
-                style,
-                detail,
-                quality,
-                ..
-            } = cli.command
-            else {
-                panic!("expected export")
-            };
-            assert_eq!(
-                ImageOptions {
-                    detail,
-                    quality,
-                    style
-                }
-                .style(),
-                expected
-            );
-        }
-        let cli = Cli::try_parse_from(["arda", "export", "--world", "saved", "--out", "exports"])
-            .unwrap();
-        let Command::Export {
-            style,
-            detail,
-            quality,
-            ..
-        } = cli.command
-        else {
-            panic!("expected export")
-        };
-        assert!(style.is_none());
-        assert_eq!(
-            ImageOptions {
-                detail,
-                quality,
-                style
-            }
-            .style(),
-            MapStyle::Classic
-        );
-    }
-
-    #[test]
-    fn fine_generation_is_explicit_and_legacy_remains_default() {
-        let legacy = Cli::try_parse_from([
-            "arda", "generate", "--seed", "42", "--micro", "--out", "world",
-        ])
-        .unwrap();
-        assert!(matches!(
-            legacy.command,
-            Command::Generate {
-                terrain: Terrain::Legacy,
-                ..
-            }
-        ));
-        let fine = Cli::try_parse_from([
-            "arda",
-            "generate",
-            "--seed",
-            "42",
-            "--micro",
-            "--out",
-            "world",
-            "--terrain",
-            "fine",
-            "--fine-ram-bytes",
-            "123456",
-        ])
-        .unwrap();
-        assert!(matches!(
-            fine.command,
-            Command::Generate {
-                terrain: Terrain::Fine,
-                fine_ram_bytes: Some(123456),
-                ..
-            }
-        ));
-    }
-
-    #[test]
-    fn recipe_is_a_fine_option_from_4_to_6() {
-        let parse = |recipe: &str| {
-            Cli::try_parse_from([
-                "arda",
-                "generate",
-                "--seed",
-                "42",
-                "--micro",
-                "--out",
-                "world",
-                "--terrain",
-                "fine",
-                "--recipe",
-                recipe,
-            ])
-        };
-        assert!(matches!(
-            parse("5").unwrap().command,
-            Command::Generate {
-                recipe: Some(5),
-                ..
-            }
-        ));
-        assert!(parse("3").is_err());
-        assert!(parse("7").is_err());
-        let default = Cli::try_parse_from([
-            "arda",
-            "generate",
-            "--seed",
-            "42",
-            "--out",
-            "world",
-            "--terrain",
-            "fine",
-        ])
-        .unwrap();
-        assert!(matches!(
-            default.command,
-            Command::Generate { recipe: None, .. }
-        ));
-        // Legacy terrain has no recipe.
-        let legacy = run_generate(
-            42,
-            "500x1000",
-            true,
-            Path::new("unused-world"),
-            Terrain::Legacy,
-            FineOptions {
-                recipe: Some(5),
-                ram_bytes: None,
-                file_bytes: None,
-            },
-        );
-        assert!(legacy.unwrap_err().to_string().contains("--recipe"));
-    }
-
-    #[test]
-    fn unknown_style_is_a_parse_error() {
-        assert!(Cli::try_parse_from([
-            "arda", "export", "--world", "saved", "--out", "exports", "--style", "painted",
-        ])
-        .is_err());
-    }
-
-    #[test]
-    fn explicit_style_rejects_json_and_blocks_before_io() {
-        for (format, block) in [
-            (Format::Json, None),
-            (Format::Json, Some("0,0,0,0")),
-            (Format::Png, Some("0,0,0,0")),
-        ] {
-            let result = run_export(
-                Path::new("missing-world"),
-                "0,0",
-                format,
-                false,
-                block,
-                Path::new("must-not-exist"),
-                ImageOptions {
-                    detail: false,
-                    quality: None,
-                    style: Some(Style::Atlas),
-                },
-            );
-            assert!(result.is_err_and(|error| {
-                error.to_string() == "--style is valid only for area or overview PNG exports"
-            }));
-        }
-        assert!(ImageOptions::default()
-            .validate(Format::Json, false, None)
-            .is_ok());
-    }
-
-    #[test]
-    fn preview_legacy_px_conflicts_with_any_explicit_style() {
-        for style in ["classic", "atlas"] {
-            assert!(Cli::try_parse_from([
-                "arda", "preview", "--seed", "42", "--out", "unused", "--px", "16", "--style",
-                style,
-            ])
-            .is_err());
-        }
-        assert!(Cli::try_parse_from([
-            "arda", "preview", "--seed", "42", "--out", "unused", "--px", "16",
-        ])
-        .is_ok());
-    }
-
-    #[test]
-    fn detail_accepts_atlas_but_still_rejects_quality_overview_and_blocks() {
-        assert!(Cli::try_parse_from([
-            "arda", "export", "--world", "saved", "--out", "exports", "--detail", "--style",
-            "atlas",
-        ])
-        .is_ok());
-        for extra in [
-            vec!["--quality", "4k"],
-            vec!["--overview"],
-            vec!["--block", "0,0,0,0"],
-        ] {
-            let mut args = vec![
-                "arda", "export", "--world", "saved", "--out", "exports", "--detail", "--style",
-                "atlas",
-            ];
-            args.extend(extra);
-            assert!(Cli::try_parse_from(args).is_err());
-        }
-    }
-
-    #[test]
-    fn detail_conflicts_with_overview_and_blocks() {
-        for extra in [vec!["--overview"], vec!["--block", "0,0,0,0"]] {
-            let mut args = vec![
-                "arda", "export", "--world", "missing", "--out", "unused", "--detail",
-            ];
-            args.extend(extra);
-            assert!(Cli::try_parse_from(args).is_err());
-        }
-    }
-
-    #[test]
-    fn detail_json_reports_the_invalid_mode_before_reading_the_world() {
-        let error = run_export(
-            Path::new("missing-world"),
-            "0,0",
-            Format::Json,
-            false,
-            None,
-            Path::new("unused-export"),
-            ImageOptions {
-                detail: true,
-                quality: None,
-                style: None,
-            },
-        );
-        assert!(
-            error.is_err_and(|e| e.to_string() == "--detail is valid only for area PNG exports")
-        );
-    }
-
-    #[test]
-    fn detail_is_an_explicit_area_png_option() {
-        let cli = Cli::try_parse_from([
-            "arda", "export", "--world", "saved", "--out", "exports", "--detail",
-        ]);
-        assert!(matches!(
-            cli,
-            Ok(Cli {
-                command: Command::Export {
-                    detail: true,
-                    format: Format::Png,
-                    ..
-                }
-            })
-        ));
-    }
-
-    #[test]
-    fn png_quality_defaults_to_8k_for_area_and_overview() {
-        for mode in [vec!["--area", "1,1"], vec!["--overview"]] {
-            let mut args = vec!["arda", "export", "--world", "saved", "--out", "exports"];
-            args.extend(mode);
-            let Cli {
-                command: Command::Export {
-                    detail, quality, ..
-                },
-            } = Cli::try_parse_from(args).unwrap()
-            else {
-                panic!("expected export")
-            };
-            assert_eq!(
-                ImageOptions {
-                    detail,
-                    quality,
-                    style: None,
-                }
-                .quality()
-                .pixels(),
-                8192
-            );
-        }
-    }
-
-    #[test]
-    fn quality_accepts_pixels_and_k_suffixes_and_rejects_invalid_values() {
-        for (text, pixels) in [("512", 512), ("513", 513), ("8k", 8192), ("32k", 32768)] {
-            let cli = Cli::try_parse_from([
-                "arda",
-                "export",
-                "--world",
-                "saved",
-                "--out",
-                "exports",
-                "--quality",
-                text,
-            ])
-            .unwrap();
-            let Command::Export {
-                quality: Some(quality),
-                ..
-            } = cli.command
-            else {
-                panic!("missing quality")
-            };
-            assert_eq!(quality.pixels(), pixels);
-        }
-        for text in ["511", "32769", "33k", "bogus"] {
-            assert!(Cli::try_parse_from([
-                "arda",
-                "export",
-                "--world",
-                "saved",
-                "--out",
-                "exports",
-                "--quality",
-                text,
-            ])
-            .is_err());
-        }
-    }
-
-    #[test]
-    fn explicit_quality_rejects_non_png_modes_before_reading_the_world() {
-        let image = ImageOptions {
-            detail: false,
-            quality: Some(ImageQuality::DEFAULT),
-            style: None,
-        };
-        for (format, overview, block) in [
-            (Format::Json, false, None),
-            (Format::Json, true, None),
-            (Format::Png, false, Some("0,0,0,0")),
-        ] {
-            let result = run_export(
-                Path::new("missing-world"),
-                "0,0",
-                format,
-                overview,
-                block,
-                Path::new("unused-export"),
-                image,
-            );
-            assert!(result.is_err_and(
-                |e| e.to_string() == "--quality is valid only for area or overview PNG exports"
-            ));
-        }
-        assert!(ImageOptions::default()
-            .validate(Format::Json, false, None)
-            .is_ok());
-    }
-
-    #[test]
-    fn explicit_quality_conflicts_with_legacy_resolution_flags_and_blocks() {
-        for extra in [vec!["--detail"], vec!["--block", "0,0,0,0"]] {
-            let mut args = vec![
-                "arda",
-                "export",
-                "--world",
-                "saved",
-                "--out",
-                "exports",
-                "--quality",
-                "8k",
-            ];
-            args.extend(extra);
-            assert!(Cli::try_parse_from(args).is_err());
-        }
-        assert!(Cli::try_parse_from([
-            "arda",
-            "preview",
-            "--seed",
-            "42",
-            "--out",
-            "exports",
-            "--quality",
-            "8k",
-            "--px",
-            "16",
-        ])
-        .is_err());
-    }
-}
+mod tests;

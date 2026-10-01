@@ -30,7 +30,7 @@ fn validate_accepts_the_committed_placeholders() {
         "{}",
         String::from_utf8_lossy(&out.stderr)
     );
-    assert!(String::from_utf8_lossy(&out.stdout).contains("ok (207 assets"));
+    assert!(String::from_utf8_lossy(&out.stdout).contains("ok (217 assets"));
 }
 
 #[test]
