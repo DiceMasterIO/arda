@@ -32,7 +32,7 @@ async fn layout_png_is_cached_deterministic_and_etagged() {
     let first = get(uri).await;
     assert_eq!(first.status, StatusCode::OK);
     assert_eq!(header(&first, "content-type"), "image/png");
-    assert_eq!(header(&first, "cache-control"), "public, max-age=3600");
+    assert_eq!(header(&first, "cache-control"), "no-cache");
     assert!(header(&first, "server-timing").starts_with("tactical;dur="));
     let img = decode_rgb(&first.body).unwrap();
     assert_eq!((img.width, img.height), (18 * 64, 13 * 64));

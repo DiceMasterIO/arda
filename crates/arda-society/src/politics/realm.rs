@@ -107,6 +107,7 @@ pub fn realms(
     econ: &EconomyRun,
 ) -> Vec<RealmState> {
     let h = &hist.history;
+    let flows = FlowSums::new(ctx, econ);
     ctx.realms
         .iter()
         .enumerate()
@@ -129,13 +130,7 @@ pub fn realms(
                 since: reign.map_or(hist.formed[ri], |x| x.from),
             };
             let members: Vec<u64> = r.members.iter().map(|&i| ctx.s(i).id).collect();
-            let traded: u64 = econ
-                .economy
-                .flows
-                .iter()
-                .filter(|f| members.contains(&f.from) || members.contains(&f.to))
-                .map(|f| f.value_sp)
-                .sum();
+            let traded = flows.realm.get(ri).copied().unwrap_or(0);
             let tax_pct = gov.map_or(10, |g| g.tax_pct);
             RealmState {
                 id: r.id,
@@ -154,7 +149,7 @@ pub fn realms(
                 culture: seat.culture.clone(),
                 tax_pct,
                 levy_sp: traded * u64::from(tax_pct) / 100,
-                vassals: vassals(ctx, ri, regimes, hist, econ),
+                vassals: vassals(ctx, ri, regimes, hist, &flows),
                 members,
                 ruler,
             }
@@ -162,12 +157,41 @@ pub fn realms(
         .collect()
 }
 
+/// Trade sums built in one pass over the flows (review round 2 #29: each
+/// realm and each vassal scanned every flow).
+struct FlowSums {
+    /// Value of flows touching each realm, [`Ctx::realms`] order.
+    realm: Vec<u64>,
+    /// Value of flows between two settlements, either way, keyed `(low, high)`.
+    pair: std::collections::BTreeMap<(u64, u64), u64>,
+}
+
+impl FlowSums {
+    fn new(ctx: &Ctx<'_>, econ: &EconomyRun) -> Self {
+        let mut realm = vec![0_u64; ctx.realms.len()];
+        let mut pair = std::collections::BTreeMap::new();
+        let realm_of = |id: u64| ctx.node(id).map(|i| ctx.realm_of(i));
+        for f in &econ.economy.flows {
+            let (rf, rt) = (realm_of(f.from), realm_of(f.to));
+            for r in [rf, rt.filter(|&t| Some(t) != rf)].into_iter().flatten() {
+                if let Some(v) = realm.get_mut(r) {
+                    *v += f.value_sp;
+                }
+            }
+            *pair
+                .entry((f.from.min(f.to), f.from.max(f.to)))
+                .or_insert(0) += f.value_sp;
+        }
+        Self { realm, pair }
+    }
+}
+
 fn vassals(
     ctx: &Ctx<'_>,
     ri: usize,
     regimes: &[Regime],
     hist: &HistoryRun,
-    econ: &EconomyRun,
+    flows: &FlowSums,
 ) -> Vec<Vassal> {
     let r = &ctx.realms[ri];
     let h = &hist.history;
@@ -221,23 +245,20 @@ fn vassals(
             let mut loyalty = 70 + rng.range(-8, 8);
             let km = i64_of(ctx.dist(i, r.seat) / 1000);
             loyalty -= (km / 4).min(30);
-            let with_seat: u64 = econ
-                .economy
-                .flows
-                .iter()
-                .filter(|f| {
-                    (f.from == s.id && f.to == seat_id) || (f.to == s.id && f.from == seat_id)
-                })
-                .map(|f| f.value_sp)
-                .sum();
+            let with_seat = if s.id == seat_id {
+                0
+            } else {
+                let key = (s.id.min(seat_id), s.id.max(seat_id));
+                flows.pair.get(&key).copied().unwrap_or(0)
+            };
             loyalty += i64_of(with_seat / 2000).min(15);
             let sl = Slots::new()
                 .with("settlement", s.name.clone())
                 .with("realm", r.name.clone());
-            let recent_shift = h
-                .border_shifts
-                .iter()
-                .find(|b| b.settlement == s.id && ctx.present - b.year <= RECENT_CONQUEST);
+            let recent_shift = hist
+                .index
+                .shifts_of(h, s.id)
+                .find(|b| ctx.present - b.year <= RECENT_CONQUEST);
             if let Some(b) = recent_shift {
                 loyalty -= (40 - i64::from(ctx.present - b.year) / 5).max(10);
                 let former = ctx

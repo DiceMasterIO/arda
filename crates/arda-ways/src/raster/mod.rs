@@ -31,8 +31,11 @@ pub struct Cell {
     pub elev_ft: Option<i16>,
     /// Terrain height, feet.
     pub terrain_ft: i16,
-    /// Channel water here (before crossings).
+    /// Channel water here (before crossings), or standing water.
     pub water: bool,
+    /// Standing water the input layout already held (a lake or the sea):
+    /// its depth, ground and elevation stay the layout's.
+    pub standing: bool,
     /// Role.
     pub feature: Feature,
     /// Road class owning the square.
@@ -233,6 +236,9 @@ fn paint_channels(g: &mut Grid, plan: &Plan) {
             };
             let bank_mud = g.hash(0xBA4C, gx, gy) < 0.55;
             let Some(c) = g.get_mut(gx, gy) else { continue };
+            if c.standing {
+                continue;
+            }
             if d <= half {
                 let f = (1.0 - (d / half).powi(2)).max(0.0).sqrt();
                 let ft = (ch.depth_m / 0.3048 * f).round().clamp(1.0, 60.0);
@@ -259,8 +265,17 @@ pub fn apply(
     plan: &Plan,
     terrain: &dyn Terrain,
     seed: u64,
+    standing: &crate::standing::Standing,
 ) -> Sidecar {
     let mut g = Grid::new(plan.window, terrain, seed);
+    for (gx, gy) in g.squares().collect::<Vec<_>>() {
+        if standing.at(gx, gy) {
+            if let Some(c) = g.get_mut(gx, gy) {
+                c.water = true;
+                c.standing = true;
+            }
+        }
+    }
     mark_raster_water(&mut g, terrain);
     paint_channels(&mut g, plan);
     roads::paint(&mut g, plan, terrain);
@@ -288,7 +303,7 @@ fn emit(layout: &mut TacticalLayout, g: &Grid, win: Window) -> Sidecar {
                 // Absolute feet in 5-ft steps (vocabulary I20).
                 if let Some(e) = c.elev_ft {
                     sq.elevation_ft = step5(e);
-                } else if c.water || c.feature != Feature::None {
+                } else if (c.water && !c.standing) || c.feature != Feature::None {
                     sq.elevation_ft = step5(c.terrain_ft);
                 }
                 water = sq.water_depth_ft;

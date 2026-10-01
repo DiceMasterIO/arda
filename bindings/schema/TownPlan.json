@@ -1,0 +1,908 @@
+{
+  "$defs": {
+    "Bridge": {
+      "description": "A bridge deck where a street crosses a river: rows of deck squares,\neach spanning the water from bank to bank.",
+      "properties": {
+        "along_x": {
+          "description": "Rows run west–east (`true`) or north–south.",
+          "type": "boolean"
+        },
+        "rows": {
+          "description": "Rows as `(across, from, to)` in global squares, `from..=to` along\nthe row: a row is square row `across` when `along_x`, else column.",
+          "items": {
+            "maxItems": 3,
+            "minItems": 3,
+            "prefixItems": [
+              {
+                "format": "int64",
+                "type": "integer"
+              },
+              {
+                "format": "int64",
+                "type": "integer"
+              },
+              {
+                "format": "int64",
+                "type": "integer"
+              }
+            ],
+            "type": "array"
+          },
+          "type": "array"
+        },
+        "street": {
+          "$ref": "#/$defs/StreetId",
+          "description": "The street it carries."
+        }
+      },
+      "required": [
+        "street",
+        "along_x",
+        "rows"
+      ],
+      "type": "object"
+    },
+    "Building": {
+      "description": "A building on the plan.",
+      "properties": {
+        "ancillary": {
+          "description": "Not in the building mix (barns behind farmhouses, jetties).",
+          "type": "boolean"
+        },
+        "doors": {
+          "description": "Doors; the first faces the street.",
+          "items": {
+            "$ref": "#/$defs/Door"
+          },
+          "type": "array"
+        },
+        "footprint": {
+          "description": "Footprint polygon in world metres.",
+          "items": {
+            "$ref": "#/$defs/Vec2"
+          },
+          "type": "array"
+        },
+        "front": {
+          "$ref": "#/$defs/Side",
+          "description": "Side facing the street."
+        },
+        "function": {
+          "$ref": "#/$defs/BuildingFunction",
+          "description": "Function (vocabulary key)."
+        },
+        "id": {
+          "$ref": "#/$defs/BuildingId",
+          "description": "Index."
+        },
+        "plot": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/PlotId"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "description": "The plot it stands on, if any."
+        },
+        "rect": {
+          "$ref": "#/$defs/SquareRect",
+          "description": "Footprint in global squares (the same rectangle)."
+        },
+        "storeys": {
+          "description": "Storeys above ground.",
+          "format": "uint8",
+          "maximum": 255,
+          "minimum": 0,
+          "type": "integer"
+        },
+        "tags": {
+          "description": "Free `key:value` tags, e.g. `craft:weaving` on workshops (I6).",
+          "items": {
+            "type": "string"
+          },
+          "type": "array"
+        },
+        "wealth": {
+          "description": "Wealth 0–255.",
+          "format": "uint8",
+          "maximum": 255,
+          "minimum": 0,
+          "type": "integer"
+        },
+        "wealth_level": {
+          "$ref": "#/$defs/WealthLevel",
+          "description": "Wealth band."
+        }
+      },
+      "required": [
+        "id",
+        "function",
+        "footprint",
+        "rect",
+        "storeys",
+        "wealth",
+        "wealth_level",
+        "front",
+        "doors",
+        "ancillary"
+      ],
+      "type": "object"
+    },
+    "BuildingFunction": {
+      "description": "A building function key (vocabulary `function:*`).",
+      "oneOf": [
+        {
+          "const": "house",
+          "description": "Town house.",
+          "type": "string"
+        },
+        {
+          "const": "farmhouse",
+          "description": "Farmhouse (long house with byre).",
+          "type": "string"
+        },
+        {
+          "const": "cottage",
+          "description": "One-room cottage.",
+          "type": "string"
+        },
+        {
+          "const": "manor",
+          "description": "Manor house.",
+          "type": "string"
+        },
+        {
+          "const": "inn",
+          "description": "Inn with rooms.",
+          "type": "string"
+        },
+        {
+          "const": "tavern",
+          "description": "Tavern.",
+          "type": "string"
+        },
+        {
+          "const": "bakery",
+          "description": "Bakery.",
+          "type": "string"
+        },
+        {
+          "const": "brewery",
+          "description": "Brewery.",
+          "type": "string"
+        },
+        {
+          "const": "mill",
+          "description": "Mill.",
+          "type": "string"
+        },
+        {
+          "const": "smithy",
+          "description": "Smithy.",
+          "type": "string"
+        },
+        {
+          "const": "workshop",
+          "description": "Workshop.",
+          "type": "string"
+        },
+        {
+          "const": "tannery",
+          "description": "Tannery.",
+          "type": "string"
+        },
+        {
+          "const": "apothecary",
+          "description": "Apothecary.",
+          "type": "string"
+        },
+        {
+          "const": "temple",
+          "description": "Temple.",
+          "type": "string"
+        },
+        {
+          "const": "shrine",
+          "description": "Shrine or chapel.",
+          "type": "string"
+        },
+        {
+          "const": "library",
+          "description": "Library or archive.",
+          "type": "string"
+        },
+        {
+          "const": "school",
+          "description": "School.",
+          "type": "string"
+        },
+        {
+          "const": "warehouse",
+          "description": "Warehouse.",
+          "type": "string"
+        },
+        {
+          "const": "market_hall",
+          "description": "Market hall (the vocabulary's `market` building).",
+          "type": "string"
+        },
+        {
+          "const": "stall",
+          "description": "Market stall.",
+          "type": "string"
+        },
+        {
+          "const": "dock",
+          "description": "Dock or jetty.",
+          "type": "string"
+        },
+        {
+          "const": "boathouse",
+          "description": "Boathouse.",
+          "type": "string"
+        },
+        {
+          "const": "keep",
+          "description": "Keep.",
+          "type": "string"
+        },
+        {
+          "const": "barracks",
+          "description": "Barracks.",
+          "type": "string"
+        },
+        {
+          "const": "guardhouse",
+          "description": "Guardhouse.",
+          "type": "string"
+        },
+        {
+          "const": "stable",
+          "description": "Stable.",
+          "type": "string"
+        },
+        {
+          "const": "barn",
+          "description": "Barn.",
+          "type": "string"
+        },
+        {
+          "const": "mine",
+          "description": "Mine or quarry head (outside the street plan).",
+          "type": "string"
+        },
+        {
+          "const": "lumber_camp",
+          "description": "Lumber camp (outside the street plan).",
+          "type": "string"
+        }
+      ]
+    },
+    "BuildingId": {
+      "description": "Building id, unique within the settlement and 1-based like `arda-npc`'s\n`BuildingId`; stable for a given seed and site, and the key NPC homes and\nworkplaces refer to (goal 45). Serialised as a JSON string (I5).",
+      "type": "string"
+    },
+    "CastleWard": {
+      "description": "A castle ward with its own curtain wall.",
+      "properties": {
+        "bailey": {
+          "$ref": "#/$defs/SquareRect",
+          "description": "Inner bailey, global squares."
+        },
+        "gate": {
+          "$ref": "#/$defs/Side",
+          "description": "Side of the ward gate."
+        }
+      },
+      "required": [
+        "bailey",
+        "gate"
+      ],
+      "type": "object"
+    },
+    "DistrictKind": {
+      "description": "Functional districts (goal 36: layout reflects function).",
+      "oneOf": [
+        {
+          "const": "market",
+          "description": "Around the market square.",
+          "type": "string"
+        },
+        {
+          "const": "residential",
+          "description": "Houses.",
+          "type": "string"
+        },
+        {
+          "const": "craft",
+          "description": "Workshops, smiths and tanners.",
+          "type": "string"
+        },
+        {
+          "const": "waterfront",
+          "description": "Along the river or shore.",
+          "type": "string"
+        },
+        {
+          "const": "religious",
+          "description": "Temple and churchyard.",
+          "type": "string"
+        },
+        {
+          "const": "castle",
+          "description": "The castle ward.",
+          "type": "string"
+        },
+        {
+          "const": "suburb",
+          "description": "Outside the walls.",
+          "type": "string"
+        },
+        {
+          "const": "farmstead",
+          "description": "Village and hamlet farmsteads.",
+          "type": "string"
+        }
+      ]
+    },
+    "Door": {
+      "description": "A doorway: on edge `side` of global square `(x, y)` inside the building.",
+      "properties": {
+        "side": {
+          "$ref": "#/$defs/Side",
+          "description": "Which edge of that square."
+        },
+        "x": {
+          "description": "Square column inside the building.",
+          "format": "int64",
+          "type": "integer"
+        },
+        "y": {
+          "description": "Square row inside the building.",
+          "format": "int64",
+          "type": "integer"
+        }
+      },
+      "required": [
+        "x",
+        "y",
+        "side"
+      ],
+      "type": "object"
+    },
+    "Focal": {
+      "description": "The focal point and where the market sits.",
+      "properties": {
+        "feature": {
+          "$ref": "#/$defs/Vec2",
+          "description": "The feature itself (bridge, junction, quay or keep)."
+        },
+        "kind": {
+          "$ref": "#/$defs/FocalKind",
+          "description": "Kind."
+        },
+        "market": {
+          "$ref": "#/$defs/Vec2",
+          "description": "The market square centre."
+        }
+      },
+      "required": [
+        "kind",
+        "feature",
+        "market"
+      ],
+      "type": "object"
+    },
+    "FocalKind": {
+      "description": "What the town grew around.",
+      "oneOf": [
+        {
+          "const": "crossing",
+          "description": "A bridge or ford.",
+          "type": "string"
+        },
+        {
+          "const": "crossroads",
+          "description": "A road junction.",
+          "type": "string"
+        },
+        {
+          "const": "harbour",
+          "description": "A harbour or landing.",
+          "type": "string"
+        },
+        {
+          "const": "castle",
+          "description": "A castle.",
+          "type": "string"
+        },
+        {
+          "const": "roadside",
+          "description": "A single road.",
+          "type": "string"
+        }
+      ]
+    },
+    "Gate": {
+      "description": "A gate in the town wall.",
+      "properties": {
+        "point": {
+          "$ref": "#/$defs/Vec2",
+          "description": "Centre in world metres."
+        },
+        "street": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/StreetId"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "description": "The street it carries, or `None` for a water gate."
+        }
+      },
+      "required": [
+        "point"
+      ],
+      "type": "object"
+    },
+    "MarketSquare": {
+      "description": "The market square or village green.",
+      "properties": {
+        "green": {
+          "description": "A grass green rather than a paved square.",
+          "type": "boolean"
+        },
+        "polygon": {
+          "description": "Outline in world metres.",
+          "items": {
+            "$ref": "#/$defs/Vec2"
+          },
+          "type": "array"
+        }
+      },
+      "required": [
+        "polygon",
+        "green"
+      ],
+      "type": "object"
+    },
+    "Plot": {
+      "description": "A plot of land along a street frontage (burgage or toft).",
+      "properties": {
+        "depth_m": {
+          "description": "Mean depth in metres.",
+          "format": "double",
+          "type": "number"
+        },
+        "district": {
+          "$ref": "#/$defs/DistrictKind",
+          "description": "District."
+        },
+        "front": {
+          "$ref": "#/$defs/Side",
+          "description": "Direction the frontage faces (towards the street)."
+        },
+        "frontage_m": {
+          "description": "Frontage width in metres.",
+          "format": "double",
+          "type": "number"
+        },
+        "id": {
+          "$ref": "#/$defs/PlotId",
+          "description": "Index."
+        },
+        "inside_wall": {
+          "description": "Inside the town wall (always true for unwalled settlements).",
+          "type": "boolean"
+        },
+        "polygon": {
+          "description": "Outline in world metres (rectilinear).",
+          "items": {
+            "$ref": "#/$defs/Vec2"
+          },
+          "type": "array"
+        },
+        "street": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/StreetId"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "description": "The street it fronts; `None` for the market square."
+        }
+      },
+      "required": [
+        "id",
+        "front",
+        "polygon",
+        "frontage_m",
+        "depth_m",
+        "district",
+        "inside_wall"
+      ],
+      "type": "object"
+    },
+    "PlotId": {
+      "description": "Plot index within a plan.",
+      "format": "uint32",
+      "minimum": 0,
+      "type": "integer"
+    },
+    "SettlementId": {
+      "description": "Settlement id, as in `settlements.json` (1-based). Serialised as a JSON\nstring; numbers are accepted on input.",
+      "type": "string"
+    },
+    "Side": {
+      "description": "A side of a rectangle or the direction a front faces.",
+      "oneOf": [
+        {
+          "const": "north",
+          "description": "Towards −y.",
+          "type": "string"
+        },
+        {
+          "const": "east",
+          "description": "Towards +x.",
+          "type": "string"
+        },
+        {
+          "const": "south",
+          "description": "Towards +y.",
+          "type": "string"
+        },
+        {
+          "const": "west",
+          "description": "Towards −x.",
+          "type": "string"
+        }
+      ]
+    },
+    "SquareRect": {
+      "description": "A half-open rectangle of global squares.",
+      "properties": {
+        "x0": {
+          "description": "First column.",
+          "format": "int64",
+          "type": "integer"
+        },
+        "x1": {
+          "description": "One past the last column.",
+          "format": "int64",
+          "type": "integer"
+        },
+        "y0": {
+          "description": "First row.",
+          "format": "int64",
+          "type": "integer"
+        },
+        "y1": {
+          "description": "One past the last row.",
+          "format": "int64",
+          "type": "integer"
+        }
+      },
+      "required": [
+        "x0",
+        "y0",
+        "x1",
+        "y1"
+      ],
+      "type": "object"
+    },
+    "Street": {
+      "description": "A street centreline.",
+      "properties": {
+        "class": {
+          "$ref": "#/$defs/StreetClass",
+          "description": "Class."
+        },
+        "id": {
+          "$ref": "#/$defs/StreetId",
+          "description": "Index."
+        },
+        "paved": {
+          "description": "Cobbled rather than dirt.",
+          "type": "boolean"
+        },
+        "points": {
+          "description": "Centreline in world metres, starting at its junction end.",
+          "items": {
+            "$ref": "#/$defs/Vec2"
+          },
+          "type": "array"
+        },
+        "width_m": {
+          "description": "Carriageway width in metres.",
+          "format": "double",
+          "type": "number"
+        }
+      },
+      "required": [
+        "id",
+        "class",
+        "points",
+        "width_m",
+        "paved"
+      ],
+      "type": "object"
+    },
+    "StreetClass": {
+      "description": "Street hierarchy.",
+      "oneOf": [
+        {
+          "const": "main",
+          "description": "A main street following an entering road.",
+          "type": "string"
+        },
+        {
+          "const": "lane",
+          "description": "A back lane or branch lane.",
+          "type": "string"
+        },
+        {
+          "const": "alley",
+          "description": "A short cross alley between a main street and a back lane.",
+          "type": "string"
+        },
+        {
+          "const": "intramural",
+          "description": "The lane running inside the town wall.",
+          "type": "string"
+        }
+      ]
+    },
+    "StreetId": {
+      "description": "Street index within a plan.",
+      "format": "uint16",
+      "maximum": 65535,
+      "minimum": 0,
+      "type": "integer"
+    },
+    "Tier": {
+      "description": "Settlement size class (`arda-settle` `Tier`).",
+      "oneOf": [
+        {
+          "const": "hamlet",
+          "description": "A handful of farms, 12–80 people.",
+          "type": "string"
+        },
+        {
+          "const": "village",
+          "description": "A village of a few hundred.",
+          "type": "string"
+        },
+        {
+          "const": "town",
+          "description": "A town, 1,000–8,000 people.",
+          "type": "string"
+        },
+        {
+          "const": "city",
+          "description": "A city, 8,000 people or more.",
+          "type": "string"
+        }
+      ]
+    },
+    "TownWall": {
+      "description": "The town wall.",
+      "properties": {
+        "gates": {
+          "description": "Gates, including water gates.",
+          "items": {
+            "$ref": "#/$defs/Gate"
+          },
+          "type": "array"
+        },
+        "ring": {
+          "description": "Closed centreline ring in world metres.",
+          "items": {
+            "$ref": "#/$defs/Vec2"
+          },
+          "type": "array"
+        },
+        "thickness_m": {
+          "description": "Thickness in metres.",
+          "format": "double",
+          "type": "number"
+        }
+      },
+      "required": [
+        "ring",
+        "gates",
+        "thickness_m"
+      ],
+      "type": "object"
+    },
+    "Vec2": {
+      "description": "A point or vector in world metres.",
+      "properties": {
+        "x": {
+          "description": "Metres east.",
+          "format": "double",
+          "type": "number"
+        },
+        "y": {
+          "description": "Metres south.",
+          "format": "double",
+          "type": "number"
+        }
+      },
+      "required": [
+        "x",
+        "y"
+      ],
+      "type": "object"
+    },
+    "WealthLevel": {
+      "description": "Coarse wealth band for kits and dressing (vocabulary `wealth:*`).",
+      "oneOf": [
+        {
+          "const": "poor",
+          "description": "Wattle, dirt floors.",
+          "type": "string"
+        },
+        {
+          "const": "modest",
+          "description": "Timber, planks.",
+          "type": "string"
+        },
+        {
+          "const": "wealthy",
+          "description": "Stone, rugs.",
+          "type": "string"
+        }
+      ]
+    }
+  },
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "description": "A complete town plan.",
+  "properties": {
+    "base_height_m": {
+      "description": "Ground height at the market, metres above sea level; grid heights\nare relative to it.",
+      "format": "double",
+      "type": "number"
+    },
+    "bridges": {
+      "default": [],
+      "description": "Bridges carrying streets over rivers.",
+      "items": {
+        "$ref": "#/$defs/Bridge"
+      },
+      "type": "array"
+    },
+    "buildings": {
+      "description": "Buildings.",
+      "items": {
+        "$ref": "#/$defs/Building"
+      },
+      "type": "array"
+    },
+    "castle": {
+      "anyOf": [
+        {
+          "$ref": "#/$defs/CastleWard"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "description": "Castle ward, for fortress sites."
+    },
+    "culture": {
+      "description": "Culture key.",
+      "type": "string"
+    },
+    "districts": {
+      "description": "Districts and their plots.",
+      "items": {
+        "maxItems": 2,
+        "minItems": 2,
+        "prefixItems": [
+          {
+            "$ref": "#/$defs/DistrictKind"
+          },
+          {
+            "items": {
+              "$ref": "#/$defs/PlotId"
+            },
+            "type": "array"
+          }
+        ],
+        "type": "array"
+      },
+      "type": "array"
+    },
+    "focal": {
+      "$ref": "#/$defs/Focal",
+      "description": "Focal point."
+    },
+    "name": {
+      "description": "Settlement name.",
+      "type": "string"
+    },
+    "notes": {
+      "description": "Planner notes: aliases used, off-plan and unplaced mix entries.",
+      "items": {
+        "type": "string"
+      },
+      "type": "array"
+    },
+    "plots": {
+      "description": "Plots.",
+      "items": {
+        "$ref": "#/$defs/Plot"
+      },
+      "type": "array"
+    },
+    "seed": {
+      "description": "Plan seed (world seed mixed with the site id), as a JSON string.",
+      "type": "string"
+    },
+    "site": {
+      "$ref": "#/$defs/SettlementId",
+      "description": "Settlement id."
+    },
+    "square": {
+      "anyOf": [
+        {
+          "$ref": "#/$defs/MarketSquare"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "description": "Market square or green."
+    },
+    "streets": {
+      "description": "Streets.",
+      "items": {
+        "$ref": "#/$defs/Street"
+      },
+      "type": "array"
+    },
+    "tier": {
+      "$ref": "#/$defs/Tier",
+      "description": "Tier."
+    },
+    "wall": {
+      "anyOf": [
+        {
+          "$ref": "#/$defs/TownWall"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "description": "Town wall, for walled tiers."
+    },
+    "water_level_m": {
+      "description": "Water surface level within the plan, metres above sea level.",
+      "format": "double",
+      "type": "number"
+    }
+  },
+  "required": [
+    "site",
+    "name",
+    "tier",
+    "culture",
+    "seed",
+    "base_height_m",
+    "water_level_m",
+    "focal",
+    "streets",
+    "plots",
+    "districts",
+    "buildings",
+    "notes"
+  ],
+  "title": "TownPlan",
+  "type": "object"
+}

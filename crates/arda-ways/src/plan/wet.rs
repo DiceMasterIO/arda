@@ -39,8 +39,10 @@ const GAP_SQ: i64 = 5;
 /// Longest water run one crossing spans, squares; longer runs (a way
 /// running along the river) are left alone.
 const MAX_RUN_SQ: i64 = 96;
-/// Set in the id of a crossing no record names.
-pub const SYNTHETIC_ID: u32 = 0x4000_0000;
+/// Set in the id of a crossing no record names: bit 62, far above any id
+/// `arda-settle` writes (review round 2 #25: bit 30 of a u32 met real ids
+/// once they reached 2^30).
+pub const SYNTHETIC_ID: u64 = 1 << 62;
 /// Crossings laid per window at most.
 const MAX_CROSSINGS: usize = 256;
 
@@ -60,17 +62,18 @@ pub fn plan_all(
     ways: &mut [WayPlan],
     channels: &mut Vec<ChannelPlan>,
     terrain: &dyn Terrain,
-) -> (Vec<CrossingPlan>, Vec<u32>) {
+    standing: &crate::standing::Standing,
+) -> (Vec<CrossingPlan>, Vec<u64>) {
     let mut sorted: Vec<&Crossing> = crossings.iter().collect();
     sorted.sort_by_key(|c| c.id);
     let (mut out, mut orphans) = (Vec::new(), Vec::new());
     let mut reserved: Vec<(usize, f64, f64)> = Vec::new();
     #[allow(clippy::cast_precision_loss)] // world metres are far below 2^52
     let pos = |c: &Crossing| [c.x_m as f64, c.y_m as f64];
-    let near = |c: &Crossing| win.dist_m(pos(c)) <= f64::from(c.width_m) * 1.5 + REACH_M;
+    let near = |c: &Crossing| win.dist_m(pos(c)) <= super::crossing::reach_m(c);
     // Open water first, as before.
     for c in sorted.iter().filter(|c| c.water != "river" && near(c)) {
-        match plan_one(c, pos(c), ways, channels, terrain) {
+        match plan_one(c, pos(c), ways, channels, terrain, standing) {
             Some(p) => out.push(p),
             None => orphans.push(c.id),
         }
@@ -211,21 +214,21 @@ const fn default_kind(class: RoadClass) -> CrossingKind {
 }
 
 /// A stable id for a crossing no record names, above settle's range.
-fn synthetic_id(st: &Stretch, way: &WayPlan) -> u32 {
+fn synthetic_id(st: &Stretch, way: &WayPlan) -> u64 {
     let (gx, gy) = (square_of(st.at[0]), square_of(st.at[1]));
     let h = hash2(
-        (u64::from(way.road_id) << 16) ^ u64::try_from(way.segment).unwrap_or(0),
+        (way.road_id << 16) ^ u64::try_from(way.segment).unwrap_or(0),
         gx,
         gy,
     );
-    SYNTHETIC_ID | u32::try_from(h & 0x3FFF_FFFF).unwrap_or(0)
+    SYNTHETIC_ID | (h & 0x3FFF_FFFF)
 }
 
 /// Lays a crossing of `kind` over the stretch: axis across the guiding
 /// channel's flow, rows shifted up to [`SHIFT_SQ`] to the narrowest water.
 #[allow(clippy::cast_precision_loss)] // small square offsets
 fn lay(
-    id: u32,
+    id: u64,
     kind: CrossingKind,
     st: &Stretch,
     ways: &mut [WayPlan],

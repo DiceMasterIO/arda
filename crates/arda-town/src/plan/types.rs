@@ -9,11 +9,13 @@ use serde::{Deserialize, Serialize};
 
 /// Street index within a plan.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize, Deserialize)]
+#[cfg_attr(feature = "schema", derive(schemars::JsonSchema))]
 #[serde(transparent)]
 pub struct StreetId(pub u16);
 
 /// Plot index within a plan.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize, Deserialize)]
+#[cfg_attr(feature = "schema", derive(schemars::JsonSchema))]
 #[serde(transparent)]
 pub struct PlotId(pub u32);
 
@@ -21,8 +23,13 @@ pub struct PlotId(pub u32);
 /// `BuildingId`; stable for a given seed and site, and the key NPC homes and
 /// workplaces refer to (goal 45). Serialised as a JSON string (I5).
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize, Deserialize)]
+#[cfg_attr(feature = "schema", derive(schemars::JsonSchema))]
 #[serde(transparent)]
-pub struct BuildingId(#[serde(with = "crate::ids")] pub u64);
+pub struct BuildingId(
+    #[serde(with = "crate::ids")]
+    #[cfg_attr(feature = "schema", schemars(with = "String"))]
+    pub u64,
+);
 
 impl BuildingId {
     /// World-unique key `s<settlement>-b<building>`.
@@ -34,6 +41,7 @@ impl BuildingId {
 
 /// Street hierarchy.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize, Deserialize)]
+#[cfg_attr(feature = "schema", derive(schemars::JsonSchema))]
 #[serde(rename_all = "snake_case")]
 pub enum StreetClass {
     /// A main street following an entering road.
@@ -48,6 +56,7 @@ pub enum StreetClass {
 
 /// A street centreline.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+#[cfg_attr(feature = "schema", derive(schemars::JsonSchema))]
 pub struct Street {
     /// Index.
     pub id: StreetId,
@@ -63,6 +72,7 @@ pub struct Street {
 
 /// What the town grew around.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+#[cfg_attr(feature = "schema", derive(schemars::JsonSchema))]
 #[serde(rename_all = "snake_case")]
 pub enum FocalKind {
     /// A bridge or ford.
@@ -79,6 +89,7 @@ pub enum FocalKind {
 
 /// The focal point and where the market sits.
 #[derive(Debug, Clone, Copy, PartialEq, Serialize, Deserialize)]
+#[cfg_attr(feature = "schema", derive(schemars::JsonSchema))]
 pub struct Focal {
     /// Kind.
     pub kind: FocalKind,
@@ -90,6 +101,7 @@ pub struct Focal {
 
 /// The market square or village green.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+#[cfg_attr(feature = "schema", derive(schemars::JsonSchema))]
 pub struct MarketSquare {
     /// Outline in world metres.
     pub polygon: Vec<Vec2>,
@@ -99,6 +111,7 @@ pub struct MarketSquare {
 
 /// Functional districts (goal 36: layout reflects function).
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize, Deserialize)]
+#[cfg_attr(feature = "schema", derive(schemars::JsonSchema))]
 #[serde(rename_all = "snake_case")]
 pub enum DistrictKind {
     /// Around the market square.
@@ -121,6 +134,7 @@ pub enum DistrictKind {
 
 /// A plot of land along a street frontage (burgage or toft).
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+#[cfg_attr(feature = "schema", derive(schemars::JsonSchema))]
 pub struct Plot {
     /// Index.
     pub id: PlotId,
@@ -142,6 +156,7 @@ pub struct Plot {
 
 /// A gate in the town wall.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+#[cfg_attr(feature = "schema", derive(schemars::JsonSchema))]
 pub struct Gate {
     /// Centre in world metres.
     pub point: Vec2,
@@ -152,6 +167,7 @@ pub struct Gate {
 /// A bridge deck where a street crosses a river: rows of deck squares,
 /// each spanning the water from bank to bank.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[cfg_attr(feature = "schema", derive(schemars::JsonSchema))]
 pub struct Bridge {
     /// The street it carries.
     pub street: StreetId,
@@ -164,6 +180,7 @@ pub struct Bridge {
 
 /// The town wall.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+#[cfg_attr(feature = "schema", derive(schemars::JsonSchema))]
 pub struct TownWall {
     /// Closed centreline ring in world metres.
     pub ring: Vec<Vec2>,
@@ -175,6 +192,7 @@ pub struct TownWall {
 
 /// A castle ward with its own curtain wall.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+#[cfg_attr(feature = "schema", derive(schemars::JsonSchema))]
 pub struct CastleWard {
     /// Inner bailey, global squares.
     pub bailey: SquareRect,
@@ -184,6 +202,7 @@ pub struct CastleWard {
 
 /// Coarse wealth band for kits and dressing (vocabulary `wealth:*`).
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize, Deserialize)]
+#[cfg_attr(feature = "schema", derive(schemars::JsonSchema))]
 #[serde(rename_all = "snake_case")]
 pub enum WealthLevel {
     /// Wattle, dirt floors.
@@ -218,6 +237,7 @@ impl WealthLevel {
 
 /// A doorway: on edge `side` of global square `(x, y)` inside the building.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
+#[cfg_attr(feature = "schema", derive(schemars::JsonSchema))]
 pub struct Door {
     /// Square column inside the building.
     pub x: i64,
@@ -238,6 +258,7 @@ impl Door {
 
 /// A building on the plan.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+#[cfg_attr(feature = "schema", derive(schemars::JsonSchema))]
 pub struct Building {
     /// Index.
     pub id: BuildingId,
@@ -268,6 +289,7 @@ pub struct Building {
 
 /// A complete town plan.
 #[derive(Debug, Clone, Serialize, Deserialize)]
+#[cfg_attr(feature = "schema", derive(schemars::JsonSchema))]
 pub struct TownPlan {
     /// Settlement id.
     pub site: SettlementId,
@@ -279,6 +301,7 @@ pub struct TownPlan {
     pub culture: String,
     /// Plan seed (world seed mixed with the site id), as a JSON string.
     #[serde(with = "crate::ids")]
+    #[cfg_attr(feature = "schema", schemars(with = "String"))]
     pub seed: u64,
     /// Ground height at the market, metres above sea level; grid heights
     /// are relative to it.
@@ -354,5 +377,24 @@ impl TownPlan {
     #[must_use]
     pub const fn size(&self) -> (i64, i64) {
         (self.grid.w, self.grid.h)
+    }
+}
+
+#[cfg(all(test, feature = "schema"))]
+mod schema_tests {
+    use super::TownPlan;
+
+    #[test]
+    fn town_plan_schema_is_draft_2020_12_with_known_fields() {
+        let schema = serde_json::to_value(schemars::schema_for!(TownPlan)).unwrap();
+        assert_eq!(
+            schema["$schema"],
+            "https://json-schema.org/draft/2020-12/schema"
+        );
+        for key in ["site", "streets", "plots", "buildings"] {
+            assert!(schema["properties"][key].is_object(), "{key}");
+        }
+        assert_eq!(schema["properties"]["seed"]["type"], "string");
+        assert!(schema["properties"]["grid"].is_null());
     }
 }

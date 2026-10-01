@@ -327,10 +327,12 @@ fn sidecar(plan: &Plan, bounds: &Boundaries, dressed: &Dressed, l: &TacticalLayo
     let mut squares = Vec::with_capacity(l.squares.len());
     let mut seen = BTreeSet::new();
     let mut touching = BTreeSet::new();
+    let mut inside: std::collections::BTreeMap<usize, u32> = std::collections::BTreeMap::new();
     for ((s, sq), st) in dressed.ground.squares().zip(&l.squares).zip(&stands) {
         let field = plan.field_at(s);
         if let Some((i, _)) = field {
             touching.insert(i);
+            *inside.entry(i).or_insert(0) += 1;
         }
         if let Cover::Compound(c) = plan.at(s) {
             seen.insert(c as usize);
@@ -380,7 +382,7 @@ fn sidecar(plan: &Plan, bounds: &Boundaries, dressed: &Dressed, l: &TacticalLayo
             hectares: f.hectares(),
             enclosed: f.kind.enclosed(),
             gates: bounds.gates.get(i).map_or(0, Vec::len),
-            complete: field_complete(plan, bounds, i),
+            complete: field_complete(plan, bounds, i, inside.get(&i).copied().unwrap_or(0)),
         })
         .collect();
     let compounds = seen
@@ -407,8 +409,12 @@ fn sidecar(plan: &Plan, bounds: &Boundaries, dressed: &Dressed, l: &TacticalLayo
     }
 }
 
-/// Whether every square of field `i` lies inside the window.
-fn field_complete(plan: &Plan, bounds: &Boundaries, i: usize) -> bool {
+/// Whether every square of field `i` lies inside the window; `inside`
+/// counts its squares in the window. An enclosed field is complete when its
+/// boundary is; an open one when the window holds all its squares (the
+/// plan's margin holds every field touching the window whole; review
+/// round 2 #38: open fields were never complete).
+fn field_complete(plan: &Plan, bounds: &Boundaries, i: usize, inside: u32) -> bool {
     let Some(f) = plan.fields.get(i) else {
         return false;
     };
@@ -420,7 +426,7 @@ fn field_complete(plan: &Plan, bounds: &Boundaries, i: usize) -> bool {
             let (a, b) = e.sides();
             plan.in_window(a) && plan.in_window(b)
         }),
-        _ => false,
+        _ => inside == f.squares,
     }
 }
 

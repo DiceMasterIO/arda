@@ -20,6 +20,7 @@ use super::raw::Lane;
 use super::{Tactical, TacticalLimits};
 use crate::error::{ServerError, ServerResult};
 use crate::AppState;
+use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 use std::collections::{BTreeSet, VecDeque};
 use std::sync::{Arc, Condvar, Mutex, MutexGuard, PoisonError, Weak};
@@ -38,7 +39,7 @@ pub const DEFAULT_WORKERS: usize = 2;
 pub const MAX_WORKERS: usize = 8;
 
 /// Body of `POST /v1/tactical/prefetch` (TS `PrefetchRequest`).
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, TS)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, TS, JsonSchema)]
 #[serde(deny_unknown_fields)]
 pub struct PrefetchRequest {
     /// Centre cell column.
@@ -61,7 +62,7 @@ pub struct PrefetchRequest {
 }
 
 /// What happened to one neighbour.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, TS)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, TS, JsonSchema)]
 #[serde(rename_all = "snake_case")]
 pub enum PrefetchStatus {
     /// Added to the queue.
@@ -73,7 +74,7 @@ pub enum PrefetchStatus {
 }
 
 /// One neighbour of a prefetch.
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, TS)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, TS, JsonSchema)]
 pub struct PrefetchCell {
     /// Cell column.
     pub gx: u32,
@@ -86,7 +87,7 @@ pub struct PrefetchCell {
 }
 
 /// `202` body of `POST /v1/tactical/prefetch` (TS `PrefetchAccepted`).
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, TS)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, TS, JsonSchema)]
 pub struct PrefetchAccepted {
     /// The radius used.
     pub radius: u32,

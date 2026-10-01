@@ -293,6 +293,12 @@ pub struct Dense {
 const CHUNK: usize = 32;
 
 impl Dense {
+    /// Whether the chunk index matches `runs` (a fresh build of it).
+    #[cfg(test)]
+    pub(crate) fn index_is_fresh(&self) -> bool {
+        Dense::new(self.runs.clone()).chunks == self.chunks
+    }
+
     /// Builds the chunk index over `runs`.
     #[must_use]
     pub fn new(runs: Vec<Vec<Station>>) -> Self {

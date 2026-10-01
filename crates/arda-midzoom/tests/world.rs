@@ -15,6 +15,9 @@
     missing_docs
 )]
 
+#[path = "../../../tests/support/fixture_dir.rs"]
+mod fixture_dir;
+
 use arda_midzoom::{render_tile, render_window, Pyramid, ReliefWorld};
 use std::path::{Path, PathBuf};
 use std::sync::{Arc, OnceLock};
@@ -38,17 +41,15 @@ fn world_dir() -> &'static Path {
             return out;
         }
         let dir = workspace().join("target/arda-midzoom-fixture/micro42");
-        if !loads(&dir) {
-            let _ = std::fs::remove_dir_all(&dir);
-            std::fs::create_dir_all(dir.parent().unwrap()).unwrap();
+        fixture_dir::ensure(&dir, loads, |tmp| {
             arda::generate_from_fine_source(
                 42,
                 arda::GenerateConfig::MICRO,
-                &dir,
+                tmp,
                 arda::FineDeliveryLimits::default(),
             )
             .expect("generating the MICRO fixture world");
-        }
+        });
         dir
     })
 }

@@ -16,6 +16,10 @@ pub const MEMORY_BUDGET: u64 = 16 * 1024 * 1024 * 1024;
 
 /// Working bytes per cell across every raster the stage allocates: the grid
 /// itself, derived fields, tags, land use, realm ids and route scratch.
+/// Measured peaks (review round 2 #31): 111–133 B a cell on the 640 × 480
+/// synthetic world with fixed overhead included, 56–78 B past a 16 MiB
+/// allowance (`tests/memory.rs`), and about 90 B a cell for `arda settle`
+/// on MICRO seed 42, world loading included.
 pub const BYTES_PER_CELL: u64 = 128;
 
 /// The stitched per-cell raster.

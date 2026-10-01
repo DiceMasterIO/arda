@@ -13,6 +13,7 @@ use serde::{Deserialize, Serialize};
 
 /// An SRD 5.1 class and level.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[cfg_attr(feature = "schema", derive(schemars::JsonSchema))]
 pub struct ClassLevel {
     /// SRD class name.
     pub class: String,
@@ -22,11 +23,13 @@ pub struct ClassLevel {
 
 /// One notable NPC slot.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[cfg_attr(feature = "schema", derive(schemars::JsonSchema))]
 pub struct NpcRole {
     /// Stable id.
     pub id: String,
     /// Settlement.
     #[serde(with = "crate::ids::str")]
+    #[cfg_attr(feature = "schema", schemars(with = "String"))]
     pub settlement: u64,
     /// Role kind key (`ruler`, `captain`, `high_priest`, …).
     pub kind: String,
@@ -34,6 +37,7 @@ pub struct NpcRole {
     pub title: String,
     /// Workplace building.
     #[serde(default, with = "crate::ids::opt")]
+    #[cfg_attr(feature = "schema", schemars(with = "Option<String>"))]
     pub building: Option<u64>,
     /// Faction led, if any.
     pub faction: Option<String>,

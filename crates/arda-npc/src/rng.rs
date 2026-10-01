@@ -104,6 +104,12 @@ impl Rng {
         u32::try_from(wide >> 32).unwrap_or(0)
     }
 
+    /// Uniform value in `0..n` (0 when `n == 0`), by 64-bit multiply-shift.
+    pub fn below_u64(&mut self, n: u64) -> u64 {
+        let wide = u128::from(self.next_u64()) * u128::from(n);
+        u64::try_from(wide >> 64).unwrap_or(0)
+    }
+
     /// Uniform value in `lo..=hi`.
     pub fn range(&mut self, lo: u32, hi: u32) -> u32 {
         if hi <= lo {
@@ -138,8 +144,14 @@ impl Rng {
         if total == 0 {
             return None;
         }
-        let total32 = u32::try_from(total).unwrap_or(u32::MAX);
-        let mut roll = u64::from(self.below(total32));
+        // Totals within u32 keep the original 32-bit draw, so every bundled
+        // table rolls exactly as before; larger totals draw over the whole
+        // range instead of a clamped one, which never reached the later
+        // entries (review round 1 #21).
+        let mut roll = match u32::try_from(total) {
+            Ok(t) => u64::from(self.below(t)),
+            Err(_) => self.below_u64(total),
+        };
         for (i, &w) in weights.iter().enumerate() {
             let w = u64::from(w);
             if roll < w {
@@ -183,5 +195,18 @@ mod tests {
             }
         }
         assert_eq!(rng.below(0), 0);
+    }
+
+    #[test]
+    fn weights_beyond_u32_reach_every_entry() {
+        let mut rng = SeedKey::settlement(1, SettlementId(1)).rng("w");
+        let weights = [u32::MAX, u32::MAX, u32::MAX];
+        let mut hits = [0_u32; 3];
+        for _ in 0..300 {
+            hits[rng.weighted(&weights).unwrap()] += 1;
+        }
+        assert!(hits.iter().all(|&h| h > 50), "{hits:?}");
+        assert!(rng.below_u64(5) < 5);
+        assert_eq!(rng.below_u64(0), 0);
     }
 }

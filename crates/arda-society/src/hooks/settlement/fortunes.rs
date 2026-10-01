@@ -122,7 +122,7 @@ pub(super) fn past(
 ) {
     let s = ctx.s(i);
     let h = w.history;
-    if let Some(r) = h.ruins.iter().find(|r| r.near == s.id) {
+    if let Some(r) = w.index.ruin_near(h, s.id) {
         let mut sl = base
             .clone()
             .with("ruin", r.name.clone())
@@ -132,10 +132,10 @@ pub(super) fn past(
         cite_role(&mut refs, &mut sl, "lord", w.head(ctx, i));
         c.push(Candidate::new(46, "ruin", sl, refs));
     }
-    let recent = h
-        .events
-        .iter()
-        .filter(|e| e.settlements.contains(&s.id) && e.severity >= 2 && ctx.present - e.year <= 45)
+    let recent = w
+        .index
+        .events_of(h, s.id)
+        .filter(|e| e.severity >= 2 && ctx.present - e.year <= 45)
         .filter(|e| {
             matches!(
                 e.kind,
@@ -168,10 +168,10 @@ pub(super) fn past(
         ));
     }
     if s.has(Function::Mining) {
-        let collapse = h
-            .events
-            .iter()
-            .find(|e| e.kind == EventKind::MineCollapse && e.settlements.contains(&s.id));
+        let collapse = w
+            .index
+            .events_of(h, s.id)
+            .find(|e| e.kind == EventKind::MineCollapse);
         let mut sl = base.clone();
         let mut refs = vec![me.clone()];
         if let Some(e) = collapse {

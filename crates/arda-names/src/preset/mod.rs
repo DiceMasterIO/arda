@@ -151,6 +151,7 @@ pub(crate) const BASE: Spec = Spec {
 
 /// A culture or ancestry preset.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize, Deserialize)]
+#[cfg_attr(feature = "schema", derive(schemars::JsonSchema))]
 #[serde(rename_all = "snake_case")]
 pub enum Preset {
     /// Mellow lowland farming folk.

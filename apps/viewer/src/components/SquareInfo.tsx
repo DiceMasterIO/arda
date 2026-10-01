@@ -1,16 +1,30 @@
-import { squareAt, wallsAround, type RulesCellView, type TacticalLayoutDto } from "../api/tactical.ts";
+import type { SceneSquare } from "../api/scene.ts";
+import { squareAt, wallsAround, type RulesCellDto, type TacticalLayoutDto } from "../api/tactical.ts";
 import { SQUARE_FT, squareLabel } from "../geo/coords.ts";
 import type { SquareRef } from "./TacticalMap.tsx";
 
 const SIDE_NAMES = { N: "north", E: "east", S: "south", W: "west" } as const;
+const DIRECTIONS = ["N", "NE", "E", "SE", "S", "SW", "W", "NW"] as const;
 
 function depth(ft: number): string {
   if (ft <= 0) return "dry";
   return `${ft} ft${ft >= 5 ? " (swimming)" : " (wading)"}`;
 }
 
-/** Ground, elevation, water depth and edge walls of one square, plus its rules when given. */
-export function SquareInfo({ layout, at, pinned, rules }: { layout: TacticalLayoutDto; at: SquareRef; pinned: boolean; rules?: RulesCellView | null }) {
+/** Ground, elevation, water depth and edge walls of one square, plus its rules and scene data when given. */
+export function SquareInfo({
+  layout,
+  at,
+  pinned,
+  rules,
+  scene,
+}: {
+  layout: TacticalLayoutDto;
+  at: SquareRef;
+  pinned: boolean;
+  rules?: RulesCellDto | null;
+  scene?: SceneSquare | null;
+}) {
   const sq = squareAt(layout, at.sx, at.sy);
   if (!sq) return null;
   const walls = wallsAround(layout, at.sx, at.sy);
@@ -82,6 +96,27 @@ export function SquareInfo({ layout, at, pinned, rules }: { layout: TacticalLayo
               </div>
             </dl>
           )}
+        </>
+      )}
+      {scene && (
+        <>
+          <h3>Scene</h3>
+          <dl>
+            <div className="row">
+              <dt>Movement</dt>
+              <dd>{scene.movement}</dd>
+            </div>
+            <div className="row">
+              <dt>Cover / sight</dt>
+              <dd>
+                {scene.cover.replace("_", "-")} / {scene.obscured}
+              </dd>
+            </div>
+            <div className="row">
+              <dt>Climb to</dt>
+              <dd>{scene.climb.length === 0 ? <span className="muted">none</span> : scene.climb.map((d) => DIRECTIONS[d]).join(", ")}</dd>
+            </div>
+          </dl>
         </>
       )}
     </div>

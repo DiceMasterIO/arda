@@ -3,12 +3,14 @@
 // Every wire type comes from ts-rs (bindings/ts/arda). The parsers here only
 // check the shape a response must have before the views index into it; they
 // never redefine a DTO. The rules sidecar is arda-scene's `RulesSidecar`
-// format 2 (`RulesSidecarDto`, convention I9); `RulesSidecarView` is the
-// viewer's validated reading of it, so the viewer's own demo blocks and the
-// server's blocks go through the same checks.
+// format 2 (`RulesSidecarDto`, convention I9); `parseRules` checks it the
+// same way for the viewer's own demo blocks and the server's blocks. Scene
+// and token types live in `scene.ts`.
 
 import type {
+  CoverLevelDto,
   NotYetError,
+  RulesCellDto,
   RulesSidecarDto,
   TacticalLibraryDto,
   SquareDto,
@@ -20,7 +22,7 @@ import type {
   WallSegmentDto,
 } from "@arda";
 
-export type { NotYetError, RulesSidecarDto, TacticalLibraryDto, SquareDto, TacticalBlockDto, TacticalLayoutDto, TacticalLayouts, TacticalLayoutSummary, TacticalTilesDto, WallSegmentDto };
+export type { CoverLevelDto, NotYetError, RulesCellDto, RulesSidecarDto, TacticalLibraryDto, SquareDto, TacticalBlockDto, TacticalLayoutDto, TacticalLayouts, TacticalLayoutSummary, TacticalTilesDto, WallSegmentDto };
 
 function isRecord(v: unknown): v is Record<string, unknown> {
   return typeof v === "object" && v !== null && !Array.isArray(v);
@@ -193,35 +195,13 @@ export function withGround(layout: TacticalLayoutDto, sx: number, sy: number, gr
 
 // --- Rules sidecar ---------------------------------------------------------
 
-export type CoverLevel = "none" | "half" | "three_quarters" | "total";
-
-/** One square of the arda-scene rules sidecar; an absent field means "no opinion". */
-export interface RulesCellView {
-  difficult?: boolean;
-  water_depth_ft?: number;
-  cover?: CoverLevel;
-  blocks_sight?: boolean;
-  lightly_obscured?: boolean;
-  blocks_movement?: boolean;
-  deck?: boolean;
-  /** Layer extras (`feature`, `road_class`, `crop`, `building`, …). */
-  ext?: Record<string, unknown>;
-}
-
-export interface RulesSidecarView {
-  format_version: number;
-  width: number;
-  height: number;
-  squares: RulesCellView[];
-}
-
 const COVERS: readonly string[] = ["none", "half", "three_quarters", "total", "full"];
 
 /**
  * Validates the block's `rules` against the layout size. Returns `null` for a
  * `null` sidecar and throws on a malformed one.
  */
-export function parseRules(rules: unknown, width: number, height: number): RulesSidecarView | null {
+export function parseRules(rules: unknown, width: number, height: number): RulesSidecarDto | null {
   if (rules === null || rules === undefined) return null;
   const what = "rules sidecar";
   if (!isRecord(rules)) fail(what, "not an object");
@@ -230,9 +210,9 @@ export function parseRules(rules: unknown, width: number, height: number): Rules
   if (rules["width"] !== width || rules["height"] !== height) fail(what, `size is not the layout's ${width}x${height}`);
   const squares: unknown = rules["squares"];
   if (!Array.isArray(squares) || squares.length !== width * height) fail(what, `squares do not match ${width}x${height}`);
-  const out: RulesCellView[] = (squares as unknown[]).map((s, i) => {
+  const out: RulesCellDto[] = (squares as unknown[]).map((s, i) => {
     if (!isRecord(s)) fail(what, `squares[${i}] is not an object`);
-    const cell: RulesCellView = {};
+    const cell: RulesCellDto = {};
     for (const k of ["difficult", "blocks_sight", "lightly_obscured", "blocks_movement", "deck"] as const) {
       const v = s[k];
       if (typeof v === "boolean") cell[k] = v;
@@ -242,14 +222,16 @@ export function parseRules(rules: unknown, width: number, height: number): Rules
     if (isUint(d)) cell.water_depth_ft = d;
     else if (d !== undefined && d !== null) fail(what, `squares[${i}].water_depth_ft is not an integer`);
     const c = s["cover"];
-    if (typeof c === "string" && COVERS.includes(c)) cell.cover = c === "full" ? "total" : (c as CoverLevel);
+    if (typeof c === "string" && COVERS.includes(c)) cell.cover = c === "full" ? "total" : (c as CoverLevelDto);
     else if (c !== undefined && c !== null) fail(what, `squares[${i}].cover is not a cover level`);
     const ext = s["ext"];
     if (isRecord(ext)) cell.ext = ext;
     else if (ext !== undefined && ext !== null) fail(what, `squares[${i}].ext is not an object`);
     return cell;
   });
-  return { format_version: version, width, height, squares: out };
+  const edges: unknown = rules["edges"] ?? [];
+  if (!Array.isArray(edges)) fail(what, "edges is not a list");
+  return { format_version: version, width, height, squares: out, edges: edges as RulesSidecarDto["edges"] };
 }
 
 /**
@@ -268,8 +250,8 @@ export function demoBlock(layout: TacticalLayoutDto, gx: number, gy: number): Ta
     if (w.axis === "horizontal") mark(w.x, w.y - 1);
     else mark(w.x - 1, w.y);
   }
-  const squares: RulesCellView[] = layout.squares.map((s, i) => {
-    const cell: RulesCellView = {};
+  const squares: RulesCellDto[] = layout.squares.map((s, i) => {
+    const cell: RulesCellDto = {};
     if (s.water_depth_ft > 0) cell.water_depth_ft = s.water_depth_ft;
     if (s.ground === "mud" || s.ground === "sand") cell.difficult = true;
     if (walled.has(i)) cell.cover = "half";
@@ -288,34 +270,4 @@ export function demoBlock(layout: TacticalLayoutDto, gx: number, gy: number): Ta
     scene: null,
     tiles: { tile_px: 512, ppsq: 64, image_width_px: layout.width * 64, image_height_px: layout.height * 64, max_zoom: 0, format: "webp" },
   };
-}
-
-/** One NPC token of a block's scene (`GET /v1/tactical/cell/{gx}/{gy}/scene`, A13). */
-export interface TokenView {
-  npc_id: string;
-  name: string;
-  x: number;
-  y: number;
-  building_id: string;
-  settlement_id: string;
-  kind: "worker" | "resident";
-}
-
-/** The `tokens` of a scene body; malformed entries are dropped. */
-export function parseTokens(body: unknown): TokenView[] {
-  const tokens = (body as { tokens?: unknown } | null)?.tokens;
-  if (!Array.isArray(tokens)) return [];
-  const out: TokenView[] = [];
-  for (const t of tokens as Record<string, unknown>[]) {
-    const ok =
-      typeof t.npc_id === "string" &&
-      typeof t.name === "string" &&
-      Number.isInteger(t.x) &&
-      Number.isInteger(t.y) &&
-      typeof t.building_id === "string" &&
-      typeof t.settlement_id === "string" &&
-      (t.kind === "worker" || t.kind === "resident");
-    if (ok) out.push(t as unknown as TokenView);
-  }
-  return out;
 }

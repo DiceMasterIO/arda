@@ -10,6 +10,7 @@ use serde::{Deserialize, Serialize};
 /// What a building is for: the vocabulary list plus `market_hall`, `mine`,
 /// `lumber_camp` and `school`.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize, Deserialize)]
+#[cfg_attr(feature = "schema", derive(schemars::JsonSchema))]
 #[serde(rename_all = "snake_case")]
 pub enum BuildingFunction {
     /// A town house.
@@ -176,6 +177,7 @@ impl BuildingFunction {
 
 /// The trade practised in a [`BuildingFunction::Workshop`].
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize, Deserialize)]
+#[cfg_attr(feature = "schema", derive(schemars::JsonSchema))]
 #[serde(rename_all = "snake_case")]
 pub enum Craft {
     /// Carpenter.

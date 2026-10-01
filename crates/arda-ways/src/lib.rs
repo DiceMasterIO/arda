@@ -20,6 +20,7 @@ pub mod input;
 pub mod plan;
 pub mod raster;
 pub mod sidecar;
+pub mod standing;
 
 pub use error::WaysError;
 pub use input::{
@@ -35,7 +36,7 @@ use serde::Serialize;
 pub struct CrossingReport {
     /// Crossing id (a JSON string).
     #[serde(with = "input::id_serde")]
-    pub id: u32,
+    pub id: u64,
     /// Kind.
     pub kind: CrossingKind,
     /// Stone arch (bridges only).
@@ -63,9 +64,9 @@ pub struct WaysReport {
     pub orphans: Vec<String>,
     /// Toll houses and waystations `(crossing id, function)`.
     pub houses: Vec<(String, &'static str)>,
-    /// Pieces given switchbacks.
+    /// Pieces given switchbacks, on ways that reach the window.
     pub switchbacks: u32,
-    /// Pieces still over their class grade.
+    /// Pieces still over their class grade, on ways that reach the window.
     pub over_grade: u32,
     /// Junctions near the window.
     pub junctions: u32,
@@ -117,11 +118,15 @@ pub fn apply_ways(
             c.id, c.width_m
         )));
     }
-    let plan = plan::build(win, roads, crossings, terrain, seed);
-    let sidecar = raster::apply(layout, &plan, terrain, seed);
+    let standing = standing::Standing::of(layout, win);
+    let plan = plan::build(win, roads, crossings, terrain, seed, &standing);
+    let sidecar = raster::apply(layout, &plan, terrain, seed, &standing);
     // Convention I10: the layout carries its world origin in squares.
     layout.origin = Some([win.gx0, win.gy0]);
     let rules = sidecar.to_rules();
+    // Ways and junctions near the window: the report never depends on
+    // roads the window's plan leaves out (`plan::relevant::relevant_roads`).
+    let near = plan.ways.iter().filter(|w| !w.dense.runs.is_empty());
     let report = WaysReport {
         ways: u32::try_from(
             plan.ways
@@ -154,9 +159,15 @@ pub fn apply_ways(
             .iter()
             .map(|h| (h.crossing.to_string(), h.function))
             .collect(),
-        switchbacks: plan.ways.iter().map(|w| w.switchbacks).sum(),
-        over_grade: plan.ways.iter().map(|w| w.over_grade).sum(),
-        junctions: u32::try_from(plan.junctions.len()).unwrap_or(u32::MAX),
+        switchbacks: near.clone().map(|w| w.switchbacks).sum(),
+        over_grade: near.map(|w| w.over_grade).sum(),
+        junctions: u32::try_from(
+            plan.junctions
+                .iter()
+                .filter(|j| win.dist_m(j.at) <= plan::DENSE_MARGIN_M)
+                .count(),
+        )
+        .unwrap_or(u32::MAX),
     };
     Ok(WaysOutput {
         sidecar,

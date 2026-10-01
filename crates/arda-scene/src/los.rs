@@ -10,7 +10,8 @@
 //!   blockers (wall arms at the vertex, or opaque squares beside the line)
 //!   lie on *both* sides of the line. A line may graze a wall end or the
 //!   outside of a corner, but cannot slip through a closed corner or between
-//!   two diagonally touching opaque squares.
+//!   two diagonally touching opaque squares. This vertex rule is an Arda
+//!   house rule: SRD 5.1 has no grid line-of-sight procedure.
 
 use crate::index::SceneIndex;
 use crate::types::{CoverLevel, Sq};
@@ -210,12 +211,14 @@ impl SceneIndex<'_> {
             .collect()
     }
 
-    /// SRD 5.1 cover of `target` against `attacker`. The attacker picks the
-    /// corner of its square that sees the target best; from that corner,
-    /// lines run to the four corners of the target's square. Blocked lines
-    /// set the degree (all four: total, three: three-quarters, one or two:
-    /// half), and obstacles on the open lines (props, windows) add their own
-    /// cover. Only the most protective degree applies, as the SRD says.
+    /// Cover of `target` against `attacker`. The degrees and "only the most
+    /// protective degree applies" are SRD 5.1; how they are read off the
+    /// grid is the DMG's optional grid procedure, applied as a house rule
+    /// (SRD 5.1 gives none): the attacker picks the corner of its square
+    /// that sees the target best; from that corner, lines run to the four
+    /// corners of the target's square. Blocked lines set the degree (all
+    /// four: total, three: three-quarters, one or two: half), and obstacles
+    /// on the open lines (props, windows) add their own cover.
     #[must_use]
     pub fn cover_between(&self, attacker: Sq, target: Sq) -> CoverLevel {
         let inside = |s: Sq| self.inside(i64::from(s.0), i64::from(s.1));

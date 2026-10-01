@@ -5,33 +5,39 @@ use serde::{Deserialize, Serialize};
 
 /// A reference to one entity of the input world or of the society.
 #[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize, Deserialize)]
+#[cfg_attr(feature = "schema", derive(schemars::JsonSchema))]
 #[serde(tag = "kind", rename_all = "snake_case")]
 pub enum EntityRef {
     /// An input settlement.
     Settlement {
         /// Settlement id.
         #[serde(with = "crate::ids::str")]
+        #[cfg_attr(feature = "schema", schemars(with = "String"))]
         id: u64,
     },
     /// An input realm.
     Realm {
         /// Realm id.
         #[serde(with = "crate::ids::str")]
+        #[cfg_attr(feature = "schema", schemars(with = "String"))]
         id: u64,
     },
     /// An input road.
     Road {
         /// Road id.
         #[serde(with = "crate::ids::str")]
+        #[cfg_attr(feature = "schema", schemars(with = "String"))]
         id: u64,
     },
     /// A building of a settlement.
     Building {
         /// Settlement id.
         #[serde(with = "crate::ids::str")]
+        #[cfg_attr(feature = "schema", schemars(with = "String"))]
         settlement: u64,
         /// Building id within the settlement.
         #[serde(with = "crate::ids::str")]
+        #[cfg_attr(feature = "schema", schemars(with = "String"))]
         id: u64,
     },
     /// A faction.

@@ -1,0 +1,614 @@
+{
+  "$defs": {
+    "CellSample": {
+      "description": "Everything the world knows about one 100 m global cell, in plain units.",
+      "properties": {
+        "aspect_deg": {
+          "description": "Downslope compass bearing, degrees 0–359; 0 on flat ground (`Cell::aspect_deg`).",
+          "format": "double",
+          "type": "number"
+        },
+        "ax": {
+          "description": "Area tile column containing the cell.",
+          "format": "int32",
+          "type": "integer"
+        },
+        "ay": {
+          "description": "Area tile row containing the cell.",
+          "format": "int32",
+          "type": "integer"
+        },
+        "built_by": {
+          "description": "Settlement id (decimal string) that owns this cell: `society/landuse.bin`\nowners when present, else `Cell::built_by`; `null` when none.",
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "centre_x_m": {
+          "description": "Cell centre, metres east of the world origin (`gx·100 + 50`).",
+          "format": "double",
+          "type": "number"
+        },
+        "centre_y_m": {
+          "description": "Cell centre, metres south of the world origin (`gy·100 + 50`).",
+          "format": "double",
+          "type": "number"
+        },
+        "coast": {
+          "$ref": "#/$defs/CoastSample",
+          "description": "Derived coast facts."
+        },
+        "contract_version": {
+          "description": "[`CONTRACT_VERSION`] this sample was produced under.",
+          "format": "uint32",
+          "minimum": 0,
+          "type": "integer"
+        },
+        "cover": {
+          "$ref": "#/$defs/CoverDto",
+          "description": "Dominant cover (`Cell::cover`)."
+        },
+        "cx": {
+          "description": "Column within the area, 0–511.",
+          "format": "uint16",
+          "maximum": 65535,
+          "minimum": 0,
+          "type": "integer"
+        },
+        "cy": {
+          "description": "Row within the area, 0–511.",
+          "format": "uint16",
+          "maximum": 65535,
+          "minimum": 0,
+          "type": "integer"
+        },
+        "discharge_m3s": {
+          "description": "Mean discharge, m³/s (`Cell::discharge`, L/s).",
+          "format": "double",
+          "type": "number"
+        },
+        "drainage_area_km2": {
+          "description": "Upstream drainage area, km² (`Cell::drainage_area_cells` × 0.01 km²).",
+          "format": "double",
+          "type": "number"
+        },
+        "fine": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/FineHeights"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "description": "Fine-terrain heights; `null` for worlds without `terrain/fine.bin`."
+        },
+        "forest_density": {
+          "description": "Canopy closure, 0–1 (`Cell::forest_density` / 255).",
+          "format": "double",
+          "type": "number"
+        },
+        "gx": {
+          "description": "Global cell column.",
+          "format": "uint32",
+          "minimum": 0,
+          "type": "integer"
+        },
+        "gy": {
+          "description": "Global cell row.",
+          "format": "uint32",
+          "minimum": 0,
+          "type": "integer"
+        },
+        "height_above_river_m": {
+          "description": "Height above the nearest downstream channel, metres (`Cell::height_above_river_dm`).",
+          "format": "double",
+          "type": "number"
+        },
+        "height_m": {
+          "description": "Elevation above sea level, metres (`Cell::height`, mm).",
+          "format": "double",
+          "type": "number"
+        },
+        "lake": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/LakeMembership"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "description": "Saved lake covering this cell, if any."
+        },
+        "land_use": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/LandUseDto"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "description": "Land use (`society/landuse.bin`); `null` without a `society/`."
+        },
+        "moisture": {
+          "description": "Soil moisture, 0–1 (`Cell::moisture` / 255).",
+          "format": "double",
+          "type": "number"
+        },
+        "rainfall_mm": {
+          "description": "Mean annual rainfall, mm (`Cell::rainfall`).",
+          "format": "double",
+          "type": "number"
+        },
+        "realm_id": {
+          "description": "Realm id (decimal string, `society/realms.bin`); `null` when none or\nwithout a `society/`.",
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "river": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/RiverMembership"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "description": "Saved river course through this cell, if any."
+        },
+        "road": {
+          "$ref": "#/$defs/RoadDto",
+          "description": "Road class: `society/roads.bin` when present, else `Cell::road`."
+        },
+        "slope_deg": {
+          "description": "Slope, degrees (`Cell::slope_milli_deg`).",
+          "format": "double",
+          "type": "number"
+        },
+        "snow": {
+          "$ref": "#/$defs/SnowSample",
+          "description": "Derived snow proxy."
+        },
+        "temperature_c": {
+          "description": "Mean annual temperature, °C (`Cell::temperature`, centi-°C).",
+          "format": "double",
+          "type": "number"
+        },
+        "terrain": {
+          "$ref": "#/$defs/TerrainKindDto",
+          "description": "Sea, land or lake (`Cell::terrain`)."
+        },
+        "watercourse_order": {
+          "description": "Strahler order; 0 when no watercourse (`Cell::watercourse_order`).",
+          "format": "uint8",
+          "maximum": 255,
+          "minimum": 0,
+          "type": "integer"
+        },
+        "watercourse_width_m": {
+          "description": "Channel width, metres; 0 when no watercourse (`Cell::watercourse_width_dm`).",
+          "format": "double",
+          "type": "number"
+        },
+        "wetness": {
+          "description": "Standing-water tendency, 0–1 (`Cell::wetness` / 255).",
+          "format": "double",
+          "type": "number"
+        },
+        "x_m": {
+          "description": "West edge of the cell, metres east of the world origin (`gx·100`).",
+          "format": "double",
+          "type": "number"
+        },
+        "y_m": {
+          "description": "North edge of the cell, metres south of the world origin (`gy·100`).",
+          "format": "double",
+          "type": "number"
+        }
+      },
+      "required": [
+        "contract_version",
+        "gx",
+        "gy",
+        "ax",
+        "ay",
+        "cx",
+        "cy",
+        "x_m",
+        "y_m",
+        "centre_x_m",
+        "centre_y_m",
+        "height_m",
+        "terrain",
+        "cover",
+        "slope_deg",
+        "aspect_deg",
+        "temperature_c",
+        "rainfall_mm",
+        "moisture",
+        "wetness",
+        "forest_density",
+        "drainage_area_km2",
+        "discharge_m3s",
+        "watercourse_order",
+        "watercourse_width_m",
+        "height_above_river_m",
+        "road",
+        "coast",
+        "snow"
+      ],
+      "type": "object"
+    },
+    "CoastSample": {
+      "description": "Derived coast facts.",
+      "properties": {
+        "distance_m": {
+          "description": "Euclidean centre-to-centre distance to the nearest coast cell, metres;\n0 on the coast, `null` when none lies within [`coast::MAX_DISTANCE_M`].",
+          "format": "double",
+          "type": [
+            "number",
+            "null"
+          ]
+        },
+        "is_coast": {
+          "description": "A land cell with at least one sea cell among its 8 neighbours.",
+          "type": "boolean"
+        }
+      },
+      "required": [
+        "is_coast"
+      ],
+      "type": "object"
+    },
+    "CoverDto": {
+      "description": "Dominant ground cover (source: `Cell::cover`, `logic/02` vegetation).",
+      "oneOf": [
+        {
+          "const": "bare",
+          "description": "Bare soil or sand.",
+          "type": "string"
+        },
+        {
+          "const": "grass",
+          "description": "Grassland.",
+          "type": "string"
+        },
+        {
+          "const": "scrub",
+          "description": "Scrub and heath.",
+          "type": "string"
+        },
+        {
+          "const": "forest",
+          "description": "Closed forest.",
+          "type": "string"
+        },
+        {
+          "const": "marsh",
+          "description": "Marsh or fen.",
+          "type": "string"
+        },
+        {
+          "const": "rock",
+          "description": "Exposed rock.",
+          "type": "string"
+        },
+        {
+          "const": "ice",
+          "description": "Permanent ice.",
+          "type": "string"
+        }
+      ]
+    },
+    "FineHeights": {
+      "description": "Canonical fine terrain (`terrain/fine.bin`, 39.0625 m lattice) over the cell.",
+      "properties": {
+        "centre_m": {
+          "description": "Bilinear height at the cell centre, metres.",
+          "format": "double",
+          "type": "number"
+        },
+        "max_m": {
+          "description": "Exact maximum of the bilinear surface over the footprint, metres.",
+          "format": "double",
+          "type": "number"
+        },
+        "min_m": {
+          "description": "Exact minimum of the bilinear surface over the footprint, metres.",
+          "format": "double",
+          "type": "number"
+        }
+      },
+      "required": [
+        "centre_m",
+        "min_m",
+        "max_m"
+      ],
+      "type": "object"
+    },
+    "HeightSource": {
+      "description": "Where a [`PointSample`] height came from.",
+      "oneOf": [
+        {
+          "const": "fine",
+          "description": "Bilinear on the canonical fine terrain.",
+          "type": "string"
+        },
+        {
+          "const": "cells",
+          "description": "Bilinear on the four surrounding 100 m cell centres (worlds without fine terrain).",
+          "type": "string"
+        }
+      ]
+    },
+    "LakeMembership": {
+      "description": "The lake covering this cell, when a saved lake lists it.",
+      "properties": {
+        "depth_m": {
+          "description": "Water depth in this cell, metres: surface minus cell height, never negative.",
+          "format": "double",
+          "type": "number"
+        },
+        "global_basin_id": {
+          "description": "Stable global basin id, decimal string.",
+          "type": "string"
+        },
+        "lake_id": {
+          "description": "Tile-local lake id (`Lake::id`), unique within the area.",
+          "format": "uint32",
+          "minimum": 0,
+          "type": "integer"
+        },
+        "max_depth_m": {
+          "description": "Greatest local depth of the lake fragment, metres.",
+          "format": "double",
+          "type": "number"
+        },
+        "surface_m": {
+          "description": "Representative water surface, metres above sea level.",
+          "format": "double",
+          "type": "number"
+        }
+      },
+      "required": [
+        "lake_id",
+        "global_basin_id",
+        "surface_m",
+        "depth_m",
+        "max_depth_m"
+      ],
+      "type": "object"
+    },
+    "LandUseDto": {
+      "description": "Land-use class of a cell (`society/landuse.bin`, logic/08 §landuse keys).",
+      "oneOf": [
+        {
+          "const": "none",
+          "description": "Untouched; prior cover stands.",
+          "type": "string"
+        },
+        {
+          "const": "built",
+          "description": "Built-up footprint.",
+          "type": "string"
+        },
+        {
+          "const": "field",
+          "description": "Ploughed fields.",
+          "type": "string"
+        },
+        {
+          "const": "pasture",
+          "description": "Pasture.",
+          "type": "string"
+        },
+        {
+          "const": "orchard",
+          "description": "Orchard.",
+          "type": "string"
+        },
+        {
+          "const": "woodland",
+          "description": "Managed woodland kept on slopes.",
+          "type": "string"
+        },
+        {
+          "const": "mill",
+          "description": "A water-mill site.",
+          "type": "string"
+        },
+        {
+          "const": "mine",
+          "description": "A mine or quarry head.",
+          "type": "string"
+        },
+        {
+          "const": "meadow",
+          "description": "Hay meadow.",
+          "type": "string"
+        },
+        {
+          "const": "fallow",
+          "description": "Resting ploughland.",
+          "type": "string"
+        },
+        {
+          "const": "farmstead",
+          "description": "A farmstead.",
+          "type": "string"
+        }
+      ]
+    },
+    "RiverMembership": {
+      "description": "The watercourse reach that owns this cell, when a saved river course passes through it.",
+      "properties": {
+        "discharge_m3s": {
+          "description": "Segment mean discharge, m³/s.",
+          "format": "double",
+          "type": "number"
+        },
+        "global_reach_id": {
+          "description": "Stable global reach id, decimal string (u64 does not fit a JS number).",
+          "type": "string"
+        },
+        "order": {
+          "description": "Strahler order of the segment.",
+          "format": "uint8",
+          "maximum": 255,
+          "minimum": 0,
+          "type": "integer"
+        },
+        "segment_id": {
+          "description": "Tile-local segment id (`RiverSegment::id`), unique within the area.",
+          "format": "uint32",
+          "minimum": 0,
+          "type": "integer"
+        },
+        "width_m": {
+          "description": "Segment channel width, metres.",
+          "format": "double",
+          "type": "number"
+        }
+      },
+      "required": [
+        "segment_id",
+        "global_reach_id",
+        "order",
+        "width_m",
+        "discharge_m3s"
+      ],
+      "type": "object"
+    },
+    "RoadDto": {
+      "description": "Road class crossing the cell (source: `Cell::road`).",
+      "oneOf": [
+        {
+          "const": "none",
+          "description": "No road.",
+          "type": "string"
+        },
+        {
+          "const": "track",
+          "description": "Footpath or cart track.",
+          "type": "string"
+        },
+        {
+          "const": "road",
+          "description": "Maintained road.",
+          "type": "string"
+        },
+        {
+          "const": "highway",
+          "description": "Trunk corridor.",
+          "type": "string"
+        },
+        {
+          "const": "footpath",
+          "description": "Footpath (society rasters only).",
+          "type": "string"
+        }
+      ]
+    },
+    "SnowSample": {
+      "description": "Derived snow proxy. Not simulated: a documented rule of thumb on saved climate.",
+      "properties": {
+        "fraction": {
+          "description": "Perennial snow cover of the cell, 0–1 (see [`snow`]).",
+          "format": "double",
+          "type": "number"
+        },
+        "peak_fraction": {
+          "description": "The same rule at the footprint's highest fine-terrain point; `null` without fine terrain.",
+          "format": "double",
+          "type": [
+            "number",
+            "null"
+          ]
+        },
+        "perennial": {
+          "description": "`fraction >= 0.5`, or permanent-ice cover.",
+          "type": "boolean"
+        },
+        "snowline_m": {
+          "description": "Altitude, metres, where the lapse-adjusted mean annual temperature crosses\nthe snow midpoint (−5.5 °C). Ground above it is snowy under this proxy.",
+          "format": "double",
+          "type": "number"
+        }
+      },
+      "required": [
+        "fraction",
+        "perennial",
+        "snowline_m"
+      ],
+      "type": "object"
+    },
+    "TerrainKindDto": {
+      "description": "Sea, dry land, or lake surface (source: `Cell::terrain`).",
+      "oneOf": [
+        {
+          "const": "sea",
+          "description": "Below sea level and connected to the ocean.",
+          "type": "string"
+        },
+        {
+          "const": "land",
+          "description": "Dry land.",
+          "type": "string"
+        },
+        {
+          "const": "lake",
+          "description": "Inland standing water.",
+          "type": "string"
+        }
+      ]
+    }
+  },
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "description": "A height query at arbitrary world metres, plus the nearest cell's sample.",
+  "properties": {
+    "cell": {
+      "$ref": "#/$defs/CellSample",
+      "description": "Sample of the cell containing the point."
+    },
+    "contract_version": {
+      "description": "[`CONTRACT_VERSION`].",
+      "format": "uint32",
+      "minimum": 0,
+      "type": "integer"
+    },
+    "height_m": {
+      "description": "Interpolated elevation, metres.",
+      "format": "double",
+      "type": "number"
+    },
+    "height_source": {
+      "$ref": "#/$defs/HeightSource",
+      "description": "Which surface was interpolated."
+    },
+    "x_m": {
+      "description": "Query position east of the world origin, metres.",
+      "format": "double",
+      "type": "number"
+    },
+    "y_m": {
+      "description": "Query position south of the world origin, metres.",
+      "format": "double",
+      "type": "number"
+    }
+  },
+  "required": [
+    "contract_version",
+    "x_m",
+    "y_m",
+    "height_m",
+    "height_source",
+    "cell"
+  ],
+  "title": "PointSample",
+  "type": "object"
+}

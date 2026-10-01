@@ -12,7 +12,7 @@ async fn health_and_world_describe_the_served_world() {
     assert_eq!(health.status, StatusCode::OK);
     assert_eq!(health.json()["seed"], "42");
     let world = get("/v1/world").await.json();
-    assert_eq!(world["contract_version"], 2);
+    assert_eq!(world["contract_version"], arda_server::CONTRACT_VERSION);
     assert_eq!(world["api_version"], "v1");
     assert_eq!(
         (world["areas_wide"].as_i64(), world["areas_high"].as_i64()),
@@ -122,6 +122,12 @@ async fn overview_png_and_tiles_are_pngs_within_the_pyramid() {
     assert_eq!(png.headers["content-type"], "image/png");
     let image = arda_server::tiles::decode_rgb(&png.body).unwrap();
     assert_eq!((image.width, image.height), (256, 512));
+    // Off-ladder qualities are refused before any render (review round 1 #16).
+    for off in ["513", "600", "1000"] {
+        let r = get(&format!("/v1/overview.png?quality={off}")).await;
+        assert_eq!(r.status, StatusCode::BAD_REQUEST, "quality {off}");
+        assert_eq!(r.json()["error"]["code"], "bad_request");
+    }
     for uri in [
         "/v1/tiles/overview/0/0/0.png",
         "/v1/tiles/overview/1/0/1.png",
@@ -169,6 +175,32 @@ fn webp_rgba(bytes: &[u8]) -> (u32, u32, Vec<u8>) {
     (w, h, buf)
 }
 
+/// Review round 2 #44: an image's bytes depend on the served world, which
+/// its URL does not name, so overview and relief images are revalidated by
+/// ETag instead of cached for an hour.
+#[tokio::test]
+async fn world_images_are_revalidated_by_etag() {
+    for uri in [
+        "/v1/tiles/overview/0/0/0.webp",
+        "/v1/tiles/overview/1/0/1.png",
+        "/v1/overview.png?quality=512",
+    ] {
+        let first = get(uri).await;
+        assert_eq!(first.status, StatusCode::OK, "{uri}");
+        assert_eq!(first.headers["cache-control"], "no-cache", "{uri}");
+        let etag = first.headers["etag"].to_str().unwrap().to_owned();
+        assert!(etag.starts_with('"') && etag.len() == 66, "{uri}: {etag}");
+        let request = axum::http::Request::get(uri)
+            .header("if-none-match", etag.as_str())
+            .body(axum::body::Body::empty())
+            .unwrap();
+        let again = crate::support::send(crate::support::state(), request).await;
+        assert_eq!(again.status, StatusCode::NOT_MODIFIED, "{uri}");
+        assert!(again.body.is_empty());
+        assert_eq!(again.headers["etag"].to_str().unwrap(), etag);
+    }
+}
+
 /// Goal 68: the overview pyramid is served as lossless WebP too, with the
 /// same pixels as the PNG tiles, and the same bounds.
 #[tokio::test]
@@ -177,7 +209,7 @@ async fn overview_tiles_are_served_as_lossless_webp_with_the_png_pixels() {
         let webp = get(&format!("/v1/tiles/overview/{z}/{x}/{y}.webp")).await;
         assert_eq!(webp.status, StatusCode::OK);
         assert_eq!(webp.headers["content-type"], "image/webp");
-        assert_eq!(webp.headers["cache-control"], "public, max-age=3600");
+        assert_eq!(webp.headers["cache-control"], "no-cache");
         let png = get(&format!("/v1/tiles/overview/{z}/{x}/{y}.png")).await;
         let (w, h, pixels) = webp_rgba(&webp.body);
         assert_eq!((w, h), (256, 256));

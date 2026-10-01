@@ -307,7 +307,7 @@ fn a_village_tactical_map_with_its_people_is_served_over_http() {
     ] {
         format_one(&soc.join(f));
     }
-    for f in ["landuse.bin", "realms.bin"] {
+    for f in ["landuse.bin", "realms.bin", "roads.bin"] {
         assert!(soc.join(f).is_file(), "{f}");
     }
     let rt = tokio::runtime::Runtime::new().unwrap();
@@ -315,7 +315,7 @@ fn a_village_tactical_map_with_its_people_is_served_over_http() {
     rt.block_on(async {
         // Step 5: world routes.
         let w = ok(&state, "/v1/world").await.json();
-        assert_eq!(w["contract_version"], 2);
+        assert_eq!(w["contract_version"], arda_server::CONTRACT_VERSION);
         let all = ok(&state, "/v1/settlements").await.json();
         let village = pick(&all);
         let id = village["id"].as_str().unwrap().to_owned();
@@ -324,7 +324,11 @@ fn a_village_tactical_map_with_its_people_is_served_over_http() {
             village["cell_y"].as_u64().unwrap(),
         );
         let cell = ok(&state, &format!("/v1/cell/{gx}/{gy}")).await.json();
-        assert_eq!(cell["contract_version"], 2);
+        assert_eq!(cell["contract_version"], arda_server::CONTRACT_VERSION);
+        // A11: the village's own cell is its built footprint, in its realm.
+        assert_eq!(cell["built_by"], id.as_str());
+        assert_eq!(cell["land_use"], "built");
+        assert!(cell["realm_id"].is_string(), "{}", cell["realm_id"]);
         // Step 6: settlement routes.
         let listed = ok(&state, "/v1/settlements?tier=village").await.json();
         assert!(listed["settlements"]

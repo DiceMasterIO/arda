@@ -1,0 +1,239 @@
+{
+  "$defs": {
+    "CoverLevelDto": {
+      "description": "SRD 5.1 degrees of cover.",
+      "oneOf": [
+        {
+          "const": "none",
+          "description": "No cover.",
+          "type": "string"
+        },
+        {
+          "const": "half",
+          "description": "Half cover: +2 AC and Dexterity saves.",
+          "type": "string"
+        },
+        {
+          "const": "three_quarters",
+          "description": "Three-quarters cover: +5.",
+          "type": "string"
+        },
+        {
+          "const": "total",
+          "description": "Total cover: cannot be targeted directly.",
+          "type": "string"
+        }
+      ]
+    },
+    "EdgeAxisDto": {
+      "description": "Which edge of a square a segment lies on.",
+      "oneOf": [
+        {
+          "const": "horizontal",
+          "description": "The north edge of square `(x, y)`.",
+          "type": "string"
+        },
+        {
+          "const": "vertical",
+          "description": "The west edge of square `(x, y)`.",
+          "type": "string"
+        }
+      ]
+    },
+    "EdgeRoleDto": {
+      "description": "Why a rules edge exists.",
+      "oneOf": [
+        {
+          "const": "parapet",
+          "description": "Bridge parapet: blocks movement, not sight.",
+          "type": "string"
+        },
+        {
+          "const": "retaining",
+          "description": "Low retaining wall.",
+          "type": "string"
+        },
+        {
+          "const": "building",
+          "description": "A building's wall, door or window.",
+          "type": "string"
+        },
+        {
+          "const": "boundary",
+          "description": "Hedge, drystone wall or fence around a field.",
+          "type": "string"
+        },
+        {
+          "const": "gate",
+          "description": "A gate in a field boundary.",
+          "type": "string"
+        }
+      ]
+    },
+    "EdgeRuleDto": {
+      "additionalProperties": false,
+      "description": "Movement and sight rules of one unit edge.",
+      "properties": {
+        "axis": {
+          "$ref": "#/$defs/EdgeAxisDto",
+          "description": "Which edge of the square."
+        },
+        "blocks_movement": {
+          "description": "Blocks movement across the edge.",
+          "type": "boolean"
+        },
+        "blocks_sight": {
+          "description": "Blocks sight across the edge.",
+          "type": "boolean"
+        },
+        "cover": {
+          "$ref": "#/$defs/CoverLevelDto",
+          "default": "none",
+          "description": "Cover it grants."
+        },
+        "role": {
+          "$ref": "#/$defs/EdgeRoleDto",
+          "description": "Why it is there."
+        },
+        "x": {
+          "description": "Square column.",
+          "format": "uint32",
+          "minimum": 0,
+          "type": "integer"
+        },
+        "y": {
+          "description": "Square row.",
+          "format": "uint32",
+          "minimum": 0,
+          "type": "integer"
+        }
+      },
+      "required": [
+        "x",
+        "y",
+        "axis",
+        "role",
+        "blocks_movement",
+        "blocks_sight"
+      ],
+      "type": "object"
+    },
+    "RulesCellDto": {
+      "additionalProperties": false,
+      "description": "One square's rules; an absent field means \"no opinion\".",
+      "properties": {
+        "blocks_movement": {
+          "description": "Impassable.",
+          "type": [
+            "boolean",
+            "null"
+          ]
+        },
+        "blocks_sight": {
+          "description": "Heavily obscured.",
+          "type": [
+            "boolean",
+            "null"
+          ]
+        },
+        "cover": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/CoverLevelDto"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "description": "Cover the square's contents grant."
+        },
+        "deck": {
+          "description": "A walkable deck (bridge, jetty) over the square.",
+          "type": [
+            "boolean",
+            "null"
+          ]
+        },
+        "difficult": {
+          "description": "Difficult terrain.",
+          "type": [
+            "boolean",
+            "null"
+          ]
+        },
+        "ext": {
+          "additionalProperties": true,
+          "description": "Layer extras: `feature`, `road_class`, `deck_elevation_ft` (ways),\n`crop`, `field`, `furrow` (fields), `building` (town).",
+          "type": [
+            "object",
+            "null"
+          ]
+        },
+        "lightly_obscured": {
+          "description": "Lightly obscured.",
+          "type": [
+            "boolean",
+            "null"
+          ]
+        },
+        "water_depth_ft": {
+          "description": "Water depth in feet: under 5 wades, 5 or more swims (I15).",
+          "format": "uint8",
+          "maximum": 255,
+          "minimum": 0,
+          "type": [
+            "integer",
+            "null"
+          ]
+        }
+      },
+      "type": "object"
+    }
+  },
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "additionalProperties": false,
+  "description": "The per-square rules sidecar, format 2.",
+  "properties": {
+    "edges": {
+      "default": [],
+      "description": "Low edge features that are not wall-kit walls (always present on\nthe wire; the domain JSON omits an empty list).",
+      "items": {
+        "$ref": "#/$defs/EdgeRuleDto"
+      },
+      "type": "array"
+    },
+    "format_version": {
+      "description": "Always 2.",
+      "format": "uint32",
+      "minimum": 0,
+      "type": "integer"
+    },
+    "height": {
+      "description": "Height in squares.",
+      "format": "uint32",
+      "minimum": 0,
+      "type": "integer"
+    },
+    "squares": {
+      "description": "Row-major cells.",
+      "items": {
+        "$ref": "#/$defs/RulesCellDto"
+      },
+      "type": "array"
+    },
+    "width": {
+      "description": "Width in squares (the layout's).",
+      "format": "uint32",
+      "minimum": 0,
+      "type": "integer"
+    }
+  },
+  "required": [
+    "format_version",
+    "width",
+    "height",
+    "squares"
+  ],
+  "title": "RulesSidecarDto",
+  "type": "object"
+}

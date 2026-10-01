@@ -84,7 +84,7 @@ Notables are the masters of notable workplaces plus the officials. Counts per ti
 
 ### §npc-game-schema
 
-The game consumes NPC sheets in its own SRD 5.1 creature schema (goal 69). The contract is the `arda-npc` `Npc` and `Sheet` JSON as serialised by serde; the service exposes it through ts-rs DTO mirrors whose JSON is byte-identical to the domain serialisation (16 §api-bindings). `arda-npc` stays free of HTTP and ts-rs dependencies.
+The game consumes NPC sheets in its own SRD 5.1 creature schema (goal 69). The contract is the `arda-npc` `Npc` and `Sheet` JSON as serialised by serde; the service exposes it through ts-rs DTO mirrors whose JSON is byte-identical to the domain serialisation (16 §api-bindings). `arda-npc` stays free of HTTP and ts-rs dependencies. The contract is also published as JSON Schema (`Npc.json`, `Sheet.json`; 16 §api-schema). Because the game's own schema is not Arda's, the server can reshape every served `Npc` into it through a declarative sheet mapping (16 §api-sheet-mapping); the mapping is data, so the game's schema needs no Arda code change.
 
 ## Steps
 

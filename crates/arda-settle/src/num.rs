@@ -1,4 +1,5 @@
-//! Integer helpers: saturating conversions and a deterministic integer sqrt.
+//! Integer helpers: saturating conversions, a deterministic integer sqrt and
+//! a platform-independent natural logarithm.
 //!
 //! Generation stays in integers (goal-prompt §8), so these replace `as` casts.
 
@@ -90,6 +91,41 @@ pub fn mul_div(v: i64, num: i64, den: i64) -> i64 {
     i64::try_from(q).unwrap_or(if q > 0 { i64::MAX } else { i64::MIN })
 }
 
+/// Natural logarithm of a finite positive `x`, from IEEE basic operations
+/// only (`+`, `−`, `×`, `÷` and bit manipulation), so it rounds the same on
+/// every platform. `f64::ln` is libm's and is not correctly rounded, so
+/// `stats.json`, which is in the byte-identical set, could differ between
+/// libm implementations (review round 2 #43). Accurate to a few ulp; 0 for
+/// non-positive or non-finite input.
+#[must_use]
+#[allow(clippy::cast_possible_wrap, clippy::cast_precision_loss)] // 11-bit exponent
+pub fn ln(x: f64) -> f64 {
+    if !(x.is_finite() && x > 0.0) {
+        return 0.0;
+    }
+    // Normalise subnormals into the normal range first.
+    let (x, bias) = if x < f64::MIN_POSITIVE {
+        (x * 2f64.powi(64), -64)
+    } else {
+        (x, 0)
+    };
+    let bits = x.to_bits();
+    let mut e = ((bits >> 52) & 0x7ff) as i64 - 1023 + bias;
+    let mut m = f64::from_bits((bits & ((1 << 52) - 1)) | (1023 << 52));
+    if m > std::f64::consts::SQRT_2 {
+        m /= 2.0;
+        e += 1;
+    }
+    // ln m = 2 atanh t with t = (m - 1) / (m + 1), |t| <= 0.172.
+    let t = (m - 1.0) / (m + 1.0);
+    let t2 = t * t;
+    let mut series = 0.0;
+    for k in (0..24_u32).rev() {
+        series = series * t2 + 1.0 / f64::from(2 * k + 1);
+    }
+    e as f64 * std::f64::consts::LN_2 + 2.0 * t * series
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -110,5 +146,24 @@ mod tests {
         assert_eq!(sat_u8(900), 255);
         assert_eq!(mul_div(10, 1, 3), 3);
         assert_eq!(mul_div(-10, 1, 4), -3);
+    }
+
+    #[test]
+    fn ln_matches_the_platform_logarithm_to_a_few_ulp() {
+        for x in [
+            1.0, 2.0, 2.5, 10.0, 7_999.0, 1e-300, 4.9e-324, 1e300, 0.5, 1.5,
+        ] {
+            let (got, want) = (ln(x), x.ln());
+            assert!(
+                (got - want).abs() <= 4.0 * f64::EPSILON * want.abs().max(1.0),
+                "{x}: {got} vs {want}"
+            );
+        }
+        for k in 1..2_000_u32 {
+            let x = f64::from(k) * 1.37;
+            assert!((ln(x) - x.ln()).abs() <= 4.0 * f64::EPSILON * x.ln().abs().max(1.0));
+        }
+        assert!(ln(1.0).abs() < f64::EPSILON);
+        assert!(ln(0.0).abs() < f64::EPSILON && ln(-3.0).abs() < f64::EPSILON);
     }
 }

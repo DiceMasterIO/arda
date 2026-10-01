@@ -90,6 +90,8 @@ export function describeCell(c: CellSample): Section[] {
       { label: "Forest density", value: `${pct(c.forest_density)} canopy closure` },
       { label: "Road", value: c.road === "none" ? "none" : c.road },
       { label: "Settlement", value: c.built_by === null ? "none" : `#${c.built_by}` },
+      ...(c.land_use === null ? [] : [{ label: "Land use", value: c.land_use.replace("_", " ") }]),
+      ...(c.realm_id === null ? [] : [{ label: "Realm", value: `#${c.realm_id}` }]),
     ],
   });
   s.push({

@@ -221,7 +221,7 @@ pub fn rank_size_fit(settlements: &[Settlement]) -> (f64, f64) {
     let pts: Vec<(f64, f64)> = pops
         .iter()
         .enumerate()
-        .map(|(k, p)| (((k + 1) as f64).ln(), p.ln()))
+        .map(|(k, p)| (crate::num::ln((k + 1) as f64), crate::num::ln(*p)))
         .collect();
     let n = pts.len() as f64;
     let mx = pts.iter().map(|p| p.0).sum::<f64>() / n;

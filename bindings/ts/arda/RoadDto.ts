@@ -3,4 +3,4 @@
 /**
  * Road class crossing the cell (source: `Cell::road`).
  */
-export type RoadDto = "none" | "track" | "road" | "highway";
+export type RoadDto = "none" | "track" | "road" | "highway" | "footpath";

@@ -9,6 +9,9 @@
 //! the world is generated once into `target/arda-server-fixture/micro42`.
 #![allow(clippy::unwrap_used, clippy::expect_used, missing_docs)]
 
+#[path = "../../../tests/support/fixture_dir.rs"]
+mod fixture_dir;
+
 use arda_settle::grid::MEMORY_BUDGET;
 use arda_settle::output::SettlementsFile;
 use std::path::{Path, PathBuf};
@@ -28,17 +31,15 @@ fn world_dir() -> PathBuf {
         return out;
     }
     let dir = root.join("target/arda-server-fixture/micro42");
-    if !loads(&dir) {
-        let _ = std::fs::remove_dir_all(&dir);
-        std::fs::create_dir_all(dir.parent().unwrap()).unwrap();
+    fixture_dir::ensure(&dir, loads, |tmp| {
         arda::generate_from_fine_source(
             42,
             arda::GenerateConfig::MICRO,
-            &dir,
+            tmp,
             arda::FineDeliveryLimits::default(),
         )
         .expect("generating the MICRO fixture world");
-    }
+    });
     dir
 }
 

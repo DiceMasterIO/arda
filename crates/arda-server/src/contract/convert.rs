@@ -1,9 +1,10 @@
 //! Stored fixed-point cell fields to contract units (see the field docs in [`super`]).
 
 use super::{
-    snow, CellSample, CoastSample, CoverDto, FineHeights, LakeMembership, RiverMembership, RoadDto,
-    TerrainKindDto, CELL_M, CONTRACT_VERSION,
+    snow, CellSample, CoastSample, CoverDto, FineHeights, LakeMembership, LandUseDto,
+    RiverMembership, RoadDto, TerrainKindDto, CELL_M, CONTRACT_VERSION,
 };
+use crate::society_cells::SocietyCell;
 use arda_core::{Cell, Cover, HeightMm, Lake, RiverSegment, RoadClass, TerrainKind};
 
 /// One drainage cell is 100 m × 100 m = 0.01 km².
@@ -127,6 +128,58 @@ pub struct Derived {
     pub lake: Option<LakeMembership>,
     /// Fine heights.
     pub fine: Option<FineHeights>,
+    /// The cell's `society/` raster values, when the world has them.
+    pub society: Option<SocietyCell>,
+}
+
+/// A society raster road code (`arda_ids::RoadClass::code`) to its contract
+/// name; unknown codes read as no road.
+#[must_use]
+pub const fn society_road(code: u8) -> RoadDto {
+    match arda_ids::RoadClass::from_code(code) {
+        Some(arda_ids::RoadClass::Track) => RoadDto::Track,
+        Some(arda_ids::RoadClass::Road) => RoadDto::Road,
+        Some(arda_ids::RoadClass::Highway) => RoadDto::Highway,
+        Some(arda_ids::RoadClass::Footpath) => RoadDto::Footpath,
+        Some(arda_ids::RoadClass::None) | None => RoadDto::None,
+    }
+}
+
+/// A `landuse.bin` code to its contract name; unknown codes read as none.
+#[must_use]
+pub const fn land_use(code: u8) -> LandUseDto {
+    use arda_ids::LandUse as L;
+    match L::from_code(code) {
+        Some(L::Built) => LandUseDto::Built,
+        Some(L::Field) => LandUseDto::Field,
+        Some(L::Pasture) => LandUseDto::Pasture,
+        Some(L::Orchard) => LandUseDto::Orchard,
+        Some(L::Woodland) => LandUseDto::Woodland,
+        Some(L::Mill) => LandUseDto::Mill,
+        Some(L::Mine) => LandUseDto::Mine,
+        Some(L::Meadow) => LandUseDto::Meadow,
+        Some(L::Fallow) => LandUseDto::Fallow,
+        Some(L::Farmstead) => LandUseDto::Farmstead,
+        Some(L::None) | None => LandUseDto::None,
+    }
+}
+
+/// `road`, `built_by`, `land_use` and `realm_id` of a cell: from its society
+/// rasters when present (logic/16 §api-cell-society), else the stored cell.
+fn society_fields(
+    cell: &Cell,
+    society: Option<SocietyCell>,
+) -> (RoadDto, Option<String>, Option<LandUseDto>, Option<String>) {
+    let id = |v: u32| (v != 0).then(|| v.to_string());
+    match society {
+        Some(s) => (
+            s.road.map_or_else(|| road(cell.road), society_road),
+            id(s.owner),
+            Some(land_use(s.land_use)),
+            id(u32::from(s.realm)),
+        ),
+        None => (road(cell.road), id(u32::from(cell.built_by)), None, None),
+    }
 }
 
 /// Assembles the contract sample for one stored cell.
@@ -143,6 +196,7 @@ pub fn cell_sample(cell: &Cell, at: CellPlace, derived: Derived) -> CellSample {
         slope_deg,
         derived.fine.map(|f| f.max_m),
     );
+    let (road, built_by, land_use, realm_id) = society_fields(cell, derived.society);
     CellSample {
         contract_version: CONTRACT_VERSION,
         gx: at.gx,
@@ -170,8 +224,10 @@ pub fn cell_sample(cell: &Cell, at: CellPlace, derived: Derived) -> CellSample {
         watercourse_order: cell.watercourse_order,
         watercourse_width_m: f64::from(cell.watercourse_width_dm) / 10.0,
         height_above_river_m: f64::from(cell.height_above_river_dm) / 10.0,
-        road: road(cell.road),
-        built_by: (cell.built_by != 0).then_some(cell.built_by),
+        road,
+        built_by,
+        land_use,
+        realm_id,
         coast: derived.coast.unwrap_or(CoastSample {
             is_coast: false,
             distance_m: None,
@@ -253,8 +309,64 @@ mod tests {
         };
         let s = cell_sample(&cell, place(), Derived::default());
         assert!((s.height_m + 2000.5).abs() < 1e-9);
-        assert_eq!(s.built_by, Some(7));
+        assert_eq!(s.built_by.as_deref(), Some("7"));
         assert_eq!(s.terrain, TerrainKindDto::Sea);
+        assert_eq!((s.land_use, s.realm_id), (None, None));
+    }
+
+    #[test]
+    fn society_rasters_override_the_stored_road_and_owner() {
+        let cell = Cell {
+            road: RoadClass::Highway,
+            built_by: 7,
+            ..Cell::default()
+        };
+        let society = |road| Derived {
+            society: Some(SocietyCell {
+                land_use: 9,
+                owner: 70_000,
+                realm: 2,
+                road,
+            }),
+            ..Derived::default()
+        };
+        let s = cell_sample(&cell, place(), society(Some(4)));
+        assert_eq!(s.road, RoadDto::Footpath);
+        assert_eq!(s.built_by.as_deref(), Some("70000"));
+        assert_eq!(s.land_use, Some(LandUseDto::Fallow));
+        assert_eq!(s.realm_id.as_deref(), Some("2"));
+        // A society written before roads.bin keeps the stored road.
+        assert_eq!(
+            cell_sample(&cell, place(), society(None)).road,
+            RoadDto::Highway
+        );
+        // Unowned society cells are null, not the stored owner.
+        let wild = Derived {
+            society: Some(SocietyCell {
+                road: Some(0),
+                ..SocietyCell::default()
+            }),
+            ..Derived::default()
+        };
+        let w = cell_sample(&cell, place(), wild);
+        assert_eq!((w.built_by, w.realm_id), (None, None));
+        assert_eq!(w.land_use, Some(LandUseDto::None));
+        assert_eq!(w.road, RoadDto::None);
+    }
+
+    #[test]
+    fn every_society_code_has_its_contract_name() {
+        for class in arda_ids::LandUse::ALL {
+            let json = serde_json::to_value(land_use(class.code())).unwrap();
+            assert_eq!(json, serde_json::to_value(class).unwrap());
+        }
+        for code in 0..=4 {
+            let class = arda_ids::RoadClass::from_code(code).unwrap();
+            let json = serde_json::to_value(society_road(code)).unwrap();
+            assert_eq!(json, serde_json::to_value(class).unwrap());
+        }
+        assert_eq!(land_use(200), LandUseDto::None);
+        assert_eq!(society_road(200), RoadDto::None);
     }
 
     #[test]

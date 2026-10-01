@@ -4,12 +4,13 @@ use crate::columnar;
 use crate::dto::{self, AreaLakes, AreaRivers, Health, Origin, TilePyramidDto, WorldInfo};
 use crate::error::{ServerError, ServerResult};
 use crate::overview::{Style, TileFormat};
+use crate::sheet_map::NpcAt;
 use crate::AppState;
 use axum::extract::rejection::JsonRejection;
 use axum::extract::{DefaultBodyLimit, Path, Query, State};
 use axum::http::header::{CACHE_CONTROL, CONTENT_TYPE, ETAG, IF_NONE_MATCH};
 use axum::http::StatusCode;
-use axum::http::{HeaderValue, Method};
+use axum::http::{HeaderMap, HeaderValue, Method};
 use axum::response::{IntoResponse, Response};
 use axum::routing::{get, post};
 use axum::{Json, Router};
@@ -50,6 +51,8 @@ pub fn router(state: Arc<AppState>) -> Router {
         .route("/settlements/{id}", get(crate::people::one))
         .route("/settlements/{id}/plan", get(crate::people::plan))
         .route("/settlements/{id}/npcs", get(crate::people::npcs))
+        .route("/schema", get(crate::schema::routes::index))
+        .route("/schema/{name}", get(crate::schema::routes::one))
         .nest(
             "/tactical",
             crate::tactical::routes::router(state.tactical.limits().max_body_bytes),
@@ -93,7 +96,11 @@ fn cors() -> CorsLayer {
         }))
         .allow_methods([Method::GET, Method::HEAD, Method::POST, Method::OPTIONS])
         .allow_headers([CONTENT_TYPE, IF_NONE_MATCH])
-        .expose_headers([ETAG, crate::tactical::routes::X_ARDA_CACHE])
+        .expose_headers([
+            ETAG,
+            crate::tactical::routes::X_ARDA_CACHE,
+            crate::sheet_map::X_ARDA_SHEET_MAPPING,
+        ])
 }
 
 pub(crate) async fn blocking<T: Send + 'static>(
@@ -129,18 +136,38 @@ pub(crate) fn params(query: Params) -> ServerResult<BTreeMap<String, String>> {
         .map_err(|e| ServerError::BadRequest(e.body_text()))
 }
 
-fn png(bytes: &[u8]) -> Response {
-    image("image/png", bytes)
+/// `Cache-Control` of every image: revalidate by `ETag`. The bytes depend
+/// on the served world (seed, terrain, library), which the URL does not
+/// name, so a browser must not reuse an image for an hour after the server
+/// restarts on another world (review round 2 #44).
+pub const IMAGE_CACHE_CONTROL: &str = "no-cache";
+
+fn png(headers: &HeaderMap, bytes: &[u8]) -> Response {
+    image(headers, "image/png", bytes)
 }
 
-fn image(content_type: &'static str, bytes: &[u8]) -> Response {
+/// An image with a strong `ETag` (BLAKE3 of the bytes), answering `304`
+/// when `If-None-Match` names it.
+fn image(headers: &HeaderMap, content_type: &'static str, bytes: &[u8]) -> Response {
+    let etag = format!("\"{}\"", blake3::hash(bytes).to_hex());
+    let fresh = headers
+        .get(IF_NONE_MATCH)
+        .and_then(|v| v.to_str().ok())
+        .is_some_and(|v| v.split(',').any(|t| t.trim() == etag || t.trim() == "*"));
+    let etag = HeaderValue::from_str(&etag).unwrap_or(HeaderValue::from_static("\"\""));
+    let cache = HeaderValue::from_static(IMAGE_CACHE_CONTROL);
+    if fresh {
+        return (
+            StatusCode::NOT_MODIFIED,
+            [(ETAG, etag), (CACHE_CONTROL, cache)],
+        )
+            .into_response();
+    }
     (
         [
             (CONTENT_TYPE, HeaderValue::from_static(content_type)),
-            (
-                CACHE_CONTROL,
-                HeaderValue::from_static("public, max-age=3600"),
-            ),
+            (ETAG, etag),
+            (CACHE_CONTROL, cache),
         ],
         bytes.to_vec(),
     )
@@ -272,7 +299,11 @@ async fn point(State(state): Shared, query: Params) -> ServerResult<Response> {
     Ok(Json(sample).into_response())
 }
 
-async fn overview_png(State(state): Shared, query: Params) -> ServerResult<Response> {
+async fn overview_png(
+    State(state): Shared,
+    headers: HeaderMap,
+    query: Params,
+) -> ServerResult<Response> {
     let q = params(query)?;
     let quality = state
         .overview
@@ -281,13 +312,14 @@ async fn overview_png(State(state): Shared, query: Params) -> ServerResult<Respo
         .get("style")
         .map_or(Ok(Style::Atlas), |s| Style::parse(s))?;
     let bytes = blocking(state, move |s| s.overview.png(&s.query, quality, style)).await?;
-    Ok(png(&bytes))
+    Ok(png(&headers, &bytes))
 }
 
 /// `/v1/tiles/overview/{z}/{x}/{y}.webp` (goal 68) and `.png`;
 /// `?oblique=1` serves the opt-in oblique pyramid (goal 24).
 async fn overview_tile(
     State(state): Shared,
+    headers: HeaderMap,
     path: Segments,
     query: Params,
 ) -> ServerResult<Response> {
@@ -310,11 +342,15 @@ async fn overview_tile(
         s.overview.tile(&s.query, (z, x, y), (format, oblique))
     })
     .await?;
-    Ok(image(format.content_type(), &bytes))
+    Ok(image(&headers, format.content_type(), &bytes))
 }
 
 /// `/v1/tiles/relief/{z}/{x}/{y}.webp`: mid-zoom relief past native zoom.
-async fn relief_tile(State(state): Shared, path: Segments) -> ServerResult<Response> {
+async fn relief_tile(
+    State(state): Shared,
+    headers: HeaderMap,
+    path: Segments,
+) -> ServerResult<Response> {
     let p = segments(path, 3)?;
     let y_text = p[2]
         .strip_suffix(".webp")
@@ -325,17 +361,7 @@ async fn relief_tile(State(state): Shared, path: Segments) -> ServerResult<Respo
         parse::<u32>("y", y_text)?,
     );
     let bytes = blocking(state, move |s| s.relief.tile(z, x, y)).await?;
-    Ok((
-        [
-            (CONTENT_TYPE, HeaderValue::from_static("image/webp")),
-            (
-                CACHE_CONTROL,
-                HeaderValue::from_static("public, max-age=3600"),
-            ),
-        ],
-        bytes.to_vec(),
-    )
-        .into_response())
+    Ok(image(&headers, "image/webp", &bytes))
 }
 
 async fn npc_population(
@@ -352,20 +378,27 @@ async fn npc_population(
             ServerError::BadRequest(e.body_text())
         }
     })?;
-    let population = blocking(state, move |_| crate::npc::populate(&request)).await?;
-    Ok(Json(population).into_response())
+    blocking(state, move |s| {
+        let population = crate::npc::populate(&request)?;
+        s.npc_response(&population, NpcAt::List("/npcs", None))
+    })
+    .await
 }
 
 async fn npc_demo(State(state): Shared) -> ServerResult<Response> {
-    let demo = blocking(state, |s| s.npc.demo().cloned()).await?;
-    Ok(Json(demo).into_response())
+    blocking(state, |s| {
+        s.npc_response(s.npc.demo()?, NpcAt::List("/population/npcs", None))
+    })
+    .await
 }
 
 async fn npc_demo_one(State(state): Shared, path: Segments) -> ServerResult<Response> {
     let p = segments(path, 1)?;
     let id = crate::npc::parse_npc_id(&p[0])?;
-    let npc = blocking(state, move |s| s.npc.demo_npc(id)).await?;
-    Ok(Json(npc).into_response())
+    blocking(state, move |s| {
+        s.npc_response(&s.npc.demo_npc(id)?, NpcAt::Root)
+    })
+    .await
 }
 
 #[cfg(test)]

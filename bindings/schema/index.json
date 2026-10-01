@@ -1,0 +1,225 @@
+{
+  "api_version": "v1",
+  "dialect": "https://json-schema.org/draft/2020-12/schema",
+  "format_version": 1,
+  "note": "Schemas describe Arda's own NPC shape; a server started with --sheet-mapping reshapes every Npc it serves (header X-Arda-Sheet-Mapping) and the Npc parts of these schemas no longer apply to it.",
+  "schemas": [
+    {
+      "name": "ApiError",
+      "routes": [
+        "every 4xx and 5xx response"
+      ],
+      "url": "/v1/schema/ApiError.json"
+    },
+    {
+      "name": "AreaCells",
+      "routes": [
+        "GET /v1/area/{ax}/{ay}/cells?format=json"
+      ],
+      "url": "/v1/schema/AreaCells.json"
+    },
+    {
+      "name": "AreaLakes",
+      "routes": [
+        "GET /v1/area/{ax}/{ay}/lakes"
+      ],
+      "url": "/v1/schema/AreaLakes.json"
+    },
+    {
+      "name": "AreaRivers",
+      "routes": [
+        "GET /v1/area/{ax}/{ay}/rivers"
+      ],
+      "url": "/v1/schema/AreaRivers.json"
+    },
+    {
+      "name": "CellSample",
+      "routes": [
+        "GET /v1/cell/{gx}/{gy}"
+      ],
+      "url": "/v1/schema/CellSample.json"
+    },
+    {
+      "name": "Health",
+      "routes": [
+        "GET /v1/health"
+      ],
+      "url": "/v1/schema/Health.json"
+    },
+    {
+      "name": "NotYetError",
+      "routes": [
+        "501 from /v1/tactical/cell and /window"
+      ],
+      "url": "/v1/schema/NotYetError.json"
+    },
+    {
+      "name": "Npc",
+      "routes": [
+        "GET /v1/npc/{id}",
+        "GET /v1/npc/demo/{npc_id}"
+      ],
+      "url": "/v1/schema/Npc.json"
+    },
+    {
+      "name": "NpcDemo",
+      "routes": [
+        "GET /v1/npc/demo"
+      ],
+      "url": "/v1/schema/NpcDemo.json"
+    },
+    {
+      "name": "NpcPage",
+      "routes": [
+        "GET /v1/npcs",
+        "GET /v1/buildings/{building}/residents",
+        "GET /v1/buildings/{building}/workers"
+      ],
+      "url": "/v1/schema/NpcPage.json"
+    },
+    {
+      "name": "PointSample",
+      "routes": [
+        "GET /v1/point"
+      ],
+      "url": "/v1/schema/PointSample.json"
+    },
+    {
+      "name": "Population",
+      "routes": [
+        "POST /v1/npc/population"
+      ],
+      "url": "/v1/schema/Population.json"
+    },
+    {
+      "name": "PopulationRequest",
+      "routes": [
+        "POST /v1/npc/population (request)"
+      ],
+      "url": "/v1/schema/PopulationRequest.json"
+    },
+    {
+      "name": "PrefetchAccepted",
+      "routes": [
+        "POST /v1/tactical/prefetch"
+      ],
+      "url": "/v1/schema/PrefetchAccepted.json"
+    },
+    {
+      "name": "PrefetchRequest",
+      "routes": [
+        "POST /v1/tactical/prefetch (request)"
+      ],
+      "url": "/v1/schema/PrefetchRequest.json"
+    },
+    {
+      "name": "RulesSidecarDto",
+      "routes": [
+        "TacticalBlockDto.rules"
+      ],
+      "url": "/v1/schema/RulesSidecarDto.json"
+    },
+    {
+      "name": "SceneDto",
+      "routes": [
+        "TacticalBlockDto.scene",
+        "TacticalScene.scene"
+      ],
+      "url": "/v1/schema/SceneDto.json"
+    },
+    {
+      "name": "Settlement",
+      "routes": [
+        "SettlementList.settlements[]",
+        "SettlementDetail.record"
+      ],
+      "url": "/v1/schema/Settlement.json"
+    },
+    {
+      "name": "SettlementDetail",
+      "routes": [
+        "GET /v1/settlements/{id}"
+      ],
+      "url": "/v1/schema/SettlementDetail.json"
+    },
+    {
+      "name": "SettlementList",
+      "routes": [
+        "GET /v1/settlements"
+      ],
+      "url": "/v1/schema/SettlementList.json"
+    },
+    {
+      "name": "SettlementNpcs",
+      "routes": [
+        "GET /v1/settlements/{id}/npcs"
+      ],
+      "url": "/v1/schema/SettlementNpcs.json"
+    },
+    {
+      "name": "SettlementSociety",
+      "routes": [
+        "SettlementDetail.society"
+      ],
+      "url": "/v1/schema/SettlementSociety.json"
+    },
+    {
+      "name": "Sheet",
+      "routes": [
+        "Npc.sheet"
+      ],
+      "url": "/v1/schema/Sheet.json"
+    },
+    {
+      "name": "TacticalBlockDto",
+      "routes": [
+        "GET /v1/tactical/cell/{gx}/{gy}",
+        "GET /v1/tactical/window"
+      ],
+      "url": "/v1/schema/TacticalBlockDto.json"
+    },
+    {
+      "name": "TacticalLayoutDto",
+      "routes": [
+        "GET /v1/tactical/layout/{name}",
+        "POST /v1/tactical/render (request)"
+      ],
+      "url": "/v1/schema/TacticalLayoutDto.json"
+    },
+    {
+      "name": "TacticalLayouts",
+      "routes": [
+        "GET /v1/tactical/layouts"
+      ],
+      "url": "/v1/schema/TacticalLayouts.json"
+    },
+    {
+      "name": "TacticalLibraryDto",
+      "routes": [
+        "GET /v1/tactical/library"
+      ],
+      "url": "/v1/schema/TacticalLibraryDto.json"
+    },
+    {
+      "name": "TacticalScene",
+      "routes": [
+        "GET /v1/tactical/cell/{gx}/{gy}/scene"
+      ],
+      "url": "/v1/schema/TacticalScene.json"
+    },
+    {
+      "name": "TownPlan",
+      "routes": [
+        "GET /v1/settlements/{id}/plan"
+      ],
+      "url": "/v1/schema/TownPlan.json"
+    },
+    {
+      "name": "WorldInfo",
+      "routes": [
+        "GET /v1/world"
+      ],
+      "url": "/v1/schema/WorldInfo.json"
+    }
+  ]
+}

@@ -1,11 +1,12 @@
 //! Mirrors of the `arda-npc` input types.
 
+use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 use std::collections::BTreeMap;
 use ts_rs::TS;
 
 /// Settlement size class.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, TS)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, TS, JsonSchema)]
 #[serde(rename_all = "snake_case")]
 pub enum Tier {
     /// Hamlet.
@@ -19,7 +20,7 @@ pub enum Tier {
 }
 
 /// What a settlement lives on.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, TS)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, TS, JsonSchema)]
 #[serde(rename_all = "snake_case")]
 pub enum SettlementFunction {
     /// Arable fields.
@@ -49,7 +50,7 @@ pub enum SettlementFunction {
 }
 
 /// The closed settlement biome list.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, TS)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, TS, JsonSchema)]
 #[serde(rename_all = "snake_case")]
 pub enum Biome {
     /// Open temperate lowland.
@@ -73,7 +74,7 @@ pub enum Biome {
 }
 
 /// One settlement to populate.
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, TS)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, TS, JsonSchema)]
 #[serde(deny_unknown_fields)]
 pub struct SettlementProfile {
     /// Settlement id.
@@ -110,7 +111,7 @@ pub struct SettlementProfile {
 
 /// Recipe of a place's local speech (`arda_names::Tongue`): seeds are
 /// decimal strings.
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, TS)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, TS, JsonSchema)]
 #[serde(deny_unknown_fields)]
 pub struct Tongue {
     /// Culture preset key (`heartland`, `sylvan`, …).
@@ -136,7 +137,7 @@ pub struct Tongue {
 }
 
 /// What a building is for: a plain snake_case string (vocabulary I7).
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, TS)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, TS, JsonSchema)]
 #[serde(rename_all = "snake_case")]
 pub enum BuildingFunction {
     /// A town house.
@@ -206,7 +207,7 @@ pub enum BuildingFunction {
 }
 
 /// One building of a settlement.
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, TS)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, TS, JsonSchema)]
 #[serde(deny_unknown_fields)]
 pub struct BuildingSpec {
     /// Building id, unique within the settlement.

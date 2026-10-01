@@ -17,7 +17,7 @@ pub const MAJOR_WIDTH_M: f64 = 18.0;
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct House {
     /// The crossing it serves.
-    pub crossing: u32,
+    pub crossing: u64,
     /// Inclusive global rectangle `(gx0, gy0, gx1, gy1)`.
     pub rect: (i64, i64, i64, i64),
     /// Wall kit.
@@ -109,7 +109,7 @@ pub fn plan_all(
                 cands.push((a0, r0, side));
             }
         }
-        let start = usize::try_from(hash2(seed ^ 0x7011, i64::from(c.id), 0) % 4).unwrap_or(0);
+        let start = usize::try_from(hash2(seed ^ 0x7011, c.id.cast_signed(), 0) % 4).unwrap_or(0);
         for k in 0..4 {
             let (a0, r0, side) = cands[(start + k) % 4];
             let (x0, y0) = c.square(a0, r0);

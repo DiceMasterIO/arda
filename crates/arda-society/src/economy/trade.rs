@@ -52,6 +52,7 @@ pub struct TradeFlow {
 
 /// Where each load of one settlement went.
 #[derive(Debug, Clone, Default, PartialEq, Eq, Serialize, Deserialize)]
+#[cfg_attr(feature = "schema", derive(schemars::JsonSchema))]
 pub struct Ledger {
     /// Loads produced.
     pub production: Basket,

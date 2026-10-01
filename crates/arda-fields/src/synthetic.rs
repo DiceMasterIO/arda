@@ -187,7 +187,16 @@ pub fn curve(class: RoadClass, a: [f64; 2], c: [f64; 2], b: [f64; 2]) -> Road {
 
 /// A raster over cells `x0..x0+n × y0..y0+n` filled by `f`.
 fn raster(x0: i64, y0: i64, n: u32, f: impl Fn(i64, i64) -> Option<LandUse>) -> LandUseGrid {
-    let mut g = LandUseGrid::filled((x0, y0), n, n, None);
+    // Synthetic rasters are a few dozen cells a side, far below the limit.
+    let Ok(mut g) = LandUseGrid::filled((x0, y0), n, n, None) else {
+        return LandUseGrid {
+            origin: (x0, y0),
+            width: 0,
+            height: 0,
+            cells: Vec::new(),
+            outside: None,
+        };
+    };
     for cy in y0..y0 + i64::from(n) {
         for cx in x0..x0 + i64::from(n) {
             g.set(cx, cy, f(cx, cy));

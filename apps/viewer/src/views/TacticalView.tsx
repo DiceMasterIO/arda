@@ -7,7 +7,7 @@ import { SquareInfo, SquareReadout } from "../components/SquareInfo.tsx";
 import { TacticalMap, type MapSource, type SquareRef, type TileLoader } from "../components/TacticalMap.tsx";
 import { SQUARE_FT } from "../geo/coords.ts";
 import { pxPerSquare, tacticalPyramid, tileGrid } from "../geo/tacticalTiles.ts";
-import { useAsync } from "../hooks.ts";
+import { useAsync, whileLive } from "../hooks.ts";
 import { pointerMarks } from "../render/tacticalOverlay.ts";
 
 export function NotAvailable({ what, error }: { what: string; error: unknown }) {
@@ -97,15 +97,15 @@ function usePngUrl(client: ArdaClient, name: string, ppsq: number, enabled: bool
     if (!enabled) return;
     const ctl = new AbortController();
     let url: string | null = null;
-    client.tacticalPng(name, { ppsq }, { signal: ctl.signal }).then(
+    whileLive(
+      ctl.signal,
+      client.tacticalPng(name, { ppsq }, { signal: ctl.signal }),
       (img) => {
         record(img);
         url = URL.createObjectURL(img.blob);
         setState({ key, url });
       },
-      (e: unknown) => {
-        if (!ctl.signal.aborted) setState({ key, error: describeError(e) });
-      },
+      (e) => { setState({ key, error: describeError(e) }); },
     );
     return () => {
       ctl.abort();

@@ -352,7 +352,7 @@ pub fn enumerate(
                 Some(LandUse::Mill) => mill::build(inputs, net, seed, (cx, cy)),
                 Some(LandUse::MineQuarry) => {
                     let quarry = mine::cell_slope(inputs, (cx, cy)) < mine::ADIT_SLOPE;
-                    mine::build(inputs, seed, (cx, cy), quarry)
+                    mine::build(inputs, net, seed, (cx, cy), quarry)
                 }
                 _ => None,
             };

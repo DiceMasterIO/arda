@@ -26,7 +26,7 @@ pub fn hooks(ctx: &Ctx<'_>, w: &HookWorld<'_>, ri: usize) -> Vec<Hook> {
         .with("ruler", ruler_name)
         .with("house", st.ruler.house.clone());
     let mut c = Vec::new();
-    for rel in w.relations.iter().filter(|x| x.a == r.id || x.b == r.id) {
+    for rel in w.relations_of(r.id) {
         let other_id = if rel.a == r.id { rel.b } else { rel.a };
         let Some(oi) = ctx.realm_ix(other_id) else {
             continue;
@@ -149,10 +149,10 @@ pub fn hooks(ctx: &Ctx<'_>, w: &HookWorld<'_>, ri: usize) -> Vec<Hook> {
             refs,
         ));
     }
-    let plague = h
-        .events
-        .iter()
-        .filter(|e| e.kind == EventKind::Plague && e.realms.contains(&r.id))
+    let plague = w
+        .index
+        .realm_events(h, r.id)
+        .filter(|e| e.kind == EventKind::Plague)
         .max_by_key(|e| (e.year, e.id));
     if let Some(e) = plague {
         let sl = base

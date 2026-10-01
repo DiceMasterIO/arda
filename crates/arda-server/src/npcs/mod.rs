@@ -21,11 +21,11 @@ pub mod refs;
 use crate::error::{ServerError, ServerResult};
 use crate::people::people;
 use crate::routes::{blocking, params, parse, segments, Params, Segments};
+use crate::sheet_map::NpcAt;
 use crate::AppState;
 use arda_npc::{BuildingId, Npc, SettlementId};
 use axum::extract::State;
-use axum::response::{IntoResponse, Response};
-use axum::Json;
+use axum::response::Response;
 use page::{Filter, Inputs, Link, DEFAULT_LIMIT, MAX_LIMIT};
 use refs::{NpcKey, NpcRef};
 use std::collections::BTreeMap;
@@ -116,8 +116,11 @@ pub fn filter(q: &BTreeMap<String, String>) -> ServerResult<Filter> {
 }
 
 async fn run(state: Arc<AppState>, f: Filter) -> ServerResult<Response> {
-    let body = blocking(state, move |s| page::page(people(s)?, &f)).await?;
-    Ok(Json(body).into_response())
+    blocking(state, move |s| {
+        let body = page::page(people(s)?, &f)?;
+        s.npc_response(&body, NpcAt::List("/npcs", Some("npc")))
+    })
+    .await
 }
 
 /// `GET /v1/npcs`.
@@ -221,6 +224,8 @@ pub(crate) async fn one(
     only(&q, &["settlement"])?;
     let key = refs::parse_npc(&p[0])?;
     let settlement = settlement(&q)?;
-    let body = blocking(state, move |s| resolve(s, key, settlement)).await?;
-    Ok(Json(body).into_response())
+    blocking(state, move |s| {
+        s.npc_response(&resolve(s, key, settlement)?, NpcAt::Root)
+    })
+    .await
 }

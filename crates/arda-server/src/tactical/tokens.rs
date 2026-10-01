@@ -5,11 +5,24 @@
 
 use arda_npc::Npc;
 use arda_scene::RulesSidecar;
-use serde::Serialize;
+use schemars::JsonSchema;
+use serde::{Deserialize, Serialize};
 use std::collections::{BTreeMap, BTreeSet};
+use ts_rs::TS;
+
+/// Why a token stands where it does.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, TS, JsonSchema)]
+#[serde(rename_all = "snake_case")]
+pub enum TokenKind {
+    /// At its workplace (by day).
+    Worker,
+    /// At home (by night, or with no workplace in the block).
+    Resident,
+}
 
 /// One token on the scene.
-#[derive(Debug, Clone, PartialEq, Eq, Serialize)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, TS, JsonSchema)]
+#[serde(deny_unknown_fields)]
 pub struct Token {
     /// The NPC, a decimal string (resolve it with `GET /v1/npc/{id}`).
     pub npc_id: String,
@@ -24,7 +37,7 @@ pub struct Token {
     /// Its settlement, a decimal string.
     pub settlement_id: String,
     /// `worker` (at its workplace) or `resident` (at home).
-    pub kind: &'static str,
+    pub kind: TokenKind,
 }
 
 /// `(settlement, building)` → its squares in the block, row-major order.
@@ -75,8 +88,8 @@ pub fn place(
     for n in notables {
         let work = n.workplace_building.filter(|_| !night).map(|b| b.0);
         let (building, kind) = match work {
-            Some(b) if feet.contains_key(&(sid, b)) => (b, "worker"),
-            _ => (n.home_building.0, "resident"),
+            Some(b) if feet.contains_key(&(sid, b)) => (b, TokenKind::Worker),
+            _ => (n.home_building.0, TokenKind::Resident),
         };
         let Some(squares) = feet.get(&(sid, building)) else {
             continue;

@@ -57,19 +57,23 @@ pub const FORMAT_VERSION: u32 = 1;
 
 /// Society of one settlement.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[cfg_attr(feature = "schema", derive(schemars::JsonSchema))]
 pub struct SettlementSociety {
     /// Settlement id.
     #[serde(with = "crate::ids::str")]
+    #[cfg_attr(feature = "schema", schemars(with = "String"))]
     pub id: u64,
     /// Name.
     pub name: String,
     /// Realm today.
     #[serde(with = "crate::ids::str")]
+    #[cfg_attr(feature = "schema", schemars(with = "String"))]
     pub realm_id: u64,
     /// Year founded.
     pub founded: i32,
     /// Settlement whose settlers founded it.
     #[serde(default, with = "crate::ids::opt")]
+    #[cfg_attr(feature = "schema", schemars(with = "Option<String>"))]
     pub founded_from: Option<u64>,
     /// Founding event id.
     pub founding_event: u32,
@@ -164,6 +168,7 @@ pub fn simulate_society(seed: u64, world: &WorldSettlements) -> Result<Society, 
             lord_house,
             tax_pct: st.tax_pct,
             history: &hist.history,
+            index: &hist.index,
         };
         let (mut f, r) = politics::factions::factions(&ctx, i, &econ, &local, &mut seen_names);
         let rs = roles::roles(&ctx, i, &f, st);
@@ -181,7 +186,10 @@ pub fn simulate_society(seed: u64, world: &WorldSettlements) -> Result<Society, 
         factions.push(f);
         faction_rel.push(r);
     }
+    let lookups = hooks::HookLookups::new(&econ, &relations);
     let w = HookWorld {
+        index: &hist.index,
+        lookups: &lookups,
         history: &hist.history,
         econ: &econ,
         realms: &states,
@@ -236,4 +244,23 @@ pub fn simulate_society(seed: u64, world: &WorldSettlements) -> Result<Society, 
         economy: econ.economy,
         history: hist.history,
     })
+}
+
+#[cfg(all(test, feature = "schema"))]
+mod schema_tests {
+    #![allow(clippy::unwrap_used)]
+    use super::SettlementSociety;
+
+    #[test]
+    fn settlement_society_schema_is_draft_2020_12_with_known_fields() {
+        let schema = serde_json::to_value(schemars::schema_for!(SettlementSociety)).unwrap();
+        assert_eq!(
+            schema["$schema"],
+            "https://json-schema.org/draft/2020-12/schema"
+        );
+        for key in ["id", "economy", "factions", "hooks"] {
+            assert!(schema["properties"][key].is_object(), "{key}");
+        }
+        assert_eq!(schema["properties"]["id"]["type"], "string");
+    }
 }

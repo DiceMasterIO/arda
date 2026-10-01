@@ -5,11 +5,12 @@
 //! tactical crate depending on ts-rs. A test round-trips every built-in
 //! layout through the mirror to keep the two in step.
 
+use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 use ts_rs::TS;
 
 /// `GET /v1/tactical/layouts`: the built-in test layouts.
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, TS)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, TS, JsonSchema)]
 pub struct TacticalLayouts {
     /// Seed of the served world (a decimal string); part of every render seed and cache key.
     pub world_seed: String,
@@ -24,7 +25,7 @@ pub struct TacticalLayouts {
 }
 
 /// One built-in layout.
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, TS)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, TS, JsonSchema)]
 pub struct TacticalLayoutSummary {
     /// Name used in `/v1/tactical/layout/{name}`.
     pub name: String,
@@ -37,7 +38,7 @@ pub struct TacticalLayoutSummary {
 }
 
 /// Tile pyramid geometry of one render.
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, TS)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, TS, JsonSchema)]
 pub struct TacticalTilesDto {
     /// Tile edge in pixels (512).
     pub tile_px: u32,
@@ -55,7 +56,7 @@ pub struct TacticalTilesDto {
 
 /// `GET /v1/tactical/cell/{gx}/{gy}` and `GET /v1/tactical/window`: one
 /// world-derived block or window (logic/16 §api-tactical).
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, TS)]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, TS, JsonSchema)]
 pub struct TacticalBlockDto {
     /// Envelope version of this body ([`TACTICAL_FORMAT`]).
     pub tactical_format: u32,
@@ -78,7 +79,8 @@ pub struct TacticalBlockDto {
     /// Scene data from the same layout (`arda-scene` `Scene`, format 1:
     /// movement, climb, cover, obscurement, walls, lights, regions, spawn
     /// hints), or `null` when not requested.
-    #[ts(type = "unknown")]
+    #[ts(as = "Option<super::scene_dto::SceneDto>")]
+    #[schemars(with = "Option<super::scene_dto::SceneDto>")]
     pub scene: Option<serde_json::Value>,
     /// Tile pyramid geometry at the requested ppsq.
     pub tiles: TacticalTilesDto,
@@ -90,7 +92,7 @@ pub const TACTICAL_FORMAT: u32 = 1;
 pub const LAYOUT_SCHEMA: u32 = 1;
 
 /// Mirror of `arda_tactical::TacticalLayout`: a W × H battle map.
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, TS)]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, TS, JsonSchema)]
 #[serde(deny_unknown_fields)]
 pub struct TacticalLayoutDto {
     /// Layout name.
@@ -118,7 +120,7 @@ pub struct TacticalLayoutDto {
 }
 
 /// One 5-ft square.
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, TS)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, TS, JsonSchema)]
 #[serde(deny_unknown_fields)]
 pub struct SquareDto {
     /// Ground type key, matching a texture's `ground` field.
@@ -132,7 +134,7 @@ pub struct SquareDto {
 }
 
 /// Which edge of a square a segment lies on.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, TS)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, TS, JsonSchema)]
 #[serde(rename_all = "snake_case")]
 pub enum EdgeAxisDto {
     /// The north edge of square `(x, y)`.
@@ -142,7 +144,7 @@ pub enum EdgeAxisDto {
 }
 
 /// Wall-kit piece roles; layouts use the edge roles `run`, `door`, `window`, `gate`.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, TS)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, TS, JsonSchema)]
 #[serde(rename_all = "snake_case")]
 pub enum WallRoleDto {
     /// Plain wall along one edge.
@@ -166,7 +168,7 @@ pub enum WallRoleDto {
 }
 
 /// Catalogue asset classes.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, TS)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, TS, JsonSchema)]
 #[serde(rename_all = "snake_case")]
 pub enum AssetClassDto {
     /// Tileable ground texture.
@@ -182,7 +184,7 @@ pub enum AssetClassDto {
 }
 
 /// A wall-kit edge feature.
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, TS)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, TS, JsonSchema)]
 #[serde(deny_unknown_fields)]
 pub struct WallSegmentDto {
     /// Square column.
@@ -198,7 +200,7 @@ pub struct WallSegmentDto {
 }
 
 /// An asset chosen by id or by a deterministic tag query.
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, TS)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, TS, JsonSchema)]
 #[serde(rename_all = "snake_case")]
 pub enum AssetRefDto {
     /// A specific asset id.
@@ -214,7 +216,7 @@ pub enum AssetRefDto {
 }
 
 /// A prop or vegetation placement.
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, TS)]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, TS, JsonSchema)]
 #[serde(deny_unknown_fields)]
 pub struct PlacementDto {
     /// What to place.
@@ -232,7 +234,7 @@ pub struct PlacementDto {
 }
 
 /// A light source not attached to an asset.
-#[derive(Debug, Clone, Copy, PartialEq, Serialize, Deserialize, TS)]
+#[derive(Debug, Clone, Copy, PartialEq, Serialize, Deserialize, TS, JsonSchema)]
 #[serde(deny_unknown_fields)]
 pub struct LightSourceDto {
     /// Position in squares.

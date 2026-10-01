@@ -23,7 +23,10 @@ arda-people.workspace = true
 arda-midzoom.workspace = true
 arda-refine.workspace = true
 arda-scene.workspace = true
+arda-settle = { workspace = true, features = ["schema"] }
+arda-society = { workspace = true, features = ["schema"] }
 arda-tactical.workspace = true
+arda-town = { workspace = true, features = ["schema"] }
 axum = { version = "0.8", default-features = false, features = ["http1", "json", "query", "tokio"] }
 blake3.workspace = true
 clap.workspace = true
@@ -34,6 +37,7 @@ crc32fast.workspace = true
 rayon.workspace = true
 serde.workspace = true
 serde_json.workspace = true
+schemars.workspace = true
 thiserror.workspace = true
 hyper = { version = "1", features = ["http1", "server"] }
 hyper-util = { version = "0.1", features = ["http1", "server", "service", "tokio"] }
@@ -43,9 +47,9 @@ ts-rs = "12"
 
 [dev-dependencies]
 arda-names.workspace = true
-arda-settle.workspace = true
 tokio = { version = "1", features = ["io-util"] }
 http-body-util = "0.1"
+jsonschema = { version = "0.58", default-features = false }
 tower = { version = "0.5", features = ["util"] }
 
 [lints]

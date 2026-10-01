@@ -15,6 +15,14 @@ pub enum FieldsError {
         /// Largest side accepted.
         max: u32,
     },
+    /// A land-use raster larger than `input::MAX_LANDUSE_CELLS`.
+    #[error("land-use raster {width}x{height} cells is too large")]
+    LandUseSize {
+        /// Requested width in cells.
+        width: u32,
+        /// Requested height in cells.
+        height: u32,
+    },
     /// The window origin is not a finite coordinate.
     #[error("window origin ({0}, {1}) m is not finite")]
     Origin(f64, f64),

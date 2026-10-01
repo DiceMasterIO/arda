@@ -51,17 +51,39 @@ pub struct LandUseGrid {
     pub outside: Option<LandUse>,
 }
 
+/// Most cells a [`LandUseGrid`] may hold: 2^28, over five times a full
+/// 500 × 1000 km world at 100 m.
+pub const MAX_LANDUSE_CELLS: u64 = 1 << 28;
+
 impl LandUseGrid {
     /// A raster of one class.
-    #[must_use]
-    pub fn filled(origin: (i64, i64), width: u32, height: u32, class: Option<LandUse>) -> Self {
-        Self {
+    ///
+    /// # Errors
+    /// [`crate::FieldsError::LandUseSize`] above [`MAX_LANDUSE_CELLS`] or
+    /// when the allocation is refused (review round 2 #38: the size was
+    /// allocated unchecked).
+    pub fn filled(
+        origin: (i64, i64),
+        width: u32,
+        height: u32,
+        class: Option<LandUse>,
+    ) -> Result<Self, crate::FieldsError> {
+        let n = u64::from(width) * u64::from(height);
+        let refuse = || crate::FieldsError::LandUseSize { width, height };
+        if n > MAX_LANDUSE_CELLS {
+            return Err(refuse());
+        }
+        let n = usize::try_from(n).map_err(|_| refuse())?;
+        let mut cells = Vec::new();
+        cells.try_reserve_exact(n).map_err(|_| refuse())?;
+        cells.resize(n, class);
+        Ok(Self {
             origin,
             width,
             height,
-            cells: vec![class; width as usize * height as usize],
+            cells,
             outside: None,
-        }
+        })
     }
 
     /// Sets one cell; cells off the raster are ignored.

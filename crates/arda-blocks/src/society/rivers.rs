@@ -88,7 +88,7 @@ impl<'a> WaysTerrain<'a> {
             .pieces()
             .enumerate()
             .map(|(k, p)| arda_ways::RiverChannel {
-                id: u32::try_from(k + 1).unwrap_or(u32::MAX),
+                id: u64::try_from(k + 1).unwrap_or(u64::MAX),
                 centreline: p
                     .pts
                     .iter()

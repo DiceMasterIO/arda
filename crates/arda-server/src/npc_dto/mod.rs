@@ -18,15 +18,16 @@ pub use sheet::{
     SpellRef, Spellcasting,
 };
 
+use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 use ts_rs::TS;
 
 /// An inhabitant's id: the `arda-ids` u64 as a decimal string.
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, TS)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, TS, JsonSchema)]
 pub struct NpcId(pub String);
 
 /// A household: its home building and index inside it.
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, TS)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, TS, JsonSchema)]
 #[serde(deny_unknown_fields)]
 pub struct HouseholdId {
     /// Home building id.
@@ -36,7 +37,7 @@ pub struct HouseholdId {
 }
 
 /// Biological sex.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, TS)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, TS, JsonSchema)]
 #[serde(rename_all = "snake_case")]
 pub enum Sex {
     /// Female.
@@ -46,7 +47,7 @@ pub enum Sex {
 }
 
 /// A person's name.
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, TS)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, TS, JsonSchema)]
 #[serde(deny_unknown_fields)]
 pub struct Name {
     /// Given name.
@@ -58,7 +59,7 @@ pub struct Name {
 }
 
 /// Broad kind of work.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, TS)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, TS, JsonSchema)]
 #[serde(rename_all = "snake_case")]
 pub enum JobCategory {
     /// Fields and herds.
@@ -90,7 +91,7 @@ pub enum JobCategory {
 }
 
 /// A person's occupation.
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, TS)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, TS, JsonSchema)]
 #[serde(deny_unknown_fields)]
 pub struct Job {
     /// Occupation key.
@@ -102,7 +103,7 @@ pub struct Job {
 }
 
 /// Standing in local society.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, TS)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, TS, JsonSchema)]
 #[serde(rename_all = "snake_case")]
 pub enum SocialRank {
     /// Children and dependants.
@@ -120,7 +121,7 @@ pub enum SocialRank {
 }
 
 /// SRD 5.1 lifestyle.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, TS)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, TS, JsonSchema)]
 #[serde(rename_all = "snake_case")]
 pub enum Lifestyle {
     /// Wretched.
@@ -140,7 +141,7 @@ pub enum Lifestyle {
 }
 
 /// An ideal and its alignment lean.
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, TS)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, TS, JsonSchema)]
 #[serde(deny_unknown_fields)]
 pub struct Ideal {
     /// Short name.
@@ -154,7 +155,7 @@ pub struct Ideal {
 }
 
 /// Personality.
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, TS)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, TS, JsonSchema)]
 #[serde(deny_unknown_fields)]
 pub struct Personality {
     /// Two traits.
@@ -172,7 +173,7 @@ pub struct Personality {
 }
 
 /// How two people are related.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, TS)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, TS, JsonSchema)]
 #[serde(rename_all = "snake_case")]
 pub enum RelationKind {
     /// Husband or wife.
@@ -198,7 +199,7 @@ pub enum RelationKind {
 }
 
 /// One relationship: `other` is this person's `kind`.
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, TS)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, TS, JsonSchema)]
 #[serde(deny_unknown_fields)]
 pub struct Relationship {
     /// What the other person is to this one.
@@ -208,7 +209,7 @@ pub struct Relationship {
 }
 
 /// One inhabitant with a full SRD 5.1 sheet (`logic/13` §npc-game-schema).
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, TS)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, TS, JsonSchema)]
 #[serde(deny_unknown_fields)]
 pub struct Npc {
     /// Stable id.
@@ -252,7 +253,7 @@ pub struct Npc {
 }
 
 /// One family tie inside a household: `to` is `from`'s `kind`.
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, TS)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, TS, JsonSchema)]
 #[serde(deny_unknown_fields)]
 pub struct HouseholdRelation {
     /// The person the relation belongs to.
@@ -264,7 +265,7 @@ pub struct HouseholdRelation {
 }
 
 /// People sharing a home.
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, TS)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, TS, JsonSchema)]
 #[serde(deny_unknown_fields)]
 pub struct Household {
     /// Household id.
@@ -280,7 +281,7 @@ pub struct Household {
 }
 
 /// Compact index entry for one inhabitant.
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, TS)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, TS, JsonSchema)]
 #[serde(deny_unknown_fields)]
 pub struct RosterEntry {
     /// Person.
@@ -294,7 +295,7 @@ pub struct RosterEntry {
 }
 
 /// The population of one settlement; notables stored in full.
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, TS)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, TS, JsonSchema)]
 #[serde(deny_unknown_fields)]
 pub struct Population {
     /// Settlement id.
@@ -316,7 +317,7 @@ pub struct Population {
 }
 
 /// Body of `POST /v1/npc/population`.
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, TS)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, TS, JsonSchema)]
 #[serde(deny_unknown_fields)]
 pub struct PopulationRequest {
     /// World seed as a decimal string.
@@ -328,7 +329,7 @@ pub struct PopulationRequest {
 }
 
 /// Body of `GET /v1/npc/demo`: the market-town example and its population.
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, TS)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, TS, JsonSchema)]
 #[serde(deny_unknown_fields)]
 pub struct NpcDemo {
     /// World seed as a decimal string.

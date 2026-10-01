@@ -37,6 +37,11 @@ pub struct Ctx<'a> {
     pub realms: Vec<RealmInfo>,
     /// Present-day history span in years (year 1 to `present`).
     pub present: i32,
+    /// Realm index of every node (review round 2 #29: a scan of the
+    /// realms per lookup made every per-edge realm test O(R)).
+    node_realm: Vec<usize>,
+    /// Whether each node is a realm seat.
+    seat: Vec<bool>,
 }
 
 /// Buildings a settlement may list beyond one per inhabitant.
@@ -118,6 +123,17 @@ impl<'a> Ctx<'a> {
         let buildings = buildings::resolve(world, &t.goods);
         let span = 200 + crate::rng::hash(seed, "span", 0, 0) % 301;
         let present = crate::num::i32_of(crate::num::i64_of(span));
+        let node_realm = world
+            .settlements
+            .iter()
+            .map(|s| realm_ix_in(&realms, s.realm_id).unwrap_or(0))
+            .collect();
+        let mut seat = vec![false; world.settlements.len()];
+        for r in &realms {
+            if let Some(slot) = seat.get_mut(r.seat) {
+                *slot = true;
+            }
+        }
         Ok(Self {
             seed,
             world,
@@ -126,6 +142,8 @@ impl<'a> Ctx<'a> {
             buildings,
             realms,
             present,
+            node_realm,
+            seat,
         })
     }
 
@@ -150,19 +168,19 @@ impl<'a> Ctx<'a> {
     /// Index into [`Ctx::realms`] of realm `id`.
     #[must_use]
     pub fn realm_ix(&self, id: u64) -> Option<usize> {
-        self.realms.iter().position(|r| r.id == id)
+        realm_ix_in(&self.realms, id)
     }
 
     /// Realm index of node `i`.
     #[must_use]
     pub fn realm_of(&self, i: usize) -> usize {
-        self.realm_ix(self.s(i).realm_id).unwrap_or(0)
+        self.node_realm.get(i).copied().unwrap_or(0)
     }
 
     /// Whether node `i` is a realm seat.
     #[must_use]
     pub fn is_seat(&self, i: usize) -> bool {
-        self.realms.iter().any(|r| r.seat == i)
+        self.seat.get(i).copied().unwrap_or(false)
     }
 
     /// Buildings of node `i`.
@@ -204,6 +222,11 @@ impl<'a> Ctx<'a> {
         let (sa, sb) = (self.s(a), self.s(b));
         crate::num::dist_m(sa.x_m, sa.y_m, sb.x_m, sb.y_m)
     }
+}
+
+/// Index of realm `id` in `realms`, which is sorted by id with unique ids.
+fn realm_ix_in(realms: &[RealmInfo], id: u64) -> Option<usize> {
+    realms.binary_search_by_key(&id, |r| r.id).ok()
 }
 
 fn realms(world: &WorldSettlements, graph: &Graph) -> Result<Vec<RealmInfo>, SocietyError> {

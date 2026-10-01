@@ -17,17 +17,24 @@ pub mod coast;
 pub mod convert;
 pub mod snow;
 
+use schemars::JsonSchema;
 use serde::Serialize;
 use ts_rs::TS;
 
 /// Version of the cell contract. Clients must reject a version they do not know.
-pub const CONTRACT_VERSION: u32 = 2;
+///
+/// Contract 3 (adapter A11, logic/16 §api-cell-society): `road` gains
+/// `footpath`; `built_by` is a settlement id string; `land_use` and
+/// `realm_id` are new. With a `society/` directory they come from its
+/// rasters; without one `road` and `built_by` keep the stored cell values
+/// and `land_use` and `realm_id` are `null`.
+pub const CONTRACT_VERSION: u32 = 3;
 
 /// Cell edge, metres.
 pub const CELL_M: f64 = 100.0;
 
 /// Sea, dry land, or lake surface (source: `Cell::terrain`).
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, TS)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, TS, JsonSchema)]
 #[serde(rename_all = "snake_case")]
 pub enum TerrainKindDto {
     /// Below sea level and connected to the ocean.
@@ -39,7 +46,7 @@ pub enum TerrainKindDto {
 }
 
 /// Dominant ground cover (source: `Cell::cover`, `logic/02` vegetation).
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, TS)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, TS, JsonSchema)]
 #[serde(rename_all = "snake_case")]
 pub enum CoverDto {
     /// Bare soil or sand.
@@ -59,7 +66,7 @@ pub enum CoverDto {
 }
 
 /// Road class crossing the cell (source: `Cell::road`).
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, TS)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, TS, JsonSchema)]
 #[serde(rename_all = "snake_case")]
 pub enum RoadDto {
     /// No road.
@@ -70,10 +77,40 @@ pub enum RoadDto {
     Road,
     /// Trunk corridor.
     Highway,
+    /// Footpath (society rasters only).
+    Footpath,
+}
+
+/// Land-use class of a cell (`society/landuse.bin`, logic/08 §landuse keys).
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, TS, JsonSchema)]
+#[serde(rename_all = "snake_case")]
+pub enum LandUseDto {
+    /// Untouched; prior cover stands.
+    None,
+    /// Built-up footprint.
+    Built,
+    /// Ploughed fields.
+    Field,
+    /// Pasture.
+    Pasture,
+    /// Orchard.
+    Orchard,
+    /// Managed woodland kept on slopes.
+    Woodland,
+    /// A water-mill site.
+    Mill,
+    /// A mine or quarry head.
+    Mine,
+    /// Hay meadow.
+    Meadow,
+    /// Resting ploughland.
+    Fallow,
+    /// A farmstead.
+    Farmstead,
 }
 
 /// Derived coast facts.
-#[derive(Debug, Clone, Copy, PartialEq, Serialize, TS)]
+#[derive(Debug, Clone, Copy, PartialEq, Serialize, TS, JsonSchema)]
 pub struct CoastSample {
     /// A land cell with at least one sea cell among its 8 neighbours.
     pub is_coast: bool,
@@ -83,7 +120,7 @@ pub struct CoastSample {
 }
 
 /// Derived snow proxy. Not simulated: a documented rule of thumb on saved climate.
-#[derive(Debug, Clone, Copy, PartialEq, Serialize, TS)]
+#[derive(Debug, Clone, Copy, PartialEq, Serialize, TS, JsonSchema)]
 pub struct SnowSample {
     /// Perennial snow cover of the cell, 0–1 (see [`snow`]).
     pub fraction: f64,
@@ -97,7 +134,7 @@ pub struct SnowSample {
 }
 
 /// The watercourse reach that owns this cell, when a saved river course passes through it.
-#[derive(Debug, Clone, PartialEq, Serialize, TS)]
+#[derive(Debug, Clone, PartialEq, Serialize, TS, JsonSchema)]
 pub struct RiverMembership {
     /// Tile-local segment id (`RiverSegment::id`), unique within the area.
     pub segment_id: u32,
@@ -112,7 +149,7 @@ pub struct RiverMembership {
 }
 
 /// The lake covering this cell, when a saved lake lists it.
-#[derive(Debug, Clone, PartialEq, Serialize, TS)]
+#[derive(Debug, Clone, PartialEq, Serialize, TS, JsonSchema)]
 pub struct LakeMembership {
     /// Tile-local lake id (`Lake::id`), unique within the area.
     pub lake_id: u32,
@@ -127,7 +164,7 @@ pub struct LakeMembership {
 }
 
 /// Canonical fine terrain (`terrain/fine.bin`, 39.0625 m lattice) over the cell.
-#[derive(Debug, Clone, Copy, PartialEq, Serialize, TS)]
+#[derive(Debug, Clone, Copy, PartialEq, Serialize, TS, JsonSchema)]
 pub struct FineHeights {
     /// Bilinear height at the cell centre, metres.
     pub centre_m: f64,
@@ -138,7 +175,7 @@ pub struct FineHeights {
 }
 
 /// Everything the world knows about one 100 m global cell, in plain units.
-#[derive(Debug, Clone, PartialEq, Serialize, TS)]
+#[derive(Debug, Clone, PartialEq, Serialize, TS, JsonSchema)]
 pub struct CellSample {
     /// [`CONTRACT_VERSION`] this sample was produced under.
     pub contract_version: u32,
@@ -192,10 +229,16 @@ pub struct CellSample {
     pub watercourse_width_m: f64,
     /// Height above the nearest downstream channel, metres (`Cell::height_above_river_dm`).
     pub height_above_river_m: f64,
-    /// Road class (`Cell::road`).
+    /// Road class: `society/roads.bin` when present, else `Cell::road`.
     pub road: RoadDto,
-    /// Settlement that built on this cell; `null` when none (`Cell::built_by`).
-    pub built_by: Option<u16>,
+    /// Settlement id (decimal string) that owns this cell: `society/landuse.bin`
+    /// owners when present, else `Cell::built_by`; `null` when none.
+    pub built_by: Option<String>,
+    /// Land use (`society/landuse.bin`); `null` without a `society/`.
+    pub land_use: Option<LandUseDto>,
+    /// Realm id (decimal string, `society/realms.bin`); `null` when none or
+    /// without a `society/`.
+    pub realm_id: Option<String>,
     /// Derived coast facts.
     pub coast: CoastSample,
     /// Derived snow proxy.
@@ -209,7 +252,7 @@ pub struct CellSample {
 }
 
 /// Where a [`PointSample`] height came from.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, TS)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, TS, JsonSchema)]
 #[serde(rename_all = "snake_case")]
 pub enum HeightSource {
     /// Bilinear on the canonical fine terrain.
@@ -219,7 +262,7 @@ pub enum HeightSource {
 }
 
 /// A height query at arbitrary world metres, plus the nearest cell's sample.
-#[derive(Debug, Clone, PartialEq, Serialize, TS)]
+#[derive(Debug, Clone, PartialEq, Serialize, TS, JsonSchema)]
 pub struct PointSample {
     /// [`CONTRACT_VERSION`].
     pub contract_version: u32,

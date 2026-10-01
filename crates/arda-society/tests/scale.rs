@@ -75,15 +75,26 @@ fn tiled_world_keeps_invariants() {
 }
 
 /// `cargo test --release -p arda-society --test scale -- --ignored --nocapture`
+/// (`ARDA_SOCIETY_TILES` sets the tile count, 40 settlements each).
 #[test]
 #[ignore = "timing run on a 4,000-settlement world"]
 fn large_world_timing() {
-    let world = tiled(100);
+    let tiles = std::env::var("ARDA_SOCIETY_TILES")
+        .ok()
+        .and_then(|v| v.parse().ok())
+        .unwrap_or(100);
+    let world = tiled(tiles);
     let t = std::time::Instant::now();
     let s = simulate_society(3, &world).unwrap();
     let json = arda_society::output::to_json(&s).unwrap();
+    let digest = {
+        use std::hash::{Hash, Hasher};
+        let mut h = std::collections::hash_map::DefaultHasher::new();
+        json.hash(&mut h);
+        h.finish()
+    };
     println!(
-        "{} settlements, {} realms, {} events, {} flows: {:?}, {} MB JSON",
+        "{} settlements, {} realms, {} events, {} flows: {:?}, {} MB JSON, digest {digest:016x}",
         s.settlements.len(),
         s.realms.len(),
         s.history.events.len(),
@@ -91,4 +102,29 @@ fn large_world_timing() {
         t.elapsed(),
         json.len() / 1_000_000
     );
+}
+
+/// Review round 2 #29: per-settlement and per-pair scans made the
+/// simulation quadratic (8,000 settlements took 4.5× as long as 4,000).
+/// Four times the settlements must now cost well under sixteen times as
+/// much. Release gate:
+/// `cargo test --release -p arda-society --test scale -- --ignored`.
+#[test]
+#[ignore = "timing run on 2,000 and 8,000 settlements"]
+fn society_time_grows_near_linearly() {
+    let best = |tiles: u64| {
+        let world = tiled(tiles);
+        (0..2)
+            .map(|_| {
+                let t = std::time::Instant::now();
+                simulate_society(3, &world).unwrap();
+                t.elapsed()
+            })
+            .min()
+            .unwrap()
+    };
+    let (small, large) = (best(50), best(200));
+    let ratio = large.as_secs_f64() / small.as_secs_f64();
+    println!("2,000: {small:?}, 8,000: {large:?}, ratio {ratio:.1}");
+    assert!(ratio < 9.0, "4× the settlements took {ratio:.1}× as long");
 }

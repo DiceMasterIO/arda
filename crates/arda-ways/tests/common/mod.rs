@@ -6,7 +6,7 @@ use arda_ways::{
     apply_ways, Crossing, CrossingKind, FnTerrain, RiverChannel, Road, RoadClass, WaysOutput,
 };
 
-pub fn road(id: u32, class: RoadClass, wealth: u8, pts: &[[i64; 2]]) -> Road {
+pub fn road(id: u64, class: RoadClass, wealth: u8, pts: &[[i64; 2]]) -> Road {
     Road {
         id,
         class,
@@ -16,7 +16,7 @@ pub fn road(id: u32, class: RoadClass, wealth: u8, pts: &[[i64; 2]]) -> Road {
 }
 
 pub fn crossing(
-    id: u32,
+    id: u64,
     kind: CrossingKind,
     at: [i64; 2],
     width_m: u32,
@@ -36,7 +36,7 @@ pub fn crossing(
 }
 
 /// A north–south river at `x` metres with a gentle meander.
-pub fn river_ns(id: u32, x: f64, width_m: f64, depth_m: f64) -> RiverChannel {
+pub fn river_ns(id: u64, x: f64, width_m: f64, depth_m: f64) -> RiverChannel {
     RiverChannel {
         id,
         centreline: (-10..=20)

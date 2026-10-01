@@ -1,0 +1,582 @@
+{
+  "$defs": {
+    "AreaColumns": {
+      "description": "One array per [`CellSample`] field, each 512 × 512 long.",
+      "properties": {
+        "aspect_deg": {
+          "description": "Downslope bearing, degrees.",
+          "items": {
+            "format": "float",
+            "type": "number"
+          },
+          "type": "array"
+        },
+        "built_by": {
+          "description": "Settlement id, 0 = none.",
+          "items": {
+            "format": "uint32",
+            "minimum": 0,
+            "type": "integer"
+          },
+          "type": "array"
+        },
+        "coast_distance_m": {
+          "description": "Coast distance, m; null beyond 5 km.",
+          "items": {
+            "format": "float",
+            "type": [
+              "number",
+              "null"
+            ]
+          },
+          "type": "array"
+        },
+        "cover": {
+          "description": "Cover code ([`Legend::cover`]).",
+          "items": {
+            "format": "uint8",
+            "maximum": 255,
+            "minimum": 0,
+            "type": "integer"
+          },
+          "type": "array"
+        },
+        "discharge_m3s": {
+          "description": "Mean discharge, m³/s.",
+          "items": {
+            "format": "float",
+            "type": "number"
+          },
+          "type": "array"
+        },
+        "drainage_area_km2": {
+          "description": "Drainage area, km².",
+          "items": {
+            "format": "float",
+            "type": "number"
+          },
+          "type": "array"
+        },
+        "fine_centre_m": {
+          "description": "Fine height at the cell centre, m.",
+          "items": {
+            "format": "float",
+            "type": [
+              "number",
+              "null"
+            ]
+          },
+          "type": "array"
+        },
+        "fine_max_m": {
+          "description": "Fine footprint maximum, m.",
+          "items": {
+            "format": "float",
+            "type": [
+              "number",
+              "null"
+            ]
+          },
+          "type": "array"
+        },
+        "fine_min_m": {
+          "description": "Fine footprint minimum, m.",
+          "items": {
+            "format": "float",
+            "type": [
+              "number",
+              "null"
+            ]
+          },
+          "type": "array"
+        },
+        "forest_density": {
+          "description": "Canopy closure, 0–1.",
+          "items": {
+            "format": "float",
+            "type": "number"
+          },
+          "type": "array"
+        },
+        "height_above_river_m": {
+          "description": "Height above channel, m.",
+          "items": {
+            "format": "float",
+            "type": "number"
+          },
+          "type": "array"
+        },
+        "height_m": {
+          "description": "Elevation, m.",
+          "items": {
+            "format": "float",
+            "type": "number"
+          },
+          "type": "array"
+        },
+        "is_coast": {
+          "description": "1 on coast cells.",
+          "items": {
+            "format": "uint8",
+            "maximum": 255,
+            "minimum": 0,
+            "type": "integer"
+          },
+          "type": "array"
+        },
+        "lake_depth_m": {
+          "description": "Lake depth of the cell, m.",
+          "items": {
+            "format": "float",
+            "type": [
+              "number",
+              "null"
+            ]
+          },
+          "type": "array"
+        },
+        "lake_id": {
+          "description": "Covering lake id, 0 = none.",
+          "items": {
+            "format": "uint32",
+            "minimum": 0,
+            "type": "integer"
+          },
+          "type": "array"
+        },
+        "land_use": {
+          "description": "Land-use code ([`Legend::land_use`]).",
+          "items": {
+            "format": "uint8",
+            "maximum": 255,
+            "minimum": 0,
+            "type": "integer"
+          },
+          "type": "array"
+        },
+        "moisture": {
+          "description": "Soil moisture, 0–1.",
+          "items": {
+            "format": "float",
+            "type": "number"
+          },
+          "type": "array"
+        },
+        "rainfall_mm": {
+          "description": "Annual rainfall, mm.",
+          "items": {
+            "format": "float",
+            "type": "number"
+          },
+          "type": "array"
+        },
+        "realm_id": {
+          "description": "Realm id, 0 = none.",
+          "items": {
+            "format": "uint32",
+            "minimum": 0,
+            "type": "integer"
+          },
+          "type": "array"
+        },
+        "river_segment": {
+          "description": "Owning river segment id, 0 = none.",
+          "items": {
+            "format": "uint32",
+            "minimum": 0,
+            "type": "integer"
+          },
+          "type": "array"
+        },
+        "road": {
+          "description": "Road code ([`Legend::road`]).",
+          "items": {
+            "format": "uint8",
+            "maximum": 255,
+            "minimum": 0,
+            "type": "integer"
+          },
+          "type": "array"
+        },
+        "slope_deg": {
+          "description": "Slope, degrees.",
+          "items": {
+            "format": "float",
+            "type": "number"
+          },
+          "type": "array"
+        },
+        "snow_fraction": {
+          "description": "Snow proxy of the cell, 0–1.",
+          "items": {
+            "format": "float",
+            "type": "number"
+          },
+          "type": "array"
+        },
+        "snow_peak_fraction": {
+          "description": "Snow proxy at the footprint peak.",
+          "items": {
+            "format": "float",
+            "type": [
+              "number",
+              "null"
+            ]
+          },
+          "type": "array"
+        },
+        "snow_perennial": {
+          "description": "1 when perennially snowed.",
+          "items": {
+            "format": "uint8",
+            "maximum": 255,
+            "minimum": 0,
+            "type": "integer"
+          },
+          "type": "array"
+        },
+        "snowline_m": {
+          "description": "Proxy snowline altitude, m.",
+          "items": {
+            "format": "float",
+            "type": "number"
+          },
+          "type": "array"
+        },
+        "temperature_c": {
+          "description": "Mean annual temperature, °C.",
+          "items": {
+            "format": "float",
+            "type": "number"
+          },
+          "type": "array"
+        },
+        "terrain": {
+          "description": "Terrain code ([`Legend::terrain`]).",
+          "items": {
+            "format": "uint8",
+            "maximum": 255,
+            "minimum": 0,
+            "type": "integer"
+          },
+          "type": "array"
+        },
+        "watercourse_order": {
+          "description": "Strahler order, 0 = none.",
+          "items": {
+            "format": "uint8",
+            "maximum": 255,
+            "minimum": 0,
+            "type": "integer"
+          },
+          "type": "array"
+        },
+        "watercourse_width_m": {
+          "description": "Channel width, m.",
+          "items": {
+            "format": "float",
+            "type": "number"
+          },
+          "type": "array"
+        },
+        "wetness": {
+          "description": "Standing-water tendency, 0–1.",
+          "items": {
+            "format": "float",
+            "type": "number"
+          },
+          "type": "array"
+        }
+      },
+      "required": [
+        "height_m",
+        "terrain",
+        "cover",
+        "slope_deg",
+        "aspect_deg",
+        "temperature_c",
+        "rainfall_mm",
+        "moisture",
+        "wetness",
+        "forest_density",
+        "drainage_area_km2",
+        "discharge_m3s",
+        "watercourse_order",
+        "watercourse_width_m",
+        "height_above_river_m",
+        "road",
+        "built_by",
+        "land_use",
+        "realm_id",
+        "is_coast",
+        "coast_distance_m",
+        "snow_fraction",
+        "snow_peak_fraction",
+        "snow_perennial",
+        "snowline_m",
+        "river_segment",
+        "lake_id",
+        "lake_depth_m",
+        "fine_centre_m",
+        "fine_min_m",
+        "fine_max_m"
+      ],
+      "type": "object"
+    },
+    "CoverDto": {
+      "description": "Dominant ground cover (source: `Cell::cover`, `logic/02` vegetation).",
+      "oneOf": [
+        {
+          "const": "bare",
+          "description": "Bare soil or sand.",
+          "type": "string"
+        },
+        {
+          "const": "grass",
+          "description": "Grassland.",
+          "type": "string"
+        },
+        {
+          "const": "scrub",
+          "description": "Scrub and heath.",
+          "type": "string"
+        },
+        {
+          "const": "forest",
+          "description": "Closed forest.",
+          "type": "string"
+        },
+        {
+          "const": "marsh",
+          "description": "Marsh or fen.",
+          "type": "string"
+        },
+        {
+          "const": "rock",
+          "description": "Exposed rock.",
+          "type": "string"
+        },
+        {
+          "const": "ice",
+          "description": "Permanent ice.",
+          "type": "string"
+        }
+      ]
+    },
+    "LandUseDto": {
+      "description": "Land-use class of a cell (`society/landuse.bin`, logic/08 §landuse keys).",
+      "oneOf": [
+        {
+          "const": "none",
+          "description": "Untouched; prior cover stands.",
+          "type": "string"
+        },
+        {
+          "const": "built",
+          "description": "Built-up footprint.",
+          "type": "string"
+        },
+        {
+          "const": "field",
+          "description": "Ploughed fields.",
+          "type": "string"
+        },
+        {
+          "const": "pasture",
+          "description": "Pasture.",
+          "type": "string"
+        },
+        {
+          "const": "orchard",
+          "description": "Orchard.",
+          "type": "string"
+        },
+        {
+          "const": "woodland",
+          "description": "Managed woodland kept on slopes.",
+          "type": "string"
+        },
+        {
+          "const": "mill",
+          "description": "A water-mill site.",
+          "type": "string"
+        },
+        {
+          "const": "mine",
+          "description": "A mine or quarry head.",
+          "type": "string"
+        },
+        {
+          "const": "meadow",
+          "description": "Hay meadow.",
+          "type": "string"
+        },
+        {
+          "const": "fallow",
+          "description": "Resting ploughland.",
+          "type": "string"
+        },
+        {
+          "const": "farmstead",
+          "description": "A farmstead.",
+          "type": "string"
+        }
+      ]
+    },
+    "Legend": {
+      "description": "Enum codes: a column value `i` means the `i`-th entry.",
+      "properties": {
+        "cover": {
+          "description": "Codes of the `cover` column.",
+          "items": {
+            "$ref": "#/$defs/CoverDto"
+          },
+          "type": "array"
+        },
+        "land_use": {
+          "description": "Codes of the `land_use` column (0 also when the world has no `society/`).",
+          "items": {
+            "$ref": "#/$defs/LandUseDto"
+          },
+          "type": "array"
+        },
+        "road": {
+          "description": "Codes of the `road` column.",
+          "items": {
+            "$ref": "#/$defs/RoadDto"
+          },
+          "type": "array"
+        },
+        "terrain": {
+          "description": "Codes of the `terrain` column.",
+          "items": {
+            "$ref": "#/$defs/TerrainKindDto"
+          },
+          "type": "array"
+        }
+      },
+      "required": [
+        "terrain",
+        "cover",
+        "road",
+        "land_use"
+      ],
+      "type": "object"
+    },
+    "RoadDto": {
+      "description": "Road class crossing the cell (source: `Cell::road`).",
+      "oneOf": [
+        {
+          "const": "none",
+          "description": "No road.",
+          "type": "string"
+        },
+        {
+          "const": "track",
+          "description": "Footpath or cart track.",
+          "type": "string"
+        },
+        {
+          "const": "road",
+          "description": "Maintained road.",
+          "type": "string"
+        },
+        {
+          "const": "highway",
+          "description": "Trunk corridor.",
+          "type": "string"
+        },
+        {
+          "const": "footpath",
+          "description": "Footpath (society rasters only).",
+          "type": "string"
+        }
+      ]
+    },
+    "TerrainKindDto": {
+      "description": "Sea, dry land, or lake surface (source: `Cell::terrain`).",
+      "oneOf": [
+        {
+          "const": "sea",
+          "description": "Below sea level and connected to the ocean.",
+          "type": "string"
+        },
+        {
+          "const": "land",
+          "description": "Dry land.",
+          "type": "string"
+        },
+        {
+          "const": "lake",
+          "description": "Inland standing water.",
+          "type": "string"
+        }
+      ]
+    }
+  },
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "description": "`/v1/area/{ax}/{ay}/cells` JSON body.",
+  "properties": {
+    "ax": {
+      "description": "Area column.",
+      "format": "int32",
+      "type": "integer"
+    },
+    "ay": {
+      "description": "Area row.",
+      "format": "int32",
+      "type": "integer"
+    },
+    "columns": {
+      "$ref": "#/$defs/AreaColumns",
+      "description": "Values."
+    },
+    "contract_version": {
+      "description": "Cell contract version.",
+      "format": "uint32",
+      "minimum": 0,
+      "type": "integer"
+    },
+    "gx0": {
+      "description": "Global column of local x = 0.",
+      "format": "uint32",
+      "minimum": 0,
+      "type": "integer"
+    },
+    "gy0": {
+      "description": "Global row of local y = 0.",
+      "format": "uint32",
+      "minimum": 0,
+      "type": "integer"
+    },
+    "height": {
+      "description": "Rows (512).",
+      "format": "uint32",
+      "minimum": 0,
+      "type": "integer"
+    },
+    "legend": {
+      "$ref": "#/$defs/Legend",
+      "description": "Enum code tables."
+    },
+    "width": {
+      "description": "Columns per row (512).",
+      "format": "uint32",
+      "minimum": 0,
+      "type": "integer"
+    }
+  },
+  "required": [
+    "contract_version",
+    "ax",
+    "ay",
+    "gx0",
+    "gy0",
+    "width",
+    "height",
+    "legend",
+    "columns"
+  ],
+  "title": "AreaCells",
+  "type": "object"
+}

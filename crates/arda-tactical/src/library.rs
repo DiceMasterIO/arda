@@ -138,6 +138,15 @@ impl Library {
         })
     }
 
+    /// Wraps parts the caller has already validated.
+    pub(crate) fn from_validated(catalog: Catalog, images: BTreeMap<String, Rgba>) -> Self {
+        Self {
+            catalog,
+            images,
+            derived: Derived::default(),
+        }
+    }
+
     /// Every ground and water texture scaled to `ppsq`, built once per
     /// ppsq and catalogue and then shared (the result equals
     /// [`TextureSet::new`]).

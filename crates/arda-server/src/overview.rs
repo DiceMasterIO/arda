@@ -158,8 +158,13 @@ impl Overview {
 
     /// Parses and bounds a `quality` query value (pixels or `NK`).
     ///
+    /// Only the [`quality_ladder`] is served: every distinct quality is a
+    /// full render, so an open range let one client keep the renderer busy
+    /// with endless cache misses (review round 1 #16).
+    ///
     /// # Errors
-    /// [`ServerError::BadRequest`] outside 512 px..=`max_quality_px`.
+    /// [`ServerError::BadRequest`] outside 512 px..=`max_quality_px` or off
+    /// the ladder.
     pub fn quality(&self, text: Option<&str>) -> ServerResult<u32> {
         let px = match text {
             None => DEFAULT_QUALITY_PX,
@@ -172,6 +177,12 @@ impl Overview {
             return Err(ServerError::BadRequest(format!(
                 "quality {px} exceeds this server's limit of {}",
                 self.limits.max_quality_px
+            )));
+        }
+        let ladder = quality_ladder(self.limits.max_quality_px);
+        if !ladder.contains(&px) {
+            return Err(ServerError::BadRequest(format!(
+                "quality {px} is not one of {ladder:?} (512 doubling up to this server's limit)"
             )));
         }
         Ok(px)
@@ -302,9 +313,32 @@ impl std::fmt::Debug for Overview {
     }
 }
 
+/// The overview qualities served: 512 px doubling up to `max_px`, plus
+/// `max_px` itself when it is not on that ladder (at most a dozen renders
+/// per style).
+#[must_use]
+pub fn quality_ladder(max_px: u32) -> Vec<u32> {
+    let mut out: Vec<u32> = std::iter::successors(Some(512_u32), |q| q.checked_mul(2))
+        .take_while(|&q| q <= max_px)
+        .collect();
+    if out.last() != Some(&max_px) && max_px >= 512 {
+        out.push(max_px);
+    }
+    out
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn the_quality_ladder_is_short_and_holds_the_documented_sizes() {
+        assert_eq!(quality_ladder(8192), [512, 1024, 2048, 4096, 8192]);
+        assert_eq!(quality_ladder(3000), [512, 1024, 2048, 3000]);
+        assert_eq!(quality_ladder(512), [512]);
+        assert!(quality_ladder(u32::MAX).len() <= 24);
+        assert!(quality_ladder(8192).contains(&DEFAULT_QUALITY_PX));
+    }
 
     #[test]
     fn scratch_dirs_never_reuse_a_planted_path() {

@@ -4,6 +4,7 @@
 
 pub mod crossing;
 pub mod house;
+pub mod relevant;
 pub mod switchback;
 pub mod wet;
 
@@ -110,7 +111,7 @@ impl Window {
 #[derive(Debug, Clone)]
 pub struct WayPlan {
     /// Road id.
-    pub road_id: u32,
+    pub road_id: u64,
     /// Segment index inside the road.
     pub segment: usize,
     /// Road class.
@@ -155,8 +156,9 @@ pub struct Junction {
 /// A river channel with its dense centreline.
 #[derive(Debug, Clone)]
 pub struct ChannelPlan {
-    /// Channel id (synthetic channels use the crossing id plus `1 << 31`).
-    pub id: u32,
+    /// Channel id; a synthetic channel carries its crossing's id (ids are
+    /// only reported, never looked up).
+    pub id: u64,
     /// Width, metres.
     pub width_m: f64,
     /// Depth at the centreline, metres.
@@ -227,7 +229,7 @@ pub struct Plan {
     /// Crossings that could be resolved against a way and a channel.
     pub crossings: Vec<crossing::CrossingPlan>,
     /// Crossing ids near the window that met no way or no water.
-    pub orphans: Vec<u32>,
+    pub orphans: Vec<u64>,
     /// Toll houses and waystations.
     pub houses: Vec<house::House>,
 }
@@ -240,6 +242,19 @@ pub fn build(
     crossings: &[Crossing],
     terrain: &dyn Terrain,
     seed: u64,
+    standing: &crate::standing::Standing,
+) -> Plan {
+    build_inner(win, roads, crossings, terrain, seed, standing, true)
+}
+
+pub(crate) fn build_inner(
+    win: Window,
+    roads: &[Road],
+    crossings: &[Crossing],
+    terrain: &dyn Terrain,
+    seed: u64,
+    standing: &crate::standing::Standing,
+    filter: bool,
 ) -> Plan {
     let guide = terrain.rivers_rasterised();
     let mut channels: Vec<ChannelPlan> = terrain
@@ -250,11 +265,11 @@ pub fn build(
             ..ChannelPlan::new(c)
         })
         .collect();
-    let (mut ways, junctions) = plan_ways(win, roads, terrain);
+    let (mut ways, junctions) = plan_ways(win, roads, terrain, filter);
     let (crossings, orphans) = if guide {
-        wet::plan_all(win, crossings, &mut ways, &mut channels, terrain)
+        wet::plan_all(win, crossings, &mut ways, &mut channels, terrain, standing)
     } else {
-        crossing::plan_all(win, crossings, &mut ways, &mut channels, terrain)
+        crossing::plan_all(win, crossings, &mut ways, &mut channels, terrain, standing)
     };
     let houses = house::plan_all(&crossings, &ways, &channels, seed);
     Plan {
@@ -268,13 +283,13 @@ pub fn build(
     }
 }
 
-fn to_p(v: [i64; 2]) -> P {
+pub(super) fn to_p(v: [i64; 2]) -> P {
     #[allow(clippy::cast_precision_loss)] // world metres are far below 2^52
     [v[0] as f64, v[1] as f64]
 }
 
 /// Distance from `p` to a raw polyline and whether the foot is an end vertex.
-fn raw_dist(v: &[P], p: P) -> (f64, bool) {
+pub(super) fn raw_dist(v: &[P], p: P) -> (f64, bool) {
     let mut best = (f64::MAX, false);
     for (i, w) in v.windows(2).enumerate() {
         let d = [w[1][0] - w[0][0], w[1][1] - w[0][1]];
@@ -310,8 +325,23 @@ fn curve_nearest(w: &WayPlan, p: P, reach: f64) -> Option<curve::Hit> {
     Dense::new(runs).nearest(p, reach)
 }
 
-fn plan_ways(win: Window, roads: &[Road], terrain: &dyn Terrain) -> (Vec<WayPlan>, Vec<Junction>) {
-    let mut order: Vec<&Road> = roads.iter().collect();
+fn plan_ways(
+    win: Window,
+    roads: &[Road],
+    terrain: &dyn Terrain,
+    filter: bool,
+) -> (Vec<WayPlan>, Vec<Junction>) {
+    let keep = if filter {
+        relevant::relevant_roads(win, roads)
+    } else {
+        vec![true; roads.len()]
+    };
+    let mut order: Vec<&Road> = roads
+        .iter()
+        .zip(&keep)
+        .filter(|(_, &k)| k)
+        .map(|(r, _)| r)
+        .collect();
     order.retain(|r| r.class != RoadClass::None);
     order.sort_by_key(|r| (Reverse(r.class.hierarchy()), r.id));
     let mut ways: Vec<WayPlan> = Vec::new();

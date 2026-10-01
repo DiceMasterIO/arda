@@ -3,6 +3,7 @@ import type { CoastSample } from "./CoastSample";
 import type { CoverDto } from "./CoverDto";
 import type { FineHeights } from "./FineHeights";
 import type { LakeMembership } from "./LakeMembership";
+import type { LandUseDto } from "./LandUseDto";
 import type { RiverMembership } from "./RiverMembership";
 import type { RoadDto } from "./RoadDto";
 import type { SnowSample } from "./SnowSample";
@@ -117,13 +118,23 @@ watercourse_width_m: number,
  */
 height_above_river_m: number, 
 /**
- * Road class (`Cell::road`).
+ * Road class: `society/roads.bin` when present, else `Cell::road`.
  */
 road: RoadDto, 
 /**
- * Settlement that built on this cell; `null` when none (`Cell::built_by`).
+ * Settlement id (decimal string) that owns this cell: `society/landuse.bin`
+ * owners when present, else `Cell::built_by`; `null` when none.
  */
-built_by: number | null, 
+built_by: string | null, 
+/**
+ * Land use (`society/landuse.bin`); `null` without a `society/`.
+ */
+land_use: LandUseDto | null, 
+/**
+ * Realm id (decimal string, `society/realms.bin`); `null` when none or
+ * without a `society/`.
+ */
+realm_id: string | null, 
 /**
  * Derived coast facts.
  */

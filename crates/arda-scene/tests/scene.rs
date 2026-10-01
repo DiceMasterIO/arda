@@ -192,3 +192,21 @@ fn seeds_serialise_as_strings_and_tokens_default_empty() {
     let old = json.replace(r#","tokens":[]"#, "");
     assert!(Scene::from_json(&old).unwrap().tokens.is_empty());
 }
+
+#[test]
+fn a_secret_door_is_no_spawn_entrance() {
+    // Review round 2 #39: a secret door looks like wall until found.
+    let mut l = L::new(4, 3);
+    l.0.walls.push(arda_tactical::layout::WallSegment {
+        x: 1,
+        y: 1,
+        axis: arda_tactical::layout::EdgeAxis::Horizontal,
+        kind: WallRole::Door,
+        kit: "timber".into(),
+    });
+    let secret = build_scene(&l.0, &secret_library(), 1, None).unwrap();
+    assert_eq!(secret.walls[0].kind, WallKind::Secret);
+    assert!(secret.spawn_hints.entrances.is_empty());
+    let plain = build_scene(&l.0, lib(), 1, None).unwrap();
+    assert_eq!(plain.spawn_hints.entrances.len(), 1);
+}

@@ -2,6 +2,7 @@
 //! §api-tactical, logic/12): the `arda-scene` scene of the same composed
 //! block the images are drawn from (goal 48), with NPC tokens (A13).
 
+use super::scene_dto::SceneDto;
 use super::tokens::{self, Token};
 use super::world_routes::{cell_of, opts, request, WINDOW_PPSQ};
 use super::DEFAULT_PPSQ;
@@ -11,23 +12,39 @@ use crate::AppState;
 use axum::extract::State;
 use axum::response::{IntoResponse, Response};
 use axum::Json;
+use schemars::JsonSchema;
 use serde::Serialize;
 use std::collections::{BTreeMap, BTreeSet};
 use std::sync::Arc;
+use ts_rs::TS;
 
 /// Envelope version of the scene body.
 pub const SCENE_FORMAT: u32 = 1;
 
-/// The scene of one block and the NPCs on it.
-#[derive(Debug, Clone, Serialize)]
+/// Time of day a scene's tokens are placed for.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, TS, JsonSchema)]
+#[serde(rename_all = "snake_case")]
+pub enum SceneTime {
+    /// Notables stand in their workplace when it lies in the block.
+    Day,
+    /// Everyone is at home.
+    Night,
+}
+
+/// `GET /v1/tactical/cell/{gx}/{gy}/scene`: the scene of one block and the
+/// NPCs on it.
+#[derive(Debug, Clone, Serialize, TS, JsonSchema)]
 pub struct TacticalScene {
     /// Envelope version ([`SCENE_FORMAT`]).
     pub tactical_format: u32,
     /// World square of the block's top-left square.
+    #[ts(type = "[number, number]")]
     pub origin_gs: [i64; 2],
     /// `day` or `night`.
-    pub time: &'static str,
-    /// The `arda-scene` scene (format 1).
+    pub time: SceneTime,
+    /// The `arda-scene` scene (format 1), described by [`SceneDto`].
+    #[ts(as = "SceneDto")]
+    #[schemars(with = "SceneDto")]
     pub scene: arda_scene::Scene,
     /// NPC tokens.
     pub tokens: Vec<Token>,
@@ -61,7 +78,11 @@ pub fn build(
     Ok(TacticalScene {
         tactical_format: SCENE_FORMAT,
         origin_gs: block.origin,
-        time: if night { "night" } else { "day" },
+        time: if night {
+            SceneTime::Night
+        } else {
+            SceneTime::Day
+        },
         scene,
         tokens: out,
     })

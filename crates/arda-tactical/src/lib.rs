@@ -14,6 +14,7 @@ pub mod error;
 pub mod layout;
 pub mod layouts;
 pub mod library;
+pub mod library_stack;
 pub mod noise;
 pub mod placeholders;
 pub mod raster;

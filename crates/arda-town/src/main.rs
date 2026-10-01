@@ -52,7 +52,9 @@ enum Cmd {
         /// Output PNG.
         #[arg(long)]
         out: PathBuf,
-        /// Library directory.
+        /// Library directory, or a `top:…:bottom` stack such as
+        /// `out/art:assets/tactical/placeholder` (missing assets fall back
+        /// to the lower libraries).
         #[arg(long, default_value = "assets/tactical/placeholder")]
         library: PathBuf,
         /// World seed.
@@ -199,7 +201,7 @@ fn run(cli: Cli) -> Result<(), TownError> {
                 (None, None) => focus_window(&plan, "market", size)?,
             };
             let blk = block::generate(&plan, win)?;
-            let lib = Library::load(&library)?;
+            let lib = Library::load_stack(&library)?;
             let res = fallback::resolve(&blk, &lib, plan.seed);
             let opts = RenderOptions {
                 ppsq,

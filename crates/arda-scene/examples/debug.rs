@@ -1,21 +1,39 @@
 //! Builds scenes for the arda-tactical test layouts and writes debug PNGs
 //! and compact scene JSON to `out/scene/`.
 //!
-//! `cargo run -p arda-scene --example debug`
+//! `cargo run -p arda-scene --example debug [-- --library top:…:bottom]`
+//! (`--library` takes a library directory or a stack; default the
+//! placeholder library).
 
 use arda_scene::{build_scene, scene_debug_png, RulesSidecar};
 use arda_tactical::{layouts, Library};
 use std::error::Error;
-use std::path::Path;
+use std::path::{Path, PathBuf};
 
 /// The seed the images are rendered with.
 const SEED: u64 = 7;
 /// Debug pixels per square.
 const PPSQ: u32 = 48;
 
+/// The library named by `--library <dir or top:…:bottom stack>`, else the
+/// placeholder library.
+fn library_arg(root: &Path) -> PathBuf {
+    let mut args = std::env::args().skip(1);
+    while let Some(a) = args.next() {
+        if a == "--library" {
+            if let Some(spec) = args.next() {
+                return PathBuf::from(spec);
+            }
+        } else if let Some(spec) = a.strip_prefix("--library=") {
+            return PathBuf::from(spec);
+        }
+    }
+    root.join("assets/tactical/placeholder")
+}
+
 fn main() -> Result<(), Box<dyn Error>> {
     let root = Path::new(env!("CARGO_MANIFEST_DIR")).join("../..");
-    let lib = Library::load(&root.join("assets/tactical/placeholder"))?;
+    let lib = Library::load_stack(&library_arg(&root))?;
     let out = root.join("out/scene");
     std::fs::create_dir_all(&out)?;
     for layout in layouts::all() {

@@ -88,6 +88,7 @@ Everything is a function of global square coordinates and the seed. A window is 
      - The quarry is a pit with a cliffed face uphill, a gravel floor, a ramp, a crane and rock props.
      - The mine is a timber-framed adit with a door in a rock face, an apron, an ore cart, pit props and a lantern.
      - Both have scree spoil heaps tipped downhill.
+     - Roads win: a mine or quarry whose works would touch a road (its carriageway or edge square) moves 16 squares to the first clear site of eight around its own; if none is clear it keeps its site and gives up the squares, props and walls on the road.
    - **Lanes.** Every compound gets a 2-square lane to the nearest road within 1.5 km. `CompoundRecord.lane` is `false` if no road is in reach.
 8. **Layout** (`window.rs`).
    - Ground keys come from the canonical vocabulary.
@@ -108,7 +109,7 @@ The sidecar holds `name`, `seed` (as a string), `width`, `height`, `origin_squar
   - `difficult`, `water_depth_ft`, `cover`, `blocks_sight`, `blocks_movement` and `deck` use the `RulesSidecar` names;
   - `crop`, `furrow` (a unit vector) and `field` (the id as a string) are optional.
 - **`edges`**: one entry per wall segment, with `x`, `y`, `axis`, `kind`, `kit`, `blocks_sight`, `blocks_movement`, `cover`, `climb` and `openable`.
-- **`fields`**: `id`, `kind`, `crop`, `kit`, `hectares`, `enclosed`, `gates` and `complete`. `complete` means the field lies wholly inside the window.
+- **`fields`**: `id`, `kind`, `crop`, `kit`, `hectares`, `enclosed`, `gates` and `complete`. `complete` means the field lies wholly inside the window (an enclosed field by its boundary, an open one by its squares).
 - **`compounds`**: `kind`, `cell` and `lane`.
 
 Cover values are `none | half | three_quarters | total`. Each kit reads as follows under the SRD:

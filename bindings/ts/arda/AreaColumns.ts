@@ -73,6 +73,14 @@ road: Array<number>,
  */
 built_by: Array<number>, 
 /**
+ *Land-use code ([`Legend::land_use`]).
+ */
+land_use: Array<number>, 
+/**
+ *Realm id, 0 = none.
+ */
+realm_id: Array<number>, 
+/**
  *1 on coast cells.
  */
 is_coast: Array<number>, 

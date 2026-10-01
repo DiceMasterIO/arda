@@ -8,6 +8,7 @@ use std::ops::{Add, Mul, Neg, Sub};
 
 /// A point or vector in world metres.
 #[derive(Debug, Clone, Copy, PartialEq, Default, Serialize, Deserialize)]
+#[cfg_attr(feature = "schema", derive(schemars::JsonSchema))]
 pub struct Vec2 {
     /// Metres east.
     pub x: f64,

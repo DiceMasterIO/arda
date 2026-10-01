@@ -2,7 +2,9 @@
 //!
 //! Resolution order: `$ARDA_SERVER_TEST_WORLD`, then `<workspace>/out/micro42`
 //! (the documented `arda generate --seed 42 --micro --terrain fine` output),
-//! else the world is generated once into `target/arda-server-fixture/`.
+//! else the world is generated once into `target/arda-server-fixture/`. Only
+//! a world of the default fine-terrain recipe (7 since v0.4.0) is reused, so
+//! a stale recipe-6 `out/micro42` is never what the schemas are checked on.
 
 use arda_server::{router, AppState, ServerConfig};
 use axum::body::Body;
@@ -17,7 +19,13 @@ fn workspace() -> PathBuf {
 }
 
 fn loads(dir: &Path) -> bool {
-    arda::World::load(dir).is_ok_and(|w| w.manifest().fine_terrain.is_some() && w.seed() == 42)
+    arda::World::load(dir).is_ok_and(|w| {
+        w.manifest()
+            .fine_terrain
+            .as_ref()
+            .is_some_and(|f| f.recipe_version == arda::FINE_TERRAIN_RECIPE_VERSION)
+            && w.seed() == 42
+    })
 }
 
 /// The fixture world directory.
@@ -32,17 +40,15 @@ pub fn world_dir() -> &'static Path {
             return out;
         }
         let dir = workspace().join("target/arda-server-fixture/micro42");
-        if !loads(&dir) {
-            let _ = std::fs::remove_dir_all(&dir);
-            std::fs::create_dir_all(dir.parent().unwrap()).unwrap();
+        crate::fixture_dir::ensure(&dir, loads, |tmp| {
             arda::generate_from_fine_source(
                 42,
                 arda::GenerateConfig::MICRO,
-                &dir,
+                tmp,
                 arda::FineDeliveryLimits::default(),
             )
             .expect("generating the MICRO fixture world");
-        }
+        });
         dir
     })
 }
@@ -165,19 +171,17 @@ pub fn society_dir() -> &'static Path {
             return first.to_path_buf();
         }
         let dir = workspace().join("target/arda-server-fixture/micro42-society");
-        if !has_society(&dir) {
-            let _ = std::fs::remove_dir_all(&dir);
-            std::fs::create_dir_all(dir.parent().unwrap()).unwrap();
+        crate::fixture_dir::ensure(&dir, has_society, |tmp| {
             arda::generate_from_fine_source(
                 42,
                 arda::GenerateConfig::MICRO,
-                &dir,
+                tmp,
                 arda::FineDeliveryLimits::default(),
             )
             .expect("generating the MICRO society fixture");
-            arda_settle::generate(&dir, arda_settle::grid::MEMORY_BUDGET).expect("settle");
-            arda_people::build(&dir).expect("society build");
-        }
+            arda_settle::generate(tmp, arda_settle::grid::MEMORY_BUDGET).expect("settle");
+            arda_people::build(tmp).expect("society build");
+        });
         dir
     })
 }

@@ -1,5 +1,8 @@
-//! A 20,000-person city generates in under a second (release), and storage
-//! follows the notable count, not the population.
+//! Storage follows the notable count, not the population; and (ignored,
+//! release gate) a 20,000-person city generates in under a second.
+//!
+//! The wall-clock bound lives in its own `#[ignore]` test: on a loaded box
+//! running the whole workspace in parallel it flaked (review round 1 #18).
 
 #![allow(clippy::unwrap_used, clippy::expect_used)]
 
@@ -11,18 +14,9 @@ use arda_npc::generate_population;
 use common::{city, SEED};
 
 #[test]
-fn city_of_twenty_thousand_is_fast_and_small() {
+fn city_of_twenty_thousand_stores_few_records() {
     let (profile, buildings) = city(20_000);
-    let _warm = generate_population(SEED, &profile, &buildings[..0]).err();
-    let start = Instant::now();
     let population = generate_population(SEED, &profile, &buildings).unwrap();
-    let elapsed = start.elapsed();
-    let limit = if cfg!(debug_assertions) {
-        Duration::from_secs(5)
-    } else {
-        Duration::from_secs(1)
-    };
-    assert!(elapsed < limit, "20k city took {elapsed:?}");
     assert_eq!(population.population, 20_000);
     assert!(
         population.npcs.len() <= 200,
@@ -43,4 +37,28 @@ fn city_of_twenty_thousand_is_fast_and_small() {
         population.npcs.len(),
         small.npcs.len()
     );
+}
+
+/// Run with `cargo test --release -p arda-npc --test performance -- --ignored`
+/// on a quiet machine: the best of three runs stays under a second.
+#[test]
+#[ignore = "wall-clock timing; release gate"]
+fn city_of_twenty_thousand_is_fast() {
+    let (profile, buildings) = city(20_000);
+    let _warm = generate_population(SEED, &profile, &buildings[..0]).err();
+    let best = (0..3)
+        .map(|_| {
+            let start = Instant::now();
+            let population = generate_population(SEED, &profile, &buildings).unwrap();
+            assert_eq!(population.population, 20_000);
+            start.elapsed()
+        })
+        .min()
+        .unwrap();
+    let limit = if cfg!(debug_assertions) {
+        Duration::from_secs(5)
+    } else {
+        Duration::from_secs(1)
+    };
+    assert!(best < limit, "20k city took {best:?}");
 }

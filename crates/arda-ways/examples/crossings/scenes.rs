@@ -24,7 +24,7 @@ pub struct Scene {
     pub ground: &'static str,
 }
 
-fn road(id: u32, class: RoadClass, wealth: u8, pts: &[[i64; 2]]) -> Road {
+fn road(id: u64, class: RoadClass, wealth: u8, pts: &[[i64; 2]]) -> Road {
     Road {
         id,
         class,
@@ -33,7 +33,7 @@ fn road(id: u32, class: RoadClass, wealth: u8, pts: &[[i64; 2]]) -> Road {
     }
 }
 
-fn crossing(id: u32, kind: CrossingKind, at: [i64; 2], width_m: u32, class: RoadClass) -> Crossing {
+fn crossing(id: u64, kind: CrossingKind, at: [i64; 2], width_m: u32, class: RoadClass) -> Crossing {
     Crossing {
         id,
         kind,

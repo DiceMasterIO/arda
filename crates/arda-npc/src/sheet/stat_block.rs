@@ -214,6 +214,28 @@ pub(crate) fn resistances(block: &[String], race: &RaceData, rng: &mut Rng) -> V
     if let Some(choice) = rng.pick(&race.resistance_choices) {
         out.push(choice.clone());
     }
-    out.dedup();
+    dedup_keep_first(&mut out);
     out
+}
+
+/// Drops every repeat, adjacent or not, keeping first occurrences in order
+/// (`Vec::dedup` only drops adjacent ones; review round 1 #20).
+fn dedup_keep_first(list: &mut Vec<String>) {
+    let mut seen = std::collections::BTreeSet::new();
+    list.retain(|r| seen.insert(r.clone()));
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn a_resistance_listed_twice_apart_is_kept_once() {
+        let mut list: Vec<String> = ["poison", "fire", "poison", "fire", "cold"]
+            .iter()
+            .map(|s| (*s).to_owned())
+            .collect();
+        dedup_keep_first(&mut list);
+        assert_eq!(list, ["poison", "fire", "cold"]);
+    }
 }

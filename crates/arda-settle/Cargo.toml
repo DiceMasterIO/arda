@@ -15,9 +15,14 @@ arda-names.workspace = true
 clap.workspace = true
 png.workspace = true
 serde.workspace = true
+schemars = { workspace = true, optional = true }
 serde_json.workspace = true
 thiserror.workspace = true
 zstd.workspace = true
+
+[features]
+# JSON Schema derives for the settlement records (`schemars`).
+schema = ["dep:schemars", "arda-ids/schema", "arda-names/schema"]
 
 [dev-dependencies]
 arda-npc.workspace = true

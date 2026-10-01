@@ -3,6 +3,17 @@
 Release notes for Arda. The design ledger (decisions, stage records and per-change detail)
 lives in `docs/capstone/changelog.md` and `docs/capstone/changelog.d/`.
 
+## 0.5.0 — 2026-10-01
+
+- **Cell contract 3.** With a `society/` directory, `/v1/cell`, `/v1/point` and `/v1/area/.../cells` take `road` from the new `society/roads.bin` (which adds `footpath`) and `built_by` from the land-use owners (now a settlement id string), and add `land_use` and `realm_id`. `ARDACOLS` layout 2 carries the new columns. `arda settle` writes `roads.bin`; re-run it to get the raster for an existing world. Worlds without `society/` keep their stored `road` and `built_by`.
+- **JSON Schemas.** Every public body has a draft 2020-12 schema, generated from the same Rust types as the TypeScript bindings, committed in `bindings/schema/` and served at `GET /v1/schema` and `/v1/schema/{Name}.json`. Real responses of every route validate against them on a recipe-7 world, including the contract-3 cell fields.
+- **Typed scenes.** `SceneDto`, `TacticalScene` and `Token` are generated TypeScript types, and the viewer reads scenes through them.
+- **Sheet mappings.** `arda-server --sheet-mapping game.json` reshapes every served NPC into a game's own schema with a declarative file, checked at startup. `identity.json` and `5e-srd-monster.json` are included.
+- **Importing AI art.** The new `arda tactical import` (crate `arda-art-import`) turns a folder of raw generated images into a valid tactical library: background removal, baked-shadow stripping, fitting, tileable textures, an optional colour grade, a report and a contact sheet.
+- **Library stacks.** Wherever a library is named (`arda tactical render` and `validate`, `arda-server --library`, `arda-town block --library`, the scene and crossings examples), a `top:…:bottom` stack works too: the leftmost library wins and the others fill in what it lacks.
+- **Hardening.** `Source::pan` is a required method. Images revalidate by `ETag`. Error bodies no longer show absolute paths. Tactical PNG encodes are admitted one at a time. Catalogue footprints are capped at 16 squares a side, and import manifests and stacks respect the cap. Society lookups are indexed (8,000 settlements in 1.0 s, was 5.1 s). Ways, fields, scene, names and NPC fixes from the review rounds. A test-fixture race is fixed.
+- `deny.toml` allows MIT-0 and Zlib for the dev-only schema validator.
+
 ## 0.4.0 — 2026-10-01
 
 - **Recipe 7 is the new default: climate.** Rainfall now has a subtropical dry belt. Runoff weights channel initiation and incision, so wet uplands are more dissected and dry land less. Arid tectonic basins keep terminal saline lakes on salt pans, with mudflat margins. Atlas draws saline lakes and salt pans, and tactical maps get `salt_crust` and `mudflat` ground. Set the band with `arda generate --latitude S,N`. `--recipe 6` reproduces v0.2–v0.3 worlds byte for byte, and recipes 5, 6 and 7 are all golden-pinned. `water.bin` gains layout 2.

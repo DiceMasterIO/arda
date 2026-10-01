@@ -9,6 +9,7 @@ use crate::contract::{CellSample, HeightSource, PointSample, CELL_M, CONTRACT_VE
 use crate::derived::{self, AreaDerived, Neighbourhood};
 use crate::error::{lock, ServerError, ServerResult};
 use crate::fine;
+use crate::society_cells::SocietyCells;
 use arda::{Area, World};
 use arda_core::{AreaCoord, TerrainField, TerrainFileReader, AREA_CELLS};
 use rayon::prelude::*;
@@ -53,6 +54,7 @@ pub struct WorldQuery {
     cells_wide: u32,
     cells_high: u32,
     fine: Option<Mutex<TerrainFileReader<File>>>,
+    society: Option<SocietyCells>,
     areas: Mutex<ByteLru<AreaCoord, Area>>,
     derived: Mutex<ByteLru<AreaCoord, AreaDerived>>,
     windows: Mutex<ByteLru<AreaCoord, TerrainField>>,
@@ -84,11 +86,19 @@ impl WorldQuery {
                 .ok_or_else(|| ServerError::Internal("area grid overflow".into()))
         };
         let (cells_wide, cells_high) = (span(m.areas_wide)?, span(m.areas_high)?);
+        if cells_wide == 0 || cells_high == 0 {
+            return Err(ServerError::Internal(format!(
+                "the world has no areas ({} × {})",
+                m.areas_wide, m.areas_high
+            )));
+        }
+        let society = SocietyCells::open(&dir.join("society"), cells_wide, cells_high)?;
         Ok(Self {
             world,
             cells_wide,
             cells_high,
             fine,
+            society,
             areas: Mutex::new(ByteLru::new(limits.area_bytes)),
             derived: Mutex::new(ByteLru::new(limits.derived_bytes)),
             windows: Mutex::new(ByteLru::new(limits.fine_bytes)),
@@ -107,6 +117,12 @@ impl WorldQuery {
         (self.cells_wide, self.cells_high)
     }
 
+    /// The world's `society/` rasters, when it has them.
+    #[must_use]
+    pub const fn society(&self) -> Option<&SocietyCells> {
+        self.society.as_ref()
+    }
+
     /// Whether the world has canonical fine terrain.
     #[must_use]
     pub const fn has_fine(&self) -> bool {
@@ -119,11 +135,7 @@ impl WorldQuery {
     /// [`ServerError::OutOfRange`] outside the global grid.
     pub fn place(&self, gx: u32, gy: u32) -> ServerResult<CellPlace> {
         if gx >= self.cells_wide || gy >= self.cells_high {
-            return Err(ServerError::OutOfRange(format!(
-                "cell {gx},{gy} is outside the world ({},{} is the last)",
-                self.cells_wide - 1,
-                self.cells_high - 1
-            )));
+            return Err(outside(gx, gy, self.cells_wide, self.cells_high));
         }
         let int = |v: u32| i32::try_from(v).map_err(|_| ServerError::Internal("coordinate".into()));
         let local = |v: u32| {
@@ -205,6 +217,7 @@ impl WorldQuery {
     }
 
     fn assemble(
+        &self,
         place: CellPlace,
         area: &Area,
         layer: &AreaDerived,
@@ -226,6 +239,7 @@ impl WorldQuery {
                 .and_then(|n| area.lakes().get(n))
                 .map(|l| convert::lake(l, cell.height)),
             fine: window.and_then(|w| fine::footprint(w, place.gx, place.gy)),
+            society: self.society.as_ref().map(|s| s.at(place.gx, place.gy)),
         };
         Ok(convert::cell_sample(cell, place, derived))
     }
@@ -239,7 +253,7 @@ impl WorldQuery {
         let area = self.area(place.ax, place.ay)?;
         let layer = self.derived(place.ax, place.ay)?;
         let window = self.fine_window(place.ax, place.ay)?;
-        Self::assemble(place, &area, &layer, window.as_deref())
+        self.assemble(place, &area, &layer, window.as_deref())
     }
 
     /// All 512 × 512 samples of an area, row-major.
@@ -263,7 +277,7 @@ impl WorldQuery {
                 (0..SIDE)
                     .map(|cx| {
                         let place = self.place(gx0 + cx, gy0 + cy)?;
-                        Self::assemble(place, &area, &layer, window.as_deref())
+                        self.assemble(place, &area, &layer, window.as_deref())
                     })
                     .collect()
             })
@@ -349,11 +363,39 @@ impl WorldQuery {
     }
 }
 
+/// The out-of-world error for cell `(gx, gy)` of a `w × h` grid; never
+/// underflows, even for an empty grid (review round 1 #17).
+fn outside(gx: u32, gy: u32, w: u32, h: u32) -> ServerError {
+    match (w.checked_sub(1), h.checked_sub(1)) {
+        (Some(lx), Some(ly)) => ServerError::OutOfRange(format!(
+            "cell {gx},{gy} is outside the world ({lx},{ly} is the last)"
+        )),
+        _ => ServerError::OutOfRange(format!("cell {gx},{gy}: the world has no cells")),
+    }
+}
+
 impl std::fmt::Debug for WorldQuery {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         f.debug_struct("WorldQuery")
             .field("world", &self.world)
             .field("fine", &self.fine.is_some())
             .finish_non_exhaustive()
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn the_out_of_world_message_survives_an_empty_grid() {
+        let e = outside(5, 1, 0, 0).to_string();
+        assert!(e.contains("no cells"), "{e}");
+        let e = outside(5000, 1, 1024, 2048).to_string();
+        assert_eq!(
+            e,
+            "cell 5000,1 is outside the world (1023,2047 is the last)"
+        );
+        assert!(outside(0, 0, 3, 0).to_string().contains("no cells"));
     }
 }

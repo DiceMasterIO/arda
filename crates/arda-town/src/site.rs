@@ -13,11 +13,17 @@ use std::fmt;
 /// Settlement id, as in `settlements.json` (1-based). Serialised as a JSON
 /// string; numbers are accepted on input.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize, Deserialize)]
+#[cfg_attr(feature = "schema", derive(schemars::JsonSchema))]
 #[serde(transparent)]
-pub struct SettlementId(#[serde(with = "crate::ids")] pub u64);
+pub struct SettlementId(
+    #[serde(with = "crate::ids")]
+    #[cfg_attr(feature = "schema", schemars(with = "String"))]
+    pub u64,
+);
 
 /// Settlement size class (`arda-settle` `Tier`).
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize, Deserialize)]
+#[cfg_attr(feature = "schema", derive(schemars::JsonSchema))]
 #[serde(rename_all = "snake_case")]
 pub enum Tier {
     /// A handful of farms, 12–80 people.

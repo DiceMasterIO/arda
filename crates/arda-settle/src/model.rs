@@ -7,6 +7,7 @@ use std::collections::BTreeMap;
 
 /// Settlement size class (`arda-npc` `Tier`).
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize, Deserialize)]
+#[cfg_attr(feature = "schema", derive(schemars::JsonSchema))]
 #[serde(rename_all = "snake_case")]
 pub enum Tier {
     /// A handful of farms, 12–80 people.
@@ -44,6 +45,7 @@ pub const TOWN_MIN: u32 = 1000;
 
 /// What a settlement lives on (`arda-npc` `SettlementFunction`).
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize, Deserialize)]
+#[cfg_attr(feature = "schema", derive(schemars::JsonSchema))]
 #[serde(rename_all = "snake_case")]
 pub enum Function {
     /// Arable fields.
@@ -81,6 +83,7 @@ pub use arda_ids::{RealmId, SettlementId};
 
 /// One settlement, as written to `society/settlements.json`.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[cfg_attr(feature = "schema", derive(schemars::JsonSchema))]
 pub struct Settlement {
     /// Stable identifier, 1-based in placement order (a JSON string, I5).
     pub id: SettlementId,

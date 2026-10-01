@@ -124,10 +124,9 @@ fn country(
         ));
     }
     let flood = w
-        .history
-        .events
-        .iter()
-        .filter(|e| e.kind == EventKind::Flood && e.settlements.contains(&s.id))
+        .index
+        .events_of(w.history, s.id)
+        .filter(|e| e.kind == EventKind::Flood)
         .max_by_key(|e| (e.year, e.id));
     if let Some(e) = flood {
         let mut sl = base.clone().with("flood", crate::text::event_phrase(e));
@@ -143,10 +142,9 @@ fn country(
     }
     let r = &w.realms[ctx.realm_of(i)];
     let war = w
-        .history
-        .wars
-        .iter()
-        .filter(|x| x.realms.contains(&r.id) && x.to.is_none_or(|t| ctx.present - t <= 12))
+        .index
+        .wars_of(w.history, r.id)
+        .filter(|x| x.to.is_none_or(|t| ctx.present - t <= 12))
         .max_by_key(|x| (x.from, x.event));
     if let Some(x) = war {
         let men = (s.population / 40).clamp(2, 200);

@@ -21,11 +21,12 @@ target/release/arda-server --world out/micro42 --port 8787 --library assets/tact
 | `--tile-base-px` | `4096` | Tile-pyramid base edge; `256 · 2^max_zoom`, at least 512 |
 | `--library <dir>` | `assets/tactical/placeholder` | Tactical asset library (holds `catalog.json`), relative to the working directory. It is loaded once and validated with the arda-tactical loader; any validation issue stops startup |
 | `--prefetch-workers` | `2` | Background threads warming prefetched tactical cells (at most 8; `0` disables prefetch). Each worker is admitted against the 16 GiB ceiling as one more transient render |
+| `--sheet-mapping <file>` | none | Sheet mapping that reshapes every served NPC into a game's schema (see [Sheet mapping](#sheet-mapping)). Checked at startup; a bad file stops the server |
 
 ## Conventions
 
 - **Versioning.** Every route lives under `/v1`. Cell-bearing bodies carry
-  `contract_version` (currently **2**). Clients must reject a version they don't know. A
+  `contract_version` (currently **3**). Clients must reject a version they don't know. A
   change of meaning, unit or presence of any field bumps it.
 - **Determinism.** The same request against the same world always returns identical bytes,
   whether it's served cold or from cache.
@@ -57,9 +58,14 @@ target/release/arda-server --world out/micro42 --port 8787 --library assets/tact
     the decoded pyramid base, plus `area_builds` (2) concurrent area builds, plus one
     buffered response body per allowed connection) fits the 16 GiB ceiling (goal-prompt §8).
     Otherwise it refuses to start. Area requests beyond `area_builds` wait for a slot.
-  - PNG responses carry `Cache-Control: public, max-age=3600`.
+  - Every image (overview PNG and tiles, relief tiles, tactical images) carries a strong
+    `ETag` and `Cache-Control: no-cache`: its bytes depend on the served world and library,
+    which the URL does not name, so clients revalidate with `If-None-Match` (304, no body)
+    instead of reusing it for an hour after the server restarts on another world.
   - The tactical caches (renders, pyramids, encoded PNGs, encoded tiles) are admitted the
-    same way, together with one transient render at the pixel limit.
+    same way, together with one transient render at the pixel limit per lane and one
+    transient encode: full-size PNG encodes and tile-pyramid builds run one at a time across
+    both lanes (10 bytes a pixel at the pixel limit).
 
 ## Errors
 
@@ -83,10 +89,13 @@ Every error is JSON with the right HTTP status:
 | 415 | `unsupported_media_type` | Tactical: `POST /render` without `Content-Type: application/json` |
 | 422 | `invalid_layout` | Tactical: layout inconsistent with itself or the loaded library (square count, ground without texture, unknown kit or asset, forbidden rotation or mirror), a name over 128 bytes or with control characters, a placement or light more than 16 squares off the map) |
 | 500 | `resource_limit` | An allocation or window limit refused the work |
+| 500 | `sheet_mapping` | The `--sheet-mapping` could not reshape a served NPC (a strict table lacks one of its values); the message names the rule |
 | 500 | `internal` | Anything else |
 | 501 | `not_implemented` | `/v1/tactical/cell/{gx}/{gy}` served by the `PendingBlocks` source (body adds `planned_source`); the default server uses `RefineBlocks` |
 
-The `message` is for humans and isn't stable. Match on `code`. TS type: `ApiError`; the 501
+The `message` is for humans and isn't stable. Match on `code`. Absolute filesystem paths in a message are shortened to `…/` and the file name, so a
+response never discloses where the server keeps its world; 5xx errors are logged in full on
+stderr. TS type: `ApiError`; the 501
 body is `NotYetError`, which adds `planned_source`.
 
 ## Endpoints
@@ -98,7 +107,7 @@ curl http://127.0.0.1:8787/v1/health
 ```
 
 ```json
-{"status":"ok","contract_version":2,"seed":"42"}
+{"status":"ok","contract_version":3,"seed":"42"}
 ```
 
 ### `GET /v1/world`
@@ -110,10 +119,10 @@ curl http://127.0.0.1:8787/v1/world
 ```
 
 ```json
-{"contract_version":2,"api_version":"v1","seed":"42","arda_version":"0.4.0","format_version":4,
+{"contract_version":3,"api_version":"v1","seed":"42","arda_version":"0.5.0","format_version":4,
  "size_km":{"width":102,"height":204},"latitude":{"south_deg":35,"north_deg":55},
  "areas_wide":2,"areas_high":4,"area_cells":512,"cell_size_m":100,"cells_wide":1024,"cells_high":2048,
- "fine_terrain":{"recipe_version":6,"spacing_m":39.0625},
+ "fine_terrain":{"recipe_version":7,"spacing_m":39.0625},
  "tiles":{"tile_px":256,"max_zoom":4,"base_px":4096,"image_width_px":2048,"image_height_px":4096,"relief_max_zoom":12}}
 ```
 
@@ -126,17 +135,19 @@ curl http://127.0.0.1:8787/v1/cell/512/1036
 ```
 
 ```json
-{"contract_version":2,"gx":512,"gy":1036,"ax":1,"ay":2,"cx":0,"cy":12,"x_m":51200.0,"y_m":103600.0,"centre_x_m":51250.0,"centre_y_m":103650.0,
- "height_m":78.586,"terrain":"land","cover":"forest","slope_deg":0.0,"aspect_deg":0.0,"temperature_c":11.56,"rainfall_mm":2227.0,"moisture":1.0,"wetness":1.0,"forest_density":0.7529411764705882,"drainage_area_km2":65.95,"discharge_m3s":2.865,"watercourse_order":4,"watercourse_width_m":6.7,"height_above_river_m":0.0,
- "road":"none","built_by":null,
- "coast":{"is_coast":false,"distance_m":4517.7427992306075},
- "snow":{"fraction":0.0,"peak_fraction":0.0,"perennial":false,"snowline_m":2703.201384615385},
- "river":{"segment_id":210,"global_reach_id":"35596688953344","order":4,"width_m":6.7,"discharge_m3s":2.865},
+{"contract_version":3,"gx":512,"gy":1036,"ax":1,"ay":2,"cx":0,"cy":12,"x_m":51200.0,"y_m":103600.0,"centre_x_m":51250.0,"centre_y_m":103650.0,
+ "height_m":146.699,"terrain":"land","cover":"forest","slope_deg":11.188,"aspect_deg":180.0,"temperature_c":11.12,"rainfall_mm":2048.0,"moisture":1.0,"wetness":0.0,"forest_density":0.7529411764705882,"drainage_area_km2":0.02,"discharge_m3s":0.0,"watercourse_order":0,"watercourse_width_m":0.0,"height_above_river_m":79.9,
+ "road":"none","built_by":null,"land_use":"none","realm_id":"1",
+ "coast":{"is_coast":false,"distance_m":4709.564735726646},
+ "snow":{"fraction":0.0,"peak_fraction":0.0,"perennial":false,"snowline_m":2703.6220769230767},
+ "river":null,
  "lake":null,
- "fine":{"centre_m":96.024,"min_m":72.452,"max_m":136.902}}
+ "fine":{"centre_m":146.699,"min_m":120.627,"max_m":169.427}}
 ```
 
-This is the real response from the seed-42 MICRO world.
+This is the real response from the settled seed-42 MICRO world (recipe 6, after `arda settle`
+and `arda society build`). The village cell `/v1/cell/432/904` answers `"road":"road",
+"built_by":"10","land_use":"built","realm_id":"1"`.
 
 ### `GET /v1/point?x_m=&y_m=`
 
@@ -157,7 +168,7 @@ curl 'http://127.0.0.1:8787/v1/point?x_m=51234.5&y_m=103617.25'
   cell holds the edge value), and `height_source` is `"cells"`.
 
 ```json
-{"contract_version":2,"x_m":51234.5,"y_m":103617.25,"height_m":78.931,"height_source":"fine","cell":{"gx":512,"gy":1036,"...":"..."}}
+{"contract_version":3,"x_m":51234.5,"y_m":103617.25,"height_m":78.931,"height_source":"fine","cell":{"gx":512,"gy":1036,"...":"..."}}
 ```
 
 ### `GET /v1/area/{ax}/{ay}/cells[?format=json|bin]`
@@ -174,19 +185,20 @@ curl -o cells.bin 'http://127.0.0.1:8787/v1/area/1/2/cells?format=bin'
 **JSON** (default, `application/json`, about 38 MB). TS type: `AreaCells`.
 
 ```json
-{"contract_version":2,"ax":1,"ay":2,"gx0":512,"gy0":1024,"width":512,"height":512,
+{"contract_version":3,"ax":1,"ay":2,"gx0":512,"gy0":1024,"width":512,"height":512,
  "legend":{"terrain":["sea","land","lake"],"cover":["bare","grass","scrub","forest","marsh","rock","ice"],
-           "road":["none","track","road","highway"]},
+           "road":["none","track","road","highway","footpath"],
+           "land_use":["none","built","field","pasture","orchard","woodland","mill","mine","meadow","fallow","farmstead"]},
  "columns":{"height_m":[...262144 numbers...],"terrain":[...],"coast_distance_m":[0.0,null,...], "...":[]}}
 ```
 
-**Binary** (`?format=bin`, `application/octet-stream`, about 26 MB): `ARDACOLS` layout
-version 1. All numbers are little-endian.
+**Binary** (`?format=bin`, `application/octet-stream`, about 27 MB): `ARDACOLS` layout
+version 2 (version 1 had no `land_use` or `realm_id` column and no `footpath` road code). All numbers are little-endian.
 
 | Offset | Type | Field |
 |---|---|---|
 | 0 | `[u8; 8]` | magic `ARDACOLS` |
-| 8 | u32 | layout version (1) |
+| 8 | u32 | layout version (2) |
 | 12 | u32 | contract version |
 | 16 | i32 | ax |
 | 20 | i32 | ay |
@@ -225,6 +237,8 @@ Columns, in wire order:
 | `height_above_river_m` | f32 | `height_above_river_m` |
 | `road` | u8 | `road`, as a legend code |
 | `built_by` | u32 | `built_by`, 0 for none |
+| `land_use` | u8 | `land_use`, as a legend code (the `landuse.bin` code; 0 also without `society/`) |
+| `realm_id` | u32 | `realm_id`, 0 for none |
 | `is_coast` | u8 | `coast.is_coast` |
 | `coast_distance_m` | f32 | `coast.distance_m` (NaN is null) |
 | `snow_fraction` | f32 | `snow.fraction` |
@@ -250,7 +264,7 @@ curl http://127.0.0.1:8787/v1/area/1/1/rivers
 ```
 
 ```json
-{"contract_version":2,"ax":1,"ay":1,"rivers":[
+{"contract_version":3,"ax":1,"ay":1,"rivers":[
  {"id":1,"global_id":"21406117007680","order":1,"width_m":0.9,"discharge_m3s":0.055,"feeds":null,"ends":"sea","course":[[552,623]]}]}
 ```
 
@@ -266,7 +280,7 @@ curl http://127.0.0.1:8787/v1/area/0/0/lakes
 ```
 
 ```json
-{"contract_version":2,"ax":0,"ay":0,"lakes":[
+{"contract_version":3,"ax":0,"ay":0,"lakes":[
  {"id":1,"global_id":"123","surface_m":412.5,"max_depth_m":8.25,"outlet":[100,200],"cells":[[100,201],[101,201]]}]}
 ```
 
@@ -275,8 +289,10 @@ curl http://127.0.0.1:8787/v1/area/0/0/lakes
 Returns the whole-world overview as PNG. It's the same bytes as
 `arda export --overview --quality <q> --style <style>`.
 
-- `quality` is the long edge in pixels, or `NK` where 1K is 1024 pixels. The range is
-  512 to `--max-overview-px`, and the default is `2048`.
+- `quality` is the long edge in pixels, or `NK` where 1K is 1024 pixels. Served values are
+  512 doubling up to `--max-overview-px` (512, 1024, 2048, 4096, 8192 by default), plus
+  `--max-overview-px` itself when it is not a power of two; anything else is
+  `400 bad_request`, so clients cannot force a render per distinct value. The default is `2048`.
 - `style` is `atlas` (the default), `classic` or `atlas-oblique`. `atlas-oblique` (goal 24,
   opt-in, recipe-5+ worlds only) is the Atlas render seen slightly obliquely: ground moves
   north by half its height (coasts and sea stay exactly put), with gentle aerial
@@ -292,7 +308,7 @@ curl -o overview.png 'http://127.0.0.1:8787/v1/overview.png?quality=2K&style=atl
 
 Returns a 256 px RGBA slippy tile as **lossless WebP** (goal 68; encoded by the pure-Rust
 `image-webp`) or as PNG, which stays served for older clients. Both encode the same
-pixels, are cached separately per format and carry `Cache-Control: public, max-age=3600`. The tiles are cut from one cached Atlas render at
+pixels, are cached separately per format and carry an `ETag` with `Cache-Control: no-cache`. The tiles are cut from one cached Atlas render at
 `quality = base_px`, where `base_px = 256·2^max_zoom` and defaults to 4096, so `max_zoom`
 is 4.
 
@@ -343,8 +359,10 @@ curl -o relief.webp http://127.0.0.1:8787/v1/tiles/relief/7/55/95.webp
 
 Served when the world has a `society/` directory (`arda settle --world`, then
 `arda society build --world`); otherwise every route here is 404 `not_found`. Ids are
-decimal strings (I5). Bodies are the domain types' JSON; TS mirrors other than `Npc` are
-pending (A12).
+decimal strings (I5). Bodies are the domain types' JSON. Their JSON Schemas are
+`SettlementList`, `SettlementDetail` (with `Settlement` and `SettlementSociety`), `TownPlan` and
+`SettlementNpcs` (see [JSON Schemas](#json-schemas)); TypeScript types exist for `Npc` only,
+the rest are described by the schemas.
 
 - `GET /v1/settlements[?tier=&realm=]`: `{format_version, settlements: [record…]}`, the
   `arda-settle` records (logic/08), filtered by tier and realm id.
@@ -443,9 +461,10 @@ the `--library` catalogue, with lighting on.
   serves one world and one library.
 - **Headers.** Every image carries a strong `ETag` (a BLAKE3 prefix of the bytes);
   `If-None-Match` with it returns **304** with no body. `X-Arda-Cache` is `hit` or `miss`
-  and `Server-Timing: tactical;dur=<ms>` gives the server time. Images of built-in layouts
-  and of world cells and windows (images and JSON) are `Cache-Control: public,
-  max-age=3600`; `POST /render` responses are `no-cache` (revalidate by ETag).
+  and `Server-Timing: tactical;dur=<ms>` gives the server time. Every tactical response,
+  built-in layouts, world cells and windows (images and JSON) and `POST /render`, is
+  `Cache-Control: no-cache` (revalidate by ETag): the bytes depend on the world seed and
+  `library_version`, which the URL does not name.
 - **Options.** `ppsq` (output pixels per square) is `64`, `96` or `128` (the default);
   `grid` is `0` (the default) or `1`.
 - **Timing logs.** Each request logs one line to stderr: route, layout, options, cache hit
@@ -561,7 +580,8 @@ server derives the scene from the same layout (goal 48). The cell must lie insid
   extras (`feature`, `road_class`, `deck_elevation_ft` from ways; `crop`, `field`, `furrow`
   from fields; `building` from town) and `edges` for parapets, hedges and field walls.
 - `scene` is `arda-scene`'s `Scene` (format 1) of the same layout, library and render seed,
-  with `seed` as a decimal string and the block's `origin_gs` (I17).
+  with `seed` as a decimal string and the block's `origin_gs` (I17). TS type: `SceneDto`
+  (see the scene route below for its parts).
 - `meta` is provenance: `source`, `generator`, `relaxed` (goal 47 review flag: arda-refine's
   relaxed blocks or the town WFC's relaxed interiors and outdoor chunks, `TownBlock.relaxed`),
   `review_squares` (squares under a relaxed fill, both sources; windows report theirs the same
@@ -592,8 +612,22 @@ The scene of the same composed block (goal 48) and its NPC tokens (adapter A13, 
 `{npc_id, name, x, y, building_id, settlement_id, kind}`: a stored notable of a settlement
 whose plan buildings lie in the block, standing by day in its workplace (`worker`), else and
 by night at home (`resident`), on a free floor square nearest the building's centre. Every
-`npc_id` resolves with `GET /v1/npc/{npc_id}`. TS mirrors for the scene and tokens are
-pending (A12).
+`npc_id` resolves with `GET /v1/npc/{npc_id}`. TS type: `TacticalScene` (adapter A12):
+
+- `scene` is a `SceneDto`: `format_version`, `name`, `width`, `height`, `seed` (a decimal
+  string), `library`, `library_version`; six per-square layers as run-length grids
+  (`Runs<T>`, `[count, value][]` row-major, the counts summing to `width × height`):
+  `movement` (`MovementDto`: `normal`, `difficult`, `wade`, `swim`, `impassable`), `climb`
+  (bit `d` set, `d` = 0 N … 7 NW, means that step needs climbing), `cover` (`CoverLevelDto`),
+  `obscured` (`ObscurementDto`: `clear`, `light`, `heavy`), `elevation_ft`, `water_depth_ft`;
+  then `walls` (`SceneWallDto`: `kind`, `open?`, `points` as `[x, y]` grid vertices,
+  `blocks_sight`, `blocks_movement`, `blocks_light`, `cover`, `kit`), `vision_blockers`,
+  `lights` (`bright_ft`, `dim_ft`, `colour`, `asset?`), `regions` (even-odd rings),
+  `spawn_hints` (`open` squares and `entrances` as `SqDto` `[x, y]` pairs, `exits` per edge
+  `N`/`E`/`S`/`W`) and `tokens` (scene token slots, empty here). A block's `scene` also
+  carries `origin_gs`; this envelope carries it instead.
+- `time` is `SceneTime` (`day` or `night`); `tokens` are `Token`s with `kind` a `TokenKind`
+  (`worker` or `resident`).
 
 ```sh
 curl -s $B/cell/618/689/scene | jq '.tokens[0]'
@@ -771,9 +805,157 @@ home building, resident index)`, `arda-ids`). The result equals the notable's en
 `/v1/npc/demo` byte for byte, and for a commoner it matches the roster's job and workplace.
 An unknown id is 404 `not_found`; a non-u64 id is 400 `bad_request`.
 
+## JSON Schemas
+
+Every public body has a JSON Schema (draft 2020-12), generated with `schemars` from the same
+Rust types as the TypeScript bindings, so a game in any language can validate what Arda sends
+(goal 66). A schema is named after the TypeScript type: `Npc.json` and `import type { Npc }`
+describe the same JSON.
+
+- `GET /v1/schema`: the index, `{format_version: 1, api_version, dialect, note, schemas:
+  [{name, url, routes}]}`, where `routes` lists the routes (or the body parts, such as
+  `TacticalBlockDto.scene`) each schema describes.
+- `GET /v1/schema/{Name}.json`: one schema, `Content-Type: application/schema+json`. An
+  unknown name is **404**.
+
+| Schema | Describes |
+|---|---|
+| `Health`, `WorldInfo`, `CellSample`, `PointSample` | `/v1/health`, `/v1/world`, `/v1/cell`, `/v1/point` |
+| `AreaCells`, `AreaRivers`, `AreaLakes` | the `/v1/area/{ax}/{ay}/…` JSON bodies |
+| `ApiError`, `NotYetError` | every error body; the tactical 501 body |
+| `TacticalLayouts`, `TacticalLayoutDto`, `TacticalLibraryDto` | the tactical listing, layouts (and the `POST /render` body) and the library |
+| `TacticalBlockDto`, `RulesSidecarDto`, `SceneDto` | `/v1/tactical/cell` and `/window`, their `rules` and `scene` |
+| `TacticalScene` | `/v1/tactical/cell/{gx}/{gy}/scene` |
+| `PrefetchRequest`, `PrefetchAccepted` | `POST /v1/tactical/prefetch` |
+| `Npc`, `Sheet`, `NpcPage` | `/v1/npc/{id}`, `/v1/npc/demo/{id}`; `Npc.sheet`; `/v1/npcs` and the building routes |
+| `Population`, `PopulationRequest`, `NpcDemo` | `POST /v1/npc/population` and its body; `/v1/npc/demo` |
+| `SettlementList`, `SettlementDetail`, `Settlement`, `SettlementSociety`, `TownPlan`, `SettlementNpcs` | the settlement routes |
+
+The files are committed in `bindings/schema/` and the server serves them byte for byte.
+`cargo test -p arda-server schema` fails when they are stale, and `ARDA_BLESS_BINDINGS=1`
+rewrites them together with the TypeScript bindings. The world tests
+(`tests/world_api/schemas.rs`) validate real MICRO seed-42 responses of every route against
+the served schemas with the `jsonschema` crate.
+
+The schemas describe Arda's own NPC shape. A server started with `--sheet-mapping` sends
+the mapped shape instead (next section), and the `Npc` parts of these schemas no longer
+apply to it.
+
+```sh
+curl -s http://localhost:8787/v1/schema | jq -r '.schemas[].name'
+curl -s http://localhost:8787/v1/schema/TacticalScene.json | jq '.properties | keys'
+```
+
+## Sheet mapping
+
+Goal 69: the game has its own SRD 5.1 creature and character schema. `--sheet-mapping
+game.json` makes the server reshape every `Npc` it sends into that schema: `/v1/npc/{id}`,
+`/v1/npcs`, `/v1/buildings/{b}/residents` and `/workers` (each `npcs[].npc`),
+`/v1/settlements/{id}/npcs`, `/v1/npc/demo` (`population.npcs`), `/v1/npc/demo/{id}` and
+`POST /v1/npc/population` (`npcs`). Mapped responses carry `X-Arda-Sheet-Mapping: <name>`.
+Everything around the NPC (page envelopes, refs, cursors) and every other route is unchanged,
+and without the flag every body is byte-identical to an unmapped server. Scene tokens keep
+referencing NPCs by `npc_id`, so a token still resolves through `/v1/npc/{npc_id}`, now in
+the game's shape.
+
+Two examples ship in `crates/arda-server/mappings/`:
+
+- `identity.json`: Arda's own shape, unchanged; the starting point.
+- `5e-srd-monster.json`: the open 5e SRD JSON monster layout (the 5e-database /
+  dnd5eapi.co field names, which Open5e shares for the core stats): `index`, `name`, `size`,
+  `type`, `armor_class: [{type, value, armor}]`, `hit_points`, `hit_dice`, `speed: {walk:
+  "30 ft."}`, `strength` … `charisma`, `proficiencies: [{value, proficiency: {index, name}}]`
+  (proficient saves and skills), damage and condition lists, `senses.passive_perception`,
+  `languages` as one string, `challenge_rating` and `xp` (stat-block NPCs only),
+  `special_abilities`, `actions` with `damage: [{damage_type: {index, name}, damage_dice}]`,
+  `spellcasting`, and an `arda` object with the NPC id, job and home building. It is written
+  from the public field conventions only; no SRD text is copied.
+
+### Writing a mapping for your game
+
+A mapping is one JSON file:
+
+```json
+{
+  "format": "arda-sheet-mapping",
+  "version": 1,
+  "name": "my-game",
+  "description": "free text",
+  "base": "empty",
+  "tables": { "ability": { "STR": "strength", "DEX": "dexterity" } },
+  "rules": [
+    { "to": "/id", "from": "/id" },
+    { "to": "/stats/hp/max", "from": "/sheet/hit_points" },
+    { "to": "/movement/walk_m", "from": "/sheet/speed",
+      "convert": [{ "op": "scale", "factor": 0.3048, "round": 1 }] },
+    { "to": "/kind", "const": "npc" },
+    { "to": "/displayName", "template": "{/name/given} {/name/family}" },
+    { "to": "/saves", "from": "/sheet/saves", "where": { "/proficient": true }, "fields": [
+        { "to": "/ability", "from": "/ability", "convert": [{ "op": "table", "table": "ability" }] },
+        { "to": "/bonus", "from": "/bonus" }
+    ] }
+  ],
+  "drop": []
+}
+```
+
+- **Source and target.** The source is the Arda `Npc` JSON (schema `Npc.json`, TS `Npc`):
+  start from `GET /v1/schema/Npc.json` or one real `/v1/npc/{id}` body. Every location is a
+  JSON Pointer (RFC 6901): `/sheet/abilities/0` is Strength, `/name/given` the given name.
+- **`base`.** `empty` starts the output at `{}` and writes only what the rules say (best for
+  a different schema). `copy` starts from the whole Arda NPC: rules then add or overwrite
+  fields, and `drop` lists output pointers to remove afterwards (a rename is a rule plus a
+  drop).
+- **Rules** run in order; a later rule overwrites an earlier one. Each has a `to` pointer and
+  exactly one source:
+  - `from`: the value at a source pointer (`""` is the whole source). A missing value fails
+    the rule unless `optional: true`, which skips it or writes `default`.
+  - `const`: any JSON value.
+  - `template`: a string with `{/pointer}` placeholders (`null` gives an empty string;
+    `{{` and `}}` are literal braces).
+- **Nesting.** Missing objects on the `to` path are created. A numeric token creates an array
+  (`/armor_class/0/value`), its index at most the current length; `-` appends. `append: true`
+  adds an array to an array already there (two sources into one list).
+- **Lists and sub-objects.** `fields` applies sub-rules, with pointers relative to each
+  element, to every element of a `from` array (giving an array) or once to a `from` object.
+  `where` keeps only the array elements whose pointers equal the given values.
+- **Conversions** (`convert`, applied in order; `null` passes through):
+  - `table`: enum conversion through `tables` (ability names, damage-type keys, sizes,
+    challenge ratings). `unknown` is `error` (the default), `keep` or `null`.
+  - `keys`: renames an object's keys through a table.
+  - `scale`: units, `value × factor + offset`, `round` to that many decimals (`0` gives an
+    integer). For example feet to metres is `factor` 0.3048.
+  - `format` (`"{} ft."`), `case` (`lower`, `upper`, `title`, `kebab`, `snake`), `replace`
+    (`find`, `with`), `join` (`sep`), `split` (`sep`), `to_string`, `to_number`, and `each`
+    (conversions applied to every array element).
+- **Checks at startup.** Unknown keys anywhere, an unknown `op`, a bad pointer, a missing
+  table, a rule with no source or two sources, or a bad `name` (1–64 characters of
+  `A-Za-z0-9._-`) refuse to start the server, naming the rule (`rules[3].fields[1].convert[0]`).
+  The mapping is then run over probe NPCs (the `arda-npc` market town's notables and every
+  37th inhabitant, which includes class builds, casters and stat-block commoners); any
+  failure refuses to start the server too. A value a strict table lacks that appears only in
+  a world NPC, after startup, answers **500 `sheet_mapping`** naming the rule; use
+  `"unknown": "keep"` where the game can take Arda's value as is.
+- **Determinism.** The same NPC and mapping always give the same bytes; object keys are
+  written in sorted order.
+
+```sh
+target/release/arda-server --world out/micro42 --sheet-mapping crates/arda-server/mappings/5e-srd-monster.json
+curl -si http://localhost:8787/v1/npc/118.5.2 | grep -i x-arda-sheet-mapping
+curl -s http://localhost:8787/v1/npc/118.5.2 | jq '{name, size, armor_class, speed, actions: [.actions[].name]}'
+```
+
 ## Cell contract
 
-Rust: `arda_server::contract::CellSample`, version `CONTRACT_VERSION = 2`.
+Rust: `arda_server::contract::CellSample`, version `CONTRACT_VERSION = 3`.
+
+Contract 3 (adapter A11, logic/16 §api-cell-society) reads the world's `society/` rasters
+when the world has them (`arda settle`): `road` comes from `roads.bin` and gains `footpath`,
+`built_by` from the `landuse.bin` owners and is now a settlement id **string**, and the new
+`land_use` and `realm_id` come from `landuse.bin` and `realms.bin`. Without `society/`, `road`
+and `built_by` keep the stored cell values and `land_use` and `realm_id` are `null`; a society
+written before `roads.bin` existed keeps the stored `road`. The server refuses to start when a
+society raster's size is not the world's cell grid (a stale `society/`).
 
 Contract 2 (integration phase A) moved the cell frame to vocabulary I1: `x_m`/`y_m` are the
 cell's north-west corner, `centre_x_m`/`centre_y_m` are new, fine heights are taken over
@@ -805,8 +987,10 @@ TS: `bindings/ts/arda/CellSample.ts`.
 | `watercourse_order` | Strahler, 0 for none | `Cell::watercourse_order` |
 | `watercourse_width_m` | m | `Cell::watercourse_width_dm` / 10 |
 | `height_above_river_m` | m | `Cell::height_above_river_dm` / 10 |
-| `road` | `none`, `track`, `road`, `highway` | `Cell::road` |
-| `built_by` | settlement id or `null` | `Cell::built_by` (0 means null) |
+| `road` | `none`, `track`, `road`, `highway`, `footpath` | `society/roads.bin` when present, else `Cell::road` |
+| `built_by` | settlement id string or `null` | `society/landuse.bin` owners when present, else `Cell::built_by` (0 means null) |
+| `land_use` | `none`, `built`, `field`, `pasture`, `orchard`, `woodland`, `mill`, `mine`, `meadow`, `fallow`, `farmstead`, or `null` | `society/landuse.bin` codes (logic/08 §landuse); `null` without `society/` |
+| `realm_id` | realm id string or `null` | `society/realms.bin` (0 means null); `null` without `society/` |
 | `coast.is_coast` | bool | derived: a land cell with a **sea** cell among its 8 neighbours. Lake shores aren't coast. |
 | `coast.distance_m` | m, or `null` | derived: exact Euclidean centre-to-centre distance to the nearest coast cell, over the area plus a 51-cell neighbour halo. `null` beyond 5 km. Cells outside the world count as neither sea nor coast. |
 | `snow.fraction` | 0–1 | derived **proxy**, see below |
@@ -839,12 +1023,18 @@ workspace root, which is committed. `index.ts` re-exports every type, along with
 because `arda-npc` stays free of ts-rs; a test per mirror proves it reads and writes the
 domain JSON unchanged.
 
+Scenes are typed too (adapter A12): `TacticalScene`, `SceneDto` and its parts (`Runs<T>` for
+the run-length grids, `SqDto` squares, `SceneWallDto`, `SceneLightDto`, `RegionDto`,
+`SpawnHintsDto`, …), `Token` and `TokenKind`; `TacticalBlockDto.scene` is `SceneDto | null`.
+They are server mirrors of `arda-scene`'s `Scene`, tested to read and write its JSON
+unchanged. The same Rust types generate the [JSON Schemas](#json-schemas).
+
 ```ts
-import type { CellSample, Npc, Population, TacticalLayoutDto, TacticalLayouts, WorldInfo } from "./bindings/ts/arda";
+import type { CellSample, Npc, Population, TacticalLayoutDto, TacticalLayouts, TacticalScene, WorldInfo } from "./bindings/ts/arda";
 ```
 
 `cargo test -p arda-server bindings` fails when the committed files are stale. To regenerate
-them:
+them (and the JSON Schemas):
 
 ```sh
 ARDA_BLESS_BINDINGS=1 cargo test -p arda-server bindings

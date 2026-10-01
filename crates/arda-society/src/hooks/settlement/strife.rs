@@ -6,7 +6,7 @@ use crate::hooks::{cite_role, Candidate, HookWorld};
 use crate::input::RoadClass;
 use crate::num::i64_of;
 use crate::politics::factions::FactionStance;
-use crate::politics::relations::{relation, Stance};
+use crate::politics::relations::Stance;
 use crate::refs::EntityRef;
 use crate::text::Slots;
 
@@ -116,9 +116,10 @@ pub(super) fn borders(
 ) {
     let s = ctx.s(i);
     let h = w.history;
-    if let Some(b) = h.border_shifts.iter().find(|b| b.settlement == s.id) {
-        let st =
-            relation(w.relations, b.from_realm, b.to_realm).map_or(Stance::Neutral, |r| r.stance);
+    if let Some(b) = w.index.first_shift(h, s.id) {
+        let st = w
+            .relation(b.from_realm, b.to_realm)
+            .map_or(Stance::Neutral, |r| r.stance);
         let former = ctx
             .realm_ix(b.from_realm)
             .map_or(String::new(), |x| ctx.realms[x].name.clone());
@@ -148,7 +149,9 @@ pub(super) fn borders(
         if other.realm_id == mine {
             continue;
         }
-        let st = relation(w.relations, mine, other.realm_id).map_or(Stance::Neutral, |r| r.stance);
+        let st = w
+            .relation(mine, other.realm_id)
+            .map_or(Stance::Neutral, |r| r.stance);
         let foe = ctx.realms[ctx.realm_of(e.to)].name.clone();
         let mut sl = base
             .clone()
@@ -173,7 +176,7 @@ pub(super) fn borders(
                 if let Some(m) = w.factions[i].iter().find(|f| f.kind == "merchants") {
                     refs.push(EntityRef::faction(&m.id));
                 }
-                let rel = relation(w.relations, mine, other.realm_id);
+                let rel = w.relation(mine, other.realm_id);
                 let ours =
                     rel.is_some_and(|r| crate::politics::relations::blockader(ctx.seed, r) == mine);
                 let own = &w.realms[ctx.realm_of(i)];
@@ -228,7 +231,7 @@ pub(super) fn roads(
         EntityRef::settlement(other.id),
         EntityRef::road(e.road),
     ];
-    let ruin = w.history.ruins.iter().find(|r| r.road == Some(e.road));
+    let ruin = w.index.ruin_on_road(w.history, e.road);
     if let Some(r) = ruin {
         sl.set("hideout", format!("the ruins of {}", r.name));
         refs.push(EntityRef::Ruin { id: r.id });

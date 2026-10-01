@@ -5,6 +5,7 @@
 
 pub mod disasters;
 pub mod founding;
+pub mod index;
 pub mod lore;
 pub mod prosperity;
 pub mod reigns;
