@@ -577,6 +577,25 @@ impl AtlasTerrain {
         (tx + mx, ty + my)
     }
 
+    /// Selects the formed look for the world's fine-terrain recipe
+    /// (logic/04 §atlas-formed recipes): recipe 6 and later draw the v0.2
+    /// look (palette, surface detail, curved rivers); recipe 5 renders
+    /// exactly as v0.1 drew it. Constructors default to recipe 6.
+    #[must_use]
+    pub fn with_recipe(mut self, recipe_version: u16) -> Self {
+        if let Some(fine) = self.fine.as_mut() {
+            fine.set_recipe(recipe_version);
+        }
+        self
+    }
+
+    /// Whether this formed terrain draws the recipe-6 look.
+    pub(crate) fn is_formed_v6(&self) -> bool {
+        self.fine
+            .as_ref()
+            .is_some_and(|f| f.is_formed() && f.is_v6())
+    }
+
     /// Paints recipe-5 shores from the stored shore layer (logic/04
     /// §atlas-formed shore, goals 16 and 31) instead of the height-and-slope
     /// guess: beaches, shingle, cliffs, rocky shores, marsh, tidal flats and

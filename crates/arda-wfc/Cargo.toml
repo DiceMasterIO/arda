@@ -1,0 +1,13 @@
+[package]
+name = "arda-wfc"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+repository.workspace = true
+description = "Generic deterministic wave-function collapse for arda: tile sets, edge-kind adjacency rules, anchors, limits and bounded retries"
+
+[dependencies]
+thiserror.workspace = true
+
+[lints]
+workspace = true

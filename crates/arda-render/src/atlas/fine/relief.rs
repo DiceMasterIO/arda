@@ -130,7 +130,7 @@ impl FineAtlas {
         let surface = lake_surface_near(x, y, (self.origin_x, self.origin_y), saved.lake_surface)?;
         if let Some(s) = surface.filter(|&s| height < s) {
             return Ok((
-                crate::atlas::formed::lake(i64::from(s) - i64::from(height)),
+                crate::atlas::formed::lake(i64::from(s) - i64::from(height), self.v6),
                 false,
             ));
         }

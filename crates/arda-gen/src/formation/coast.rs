@@ -109,6 +109,134 @@ pub fn infill(
     Ok(changed)
 }
 
+/// Minimum catchment for a delta, km².
+pub const DELTA_MIN_KM2: u64 = 2_000;
+/// Delta radius: 0.12 km per √km² of catchment, metres per √km².
+const DELTA_M_PER_ROOT_KM2: i64 = 120;
+/// Deltas build on shelves no deeper than this, millimetres.
+const DELTA_SHELF_MM: i32 = 40_000;
+/// Delta apex height above sea level, millimetres.
+const DELTA_APEX_MM: i64 = 3_000;
+
+/// Recipe-5 river-mouth deltas (logic/02 §fine-formation deltas, goal 10;
+/// recipe 6 builds them in [`super::water::delta`]): where a
+/// large river reaches the sea on a low, sediment-rich coast, a fan of low
+/// alluvial land builds out over the shelf, opening seaward (±75°) along
+/// the river's final flow direction. Mountain coasts keep open rias.
+/// Returns the number of deltas built.
+///
+/// # Errors
+/// Allocation failure.
+pub fn deltas_v5(g: &mut Lattice, relief_q8: &[u8], seed: u64) -> Result<usize, FormationError> {
+    use super::drainage::{open_sea_flags, receiver_index, receivers, upstream_order, SELF};
+    let (w, h) = (g.width, g.height);
+    let n = w * h;
+    let d_m = g.spacing_um / 1_000_000;
+    let cell_m2 = u64::try_from((g.spacing_um / 1000) * (g.spacing_um / 1000) / 1_000_000)
+        .map_err(|_| FormationError::ArithmeticOverflow)?
+        .max(1);
+    let mut flags: Vec<u8> = alloc(n)?;
+    open_sea_flags(&g.z, w, h, &mut flags);
+    let mut rcv: Vec<u8> = alloc(n)?;
+    receivers(&g.z, w, h, &flags, 0, 0, &mut rcv);
+    let mut area: Vec<u32> = alloc(n)?;
+    {
+        let mut order: Vec<u32> = alloc(n)?;
+        let mut indeg: Vec<u8> = alloc(n)?;
+        upstream_order(&rcv, w, h, &mut indeg, &mut order);
+        area.fill(1);
+        for &i in &order {
+            let i = i as usize;
+            let r = receiver_index(i, w, h, rcv[i]);
+            if r != i {
+                area[r] = area[r].saturating_add(area[i]);
+            }
+        }
+    }
+    let min_cells = DELTA_MIN_KM2 * 1_000_000 / cell_m2;
+    let mut mouths = Vec::new();
+    for i in 0..n {
+        let r = receiver_index(i, w, h, rcv[i]);
+        if r != i
+            && g.z[i] > 0
+            && g.z[r] <= 0
+            && flags[r] != 0
+            && u64::from(area[i]) >= min_cells
+            && relief_q8[i] < 100
+        {
+            mouths.push(i);
+        }
+    }
+    let mut built = 0;
+    for &m in &mouths {
+        // Seaward direction: from ~2 km upstream along the main donor path.
+        let mut up = m;
+        for _ in 0..(2_000 / d_m.max(1)) {
+            let mut best: Option<usize> = None;
+            for k in 0..8 {
+                let Some(nb) = super::drainage::neighbour(up, w, h, k) else {
+                    continue;
+                };
+                if rcv[nb] != SELF
+                    && receiver_index(nb, w, h, rcv[nb]) == up
+                    && best.is_none_or(|b| area[nb] > area[b])
+                {
+                    best = Some(nb);
+                }
+            }
+            match best {
+                Some(b) => up = b,
+                None => break,
+            }
+        }
+        let (mx, my) = ((m % w) as i64, (m / w) as i64);
+        let (dx, dy) = (mx - (up % w) as i64, my - (up / w) as i64);
+        let dlen = i64::try_from((dx * dx + dy * dy).unsigned_abs().isqrt()).unwrap_or(0);
+        if dlen == 0 {
+            continue;
+        }
+        let km2 = u64::from(area[m]) * cell_m2 / 1_000_000;
+        let radius_m =
+            DELTA_M_PER_ROOT_KM2 * i64::try_from(super::incision::isqrt(km2)).unwrap_or(0);
+        let radius = (radius_m / d_m.max(1)).max(4);
+        for oy in -radius..=radius {
+            for ox in -radius..=radius {
+                let r2 = ox * ox + oy * oy;
+                if r2 > radius * radius {
+                    continue;
+                }
+                // Within ±75° of seaward: cos 75° ≈ 0.259 (Q12 1_060).
+                let dist = i64::try_from(r2.unsigned_abs().isqrt()).unwrap_or(0);
+                if dist > 0 && (ox * dx + oy * dy) * 4096 < 1_060 * dist * dlen {
+                    continue;
+                }
+                let (x, y) = (mx + ox, my + oy);
+                if x < 1 || y < 1 || x >= w as i64 - 1 || y >= h as i64 - 1 {
+                    continue;
+                }
+                let j = (y as usize) * w + x as usize;
+                if g.z[j] > 0 || g.z[j] < -DELTA_SHELF_MM {
+                    continue;
+                }
+                // Lobate edge: ±40% radius wobble from 1–2 km value noise.
+                let (xm, ym) = (
+                    i32::try_from(x * d_m).unwrap_or(0),
+                    i32::try_from(y * d_m).unwrap_or(0),
+                );
+                let wobble = i64::from(crate::noise::value_noise(seed, xm, ym, 1_500));
+                let reach = radius * (4096 + wobble * 1_638 / 32_768) / 4096;
+                if dist >= reach {
+                    continue;
+                }
+                let height = DELTA_APEX_MM * (reach - dist) / reach.max(1) + 200;
+                g.z[j] = i32::try_from(height).unwrap_or(g.z[j]);
+            }
+        }
+        built += 1;
+    }
+    Ok(built)
+}
+
 /// Wave-reworked shore band: heights within this distance of sea level are
 /// blended towards the local mean.
 pub const SHORE_BAND_MM: i64 = 50_000;

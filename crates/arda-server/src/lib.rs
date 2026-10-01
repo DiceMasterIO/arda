@@ -19,6 +19,7 @@ pub mod error;
 pub mod fine;
 pub mod npc;
 pub mod npc_dto;
+pub mod npcs;
 pub mod overview;
 pub mod people;
 pub mod query;
@@ -61,6 +62,8 @@ pub struct ServerConfig {
     pub area_builds: usize,
     /// Connection limits.
     pub serve: serve::ServeLimits,
+    /// Tactical prefetch worker threads (goal 67; 0 disables prefetch).
+    pub prefetch_workers: usize,
 }
 
 /// Worst-case transient bytes of one `/area/.../cells` build: 262,144
@@ -84,6 +87,7 @@ impl ServerConfig {
             relief: ReliefLimits::default(),
             area_builds: 2,
             serve: serve::ServeLimits::default(),
+            prefetch_workers: tactical::prefetch::DEFAULT_WORKERS,
         }
     }
 
@@ -91,7 +95,8 @@ impl ServerConfig {
     /// `area_builds` transient area builds (samples, columns, encoding, and
     /// the 3 × 3 neighbourhood load for coast derivation), one buffered
     /// response body per open connection, and the tactical caches plus one
-    /// transient render.
+    /// transient render in the request lane and, with prefetch workers, one
+    /// in the prefetch lane.
     #[must_use]
     pub fn admitted_bytes(&self) -> u64 {
         let base = u64::from(self.overview.tile_base_px).pow(2) * 3;
@@ -103,6 +108,11 @@ impl ServerConfig {
             .saturating_add(builds)
             .saturating_add(bodies)
             .saturating_add(self.tactical.admitted_bytes())
+            .saturating_add(if self.prefetch_workers > 0 {
+                self.tactical.transient_render_bytes()
+            } else {
+                0
+            })
             .saturating_add(self.relief.cache_bytes as u64 + relief::RELIEF_WORKING_BYTES)
     }
 
@@ -139,6 +149,8 @@ pub struct AppState {
     /// The world's settlements, plans and stored notables, when it has a
     /// `society/` directory (`arda settle`, `arda society build`).
     pub people: Option<std::sync::Arc<arda_people::World>>,
+    /// The tactical prefetch queue and workers.
+    pub prefetch: tactical::prefetch::Prefetcher,
 }
 
 impl AppState {
@@ -165,6 +177,11 @@ impl AppState {
         } else {
             None
         };
+        if let Some(w) = &people {
+            // Towns and cities have the costliest plans: draw them now, so
+            // their first tactical block is quick (goal 50).
+            w.warm_towns();
+        }
         let overlays = people
             .as_ref()
             .map(|w| arda_blocks::society::SocietyOverlays::open(std::sync::Arc::clone(w)))
@@ -185,6 +202,7 @@ impl AppState {
             tactical,
             area_builds: tokio::sync::Semaphore::new(config.area_builds.max(1)),
             people,
+            prefetch: tactical::prefetch::Prefetcher::new(config.prefetch_workers),
         })
     }
 
@@ -204,14 +222,27 @@ mod tests {
     fn default_budgets_fit_the_ceiling_and_oversized_ones_are_refused() {
         let config = ServerConfig::new(PathBuf::from("unused"));
         assert!(config.admit().is_ok());
-        // Caches, the pyramid base, two area builds, 64 buffered bodies and
+        // Caches, the pyramid base, two area builds, 64 buffered bodies,
         // the tactical caches sized for world cells at 128 px per square
-        // (logic/16 §api-cache: renders and tiles within 4 GiB).
-        assert!(config.admitted_bytes() < 12 << 30);
+        // (logic/16 §api-cache: renders and tiles within 4 GiB) and one
+        // transient render per lane (request and prefetch).
+        assert!(config.admitted_bytes() < 14 << 30);
         assert!(config.tactical.admitted_bytes() < 5 << 30);
         let mut big = config.clone();
         big.query.area_bytes = 16 << 30;
         assert!(matches!(big.admit(), Err(ServerError::ResourceLimit(_))));
+    }
+
+    #[test]
+    fn prefetch_workers_admit_one_more_transient_render() {
+        let mut off = ServerConfig::new(PathBuf::from("unused"));
+        off.prefetch_workers = 0;
+        let on = ServerConfig::new(PathBuf::from("unused"));
+        assert_eq!(
+            on.admitted_bytes() - off.admitted_bytes(),
+            on.tactical.transient_render_bytes()
+        );
+        assert!(on.admit().is_ok());
     }
 
     #[test]

@@ -17,31 +17,49 @@ use rayon::prelude::*;
 
 /// Grades the canvas in place.
 pub fn warm(canvas: &mut Rgba) {
-    canvas.data.par_chunks_mut(4 * 1024).for_each(|chunk| {
-        for p in chunk.as_chunks_mut::<4>().0.iter_mut() {
-            let [r, g, b] = [i32::from(p[0]), i32::from(p[1]), i32::from(p[2])];
-            // Luma in 1/1024.
-            let l = (306 * r + 601 * g + 117 * b) / 1024;
-            // Desaturate by 5 %.
-            let d = |c: i32| l + (c - l) * 19 / 20;
-            let (r, g, b) = (d(r), d(g), d(b));
-            // Warm cast, fading out in the highlights so whites stay white.
-            let t = (1024 - (l - 128).max(0) * 6).clamp(0, 1024);
-            let (r, g, b) = (
-                r + r * 52 * t / (1024 * 1024) + 2,
-                g + g * 30 * t / (1024 * 1024),
-                b - b * 80 * t / (1024 * 1024),
-            );
-            // Contrast about mid-grey, then a warm lift in the shadows.
-            let c = |v: i32| 128 + (v - 128) * 1100 / 1024;
-            let shadow = (255 - l).max(0);
-            let lift = shadow * shadow / 255;
-            let (r, g, b) = (c(r) + lift * 9 / 255, c(g) + lift * 5 / 255, c(b));
-            for (o, v) in p.iter_mut().zip([r, g, b]) {
-                *o = u8::try_from(v.clamp(0, 255)).unwrap_or(255);
+    let (w, h) = (canvas.width, canvas.height);
+    warm_clipped(canvas, [0, 0, w, h]);
+}
+
+/// Grades pixels `[x0, y0, x1, y1)` in place; each pixel on its own.
+pub fn warm_clipped(canvas: &mut Rgba, [x0, y0, x1, y1]: [u32; 4]) {
+    let w = canvas.width as usize;
+    let (a, b) = (x0 as usize * 4, (x1 as usize).min(w) * 4);
+    canvas
+        .data
+        .par_chunks_mut(w * 4)
+        .enumerate()
+        .for_each(|(y, row)| {
+            if y < y0 as usize || y >= y1 as usize {
+                return;
             }
-        }
-    });
+            let Some(chunk) = row.get_mut(a..b) else {
+                return;
+            };
+            for p in chunk.as_chunks_mut::<4>().0.iter_mut() {
+                let [r, g, b] = [i32::from(p[0]), i32::from(p[1]), i32::from(p[2])];
+                // Luma in 1/1024.
+                let l = (306 * r + 601 * g + 117 * b) / 1024;
+                // Desaturate by 5 %.
+                let d = |c: i32| l + (c - l) * 19 / 20;
+                let (r, g, b) = (d(r), d(g), d(b));
+                // Warm cast, fading out in the highlights so whites stay white.
+                let t = (1024 - (l - 128).max(0) * 6).clamp(0, 1024);
+                let (r, g, b) = (
+                    r + r * 52 * t / (1024 * 1024) + 2,
+                    g + g * 30 * t / (1024 * 1024),
+                    b - b * 80 * t / (1024 * 1024),
+                );
+                // Contrast about mid-grey, then a warm lift in the shadows.
+                let c = |v: i32| 128 + (v - 128) * 1100 / 1024;
+                let shadow = (255 - l).max(0);
+                let lift = shadow * shadow / 255;
+                let (r, g, b) = (c(r) + lift * 9 / 255, c(g) + lift * 5 / 255, c(b));
+                for (o, v) in p.iter_mut().zip([r, g, b]) {
+                    *o = u8::try_from(v.clamp(0, 255)).unwrap_or(255);
+                }
+            }
+        });
 }
 
 #[cfg(test)]

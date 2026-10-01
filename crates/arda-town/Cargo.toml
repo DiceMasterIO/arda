@@ -16,10 +16,12 @@ path = "src/main.rs"
 [dependencies]
 arda-scene.workspace = true
 arda-tactical.workspace = true
+arda-wfc.workspace = true
 serde.workspace = true
 serde_json.workspace = true
 thiserror.workspace = true
 clap.workspace = true
+rayon.workspace = true
 
 [lints]
 workspace = true

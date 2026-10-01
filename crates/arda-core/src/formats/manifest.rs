@@ -3,6 +3,7 @@
 //! Written last by the batch: its absence is what makes a partial world
 //! unloadable (`04-data-flow.md`).
 
+use super::shore::SHORE_PATH;
 use super::FORMAT_VERSION;
 use crate::config::GenerateConfig;
 use crate::error::LoadError;
@@ -43,8 +44,12 @@ pub const FINE_TERRAIN_PATH: &str = "terrain/fine.bin";
 /// Highest fine-terrain recipe understood by this build. Recipe 2 is the
 /// delivered baseline, recipe 3 is the fine-specific raw macro/spectral
 /// source, recipe 4 is that source after canonical valley formation, and
-/// recipe 5 is multi-resolution stream-power formation from the macro surface.
-pub const FINE_TERRAIN_RECIPE_VERSION: u16 = 5;
+/// recipe 5 is multi-resolution stream-power formation from the macro surface
+/// as v0.1 shipped it, and recipe 6 (v0.2) adds tectonic margins, belt
+/// relief, maturity, roughness, coast stages and stored water forms
+/// (`logic/02` §fine-formation recipes). Every older recipe still loads and
+/// renders as it did.
+pub const FINE_TERRAIN_RECIPE_VERSION: u16 = 6;
 
 /// Everything needed to identify, verify, or regenerate a world.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
@@ -126,7 +131,24 @@ pub fn read_manifest(dir: &Path) -> Result<Manifest, LoadError> {
             supported: FORMAT_VERSION,
         });
     }
-    Ok(manifest)
+    Ok(effective_recipe(dir, manifest))
+}
+
+/// The recipe a world's terrain was actually formed by.
+///
+/// v0.2.0 formed its fine terrain with what is now recipe 6 but recorded
+/// `recipe_version: 5`; only recipe 6 writes [`SHORE_PATH`]. A recipe-5
+/// manifest beside a shore layer is therefore read as recipe 6, so
+/// rendering and everything else recipe-dependent treat the terrain as it
+/// was formed (`logic/02` §fine-formation recipes). The file on disk is
+/// left as written.
+fn effective_recipe(dir: &Path, mut manifest: Manifest) -> Manifest {
+    if let Some(fine) = manifest.fine_terrain.as_mut() {
+        if fine.recipe_version == 5 && dir.join(SHORE_PATH).is_file() {
+            fine.recipe_version = 6;
+        }
+    }
+    manifest
 }
 
 #[cfg(test)]
@@ -218,6 +240,43 @@ mod tests {
 
         let read = read_manifest(dir.path()).unwrap();
         assert_eq!(read.stats.river_count, 0);
+    }
+
+    #[test]
+    fn a_v0_2_0_recipe_5_world_with_a_shore_layer_reads_as_recipe_6() {
+        // v0.2.0 recorded recipe 5 for recipe-6 terrain; the shore layer
+        // (written only by recipe 6) tells the two apart.
+        let dir = TempDir::new();
+        let mut v020 = sample();
+        v020.fine_terrain = Some(FineTerrainDescriptor {
+            recipe_version: 5,
+            attempt: 0,
+        });
+        write_manifest(dir.path(), &v020).unwrap();
+        let read = |d: &Path| {
+            read_manifest(d)
+                .unwrap()
+                .fine_terrain
+                .map(|f| f.recipe_version)
+        };
+        assert_eq!(read(dir.path()), Some(5), "a true recipe-5 world");
+        std::fs::create_dir_all(dir.path().join("terrain")).unwrap();
+        std::fs::write(dir.path().join(SHORE_PATH), b"shore").unwrap();
+        assert_eq!(read(dir.path()), Some(6), "v0.2.0 recipe-6 terrain");
+        // The file on disk keeps what it recorded; other recipes are as
+        // recorded whatever sits beside them.
+        let raw: Manifest =
+            serde_json::from_slice(&std::fs::read(dir.path().join(MANIFEST_NAME)).unwrap())
+                .unwrap();
+        assert_eq!(raw.fine_terrain.map(|f| f.recipe_version), Some(5));
+        for recipe in [4, 6] {
+            v020.fine_terrain = Some(FineTerrainDescriptor {
+                recipe_version: recipe,
+                attempt: 0,
+            });
+            write_manifest(dir.path(), &v020).unwrap();
+            assert_eq!(read(dir.path()), Some(recipe));
+        }
     }
 
     #[test]

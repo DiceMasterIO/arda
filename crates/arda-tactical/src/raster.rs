@@ -6,6 +6,31 @@
 use crate::error::TacticalError;
 use std::path::Path;
 
+/// Alpha-composites `px` over the RGBA pixel `dst` ("source over"), in
+/// integer /255 fixed point.
+pub fn blend_px(dst: &mut [u8], px: [u8; 4]) {
+    let a = u32::from(px[3]);
+    if a == 0 || dst.len() < 4 {
+        return;
+    }
+    if a == 255 {
+        dst[..4].copy_from_slice(&px);
+        return;
+    }
+    let da = u32::from(dst[3]);
+    // out_a = a + da (1 - a), all in /255 fixed point.
+    let out_a = a * 255 + da * (255 - a);
+    if out_a == 0 {
+        return;
+    }
+    for (c, &src) in px.iter().take(3).enumerate() {
+        let s = u32::from(src) * a * 255;
+        let d = u32::from(dst[c]) * da * (255 - a);
+        dst[c] = to_u8((s + d + out_a / 2) / out_a);
+    }
+    dst[3] = to_u8((out_a + 127) / 255);
+}
+
 /// A straight-alpha RGBA8 image, row-major.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct Rgba {
@@ -62,27 +87,8 @@ impl Rgba {
 
     /// Alpha-composites `px` over the pixel at `(x, y)` ("source over").
     pub fn blend(&mut self, x: u32, y: u32, px: [u8; 4]) {
-        let a = u32::from(px[3]);
-        if a == 0 {
-            return;
-        }
         let i = self.index(x, y);
-        if a == 255 {
-            self.data[i..i + 4].copy_from_slice(&px);
-            return;
-        }
-        let da = u32::from(self.data[i + 3]);
-        // out_a = a + da (1 - a), all in /255 fixed point.
-        let out_a = a * 255 + da * (255 - a);
-        if out_a == 0 {
-            return;
-        }
-        for (c, &src) in px.iter().take(3).enumerate() {
-            let s = u32::from(src) * a * 255;
-            let d = u32::from(self.data[i + c]) * da * (255 - a);
-            self.data[i + c] = to_u8((s + d + out_a / 2) / out_a);
-        }
-        self.data[i + 3] = to_u8((out_a + 127) / 255);
+        blend_px(&mut self.data[i..i + 4], px);
     }
 
     /// Mirrors left to right.

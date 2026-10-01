@@ -9,6 +9,7 @@
 use super::grid::SQUARE_M;
 use crate::geom::{self, Vec2};
 use crate::site::RiverLine;
+use rayon::prelude::*;
 
 /// Sample spacing along a street, metres.
 const STEP: f64 = 2.0;
@@ -63,7 +64,7 @@ fn nearest(rivers: &[RiverLine], p: Vec2) -> Option<Near> {
 }
 
 /// The width of water along `dir` through `at`, metres (to 80 m a side).
-fn across(water: &dyn Fn(Vec2) -> bool, at: Vec2, dir: Vec2) -> f64 {
+fn across(water: &(dyn Fn(Vec2) -> bool + Sync), at: Vec2, dir: Vec2) -> f64 {
     let mut w = 0.0;
     for sign in [1.0, -1.0] {
         let mut t = 0.0;
@@ -95,14 +96,15 @@ pub fn dry(
     points: &[Vec2],
     half_w: f64,
     rivers: &[RiverLine],
-    water: &dyn Fn(Vec2) -> bool,
+    water: &(dyn Fn(Vec2) -> bool + Sync),
 ) -> Vec<Vec2> {
     if rivers.is_empty() || points.len() < 2 {
         return points.to_vec();
     }
     let clear = half_w + SQUARE_M;
     let pts = geom::resample(points, STEP);
-    let near: Vec<Option<Near>> = pts.iter().map(|&p| nearest(rivers, p)).collect();
+    // Each sample scans every river segment: in parallel (goal 50).
+    let near: Vec<Option<Near>> = pts.par_iter().map(|&p| nearest(rivers, p)).collect();
     let wet: Vec<bool> = near
         .iter()
         .enumerate()
@@ -139,7 +141,7 @@ struct Run<'a> {
     near: &'a [Option<Near>],
     clear: f64,
     rivers: &'a [RiverLine],
-    water: &'a dyn Fn(Vec2) -> bool,
+    water: &'a (dyn Fn(Vec2) -> bool + Sync),
 }
 
 impl Run<'_> {
@@ -163,11 +165,17 @@ impl Run<'_> {
         let widest = near.iter().flatten().map(|n| n.half).fold(0.0, f64::max);
         let flip = (first != last)
             .then(|| {
-                (1..pts.len())
+                // Each width is measured on its own: in parallel, then the
+                // minimum is taken in order, as before (goal 50).
+                let widths: Vec<(f64, usize, usize)> = (1..pts.len())
+                    .into_par_iter()
                     .filter_map(|k| {
                         let n = near[k].filter(|n| n.half >= widest - 1e-9)?;
                         Some((across(water, n.at, n.tangent.perp()), k.abs_diff(own), k))
                     })
+                    .collect();
+                widths
+                    .into_iter()
                     .min_by(|a, b| a.0.total_cmp(&b.0).then(a.1.cmp(&b.1)))
                     .map(|(_, _, k)| k)
             })

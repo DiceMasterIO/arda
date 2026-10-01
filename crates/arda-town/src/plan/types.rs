@@ -309,6 +309,10 @@ pub struct TownPlan {
     /// The square-resolution index (not serialised).
     #[serde(skip)]
     pub grid: PlanGrid,
+    /// Interior salts by building position, drawn on first use
+    /// ([`crate::block::interior::variety::salts`]; not serialised).
+    #[serde(skip)]
+    pub interior_salts: std::sync::OnceLock<Vec<u8>>,
 }
 
 impl TownPlan {
@@ -325,6 +329,19 @@ impl TownPlan {
     /// Serialisation failure.
     pub fn to_json(&self) -> Result<String, serde_json::Error> {
         serde_json::to_string_pretty(self)
+    }
+
+    /// The interior salt of `b` (goal 64: adjacent buildings never share
+    /// an interior), drawn for the whole plan on first use.
+    #[must_use]
+    pub fn interior_salt(&self, b: &Building) -> u8 {
+        let salts = self
+            .interior_salts
+            .get_or_init(|| crate::block::interior::variety::salts(self));
+        usize::try_from(b.id.0.saturating_sub(1))
+            .ok()
+            .and_then(|i| salts.get(i).copied())
+            .unwrap_or(0)
     }
 
     /// Global square origin of the plan grid.

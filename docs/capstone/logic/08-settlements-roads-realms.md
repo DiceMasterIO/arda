@@ -74,7 +74,7 @@ Site tags are bit flags per cell (goal 34), written as lowercase strings on the 
 | town | 1,000–7,999 | assumed, tunable (`TOWN_MIN`) |
 | city | ≥ 8,000 | assumed, tunable (`CITY_MIN`) |
 
-- At most two cities per realm (goal 35). A third would-be city in a realm is demoted to a town with population `CITY_MIN − 1`; the surplus goes to that realm's villages proportionally. This runs after §realm-seats.
+- One or two cities per realm (goal 35): the seat is a primate city (§realm-seats). A third would-be city in a realm is demoted to a town with population `CITY_MIN − 1`, seats never; the surplus goes to that realm's villages proportionally. This runs after the partition.
 
 ### §settle-placement
 
@@ -176,10 +176,14 @@ Where a route climbs over a ridge, the high point of its profile is a pass objec
 
 Realms follow [06 — Society generation](06-society-generation.md) steps 1–3:
 
-1. Seat count `N = clamp(P / 8,000, 2, towns / 3)` when there are ≥ 2 towns, else 1 (logic/06 for `P/8,000` and the minimum 2; the `towns/3` cap is assumed, tunable). Seats are the N largest towns or cities; each gains `capital`.
+1. Seat count `N = max(2, min(P / 24,000, H / 60,000 ha, towns / 3))` when there are ≥ 2 towns, else 1, with `H` the habitable land (suitability > 0). A capital city of 8,000 needs a realm three times its size, and a core of 600 km² (both assumed, tunable; they replace logic/06's `P/8,000`, which gave seats too small to hold a city, goal 35). Seats are chosen among the larger half of the towns so they stand apart and share the land (goal 38; `seats.rs`, `market.rs`):
+   - the largest town is the first seat; each further seat maximises `d² · population`, with `d` its travel cost to the nearest chosen seat over a coarse lattice of about 20,000 blocks where a step costs its length plus 8 m per metre of climb (assumed, tunable);
+   - each seat then moves to another town of its own market area (least lattice cost) when that cuts the sum of squared deviations of the areas' shares from `1/N` to 95 % or less; shares weigh people ¾ and land ¼ (assumed, tunable);
+   - a market area with fewer than 16,000 people (⅔ of 24,000) has no real core: `N` drops by one and the choice runs again, down to 2.
+   Each seat gains `capital`. **Primate capitals** (`primacy.rs`): in a market area of ≥ 12,000 people, its towns keep their people `U` and follow rank-size with the seat first, `h / r` with `h = U / H_n`; the seat holds at least `CITY_MIN` (a primate city), and when it grows by a factor `f` the other towns' head grows by `f^¼` (court elasticity, assumed, tunable). The people come from the area's villages and hamlets, scaled in proportion within their tier bounds. This runs right after placement, before land use, so fields and roads serve the final populations; towns and cities are then re-ranked by population.
 2. Allegiance: every settlement swears to the seat cheapest to reach over the road-and-terrain cost surface; ties break by the seat's rank (logic/06).
 3. Territory: every land cell joins the realm of its cheapest seat (a multi-source least-cost flood over the same surface, ties by seat rank). Borders snap to a river (order ≥ 3) or a ridge line when one lies within 2 cells (logic/06), by reassigning the cells between the raw border and the feature.
-4. Realm id is 1-based in seat rank order. The realm raster stores `u16` per cell (0 on water), so a world may hold at most 65,535 realms.
+4. Realm id is 1-based in seat rank order (the capital's population, largest first). The realm raster stores `u16` per cell (0 on water), so a world may hold at most 65,535 realms.
 
 ## Steps
 
@@ -189,7 +193,7 @@ Realms follow [06 — Society generation](06-society-generation.md) steps 1–3:
 4. Tiers and placement (§settle-tiers, §settle-placement), then functions, wealth and building mix (§settle-functions, §settle-building-mix).
 5. Land use (§landuse).
 6. Roads, crossings and passes (§roads, §crossings, §passes).
-7. Realms (§realm-seats), then the city cap (§settle-tiers) and capital refresh.
+7. Realms (§realm-seats: seats and primate capitals right after step 4, the partition here), then the city cap (§settle-tiers) and capital refresh.
 8. Names: every settlement, river, peak, pass, region and realm is named through [15 — Naming](15-naming.md). Until `arda-names` merges, the crate's local generator stands in and must use the same keys.
 9. Write `society/` (Outcomes). Render the overlay on request (goal 41; Outcomes).
 
@@ -217,8 +221,9 @@ Each is a test (goal numbers in brackets):
 1. Determinism: the same world gives byte-identical `society/` files, independent of thread count [goal-prompt §8].
 2. Refusals: no settlement centre on sea, lake, marsh, rock, ice, snow, cliff or beach, on slope > 14°, or less than 1.5 m above a watercourse [34].
 3. Spacing: all pairwise distances meet §settle-placement [34].
-4. Rank-size: for towns and cities, the least-squares slope of log(population) against log(rank) is in [−1.2, −0.8] when there are ≥ 5 towns [35].
-5. At most two cities per realm [35].
+4. Rank-size: for towns and cities, the least-squares slope of log(population) against log(rank) is in [−1.2, −0.8] with R² ≥ 0.8 when there are ≥ 5 towns [35].
+5. One or two cities per realm, the seat among them and its realm's largest settlement, on MICRO seeds 42, 3 and 7 [35, 38].
+5a. Seat spread and balance on those seeds: nearest seats ≥ 0.4 of the hexagonal spacing `√(2A / (√3 N))`; nine people in ten within 0.85 of it of a seat; no realm above twice its fair land share, largest/smallest land ≤ 4.5 and people ≤ 2.5 [38].
 6. Tier bounds: every settlement's population lies in its tier's range [35].
 7. Carrying capacity: world-wide field area per inhabitant is 0.8 ha ± 10 %, and farmland (fields + orchards + pasture) per inhabitant is within [0.8, 1.5] ha [39; artifact "close to a hectare"].
 8. Housing: for every settlement, `capacity_estimate(buildings) ≥ population` with the per-key capacities of [10 — Town layout](10-town-layout.md) §town-capacity [55].

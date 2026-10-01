@@ -7,6 +7,7 @@ use crate::geom::{h2, Grid, Sq, CELL_SQUARES, SQUARE_M};
 use crate::input::{FieldInputs, RoadClass, TerrainSample, Tier};
 use crate::linear::{self, Line, RoadNet, MAX_LANE_SQ};
 use crate::partition::{components, SiteIndex, TensorField, FIELD_REACH};
+use rayon::prelude::*;
 
 /// Margin around the window, in squares: every field touching the window
 /// grown by the hedgerow-tree lattice lies wholly inside it.
@@ -66,29 +67,36 @@ impl Plan {
     pub fn build(inputs: &FieldInputs<'_>, win: (i64, i64, i64, i64), seed: u64) -> Self {
         let (x0, y0) = (win.0 - MARGIN, win.1 - MARGIN);
         let (w, h) = (win.2 + 2 * MARGIN, win.3 + 2 * MARGIN);
+        // Per-square samples are independent: in parallel (goal 50).
+        let (source, barrier) = (inputs.terrain, inputs.barrier_water);
         let mut terrain = Grid::new(x0, y0, w, h, TerrainSample::default());
-        for i in 0..terrain.data.len() {
+        terrain.data.par_iter_mut().enumerate().for_each(|(i, t)| {
             let s = Sq::new(
                 x0 + i64::try_from(i).unwrap_or(0) % w,
                 y0 + i64::try_from(i).unwrap_or(0) / w,
             );
             let m = s.centre_m();
-            terrain.data[i] = inputs.terrain.sample(m[0], m[1]);
-        }
+            *t = source.sample(m[0], m[1]);
+        });
         let mut cover = Grid::new(x0, y0, w, h, Cover::Wild);
-        for (i, (c, t)) in cover.data.iter_mut().zip(&terrain.data).enumerate() {
-            let wet = match inputs.barrier_water {
-                Some(f) => {
-                    let k = i64::try_from(i).unwrap_or(0);
-                    let m = Sq::new(x0 + k % w, y0 + k / w).centre_m();
-                    f(m[0], m[1])
+        cover
+            .data
+            .par_iter_mut()
+            .zip(&terrain.data)
+            .enumerate()
+            .for_each(|(i, (c, t))| {
+                let wet = match barrier {
+                    Some(f) => {
+                        let k = i64::try_from(i).unwrap_or(0);
+                        let m = Sq::new(x0 + k % w, y0 + k / w).centre_m();
+                        f(m[0], m[1])
+                    }
+                    None => t.water_depth_m > 0.0,
+                };
+                if wet {
+                    *c = Cover::Water;
                 }
-                None => t.water_depth_m > 0.0,
-            };
-            if wet {
-                *c = Cover::Water;
-            }
-        }
+            });
         let net = RoadNet::new(inputs.roads);
         #[allow(clippy::cast_possible_truncation)] // a constant 960
         let reach = MAX_LANE_SQ as i64 + CELL_SQUARES;
@@ -133,10 +141,13 @@ impl Plan {
         let tf = TensorField::new(inputs.terrain, seed, rect);
         let sites = SiteIndex::new(seed, inputs.landuse, inputs.terrain, &tf, rect);
         let mut raw: Grid<Option<usize>> = Grid::new(x0, y0, w, h, None);
-        for s in cover.squares().collect::<Vec<_>>() {
-            if cover.get(s) == Some(&Cover::Wild) {
-                raw.set(s, sites.nearest(&tf, s));
-            }
+        let wild: Vec<Sq> = cover
+            .squares()
+            .filter(|&s| cover.get(s) == Some(&Cover::Wild))
+            .collect();
+        let near: Vec<Option<usize>> = wild.par_iter().map(|&s| sites.nearest(&tf, s)).collect();
+        for (s, n) in wild.into_iter().zip(near) {
+            raw.set(s, n);
         }
         let mut fields = Vec::new();
         components(&raw, |site, members| {

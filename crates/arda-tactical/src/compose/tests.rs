@@ -248,3 +248,49 @@ fn oversized_canvases_are_refused_before_allocation() {
     ));
     assert_eq!(canvas_size(&big, 32).unwrap(), (2048, 2048));
 }
+
+/// Goal 50: a region render equals the crop of the full render, pixel for
+/// pixel, for regions on and off the square grid and at the canvas edge.
+#[test]
+fn region_renders_equal_crops_of_the_full_render() {
+    let lib = lib();
+    for name in ["riverside", "timber_house", "forest_glade"] {
+        let l = layouts::by_name(name).unwrap();
+        let opts = small(false);
+        let full = render(&l, &lib, 7, &opts).unwrap();
+        let (w, h) = (full.width, full.height);
+        for [x, y, rw, rh] in [
+            [32, 64, 96, 64],
+            [5, 7, 41, 33],
+            [w - 40, h - 30, 40, 30],
+            [0, 0, w, h],
+        ] {
+            let part = render_region(&l, &lib, 7, &opts, [x, y, rw, rh]).unwrap();
+            assert_eq!((part.width, part.height), (rw, rh));
+            for r in 0..rh {
+                let from = ((y + r) * w + x) as usize * 4;
+                let row = rw as usize * 4;
+                let at = (r * rw) as usize * 4;
+                assert_eq!(
+                    part.data[at..at + row],
+                    full.data[from..from + row],
+                    "{name} region {x},{y} {rw}x{rh} row {r}"
+                );
+            }
+        }
+        assert!(render_region(&l, &lib, 7, &opts, [w - 1, 0, 2, 1]).is_err());
+    }
+}
+
+/// Goal 50: the library's cached texture set equals a freshly built one.
+#[test]
+fn cached_texture_sets_equal_fresh_ones() {
+    let lib = lib();
+    let cached = lib.texture_set(32);
+    let fresh = ground::TextureSet::new(&lib, 32);
+    for key in ["grass", "cobbles", "water_shallow"] {
+        let (a, b) = (cached.get(key).unwrap(), fresh.get(key).unwrap());
+        assert_eq!(a.variants, b.variants, "{key}");
+    }
+    assert!(std::sync::Arc::ptr_eq(&cached, &lib.texture_set(32)));
+}

@@ -157,6 +157,38 @@ impl World {
         Ok(plan)
     }
 
+    /// Draws and caches the plans of the most populous settlements of the
+    /// tiers `keep` selects (at most half the plan cache), with their
+    /// interior salts, so the first tactical request near a town or city
+    /// does not wait for its plan (goal 50). Failures are skipped: a plan
+    /// that cannot be drawn fails again, visibly, on request.
+    pub fn warm_plans(&self, keep: impl Fn(arda_settle::model::Tier) -> bool + Sync) {
+        use rayon::prelude::*;
+        let mut ids: Vec<(u32, u64)> = self
+            .files
+            .settlements
+            .settlements
+            .iter()
+            .filter(|s| keep(s.tier))
+            .map(|s| (s.population, s.id.get()))
+            .collect();
+        ids.sort_unstable_by_key(|&(p, id)| (std::cmp::Reverse(p), id));
+        ids.truncate(PLAN_CACHE / 2);
+        ids.par_iter().for_each(|&(_, id)| {
+            if let Ok(plan) = self.plan(id) {
+                if let Some(b) = plan.as_ref().as_ref().and_then(|p| p.buildings.first()) {
+                    let _ = plan.as_ref().as_ref().map(|p| p.interior_salt(b));
+                }
+            }
+        });
+    }
+
+    /// [`Self::warm_plans`] for the towns and cities.
+    pub fn warm_towns(&self) {
+        use arda_settle::model::Tier;
+        self.warm_plans(|t| matches!(t, Tier::Town | Tier::City));
+    }
+
     /// The settlement's profile for the NPC generator (adapter A2: the
     /// record deserialises into it).
     ///

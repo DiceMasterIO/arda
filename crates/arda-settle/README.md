@@ -185,10 +185,30 @@ fixture.
    - **Passes.** A route's high point is a pass when it stands at least
      120 m above the lowest point on both sides and lies within 300 m of a
      saddle.
-8. **Realms** (`realms.rs`, `snap.rs`), following `logic/06` steps 1–3.
-   - There are *N* seats, where *N* is the population divided by 8,000, with
-     a minimum of 2 and a cap of a third of the towns. The seats are the *N*
-     largest towns.
+8. **Realms** (`seats.rs`, `market.rs`, `primacy.rs`, `realms.rs`,
+   `snap.rs`), following `logic/06` steps 1–3. Seats and primate capitals
+   are settled right after placement, before land use, so fields and roads
+   serve the final populations.
+   - **How many.** *N* is the smallest of: the population over 24,000 (a
+     capital city needs a realm three times its size), the habitable land
+     (suitability above zero) over 600 km², and a third of the towns; at
+     least 2 when there are 2 towns or more.
+   - **Which towns** (`seats.rs`). Candidates are the larger half of the
+     towns. The largest is the first seat; each further seat maximises
+     `d² × population`, `d` being its travel cost to the nearest chosen
+     seat over a coarse market lattice (`market.rs`: about 20,000 blocks,
+     a step costs its length plus 8 m per metre of climb). The seats then
+     move, one at a time, to another town of their own market area when
+     that cuts the imbalance of the areas' shares (people ¾, land ¼) by a
+     twentieth. If a market area holds fewer than 16,000 people, the land
+     holds one realm fewer and the choice runs again.
+   - **Primate capitals** (`primacy.rs`). In every market area of 12,000
+     people or more, the towns keep their townspeople `U` and follow the
+     rank-size rule with the seat first (`h / r`, `h = U / H_n`). The seat
+     grows to at least 8,000, a city, and the court lifts the other towns
+     by the fourth root of the capital's growth. The people come from the
+     area's villages and hamlets, which shrink in proportion within their
+     tier bounds. Towns and cities are then re-ranked by population.
    - One multi-source Dijkstra runs over the road and terrain cost surface
      and gives every cell to the seat cheapest to reach. Ties go to the
      higher-ranked seat. Stepping over a river of order 3 or more costs a
@@ -459,9 +479,13 @@ slope, strokes and halos, kerned and tracked text, and the label placer.
 
 ## Limits
 
-- Realm seats are the largest towns (spec §realm-seats). On MICRO the three
-  largest stand in the north-west, so the southern realm holds most of the
-  land.
+- Seats are chosen over straight market areas on a coarse lattice, while
+  the partition follows the road and terrain cost surface, so a realm's
+  final share can differ from its market area's (on seed 7 MICRO the
+  smallest realm holds 9.5 % of the land and 13 % of the people).
+- With the fixed 8,000 city floor, a MICRO world's capitals carry about
+  37–42 % of its people in towns and cities, above the artifact's three
+  tenths.
 - About 10 routes (under 2 %) still run over 2.5 times their straight
   line, where a fjord or lake lies between a village and its town and no
   direct route exists.

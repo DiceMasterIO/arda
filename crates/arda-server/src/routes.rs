@@ -3,7 +3,7 @@
 use crate::columnar;
 use crate::dto::{self, AreaLakes, AreaRivers, Health, Origin, TilePyramidDto, WorldInfo};
 use crate::error::{ServerError, ServerResult};
-use crate::overview::Style;
+use crate::overview::{Style, TileFormat};
 use crate::AppState;
 use axum::extract::rejection::JsonRejection;
 use axum::extract::{DefaultBodyLimit, Path, Query, State};
@@ -42,7 +42,10 @@ pub fn router(state: Arc<AppState>) -> Router {
         )
         .route("/npc/demo", get(npc_demo))
         .route("/npc/demo/{npc_id}", get(npc_demo_one))
-        .route("/npc/{npc_id}", get(crate::people::npc))
+        .route("/npc/{npc_id}", get(crate::npcs::one))
+        .route("/npcs", get(crate::npcs::list))
+        .route("/buildings/{id}/residents", get(crate::npcs::residents))
+        .route("/buildings/{id}/workers", get(crate::npcs::workers))
         .route("/settlements", get(crate::people::list))
         .route("/settlements/{id}", get(crate::people::one))
         .route("/settlements/{id}/plan", get(crate::people::plan))
@@ -127,9 +130,13 @@ pub(crate) fn params(query: Params) -> ServerResult<BTreeMap<String, String>> {
 }
 
 fn png(bytes: &[u8]) -> Response {
+    image("image/png", bytes)
+}
+
+fn image(content_type: &'static str, bytes: &[u8]) -> Response {
     (
         [
-            (CONTENT_TYPE, HeaderValue::from_static("image/png")),
+            (CONTENT_TYPE, HeaderValue::from_static(content_type)),
             (
                 CACHE_CONTROL,
                 HeaderValue::from_static("public, max-age=3600"),
@@ -277,11 +284,12 @@ async fn overview_png(State(state): Shared, query: Params) -> ServerResult<Respo
     Ok(png(&bytes))
 }
 
+/// `/v1/tiles/overview/{z}/{x}/{y}.webp` (goal 68) and `.png`.
 async fn overview_tile(State(state): Shared, path: Segments) -> ServerResult<Response> {
     let p = segments(path, 3)?;
-    let y_text = p[2]
-        .strip_suffix(".png")
-        .ok_or_else(|| ServerError::NotFound("tiles are served as {y}.png".into()))?;
+    let (y_text, format) = TileFormat::split(&p[2]).ok_or_else(|| {
+        ServerError::NotFound("overview tiles are served as {y}.webp or {y}.png".into())
+    })?;
     let (z, x, y) = (
         parse::<u32>("z", &p[0])?,
         parse::<u32>("x", &p[1])?,
@@ -292,8 +300,8 @@ async fn overview_tile(State(state): Shared, path: Segments) -> ServerResult<Res
             "zoom {z} is outside the pyramid"
         )));
     }
-    let bytes = blocking(state, move |s| s.overview.tile(&s.query, z, x, y)).await?;
-    Ok(png(&bytes))
+    let bytes = blocking(state, move |s| s.overview.tile(&s.query, (z, x, y), format)).await?;
+    Ok(image(format.content_type(), &bytes))
 }
 
 /// `/v1/tiles/relief/{z}/{x}/{y}.webp`: mid-zoom relief past native zoom.

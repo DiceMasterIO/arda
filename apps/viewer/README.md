@@ -4,7 +4,7 @@ A small developer viewer for the `arda-server` v1 HTTP API
 ([`crates/arda-server/API.md`](../../crates/arda-server/API.md)). It's a demo, a
 verification tool, and a reference for how a game client should consume Arda.
 
-- **World**: pan/zoom slippy map of `/v1/tiles/overview/{z}/{x}/{y}.png` (Leaflet, flat CRS).
+- **World**: pan/zoom slippy map of `/v1/tiles/overview/{z}/{x}/{y}.webp` (lossless WebP, Leaflet, flat CRS).
   Hovering shows the global cell, area, local cell and position in km. Clicking
   opens an inspector with the full `CellSample` in plain language with units.
 - **Area**: pick an area and draw a canvas heatmap of height, cover, soil moisture,
@@ -22,6 +22,10 @@ verification tool, and a reference for how a game client should consume Arda.
   (`/v1/tactical/cell/{gx}/{gy}/tiles/…?ppsq=64`) with the rules sidecar overlaid as
   toggles (difficult-terrain hatch, water depth, cover). "demo overlays" adds
   `?demo_overlays=1` (the synthetic ways, fields and town samples; `#/cell?…&demo=1`).
+  Opening a block posts `POST /v1/tactical/prefetch` for its 8 neighbours at the same
+  ppsq, so the server warms them in the background (the map tools show how many were
+  queued). The arrows on the map's edges walk one cell north, west, east or south: the
+  neighbour's image joins this one seamlessly and loads from the warmed cache.
   A server with the pending block source answers 501, shown as a "not yet" state naming
   the planned source, where "Preview demo block" renders a block built in the browser
   from a built-in layout through `POST /v1/tactical/render?origin=X,Y`.

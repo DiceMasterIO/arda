@@ -89,7 +89,7 @@ export function App() {
         {world.state === "ok" && view === "world" && <WorldView client={client} world={world.value} />}
         {world.state === "ok" && view === "area" && <AreaView client={client} world={world.value} />}
         {view === "tactical" && <TacticalView client={client} />}
-        {view === "cell" && <TacticalCellView client={client} />}
+        {view === "cell" && <TacticalCellView client={client} world={world.state === "ok" ? world.value : null} />}
         {view === "editor" && <LayoutEditor client={client} />}
       </main>
     </div>

@@ -355,27 +355,41 @@ impl<'a> Ground<'a> {
 
     /// Paints the whole canvas, parallel over row pairs and deterministic.
     pub fn paint(&self, canvas: &mut Rgba) {
+        self.paint_clipped(canvas, [0, 0, canvas.width, canvas.height]);
+    }
+
+    /// Paints pixels `[x0, y0, x1, y1)` only; every pixel is a function of
+    /// its own position, so they equal those of [`Self::paint`].
+    pub fn paint_clipped(&self, canvas: &mut Rgba, [x0, y0, x1, y1]: [u32; 4]) {
         let w = canvas.width as usize;
+        let (cx0, cx1) = (x0 as usize, (x1 as usize).min(w));
         canvas
             .data
             .par_chunks_mut(w * 8)
             .enumerate()
             .for_each(|(pair, rows)| {
-                let y0 = u32::try_from(pair * 2).unwrap_or(0);
+                let ry = u32::try_from(pair * 2).unwrap_or(0);
+                if ry + 1 < y0 || ry >= y1 {
+                    return;
+                }
                 let even = self.frame.ppsq.is_multiple_of(2);
                 // One weight set per 2 × 2 block, shared by both rows.
+                let b0 = cx0 / 2;
                 let blocks: Vec<Weights> = if even {
-                    (0..w.div_ceil(2))
-                        .map(|b| self.block_weights(u32::try_from(2 * b).unwrap_or(0), y0))
+                    (b0..cx1.div_ceil(2))
+                        .map(|b| self.block_weights(u32::try_from(2 * b).unwrap_or(0), ry))
                         .collect()
                 } else {
                     Vec::new()
                 };
                 for (i, out) in rows.as_chunks_mut::<4>().0.iter_mut().enumerate() {
                     let px = u32::try_from(i % w).unwrap_or(0);
-                    let py = y0 + u32::try_from(i / w).unwrap_or(0);
+                    let py = ry + u32::try_from(i / w).unwrap_or(0);
+                    if (i % w) < cx0 || (i % w) >= cx1 || py < y0 || py >= y1 {
+                        continue;
+                    }
                     let wts = if even {
-                        blocks[(i % w) / 2]
+                        blocks[(i % w) / 2 - b0]
                     } else {
                         self.block_weights(px, py)
                     };

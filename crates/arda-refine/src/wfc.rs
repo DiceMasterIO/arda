@@ -16,8 +16,7 @@
 use crate::classes::{Class, Mask, COUNT};
 use crate::hash::{hash3, Stream};
 use crate::tiles::tile_of;
-use std::cmp::Reverse;
-use std::collections::{BinaryHeap, VecDeque};
+use arda_wfc::frontier::{Frontier, WorkQueue};
 
 /// Attempts before the relaxed fill.
 pub const MAX_ATTEMPTS: u8 = 6;
@@ -67,9 +66,8 @@ fn supported(c: usize, others: [Mask; 3]) -> bool {
 struct State<'p> {
     p: &'p Problem,
     dom: Vec<Mask>,
-    queued: Vec<bool>,
-    queue: VecDeque<usize>,
-    heap: BinaryHeap<Reverse<(u32, u32, usize)>>,
+    queue: WorkQueue,
+    heap: Frontier,
     prio: Vec<u32>,
 }
 
@@ -90,9 +88,8 @@ impl<'p> State<'p> {
         Self {
             p,
             dom: p.masks.clone(),
-            queued: vec![false; p.masks.len()],
-            queue: VecDeque::new(),
-            heap: BinaryHeap::new(),
+            queue: WorkQueue::new(p.masks.len()),
+            heap: Frontier::new(),
             prio,
         }
     }
@@ -108,17 +105,11 @@ impl<'p> State<'p> {
     }
 
     fn push_heap(&mut self, i: usize) {
-        let c = self.dom[i].count_ones();
-        if c > 1 {
-            self.heap.push(Reverse((c, self.prio[i], i)));
-        }
+        self.heap.push(self.dom[i].count_ones(), self.prio[i], i);
     }
 
     fn enqueue(&mut self, i: usize) {
-        if !self.queued[i] {
-            self.queued[i] = true;
-            self.queue.push_back(i);
-        }
+        self.queue.push(i);
     }
 
     fn enqueue_around(&mut self, i: usize) {
@@ -172,14 +163,12 @@ impl<'p> State<'p> {
 
     /// Propagates to a fixed point; returns a corner left empty, if any.
     fn propagate(&mut self) -> Option<usize> {
-        while let Some(i) = self.queue.pop_front() {
-            self.queued[i] = false;
+        while let Some(i) = self.queue.pop() {
             let d = self.revise(i);
             if d != self.dom[i] {
                 self.dom[i] = d;
                 if d == 0 {
                     self.queue.clear();
-                    self.queued.iter_mut().for_each(|q| *q = false);
                     return Some(i);
                 }
                 self.push_heap(i);
@@ -278,7 +267,7 @@ impl<'p> State<'p> {
                 return Err(repairs);
             }
         }
-        while let Some(Reverse((count, _, i))) = self.heap.pop() {
+        while let Some((count, _, i)) = self.heap.pop() {
             if self.dom[i].count_ones() != count || count <= 1 {
                 continue;
             }

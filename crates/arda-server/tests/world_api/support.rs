@@ -149,3 +149,45 @@ pub async fn post_json(uri: &str, body: Vec<u8>) -> Reply {
         body,
     }
 }
+
+fn has_society(dir: &Path) -> bool {
+    loads(dir) && dir.join("society/notables.json").is_file()
+}
+
+/// A fixture world with `society/` (`arda settle`, `arda society build`):
+/// `$ARDA_SERVER_TEST_WORLD` or `out/micro42` when settled, else a MICRO
+/// world generated and settled once into `target/arda-server-fixture/`.
+pub fn society_dir() -> &'static Path {
+    static DIR: OnceLock<PathBuf> = OnceLock::new();
+    DIR.get_or_init(|| {
+        let first = world_dir();
+        if has_society(first) {
+            return first.to_path_buf();
+        }
+        let dir = workspace().join("target/arda-server-fixture/micro42-society");
+        if !has_society(&dir) {
+            let _ = std::fs::remove_dir_all(&dir);
+            std::fs::create_dir_all(dir.parent().unwrap()).unwrap();
+            arda::generate_from_fine_source(
+                42,
+                arda::GenerateConfig::MICRO,
+                &dir,
+                arda::FineDeliveryLimits::default(),
+            )
+            .expect("generating the MICRO society fixture");
+            arda_settle::generate(&dir, arda_settle::grid::MEMORY_BUDGET).expect("settle");
+            arda_people::build(&dir).expect("society build");
+        }
+        dir
+    })
+}
+
+/// One shared state over [`society_dir`].
+pub fn society_state() -> Arc<AppState> {
+    static STATE: OnceLock<Arc<AppState>> = OnceLock::new();
+    Arc::clone(STATE.get_or_init(|| {
+        let mut c = config();
+        c.world = society_dir().to_path_buf();
+        Arc::new(AppState::open(&c).unwrap())
+    }))
+}

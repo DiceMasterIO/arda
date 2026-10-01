@@ -16,6 +16,8 @@ pub mod frame;
 pub mod ground;
 pub mod interior;
 pub mod kits;
+pub mod wfc;
+pub mod yard;
 
 use crate::error::TownError;
 use crate::function::BuildingFunction;
@@ -31,6 +33,7 @@ use frame::Want;
 use interior::{GLight, GProp};
 use serde::{Deserialize, Serialize};
 use std::collections::BTreeMap;
+pub use wfc::{Relaxed, TownFill};
 
 /// Largest window edge, squares.
 pub const MAX_WINDOW: i64 = 1024;
@@ -118,6 +121,10 @@ pub struct TownBlock {
     /// resolved asset carries its own light).
     #[serde(skip)]
     pub light_owner: Vec<Option<usize>>,
+    /// WFC problems in or around the window that used the relaxed fill
+    /// (goal 47: marked for review).
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub relaxed: Vec<Relaxed>,
 }
 
 fn priority(r: WallRole) -> u8 {
@@ -140,11 +147,19 @@ fn asset(w: &Want) -> AssetRef {
 
 type Walls = BTreeMap<(i64, i64, EdgeAxis), (WallRole, &'static str, u64)>;
 
-/// Cuts a window out of the plan.
+/// Cuts a window out of the plan with the default fill ([`TownFill::Wfc`]).
 ///
 /// # Errors
 /// [`TownError::Window`] for an empty or oversized window.
 pub fn generate(plan: &TownPlan, win: Window) -> Result<TownBlock, TownError> {
+    generate_with(plan, win, TownFill::default())
+}
+
+/// Cuts a window out of the plan, filling the town fabric with `fill`.
+///
+/// # Errors
+/// [`TownError::Window`] for an empty or oversized window.
+pub fn generate_with(plan: &TownPlan, win: Window, fill: TownFill) -> Result<TownBlock, TownError> {
     if win.w < 1 || win.h < 1 || win.w > MAX_WINDOW || win.h > MAX_WINDOW {
         return Err(TownError::Window(format!(
             "{}x{} is outside 1..={MAX_WINDOW}",
@@ -171,6 +186,46 @@ pub fn generate(plan: &TownPlan, win: Window) -> Result<TownBlock, TownError> {
     }
     let mut props: Vec<GProp> = Vec::new();
     let mut lights: Vec<GLight> = Vec::new();
+    let mut relaxed = Vec::new();
+    if fill == TownFill::Wfc {
+        let view = SquareRect { x0, y0, x1, y1 };
+        let site = wfc::outdoor::Site::of(plan);
+        for (cx, cy) in wfc::outdoor::chunks_near(x0, y0, x1, y1) {
+            let ch = wfc::outdoor::chunk(plan, &site, cx, cy);
+            if !ch.any {
+                continue;
+            }
+            let c = wfc::outdoor::CHUNK;
+            let area = SquareRect {
+                x0: cx * c,
+                y0: cy * c,
+                x1: cx * c + c,
+                y1: cy * c + c,
+            };
+            if ch.relaxed && area.overlaps(&view) {
+                relaxed.push(Relaxed::Outdoor { cx, cy });
+            }
+            for &((x, y), key) in &ch.ground {
+                if let Some(i) = view.contains(x, y).then(|| lin(x, y)).flatten() {
+                    grounds[i].key = key;
+                }
+            }
+            for &(k, (role, kit)) in &ch.walls {
+                if walls
+                    .get(&k)
+                    .is_some_and(|w| w.0 == WallRole::Run && w.2 == 0)
+                {
+                    walls.insert(k, (role, kit, 0));
+                }
+            }
+            let base = props.len();
+            props.extend(ch.props.iter().cloned());
+            lights.extend(ch.lights.iter().map(|l| GLight {
+                owner: l.owner.map(|o| o + base),
+                ..*l
+            }));
+        }
+    }
     let mut buildings = Vec::new();
     let view = SquareRect { x0, y0, x1, y1 };
     for b in plan
@@ -178,7 +233,16 @@ pub fn generate(plan: &TownPlan, win: Window) -> Result<TownBlock, TownError> {
         .iter()
         .filter(|b| b.rect.grown(1).overlaps(&view))
     {
-        let int = interior::build(plan, b);
+        let int = match fill {
+            TownFill::Rules => interior::build(plan, b),
+            TownFill::Wfc => {
+                let built = wfc::indoor::build(plan, b);
+                if built.relaxed && b.rect.overlaps(&view) {
+                    relaxed.push(Relaxed::Interior { building: b.id.0 });
+                }
+                built.interior
+            }
+        };
         let floor_ft = b
             .doors
             .first()
@@ -250,11 +314,21 @@ pub fn generate(plan: &TownPlan, win: Window) -> Result<TownBlock, TownError> {
     for (k, v) in ground::fences(plan, x0, y0, x1, y1) {
         walls.entry(k).or_insert((v.0, v.1, u64::MAX));
     }
-    let (ext_props, ext_lights) = exterior::dress(plan, x0, y0, x1, y1);
+    let (ext_props, ext_lights) = match fill {
+        TownFill::Rules => exterior::dress(plan, x0, y0, x1, y1),
+        TownFill::Wfc => exterior::fixed(plan, x0, y0, x1, y1),
+    };
+    let base = props.len();
     props.extend(ext_props);
-    lights.extend(ext_lights);
+    lights.extend(ext_lights.into_iter().map(|l| GLight {
+        owner: l.owner.map(|o| o + base),
+        ..l
+    }));
     let mut blk = assemble(plan, win, &grounds, &walls, &props, &lights, buildings);
     blk.owned = owned;
+    relaxed.sort();
+    relaxed.dedup();
+    blk.relaxed = relaxed;
     Ok(blk)
 }
 
@@ -342,6 +416,7 @@ fn assemble(
         rules,
         owned: Vec::new(),
         light_owner,
+        relaxed: Vec::new(),
     }
 }
 

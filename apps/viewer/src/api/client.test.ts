@@ -28,7 +28,8 @@ describe("ArdaClient URLs", () => {
     expect(c.url("v1/world")).toBe("http://h:1/v1/world");
   });
   it("builds the overview tile template and PNG URL", () => {
-    expect(c.overviewTileTemplate()).toBe("http://h:1/v1/tiles/overview/{z}/{x}/{y}.png");
+    expect(c.overviewTileTemplate()).toBe("http://h:1/v1/tiles/overview/{z}/{x}/{y}.webp");
+    expect(c.overviewTileTemplate("png")).toBe("http://h:1/v1/tiles/overview/{z}/{x}/{y}.png");
     expect(c.reliefTileTemplate()).toBe("http://h:1/v1/tiles/relief/{z}/{x}/{y}.webp");
     expect(c.overviewPngUrl()).toBe("http://h:1/v1/overview.png");
     expect(c.overviewPngUrl({ quality: "2K", style: "classic" })).toBe("http://h:1/v1/overview.png?quality=2K&style=classic");
@@ -51,6 +52,23 @@ describe("ArdaClient requests", () => {
     const { client, fetchFn } = clientWith(() => jsonResponse({ contract_version: CONTRACT_VERSION }));
     await client.point(51234.5, 103617.25);
     expect(fetchFn.mock.calls[0]?.[0]).toBe("http://api.test:8787/v1/point?x_m=51234.5&y_m=103617.25");
+  });
+
+  it("posts a prefetch of a cell's neighbours as JSON", async () => {
+    const accepted = { radius: 1, ppsq: 64, queue_len: 8, cells: [{ gx: 617, gy: 688, status: "queued", image: true }] };
+    const { client, fetchFn } = clientWith(() => jsonResponse(accepted, 202));
+    const out = await client.tacticalPrefetch(618, 689, { radius: 1, ppsq: 64, demo: true });
+    expect(out.cells[0]?.status).toBe("queued");
+    const [url, init] = fetchFn.mock.calls[0] ?? [];
+    expect(url).toBe("http://api.test:8787/v1/tactical/prefetch");
+    expect(init?.method).toBe("POST");
+    expect(init?.headers).toEqual({ "content-type": "application/json" });
+    expect(JSON.parse(init?.body as string)).toEqual({ gx: 618, gy: 689, radius: 1, ppsq: 64, demo_overlays: true });
+  });
+
+  it("surfaces a refused prefetch by its code", async () => {
+    const { client } = clientWith(() => jsonResponse({ error: { code: "bad_request", status: 400, message: "radius must be 1..=2, not 3" } }, 400));
+    await expect(client.tacticalPrefetch(1, 1, { radius: 3 })).rejects.toMatchObject({ code: "bad_request", status: 400 });
   });
 
   it("rejects an unknown contract version", async () => {

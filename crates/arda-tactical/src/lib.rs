@@ -23,7 +23,7 @@ pub mod validate;
 mod validate_tests;
 
 pub use catalog::{Asset, AssetClass, Catalog, Layer, WallRole};
-pub use compose::{render, render_with, RenderOptions, Style};
+pub use compose::{render, render_region, render_with, RenderOptions, Style};
 pub use error::TacticalError;
 pub use layout::TacticalLayout;
 pub use library::Library;

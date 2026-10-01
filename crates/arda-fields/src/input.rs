@@ -98,12 +98,12 @@ pub struct TerrainSample {
 }
 
 /// The terrain at any world point, e.g. sampled from `arda` area cells.
-pub trait Terrain {
+pub trait Terrain: Sync {
     /// Terrain at world `(x_m, y_m)`.
     fn sample(&self, x_m: f64, y_m: f64) -> TerrainSample;
 }
 
-impl<F: Fn(f64, f64) -> TerrainSample> Terrain for F {
+impl<F: Fn(f64, f64) -> TerrainSample + Sync> Terrain for F {
     fn sample(&self, x_m: f64, y_m: f64) -> TerrainSample {
         self(x_m, y_m)
     }
@@ -248,5 +248,5 @@ pub struct FieldInputs<'a> {
     /// metres. When unset, every point the terrain reports wet. A caller
     /// whose terrain knows rivers only roughly can limit this to open
     /// water, so fields meet the river's real banks, which it keeps.
-    pub barrier_water: Option<&'a dyn Fn(f64, f64) -> bool>,
+    pub barrier_water: Option<&'a (dyn Fn(f64, f64) -> bool + Sync)>,
 }

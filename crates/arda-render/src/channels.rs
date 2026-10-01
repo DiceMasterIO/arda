@@ -93,11 +93,22 @@ fn shape(polygon: Polygon, discharge: u64, marker: bool, side: usize) -> Option<
     })
 }
 
+/// Recipe-5 minimum on-screen channel width by discharge (v0.1 steps).
+fn min_width_v5(discharge: u64) -> i64 {
+    match discharge {
+        q if q >= 50_000 => Q * 8 / 5,
+        q if q >= 5_000 => Q,
+        q if q >= 1_000 => Q * 7 / 10,
+        _ => 0,
+    }
+}
+
 fn shapes_results(
     inputs: impl IntoIterator<Item = Result<ChannelInput, RenderError>>,
     origin: GlobalCell,
     scale: AreaImageScale,
     offset_um: Option<&dyn Fn(GlobalCell) -> (i64, i64)>,
+    curved: bool,
 ) -> Result<Vec<Shape>, RenderError> {
     let free = offset_um.is_some();
     let side = scale.side() as usize;
@@ -142,9 +153,11 @@ fn shapes_results(
                 + oy * ppc_q / 100_000_000,
         )
     };
-    // Recipe 5: smooth, relaxed centrelines tapered at sources, exactly as
-    // the overview draws them (logic/04 §atlas-formed rivers).
-    let network = free.then(|| Network::new(edges.iter().map(|e| (e.from, e.to, e.discharge))));
+    // Recipe 6: smooth, relaxed centrelines tapered at sources, exactly as
+    // the overview draws them (logic/04 §atlas-formed rivers). Recipe 5
+    // keeps straight strips between snapped nodes.
+    let network =
+        (free && curved).then(|| Network::new(edges.iter().map(|e| (e.from, e.to, e.discharge))));
     let mut snapped: BTreeMap<GlobalCell, Point> = BTreeMap::new();
     if let Some(net) = &network {
         for e in &edges {
@@ -182,7 +195,11 @@ fn shapes_results(
         if free {
             // Recipe 5: minimum on-screen width by discharge, as in the
             // overview (logic/04 §atlas-formed scale). Q is one pixel.
-            let min_w = min_width_px_q8(edge.discharge) * Q / 256;
+            let min_w = if curved {
+                min_width_px_q8(edge.discharge) * Q / 256
+            } else {
+                min_width_v5(edge.discharge)
+            };
             wa = wa.max(min_w);
             wb = wb.max(min_w);
             if network.as_ref().is_some_and(|n| n.is_source(edge.from)) {
@@ -269,7 +286,7 @@ fn shapes(
     origin: GlobalCell,
     scale: AreaImageScale,
 ) -> Result<Vec<Shape>, RenderError> {
-    shapes_results(inputs.into_iter().map(Ok), origin, scale, None)
+    shapes_results(inputs.into_iter().map(Ok), origin, scale, None, false)
 }
 
 fn channel_colour(q: u64) -> [u8; 3] {
@@ -466,6 +483,7 @@ impl<'a> AreaRaster<'a> {
             origin,
             scale,
             if formed { Some(&offset) } else { None },
+            terrain.is_some_and(AtlasTerrain::is_formed_v6),
         )?;
         let mut starts: Vec<_> = (0..shapes.len()).collect();
         let mut ends = starts.clone();

@@ -356,14 +356,62 @@ resume point. Source:
 [shared_compose.rs:125](../../../crates/arda-gen/src/area/shared_compose.rs:125),
 [area_output.rs:289](../../../crates/arda-gen/src/hydrology/area_output.rs:289).
 
-## Fine recipe-5 formation
+## Fine recipe-5 and recipe-6 formation
 
 Recipe 5 replaces the recipe-3 spectral source and recipe-4 valley carving with
 stream-power landscape formation from the tectonic macro surface. Its output is
 the same canonical 39.0625 m fine terrain file, so continent derivation,
-climate, hydrology, publication and export are unchanged downstream.
+climate, hydrology, publication and export are unchanged downstream. Recipe 6
+is recipe 5 plus every v0.2 rule below; it is the default.
 Source: [formation/](../../../crates/arda-gen/src/formation/mod.rs),
 [fine_formation.rs](../../../crates/arda-gen/src/orchestrator/fine_formation.rs).
+
+### §fine-formation recipes
+
+Compatibility (`goal-prompt.md` §8): new behaviour goes behind a recipe
+number, and a world regenerates and renders exactly as the build that wrote
+it did. The manifest records the recipe (`fine_terrain.recipe_version`);
+loading and rendering read it from there.
+
+- **Recipe 5** is formation as v0.1 shipped it (commit 7f32695) and replays
+  byte for byte: relief-only bathymetry (80 km passive shelves, chamfer
+  distance); plain Catmull-Rom macro sampling; masks from local relief;
+  everything below the lowstand is open ocean; channel initiation
+  0.25 km² × (rock strength)² with no maturity, relief or steepness terms;
+  hillslope creep at the base number; a talus cap scaled by rock strength
+  alone; two seam passes; the old river-mouth deltas; a four-connected sea
+  in the sampled drainage and no pocket levelling. It writes no
+  `terrain/shore.bin` and no `areas/*/water.bin`.
+- **Recipe 6** (v0.2.0) adds: tectonic margins, volcanic arcs and the basin
+  audit; margin-aware Euclidean bathymetry (60 km passive shelves) and the
+  shelf fill; the clamped macro sample and lowstand-ocean mask; belt-relief
+  masks; maturity and relief scaling (§hillslopes); pre-erosion roughness
+  before the finest level; 0.2 km² channel initiation; one seam pass;
+  terraces, littoral, canyons and flats; the §world-water forms (deltas,
+  braids, meanders, oxbows, karst); the eight-connected sampled drainage with
+  pocket levelling; and the shore survey. Only recipe 6 writes
+  `terrain/shore.bin` and `areas/*/water.bin`.
+- **Rendering** follows the recipe too (logic/04 §atlas-formed recipes).
+- **v0.2.0 worlds.** v0.2.0 formed its terrain with what is now recipe 6
+  but recorded `recipe_version: 5`, because recipe 6 did not yet exist as a
+  number. Since only recipe 6 writes `terrain/shore.bin`, loading reads
+  "recipe 5 and `terrain/shore.bin` present" as recipe 6
+  (`arda_core::read_manifest`), so rendering, `/v1/world` and everything
+  else recipe-dependent treat such a world as the recipe-6 world it is. The
+  manifest on disk is left as written; a true recipe-5 world has no shore
+  layer and stays recipe 5.
+
+Choosing a recipe: `arda generate --terrain fine --recipe <4|5|6>` (default
+6); in code `arda::generate_from_fine_recipe` or
+`arda_gen::orchestrator::FineRecipe` (`Valleys` = 4, `FormationV5` = 5,
+`Formation` = 6). Unknown numbers are refused before any output. The gate is
+`tests/golden_recipes.rs`: MICRO seed 42 with recipes 5 and 6 must match the
+v0.1 and v0.2.0 terrain, area, hydrology and Atlas 4K overview hashes.
+Source: [formation/mod.rs](../../../crates/arda-gen/src/formation/mod.rs)
+(`Recipe`), [recipe5.rs](../../../crates/arda-gen/src/formation/recipe5.rs),
+[levels.rs](../../../crates/arda-gen/src/formation/levels.rs),
+[fine_delivery.rs](../../../crates/arda-gen/src/orchestrator/fine_delivery.rs),
+[manifest.rs](../../../crates/arda-core/src/formats/manifest.rs) (`effective_recipe`).
 
 ### §fine-formation levels
 
