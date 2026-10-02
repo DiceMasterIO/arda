@@ -33,8 +33,8 @@ The preamble asks for the same things in every prompt:
 Each class then adds its own rules:
 
 - **Ground and water:** "seamless tileable texture, even lighting, no large light or dark patches", filling the whole frame edge to edge.
-- **Props and vegetation:** one subject, centred, filling about 70% of the frame's shorter side, on a plain flat white `#ffffff` background.
-- **Walls:** a band of even thickness on white. The junction sits at the image centre, and each arm runs straight to the image edge it reaches.
+- **Props and vegetation:** one subject, centred, filling about 70% of the frame's shorter side, on a fully transparent background (Codex and gpt-image return a real alpha channel).
+- **Walls:** a band of even thickness on a transparent background. The junction sits at the image centre, and each arm runs straight to the image edge it reaches.
 
 A batch is one Slopify draft plus up to 50 items. Each item has a title, the asset id, and its keyword values. In the draft, Images is set to Generate and every other stage, Article included, is Off, so these are image-only runs. Slopify makes only 16:9 or 9:16 images, so the script groups assets by Library prompt and frame:
 
@@ -93,7 +93,7 @@ cargo run --release -p arda-cli -- tactical import out/art-gen/raw \
 
 The importer does the following:
 
-- removes the white background;
+- keeps the alpha (or removes a plain background if a model ignores the transparency request);
 - strips or flags baked shadows;
 - crops and fits each cut-out to its footprint;
 - turns wall pieces to their canonical arms;

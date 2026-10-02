@@ -35,10 +35,10 @@ const style =
   "no frame, no border, no vignette, no watermark, no signature.";
 
 const cutoutRules =
-  "Exactly one subject, centred, filling about 70% of the frame's shorter side, on a plain " +
-  "flat white background (#ffffff) that is the same pure white everywhere; nothing else in the " +
-  "image: no floor, no ground patch, no base or rug under it, no other objects, no shadow on " +
-  "the background.";
+  "Exactly one subject, centred, filling about 70% of the frame's shorter side, on a fully " +
+  "transparent background (a PNG with a real alpha channel, background: transparent; no white " +
+  "or colour behind the subject); nothing else in the image: no floor, no ground patch, no base " +
+  "or rug under it, no other objects, no shadow.";
 
 const classes = {
   ground: {
@@ -66,7 +66,8 @@ const classes = {
       "straight band of even thickness, every arm runs perfectly straight along the image's " +
       "horizontal or vertical centre line and is cut off square exactly at the image edge it " +
       "reaches. The junction is exactly at the centre of the image. Everything that is not wall " +
-      "is a plain flat white background (#ffffff): no ground, no grass, no floor, no shadow.",
+      "is fully transparent (a PNG with a real alpha channel, background: transparent): no ground, " +
+      "no grass, no floor, no shadow.",
     subject: "Subject: one modular wall piece from a grid-map wall kit, {{Subject}}.",
   },
   prop: {

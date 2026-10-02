@@ -63,7 +63,7 @@ test("prompts carry the art conventions and no artist names", () => {
       assert.match(p, /Seamless tileable texture, even lighting, no large light or dark patches/, id);
       assert.match(p, /fills the whole frame edge to edge/, id);
     } else {
-      assert.match(p, /plain flat white background \(#ffffff\)/, id);
+      assert.match(p, /real alpha channel/, id);
     }
     if (asset.class === "prop" || asset.class === "vegetation") assert.match(p, /about 70% of the frame/, id);
     assert.doesNotMatch(p, /in the style of|Forgotten Adventures|Dungeondraft|Greg Rutkowski|artstation/i, id);
