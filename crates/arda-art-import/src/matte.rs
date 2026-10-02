@@ -10,6 +10,7 @@
     clippy::cast_possible_wrap
 )]
 
+use crate::holes::{self, HolePolicy};
 use crate::manifest::ShadowMode;
 use crate::ops::{chan_dist, distance_to, nearest_colour, to_u8};
 use crate::shadow;
@@ -116,9 +117,10 @@ pub fn neighbours(i: usize, w: usize, h: usize) -> impl Iterator<Item = usize> {
     .flatten()
 }
 
-/// Cuts an opaque raw image out of its background.
+/// Cuts an opaque raw image out of its background, clearing the enclosed
+/// pockets `holes` allows.
 #[must_use]
-pub fn cut_out(img: &Rgba, mode: ShadowMode) -> Cutout {
+pub fn cut_out(img: &Rgba, mode: ShadowMode, holes: HolePolicy) -> Cutout {
     let (w, h) = (img.width as usize, img.height as usize);
     let bg = estimate_background(img);
     let mut removed = flood_background(img, bg);
@@ -142,6 +144,8 @@ pub fn cut_out(img: &Rgba, mode: ShadowMode) -> Cutout {
     ));
     let found = shadow::grow_on_background(img, &removed, bg);
     shadow::apply(&found, mode, &mut removed, &mut fixes, &mut flags);
+    let pockets = holes::clear_pockets(img, &mut removed, bg, holes);
+    holes::report(&pockets, &mut fixes, &mut flags);
     let out = soft_matte(img, &removed, bg);
     Cutout {
         img: out,
@@ -232,7 +236,7 @@ mod tests {
 
     #[test]
     fn a_hard_flat_shadow_is_stripped_but_a_grey_stone_is_kept() {
-        let cut = cut_out(&disc_scene(true), ShadowMode::Strip);
+        let cut = cut_out(&disc_scene(true), ShadowMode::Strip, HolePolicy::Strict);
         assert!(
             cut.fixes.iter().any(|f| f.contains("stripped")),
             "{:?}",
@@ -240,7 +244,7 @@ mod tests {
         );
         assert_eq!(cut.img.get(58, 58)[3], 0, "shadow pixel left");
         assert_eq!(cut.img.get(36, 36)[3], 255, "stone eaten");
-        let clean = cut_out(&disc_scene(false), ShadowMode::Strip);
+        let clean = cut_out(&disc_scene(false), ShadowMode::Strip, HolePolicy::Strict);
         assert!(
             !clean.fixes.iter().any(|f| f.contains("stripped")),
             "{:?}",
@@ -259,7 +263,7 @@ mod tests {
                 }
             }
         }
-        let cut = cut_out(&img, ShadowMode::Strip);
+        let cut = cut_out(&img, ShadowMode::Strip, HolePolicy::Strict);
         assert_eq!(cut.img.get(0, 0)[3], 0);
         assert_eq!(cut.img.get(20, 20), [150, 60, 30, 255]);
     }

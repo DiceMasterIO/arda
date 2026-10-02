@@ -2,8 +2,9 @@
 
 use crate::cleanup::{defringe, kill_haze, remove_specks};
 use crate::fit::{fit_canvas, fit_cutout};
+use crate::holes::HolePolicy;
 use crate::image_io::RawImage;
-use crate::manifest::ShadowMode;
+use crate::manifest::{HoleMode, ShadowMode};
 use crate::naming::{role_name, Target};
 use crate::shadow;
 use crate::texture;
@@ -28,14 +29,15 @@ pub struct Processed {
     pub flags: Vec<String>,
 }
 
-/// Runs the class's pipeline on one raw image.
+/// Runs the class's pipeline on one raw image: `ppsq`, the shadow mode and
+/// the manifest's `holes` key (`None`: the class default).
 #[must_use]
 pub fn process(
     raw: &RawImage,
     asset: Asset,
     target: Target,
     file: String,
-    (ppsq, mode): (u32, ShadowMode),
+    (ppsq, mode, holes): (u32, ShadowMode, Option<HoleMode>),
 ) -> Processed {
     let mut p = Processed {
         img: Rgba::new(1, 1),
@@ -53,7 +55,8 @@ pub fn process(
         p.flags.extend(t.flags);
         return p;
     }
-    let mut img = matte(raw, mode, &mut p.fixes, &mut p.flags);
+    let holes = HolePolicy::for_asset(&p.target, holes);
+    let mut img = matte(raw, (mode, holes), &mut p.fixes, &mut p.flags);
     let specks = remove_specks(&mut img);
     if specks > 0 {
         p.fixes.push(format!("removed {specks} px of stray specks"));
@@ -99,12 +102,12 @@ pub fn process(
 /// alpha).
 fn matte(
     raw: &RawImage,
-    mode: ShadowMode,
+    (mode, holes): (ShadowMode, HolePolicy),
     fixes: &mut Vec<String>,
     flags: &mut Vec<String>,
 ) -> Rgba {
     if !raw.has_alpha {
-        let cut = crate::matte::cut_out(&raw.rgba, mode);
+        let cut = crate::matte::cut_out(&raw.rgba, mode, holes);
         fixes.extend(cut.fixes);
         flags.extend(cut.flags);
         return cut.img;

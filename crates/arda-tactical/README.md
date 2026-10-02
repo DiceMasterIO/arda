@@ -241,9 +241,10 @@ cargo test --release -p arda-tactical --test timing -- --ignored --nocapture
    cover = "half"
    tags = { function = ["inn", "tavern"], free = ["furniture"] }
    shadow = "keep"             # never strip; only flag
+   holes = "clear"             # or "keep"; enclosed backdrop pockets (default by class)
    ```
 
-   Per-asset keys: `prompt`, `seed`, `tool`, `model`, `licence`, `footprint`, `height_ft`, `cover`, `layer`, `blocks_sight`, `blocks_movement`, `difficult_terrain`, `tags`, `structured` and `shadow`. Prompt, seed and model are also read from the PNG's own ComfyUI (`prompt` graph) or A1111 (`parameters`) metadata when the manifest does not give them.
+   Per-asset keys: `prompt`, `seed`, `tool`, `model`, `licence`, `footprint`, `height_ft`, `cover`, `layer`, `blocks_sight`, `blocks_movement`, `difficult_terrain`, `tags`, `structured`, `shadow` and `holes`. Prompt, seed and model are also read from the PNG's own ComfyUI (`prompt` graph) or A1111 (`parameters`) metadata when the manifest does not give them.
 
 4. **Run it:**
 
@@ -259,6 +260,7 @@ cargo test --release -p arda-tactical --test timing -- --ignored --nocapture
 What the importer does, per class:
 
 - **Props, vegetation and walls.** Without alpha, the backdrop is estimated from the border and flooded by colour distance with a tolerance. A baked drop shadow (the backdrop colour darkened: same chromaticity, smooth, connected to the backdrop) is stripped when it is large and off-centre, and flagged when it is doubtful; on images that already have alpha, a dark, grey, soft-alpha region reaching past the silhouette is treated the same way. The edge is then unmixed against the local backdrop colour (soft matte and defringe), halos and haze beyond 2 px and stray specks are removed, and the object is cropped, centred and fitted to `footprint × ppsq` with a Mitchell filter in premultiplied alpha, turned 90° if that fits a non-square footprint much better. Wall pieces keep their canvas and are turned to the canonical arms (edge pieces west–east, `corner` E+S, `tee` E+S+W, `end` E). A grey or dark south-east rim left on the object is flagged as a possible painted shadow.
+  Backdrop-coloured pockets the border flood cannot reach (sky between leaf clusters) are cleared too when they are flat, close to the backdrop colour and small or thin next to the object, and get the same soft matte; the report lists each one with its area. Vegetation does this by default; props and walls only for pockets that match the backdrop almost exactly; large flat white areas (snow, a sheet, a whitewashed wall) are kept and flagged. `holes = "keep"` turns it off for an asset, `holes = "clear"` clears every flat backdrop-coloured pocket at any size.
 - **Ground and water.** Centre-cropped to the footprint's aspect, resized to the tile, broad contrast divided out, and made tileable: natural surfaces by offset-and-blend (variance preserving), structured ones by an edge blend that leaves the layout in place. Structured variants are registered against the first one (a shifted layout is rolled into place) and flagged if they still differ.
 - **Grade.** One affine colour transform for the whole library, matching mean and spread to the reference or palette in an opponent colour space, scaled by `strength` (default 0.5). The reference maps are finished renders that already carry the compositor's warm grade, so a strong match can warm the result twice; start at 0.3–0.5.
 - **Catalogue.** Metadata comes from the base library's record of the same id, ground key or kit role (footprint, tags, layer, blocking, cover, `height_ft`, `structured`), else from class and name defaults (trees on the canopy layer, 3 × 3 and 30 ft; rocks block movement; reeds are difficult terrain; walls give total cover). The manifest overrides both.

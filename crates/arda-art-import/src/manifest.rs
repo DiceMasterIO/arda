@@ -20,6 +20,7 @@
 //! seed = 812734
 //! height_ft = 3
 //! tags = { function = ["smithy"], free = ["craft:smith"] }
+//! holes = "keep"                   # or "clear"; default by class
 //! ```
 
 use crate::error::{ImportError, ImportResult};
@@ -114,6 +115,20 @@ pub struct AssetEntry {
     pub structured: Option<bool>,
     /// Shadow handling: `strip` (default) or `keep` (never strip, still flag).
     pub shadow: Option<ShadowMode>,
+    /// Enclosed backdrop-coloured pockets: `clear` (any size) or `keep`
+    /// (never). Default: small leaf gaps for vegetation, only exact-backdrop
+    /// specks for props and walls.
+    pub holes: Option<HoleMode>,
+}
+
+/// What to do with backdrop-coloured pockets the border flood cannot reach.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub enum HoleMode {
+    /// Leave every enclosed pocket opaque.
+    Keep,
+    /// Clear every flat pocket close to the backdrop colour, at any size.
+    Clear,
 }
 
 /// What to do with a detected baked shadow.
@@ -217,6 +232,9 @@ mod tests {
             [[asset]]
             id = "ground.cobbles"
             structured = true
+            [[asset]]
+            id = "veg.tree_oak"
+            holes = "clear"
             "##,
         )
         .unwrap();
@@ -226,6 +244,11 @@ mod tests {
             Some("prop.anvil")
         );
         assert_eq!(m.for_id("ground.cobbles").unwrap().structured, Some(true));
+        assert_eq!(
+            m.for_id("veg.tree_oak").unwrap().holes,
+            Some(HoleMode::Clear)
+        );
+        assert!(toml::from_str::<Manifest>("[[asset]]\nholes = \"fill\"").is_err());
         assert_eq!(parse_hex("#6b7d45"), Some([0x6b, 0x7d, 0x45]));
         assert!(toml::from_str::<Manifest>("[library]\nnmae = 1").is_err());
     }

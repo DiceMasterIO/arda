@@ -4,7 +4,8 @@
 //!
 //! The steps, per class (README of `arda-tactical`, "Importing AI art"):
 //! - **cut-outs** (props, vegetation, walls): background removal by a
-//!   border flood, baked-shadow stripping, soft matte and defringe, halo
+//!   border flood, baked-shadow stripping, enclosed backdrop pockets
+//!   (class-aware), soft matte and defringe, halo
 //!   and haze removal, auto-crop, centring and a Mitchell fit to
 //!   `footprint × ppsq`; wall pieces are turned to their canonical arms;
 //! - **textures**: crop and resize to the tile, seam fix (offset-and-blend,
@@ -27,6 +28,7 @@ pub mod error;
 pub mod fit;
 pub mod font;
 pub mod grade;
+pub mod holes;
 pub mod image_io;
 pub mod manifest;
 pub mod matte;
@@ -273,7 +275,14 @@ fn process_one(
     asset.licence = licence.clone().unwrap_or_else(|| "unspecified".into());
     asset.image = format!("{}/{}.png", output::class_dir(&p.target), p.id);
     let mode = entry.and_then(|e| e.shadow).unwrap_or_default();
-    let mut out = pipeline::process(&raw, asset, p.target.clone(), p.file.clone(), (ppsq, mode));
+    let holes = entry.and_then(|e| e.holes);
+    let mut out = pipeline::process(
+        &raw,
+        asset,
+        p.target.clone(),
+        p.file.clone(),
+        (ppsq, mode, holes),
+    );
     if let Some(f) = &p.vocab_flag {
         out.flags.push(f.clone());
     }
