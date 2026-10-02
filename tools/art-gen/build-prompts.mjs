@@ -720,10 +720,11 @@ function textureShape([w]) {
   return `The frame height spans about ${w * 5} feet at true scale for a 5-foot battle-map grid.`;
 }
 
-// Slopify asks for 16:9 or 9:16 only; the importer crops the middle (textures, walls) or crops
-// to the object (cut-outs). Upright footprints get the upright frame.
-function formatOf(cls, [w, h]) {
-  return cls === "prop" || cls === "vegetation" ? (h > w ? "9:16" : "16:9") : "16:9";
+// Square footprints (every texture, wall piece and square cut-out) ask Slopify for 1:1; long
+// ones get the matching 16:9 or 9:16 frame, and the importer crops to the footprint.
+function formatOf(_cls, [w, h]) {
+  if (w === h) return "1:1";
+  return h > w ? "9:16" : "16:9";
 }
 
 // ---------------------------------------------------------------------------------------------

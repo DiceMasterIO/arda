@@ -46,7 +46,7 @@ test("every asset fills its template, within Slopify's keyword limits", () => {
       assert.ok(!/[\n\r]/.test(value) && value.trim() === value, `${id} ${name} is one trimmed line`);
     }
     assert.equal(render(body, asset.values), asset.prompt, id);
-    assert.ok(["16:9", "9:16"].includes(asset.format), id);
+    assert.ok(["16:9", "9:16", "1:1"].includes(asset.format), id);
     assert.deepEqual(asset.pixels, asset.footprint.map((n) => n * 128), id);
   }
 });

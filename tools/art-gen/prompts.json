@@ -78,7 +78,7 @@
     "ground.cliff.0": {
       "class": "ground",
       "template": "arda-ground",
-      "format": "16:9",
+      "format": "1:1",
       "footprint": [
         2,
         2
@@ -106,7 +106,7 @@
     "ground.cliff.1": {
       "class": "ground",
       "template": "arda-ground",
-      "format": "16:9",
+      "format": "1:1",
       "footprint": [
         2,
         2
@@ -135,7 +135,7 @@
     "ground.cobbles.0": {
       "class": "ground",
       "template": "arda-ground",
-      "format": "16:9",
+      "format": "1:1",
       "footprint": [
         4,
         4
@@ -163,7 +163,7 @@
     "ground.cobbles.1": {
       "class": "ground",
       "template": "arda-ground",
-      "format": "16:9",
+      "format": "1:1",
       "footprint": [
         4,
         4
@@ -192,7 +192,7 @@
     "ground.cobbles.2": {
       "class": "ground",
       "template": "arda-ground",
-      "format": "16:9",
+      "format": "1:1",
       "footprint": [
         4,
         4
@@ -221,7 +221,7 @@
     "ground.dirt.0": {
       "class": "ground",
       "template": "arda-ground",
-      "format": "16:9",
+      "format": "1:1",
       "footprint": [
         2,
         2
@@ -249,7 +249,7 @@
     "ground.dirt.1": {
       "class": "ground",
       "template": "arda-ground",
-      "format": "16:9",
+      "format": "1:1",
       "footprint": [
         2,
         2
@@ -277,7 +277,7 @@
     "ground.dirt.2": {
       "class": "ground",
       "template": "arda-ground",
-      "format": "16:9",
+      "format": "1:1",
       "footprint": [
         2,
         2
@@ -305,7 +305,7 @@
     "ground.farmland.0": {
       "class": "ground",
       "template": "arda-ground",
-      "format": "16:9",
+      "format": "1:1",
       "footprint": [
         2,
         2
@@ -333,7 +333,7 @@
     "ground.farmland.1": {
       "class": "ground",
       "template": "arda-ground",
-      "format": "16:9",
+      "format": "1:1",
       "footprint": [
         2,
         2
@@ -362,7 +362,7 @@
     "ground.flagstone.0": {
       "class": "ground",
       "template": "arda-ground",
-      "format": "16:9",
+      "format": "1:1",
       "footprint": [
         4,
         4
@@ -390,7 +390,7 @@
     "ground.flagstone.1": {
       "class": "ground",
       "template": "arda-ground",
-      "format": "16:9",
+      "format": "1:1",
       "footprint": [
         4,
         4
@@ -419,7 +419,7 @@
     "ground.forest_floor.0": {
       "class": "ground",
       "template": "arda-ground",
-      "format": "16:9",
+      "format": "1:1",
       "footprint": [
         2,
         2
@@ -447,7 +447,7 @@
     "ground.forest_floor.1": {
       "class": "ground",
       "template": "arda-ground",
-      "format": "16:9",
+      "format": "1:1",
       "footprint": [
         2,
         2
@@ -475,7 +475,7 @@
     "ground.forest_floor.2": {
       "class": "ground",
       "template": "arda-ground",
-      "format": "16:9",
+      "format": "1:1",
       "footprint": [
         2,
         2
@@ -503,7 +503,7 @@
     "ground.grass.0": {
       "class": "ground",
       "template": "arda-ground",
-      "format": "16:9",
+      "format": "1:1",
       "footprint": [
         2,
         2
@@ -531,7 +531,7 @@
     "ground.grass.1": {
       "class": "ground",
       "template": "arda-ground",
-      "format": "16:9",
+      "format": "1:1",
       "footprint": [
         2,
         2
@@ -559,7 +559,7 @@
     "ground.grass.2": {
       "class": "ground",
       "template": "arda-ground",
-      "format": "16:9",
+      "format": "1:1",
       "footprint": [
         2,
         2
@@ -587,7 +587,7 @@
     "ground.gravel.0": {
       "class": "ground",
       "template": "arda-ground",
-      "format": "16:9",
+      "format": "1:1",
       "footprint": [
         2,
         2
@@ -615,7 +615,7 @@
     "ground.gravel.1": {
       "class": "ground",
       "template": "arda-ground",
-      "format": "16:9",
+      "format": "1:1",
       "footprint": [
         2,
         2
@@ -643,7 +643,7 @@
     "ground.heath.0": {
       "class": "ground",
       "template": "arda-ground",
-      "format": "16:9",
+      "format": "1:1",
       "footprint": [
         2,
         2
@@ -671,7 +671,7 @@
     "ground.heath.1": {
       "class": "ground",
       "template": "arda-ground",
-      "format": "16:9",
+      "format": "1:1",
       "footprint": [
         2,
         2
@@ -699,7 +699,7 @@
     "ground.ice.0": {
       "class": "ground",
       "template": "arda-ground",
-      "format": "16:9",
+      "format": "1:1",
       "footprint": [
         2,
         2
@@ -727,7 +727,7 @@
     "ground.ice.1": {
       "class": "ground",
       "template": "arda-ground",
-      "format": "16:9",
+      "format": "1:1",
       "footprint": [
         2,
         2
@@ -755,7 +755,7 @@
     "ground.leaf_litter.0": {
       "class": "ground",
       "template": "arda-ground",
-      "format": "16:9",
+      "format": "1:1",
       "footprint": [
         2,
         2
@@ -783,7 +783,7 @@
     "ground.leaf_litter.1": {
       "class": "ground",
       "template": "arda-ground",
-      "format": "16:9",
+      "format": "1:1",
       "footprint": [
         2,
         2
@@ -811,7 +811,7 @@
     "ground.marsh.0": {
       "class": "ground",
       "template": "arda-ground",
-      "format": "16:9",
+      "format": "1:1",
       "footprint": [
         2,
         2
@@ -839,7 +839,7 @@
     "ground.marsh.1": {
       "class": "ground",
       "template": "arda-ground",
-      "format": "16:9",
+      "format": "1:1",
       "footprint": [
         2,
         2
@@ -867,7 +867,7 @@
     "ground.meadow.0": {
       "class": "ground",
       "template": "arda-ground",
-      "format": "16:9",
+      "format": "1:1",
       "footprint": [
         2,
         2
@@ -895,7 +895,7 @@
     "ground.meadow.1": {
       "class": "ground",
       "template": "arda-ground",
-      "format": "16:9",
+      "format": "1:1",
       "footprint": [
         2,
         2
@@ -923,7 +923,7 @@
     "ground.meadow.2": {
       "class": "ground",
       "template": "arda-ground",
-      "format": "16:9",
+      "format": "1:1",
       "footprint": [
         2,
         2
@@ -951,7 +951,7 @@
     "ground.moss.0": {
       "class": "ground",
       "template": "arda-ground",
-      "format": "16:9",
+      "format": "1:1",
       "footprint": [
         2,
         2
@@ -979,7 +979,7 @@
     "ground.moss.1": {
       "class": "ground",
       "template": "arda-ground",
-      "format": "16:9",
+      "format": "1:1",
       "footprint": [
         2,
         2
@@ -1007,7 +1007,7 @@
     "ground.mud.0": {
       "class": "ground",
       "template": "arda-ground",
-      "format": "16:9",
+      "format": "1:1",
       "footprint": [
         2,
         2
@@ -1035,7 +1035,7 @@
     "ground.mud.1": {
       "class": "ground",
       "template": "arda-ground",
-      "format": "16:9",
+      "format": "1:1",
       "footprint": [
         2,
         2
@@ -1063,7 +1063,7 @@
     "ground.mudflat.0": {
       "class": "ground",
       "template": "arda-ground",
-      "format": "16:9",
+      "format": "1:1",
       "footprint": [
         2,
         2
@@ -1091,7 +1091,7 @@
     "ground.mudflat.1": {
       "class": "ground",
       "template": "arda-ground",
-      "format": "16:9",
+      "format": "1:1",
       "footprint": [
         2,
         2
@@ -1119,7 +1119,7 @@
     "ground.packed_earth.0": {
       "class": "ground",
       "template": "arda-ground",
-      "format": "16:9",
+      "format": "1:1",
       "footprint": [
         2,
         2
@@ -1147,7 +1147,7 @@
     "ground.packed_earth.1": {
       "class": "ground",
       "template": "arda-ground",
-      "format": "16:9",
+      "format": "1:1",
       "footprint": [
         2,
         2
@@ -1175,7 +1175,7 @@
     "ground.pasture.0": {
       "class": "ground",
       "template": "arda-ground",
-      "format": "16:9",
+      "format": "1:1",
       "footprint": [
         2,
         2
@@ -1203,7 +1203,7 @@
     "ground.pasture.1": {
       "class": "ground",
       "template": "arda-ground",
-      "format": "16:9",
+      "format": "1:1",
       "footprint": [
         2,
         2
@@ -1231,7 +1231,7 @@
     "ground.pasture.2": {
       "class": "ground",
       "template": "arda-ground",
-      "format": "16:9",
+      "format": "1:1",
       "footprint": [
         2,
         2
@@ -1259,7 +1259,7 @@
     "ground.planks.0": {
       "class": "ground",
       "template": "arda-ground",
-      "format": "16:9",
+      "format": "1:1",
       "footprint": [
         2,
         2
@@ -1287,7 +1287,7 @@
     "ground.planks.1": {
       "class": "ground",
       "template": "arda-ground",
-      "format": "16:9",
+      "format": "1:1",
       "footprint": [
         2,
         2
@@ -1316,7 +1316,7 @@
     "ground.reed_bed.0": {
       "class": "ground",
       "template": "arda-ground",
-      "format": "16:9",
+      "format": "1:1",
       "footprint": [
         2,
         2
@@ -1344,7 +1344,7 @@
     "ground.reed_bed.1": {
       "class": "ground",
       "template": "arda-ground",
-      "format": "16:9",
+      "format": "1:1",
       "footprint": [
         2,
         2
@@ -1372,7 +1372,7 @@
     "ground.rock.0": {
       "class": "ground",
       "template": "arda-ground",
-      "format": "16:9",
+      "format": "1:1",
       "footprint": [
         2,
         2
@@ -1400,7 +1400,7 @@
     "ground.rock.1": {
       "class": "ground",
       "template": "arda-ground",
-      "format": "16:9",
+      "format": "1:1",
       "footprint": [
         2,
         2
@@ -1428,7 +1428,7 @@
     "ground.rug.0": {
       "class": "ground",
       "template": "arda-ground",
-      "format": "16:9",
+      "format": "1:1",
       "footprint": [
         2,
         2
@@ -1456,7 +1456,7 @@
     "ground.rug.1": {
       "class": "ground",
       "template": "arda-ground",
-      "format": "16:9",
+      "format": "1:1",
       "footprint": [
         2,
         2
@@ -1485,7 +1485,7 @@
     "ground.salt_crust.0": {
       "class": "ground",
       "template": "arda-ground",
-      "format": "16:9",
+      "format": "1:1",
       "footprint": [
         2,
         2
@@ -1513,7 +1513,7 @@
     "ground.salt_crust.1": {
       "class": "ground",
       "template": "arda-ground",
-      "format": "16:9",
+      "format": "1:1",
       "footprint": [
         2,
         2
@@ -1541,7 +1541,7 @@
     "ground.sand.0": {
       "class": "ground",
       "template": "arda-ground",
-      "format": "16:9",
+      "format": "1:1",
       "footprint": [
         2,
         2
@@ -1569,7 +1569,7 @@
     "ground.sand.1": {
       "class": "ground",
       "template": "arda-ground",
-      "format": "16:9",
+      "format": "1:1",
       "footprint": [
         2,
         2
@@ -1597,7 +1597,7 @@
     "ground.scree.0": {
       "class": "ground",
       "template": "arda-ground",
-      "format": "16:9",
+      "format": "1:1",
       "footprint": [
         2,
         2
@@ -1625,7 +1625,7 @@
     "ground.scree.1": {
       "class": "ground",
       "template": "arda-ground",
-      "format": "16:9",
+      "format": "1:1",
       "footprint": [
         2,
         2
@@ -1653,7 +1653,7 @@
     "ground.scree.2": {
       "class": "ground",
       "template": "arda-ground",
-      "format": "16:9",
+      "format": "1:1",
       "footprint": [
         2,
         2
@@ -1681,7 +1681,7 @@
     "ground.scrub.0": {
       "class": "ground",
       "template": "arda-ground",
-      "format": "16:9",
+      "format": "1:1",
       "footprint": [
         2,
         2
@@ -1709,7 +1709,7 @@
     "ground.scrub.1": {
       "class": "ground",
       "template": "arda-ground",
-      "format": "16:9",
+      "format": "1:1",
       "footprint": [
         2,
         2
@@ -1737,7 +1737,7 @@
     "ground.snow.0": {
       "class": "ground",
       "template": "arda-ground",
-      "format": "16:9",
+      "format": "1:1",
       "footprint": [
         2,
         2
@@ -1765,7 +1765,7 @@
     "ground.snow.1": {
       "class": "ground",
       "template": "arda-ground",
-      "format": "16:9",
+      "format": "1:1",
       "footprint": [
         2,
         2
@@ -1793,7 +1793,7 @@
     "ground.stone_floor.0": {
       "class": "ground",
       "template": "arda-ground",
-      "format": "16:9",
+      "format": "1:1",
       "footprint": [
         2,
         2
@@ -1821,7 +1821,7 @@
     "ground.stone_floor.1": {
       "class": "ground",
       "template": "arda-ground",
-      "format": "16:9",
+      "format": "1:1",
       "footprint": [
         2,
         2
@@ -1850,7 +1850,7 @@
     "ground.trail.0": {
       "class": "ground",
       "template": "arda-ground",
-      "format": "16:9",
+      "format": "1:1",
       "footprint": [
         2,
         2
@@ -1878,7 +1878,7 @@
     "ground.trail.1": {
       "class": "ground",
       "template": "arda-ground",
-      "format": "16:9",
+      "format": "1:1",
       "footprint": [
         2,
         2
@@ -1906,7 +1906,7 @@
     "water.water_deep.0": {
       "class": "water",
       "template": "arda-water",
-      "format": "16:9",
+      "format": "1:1",
       "footprint": [
         2,
         2
@@ -1934,7 +1934,7 @@
     "water.water_deep.1": {
       "class": "water",
       "template": "arda-water",
-      "format": "16:9",
+      "format": "1:1",
       "footprint": [
         2,
         2
@@ -1962,7 +1962,7 @@
     "water.water_shallow.0": {
       "class": "water",
       "template": "arda-water",
-      "format": "16:9",
+      "format": "1:1",
       "footprint": [
         2,
         2
@@ -1990,7 +1990,7 @@
     "water.water_shallow.1": {
       "class": "water",
       "template": "arda-water",
-      "format": "16:9",
+      "format": "1:1",
       "footprint": [
         2,
         2
@@ -2018,7 +2018,7 @@
     "wall.city_wall.corner": {
       "class": "wall",
       "template": "arda-wall",
-      "format": "16:9",
+      "format": "1:1",
       "footprint": [
         1,
         1
@@ -2049,7 +2049,7 @@
     "wall.city_wall.cross": {
       "class": "wall",
       "template": "arda-wall",
-      "format": "16:9",
+      "format": "1:1",
       "footprint": [
         1,
         1
@@ -2080,7 +2080,7 @@
     "wall.city_wall.door": {
       "class": "wall",
       "template": "arda-wall",
-      "format": "16:9",
+      "format": "1:1",
       "footprint": [
         1,
         1
@@ -2111,7 +2111,7 @@
     "wall.city_wall.end": {
       "class": "wall",
       "template": "arda-wall",
-      "format": "16:9",
+      "format": "1:1",
       "footprint": [
         1,
         1
@@ -2142,7 +2142,7 @@
     "wall.city_wall.gate": {
       "class": "wall",
       "template": "arda-wall",
-      "format": "16:9",
+      "format": "1:1",
       "footprint": [
         1,
         1
@@ -2173,7 +2173,7 @@
     "wall.city_wall.post": {
       "class": "wall",
       "template": "arda-wall",
-      "format": "16:9",
+      "format": "1:1",
       "footprint": [
         1,
         1
@@ -2204,7 +2204,7 @@
     "wall.city_wall.run": {
       "class": "wall",
       "template": "arda-wall",
-      "format": "16:9",
+      "format": "1:1",
       "footprint": [
         1,
         1
@@ -2235,7 +2235,7 @@
     "wall.city_wall.tee": {
       "class": "wall",
       "template": "arda-wall",
-      "format": "16:9",
+      "format": "1:1",
       "footprint": [
         1,
         1
@@ -2266,7 +2266,7 @@
     "wall.city_wall.window": {
       "class": "wall",
       "template": "arda-wall",
-      "format": "16:9",
+      "format": "1:1",
       "footprint": [
         1,
         1
@@ -2297,7 +2297,7 @@
     "wall.drystone.corner": {
       "class": "wall",
       "template": "arda-wall",
-      "format": "16:9",
+      "format": "1:1",
       "footprint": [
         1,
         1
@@ -2326,7 +2326,7 @@
     "wall.drystone.cross": {
       "class": "wall",
       "template": "arda-wall",
-      "format": "16:9",
+      "format": "1:1",
       "footprint": [
         1,
         1
@@ -2355,7 +2355,7 @@
     "wall.drystone.door": {
       "class": "wall",
       "template": "arda-wall",
-      "format": "16:9",
+      "format": "1:1",
       "footprint": [
         1,
         1
@@ -2384,7 +2384,7 @@
     "wall.drystone.end": {
       "class": "wall",
       "template": "arda-wall",
-      "format": "16:9",
+      "format": "1:1",
       "footprint": [
         1,
         1
@@ -2413,7 +2413,7 @@
     "wall.drystone.gate": {
       "class": "wall",
       "template": "arda-wall",
-      "format": "16:9",
+      "format": "1:1",
       "footprint": [
         1,
         1
@@ -2442,7 +2442,7 @@
     "wall.drystone.post": {
       "class": "wall",
       "template": "arda-wall",
-      "format": "16:9",
+      "format": "1:1",
       "footprint": [
         1,
         1
@@ -2471,7 +2471,7 @@
     "wall.drystone.run": {
       "class": "wall",
       "template": "arda-wall",
-      "format": "16:9",
+      "format": "1:1",
       "footprint": [
         1,
         1
@@ -2500,7 +2500,7 @@
     "wall.drystone.tee": {
       "class": "wall",
       "template": "arda-wall",
-      "format": "16:9",
+      "format": "1:1",
       "footprint": [
         1,
         1
@@ -2529,7 +2529,7 @@
     "wall.drystone.window": {
       "class": "wall",
       "template": "arda-wall",
-      "format": "16:9",
+      "format": "1:1",
       "footprint": [
         1,
         1
@@ -2558,7 +2558,7 @@
     "wall.hedge.corner": {
       "class": "wall",
       "template": "arda-wall",
-      "format": "16:9",
+      "format": "1:1",
       "footprint": [
         1,
         1
@@ -2587,7 +2587,7 @@
     "wall.hedge.cross": {
       "class": "wall",
       "template": "arda-wall",
-      "format": "16:9",
+      "format": "1:1",
       "footprint": [
         1,
         1
@@ -2616,7 +2616,7 @@
     "wall.hedge.door": {
       "class": "wall",
       "template": "arda-wall",
-      "format": "16:9",
+      "format": "1:1",
       "footprint": [
         1,
         1
@@ -2645,7 +2645,7 @@
     "wall.hedge.end": {
       "class": "wall",
       "template": "arda-wall",
-      "format": "16:9",
+      "format": "1:1",
       "footprint": [
         1,
         1
@@ -2674,7 +2674,7 @@
     "wall.hedge.gate": {
       "class": "wall",
       "template": "arda-wall",
-      "format": "16:9",
+      "format": "1:1",
       "footprint": [
         1,
         1
@@ -2703,7 +2703,7 @@
     "wall.hedge.post": {
       "class": "wall",
       "template": "arda-wall",
-      "format": "16:9",
+      "format": "1:1",
       "footprint": [
         1,
         1
@@ -2732,7 +2732,7 @@
     "wall.hedge.run": {
       "class": "wall",
       "template": "arda-wall",
-      "format": "16:9",
+      "format": "1:1",
       "footprint": [
         1,
         1
@@ -2761,7 +2761,7 @@
     "wall.hedge.tee": {
       "class": "wall",
       "template": "arda-wall",
-      "format": "16:9",
+      "format": "1:1",
       "footprint": [
         1,
         1
@@ -2790,7 +2790,7 @@
     "wall.hedge.window": {
       "class": "wall",
       "template": "arda-wall",
-      "format": "16:9",
+      "format": "1:1",
       "footprint": [
         1,
         1
@@ -2819,7 +2819,7 @@
     "wall.palisade.corner": {
       "class": "wall",
       "template": "arda-wall",
-      "format": "16:9",
+      "format": "1:1",
       "footprint": [
         1,
         1
@@ -2849,7 +2849,7 @@
     "wall.palisade.cross": {
       "class": "wall",
       "template": "arda-wall",
-      "format": "16:9",
+      "format": "1:1",
       "footprint": [
         1,
         1
@@ -2879,7 +2879,7 @@
     "wall.palisade.door": {
       "class": "wall",
       "template": "arda-wall",
-      "format": "16:9",
+      "format": "1:1",
       "footprint": [
         1,
         1
@@ -2909,7 +2909,7 @@
     "wall.palisade.end": {
       "class": "wall",
       "template": "arda-wall",
-      "format": "16:9",
+      "format": "1:1",
       "footprint": [
         1,
         1
@@ -2939,7 +2939,7 @@
     "wall.palisade.gate": {
       "class": "wall",
       "template": "arda-wall",
-      "format": "16:9",
+      "format": "1:1",
       "footprint": [
         1,
         1
@@ -2969,7 +2969,7 @@
     "wall.palisade.post": {
       "class": "wall",
       "template": "arda-wall",
-      "format": "16:9",
+      "format": "1:1",
       "footprint": [
         1,
         1
@@ -2999,7 +2999,7 @@
     "wall.palisade.run": {
       "class": "wall",
       "template": "arda-wall",
-      "format": "16:9",
+      "format": "1:1",
       "footprint": [
         1,
         1
@@ -3029,7 +3029,7 @@
     "wall.palisade.tee": {
       "class": "wall",
       "template": "arda-wall",
-      "format": "16:9",
+      "format": "1:1",
       "footprint": [
         1,
         1
@@ -3059,7 +3059,7 @@
     "wall.palisade.window": {
       "class": "wall",
       "template": "arda-wall",
-      "format": "16:9",
+      "format": "1:1",
       "footprint": [
         1,
         1
@@ -3089,7 +3089,7 @@
     "wall.stone.corner": {
       "class": "wall",
       "template": "arda-wall",
-      "format": "16:9",
+      "format": "1:1",
       "footprint": [
         1,
         1
@@ -3124,7 +3124,7 @@
     "wall.stone.cross": {
       "class": "wall",
       "template": "arda-wall",
-      "format": "16:9",
+      "format": "1:1",
       "footprint": [
         1,
         1
@@ -3159,7 +3159,7 @@
     "wall.stone.door": {
       "class": "wall",
       "template": "arda-wall",
-      "format": "16:9",
+      "format": "1:1",
       "footprint": [
         1,
         1
@@ -3194,7 +3194,7 @@
     "wall.stone.end": {
       "class": "wall",
       "template": "arda-wall",
-      "format": "16:9",
+      "format": "1:1",
       "footprint": [
         1,
         1
@@ -3229,7 +3229,7 @@
     "wall.stone.gate": {
       "class": "wall",
       "template": "arda-wall",
-      "format": "16:9",
+      "format": "1:1",
       "footprint": [
         1,
         1
@@ -3264,7 +3264,7 @@
     "wall.stone.post": {
       "class": "wall",
       "template": "arda-wall",
-      "format": "16:9",
+      "format": "1:1",
       "footprint": [
         1,
         1
@@ -3299,7 +3299,7 @@
     "wall.stone.run": {
       "class": "wall",
       "template": "arda-wall",
-      "format": "16:9",
+      "format": "1:1",
       "footprint": [
         1,
         1
@@ -3334,7 +3334,7 @@
     "wall.stone.tee": {
       "class": "wall",
       "template": "arda-wall",
-      "format": "16:9",
+      "format": "1:1",
       "footprint": [
         1,
         1
@@ -3369,7 +3369,7 @@
     "wall.stone.window": {
       "class": "wall",
       "template": "arda-wall",
-      "format": "16:9",
+      "format": "1:1",
       "footprint": [
         1,
         1
@@ -3404,7 +3404,7 @@
     "wall.timber.corner": {
       "class": "wall",
       "template": "arda-wall",
-      "format": "16:9",
+      "format": "1:1",
       "footprint": [
         1,
         1
@@ -3442,7 +3442,7 @@
     "wall.timber.cross": {
       "class": "wall",
       "template": "arda-wall",
-      "format": "16:9",
+      "format": "1:1",
       "footprint": [
         1,
         1
@@ -3480,7 +3480,7 @@
     "wall.timber.door": {
       "class": "wall",
       "template": "arda-wall",
-      "format": "16:9",
+      "format": "1:1",
       "footprint": [
         1,
         1
@@ -3518,7 +3518,7 @@
     "wall.timber.end": {
       "class": "wall",
       "template": "arda-wall",
-      "format": "16:9",
+      "format": "1:1",
       "footprint": [
         1,
         1
@@ -3556,7 +3556,7 @@
     "wall.timber.gate": {
       "class": "wall",
       "template": "arda-wall",
-      "format": "16:9",
+      "format": "1:1",
       "footprint": [
         1,
         1
@@ -3594,7 +3594,7 @@
     "wall.timber.post": {
       "class": "wall",
       "template": "arda-wall",
-      "format": "16:9",
+      "format": "1:1",
       "footprint": [
         1,
         1
@@ -3632,7 +3632,7 @@
     "wall.timber.run": {
       "class": "wall",
       "template": "arda-wall",
-      "format": "16:9",
+      "format": "1:1",
       "footprint": [
         1,
         1
@@ -3670,7 +3670,7 @@
     "wall.timber.tee": {
       "class": "wall",
       "template": "arda-wall",
-      "format": "16:9",
+      "format": "1:1",
       "footprint": [
         1,
         1
@@ -3708,7 +3708,7 @@
     "wall.timber.window": {
       "class": "wall",
       "template": "arda-wall",
-      "format": "16:9",
+      "format": "1:1",
       "footprint": [
         1,
         1
@@ -3746,7 +3746,7 @@
     "wall.wattle.corner": {
       "class": "wall",
       "template": "arda-wall",
-      "format": "16:9",
+      "format": "1:1",
       "footprint": [
         1,
         1
@@ -3777,7 +3777,7 @@
     "wall.wattle.cross": {
       "class": "wall",
       "template": "arda-wall",
-      "format": "16:9",
+      "format": "1:1",
       "footprint": [
         1,
         1
@@ -3808,7 +3808,7 @@
     "wall.wattle.door": {
       "class": "wall",
       "template": "arda-wall",
-      "format": "16:9",
+      "format": "1:1",
       "footprint": [
         1,
         1
@@ -3839,7 +3839,7 @@
     "wall.wattle.end": {
       "class": "wall",
       "template": "arda-wall",
-      "format": "16:9",
+      "format": "1:1",
       "footprint": [
         1,
         1
@@ -3870,7 +3870,7 @@
     "wall.wattle.gate": {
       "class": "wall",
       "template": "arda-wall",
-      "format": "16:9",
+      "format": "1:1",
       "footprint": [
         1,
         1
@@ -3901,7 +3901,7 @@
     "wall.wattle.post": {
       "class": "wall",
       "template": "arda-wall",
-      "format": "16:9",
+      "format": "1:1",
       "footprint": [
         1,
         1
@@ -3932,7 +3932,7 @@
     "wall.wattle.run": {
       "class": "wall",
       "template": "arda-wall",
-      "format": "16:9",
+      "format": "1:1",
       "footprint": [
         1,
         1
@@ -3963,7 +3963,7 @@
     "wall.wattle.tee": {
       "class": "wall",
       "template": "arda-wall",
-      "format": "16:9",
+      "format": "1:1",
       "footprint": [
         1,
         1
@@ -3994,7 +3994,7 @@
     "wall.wattle.window": {
       "class": "wall",
       "template": "arda-wall",
-      "format": "16:9",
+      "format": "1:1",
       "footprint": [
         1,
         1
@@ -4052,7 +4052,7 @@
     "prop.anvil": {
       "class": "prop",
       "template": "arda-prop",
-      "format": "16:9",
+      "format": "1:1",
       "footprint": [
         1,
         1
@@ -4078,7 +4078,7 @@
     "prop.armour_stand": {
       "class": "prop",
       "template": "arda-prop",
-      "format": "16:9",
+      "format": "1:1",
       "footprint": [
         1,
         1
@@ -4107,7 +4107,7 @@
     "prop.banner": {
       "class": "prop",
       "template": "arda-prop",
-      "format": "16:9",
+      "format": "1:1",
       "footprint": [
         1,
         1
@@ -4165,7 +4165,7 @@
     "prop.barrel": {
       "class": "prop",
       "template": "arda-prop",
-      "format": "16:9",
+      "format": "1:1",
       "footprint": [
         1,
         1
@@ -4294,7 +4294,7 @@
     "prop.brazier": {
       "class": "prop",
       "template": "arda-prop",
-      "format": "16:9",
+      "format": "1:1",
       "footprint": [
         1,
         1
@@ -4350,7 +4350,7 @@
     "prop.bridge_deck_stone": {
       "class": "prop",
       "template": "arda-prop",
-      "format": "16:9",
+      "format": "1:1",
       "footprint": [
         1,
         1
@@ -4377,7 +4377,7 @@
     "prop.bucket": {
       "class": "prop",
       "template": "arda-prop",
-      "format": "16:9",
+      "format": "1:1",
       "footprint": [
         1,
         1
@@ -4410,7 +4410,7 @@
     "prop.candle_stand": {
       "class": "prop",
       "template": "arda-prop",
-      "format": "16:9",
+      "format": "1:1",
       "footprint": [
         1,
         1
@@ -4501,7 +4501,7 @@
     "prop.chair": {
       "class": "prop",
       "template": "arda-prop",
-      "format": "16:9",
+      "format": "1:1",
       "footprint": [
         1,
         1
@@ -4536,7 +4536,7 @@
     "prop.chest": {
       "class": "prop",
       "template": "arda-prop",
-      "format": "16:9",
+      "format": "1:1",
       "footprint": [
         1,
         1
@@ -4568,7 +4568,7 @@
     "prop.crane": {
       "class": "prop",
       "template": "arda-prop",
-      "format": "16:9",
+      "format": "1:1",
       "footprint": [
         2,
         2
@@ -4595,7 +4595,7 @@
     "prop.crate": {
       "class": "prop",
       "template": "arda-prop",
-      "format": "16:9",
+      "format": "1:1",
       "footprint": [
         1,
         1
@@ -4630,7 +4630,7 @@
     "prop.cupboard": {
       "class": "prop",
       "template": "arda-prop",
-      "format": "16:9",
+      "format": "1:1",
       "footprint": [
         1,
         1
@@ -4661,7 +4661,7 @@
     "prop.dock_planks": {
       "class": "prop",
       "template": "arda-prop",
-      "format": "16:9",
+      "format": "1:1",
       "footprint": [
         1,
         1
@@ -4688,7 +4688,7 @@
     "prop.fence": {
       "class": "prop",
       "template": "arda-prop",
-      "format": "16:9",
+      "format": "1:1",
       "footprint": [
         1,
         1
@@ -4746,7 +4746,7 @@
     "prop.ferry_rope": {
       "class": "prop",
       "template": "arda-prop",
-      "format": "16:9",
+      "format": "1:1",
       "footprint": [
         1,
         1
@@ -4800,7 +4800,7 @@
     "prop.grave": {
       "class": "prop",
       "template": "arda-prop",
-      "format": "16:9",
+      "format": "1:1",
       "footprint": [
         1,
         1
@@ -4827,7 +4827,7 @@
     "prop.grindstone": {
       "class": "prop",
       "template": "arda-prop",
-      "format": "16:9",
+      "format": "1:1",
       "footprint": [
         1,
         1
@@ -4856,7 +4856,7 @@
     "prop.hay_bale": {
       "class": "prop",
       "template": "arda-prop",
-      "format": "16:9",
+      "format": "1:1",
       "footprint": [
         1,
         1
@@ -4975,7 +4975,7 @@
     "prop.lantern": {
       "class": "prop",
       "template": "arda-prop",
-      "format": "16:9",
+      "format": "1:1",
       "footprint": [
         1,
         1
@@ -5035,7 +5035,7 @@
     "prop.marker_post": {
       "class": "prop",
       "template": "arda-prop",
-      "format": "16:9",
+      "format": "1:1",
       "footprint": [
         1,
         1
@@ -5064,7 +5064,7 @@
     "prop.market_stall": {
       "class": "prop",
       "template": "arda-prop",
-      "format": "16:9",
+      "format": "1:1",
       "footprint": [
         2,
         2
@@ -5093,7 +5093,7 @@
     "prop.milestone": {
       "class": "prop",
       "template": "arda-prop",
-      "format": "16:9",
+      "format": "1:1",
       "footprint": [
         1,
         1
@@ -5121,7 +5121,7 @@
     "prop.millstone": {
       "class": "prop",
       "template": "arda-prop",
-      "format": "16:9",
+      "format": "1:1",
       "footprint": [
         1,
         1
@@ -5147,7 +5147,7 @@
     "prop.oven": {
       "class": "prop",
       "template": "arda-prop",
-      "format": "16:9",
+      "format": "1:1",
       "footprint": [
         1,
         1
@@ -5259,7 +5259,7 @@
     "prop.sacks": {
       "class": "prop",
       "template": "arda-prop",
-      "format": "16:9",
+      "format": "1:1",
       "footprint": [
         1,
         1
@@ -5292,7 +5292,7 @@
     "prop.shelf": {
       "class": "prop",
       "template": "arda-prop",
-      "format": "16:9",
+      "format": "1:1",
       "footprint": [
         1,
         1
@@ -5324,7 +5324,7 @@
     "prop.signpost": {
       "class": "prop",
       "template": "arda-prop",
-      "format": "16:9",
+      "format": "1:1",
       "footprint": [
         1,
         1
@@ -5350,7 +5350,7 @@
     "prop.statue": {
       "class": "prop",
       "template": "arda-prop",
-      "format": "16:9",
+      "format": "1:1",
       "footprint": [
         1,
         1
@@ -5380,7 +5380,7 @@
     "prop.stool": {
       "class": "prop",
       "template": "arda-prop",
-      "format": "16:9",
+      "format": "1:1",
       "footprint": [
         1,
         1
@@ -5451,7 +5451,7 @@
     "prop.tent": {
       "class": "prop",
       "template": "arda-prop",
-      "format": "16:9",
+      "format": "1:1",
       "footprint": [
         2,
         2
@@ -5480,7 +5480,7 @@
     "prop.throne": {
       "class": "prop",
       "template": "arda-prop",
-      "format": "16:9",
+      "format": "1:1",
       "footprint": [
         1,
         1
@@ -5564,7 +5564,7 @@
     "prop.well": {
       "class": "prop",
       "template": "arda-prop",
-      "format": "16:9",
+      "format": "1:1",
       "footprint": [
         1,
         1
@@ -5593,7 +5593,7 @@
     "prop.wheelbarrow": {
       "class": "prop",
       "template": "arda-prop",
-      "format": "16:9",
+      "format": "1:1",
       "footprint": [
         1,
         1
@@ -5623,7 +5623,7 @@
     "prop.woodpile": {
       "class": "prop",
       "template": "arda-prop",
-      "format": "16:9",
+      "format": "1:1",
       "footprint": [
         1,
         1
@@ -5688,7 +5688,7 @@
     "veg.boulder": {
       "class": "vegetation",
       "template": "arda-vegetation",
-      "format": "16:9",
+      "format": "1:1",
       "footprint": [
         1,
         1
@@ -5712,7 +5712,7 @@
     "veg.bush": {
       "class": "vegetation",
       "template": "arda-vegetation",
-      "format": "16:9",
+      "format": "1:1",
       "footprint": [
         1,
         1
@@ -5736,7 +5736,7 @@
     "veg.bush_flowering": {
       "class": "vegetation",
       "template": "arda-vegetation",
-      "format": "16:9",
+      "format": "1:1",
       "footprint": [
         1,
         1
@@ -5760,7 +5760,7 @@
     "veg.cattail": {
       "class": "vegetation",
       "template": "arda-vegetation",
-      "format": "16:9",
+      "format": "1:1",
       "footprint": [
         1,
         1
@@ -5808,7 +5808,7 @@
     "veg.fern": {
       "class": "vegetation",
       "template": "arda-vegetation",
-      "format": "16:9",
+      "format": "1:1",
       "footprint": [
         1,
         1
@@ -5832,7 +5832,7 @@
     "veg.flower_patch": {
       "class": "vegetation",
       "template": "arda-vegetation",
-      "format": "16:9",
+      "format": "1:1",
       "footprint": [
         1,
         1
@@ -5856,7 +5856,7 @@
     "veg.heather": {
       "class": "vegetation",
       "template": "arda-vegetation",
-      "format": "16:9",
+      "format": "1:1",
       "footprint": [
         1,
         1
@@ -5880,7 +5880,7 @@
     "veg.juniper": {
       "class": "vegetation",
       "template": "arda-vegetation",
-      "format": "16:9",
+      "format": "1:1",
       "footprint": [
         1,
         1
@@ -5904,7 +5904,7 @@
     "veg.lily_pads": {
       "class": "vegetation",
       "template": "arda-vegetation",
-      "format": "16:9",
+      "format": "1:1",
       "footprint": [
         1,
         1
@@ -5928,7 +5928,7 @@
     "veg.mushroom_ring": {
       "class": "vegetation",
       "template": "arda-vegetation",
-      "format": "16:9",
+      "format": "1:1",
       "footprint": [
         1,
         1
@@ -5952,7 +5952,7 @@
     "veg.reeds": {
       "class": "vegetation",
       "template": "arda-vegetation",
-      "format": "16:9",
+      "format": "1:1",
       "footprint": [
         1,
         1
@@ -5976,7 +5976,7 @@
     "veg.rock_large": {
       "class": "vegetation",
       "template": "arda-vegetation",
-      "format": "16:9",
+      "format": "1:1",
       "footprint": [
         2,
         2
@@ -6000,7 +6000,7 @@
     "veg.rock_outcrop": {
       "class": "vegetation",
       "template": "arda-vegetation",
-      "format": "16:9",
+      "format": "1:1",
       "footprint": [
         3,
         3
@@ -6024,7 +6024,7 @@
     "veg.rock_small": {
       "class": "vegetation",
       "template": "arda-vegetation",
-      "format": "16:9",
+      "format": "1:1",
       "footprint": [
         1,
         1
@@ -6048,7 +6048,7 @@
     "veg.scree_patch": {
       "class": "vegetation",
       "template": "arda-vegetation",
-      "format": "16:9",
+      "format": "1:1",
       "footprint": [
         2,
         2
@@ -6072,7 +6072,7 @@
     "veg.stones": {
       "class": "vegetation",
       "template": "arda-vegetation",
-      "format": "16:9",
+      "format": "1:1",
       "footprint": [
         1,
         1
@@ -6096,7 +6096,7 @@
     "veg.stump": {
       "class": "vegetation",
       "template": "arda-vegetation",
-      "format": "16:9",
+      "format": "1:1",
       "footprint": [
         1,
         1
@@ -6120,7 +6120,7 @@
     "veg.tall_grass": {
       "class": "vegetation",
       "template": "arda-vegetation",
-      "format": "16:9",
+      "format": "1:1",
       "footprint": [
         1,
         1
@@ -6144,7 +6144,7 @@
     "veg.tree_alder": {
       "class": "vegetation",
       "template": "arda-vegetation",
-      "format": "16:9",
+      "format": "1:1",
       "footprint": [
         2,
         2
@@ -6168,7 +6168,7 @@
     "veg.tree_birch": {
       "class": "vegetation",
       "template": "arda-vegetation",
-      "format": "16:9",
+      "format": "1:1",
       "footprint": [
         2,
         2
@@ -6192,7 +6192,7 @@
     "veg.tree_dead": {
       "class": "vegetation",
       "template": "arda-vegetation",
-      "format": "16:9",
+      "format": "1:1",
       "footprint": [
         2,
         2
@@ -6216,7 +6216,7 @@
     "veg.tree_elm": {
       "class": "vegetation",
       "template": "arda-vegetation",
-      "format": "16:9",
+      "format": "1:1",
       "footprint": [
         3,
         3
@@ -6240,7 +6240,7 @@
     "veg.tree_fruit": {
       "class": "vegetation",
       "template": "arda-vegetation",
-      "format": "16:9",
+      "format": "1:1",
       "footprint": [
         2,
         2
@@ -6264,7 +6264,7 @@
     "veg.tree_oak": {
       "class": "vegetation",
       "template": "arda-vegetation",
-      "format": "16:9",
+      "format": "1:1",
       "footprint": [
         3,
         3
@@ -6288,7 +6288,7 @@
     "veg.tree_pine": {
       "class": "vegetation",
       "template": "arda-vegetation",
-      "format": "16:9",
+      "format": "1:1",
       "footprint": [
         2,
         2
@@ -6312,7 +6312,7 @@
     "veg.tree_spruce": {
       "class": "vegetation",
       "template": "arda-vegetation",
-      "format": "16:9",
+      "format": "1:1",
       "footprint": [
         2,
         2
@@ -6336,7 +6336,7 @@
     "veg.tree_stunted": {
       "class": "vegetation",
       "template": "arda-vegetation",
-      "format": "16:9",
+      "format": "1:1",
       "footprint": [
         1,
         1
@@ -6360,7 +6360,7 @@
     "veg.tree_willow": {
       "class": "vegetation",
       "template": "arda-vegetation",
-      "format": "16:9",
+      "format": "1:1",
       "footprint": [
         3,
         3
@@ -6384,7 +6384,7 @@
     "ground.stubble.0": {
       "class": "ground",
       "template": "arda-ground",
-      "format": "16:9",
+      "format": "1:1",
       "footprint": [
         2,
         2
@@ -6412,7 +6412,7 @@
     "ground.fallow.0": {
       "class": "ground",
       "template": "arda-ground",
-      "format": "16:9",
+      "format": "1:1",
       "footprint": [
         2,
         2
@@ -6440,7 +6440,7 @@
     "prop.waterwheel": {
       "class": "prop",
       "template": "arda-prop",
-      "format": "16:9",
+      "format": "1:1",
       "footprint": [
         2,
         2
@@ -6464,7 +6464,7 @@
     "prop.sheep": {
       "class": "prop",
       "template": "arda-prop",
-      "format": "16:9",
+      "format": "1:1",
       "footprint": [
         1,
         1
@@ -6512,7 +6512,7 @@
     "prop.hen": {
       "class": "prop",
       "template": "arda-prop",
-      "format": "16:9",
+      "format": "1:1",
       "footprint": [
         1,
         1
@@ -6560,7 +6560,7 @@
     "prop.drain": {
       "class": "prop",
       "template": "arda-prop",
-      "format": "16:9",
+      "format": "1:1",
       "footprint": [
         1,
         1
