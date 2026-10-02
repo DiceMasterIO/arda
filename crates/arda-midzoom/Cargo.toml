@@ -12,13 +12,23 @@ path = "src/bin/arda-midzoom.rs"
 
 [dependencies]
 arda.workspace = true
+arda-blocks.workspace = true
 arda-core.workspace = true
+arda-fields.workspace = true
+arda-ids.workspace = true
+arda-people.workspace = true
 arda-refine.workspace = true
 arda-render.workspace = true
+arda-settle.workspace = true
+arda-town.workspace = true
+arda-ways.workspace = true
 clap.workspace = true
 png.workspace = true
 rayon.workspace = true
 thiserror.workspace = true
+
+[dev-dependencies]
+arda-tactical.workspace = true
 
 [lints]
 workspace = true

@@ -20,6 +20,9 @@ pub enum MidzoomError {
     /// The tactical layer's water geometry failed to read.
     #[error("water geometry failed: {0}")]
     Water(#[from] arda_refine::RefineError),
+    /// The world's society data (land use, roads, town plans) failed.
+    #[error("society layer failed: {0}")]
+    Society(String),
     /// The world has no recipe-5 fine terrain to refine.
     #[error("the world has no formed fine terrain layer")]
     NoFineTerrain,

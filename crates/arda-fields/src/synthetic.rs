@@ -3,8 +3,8 @@
 
 use crate::geom::{h2, seg_dist2, u01};
 use crate::input::{
-    FieldInputs, LandUse, LandUseGrid, Region, Road, RoadClass, Settlement, Terrain, TerrainSample,
-    Tier,
+    FieldInputs, LandUse, LandUseGrid, Region, RiverLine, Road, RoadClass, Settlement, Terrain,
+    TerrainSample, Tier,
 };
 use crate::partition::gradient;
 use arda_tactical::noise::fbm;
@@ -95,6 +95,21 @@ impl Terrain for SynthTerrain {
     }
 }
 
+/// The terrain's river as channel pieces.
+#[must_use]
+pub fn river_lines(t: &SynthTerrain) -> Vec<RiverLine> {
+    t.river.as_ref().map_or_else(Vec::new, |r| {
+        r.pts
+            .windows(2)
+            .map(|w| RiverLine {
+                a: w[0],
+                b: w[1],
+                width_m: 2.0 * r.half_m,
+            })
+            .collect()
+    })
+}
+
 /// A synthetic scenario.
 #[derive(Debug, Clone)]
 pub struct Scenario {
@@ -108,6 +123,8 @@ pub struct Scenario {
     pub settlements: Vec<Settlement>,
     /// Roads.
     pub roads: Vec<Road>,
+    /// The river as channel pieces.
+    pub rivers: Vec<RiverLine>,
     /// Culture.
     pub culture: String,
     /// Region.
@@ -134,6 +151,7 @@ impl Scenario {
             wealth: self.wealth,
             settlements: &self.settlements,
             roads: &self.roads,
+            rivers: &self.rivers,
             cores: None,
             barrier_water: None,
         }
@@ -271,6 +289,7 @@ pub fn village_strips() -> Scenario {
     Scenario {
         name: "village_strips",
         landuse,
+        rivers: river_lines(&terrain),
         terrain,
         settlements: vec![Settlement {
             x_m: 5050.0,
@@ -329,6 +348,7 @@ pub fn hedge_country() -> Scenario {
     Scenario {
         name: "hedge_country",
         landuse,
+        rivers: river_lines(&terrain),
         terrain,
         settlements: vec![Settlement {
             x_m: 1500.0,
@@ -382,6 +402,7 @@ pub fn orchard_farmstead() -> Scenario {
     Scenario {
         name: "orchard_farmstead",
         landuse,
+        rivers: river_lines(&terrain),
         terrain,
         settlements: vec![],
         roads: vec![curve(
@@ -443,6 +464,7 @@ pub fn watermill() -> Scenario {
     Scenario {
         name: "watermill",
         landuse,
+        rivers: river_lines(&terrain),
         terrain,
         settlements: vec![],
         roads: vec![curve(
@@ -489,6 +511,7 @@ pub fn quarry() -> Scenario {
     Scenario {
         name: "quarry",
         landuse,
+        rivers: river_lines(&terrain),
         terrain,
         settlements: vec![],
         roads: vec![curve(

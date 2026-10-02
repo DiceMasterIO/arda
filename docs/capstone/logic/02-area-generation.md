@@ -356,14 +356,15 @@ resume point. Source:
 [shared_compose.rs:125](../../../crates/arda-gen/src/area/shared_compose.rs:125),
 [area_output.rs:289](../../../crates/arda-gen/src/hydrology/area_output.rs:289).
 
-## Fine recipe-5, recipe-6 and recipe-7 formation
+## Fine recipe-5 to recipe-8 formation
 
 Recipe 5 replaces the recipe-3 spectral source and recipe-4 valley carving with
 stream-power landscape formation from the tectonic macro surface. Its output is
 the same canonical 39.0625 m fine terrain file, so continent derivation,
 climate, hydrology, publication and export are unchanged downstream. Recipe 6
 is recipe 5 plus every v0.2 rule below. Recipe 7 is recipe 6 plus climate
-(§climate runoff, §world-water arid basins); it is the default.
+(§climate runoff, §world-water arid basins); it is the default. Recipe 8 is
+recipe 7 plus alluvial valley floors (§plains); it is opt-in.
 Source: [formation/](../../../crates/arda-gen/src/formation/mod.rs),
 [fine_formation.rs](../../../crates/arda-gen/src/orchestrator/fine_formation.rs).
 
@@ -399,6 +400,10 @@ loading and rendering read it from there.
   (§climate runoff); and arid endorheic basins with terminal saline lakes,
   playas, salt crust and mudflats (§world-water arid basins), stored in
   `water.bin` layout version 2. Recipe 6 keeps writing layout version 1.
+- **Recipe 8** (v0.6, opt-in with `--recipe 8`) adds §plains: alluvial
+  valley floors scaled to discharge, cut by lateral erosion and built by
+  aggradation where the river's specific stream power is low, before the
+  terraces. Everything else, including the stored layers, is recipe 7.
 - **Rendering** follows the recipe too (logic/04 §atlas-formed recipes).
 - **v0.2.0 worlds.** v0.2.0 formed its terrain with what is now recipe 6
   but recorded `recipe_version: 5`, because recipe 6 did not yet exist as a
@@ -409,21 +414,21 @@ loading and rendering read it from there.
   manifest on disk is left as written; a true recipe-5 world has no shore
   layer and stays recipe 5.
 
-Choosing a recipe: `arda generate --terrain fine --recipe <4|5|6|7>`
+Choosing a recipe: `arda generate --terrain fine --recipe <4|5|6|7|8>`
 (default 7: `arda_core::FINE_TERRAIN_RECIPE_VERSION`,
 `FineRecipe::DEFAULT`); in code `arda::generate_from_fine_recipe` or
 `arda_gen::orchestrator::FineRecipe` (`Valleys` = 4, `FormationV5` = 5,
-`FormationV6` = 6, `Formation` = 7). Recipe 7 changes every world (wet
+`FormationV6` = 6, `Formation` = 7, `FormationV8` = 8). Recipe 7 changes every world (wet
 uplands more dissected, dry land less); `--recipe 6` reproduces v0.2–v0.3
 worlds exactly. Manifests may name any recipe up to
-`arda_core::FINE_TERRAIN_LATEST_RECIPE_VERSION` (7). Unknown numbers are refused before any
+`arda_core::FINE_TERRAIN_LATEST_RECIPE_VERSION` (8). Unknown numbers are refused before any
 output. The gate is `tests/golden_recipes.rs`: MICRO seed 42 with recipes 5
 and 6 must match the v0.1 and v0.2.0 terrain, area, hydrology and Atlas 4K
-overview hashes, and recipe 7 its own first release. The latitude band is
+overview hashes, and recipes 7 and 8 their own first releases. The latitude band is
 `arda generate --latitude SOUTH,NORTH` (default 35,55); it only changes
 rainfall from recipe 7 on.
 Source: [formation/mod.rs](../../../crates/arda-gen/src/formation/mod.rs)
-(`Recipe`), [recipe5.rs](../../../crates/arda-gen/src/formation/recipe5.rs),
+(`Recipe`), [plains.rs](../../../crates/arda-gen/src/formation/plains.rs), [recipe5.rs](../../../crates/arda-gen/src/formation/recipe5.rs),
 [levels.rs](../../../crates/arda-gen/src/formation/levels.rs),
 [fine_delivery.rs](../../../crates/arda-gen/src/orchestrator/fine_delivery.rs),
 [manifest.rs](../../../crates/arda-core/src/formats/manifest.rs) (`effective_recipe`).
@@ -628,6 +633,48 @@ After the coastal infill, lowland valley sides are terraced and interfluves flat
 - **Wandering risers.** The staircase is read at a height shifted by up to ±0.3 steps with smooth, rotated noise (1.8 km and 700 m), and the shift is taken back off afterwards. A riser is then a scalloped scarp rather than a straight line along the height contour of a planar valley side (seed-3 MICRO), and interfluves undulate by about ±0.5 of that shift.
 
 The change is box-smoothed over about 80 m, because neighbours that drain to different rivers would otherwise step at their divide. Terraced land never drops below 0.3 m. The final drainage guarantee fills the few shallow hollows the smoothing leaves.
+
+### §fine-formation plains
+
+Recipe 8 only (`formation::plains`), after the coastal infill and before
+§terraces, so terrace treads and the valley bluff stand above the new floor
+(goal 5). A lowland river migrates across its valley and buries the bottom in
+its own sediment: a wide, low-gradient valley ends with a flat floor bounded
+by bluffs. Routing runs on a filled copy, as for the terraces. Every cell is
+compared with the first channel of at least 2 equivalent km² it drains to
+(catchment × the recipe-7 runoff weight at the channel) and with its flow
+distance to that channel.
+- **Width.** Half-width `B = 60 m × A^0.4` (A equivalent km²): about 0.4 km
+  of floor at 20 km², 0.8 km at 100 km², 1.9 km at 1,000 km². It wanders
+  ±35% along the valley (rotated noise at 2.5 km and 900 m), so bluff lines
+  are scalloped rather than parallel to the river.
+- **Setting.** The least of three ramps sets a weight: bankfull specific
+  stream power `9810 √Q S` W/m² (Q the mean discharge, S the channel slope
+  over ~2.5 km; full to 150, none from 400 — reaches with more power per
+  unit width are confined and cut down rather than migrate, Nanson & Croke
+  1992), the channel slope itself (full to 1%, none from 3%) and belt
+  relief (full to 400 m, none from 800 m). The width scales with the
+  square root of the weight, the bluff height with the weight.
+- **Height.** The floor is the channel height plus 0.4‰ of the distance,
+  so it drains to the channel; §world-water carves the bankfull channel into
+  it later. Lower ground is raised to it (aggradation); higher ground is
+  planed down (lateral erosion) up to a bluff of `4 D` (`D = 2.5 m × A^¼`,
+  §floodplain: 21 m at 20 km², 32 m at 100 km², 56 m at 1,000 km²),
+  fading out between 0.6 and 1 of it, so higher valley sides stay as spurs
+  and bluffs. The floor fades into the side over `80 m + B/4`.
+- **Openness.** In a confined valley the bluff would stand one or two cells
+  from the channel: a trench, not a floodplain (seed-3 MICRO at mid zoom).
+  A channel builds its full floor only where at least 65% of the ground
+  draining to it within `B` lies below 0.6 of the bluff, none below 35%,
+  and no floor narrower than 100 m a side.
+- **Seams.** The change is box-smoothed over ~80 m (as §terraces), with
+  channel cells held at their height and no cell lowered below its floor.
+
+Interfluves are not smoothed: on the full-size seed-42 world, ground with
+under 50 m of relief over 2.1 km already has a median slope of 0.5°
+(interfluves 0.4–0.8°), so smoothing them would only add sheen. Low hill
+country keeps its relief (goal 4): its valleys are steep or confined and
+fail the setting or openness test.
 
 ### §fine-formation flats
 

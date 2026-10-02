@@ -49,10 +49,11 @@ enum Command {
         /// --recipe says otherwise) and a fixed five-attempt gate.
         #[arg(long, value_enum, default_value_t = Terrain::Legacy)]
         terrain: Terrain,
-        /// Fine-terrain recipe: 7 (default: climate, arid basins), 6 (v0.2
-        /// formation), 5 (v0.1 formation, replayed exactly) or 4 (spectral
-        /// valleys). Fine mode only.
-        #[arg(long, value_parser = clap::value_parser!(u16).range(4..=7))]
+        /// Fine-terrain recipe: 7 (default: climate, arid basins), 8 (opt-in:
+        /// recipe 7 plus alluvial plains), 6 (v0.2 formation), 5 (v0.1
+        /// formation, replayed exactly) or 4 (spectral valleys). Fine mode
+        /// only.
+        #[arg(long, value_parser = clap::value_parser!(u16).range(4..=8))]
         recipe: Option<u16>,
         /// Latitude band as SOUTH,NORTH degrees (default 35,55). Recipe 7
         /// dries the subtropical belt (15-26°), e.g. `--latitude 15,35`.

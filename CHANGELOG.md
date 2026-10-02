@@ -3,6 +3,13 @@
 Release notes for Arda. The design ledger (decisions, stage records and per-change detail)
 lives in `docs/capstone/changelog.md` and `docs/capstone/changelog.d/`.
 
+## 0.6.0 — 2026-10-02
+
+- **Worked land on relief tiles.** With a `society/` directory, close-zoom relief tiles draw field parcels with hedgerows and drystone walls, pasture, arable, orchards and woodland, roads and lanes, and settlements' buildings and streets, from the same geometry as the tactical maps. On low ground, valley floors and interfluves are tinted and slope light is amplified as local relief shrinks, so terraces and bluffs read. Worlds without `society/` render as before.
+- **Historical field systems.** The field partition is now a global hierarchy of land blocks split along roads, square to their longest side and along contours, into small closes by the houses, larger fields further out, furlongs of strips by villages, floodplain meadow and open commons. It replaces the Voronoi-like parcels, and the tactical maps and relief tiles share it. Cuts that would leave a wedge-shaped field (a corner under about 35°, other than at a road) are refused, and the would-be wedge stays part of its neighbour.
+- **Recipe 8 (opt-in, `arda generate --terrain fine --recipe 8`).** Alluvial valley floors scaled to discharge: where a river's specific stream power is low, the valley bottom is aggraded and planed to a flat floor (`60 m × A^0.4` half-width) bounded by bluffs, before the terraces are cut. Confined and steep valleys and hill country keep their shape. Recipes 5–7 are unchanged; 7 stays the default.
+- **Plains diagnostics.** The `plains_metrics` example separates plains from low hill country and measures floodplain width by river size. On the full-size seed-42 world, recipe-7 plains already have a median slope of 0.5°; the steeper MICRO lowland is hill country near the sea.
+
 ## 0.5.0 — 2026-10-01
 
 - **Cell contract 3.** With a `society/` directory, `/v1/cell`, `/v1/point` and `/v1/area/.../cells` take `road` from the new `society/roads.bin` (which adds `footpath`) and `built_by` from the land-use owners (now a settlement id string), and add `land_use` and `realm_id`. `ARDACOLS` layout 2 carries the new columns. `arda settle` writes `roads.bin`; re-run it to get the raster for an existing world. Worlds without `society/` keep their stored `road` and `built_by`.

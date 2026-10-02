@@ -133,7 +133,7 @@ fn square_ground(plan: &Plan, s: Sq, d: u8) -> GroundOut {
             let Some(f) = plan.fields.get(i as usize) else {
                 return ("grass", None, None);
             };
-            let site = &plan.sites.sites[f.site];
+            let site = &plan.partition.sites[f.site];
             match f.kind {
                 FieldKind::Strips => {
                     if d <= 1 {
@@ -156,6 +156,18 @@ fn square_ground(plan: &Plan, s: Sq, d: u8) -> GroundOut {
                 }
                 FieldKind::Pasture => {
                     let g = if patch(seed, 0x9A57, s, 0.09) > 0.68 {
+                        "meadow"
+                    } else {
+                        "pasture"
+                    };
+                    (g, Some(Crop::Grazed), None)
+                }
+                FieldKind::Common => {
+                    // Open grazing on poor ground: tussocks and scrub.
+                    let n = patch(seed, 0xC0A1, s, 0.1);
+                    let g = if n > 0.74 {
+                        "scrub"
+                    } else if n > 0.56 {
                         "meadow"
                     } else {
                         "pasture"

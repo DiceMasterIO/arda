@@ -18,7 +18,7 @@ use crate::BlocksError;
 use arda_people::World;
 use std::sync::Arc;
 
-pub use layers::{fields_class, LandUseRaster};
+pub use layers::{fields_class, fields_rivers, LandUseRaster};
 
 /// Metres per square (convention I2: 100/64 m).
 pub const SQUARE_M: f64 = 100.0 / 64.0;
@@ -26,8 +26,14 @@ pub const SQUARE_M: f64 = 100.0 / 64.0;
 /// into it, metres.
 pub const WAYS_MARGIN_M: f64 = 600.0;
 /// Settlements and roads further than this from a window do not shape its
-/// fields, metres.
-pub const FIELDS_MARGIN_M: f64 = 3_000.0;
+/// fields, metres: the fields plan's margin plus the partition's input
+/// reach (`arda_fields::partition::INPUT_REACH_M`).
+pub const FIELDS_MARGIN_M: f64 = 3_800.0;
+/// The farming culture the fields layer assumes everywhere (so the layer
+/// depends only on global inputs, goal 46; relief tiles use it too).
+pub const FIELDS_CULTURE: &str = "human";
+/// The wealth the fields layer assumes everywhere.
+pub const FIELDS_WEALTH: u8 = 128;
 
 /// An axis-aligned box in world metres.
 #[derive(Debug, Clone, Copy, PartialEq)]
@@ -131,6 +137,27 @@ impl SocietyOverlays {
     #[must_use]
     pub fn world(&self) -> &Arc<World> {
         &self.world
+    }
+
+    /// The land-use raster the fields layer reads (crofts as arable), for
+    /// renderers that must draw the same parcels (logic/17 §land).
+    #[must_use]
+    pub const fn landuse(&self) -> &LandUseRaster {
+        &self.landuse
+    }
+
+    /// Settle's road segments as `arda-fields` records with their bounding
+    /// boxes, which the field partition follows (logic/17 §land-fields).
+    #[must_use]
+    pub fn field_roads(&self) -> &[(Bbox, arda_fields::Road)] {
+        &self.field_roads
+    }
+
+    /// Settle's roads as `arda-ways` records with their bounding boxes,
+    /// for renderers that must draw the same centrelines (logic/17 §land).
+    #[must_use]
+    pub fn ways_roads(&self) -> &[(Bbox, arda_ways::Road)] {
+        &self.ways_roads
     }
 }
 

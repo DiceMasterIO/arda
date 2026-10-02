@@ -11,6 +11,8 @@
 //! (MICRO seed 74, `--recipe 7 --latitude 15,35`).
 #![allow(clippy::unwrap_used, clippy::expect_used, missing_docs)]
 
+mod zoom_land;
+
 use arda_core::water::PanKind;
 use arda_midzoom::{water_mask, Pyramid, ReliefWorld};
 use arda_server::{router, AppState, ServerConfig};
@@ -50,10 +52,19 @@ fn world(var: &str, tag: &str, seed: u64, config: arda::GenerateConfig, recipe: 
     if let Some(dir) = std::env::var_os(var) {
         return PathBuf::from(dir);
     }
+    // Tests sharing a world (water and land on MICRO 42) build it once:
+    // concurrent builds into one directory would race.
+    static BUILT: std::sync::Mutex<BTreeSet<String>> = std::sync::Mutex::new(BTreeSet::new());
+    let mut built = BUILT
+        .lock()
+        .unwrap_or_else(std::sync::PoisonError::into_inner);
     let dir = workspace().join(format!(
         "target/zoom-continuity-{tag}-{}",
         std::process::id()
     ));
+    if built.contains(tag) {
+        return dir;
+    }
     let _ = std::fs::remove_dir_all(&dir);
     std::fs::create_dir_all(dir.parent().unwrap()).unwrap();
     arda::generate_from_fine_recipe(
@@ -66,6 +77,7 @@ fn world(var: &str, tag: &str, seed: u64, config: arda::GenerateConfig, recipe: 
     .expect("generating the MICRO world");
     arda_settle::generate(&dir, arda_settle::grid::MEMORY_BUDGET).expect("settle");
     arda_people::build(&dir).expect("society build");
+    built.insert(tag.to_string());
     dir
 }
 

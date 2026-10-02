@@ -30,7 +30,7 @@ pub enum LandUse {
 }
 
 /// A land-use raster lookup by 100 m cell coordinates.
-pub trait LandUseMap {
+pub trait LandUseMap: Sync {
     /// The class of cell `(cx, cy)`, which covers world
     /// `[100·cx, 100·cx + 100)` m; `None` for land without a use.
     fn class_at(&self, cx: i64, cy: i64) -> Option<LandUse>;
@@ -246,6 +246,18 @@ pub struct Road {
     pub points: Vec<[f64; 2]>,
 }
 
+/// A straight river channel piece in world metres (between two cell
+/// centres, as the world stores them).
+#[derive(Debug, Clone, Copy, PartialEq, Serialize, Deserialize)]
+pub struct RiverLine {
+    /// One end.
+    pub a: [f64; 2],
+    /// The other end.
+    pub b: [f64; 2],
+    /// Channel width, metres.
+    pub width_m: f64,
+}
+
 /// Everything [`crate::fields_window`] reads.
 pub struct FieldInputs<'a> {
     /// Land use per 100 m cell.
@@ -258,10 +270,16 @@ pub struct FieldInputs<'a> {
     pub region: Region,
     /// Wealth, 0–255 as in the settlement records.
     pub wealth: u8,
-    /// Settlements near the window (within a couple of kilometres).
+    /// Settlements near the window (within
+    /// [`crate::partition::INPUT_REACH_M`] of its plan).
     pub settlements: &'a [Settlement],
-    /// Roads near the window.
+    /// Roads near the window (within
+    /// [`crate::partition::INPUT_REACH_M`] of its plan).
     pub roads: &'a [Road],
+    /// River channels near the window (within
+    /// [`crate::partition::PARTITION_REACH_M`] of its plan), whose
+    /// floodplains are kept as meadow.
+    pub rivers: &'a [RiverLine],
     /// The squares the settlements' own plans occupy, by global square.
     /// When set, fields run right up to these footprints and the
     /// density-based core discs are not reserved.

@@ -28,6 +28,14 @@ struct Args {
     /// Output PNG.
     #[arg(long)]
     out: PathBuf,
+    /// Ignore the world's `society/` (render terrain and water only, as a
+    /// world without society data).
+    #[arg(long)]
+    plain: bool,
+    /// Time a `k × k` block of 256-px tiles around the centre instead
+    /// (each rendered once, after one warm-up tile).
+    #[arg(long)]
+    tiles: Option<u32>,
 }
 
 fn main() -> Result<(), Box<dyn std::error::Error>> {
@@ -39,7 +47,17 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         areas_wide: m.areas_wide,
         areas_high: m.areas_high,
     };
-    let rw = ReliefWorld::new(Arc::clone(&world))?;
+    let mut rw = ReliefWorld::new(Arc::clone(&world))?;
+    if !args.plain {
+        let open = Instant::now();
+        if let Some(land) = arda_midzoom::Landscape::open(&args.world)? {
+            rw = rw.with_landscape(land);
+            println!(
+                "society opened in {:.0} ms",
+                open.elapsed().as_secs_f64() * 1e3
+            );
+        }
+    }
     let (cx, cy) = args.center.split_once(',').ok_or("center must be x,y")?;
     let (cx, cy): (f64, f64) = (cx.trim().parse()?, cy.trim().parse()?);
     let px_m = pyramid.pixel_um(args.z) as f64 / 1e6;
@@ -49,6 +67,9 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         (cx / px_m - half).round() as i64,
         (cy / px_m - half).round() as i64,
     );
+    if let Some(k) = args.tiles {
+        return time_tiles(&rw, &pyramid, args.z, origin, k);
+    }
     let cold = Instant::now();
     let img = render_window(&rw, &pyramid, args.z, origin, (args.size, args.size))?;
     let cold = cold.elapsed();
@@ -73,6 +94,39 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         cold.as_secs_f64() * 1e3,
         warm.as_secs_f64() * 1e3,
         args.out.display()
+    );
+    Ok(())
+}
+
+/// Renders a `k × k` block of tiles starting at `origin` (snapped to the
+/// tile grid) after one warm-up tile, and prints per-tile timings.
+fn time_tiles(
+    rw: &ReliefWorld,
+    pyramid: &Pyramid,
+    z: u32,
+    origin: (i64, i64),
+    k: u32,
+) -> Result<(), Box<dyn std::error::Error>> {
+    let t = i64::from(arda_midzoom::pyramid::TILE_PX);
+    let (tx, ty) = (origin.0.div_euclid(t), origin.1.div_euclid(t));
+    let warm = Instant::now();
+    render_window(rw, pyramid, z, ((tx - 1) * t, (ty - 1) * t), (256, 256))?;
+    println!("warm-up tile {:.0} ms", warm.elapsed().as_secs_f64() * 1e3);
+    let mut times = Vec::new();
+    for j in 0..i64::from(k) {
+        for i in 0..i64::from(k) {
+            let s = Instant::now();
+            render_window(rw, pyramid, z, ((tx + i) * t, (ty + j) * t), (256, 256))?;
+            times.push(s.elapsed().as_secs_f64() * 1e3);
+        }
+    }
+    times.sort_by(f64::total_cmp);
+    let mean = times.iter().sum::<f64>() / times.len().max(1) as f64;
+    println!(
+        "z={z}: {} cold tiles, mean {mean:.0} ms, median {:.0} ms, max {:.0} ms",
+        times.len(),
+        times[times.len() / 2],
+        times[times.len() - 1]
     );
     Ok(())
 }

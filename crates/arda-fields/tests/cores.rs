@@ -92,7 +92,8 @@ fn fields_reach_the_plans_footprint_instead_of_the_density_disc() {
 
 #[test]
 fn the_fringe_lies_on_wild_ground_near_worked_land() {
-    let s = synthetic::village_strips();
+    // Upland grazing below open moor: worked fields meet wild ground.
+    let s = synthetic::quarry();
     let w = generate(&s.inputs(), s.origin_m, 256, 256, SEED).unwrap();
     let side = 256_usize;
     let fringe: Vec<usize> = (0..w.fringe.len())
@@ -106,9 +107,16 @@ fn the_fringe_lies_on_wild_ground_near_worked_land() {
         let near = (-reach..=reach).any(|dy| {
             (-reach..=reach).any(|dx| {
                 let (a, b) = (x + dx, y + dy);
-                (0..256).contains(&a)
-                    && (0..256).contains(&b)
-                    && w.owned[b as usize * side + a as usize]
+                // Worked land: fields, lanes and compounds, or a road.
+                let worked = || {
+                    let k = b as usize * side + a as usize;
+                    let road = matches!(
+                        w.layout.squares[k].ground.as_str(),
+                        "dirt" | "gravel" | "cobbles"
+                    );
+                    w.owned[k] || road
+                };
+                (0..256).contains(&a) && (0..256).contains(&b) && worked()
             })
         });
         let edge = x < reach || y < reach || x >= 256 - reach || y >= 256 - reach;

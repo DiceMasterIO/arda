@@ -28,18 +28,13 @@ pub struct StripAt {
 /// The furlong's strip direction and width.
 #[must_use]
 pub fn furlong(seed: u64, site: &Site) -> ([f64; 2], f64) {
-    let h = h2(
-        seed,
-        0x57A1,
-        site.key.0 * 4 + i64::from(site.key.2),
-        site.key.1,
-    );
-    let a = site.along;
-    // Neighbouring furlongs often lie at right angles to each other.
-    let along = if u01(h) < 0.4 { [-a[1], a[0]] } else { a };
+    let (k0, k1) = site.hkey();
+    let h = h2(seed, 0x57A1, k0, k1);
+    // The partition already turns neighbouring furlongs to their own
+    // directions (along the furlong, across it, or down the slope).
     #[allow(clippy::cast_precision_loss)] // 0..5
     let width = 7.0 + (h >> 20) as f64 % 5.0;
-    (along, width.floor())
+    (site.along, width.floor())
 }
 
 /// Locates a square centre `p` within the furlong of `site`.
@@ -51,7 +46,8 @@ pub fn locate(seed: u64, site: &Site, p: [f64; 2]) -> StripAt {
     let v = -d[0] * along[1] + d[1] * along[0];
     let t = (u / CURVE_HALF).clamp(-1.0, 1.0);
     let v = v - CURVE * (t * t * t - t);
-    let off = u01(h2(seed, 0x57A2, site.key.0, site.key.1)) * width;
+    let (k0, k1) = site.hkey();
+    let off = u01(h2(seed, 0x57A2, k0, k1)) * width;
     let q = v + off;
     #[allow(clippy::cast_possible_truncation)] // strip counts are small
     let index = (q / width).floor() as i64;
@@ -67,7 +63,8 @@ pub fn locate(seed: u64, site: &Site, p: [f64; 2]) -> StripAt {
 /// The crop of one strip: mostly the furlong's, sometimes its own.
 #[must_use]
 pub fn crop(seed: u64, site: &Site, furlong_crop: Crop, index: i64) -> Crop {
-    let h = h3(seed, 0x57A3, site.key.0, site.key.1, index);
+    let (k0, k1) = site.hkey();
+    let h = h3(seed, 0x57A3, k0, k1, index);
     if u01(h) < 0.72 {
         furlong_crop
     } else {

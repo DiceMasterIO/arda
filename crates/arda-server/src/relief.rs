@@ -5,7 +5,7 @@
 use crate::cache::ByteLru;
 use crate::error::{lock, ServerError, ServerResult};
 use arda_midzoom::pyramid::MAX_EXTRA_LEVELS;
-use arda_midzoom::{MidzoomError, Pyramid, ReliefWorld};
+use arda_midzoom::{Landscape, MidzoomError, Pyramid, ReliefWorld};
 use std::path::Path;
 use std::sync::{Arc, Mutex};
 
@@ -54,11 +54,19 @@ fn internal(e: &MidzoomError) -> ServerError {
 
 impl Relief {
     /// Opens relief levels for the world at `dir` below overview zoom
-    /// `max_zoom`; worlds without recipe-5 fine terrain serve none.
+    /// `max_zoom`; worlds without recipe-5 fine terrain serve none. With
+    /// `land` (the world's society, shared with the tactical overlays)
+    /// tiles draw worked land (logic/17 §land); without it they render
+    /// terrain and water only.
     ///
     /// # Errors
     /// The world or its fine layer failed to load.
-    pub fn open(dir: &Path, max_zoom: u32, limits: ReliefLimits) -> ServerResult<Self> {
+    pub fn open(
+        dir: &Path,
+        max_zoom: u32,
+        limits: ReliefLimits,
+        land: Option<Landscape>,
+    ) -> ServerResult<Self> {
         let world = Arc::new(arda::World::load(dir)?);
         let m = world.manifest();
         let pyramid = Pyramid {
@@ -68,7 +76,11 @@ impl Relief {
         };
         let formed = m.fine_terrain.is_some_and(|f| f.recipe_version >= 5);
         let world = if formed {
-            Some(Arc::new(ReliefWorld::new(world).map_err(|e| internal(&e))?))
+            let rw = ReliefWorld::new(world).map_err(|e| internal(&e))?;
+            Some(Arc::new(match land {
+                Some(l) => rw.with_landscape(l),
+                None => rw,
+            }))
         } else {
             None
         };

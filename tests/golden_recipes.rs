@@ -2,7 +2,8 @@
 //! behind recipe versions; logic/02 §fine-formation recipes).
 //!
 //! Recipe 5 must regenerate exactly as v0.1 (commit 7f32695) did,
-//! recipe 6 exactly as v0.2.0 did, and recipe 7 as v0.4 first wrote it: every terrain, area and hydrology file,
+//! recipe 6 exactly as v0.2.0 did, recipe 7 as v0.4 first wrote it, and
+//! recipe 8 (opt-in plains) as v0.6 first wrote it: every terrain, area and hydrology file,
 //! and the Atlas 4K overview. `world.json` carries the build version, so it
 //! is checked field by field instead of hashed.
 //!
@@ -165,10 +166,17 @@ fn recipe_7_is_pinned() {
     check(7);
 }
 
+/// Recipe 8 (opt-in: alluvial valley floors) is pinned from its first
+/// release.
+#[test]
+fn recipe_8_is_pinned() {
+    check(8);
+}
+
 #[test]
 fn unknown_recipes_are_refused_before_output() {
     let tmp = TempDir::new("r9");
-    for recipe in [0, 1, 3, 8] {
+    for recipe in [0, 1, 3, 9] {
         let err = arda::generate_from_fine_recipe(
             42,
             GenerateConfig::MICRO,

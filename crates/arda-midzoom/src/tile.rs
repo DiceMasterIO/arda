@@ -9,7 +9,7 @@ use crate::refine::refine_nodes_for;
 use crate::source::FINE_UM;
 use crate::water::WindowWater;
 use crate::world::{ReliefWorld, AREA_UM};
-use crate::{HeightTile, MidzoomError};
+use crate::{HeightTile, LandWindow, MidzoomError, SurfacePoint};
 use arda_core::FINE_FRAME_OFFSET_UM;
 use arda_render::{formed_river_rgb, AtlasTerrain, ReliefGeometry, ReliefSurface};
 use rayon::prelude::*;
@@ -87,6 +87,10 @@ pub fn render_window(
     let (world_w, world_h) = pyramid.world_um();
     let areas = areas_touching(rw, pyramid, z, origin, (w, h))?;
     let water = WindowWater::gather(rw, pyramid, z, origin, (w, h))?;
+    let land = rw
+        .landscape()
+        .map(|l| LandWindow::gather(rw, l, pyramid, z, origin, size))
+        .transpose()?;
     let pixel_um = pyramid.pixel_um(z);
     let rows: Vec<Result<Vec<u8>, MidzoomError>> = (0..h)
         .into_par_iter()
@@ -105,7 +109,17 @@ pub fn render_window(
                 let terrain = areas
                     .get(&key)
                     .ok_or_else(|| MidzoomError::Window("pixel area missing".into()))?;
-                let (rgb, _) = shade_pixel(terrain, &heights, (&water, wx, wy), pixel_um)?;
+                let at = (&water, wx, wy);
+                let rgb = match &land {
+                    None => shade_pixel(terrain, &heights, at, pixel_um)?.0,
+                    Some(l) => {
+                        let (ix, iy) = (
+                            usize::try_from(px).unwrap_or(0),
+                            usize::try_from(py).unwrap_or(0),
+                        );
+                        shade_land_pixel(terrain, &heights, at, pixel_um, (l, ix, iy))?
+                    }
+                };
                 let at = usize::try_from(px).unwrap_or(0) * 4;
                 row[at..at + 3].copy_from_slice(&rgb);
                 row[at + 3] = 255;
@@ -141,6 +155,21 @@ pub(crate) fn shade_pixel(
     (water, wx, wy): (&WindowWater, i64, i64),
     pixel_um: i64,
 ) -> Result<([u8; 3], bool), MidzoomError> {
+    let (rgb, land, _) = shade_surface(terrain, heights, (water, wx, wy), pixel_um)?;
+    if !land {
+        return Ok((rgb, false));
+    }
+    Ok((river_over(rgb, water, wx, wy), true))
+}
+
+/// The lit surface of one pixel before channels: its colour, whether it is
+/// land, and the refined surface point there.
+fn shade_surface(
+    terrain: &AtlasTerrain,
+    heights: &HeightTile,
+    (water, wx, wy): (&WindowWater, i64, i64),
+    pixel_um: i64,
+) -> Result<([u8; 3], bool, SurfacePoint), MidzoomError> {
     let (lx, ly) = (wx - FINE_FRAME_OFFSET_UM, wy - FINE_FRAME_OFFSET_UM);
     let missing = || MidzoomError::Window("refined support missing".into());
     let c = heights.sample(lx, ly).ok_or_else(missing)?;
@@ -165,20 +194,42 @@ pub(crate) fn shade_pixel(
         surface,
     )?;
     if surface != ReliefSurface::Land {
-        return Ok((rgb, false));
+        return Ok((rgb, false, c));
     }
-    let rgb = ground_tone(rgb, lx, ly, pixel_um);
-    // logic/17 §rivers: channels over land, anti-aliased over one pixel.
+    Ok((ground_tone(rgb, lx, ly, pixel_um), true, c))
+}
+
+/// logic/17 §rivers: channels over land, anti-aliased over one pixel.
+fn river_over(rgb: [u8; 3], water: &WindowWater, wx: i64, wy: i64) -> [u8; 3] {
     let Some((cover, discharge)) = water.river(wx, wy) else {
-        return Ok((rgb, true));
+        return rgb;
     };
     let river = formed_river_rgb(discharge).unwrap_or(LIGHT);
-    let rgb = std::array::from_fn(|k| {
+    std::array::from_fn(|k| {
         let base = i64::from(rgb[k]);
         let v = base + (i64::from(river[k]) - base) * cover / ONE;
         u8::try_from(v.clamp(0, 255)).unwrap_or(255)
-    });
-    Ok((rgb, true))
+    })
+}
+
+/// One pixel of a window with worked land (logic/17 §land): ground,
+/// drainage and land use under the channels, roads and settlements over
+/// them.
+fn shade_land_pixel(
+    terrain: &AtlasTerrain,
+    heights: &HeightTile,
+    (water, wx, wy): (&WindowWater, i64, i64),
+    pixel_um: i64,
+    (land, px, py): (&LandWindow, usize, usize),
+) -> Result<[u8; 3], MidzoomError> {
+    let (rgb, dry, c) = shade_surface(terrain, heights, (water, wx, wy), pixel_um)?;
+    if !dry {
+        return Ok(rgb);
+    }
+    let (lx, ly) = (wx - FINE_FRAME_OFFSET_UM, wy - FINE_FRAME_OFFSET_UM);
+    let rgb = land.ground(rgb, (px, py), (lx, ly), c);
+    let rgb = river_over(rgb, water, wx, wy);
+    Ok(land.works(rgb, (px, py)))
 }
 
 /// Ground-cover tone at tuft and clump scale (24 m and 11 m, rotated

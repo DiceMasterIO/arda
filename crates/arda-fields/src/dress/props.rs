@@ -157,7 +157,7 @@ pub(super) fn place(plan: &Plan, bounds: &Boundaries, dist: &Grid<u8>) -> Vec<GP
         let stubble = match f.kind {
             FieldKind::Arable => f.crop == Crop::Stubble,
             FieldKind::Strips => {
-                let site = &plan.sites.sites[f.site];
+                let site = &plan.partition.sites[f.site];
                 let at = crate::strips::locate(plan.seed, site, s.centre());
                 !at.balk && crate::strips::crop(plan.seed, site, f.crop, at.index) == Crop::Stubble
             }
@@ -185,6 +185,9 @@ pub(super) fn place(plan: &Plan, bounds: &Boundaries, dist: &Grid<u8>) -> Vec<GP
             out.push(id("veg.stones", p, hh));
         } else if kind(s) == Some(FieldKind::Pasture) && d(s) >= 2 && u < 0.05 {
             out.push(id("veg.bush", p, hh));
+        } else if kind(s) == Some(FieldKind::Common) && d(s) >= 2 && u < 0.12 {
+            let v = if u < 0.07 { "veg.bush" } else { "veg.heather" };
+            out.push(id(v, p, hh));
         }
     });
     hedgerow_trees(plan, bounds, &mut out);
@@ -208,7 +211,8 @@ fn livestock(plan: &Plan, d: &impl Fn(Sq) -> u8, out: &mut Vec<GPlacement>) {
             return;
         };
         let orchard = f.kind == FieldKind::Orchard;
-        if !(f.kind == FieldKind::Pasture || orchard) || d(s) < 2 {
+        let grazed = matches!(f.kind, FieldKind::Pasture | FieldKind::Common);
+        if !(grazed || orchard) || d(s) < 2 {
             return;
         }
         let fh = h2(plan.seed, 0x5EF0, f.first.x, f.first.y);

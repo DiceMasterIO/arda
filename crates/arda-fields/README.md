@@ -54,15 +54,23 @@ Everything is a function of global square coordinates and the seed. A window is 
    - an apron kept clear around unwalled compounds;
    - a settlement core;
    - a field.
-2. **Partition** (`partition.rs`). Field sites sit on a jittered 72-square (112.5 m) lattice, with a second site in 22% of lattice cells. A square belongs to its nearest site under a metric stretched 1.25× along the contour and squeezed 0.8× across it. The metric comes from a smooth tensor field of the terrain gradient; on ground flatter than 2% a seeded regional grain takes over. Field boundaries therefore follow the contours. Lanes and roads cut parcels, so boundaries also follow the lanes. A site claims squares only within a metric distance of 108, which bounds every field to 135 squares from its site. Connected parcels of fewer than 320 squares (0.08 ha) become scrubby corners.
-3. **Kinds and crops** (`fields.rs`). A field takes the land use of its site's cell:
+2. **Partition** (`partition/`). Fields come from a fixed global hierarchy (logic/17 §land-fields), so every window and the relief tiles agree:
+   - land blocks are a brick lattice of 500 m tiles paired two wide, alternate rows offset, every corner a T-junction; the vertices drift with a smooth 2 km noise field, so the brickwork turns from place to place (`lattice.rs`);
+   - each block is split recursively (`split.rs`): along a road that crosses a piece nearly straight, else across the piece square to its longest straight side (lengthwise for long narrow closes by the houses, along the contour on slopes), at jittered and often slightly kinked lines in old enclosure and on one surveyed bearing in planned enclosure; cuts that would leave a wedge are retried gentler;
+   - a piece stops splitting at the size its ground asks for (`context.rs`): closes of 0.4 ha by the houses growing to 3.4 ha 1.4 km out, 6 ha furlongs in a village's open fields, small orchards and farmstead closes, large woods and wastes, scaled by wealth, culture and enclosure style;
+   - where farmland meets wood or waste the cut that separates them wins, and the land-use raster is read through a smooth 70 m displacement, so outlines follow field edges, not 100 m cells;
+   - everything is drawn in a gently warped frame, so hedges wander a few squares;
+   - lanes and roads still cut parcels; connected parcels under 320 squares (0.08 ha) or thinner than 4.5 squares on average become scrubby corners.
+3. **Kinds and crops** (`fields.rs`, `partition/context.rs`). A field takes the majority land use of its ground:
    - arable fields inside a village's open-field disc become strips, and the rest are enclosed;
+   - farmed fields within 70 m of a river on the flat are floodplain meadow;
+   - pasture on steep or remote poor ground is open common;
    - crops are ploughed 45%, stubble 35% and fallow 20%;
    - meadows are standing hay or mown, in equal shares;
    - farmstead cells split between pasture and arable;
    - mill cells become meadow;
    - mine and quarry cells become rough ground.
-4. **Strips** (`strips.rs`). Each furlong is divided into strips 7–11 squares (11–17 m) wide, with a reverse-S curve and a 1-square grass balk between strips. About 40% of furlongs are turned at right angles to their neighbours. A strip usually takes its furlong's crop, and 28% of strips take their own. Headlands are grass.
+4. **Strips** (`strips.rs`). Each furlong is divided into strips 7–11 squares (11–17 m) wide, with a reverse-S curve and a 1-square grass balk between strips. Strips run down the slope where there is one, else along the furlong (30% of broad furlongs across it). A strip usually takes its furlong's crop, and 28% of strips take their own. Headlands are grass.
 5. **Boundaries** (`boundary.rs`). Every edge of an enclosed field that faces another cover gets that field's kit, except for edges facing water or a walled compound. Where two fields meet, the field with the lower id sets the kit. Each enclosed field has one gate:
    - the gate faces a lane or road if possible;
    - otherwise it faces the nearest farm gate or settlement within 800 m;

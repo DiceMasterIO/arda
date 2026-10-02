@@ -57,9 +57,10 @@ pub const FINE_TERRAIN_PATH: &str = "terrain/fine.bin";
 /// `--recipe 6` reproduces v0.2–v0.3 worlds exactly.
 pub const FINE_TERRAIN_RECIPE_VERSION: u16 = 7;
 
-/// The newest fine-terrain recipe this build generates and reads (recipe 7,
-/// the default since 0.4.0). Manifests may name any recipe from 1 to this one.
-pub const FINE_TERRAIN_LATEST_RECIPE_VERSION: u16 = 7;
+/// The newest fine-terrain recipe this build generates and reads (recipe 8,
+/// opt-in: recipe 7 plus alluvial plains). Manifests may name any recipe
+/// from 1 to this one.
+pub const FINE_TERRAIN_LATEST_RECIPE_VERSION: u16 = 8;
 
 /// Everything needed to identify, verify, or regenerate a world.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]

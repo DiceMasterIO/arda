@@ -2,18 +2,22 @@
 //! (water, road, lane, compound or field) and the list of fields.
 
 use crate::compounds::{self, Compound, CompoundKind};
-use crate::fields::{kind_of, Field};
+use crate::fields::Field;
 use crate::geom::{h2, Grid, Sq, CELL_SQUARES, SQUARE_M};
 use crate::input::{FieldInputs, RoadClass, TerrainSample, Tier};
 use crate::linear::{self, Line, RoadNet, MAX_LANE_SQ};
-use crate::partition::{components, SiteIndex, TensorField, FIELD_REACH};
+use crate::partition::{components, Partition, PartitionInputs, FIELD_SPAN};
 use rayon::prelude::*;
 
 /// Margin around the window, in squares: every field touching the window
 /// grown by the hedgerow-tree lattice lies wholly inside it.
-pub const MARGIN: i64 = 2 * FIELD_REACH + 20;
+pub const MARGIN: i64 = FIELD_SPAN + 20;
 /// Smallest parcel kept as a field; smaller slivers become rough corners.
 pub const MIN_FIELD_SQ: usize = 320;
+/// Narrowest mean width (twice area over perimeter) of a parcel kept as a
+/// field, squares: thinner slivers between a road and a field edge are
+/// left as rough verge.
+pub const MIN_FIELD_WIDTH: f64 = 4.5;
 
 /// What a square is.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -55,8 +59,8 @@ pub struct Plan {
     pub compounds: Vec<Compound>,
     /// Lanes from compounds to roads, indexed like `compounds`.
     pub lanes: Vec<Option<Line>>,
-    /// Field sites.
-    pub sites: SiteIndex,
+    /// The field partition (one site per field of the hierarchy).
+    pub partition: Partition,
     /// Settlement centres in world metres.
     pub settlements: Vec<[f64; 2]>,
 }
@@ -138,33 +142,29 @@ impl Plan {
         }
         aprons(&mut cover, &compounds);
         reserve_cores(&mut cover, inputs);
-        let tf = TensorField::new(inputs.terrain, seed, rect);
-        let sites = SiteIndex::new(seed, inputs.landuse, inputs.terrain, &tf, rect);
+        let partition = Partition::new(&PartitionInputs::from(inputs), seed, rect);
         let mut raw: Grid<Option<usize>> = Grid::new(x0, y0, w, h, None);
         let wild: Vec<Sq> = cover
             .squares()
             .filter(|&s| cover.get(s) == Some(&Cover::Wild))
             .collect();
-        let near: Vec<Option<usize>> = wild.par_iter().map(|&s| sites.nearest(&tf, s)).collect();
+        let near: Vec<Option<usize>> = wild
+            .par_iter()
+            .map(|&s| partition.locate(s.centre()))
+            .collect();
         for (s, n) in wild.into_iter().zip(near) {
             raw.set(s, n);
         }
         let mut fields = Vec::new();
         components(&raw, |site, members| {
-            if members.len() < MIN_FIELD_SQ {
+            if members.len() < MIN_FIELD_SQ || thin(&raw, site, members) {
                 for m in members {
                     cover.set(*m, Cover::Rough);
                 }
                 return;
             }
-            let st = &sites.sites[site];
-            let (kind, crop) = kind_of(
-                st.class,
-                st.p,
-                inputs.settlements,
-                seed,
-                (st.key.0 * 4 + i64::from(st.key.2), st.key.1),
-            );
+            let st = &partition.sites[site];
+            let (kind, crop) = (st.kind, st.crop);
             let first = members[0];
             let id = h2(seed, 0x1D, first.x, first.y) & ((1 << 53) - 1);
             let mut sum = [0.0, 0.0];
@@ -198,7 +198,7 @@ impl Plan {
             fields,
             compounds,
             lanes,
-            sites,
+            partition,
             settlements: inputs.settlements.iter().map(|s| [s.x_m, s.y_m]).collect(),
         }
     }
@@ -227,6 +227,22 @@ impl Plan {
         let (x0, y0, w, h) = self.win;
         s.x >= x0 && s.y >= y0 && s.x < x0 + w && s.y < y0 + h
     }
+}
+
+/// Whether a parcel is a sliver: mean width (twice its area over its
+/// perimeter) below [`MIN_FIELD_WIDTH`].
+fn thin(raw: &Grid<Option<usize>>, site: usize, members: &[Sq]) -> bool {
+    let mut perimeter = 0_usize;
+    for m in members {
+        for (dx, dy) in [(1, 0), (-1, 0), (0, 1), (0, -1)] {
+            if raw.get(m.offset(dx, dy)) != Some(&Some(site)) {
+                perimeter += 1;
+            }
+        }
+    }
+    #[allow(clippy::cast_precision_loss)] // square counts
+    let width = 2.0 * members.len() as f64 / perimeter.max(1) as f64;
+    width < MIN_FIELD_WIDTH
 }
 
 /// People per hectare of a built-up core, by tier (village and town
