@@ -11,7 +11,11 @@
 //! 2. [`tile`]: relief tiles shaded by the formed Atlas shader, continuing
 //!    the overview pyramid past native resolution, with rivers, lakes,
 //!    coasts and pools from the tactical layer's water geometry
-//!    ([`water`]), so both zooms put every shore in the same place.
+//!    ([`water`]), so both zooms put every shore in the same place;
+//! 3. [`land`]: worked land from the world's society data — parcels,
+//!    hedgerows, roads and settlements — from the tactical layer's own
+//!    geometry, and [`lowrelief`] drainage on flat ground, when the world
+//!    has a `society/` directory.
 //!
 //! Every value is integer and a pure function of the seed and the global
 //! position, so tiles are deterministic and join pixel-exactly.
@@ -23,7 +27,9 @@ pub mod detail;
 pub mod error;
 pub mod fixed;
 pub mod height;
+pub mod land;
 pub mod lattice;
+pub mod lowrelief;
 pub mod masks;
 pub mod pyramid;
 pub mod refine;
@@ -34,6 +40,7 @@ pub mod world;
 
 pub use error::MidzoomError;
 pub use height::{HeightTile, SurfacePoint};
+pub use land::{LandWindow, Landscape};
 pub use lattice::{world_lattice, Lattice};
 pub use pyramid::Pyramid;
 pub use refine::{refine_nodes, refine_nodes_for};

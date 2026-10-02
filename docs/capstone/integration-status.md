@@ -910,3 +910,93 @@ the same stack.
 - Earlier items still standing: the maintainer's own `game.json` (goal 69); review items R2
   #30, #38 d, #41, the rest of #42 and #43; I1 generator side; the other items listed under
   v0.4 hardening.
+
+## v0.6 integration (integrate/v0.6)
+
+`integrate/v0.6` starts at `c63a4b1` (main, release 0.5.0, recipe 7 the default). The finished
+branches are merged with `--no-ff`, each followed by the full gate:
+
+| Merge | Branch | Conflicts and resolution |
+|---|---|---|
+| `c59eefa` | feat/v6-plains | None. `plains_metrics` example, opt-in recipe 8 (alluvial valley floors scaled to discharge), golden for recipe 8; the default stays 7. |
+| `c3b0fed` | feat/v6-field-patterns (contains feat/v6-midzoom-landuse) | None. The plains side touched only formation, recipe and golden files, the fields side only arda-fields, arda-blocks, arda-midzoom and logic/17; `CHANGELOG.md`, `Cargo.lock` and the logic docs merged cleanly. |
+
+### Commits after the merges
+
+| Commit | Change |
+|---|---|
+| `20a4512` | Wedge-shaped fields. A cut other than a road may not meet its piece's boundary at under 38°, nor run within 12 squares of a boundary edge at under 38° (a sliver). The check reads the clipped outline, the block outline and the true lines of the cuts above, since a road's piece is clipped along a straight stand-in and its cut runs on past the road's ends as rays. The last-resort cuts obey it too (square to the frontage, then along it); a piece no cut can split stays one field, so the would-be wedge stays part of its neighbour. The shape statistics now measure corner angles, and `no_field_corner_is_a_wedge` holds every field corner in the five synthetic scenarios to 35° or more, except within 10 squares of a road or river. Without the rule it fails, on village_strips (8.2°) and quarry (19.2°). logic/17 §land-fields records the rule. |
+
+**Wedge measurements on MICRO 42** (partition rasterised square by square over six 4 km
+squares, corners under 35° more than 10 squares from a road or river): 98 before, 4 after,
+with 8,321 fields before and 7,954 after (−4 %; the refused wedges stay with their neighbours).
+Four-sided share 0.85–0.89 before, 0.87–0.91 after; T-junction share 0.99 both. The 4 left
+are listed as open below.
+
+**Renders** (`out/v6-int/`, `/v1/tactical/window.png`, 3 × 3 cells at 16 px/square):
+
+- `micro42-tac-farm-3x3-{before,after}.png` and `-cmp.jpg`, at cells 580, 695 (the view from
+  feat/v6-field-patterns): **unchanged, pixel for pixel.** Measured on the partition, this
+  view has no corner under 35°; its triangles have corners of 41–48°, which a 35° limit keeps.
+  They come from the last-resort cuts square to and along a diagonal road's frontage, which
+  meet the block's sides at about 45°.
+- `micro42-tac-farm-3x3-wedge-{before,after}.png` and `-cmp.jpg`, at cells 551, 636: a view
+  with real wedges before (a long meadow sliver, field wedges at the left and a meadow wedge at
+  the bottom); after, the fields are four-sided.
+
+**Stair-stepped hedges: documented and skipped.** Hedges and field walls are `WallSegment`s on
+square edges. The sidecar's SRD edge rules and the scene's walls come from the same segments.
+The compositor draws each segment as a kit sprite turned by quarter turns (`Sprites` caches
+`(id, turns, mirror)`, and `Rgba::rotated` turns by quarters only). Drawing them along the true
+diagonal would need three things: arbitrary-angle, deterministic sprite resampling in
+`arda-tactical`; either a new layout field carrying each boundary's polyline (a schema, binding
+and golden change) or compositor-side inference of staircase runs from the square edges; and
+smoothing the per-square hedge-verge ground, which stair-steps too. That is too invasive for this
+integration. The rules would stay on square edges either way.
+
+### Gate on `20a4512`
+
+| Gate | After plains | After field patterns | Final (wedge fix) |
+|---|---|---|---|
+| `cargo fmt --check`, clippy `-D warnings` | clean | clean | clean |
+| `cargo test --workspace --no-fail-fast`: binaries with `ok. N ≥ 1` | 115 | 117 | 117 |
+| passed / failed / ignored | 1,642 / 0 / 21 | 1,664 / 0 / 23 | 1,665 / 0 / 23 |
+| `golden_recipes` (5, 6 byte for byte; 7, 8 pinned) | 5 pass | 5 pass | 5 pass |
+| `e2e_village`, `zoom_continuity` (`--release --ignored`) | 1 + 2 pass | 1 + 4 pass | 1 + 4 pass |
+| viewer `npm ci`, `build`, `lint`, `test` | 86 tests, 12 files | 86, 12 | 86, 12 |
+| `arda tactical validate assets/tactical/placeholder` | ok, 217 assets | ok | ok |
+
+The gate after field patterns ran its workspace tests on the merge commit; one binary
+(`arda-fields` `partition`) was rebuilt with the wedge fix while that run was in progress. The
+merge-only e2e, validate and viewer gates ran on a stash of the fix.
+
+### Smoke test
+
+Release `arda-server` (at `20a4512`) on a copy of the MICRO 42 society world that the
+field-pattern renders used, port 8990, stopped by PID:
+
+| Request | Result |
+|---|---|
+| `/v1/world` | 200, contract 3, `arda_version` 0.5.0 |
+| `/v1/schema` | 200 |
+| `/v1/cell/581/696` | 200 |
+| `/v1/tiles/relief/12/900/1800.webp`, `/11/455/1085.webp` | 200, 38 KB / 20 KB WebP |
+| `/v1/tactical/cell/581/696.png?ppsq=32`, `/scene` | 200, 7.6 MB PNG; 200 scene |
+| `/v1/tactical/window.png?gx0=551&gy0=636&w=3&h=3&ppsq=16` | 200, 17.6 MB PNG |
+| `/v1/settlements?tier=village` | 200 |
+| `/v1/cell/99999/1` | 400 |
+
+Server log: no errors.
+
+### Left open
+
+- Not done by instruction: no version bump (still 0.5.0), no merge to main, no tag, no push.
+  Changelog fragments stay unfolded (`2026-10-02-v6-integration.md` added). Release notes are in
+  `CHANGELOG.md` under "Unreleased (v0.6)".
+- Stair-stepped hedges and field walls on the tactical map (see above).
+- The triangles of the cells 580, 695 view (41–48° corners) remain. A higher limit for the
+  last-resort cuts (about 50°) would remove them, at the cost of larger fields beside diagonal
+  roads.
+- Four corners under 35° remain in the six MICRO 42 squares, at 19–30°. They are not yet
+  explained: the cut that makes the 19° one passes the check at 65°, next to a bend in the block
+  outline.

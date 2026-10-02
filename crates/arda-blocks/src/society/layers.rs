@@ -114,6 +114,17 @@ impl LandUseRaster {
     }
 }
 
+impl LandUseRaster {
+    /// The stored `landuse.bin` code of cell `(cx, cy)`, `None` off the
+    /// raster.
+    #[must_use]
+    pub fn code_at(&self, cx: i64, cy: i64) -> Option<u8> {
+        let x = usize::try_from(cx).ok().filter(|&x| x < self.width)?;
+        let y = usize::try_from(cy).ok().filter(|&y| y < self.height)?;
+        self.codes.get(y * self.width + x).copied()
+    }
+}
+
 impl LandUseMap for LandUseRaster {
     fn class_at(&self, cx: i64, cy: i64) -> Option<FieldUse> {
         let x = usize::try_from(cx).ok().filter(|&x| x < self.width)?;
@@ -236,6 +247,20 @@ fn natural_verge(base: &str, ground: &mut String) {
     }
 }
 
+/// The river channels of the surroundings as the fields partition reads
+/// them (shared with relief tiles, logic/17 §land-fields).
+#[must_use]
+pub fn fields_rivers(s: &Surroundings) -> Vec<arda_fields::RiverLine> {
+    s.river_pieces()
+        .iter()
+        .map(|&(a, b, w)| arda_fields::RiverLine {
+            a: [a.0, a.1],
+            b: [b.0, b.1],
+            width_m: w,
+        })
+        .collect()
+}
+
 /// Natural ground under trees.
 fn wooded(ground: &str) -> bool {
     matches!(ground, "forest_floor" | "leaf_litter" | "moss")
@@ -260,7 +285,19 @@ pub fn fields(
     landuse: &LandUseRaster,
     roads: &[arda_fields::Road],
 ) -> Result<OverlayLayer, BlocksError> {
-    let s = surroundings(ctx, world)?;
+    // The partition reads heights and rivers over every land block that
+    // meets the plan (logic/17 §land-fields).
+    #[allow(clippy::cast_precision_loss)] // a small constant
+    let margin = arda_fields::plan::MARGIN as f64 * SQUARE_M;
+    let b = Bbox::of_window(ctx);
+    let centre = ((b.x0 + b.x1) / 2.0, (b.y0 + b.y1) / 2.0);
+    let radius = (b.x1 - b.x0).hypot(b.y1 - b.y0) / 2.0
+        + margin
+        + arda_fields::partition::PARTITION_REACH_M
+        + 250.0;
+    let s = Surroundings::around(&world.src, centre, radius)
+        .map_err(|e| err("fields")(e.to_string()))?;
+    let rivers = fields_rivers(&s);
     let win = Bbox::of_window(ctx);
     #[allow(clippy::cast_precision_loss)]
     let settlements: Vec<arda_fields::Settlement> = world
@@ -288,8 +325,6 @@ pub fn fields(
     };
     // Fields run up to the towns' own footprints (plans reach the fields'
     // whole planning margin).
-    #[allow(clippy::cast_precision_loss)] // a small constant
-    let margin = arda_fields::plan::MARGIN as f64 * SQUARE_M;
     let plans = plans_near(ctx, world, margin)?;
     let core = |gx: i64, gy: i64| {
         plans
@@ -303,11 +338,12 @@ pub fn fields(
     let inputs = arda_fields::FieldInputs {
         landuse,
         terrain: &terrain,
-        culture: "human",
+        culture: super::FIELDS_CULTURE,
         region: arda_fields::Region::Mixed,
-        wealth: 128,
+        wealth: super::FIELDS_WEALTH,
         settlements: &settlements,
         roads,
+        rivers: &rivers,
         cores: Some(&core),
         barrier_water: Some(&barrier),
     };

@@ -22,8 +22,9 @@
 //! Recipe 6 adds tectonic margins, the basin audit, belt relief, maturity
 //! and relief scaling, pre-erosion roughness, the coast stages and the
 //! water forms. Recipe 7 adds climate: runoff-weighted area and arid
-//! endorheic basins with playas ([`arid`]). Every such rule is gated on
-//! [`Recipe`].
+//! endorheic basins with playas ([`arid`]). Recipe 8 adds plains:
+//! alluvial valley floors scaled to discharge ([`plains`]). Every
+//! such rule is gated on [`Recipe`].
 #![allow(
     clippy::cast_possible_truncation,
     clippy::cast_possible_wrap,
@@ -51,6 +52,7 @@ mod levels;
 pub mod littoral;
 mod macro_view;
 pub mod margin;
+pub mod plains;
 mod recipe5;
 pub mod relief;
 pub mod sampled;
@@ -212,6 +214,9 @@ pub enum Recipe {
     /// Recipe 6 plus climate: runoff-weighted channels and incision, and
     /// arid endorheic basins with terminal lakes and playas.
     V7,
+    /// Recipe 7 plus plains: alluvial valley floors scaled to discharge
+    /// ([`plains`]).
+    V8,
 }
 
 impl Recipe {
@@ -219,7 +224,7 @@ impl Recipe {
     pub const DEFAULT: Self = Self::V7;
 
     /// The newest recipe this build forms.
-    pub const LATEST: Self = Self::V7;
+    pub const LATEST: Self = Self::V8;
 
     /// The manifest `recipe_version` of this recipe.
     #[must_use]
@@ -228,6 +233,7 @@ impl Recipe {
             Self::V5 => 5,
             Self::V6 => 6,
             Self::V7 => 7,
+            Self::V8 => 8,
         }
     }
 
@@ -238,6 +244,7 @@ impl Recipe {
             5 => Some(Self::V5),
             6 => Some(Self::V6),
             7 => Some(Self::V7),
+            8 => Some(Self::V8),
             _ => None,
         }
     }
@@ -396,7 +403,7 @@ pub fn form_world(
     // logic/02 §fine-formation climate runoff (recipe 7): the continent's
     // annual water balance drives channels, incision and basin lakes.
     let water = match recipe {
-        Recipe::V7 => Some(arid::macro_water(grid, band)?),
+        Recipe::V7 | Recipe::V8 => Some(arid::macro_water(grid, band)?),
         _ => None,
     };
     let view = MacroView {
@@ -424,6 +431,7 @@ pub fn form_world(
             volcanoes: &volcanoes,
             landforms,
             arid: &arid_basins,
+            plains: recipe >= Recipe::V8,
         },
     )
 }

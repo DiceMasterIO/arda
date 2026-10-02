@@ -203,12 +203,21 @@ impl AppState {
             .transpose()
             .map_err(|e| ServerError::Internal(e.to_string()))?
             .map(std::sync::Arc::new);
+        // logic/17 §land: relief tiles draw the same society the tactical
+        // overlays compose.
+        let land = overlays
+            .as_ref()
+            .map(|o| arda_midzoom::Landscape::new(std::sync::Arc::clone(o)));
         tactical.set_block_source(Box::new(
             tactical::refine_blocks::RefineBlocks::with_society(src, overlays),
         ));
         let overview = overview::Overview::new(&query, config.overview)?;
-        let relief =
-            relief::Relief::open(&config.world, overview.pyramid().max_zoom, config.relief)?;
+        let relief = relief::Relief::open(
+            &config.world,
+            overview.pyramid().max_zoom,
+            config.relief,
+            land,
+        )?;
         if let Some(world) = relief.shared_world() {
             tactical.set_tint_source(world);
         }

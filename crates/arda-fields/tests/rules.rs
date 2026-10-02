@@ -178,7 +178,7 @@ fn field_sizes_look_like_real_countryside() {
         .fields
         .iter()
         .filter(|f| f.kind == FieldKind::Strips)
-        .map(|f| strips::furlong(SEED, &vp.sites.sites[f.site]).1 * SQUARE_M)
+        .map(|f| strips::furlong(SEED, &vp.partition.sites[f.site]).1 * SQUARE_M)
         .collect();
     assert!(strips.len() >= 5, "only {} furlongs", strips.len());
     for w in strips {

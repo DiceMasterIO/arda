@@ -93,7 +93,7 @@ fn fine_generation_is_explicit_and_legacy_remains_default() {
 }
 
 #[test]
-fn recipe_is_a_fine_option_from_4_to_7() {
+fn recipe_is_a_fine_option_from_4_to_8() {
     let parse = |recipe: &str| {
         Cli::try_parse_from([
             "arda",
@@ -118,7 +118,8 @@ fn recipe_is_a_fine_option_from_4_to_7() {
     ));
     assert!(parse("3").is_err());
     assert!(parse("7").is_ok());
-    assert!(parse("8").is_err());
+    assert!(parse("8").is_ok());
+    assert!(parse("9").is_err());
     let default = Cli::try_parse_from([
         "arda",
         "generate",
@@ -184,7 +185,7 @@ fn latitude_bands_parse_and_recipe_7_is_accepted() {
         }
     ));
     assert!(Cli::try_parse_from([
-        "arda", "generate", "--seed", "1", "--out", "w", "--recipe", "8",
+        "arda", "generate", "--seed", "1", "--out", "w", "--recipe", "9",
     ])
     .is_err());
 }

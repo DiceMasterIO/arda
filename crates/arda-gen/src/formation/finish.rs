@@ -15,7 +15,7 @@ use super::lattice::{alloc, Lattice};
 use super::macro_view::MacroView;
 use super::{
     arid, bathymetry, canyon, coast, coastal, drainage, flats, flow, glacial, littoral, margin,
-    sampled, shore, surface, terrace, water, FormationError, Formed, LOWSTAND_MM,
+    plains, sampled, shore, surface, terrace, water, FormationError, Formed, LOWSTAND_MM,
     PREPARED_SPACING_UM, RELIEF_FULL_M, SINK_RADIUS_UM, TROUGH_SINK_RADIUS_UM,
 };
 
@@ -31,6 +31,8 @@ pub(super) struct Context<'a> {
     pub landforms: Vec<arda_core::Landform>,
     /// Arid endorheic basins (recipe 7; empty before).
     pub arid: &'a [arid::AridBasin],
+    /// Recipe 8: alluvial valley floors.
+    pub plains: bool,
 }
 
 /// Finishes the formed lattice `g` (logic/02 §fine-formation, recipe 6).
@@ -47,6 +49,7 @@ pub(super) fn run(mut g: Lattice, ctx: Context<'_>) -> Result<Formed, FormationE
         volcanoes,
         mut landforms,
         arid: arid_basins,
+        plains: v8_plains,
     } = ctx;
     // logic/02 §fine-formation drowned coasts: estuarine infill beyond the
     // relief-dependent ria reach.
@@ -67,6 +70,19 @@ pub(super) fn run(mut g: Lattice, ctx: Context<'_>) -> Result<Formed, FormationE
             });
         coast::infill(&mut g, &macro_fine, &relief_q8)?;
         drop(macro_fine);
+        // logic/02 §fine-formation plains (recipe 8): alluvial valley
+        // floors scaled to discharge, before the terraces cut their treads
+        // and bluffs above the new floors.
+        if v8_plains {
+            let setting = |x_um: i64, y_um: i64| plains::Setting {
+                belt_m: view.belt_m(x_um, y_um),
+                runoff_q8: view
+                    .runoff_mm(x_um, y_um)
+                    .map_or(256, |r| i64::from(arid::weight(r))),
+                sink: is_basin(x_um, y_um),
+            };
+            plains::apply(&mut g, &setting, base_seed ^ 0x9A1A_0008)?;
+        }
         // logic/02 §fine-formation terraces: lowland terraces, bluffs and
         // flat interfluves on the infilled coastal lowland.
         terrace::apply(&mut g, &relief_q8, base_seed ^ 0x7E44_0000)?;

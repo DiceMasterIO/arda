@@ -37,7 +37,7 @@ pub mod window;
 pub use arda_tactical::TacticalLayout;
 pub use error::FieldsError;
 pub use input::{
-    FieldInputs, LandUse, LandUseGrid, LandUseMap, Region, Road, RoadClass, Settlement, Terrain,
-    TerrainSample, Tier,
+    FieldInputs, LandUse, LandUseGrid, LandUseMap, Region, RiverLine, Road, RoadClass, Settlement,
+    Terrain, TerrainSample, Tier,
 };
 pub use window::{fields_window, generate, FieldsWindow};

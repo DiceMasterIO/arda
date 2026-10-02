@@ -28,6 +28,9 @@ pub struct ReliefWorld {
     /// Serialises context builds so peak memory stays bounded; it also
     /// holds the shore layer, which every context paints from.
     build: Mutex<Shore>,
+    /// The world's society (land use, roads, town plans), when relief
+    /// tiles draw worked land (logic/17 §land).
+    land: Option<crate::land::Landscape>,
 }
 
 impl std::fmt::Debug for ReliefWorld {
@@ -49,7 +52,21 @@ impl ReliefWorld {
             terrain: WorldTerrain::new(world)?,
             contexts: Mutex::new(BTreeMap::new()),
             build: Mutex::new(None),
+            land: None,
         })
+    }
+
+    /// The same world drawing worked land from `land` (logic/17 §land).
+    #[must_use]
+    pub fn with_landscape(mut self, land: crate::land::Landscape) -> Self {
+        self.land = Some(land);
+        self
+    }
+
+    /// The society relief tiles draw, if any.
+    #[must_use]
+    pub const fn landscape(&self) -> Option<&crate::land::Landscape> {
+        self.land.as_ref()
     }
 
     /// The fine source.

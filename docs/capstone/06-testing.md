@@ -508,4 +508,4 @@ The workspace gate at `c2fb1bf` passed **792 tests, 0 failed, 9 ignored**; `carg
 
 **Byte-identity checks for parallel rendering.** The SHA-256 of parallel overview (MICRO 4K) and area (16K) renders matches the serial output.
 
-**Diagnostics (not gates).** The `world_metrics` example reports lake counts, small lakes, grid-straight river share, bed pits, hypsometry, slope and lowland slope, and mean land rainfall. Full-world results are recorded in `07-operations.md`.
+**Diagnostics (not gates).** The `world_metrics` example reports lake counts, small lakes, grid-straight river share, bed pits, hypsometry, slope and lowland slope, and mean land rainfall. Full-world results are recorded in `07-operations.md`. The `plains_metrics` example (goal 5) separates plains from low hill country: land below 200 m split by 2.1 km relief (under 50 m is plain), plains at any height split into valley floor, side and interfluve, Hammond-style landform classes over a ~10 km window, floodplain width by river size class (shortest of four transects through ground within 2 m of the river cell, also for rivers in plain settings alone) and terrace tread share.

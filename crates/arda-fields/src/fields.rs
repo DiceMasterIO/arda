@@ -29,6 +29,8 @@ pub enum FieldKind {
     Woodland,
     /// Rough grazing, heath and scrub; unenclosed.
     Wild,
+    /// Common grazing on poor ground: open, unenclosed grass.
+    Common,
 }
 
 impl FieldKind {
