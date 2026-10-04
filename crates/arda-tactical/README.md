@@ -36,7 +36,7 @@ arda tactical render --layout riverside --library art:assets/tactical/placeholde
 
 The library is read at run time, so you can swap in a new directory without recompiling. Image paths must be relative and must stay inside the directory.
 
-**Library stacks.** Wherever a library is named (`render --library`, `validate`, the server's `--library`, `arda-town block --library`, and the `--library` argument of the arda-scene `debug` and arda-ways `crossings` examples), a `top:…:bottom` stack also works, like `PATH`: the leftmost library wins and the rest fill in what it lacks. Fallback is per thing the compositor picks among, so styles never mix inside one pick: props and vegetation per id, ground and water per `ground` key (all of a key's variants come from one library), and wall pieces per kit and role. Each layer is validated on its own except for `wall_kit` (an upper layer may hold part of a kit); the merged stack is validated in full.
+**Library stacks.** Wherever a library is named (`render --library`, `validate`, the server's `--library`, `arda-town block --library`, and the `--library` argument of the arda-scene `debug` and arda-ways `crossings` examples), a `top:…:bottom` stack also works, like `PATH`: the leftmost library wins and the rest fill in what it lacks. Fallback is per thing the compositor picks among, so styles never mix inside one pick: props and vegetation per variant family (an id and its `.alt<N>` takes: a layer with any take of `prop.barrel` hides every lower `prop.barrel` and take), ground and water per `ground` key (all of a key's variants come from one library), and wall pieces per kit and role. Each layer is validated on its own except for `wall_kit` (an upper layer may hold part of a kit); the merged stack is validated in full.
 
 Images are 8-bit PNGs, usually RGBA; RGB and grey are also accepted. Alpha is straight, not premultiplied.
 
@@ -110,9 +110,13 @@ The art is authored at `pixels_per_square`. The output resolution is a render op
   - `end`: east only
   - `post`: east and west, on straight runs; optional
 
-Every kit must provide `run`, `corner`, `tee`, `cross` and `end`. If a kit has several assets with the same role, one is picked per edge or vertex by hash.
+Every kit must provide `run`, `corner`, `tee`, `cross` and `end`. If a kit has several assets with the same role (such as the importer's takes `wall.stone.run.alt1`, `.alt2`, …), one is picked per edge or vertex by a hash of the seed and its world position (`origin` plus the local edge midpoint or vertex), so neighbouring windows agree.
 
 **Props and vegetation.** These are cut-outs on a transparent background. The footprint covers the object; the anchor places it. Tree canopies use the `canopy` layer; low vegetation and rocks use `prop`. Floors laid over water, such as docks and bridges, use `floor`.
+
+**Variant takes.** An asset `<id>.alt<N>` (N a number) is an extra take of `<id>`; together they form the *family* `<id>`. The art importer names a cut-out's second, third, … files this way. See [Layout](#layout-tacticallayout) for how one is chosen.
+
+**Free turns (`rot_free`).** An asset with the free tag `rot_free` may be turned and mirrored by the compositor. Tag only round or radial things whose look and meaning do not depend on facing (barrels, crates, trees, bushes, rocks), never beds, tables against walls or carts on roads, and only where the form shading reads from any side: a quarter or half turn moves the top-left highlight. No placeholder carries the tag.
 
 **No baked shadows.** Assets must not include cast shadows. The lighting pass derives shadows and occlusion from `height_ft`, `casts_shadow` and the layer. Form shading on the object itself (lit from the top-left, the compositor's sun) and outlines are fine and expected.
 
@@ -157,7 +161,9 @@ A layout is JSON produced by serde. Coordinates are in squares, with (0, 0) at t
 
 - A `horizontal` segment is the north edge of square (x, y). A `vertical` segment is its west edge. Use `x = width` or `y = height` for the far borders. If two segments share an edge, the later one wins, so a door can be punched into a run.
 - `elevation_ft` is absolute feet above sea level, in 5-ft steps (vocabulary I20).
-- A `query` placement picks, by hashing the seed and the placement index, among the assets of that class that carry every listed tag. Each candidate must allow the requested rotation. A tag such as `function:inn` or `biome:temperate` matches only that list (`biome`, `culture`, `wealth`, `function`, `free`); a bare tag such as `inn` matches any list. Free tags may themselves contain a colon (`craft:weaver`).
+- An `id` placement names a variant family: it draws one of `<id>`, `<id>.alt1`, `<id>.alt2`, … present in the library (those that allow the placement's rotation and mirror; at least one must). The take is picked by a hash of the seed and the anchor's world position (`origin` plus `x, y`, in 1/64 squares) and, when the layout has no `origin`, the placement index. With an origin the pick ignores the index, so the same placement in two overlapping windows draws the same take. An id that names a take (`prop.barrel.alt2`) pins exactly that asset. A library without takes resolves every id to itself, exactly as before.
+- A `query` placement first picks a family among its matches by hashing the seed and the placement index (as before takes existed), then one of that family's matching takes as above. Each candidate must allow the requested rotation.
+- A placement left at rotation 0 and unmirrored whose drawn asset is tagged `rot_free` and anchored at its footprint centre gets a hashed rotation among the asset's `rotations` (only 0 and 180 when the footprint is not square, so it keeps its shape) and, if the asset allows it, a hashed mirror. An explicit rotation or mirror is always kept. `arda_tactical::compose::resolve` returns the asset, quarter turns and mirror actually drawn; the scene layers (arda-scene) use it, so blocking and cover follow the drawn sprite. A tag such as `function:inn` or `biome:temperate` matches only that list (`biome`, `culture`, `wealth`, `function`, `free`); a bare tag such as `inn` matches any list. Free tags may themselves contain a colon (`craft:weaver`).
 - `origin` (optional) places the layout in the world. With it, the compositor hashes and samples all noise at world coordinates, so separately rendered neighbouring blocks join without a seam, as long as each block is rendered with a margin of about six squares beyond the shared edge (elevation smoothing, warps and blends read that far).
 
 ## Compositor
@@ -209,7 +215,7 @@ cargo test --release -p arda-tactical --test timing -- --ignored --nocapture
    | `water.water_shallow.2.png` | a `water_shallow` variant |
    | `wall.stone.corner__take2.png` | the `corner` piece of kit `stone` |
 
-   A second file for the same cut-out becomes `<id>.alt1` and so on, which queries can pick. Files you cannot rename are mapped in the manifest. Ids missing from `docs/goal-prompts/vocabulary.md` are imported but flagged ("did you mean `anvil`?"), because no layout asks for them.
+   A second file for the same cut-out becomes `<id>.alt1` and so on. Layouts keep naming `<id>`; the compositor draws a different take per placement (see [Layout](#layout-tacticallayout)), and queries pick among them too. Files you cannot rename are mapped in the manifest. Ids missing from `docs/goal-prompts/vocabulary.md` are imported but flagged ("did you mean `anvil`?"), because no layout asks for them.
 
 2. **Prompt for what the importer expects.** Cut-outs: top-down, one object, centred, on a plain light or grey backdrop (or with real transparency), even light from the top-left, "no shadow". Walls: one square canvas with the joint vertex (or the edge midpoint) at the centre and arms reaching the borders; the orientation is fixed for you. Ground: a flat, evenly lit top-down surface with no vignette; structured surfaces (cobbles, flagstones, boards, rugs, furrows, strata) should all show the same layout across variants.
 
@@ -242,9 +248,10 @@ cargo test --release -p arda-tactical --test timing -- --ignored --nocapture
    tags = { function = ["inn", "tavern"], free = ["furniture"] }
    shadow = "keep"             # never strip; only flag
    holes = "clear"             # or "keep"; enclosed backdrop pockets (default by class)
+   rot_free = true             # adds the free tag `rot_free` (false removes it)
    ```
 
-   Per-asset keys: `prompt`, `seed`, `tool`, `model`, `licence`, `footprint`, `height_ft`, `cover`, `layer`, `blocks_sight`, `blocks_movement`, `difficult_terrain`, `tags`, `structured`, `shadow` and `holes`. Prompt, seed and model are also read from the PNG's own ComfyUI (`prompt` graph) or A1111 (`parameters`) metadata when the manifest does not give them.
+   Per-asset keys: `prompt`, `seed`, `tool`, `model`, `licence`, `footprint`, `height_ft`, `cover`, `layer`, `blocks_sight`, `blocks_movement`, `difficult_terrain`, `tags`, `structured`, `rot_free`, `shadow` and `holes`. An entry matched by `id` applies to every take of that id. Prompt, seed and model are also read from the PNG's own ComfyUI (`prompt` graph) or A1111 (`parameters`) metadata when the manifest does not give them.
 
 4. **Run it:**
 
