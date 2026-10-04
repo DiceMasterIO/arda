@@ -690,7 +690,9 @@ export async function main(argv, io = { out: process.stdout, err: process.stderr
   const api = client(options.server);
   const health = await api.get("/api/health");
   log(`Slopify ${health.version ?? "?"} is up`);
-  if (options.channel) {
+  // Every asset run belongs in a channel; without one Slopify files it under the default.
+  if (!options.channel) throw new UsageError("--channel must name a Slopify channel (default DiceMaster Assets)");
+  {
     const { channels = [] } = await api.get("/api/channels");
     const found = channels.find((ch) => ch.name === options.channel);
     if (!found) throw new Error(`Slopify has no channel named "${options.channel}"; create it in Channels or pass --channel`);
@@ -752,6 +754,8 @@ export async function main(argv, io = { out: process.stdout, err: process.stderr
         const projectId = reply.project?.id;
         if (projectId === undefined || reply.project.title !== asset.id)
           throw new SlopifyError(`project for ${asset.id} came back as ${JSON.stringify(reply.project ?? reply).slice(0, 200)}`);
+        if (options.channelId && reply.project.channelId !== undefined && reply.project.channelId !== options.channelId)
+          throw new SlopifyError(`project for ${asset.id} landed in channel ${reply.project.channelId}, not "${options.channel}"; stopping.`);
         state.assets[asset.id] = {
           projectId,
           template: asset.template,
