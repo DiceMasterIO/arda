@@ -69,6 +69,7 @@ export const reviewInstruction = [
   "5. Clutter: stray text, letters, numbers, grid lines, watermarks, borders, or extra objects the brief did not ask for; or several copies of the subject when the brief asks for one.",
   "6. Scale and build: parts are implausibly sized for the stated footprint (e.g. bridge planks much wider than a foot, a door wider than its wall run), or a structure has nothing holding it together.",
   "7. Malformed: broken, melted or nonsensical shapes; a creature with wrong anatomy.",
+  "8. Material: the subject is not made of what the brief says (wooden logs or planks that look like polished metal, studs or cones; stone that looks like plastic).",
   "Do not fail it for painterly style, palette or small detail choices.",
 ].join("\n");
 
