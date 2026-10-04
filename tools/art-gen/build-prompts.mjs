@@ -308,7 +308,7 @@ const kits = {
   },
   palisade: {
     subject: "a 5-foot section of log palisade seen from directly above as a tight row of round wooden log ends",
-    detail: "Each log end is a flat wooden disc: brown bark rim, pale end grain with growth rings and cracks; rope lashing; matte wood, no cones or metal.",
+    detail: "Each log end is a flat wooden disc: bark rim, pale end grain with growth rings; rope lashing; matte wood, no cones or metal.",
     thickness: "about one sixth of the image height",
     door: "a narrow log postern door",
     window: "an arrow slit between two logs",
