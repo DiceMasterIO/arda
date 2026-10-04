@@ -655,12 +655,15 @@ export async function main(argv, io = { out: process.stdout, err: process.stderr
 
 const invoked = process.argv[1] !== undefined && resolve(process.argv[1]) === fileURLToPath(import.meta.url);
 if (invoked) {
+  // exitCode, not exit(): a large --dry-run payload is still flushing to a pipe when main returns.
   main(process.argv.slice(2)).then(
-    (code) => process.exit(code),
+    (code) => {
+      process.exitCode = code;
+    },
     (error) => {
       process.stderr.write(`${error instanceof UsageError || error instanceof SlopifyError ? "" : "error: "}${error.message}\n`);
       if (error instanceof UsageError) process.stderr.write("Run with --help for usage.\n");
-      process.exit(1);
+      process.exitCode = 1;
     },
   );
 }
