@@ -335,7 +335,7 @@ const roles = {
   door: (k) => `Doorway in a straight run from ${acrossShort}; middle third: a gap between jambs, wall top stopped, shut by ${k.door} along the wall line.`,
   window: (k) => `A straight run with a window: ${across}, with ${k.window} in the middle third.`,
   gate: (k) => `Gateway in a straight run from ${acrossShort}; middle: a gap between posts, wall top stopped, shut by ${k.gate} along the wall line.`,
-  post: (k) => `A straight run with a post: ${across}, with ${k.post} at the exact centre.`,
+  post: (k) => `Only ${k.post}, alone at the exact centre, about a quarter of the image wide; no wall runs out from it, the rest is empty.`,
   corner: () =>
     "An L-shaped corner: one arm runs from the centre to the right edge and the other from the centre to the bottom edge; nothing left of or above the centre.",
   tee: () =>

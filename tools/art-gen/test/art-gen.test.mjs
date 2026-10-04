@@ -85,7 +85,7 @@ test("wall roles describe their canonical arms", () => {
     door: /left edge to right edge on the centre line/,
     window: /left edge to the right edge/,
     gate: /left edge to right edge on the centre line/,
-    post: /left edge to the right edge/,
+    post: /alone at the exact centre.*no wall runs out from it/,
     corner: /right edge and the other from the centre to the bottom edge; nothing left of or above/,
     tee: /left edge, the right edge and the bottom edge; nothing above/,
     cross: /all four edges/,
