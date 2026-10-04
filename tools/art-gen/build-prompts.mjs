@@ -379,8 +379,8 @@ const props = {
     "Orange coals with bright embers inside a wrought iron rim; the glow stays inside the bowl, with no light spill around it.",
   ],
   bridge_deck: [
-    "one long strip of bridge decking: a single heavy timber plank-board, seen from directly above, no rails, no posts, no beams visible",
-    "Grain and edges run top to bottom along the long axis; weathered grey-brown timber, nails near both ends; square-cut ends and edges so strips lie side by side as one deck.",
+    "a 5 by 10 foot strip of timber bridge deck: five narrow planks, each about one foot wide, side by side, seen from above, no rails",
+    "Planks run top to bottom; rows of iron nails where they sit on hidden beams; a bolted edge timber across each end; square-cut edges so strips join.",
   ],
   bridge_deck_stone: [
     "one square of stone bridge paving: worn flat paving slabs, seen from directly above, no parapets, no walls, no kerbs",
