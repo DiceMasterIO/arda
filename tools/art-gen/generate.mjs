@@ -28,6 +28,9 @@ export const defaults = {
   licence: "LicenseRef-AI-generated",
   libraryName: "arda-ai",
   libraryVersion: "0.1.0",
+  reviewer: "claude-code",
+  reviewerModel: "opus",
+  reviewRetries: 2,
 };
 
 // Slopify's provider ids for image models, and friendlier spellings.
@@ -50,6 +53,22 @@ const knownPrices = {
   "codex-image/*": 0,
 };
 
+// What the image reviewer fails an asset for. Slopify sends it the image and the brief it was
+// drawn from (the full prompt), so the rules here are the ones every Arda asset shares; the
+// geometry comes from the brief.
+export const reviewInstruction = [
+  "Review this tabletop battle-map asset against the brief it was drawn from. It is placed on a 5-foot square grid, seen from straight above.",
+  "Fail it when any of these hold:",
+  "1. View: it is not strictly top-down orthographic (any perspective, horizon, tilted, isometric or side-on view; visible vertical faces of walls or objects beyond a thin edge).",
+  "2. Geometry: it does not match the layout the brief states. Walls must run exactly where the brief says (which edges they touch, through the centre line, nothing extra). A door or gate must sit in a gap in the wall line, its leaf lying ALONG the wall's length between two jambs, with the wall top, parapet or crenellations stopping at the gap; fail a door drawn across the wall's thickness, a door lying on top of the wall-walk, or a door that cannot be told apart from the wall.",
+  "3. Background: for a cut-out (prop, vegetation, wall piece), anything other than the subject is not transparent (a solid, white, checkerboard or coloured backdrop, a ground patch or a frame); for a ground or water tile, it does not fill the whole frame edge to edge as a texture.",
+  "4. Shading: it shows a cast shadow or drop shadow on the ground.",
+  "5. Clutter: stray text, letters, numbers, grid lines, watermarks, borders, or extra objects the brief did not ask for; or several copies of the subject when the brief asks for one.",
+  "6. Scale and build: parts are implausibly sized for the stated footprint (e.g. bridge planks much wider than a foot, a door wider than its wall run), or a structure has nothing holding it together.",
+  "7. Malformed: broken, melted or nonsensical shapes; a creature with wrong anatomy.",
+  "Do not fail it for painterly style, palette or small detail choices.",
+].join("\n");
+
 const usage = `Usage: node tools/art-gen/generate.mjs [options]
 
 Selection
@@ -67,6 +86,13 @@ Generation
   --batch-size N        assets per Slopify batch, at most ${batchMax}; default ${defaults.batchSize}
   --price-per-image USD for the estimate when Slopify's catalogue has no price
 
+Review (on by default: a failed image is made again)
+  --no-review           turn the image reviewer off
+  --review-mode MODE    redo (default) or flag
+  --reviewer ID         claude-code (default) or codex
+  --reviewer-model ID   default ${defaults.reviewerModel}
+  --review-retries N    remakes per image, 0 to 5; default ${defaults.reviewRetries}
+
 Output
   --out DIR             default ${defaults.out}
   --licence SPDX        the [library] licence in import.toml; default ${defaults.licence}
@@ -83,6 +109,17 @@ Safety
   --prompts FILE        default tools/art-gen/prompts.json
 `;
 
+// Slopify reviews pictures only with a CLI agent that can look at them.
+const reviewers = ["claude-code", "codex"];
+function reviewerProvider(id) {
+  if (!reviewers.includes(id)) throw new UsageError(`--reviewer must be ${reviewers.join(" or ")}; got "${id}"`);
+  return id;
+}
+function reviewMode(mode) {
+  if (mode !== "redo" && mode !== "flag") throw new UsageError(`--review-mode must be redo or flag; got "${mode}"`);
+  return mode;
+}
+
 export function parseOptions(argv) {
   const { values } = parseArgs({
     args: argv,
@@ -96,6 +133,11 @@ export function parseOptions(argv) {
       provider: { type: "string", default: defaults.provider },
       model: { type: "string", default: defaults.model },
       thinking: { type: "string" },
+      "no-review": { type: "boolean", default: false },
+      "review-mode": { type: "string", default: "redo" },
+      reviewer: { type: "string", default: defaults.reviewer },
+      "reviewer-model": { type: "string", default: defaults.reviewerModel },
+      "review-retries": { type: "string", default: String(defaults.reviewRetries) },
       channel: { type: "string", default: "DiceMaster Assets" },
       reference: { type: "string" },
       "batch-size": { type: "string", default: String(defaults.batchSize) },
@@ -135,6 +177,14 @@ export function parseOptions(argv) {
     provider,
     model: values.model,
     thinking: values.thinking,
+    review: values["no-review"]
+      ? undefined
+      : {
+          provider: reviewerProvider(values.reviewer),
+          model: values["reviewer-model"],
+          mode: reviewMode(values["review-mode"]),
+          retries: Math.floor(number("review-retries", 0, 5)),
+        },
     channel: values.channel,
     reference: values.reference,
     batchSize: Math.floor(number("batch-size", 1, batchMax)),
@@ -240,6 +290,16 @@ export function batchBody(batch, options, { requestId = randomUUID(), referenceI
       ...(options.thinking ? { thinking: options.thinking } : {}),
     },
     ...(options.channelId ? { channelId: options.channelId } : {}),
+    ...(options.review
+      ? {
+          reviews: {
+            provider: options.review.provider,
+            model: options.review.model,
+            retries: options.review.retries,
+            stages: { images: { mode: options.review.mode, prompt: reviewInstruction } },
+          },
+        }
+      : {}),
     imagePrompts: [{ name: template, number: 1 }],
     values: {},
     provided: {},

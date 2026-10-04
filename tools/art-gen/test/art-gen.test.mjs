@@ -82,9 +82,9 @@ test("prompts carry the art conventions and no artist names", () => {
 test("wall roles describe their canonical arms", () => {
   const arms = {
     run: /left edge to the right edge/,
-    door: /left edge to the right edge/,
+    door: /left edge to right edge on the centre line/,
     window: /left edge to the right edge/,
-    gate: /left edge to the right edge/,
+    gate: /left edge to right edge on the centre line/,
     post: /left edge to the right edge/,
     corner: /right edge and the other from the centre to the bottom edge; nothing left of or above/,
     tee: /left edge, the right edge and the bottom edge; nothing above/,
@@ -214,7 +214,7 @@ test("floor tiles are rail-less and fill their footprint; doors and gates are co
     }
     if (/^prop\.bridge_deck_stone/.test(id)) assert.match(a.prompt, /no parapets/, id);
     if (/^prop\.bridge_deck(\.alt\d)?$/.test(id)) assert.match(a.values.Subject, /five narrow (\w+ )?planks, each about one foot wide/, id);
-    if (a.class === "wall" && (a.role === "door" || a.role === "gate")) assert.match(a.values.Shape, /closed, wall-thick, contrasting/, id);
+    if (a.class === "wall" && (a.role === "door" || a.role === "gate")) assert.match(a.values.Shape, /gap between (jambs|posts), wall top stopped, shut by .* along the wall line/, id);
   }
 });
 
@@ -455,4 +455,24 @@ test("Slopify's admission refuses what the limits forbid (the harness can fail)"
   assert.equal(code.admit({ draft: missing, staged: [], requiredSlots }).ok, false);
   const article = { ...input.draft, title: "prop.anvil", values: input.items[0].values, sources: { ...input.draft.sources, article: "generate" } };
   assert.equal(code.admit({ draft: article, staged: [], requiredSlots }).ok, false);
+});
+
+test("batches carry an image reviewer that remakes failed images, unless turned off", () => {
+  const asset = { id: "wall.city_wall.door", template: "arda-wall", format: "1:1", values: { Shape: "x" } };
+  const on = batchBody([asset], parseOptions([]));
+  assert.deepEqual(
+    { ...on.draft.reviews, stages: undefined },
+    { provider: "claude-code", model: "opus", retries: 2, stages: undefined },
+  );
+  assert.equal(on.draft.reviews.stages.images.mode, "redo");
+  assert.match(on.draft.reviews.stages.images.prompt, /door or gate must sit in a gap/);
+  const flag = batchBody([asset], parseOptions(["--review-mode", "flag", "--reviewer", "codex", "--reviewer-model", "gpt-6-astra", "--review-retries", "4"]));
+  assert.deepEqual(
+    { ...flag.draft.reviews, stages: undefined },
+    { provider: "codex", model: "gpt-6-astra", retries: 4, stages: undefined },
+  );
+  assert.equal(flag.draft.reviews.stages.images.mode, "flag");
+  assert.equal(batchBody([asset], parseOptions(["--no-review"])).draft.reviews, undefined);
+  assert.throws(() => parseOptions(["--reviewer", "gemini-cli"]), /--reviewer must be/);
+  assert.throws(() => parseOptions(["--review-retries", "9"]), /--review-retries/);
 });

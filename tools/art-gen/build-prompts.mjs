@@ -329,11 +329,12 @@ const kits = {
 for (const [name, kit] of Object.entries(newKits)) kits[name] = kit;
 
 const across = "it runs from the left edge to the right edge along the horizontal centre line";
+const acrossShort = "left edge to right edge on the centre line";
 const roles = {
   run: () => `A straight run: ${across}, with no branches and no openings.`,
-  door: (k) => `Doorway in a straight run: ${across}; middle third: ${k.door}, closed, wall-thick, contrasting colour.`,
+  door: (k) => `Doorway in a straight run from ${acrossShort}; middle third: a gap between jambs, wall top stopped, shut by ${k.door} along the wall line.`,
   window: (k) => `A straight run with a window: ${across}, with ${k.window} in the middle third.`,
-  gate: (k) => `Gateway in a straight run: ${across}; middle: ${k.gate}, closed, wall-thick, contrasting.`,
+  gate: (k) => `Gateway in a straight run from ${acrossShort}; middle: a gap between posts, wall top stopped, shut by ${k.gate} along the wall line.`,
   post: (k) => `A straight run with a post: ${across}, with ${k.post} at the exact centre.`,
   corner: () =>
     "An L-shaped corner: one arm runs from the centre to the right edge and the other from the centre to the bottom edge; nothing left of or above the centre.",
