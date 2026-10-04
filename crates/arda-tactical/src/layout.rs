@@ -82,10 +82,13 @@ pub struct WallSegment {
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "snake_case")]
 pub enum AssetRef {
-    /// A specific asset.
+    /// An asset and its `.alt<N>` takes; the compositor draws one take
+    /// per placement, picked by a hash of the seed and world position. An
+    /// id that names a take (`prop.barrel.alt2`) pins exactly that asset.
     Id(String),
-    /// Any asset of the class carrying every tag; the compositor picks one
-    /// by hashing the seed and placement index.
+    /// Any asset of the class carrying every tag; the compositor picks a
+    /// family by hashing the seed and placement index, then a take of it
+    /// as for [`AssetRef::Id`].
     Query {
         /// Restrict to a class.
         #[serde(default)]
@@ -243,9 +246,21 @@ impl TacticalLayout {
             }
         }
         for (i, p) in self.placements.iter().enumerate() {
-            let all = crate::compose::candidates(lib, &p.asset);
+            let mut all = crate::compose::candidates(lib, &p.asset);
             if all.is_empty() {
                 return Err(self.fail(format!("placement {i}: {:?} matches no asset", p.asset)));
+            }
+            // An id draws only the takes of its family that fit, so one
+            // fitting take is enough; a query's matches must all fit.
+            if let AssetRef::Id(_) = p.asset {
+                let fitting: Vec<_> = all
+                    .iter()
+                    .copied()
+                    .filter(|a| crate::compose::variants::fits(a, p.rotation, p.mirror))
+                    .collect();
+                if !fitting.is_empty() {
+                    all = fitting;
+                }
             }
             for asset in all {
                 if !asset.rotations.contains(&p.rotation) {

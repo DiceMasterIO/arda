@@ -196,6 +196,22 @@ impl Library {
         self.catalog.assets.iter().find(|a| a.id == id)
     }
 
+    /// The variant family of `id`: every asset whose [`family_base`] is
+    /// `id`, in catalogue order (`prop.barrel`, `prop.barrel.alt1`, …). An
+    /// id that names one take itself (`prop.barrel.alt2`) is its own
+    /// family of one.
+    #[must_use]
+    pub fn family(&self, id: &str) -> Vec<&Asset> {
+        if family_base(id) != id {
+            return self.asset(id).into_iter().collect();
+        }
+        self.catalog
+            .assets
+            .iter()
+            .filter(|a| family_base(&a.id) == id)
+            .collect()
+    }
+
     /// The image of an asset by id.
     #[must_use]
     pub fn image(&self, id: &str) -> Option<&Rgba> {
@@ -240,6 +256,21 @@ impl Library {
             .filter(|a| class.is_none_or(|c| a.class == c))
             .filter(|a| tags.iter().all(|q| has_tag(&a.tags, q)))
             .collect()
+    }
+}
+
+/// The id of the asset family `id` belongs to: `id` without a trailing
+/// `.alt<N>` take suffix (`prop.barrel.alt2` → `prop.barrel`), or `id`
+/// itself. The art importer names extra takes of a cut-out this way.
+#[must_use]
+pub fn family_base(id: &str) -> &str {
+    match id.rsplit_once(".alt") {
+        Some((base, n))
+            if !base.is_empty() && !n.is_empty() && n.bytes().all(|b| b.is_ascii_digit()) =>
+        {
+            base
+        }
+        _ => id,
     }
 }
 

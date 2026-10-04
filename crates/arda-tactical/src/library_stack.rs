@@ -5,7 +5,9 @@
 //! A stack is written `top:…:bottom`, like `PATH`; the leftmost library wins.
 //! Fallback is resolved per *thing the compositor picks among*, so styles
 //! never mix inside one pick:
-//! - props and vegetation: per asset id;
+//! - props and vegetation: per asset family (an id and its `.alt<N>`
+//!   takes), so a layer's takes of `prop.barrel` all shadow the lower
+//!   layers' `prop.barrel` and its takes;
 //! - ground and water textures: per `ground` key (a key's variants all come
 //!   from the highest library that paints that key);
 //! - wall pieces: per kit and role (a kit missing `post` in the new library
@@ -13,7 +15,7 @@
 
 use crate::catalog::{Asset, AssetClass, Catalog, WallRole};
 use crate::error::TacticalError;
-use crate::library::{read_catalog, read_images, Library};
+use crate::library::{family_base, read_catalog, read_images, Library};
 use crate::raster::Rgba;
 use crate::validate::{validate, Rule, Thresholds, MAX_FOOTPRINT_SQUARES};
 use std::collections::{BTreeMap, BTreeSet};
@@ -54,7 +56,7 @@ fn slot(a: &Asset) -> Slot {
     match (&a.ground, &a.wall) {
         (Some(key), _) if a.class.is_texture() => Slot::Ground(key.clone()),
         (_, Some(w)) if a.class == AssetClass::Wall => Slot::Wall(w.kit.clone(), w.role),
-        _ => Slot::Id(a.id.clone()),
+        _ => Slot::Id(family_base(&a.id).to_string()),
     }
 }
 

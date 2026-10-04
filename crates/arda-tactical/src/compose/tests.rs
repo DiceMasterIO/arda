@@ -6,7 +6,7 @@
 )]
 
 use super::*;
-use crate::layout::Placement;
+use crate::layout::{AssetRef, Placement};
 use crate::layouts;
 use std::path::Path;
 

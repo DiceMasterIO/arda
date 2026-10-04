@@ -8,7 +8,7 @@
 )]
 
 use super::*;
-use crate::layout::Placement;
+use crate::layout::{AssetRef, Placement};
 use std::path::Path;
 
 fn lib() -> Library {

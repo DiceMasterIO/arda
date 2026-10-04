@@ -122,10 +122,16 @@ impl Asset {
     /// The anchor, defaulting to the footprint centre.
     #[must_use]
     pub fn anchor_or_centre(&self) -> Anchor {
-        self.anchor.unwrap_or(Anchor {
+        self.anchor.unwrap_or(self.footprint_centre())
+    }
+
+    /// The centre of the footprint, in squares.
+    #[must_use]
+    pub fn footprint_centre(&self) -> Anchor {
+        Anchor {
             x: self.footprint.w as f32 / 2.0,
             y: self.footprint.h as f32 / 2.0,
-        })
+        }
     }
 }
 

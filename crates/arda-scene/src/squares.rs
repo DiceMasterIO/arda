@@ -38,7 +38,7 @@ pub struct Placed<'a> {
     pub at: (f32, f32),
 }
 
-/// The seed the compositor resolves queries with, so the scene names the
+/// The seed the compositor resolves queries and variant takes with, so the scene names the
 /// same assets the painted image shows (`compose::render`).
 #[must_use]
 pub fn art_seed(lib: &Library, seed: u64) -> u64 {
@@ -57,18 +57,19 @@ pub fn resolve_all<'a>(
     let s = art_seed(lib, seed);
     let mut out = Vec::with_capacity(layout.placements.len());
     for (i, p) in layout.placements.iter().enumerate() {
-        let a = resolve(lib, &p.asset, s, i).ok_or_else(|| {
+        let r = resolve(lib, layout, i, s).ok_or_else(|| {
             SceneError::Tactical(arda_tactical::TacticalError::Layout {
                 layout: layout.name.clone(),
                 message: format!("placement {i} matches no asset"),
             })
         })?;
-        let turns = (p.rotation / 90) % 4;
+        // The take, turn and mirror the compositor draws.
+        let (a, turns) = (r.asset, r.turns % 4);
         let anchor = a.anchor_or_centre();
         let (mut ax, mut ay) = (anchor.x, anchor.y);
         #[allow(clippy::cast_precision_loss)] // footprints are a few squares
         let (mut w, mut h) = (a.footprint.w as f32, a.footprint.h as f32);
-        if p.mirror {
+        if r.mirror {
             ax = w - ax;
         }
         for _ in 0..turns {

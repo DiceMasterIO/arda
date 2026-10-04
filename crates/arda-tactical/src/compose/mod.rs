@@ -16,6 +16,7 @@ mod shadows;
 pub mod snow;
 pub mod stamp;
 pub mod terrain;
+pub mod variants;
 pub mod walls;
 pub mod water;
 mod weights;
@@ -23,7 +24,7 @@ pub mod world_tint;
 
 use crate::catalog::{Asset, Layer};
 use crate::error::TacticalError;
-use crate::layout::{AssetRef, TacticalLayout};
+use crate::layout::TacticalLayout;
 use crate::library::Library;
 use crate::noise::{hash2, hash_str};
 use crate::raster::Rgba;
@@ -33,6 +34,7 @@ use stamp::{Op, Stamp};
 use std::collections::BTreeMap;
 use std::sync::Arc;
 use terrain::Terrain;
+pub use variants::{candidates, resolve, Resolved, ROT_FREE};
 
 /// Ground key of shallow water textures.
 pub const WATER_SHALLOW: &str = "water_shallow";
@@ -71,27 +73,6 @@ impl Default for Style {
     fn default() -> Self {
         Self { grade: true }
     }
-}
-
-/// Every asset an [`AssetRef`] could resolve to.
-#[must_use]
-pub fn candidates<'a>(lib: &'a Library, r: &AssetRef) -> Vec<&'a Asset> {
-    match r {
-        AssetRef::Id(id) => lib.asset(id).into_iter().collect(),
-        AssetRef::Query { class, tags } => lib.query(*class, tags),
-    }
-}
-
-/// Resolves an [`AssetRef`]; queries pick by hashing the seed and index.
-#[must_use]
-pub fn resolve<'a>(lib: &'a Library, r: &AssetRef, seed: u64, index: usize) -> Option<&'a Asset> {
-    let all = candidates(lib, r);
-    let n = all.len() as u64;
-    if n == 0 {
-        return None;
-    }
-    let pick = hash2(seed ^ 0x9E50, i64::try_from(index).unwrap_or(0), 0) % n;
-    all.get(usize::try_from(pick).ok()?).copied()
 }
 
 /// Scaled, mirrored and rotated sprites, cached by `(id, turns, mirror)`.
@@ -321,27 +302,26 @@ fn render_clip(
         ppsq,
         cache: BTreeMap::new(),
     };
-    let mut placed: Vec<(Layer, i16, usize, &Asset)> = Vec::new();
-    for (i, p) in layout.placements.iter().enumerate() {
-        let a = resolve(lib, &p.asset, seed, i).ok_or_else(|| TacticalError::Layout {
+    let mut placed: Vec<(Layer, i16, usize, Resolved<'_>)> = Vec::new();
+    for i in 0..layout.placements.len() {
+        let r = resolve(lib, layout, i, seed).ok_or_else(|| TacticalError::Layout {
             layout: layout.name.clone(),
             message: format!("placement {i} matches no asset"),
         })?;
-        placed.push((a.layer, a.z, i, a));
+        placed.push((r.asset.layer, r.asset.z, i, r));
     }
     placed.sort_by_key(|(layer, z, i, _)| (*layer, *z, *i));
     let mut pools = Vec::new();
     let mut ops = Vec::new();
     let mut walls_done = false;
-    for (layer, _, i, a) in &placed {
+    for (layer, _, i, r) in &placed {
         if *layer > Layer::Wall && !walls_done {
             draw_walls(&mut ops, &mut sprites, lib, seed, layout);
             walls_done = true;
         }
-        let p = &layout.placements[*i];
-        let turns = u8::try_from(p.rotation / 90).unwrap_or(0);
-        let at = anchor_origin(a, p.x, p.y, turns, p.mirror, ppsq);
-        sprites.push(&mut ops, a, turns, p.mirror, at);
+        let (p, a) = (&layout.placements[*i], r.asset);
+        let at = anchor_origin(a, p.x, p.y, r.turns, r.mirror, ppsq);
+        sprites.push(&mut ops, a, r.turns, r.mirror, at);
         if let Some(light) = a.light {
             pools.push(pool(p.x, p.y, light.radius_ft, light.colour, ppsq));
         }
@@ -419,13 +399,16 @@ fn pool(x: f32, y: f32, radius_ft: u16, colour: [u8; 3], ppsq: u32) -> Pool {
     }
 }
 
-fn pick<'a>(pieces: &[&'a Asset], seed: u64, a: u32, b: u32) -> Option<&'a Asset> {
+/// One of a kit role's pieces (its `.alt<N>` takes included), by a hash
+/// of world coordinates `(a, b)` so neighbouring windows agree.
+fn pick<'a>(pieces: &[&'a Asset], seed: u64, a: i64, b: i64) -> Option<&'a Asset> {
     let n = pieces.len() as u64;
-    let i = usize::try_from(hash2(seed ^ 0xA11, i64::from(a), i64::from(b)) % n.max(1)).ok()?;
+    let i = usize::try_from(hash2(seed ^ 0xA11, a, b) % n.max(1)).ok()?;
     pieces.get(i).copied()
 }
 
-/// Queues edge pieces, then joints over their ends.
+/// Queues edge pieces, then joints over their ends. Pieces are picked by
+/// world edge midpoint (in half squares) and world vertex.
 fn draw_walls(
     ops: &mut Vec<Op>,
     sprites: &mut Sprites<'_>,
@@ -435,9 +418,14 @@ fn draw_walls(
 ) {
     let (edges, joints) = walls::assemble(layout);
     let p = i64::from(sprites.ppsq);
+    let (ox, oy) = layout.world_origin();
     for e in &edges {
         let pieces = lib.wall_pieces(&e.segment.kit, e.segment.kind);
-        let Some(a) = pick(&pieces, seed, e.centre2.0, e.centre2.1) else {
+        let (wx, wy) = (
+            2 * ox + i64::from(e.centre2.0),
+            2 * oy + i64::from(e.centre2.1),
+        );
+        let Some(a) = pick(&pieces, seed, wx, wy) else {
             continue;
         };
         let (cx, cy) = (
@@ -448,7 +436,8 @@ fn draw_walls(
     }
     for j in &joints {
         let pieces = lib.wall_pieces(j.kit, j.role);
-        let Some(a) = pick(&pieces, seed, j.vertex.0, j.vertex.1) else {
+        let (wx, wy) = (ox + i64::from(j.vertex.0), oy + i64::from(j.vertex.1));
+        let Some(a) = pick(&pieces, seed, wx, wy) else {
             continue;
         };
         let (cx, cy) = (i64::from(j.vertex.0) * p, i64::from(j.vertex.1) * p);
@@ -482,3 +471,5 @@ mod tests;
 mod tests_look;
 #[cfg(test)]
 mod tests_snow;
+#[cfg(test)]
+mod tests_variants;
