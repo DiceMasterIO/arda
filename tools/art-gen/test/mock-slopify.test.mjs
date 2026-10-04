@@ -101,7 +101,7 @@ test("submits, polls, downloads and writes import.toml; --resume skips what is d
     assert.match(err.text, /FAILED prop\.anvil: provider refused/);
     // Two frames, so two batches; one Library prompt created.
     assert.equal(fake.calls.filter((c) => c === "POST /api/projects/batch").length, 2);
-    assert.deepEqual(fake.prompts.map((p) => p.name), ["arda-prop"]);
+    assert.deepEqual(fake.prompts.map((p) => [p.kind, p.name]), [["image", "arda-prop"], ["review", "arda-asset-review"]]);
     const toml = readFileSync(join(out, "import.toml"), "utf8");
     assert.match(toml, /file = "prop\.barrel\.jpg"/);
     assert.match(toml, /prompt = "rendered prop\.crate"/);

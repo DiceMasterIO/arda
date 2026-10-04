@@ -465,7 +465,7 @@ test("batches carry an image reviewer that remakes failed images, unless turned 
     { provider: "claude-code", model: "opus", retries: 2, stages: undefined },
   );
   assert.equal(on.draft.reviews.stages.images.mode, "redo");
-  assert.match(on.draft.reviews.stages.images.prompt, /door or gate must sit in a gap/);
+  assert.equal(on.draft.reviews.stages.images.prompt, "arda-asset-review");
   const flag = batchBody([asset], parseOptions(["--review-mode", "flag", "--reviewer", "codex", "--reviewer-model", "gpt-6-astra", "--review-retries", "4"]));
   assert.deepEqual(
     { ...flag.draft.reviews, stages: undefined },

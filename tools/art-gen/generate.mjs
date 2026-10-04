@@ -53,9 +53,11 @@ const knownPrices = {
   "codex-image/*": 0,
 };
 
-// What the image reviewer fails an asset for. Slopify sends it the image and the brief it was
+// What the image reviewer fails an asset for, kept as the Library review prompt
+// reviewPromptName (created like the image templates). Slopify sends it the image and the brief it was
 // drawn from (the full prompt), so the rules here are the ones every Arda asset shares; the
 // geometry comes from the brief.
+export const reviewPromptName = "arda-asset-review";
 export const reviewInstruction = [
   "Review this tabletop battle-map asset against the brief it was drawn from. It is placed on a 5-foot square grid, seen from straight above.",
   "Fail it when any of these hold:",
@@ -296,7 +298,7 @@ export function batchBody(batch, options, { requestId = randomUUID(), referenceI
             provider: options.review.provider,
             model: options.review.model,
             retries: options.review.retries,
-            stages: { images: { mode: options.review.mode, prompt: reviewInstruction } },
+            stages: { images: { mode: options.review.mode, prompt: reviewPromptName } },
           },
         }
       : {}),
@@ -439,19 +441,20 @@ function client(server) {
 // only with --update-templates, because the prompt text is the art's provenance.
 async function ensureTemplates(api, pack, names, options, log) {
   const { prompts } = await api.get("/api/prompts");
-  for (const name of names) {
-    const want = pack.templates[name].body;
-    const have = prompts.find((p) => p.kind === "image" && p.name === name);
+  const wanted = names.map((name) => ({ kind: "image", name, body: pack.templates[name].body }));
+  if (options.review) wanted.push({ kind: "review", name: reviewPromptName, body: reviewInstruction });
+  for (const { kind, name, body: want } of wanted) {
+    const have = prompts.find((p) => p.kind === kind && p.name === name);
     if (have === undefined) {
-      await api.post("/api/prompts", { kind: "image", name, body: want });
-      log(`created Library image prompt "${name}"`);
+      await api.post("/api/prompts", { kind, name, body: want });
+      log(`created Library ${kind} prompt "${name}"`);
     } else if (have.body !== want) {
       if (!options.updateTemplates)
         throw new SlopifyError(
-          `Library image prompt "${name}" differs from prompts.json. Pass --update-templates to overwrite it, or rename yours.`,
+          `Library ${kind} prompt "${name}" differs from ${kind === "review" ? "generate.mjs" : "prompts.json"}. Pass --update-templates to overwrite it, or rename yours.`,
         );
-      await api.put(`/api/prompts/${have.id}`, { kind: "image", name, body: want });
-      log(`updated Library image prompt "${name}"`);
+      await api.put(`/api/prompts/${have.id}`, { kind, name, body: want });
+      log(`updated Library ${kind} prompt "${name}"`);
     }
   }
 }
