@@ -31,6 +31,7 @@ export const defaults = {
   reviewer: "claude-code",
   reviewerModel: "opus",
   reviewRetries: 2,
+  parallel: 5,
 };
 
 // Slopify's provider ids for image models, and friendlier spellings.
@@ -85,7 +86,9 @@ Generation
   --provider ID         ${imageProviders.join(", ")} (aliases: openai, google, codex); default ${defaults.provider}
   --model ID            default ${defaults.model}
   --reference FILE      a style reference, sent as Slopify's establishing image
-  --batch-size N        assets per Slopify batch, at most ${batchMax}; default ${defaults.batchSize}
+  --parallel N          keep N assets generating at once, each posted as its own project;
+                        default ${defaults.parallel}. 0 sends Slopify batches instead, which run one at a time
+  --batch-size N        assets per Slopify batch (with --parallel 0), at most ${batchMax}; default ${defaults.batchSize}
   --price-per-image USD for the estimate when Slopify's catalogue has no price
 
 Review (on by default: a failed image is made again)
@@ -143,6 +146,7 @@ export function parseOptions(argv) {
       channel: { type: "string", default: "DiceMaster Assets" },
       reference: { type: "string" },
       "batch-size": { type: "string", default: String(defaults.batchSize) },
+      parallel: { type: "string", default: String(defaults.parallel) },
       "price-per-image": { type: "string" },
       out: { type: "string", default: defaults.out },
       licence: { type: "string", default: defaults.licence },
@@ -190,6 +194,7 @@ export function parseOptions(argv) {
     channel: values.channel,
     reference: values.reference,
     batchSize: Math.floor(number("batch-size", 1, batchMax)),
+    parallel: Math.floor(number("parallel", 0, 20)),
     pricePerImage: values["price-per-image"] === undefined ? undefined : number("price-per-image", 0),
     out: resolve(values.out),
     licence: values.licence,
@@ -316,6 +321,13 @@ export function batchBody(batch, options, { requestId = randomUUID(), referenceI
     draft,
     items: batch.map((asset) => ({ title: asset.id, values: { ...asset.values } })),
   };
+}
+
+// One asset as its own project. Slopify runs batch items one at a time (`pumpQueue`), while a
+// project posted on its own starts at once, limited only by the provider's concurrency.
+export function projectBody(asset, options, extra) {
+  const { draft } = batchBody([asset], options, extra);
+  return { ...draft, title: asset.id, values: { ...asset.values } };
 }
 
 export function checkValues(assets) {
@@ -529,9 +541,10 @@ function writeManifest(out, state, options, pack) {
 
 const finished = new Set(["done", "partial", "failed", "canceled"]);
 
-async function collect(api, out, state, ids, options, log, pack) {
+async function collect(api, out, state, ids, options, log, pack, feed = async () => {}) {
   const deadline = Date.now() + options.timeout * 60_000;
   const pending = new Set(ids);
+  await feed(pending);
   while (pending.size > 0) {
     for (const id of [...pending]) {
       const record = state.assets[id];
@@ -567,6 +580,7 @@ async function collect(api, out, state, ids, options, log, pack) {
       writeManifest(out, state, options, pack);
       log(`saved ${file} (${pending.size} still waiting)`);
     }
+    await feed(pending);
     if (pending.size === 0) break;
     if (Date.now() > deadline) {
       log(`gave up waiting after ${options.timeout} min; run again with --resume to pick up ${pending.size} still running.`);
@@ -700,6 +714,61 @@ export async function main(argv, io = { out: process.stdout, err: process.stderr
       mkdirSync(aside, { recursive: true });
       renameSync(old, join(aside, `${basename(old)}.${Date.now()}`));
     }
+
+  if (options.parallel > 0 && unconfirmed.length === 0) {
+    const waiting = [...limited];
+    // Items an earlier run left in Slopify's one-at-a-time batch queue: those not started yet
+    // are canceled and started again as their own projects, so they run side by side.
+    const collecting = [];
+    for (const asset of inFlight) {
+      const record = state.assets[asset.id];
+      const view = record.requestId === undefined ? undefined : await api.get(`/api/projects/${record.projectId}`);
+      if (view?.project?.status !== "pending") {
+        collecting.push(asset.id);
+        continue;
+      }
+      await api.post(`/api/projects/${record.projectId}/cancel`, {
+        baseRevisionId: view.revisionId,
+        idempotencyKey: randomUUID(),
+      });
+      record.status = "failed";
+      record.error = "moved out of the batch queue";
+      waiting.push(asset);
+    }
+    if (waiting.length > limited.length)
+      log(`moved ${waiting.length - limited.length} waiting batch items to run ${options.parallel} at a time`);
+    writeState(options.out, state);
+    const feed = async (pending) => {
+      while (pending.size < options.parallel && waiting.length > 0) {
+        const asset = waiting.shift();
+        const body = projectBody(asset, options, { referenceId });
+        const reply = await api.post("/api/projects", body);
+        const projectId = reply.project?.id;
+        if (projectId === undefined || reply.project.title !== asset.id)
+          throw new SlopifyError(`project for ${asset.id} came back as ${JSON.stringify(reply.project ?? reply).slice(0, 200)}`);
+        state.assets[asset.id] = {
+          projectId,
+          template: asset.template,
+          provider: body.images.provider,
+          model: body.images.model,
+          prompt: asset.prompt,
+          footprint: asset.footprint,
+          structured: asset.structured === true,
+          status: "submitted",
+          at: new Date().toISOString(),
+        };
+        writeState(options.out, state);
+        pending.add(asset.id);
+        log(`started ${asset.id} (${waiting.length} not started yet)`);
+      }
+    };
+    const complete = await collect(api, options.out, state, collecting, options, log, pack, feed);
+    writeManifest(options.out, state, options, pack);
+    const failed = Object.entries(state.assets).filter(([, r]) => r.status === "failed");
+    log(`import.toml written to ${join(options.out, "import.toml")}`);
+    if (failed.length) log(`${failed.length} failed; run again with --resume to retry them.`);
+    return complete && failed.length === 0 ? 0 : 1;
+  }
 
   const submitted = [];
   const sends = [

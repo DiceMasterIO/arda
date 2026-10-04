@@ -20,6 +20,7 @@ function fakeSlopify() {
   const prompts = [];
   const batches = new Map();
   const calls = [];
+  const running = { max: 0 };
   let next = 1;
   const server = createServer(async (req, res) => {
     const chunks = [];
@@ -55,10 +56,20 @@ function fakeSlopify() {
       batches.set(body.requestId, queue);
       return json(201, { queue });
     }
+    if (url.pathname === "/api/projects" && req.method === "POST") {
+      const id = `PRJ${next++}`;
+      projects.set(id, { title: body.title, polls: 0, prompt: body.values.Subject, single: true });
+      return json(201, { project: { id, title: body.title, status: "running" }, stages: [] });
+    }
+    if ((m = /^\/api\/projects\/([^/]+)\/cancel$/.exec(url.pathname))) {
+      projects.get(m[1]).canceled = true;
+      return json(200, { canceled: ["images"] });
+    }
     if ((m = /^\/api\/projects\/([^/]+)$/.exec(url.pathname))) {
       const p = projects.get(m[1]);
       p.polls += 1;
       const done = p.polls > 1;
+      if (!done) running.max = Math.max(running.max, [...projects.values()].filter((q) => q.polls === 1 && q.single).length);
       return json(200, {
         project: { id: m[1], title: p.title, status: done ? (p.title.includes("anvil") ? "failed" : "done") : "running" },
         stages: [{ kind: "images", state: done ? "done" : "running", failureReason: p.title.includes("anvil") ? "provider refused" : null }],
@@ -76,7 +87,7 @@ function fakeSlopify() {
     json(404, { title: "Not Found", detail: url.pathname });
   });
   return new Promise((ok) =>
-    server.listen(0, "127.0.0.1", () => ok({ server, url: `http://127.0.0.1:${server.address().port}`, calls, prompts })),
+    server.listen(0, "127.0.0.1", () => ok({ server, url: `http://127.0.0.1:${server.address().port}`, calls, prompts, running })),
   );
 }
 
@@ -89,7 +100,7 @@ test("submits, polls, downloads and writes import.toml; --resume skips what is d
   const fake = await fakeSlopify();
   const out = mkdtempSync(join(tmpdir(), "art-gen-"));
   try {
-    const args = ["--server", fake.url, "--out", out, "--only", "prop.barrel,prop.barrel.alt1,prop.crate,prop.anvil,prop.bed", "--poll", "1", "--yes"];
+    const args = ["--server", fake.url, "--out", out, "--only", "prop.barrel,prop.barrel.alt1,prop.crate,prop.anvil,prop.bed", "--poll", "1", "--parallel", "0", "--yes"];
     const err = sink();
     const code = await main(args, { out: sink(), err });
     assert.equal(code, 1, err.text); // the anvil fails on purpose
@@ -121,6 +132,27 @@ test("submits, polls, downloads and writes import.toml; --resume skips what is d
     await main([...args, "--resume"], { out: sink(), err: again });
     assert.match(again.text, /skipping 4 already downloaded/);
     assert.match(again.text, /1 images in 1 batch/);
+  } finally {
+    fake.server.close();
+    rmSync(out, { recursive: true, force: true });
+  }
+});
+
+test("--parallel posts each asset as its own project, keeping N going at once", async () => {
+  const fake = await fakeSlopify();
+  const out = mkdtempSync(join(tmpdir(), "art-gen-"));
+  try {
+    const err = sink();
+    const code = await main(
+      ["--server", fake.url, "--out", out, "--only", "prop.barrel,prop.crate,prop.bed,prop.chest,prop.table", "--poll", "1", "--parallel", "2", "--yes"],
+      { out: sink(), err },
+    );
+    assert.equal(code, 0, err.text);
+    for (const id of ["prop.crate", "prop.bed", "prop.chest", "prop.table"]) assert.ok(existsSync(join(out, `${id}.png`)), id);
+    assert.equal(fake.calls.filter((c) => c === "POST /api/projects").length, 5);
+    assert.equal(fake.calls.filter((c) => c === "POST /api/projects/batch").length, 0);
+    assert.ok(fake.running.max <= 2, `at most 2 at once, saw ${fake.running.max}`);
+    assert.match(err.text, /started prop\.\w+ \(3 not started yet\)/);
   } finally {
     fake.server.close();
     rmSync(out, { recursive: true, force: true });
