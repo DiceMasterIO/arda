@@ -312,17 +312,17 @@ const kits = {
     thickness: "about two fifths of the image height",
     door: "a small iron-studded postern door",
     window: "an arrow loop through one parapet",
-    gate: "an arched gateway with iron-banded double gates",
+    gate: "iron-banded double gates",
     post: "a square buttress wider than the wall",
   },
 };
 
-const across = "it runs straight from the left edge to the right edge along the horizontal centre line";
+const across = "it runs from the left edge to the right edge along the horizontal centre line";
 const roles = {
   run: () => `A straight run: ${across}, with no branches and no openings.`,
-  door: (k) => `A straight run with a doorway: ${across}, with ${k.door} in the middle third.`,
+  door: (k) => `Doorway in a straight run: ${across}; middle third: ${k.door}, closed, wall-thick, contrasting colour.`,
   window: (k) => `A straight run with a window: ${across}, with ${k.window} in the middle third.`,
-  gate: (k) => `A straight run with a gateway: ${across}, with ${k.gate} filling most of the middle.`,
+  gate: (k) => `Gateway in a straight run: ${across}; middle: ${k.gate}, closed, wall-thick, contrasting.`,
   post: (k) => `A straight run with a post: ${across}, with ${k.post} at the exact centre.`,
   corner: () =>
     "An L-shaped corner: one arm runs from the centre to the right edge and the other from the centre to the bottom edge; nothing left of or above the centre.",
