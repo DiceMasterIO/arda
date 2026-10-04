@@ -444,6 +444,12 @@ function client(server, delays = readRetryDelays) {
     }
     if (raw && response.ok) return response;
     const text = await response.text();
+    // Slopify refuses everything while it installs an update and then restarts: nothing was
+    // done, so the same request is safe to send again once it is back.
+    if (response.status === 409 && /is updating/i.test(text) && (call.updateWaits = (call.updateWaits ?? 0) + 1) <= 40) {
+      await new Promise((done) => setTimeout(done, 15_000));
+      return call(method, path, body, { raw, form });
+    }
     let parsed = text;
     try {
       parsed = text === "" ? undefined : JSON.parse(text);
