@@ -94,6 +94,7 @@ export function parseOptions(argv) {
       provider: { type: "string", default: defaults.provider },
       model: { type: "string", default: defaults.model },
       thinking: { type: "string" },
+      channel: { type: "string", default: "DiceMaster Assets" },
       reference: { type: "string" },
       "batch-size": { type: "string", default: String(defaults.batchSize) },
       "price-per-image": { type: "string" },
@@ -127,6 +128,7 @@ export function parseOptions(argv) {
     provider,
     model: values.model,
     thinking: values.thinking,
+    channel: values.channel,
     reference: values.reference,
     batchSize: Math.floor(number("batch-size", 1, batchMax)),
     pricePerImage: values["price-per-image"] === undefined ? undefined : number("price-per-image", 0),
@@ -224,6 +226,7 @@ export function batchBody(batch, options, { requestId = randomUUID(), referenceI
       model: options.model,
       ...(options.thinking ? { thinking: options.thinking } : {}),
     },
+    ...(options.channelId ? { channelId: options.channelId } : {}),
     imagePrompts: [{ name: template, number: 1 }],
     values: {},
     provided: {},
@@ -560,6 +563,13 @@ export async function main(argv, io = { out: process.stdout, err: process.stderr
   const api = client(options.server);
   const health = await api.get("/api/health");
   log(`Slopify ${health.version ?? "?"} is up`);
+  if (options.channel) {
+    const { channels = [] } = await api.get("/api/channels");
+    const found = channels.find((ch) => ch.name === options.channel);
+    if (!found) throw new Error(`Slopify has no channel named "${options.channel}"; create it in Channels or pass --channel`);
+    options.channelId = found.id;
+    log(`runs go to channel "${found.name}"`);
+  }
   mkdirSync(options.out, { recursive: true });
   if (limited.length > 0 || unconfirmed.length > 0) {
     await checkModel(api, options, log);

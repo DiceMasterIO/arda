@@ -34,6 +34,7 @@ function fakeSlopify() {
     };
     let m;
     if (url.pathname === "/api/health") return json(200, { status: "ok", version: "test" });
+    if (url.pathname === "/api/channels") return json(200, { channels: [{ id: "chan-1", name: "DiceMaster Assets" }] });
     if (url.pathname === "/api/providers") return json(200, { providers: [{ id: "openai-image", readiness: { kind: "keyed", hasKey: true } }] });
     if ((m = /^\/api\/providers\/([^/]+)\/models$/.exec(url.pathname)))
       return json(200, { models: [{ id: "gpt-image-2", keywords: ["image", "reference"] }] });
