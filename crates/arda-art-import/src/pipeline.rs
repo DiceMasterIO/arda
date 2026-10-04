@@ -1,7 +1,7 @@
 //! Processing one raw file into a catalogue-ready image.
 
 use crate::cleanup::{defringe, kill_haze, remove_specks};
-use crate::fit::{fit_canvas, fit_cutout};
+use crate::fit::{fit_canvas, fit_cutout, fit_fill};
 use crate::holes::HolePolicy;
 use crate::image_io::RawImage;
 use crate::manifest::{HoleMode, ShadowMode};
@@ -9,7 +9,7 @@ use crate::naming::{role_name, Target};
 use crate::shadow;
 use crate::texture;
 use crate::wall::{self, Orientation};
-use arda_tactical::catalog::{Asset, WallRole};
+use arda_tactical::catalog::{Asset, Layer, WallRole};
 use arda_tactical::Rgba;
 
 /// A processed asset, before grading and validation.
@@ -75,6 +75,7 @@ pub fn process(
     }
     let fitted = match &p.target {
         Target::Wall { .. } => fit_canvas(&img, ppsq),
+        _ if p.asset.layer == Layer::Floor => fit_fill(&img, p.asset.footprint, ppsq),
         _ => fit_cutout(&img, p.asset.footprint, ppsq, true),
     };
     p.img = fitted.img;

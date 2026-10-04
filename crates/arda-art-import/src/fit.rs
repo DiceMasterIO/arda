@@ -103,6 +103,54 @@ pub fn fit_cutout(img: &Rgba, fp: Footprint, ppsq: u32, allow_turn: bool) -> Fit
     }
 }
 
+/// Crops a floor tile (bridge decking, dock planks, paving) to its silhouette,
+/// turns it a quarter if that matches the footprint better, and stretches it
+/// to cover the whole footprint edge to edge, so neighbouring tiles butt
+/// together with no gaps.
+#[must_use]
+pub fn fit_fill(img: &Rgba, fp: Footprint, ppsq: u32) -> Fitted {
+    let (tw, th) = (fp.w * ppsq, fp.h * ppsq);
+    let mut fixes = Vec::new();
+    let mut flags = Vec::new();
+    let Some(b) = bbox(img) else {
+        flags.push("nothing left after background removal".into());
+        return Fitted {
+            img: Rgba::new(tw, th),
+            fixes,
+            flags,
+        };
+    };
+    let mut obj = crop(img, b);
+    let target = tw as f32 / th as f32;
+    let aspect = |o: &Rgba| o.width as f32 / o.height as f32;
+    if fp.w != fp.h && mismatch(1.0 / aspect(&obj), target) < mismatch(aspect(&obj), target) {
+        obj = obj.rotated(1);
+        fixes.push(format!(
+            "turned 90° to match the {}x{} footprint",
+            fp.w, fp.h
+        ));
+    }
+    let m = mismatch(aspect(&obj), target);
+    if m > 1.4 {
+        flags.push(format!(
+            "floor tile aspect {:.2} stretched to the {}x{} footprint ({target:.2}); check",
+            aspect(&obj),
+            fp.w,
+            fp.h
+        ));
+    }
+    let filled = resize(&obj, tw, th, false);
+    fixes.push(format!(
+        "cropped to the tile ({}x{}) and filled the {tw}x{th} footprint edge to edge",
+        obj.width, obj.height
+    ));
+    Fitted {
+        img: filled,
+        fixes,
+        flags,
+    }
+}
+
 /// Scales a square-framed piece (wall kits are drawn on a one-square
 /// canvas with the vertex or edge midpoint at its centre) to `ppsq`,
 /// centre-cropping a non-square canvas first.
