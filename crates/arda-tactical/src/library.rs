@@ -208,7 +208,8 @@ impl Library {
         self.catalog
             .assets
             .iter()
-            .filter(|a| family_base(&a.id) == id)
+            // The prefix test rejects nearly every asset cheaply.
+            .filter(|a| a.id.starts_with(id) && family_base(&a.id) == id)
             .collect()
     }
 
