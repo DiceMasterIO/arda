@@ -31,6 +31,8 @@ pub fn build() -> TacticalLayout {
     for x in 0..7 {
         b.put("prop.bridge_deck", x as f32 + 0.5, 10.0, 0);
     }
+    // Timber railings along both sides of the deck.
+    b.hrun(0, 7, 9, "timber").hrun(0, 7, 11, "timber");
     for (x, y) in [(4.5, 1.5), (5.5, 1.5), (4.5, 2.5), (5.5, 2.5), (5.5, 3.5)] {
         b.put("prop.dock_planks", x, y, 90);
     }
