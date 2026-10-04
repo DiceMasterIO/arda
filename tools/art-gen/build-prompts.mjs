@@ -379,12 +379,12 @@ const props = {
     "Orange coals with bright embers inside a wrought iron rim; the glow stays inside the bowl, with no light spill around it.",
   ],
   bridge_deck: [
-    "a section of wooden bridge deck, heavy planks laid crosswise on two beams, with low rails along both long sides",
-    "Planks run left to right, weathered grey-brown timber with iron nails; straight cut top and bottom ends so sections butt together.",
+    "one long strip of bridge decking: a single heavy timber plank-board, seen from directly above, no rails, no posts, no beams visible",
+    "Grain and edges run top to bottom along the long axis; weathered grey-brown timber, nails near both ends; square-cut ends and edges so strips lie side by side as one deck.",
   ],
   bridge_deck_stone: [
-    "a section of stone bridge deck, worn paving slabs between two low parapet walls",
-    "Parapets along the left and right edges with paving between; straight cut top and bottom ends so sections butt together.",
+    "one square of stone bridge paving: worn flat paving slabs, seen from directly above, no parapets, no walls, no kerbs",
+    "Two or three slabs filling the square edge to edge, mortar joints between them; straight square-cut edges on all four sides so squares join seamlessly.",
   ],
   bucket: [
     "a small wooden bucket with iron bands and a rope handle, half full of water",
