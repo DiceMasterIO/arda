@@ -729,6 +729,14 @@ function cutoutShape([w, h]) {
     : `Its outline is about ${ratio} as long as it is wide (${feet(w)} by ${feet(h)} feet), its long axis running top to bottom.`;
 }
 
+// Fences and other barriers read from above as a thin line, not as the panel a side view shows.
+const linearBarrier = /^prop\.(fence|fence_[a-z_]+|railing|hurdle)(\.alt\d+)?$/;
+const linearShape =
+  "From straight above it is a thin line from the left edge to the right edge through the centre, a fifth of the frame tall: post tops as small squares, rail tops as narrow strips; no side view.";
+function shapeFor(id, footprint) {
+  return linearBarrier.test(id) ? linearShape : cutoutShape(footprint);
+}
+
 function textureShape([w]) {
   return `The frame height spans about ${w * 5} feet at true scale for a 5-foot battle-map grid.`;
 }
@@ -897,7 +905,7 @@ function describe(row) {
     const name = parts.slice(1).join(".");
     const text = (cls === "prop" ? props : vegetation)[name];
     if (text === undefined) throw new Error(`no ${cls} description for ${row.id}`);
-    entry.values = { Subject: text[0], Shape: cutoutShape(footprint), Detail: text[1] };
+    entry.values = { Subject: text[0], Shape: shapeFor(row.id, footprint), Detail: text[1] };
   }
   return finish(row.id, entry);
 }
@@ -1056,7 +1064,7 @@ function cutoutExpansion() {
       tier: e.tier,
     };
     if (e.variant_of !== undefined) entry.variant_of = e.variant_of;
-    entry.values = { Subject: e.subject, Shape: cutoutShape(meta.footprint), Detail: e.detail };
+    entry.values = { Subject: e.subject, Shape: shapeFor(e.id, meta.footprint), Detail: e.detail };
     if (assets[e.id] !== undefined) throw new Error(`duplicate id ${e.id}`);
     assets[e.id] = finish(e.id, entry);
     out.push([e.id, assets[e.id]]);

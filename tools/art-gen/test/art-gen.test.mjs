@@ -476,3 +476,8 @@ test("batches carry an image reviewer that remakes failed images, unless turned 
   assert.throws(() => parseOptions(["--reviewer", "gemini-cli"]), /--reviewer must be/);
   assert.throws(() => parseOptions(["--review-retries", "9"]), /--review-retries/);
 });
+
+test("fences are drawn as a thin line seen from above", () => {
+  for (const [id, asset] of Object.entries(pack.assets))
+    if (/^prop\.fence/.test(id)) assert.match(asset.values.Shape, /thin line from the left edge to the right edge.*no side view/, id);
+});

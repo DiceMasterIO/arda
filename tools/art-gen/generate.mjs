@@ -62,7 +62,7 @@ export const reviewPromptName = "arda-asset-review";
 export const reviewInstruction = [
   "Review this tabletop battle-map asset against the brief it was drawn from. It is placed on a 5-foot square grid, seen from straight above.",
   "Fail it when any of these hold:",
-  "1. View: it is not strictly top-down orthographic (any perspective, horizon, tilted, isometric or side-on view; visible vertical faces of walls or objects beyond a thin edge).",
+  "1. View: it is not strictly top-down orthographic (any perspective, horizon, tilted, isometric or side-on view; visible vertical faces of walls or objects beyond a thin edge; a fence or railing drawn as an upright panel of pickets or planks instead of a thin line of post tops and rail tops).",
   "2. Geometry: it does not match the layout the brief states. Walls must run exactly where the brief says (which edges they touch, through the centre line, nothing extra). A door or gate must sit in a gap in the wall line, its leaf lying ALONG the wall's length between two jambs, with the wall top, parapet or crenellations stopping at the gap; fail a door drawn across the wall's thickness, a door lying on top of the wall-walk, or a door that cannot be told apart from the wall.",
   "3. Background: for a cut-out (prop, vegetation, wall piece), anything other than the subject is not transparent (a solid, white, checkerboard or coloured backdrop, a ground patch or a frame); for a ground or water tile, it does not fill the whole frame edge to edge as a texture.",
   "4. Shading: it shows a cast shadow or drop shadow on the ground.",
