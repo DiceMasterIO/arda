@@ -1,7 +1,7 @@
 //! Processing one raw file into a catalogue-ready image.
 
 use crate::cleanup::{defringe, kill_haze, remove_specks};
-use crate::fit::{fit_canvas, fit_cutout, fit_fill};
+use crate::fit::{fit_canvas, fit_cutout, fit_fill, fit_vegetation};
 use crate::holes::HolePolicy;
 use crate::image_io::RawImage;
 use crate::manifest::{HoleMode, ShadowMode};
@@ -76,6 +76,7 @@ pub fn process(
     let fitted = match &p.target {
         Target::Wall { .. } => fit_canvas(&img, ppsq),
         _ if p.asset.layer == Layer::Floor => fit_fill(&img, p.asset.footprint, ppsq),
+        Target::Vegetation { .. } => fit_vegetation(&img, p.asset.footprint, ppsq),
         _ => fit_cutout(&img, p.asset.footprint, ppsq, true),
     };
     p.img = fitted.img;
