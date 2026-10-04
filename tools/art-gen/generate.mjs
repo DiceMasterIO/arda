@@ -409,17 +409,26 @@ function problemText(status, body) {
   return `${status}: ${String(body).slice(0, 500)}`;
 }
 
-function client(server) {
+// Reads are retried through brief network drops (a busy Slopify can reset a connection
+// mid-run), waiting a little longer each time; writes are not.
+export const readRetryDelays = [2, 5, 10, 20, 30, 60];
+
+function client(server, delays = readRetryDelays) {
   async function call(method, path, body, { raw = false, form } = {}) {
     let response;
-    try {
-      response = await fetch(`${server}${path}`, {
-        method,
-        headers: form ? undefined : body === undefined ? undefined : { "content-type": "application/json" },
-        body: form ?? (body === undefined ? undefined : JSON.stringify(body)),
-      });
-    } catch (error) {
-      throw new SlopifyError(`cannot reach Slopify at ${server} (${error.cause?.code ?? error.message}). Is it running?`);
+    for (let attempt = 0; ; attempt++) {
+      try {
+        response = await fetch(`${server}${path}`, {
+          method,
+          headers: form ? undefined : body === undefined ? undefined : { "content-type": "application/json" },
+          body: form ?? (body === undefined ? undefined : JSON.stringify(body)),
+        });
+        break;
+      } catch (error) {
+        if (method !== "GET" || attempt >= delays.length)
+          throw new SlopifyError(`cannot reach Slopify at ${server} (${error.cause?.code ?? error.message}). Is it running?`);
+        await new Promise((done) => setTimeout(done, delays[attempt] * 1000));
+      }
     }
     if (raw && response.ok) return response;
     const text = await response.text();
