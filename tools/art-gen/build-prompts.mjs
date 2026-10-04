@@ -308,7 +308,7 @@ const kits = {
   },
   palisade: {
     subject: "a 5-foot section of palisade, sharpened upright logs set side by side, seen from directly above as a row of round log tops",
-    detail: "Round pointed log tops in a tight row, lashed with rope, bark on, pale cut points.",
+    detail: "Rough wooden log ends, brown bark rims, axe-hewn tips, visible grain; matte wood, never metal, not studs or cones.",
     thickness: "about one sixth of the image height",
     door: "a narrow log postern door",
     window: "an arrow slit between two logs",
