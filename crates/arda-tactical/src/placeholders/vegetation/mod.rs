@@ -8,6 +8,7 @@ pub mod trees;
 use super::relief::Relief;
 use super::{base, PPSQ};
 use crate::catalog::{Asset, AssetClass, Cover, Layer};
+use crate::compose::FIXED_POSE;
 use crate::noise::hash_str;
 use crate::raster::Rgba;
 
@@ -178,6 +179,9 @@ pub fn assets(seed: u64) -> Vec<(Asset, Rgba)> {
                 !spec.blocks && !tree && spec.height_ft > 0 || spec.id == "veg.scree_patch";
             a.blocks_sight = matches!(spec.cover, Cover::Full | Cover::ThreeQuarters);
             a.tags.free = spec.free.iter().map(|s| (*s).to_string()).collect();
+            // Placeholder art keeps its catalogued size and orientation, so
+            // placeholder renders do not change with the hashed pose.
+            a.tags.free.push(FIXED_POSE.to_string());
             a.tags
                 .biome
                 .extend(spec.biomes.iter().map(|s| (*s).to_string()));

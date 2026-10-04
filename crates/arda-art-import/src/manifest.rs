@@ -22,6 +22,7 @@
 //! tags = { function = ["smithy"], free = ["craft:smith"] }
 //! holes = "keep"                   # or "clear"; default by class
 //! rot_free = true                  # may be turned and mirrored by hash
+//! fixed_pose = true                # vegetation: no hashed scale or transpose
 //! ```
 
 use crate::error::{ImportError, ImportResult};
@@ -119,6 +120,10 @@ pub struct AssetEntry {
     /// (barrels, crates, trees, bushes, rocks) whose shading reads from
     /// any side.
     pub rot_free: Option<bool>,
+    /// Adds (or removes) the free tag `fixed_pose`: the compositor draws
+    /// the vegetation cut-out at its catalogued size and orientation,
+    /// without the hashed scale and diagonal transpose.
+    pub fixed_pose: Option<bool>,
     /// Shadow handling: `strip` (default) or `keep` (never strip, still flag).
     pub shadow: Option<ShadowMode>,
     /// Enclosed backdrop-coloured pockets: `clear` (any size) or `keep`
@@ -242,6 +247,7 @@ mod tests {
             id = "veg.tree_oak"
             holes = "clear"
             rot_free = true
+            fixed_pose = true
             "##,
         )
         .unwrap();
@@ -256,6 +262,7 @@ mod tests {
             Some(HoleMode::Clear)
         );
         assert_eq!(m.for_id("veg.tree_oak").unwrap().rot_free, Some(true));
+        assert_eq!(m.for_id("veg.tree_oak").unwrap().fixed_pose, Some(true));
         assert!(toml::from_str::<Manifest>("[[asset]]\nholes = \"fill\"").is_err());
         assert_eq!(parse_hex("#6b7d45"), Some([0x6b, 0x7d, 0x45]));
         assert!(toml::from_str::<Manifest>("[library]\nnmae = 1").is_err());

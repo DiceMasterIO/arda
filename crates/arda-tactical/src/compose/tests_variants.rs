@@ -324,6 +324,7 @@ fn placeholder_libraries_resolve_exactly_as_before() {
                 };
                 assert_eq!(r.asset.id, legacy.id, "{} placement {i}", l.name);
                 assert_eq!((u16::from(r.turns) * 90, r.mirror), (p.rotation, p.mirror));
+                assert_eq!((r.scale_pct, r.transpose), (100, false), "no hashed pose");
                 assert!(fits(r.asset, p.rotation, p.mirror));
             }
         }

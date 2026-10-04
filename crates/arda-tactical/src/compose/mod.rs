@@ -34,7 +34,10 @@ use stamp::{Op, Stamp};
 use std::collections::BTreeMap;
 use std::sync::Arc;
 use terrain::Terrain;
-pub use variants::{candidates, resolve, Resolved, ROT_FREE};
+pub use variants::{
+    candidates, resolve, Resolved, FIXED_POSE, ROT_FREE, SCALE_MAX_PCT, SCALE_MIN_PCT,
+    SCALE_STEP_PCT,
+};
 
 /// Ground key of shallow water textures.
 pub const WATER_SHALLOW: &str = "water_shallow";
@@ -75,39 +78,86 @@ impl Default for Style {
     }
 }
 
-/// Scaled, mirrored and rotated sprites, cached by `(id, turns, mirror)`.
+/// How a sprite is drawn: quarter turns, mirror, scale in percent of the
+/// footprint and diagonal transpose.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord)]
+struct Pose {
+    turns: u8,
+    mirror: bool,
+    scale_pct: u8,
+    transpose: bool,
+}
+
+impl Pose {
+    /// Turned and mirrored only.
+    fn turned(turns: u8, mirror: bool) -> Self {
+        Self {
+            turns: turns % 4,
+            mirror,
+            scale_pct: 100,
+            transpose: false,
+        }
+    }
+}
+
+/// Scaled, transposed, mirrored and rotated sprites, cached by id and pose.
 struct Sprites<'a> {
     lib: &'a Library,
     ppsq: u32,
-    cache: BTreeMap<(String, u8, bool), Arc<Rgba>>,
+    cache: BTreeMap<(String, Pose), Arc<Rgba>>,
 }
 
 impl Sprites<'_> {
-    fn get(&mut self, a: &Asset, turns: u8, mirror: bool) -> Option<Arc<Rgba>> {
-        let key = (a.id.clone(), turns % 4, mirror);
+    fn get(&mut self, a: &Asset, pose: Pose) -> Option<Arc<Rgba>> {
+        let key = (a.id.clone(), pose);
         if let Some(hit) = self.cache.get(&key) {
             return Some(Arc::clone(hit));
         }
         let src = self.lib.image(&a.id)?;
-        let mut img = src.resized(a.footprint.w * self.ppsq, a.footprint.h * self.ppsq);
-        if mirror {
+        let px = |squares: u32| (squares * self.ppsq * u32::from(pose.scale_pct) + 50) / 100;
+        let mut img = src.resized(px(a.footprint.w).max(1), px(a.footprint.h).max(1));
+        if pose.transpose {
+            img = img.transposed();
+        }
+        if pose.mirror {
             img = img.mirrored();
         }
-        let img = Arc::new(img.rotated(turns));
+        let img = Arc::new(img.rotated(pose.turns));
         self.cache.insert(key, Arc::clone(&img));
         Some(img)
     }
 
     /// Queues `a` at top-left pixel `at`.
-    fn push(&mut self, ops: &mut Vec<Op>, a: &Asset, turns: u8, mirror: bool, at: (i64, i64)) {
-        if let Some(sprite) = self.get(a, turns, mirror) {
+    fn push(&mut self, ops: &mut Vec<Op>, a: &Asset, pose: Pose, at: (i64, i64)) {
+        if let Some(sprite) = self.get(a, pose) {
             ops.push(Op {
+                stamp: stamp_of(a, self.ppsq, pose.scale_pct),
                 sprite,
                 ox: at.0,
                 oy: at.1,
-                stamp: stamp_of(a, self.ppsq),
             });
         }
+    }
+
+    /// Queues placement sprite `a` drawn at `pose` with its anchor at
+    /// `(x, y)` squares. A scaled sprite is posed only on a square
+    /// footprint anchored at its centre, so it is centred on `(x, y)`.
+    #[allow(clippy::cast_possible_truncation, clippy::cast_precision_loss)]
+    fn place(&mut self, ops: &mut Vec<Op>, a: &Asset, pose: Pose, (x, y): (f32, f32)) {
+        if pose.scale_pct == 100 {
+            let at = anchor_origin(a, x, y, pose.turns, pose.mirror, self.ppsq);
+            self.push(ops, a, pose, at);
+            return;
+        }
+        let Some(sprite) = self.get(a, pose) else {
+            return;
+        };
+        let s = self.ppsq as f32;
+        let at = (
+            (x * s - sprite.width as f32 / 2.0).round() as i64,
+            (y * s - sprite.height as f32 / 2.0).round() as i64,
+        );
+        self.push(ops, a, pose, at);
     }
 }
 
@@ -140,13 +190,16 @@ fn anchor_origin(a: &Asset, x: f32, y: f32, turns: u8, mirror: bool, ppsq: u32) 
     (((x - ax) * s).round() as i64, ((y - ay) * s).round() as i64)
 }
 
-fn stamp_of(a: &Asset, ppsq: u32) -> Stamp {
+/// What `a` drawn at `scale_pct` percent adds to the lighting buffers: its
+/// swept-shadow height and crown radius follow the scale.
+fn stamp_of(a: &Asset, ppsq: u32, scale_pct: u8) -> Stamp {
     let canopy = a.layer == Layer::Canopy;
-    let height =
-        (a.casts_shadow && !canopy).then(|| i32::from(a.height_ft.min(SWEEP_CAP_FT)) * 256);
+    let pct = i32::from(scale_pct);
+    let height = (a.casts_shadow && !canopy)
+        .then(|| i32::from(a.height_ft.min(SWEEP_CAP_FT)) * 256 * pct / 100);
     // A crown's shadow is offset by about 0.45 of its radius along the
     // sun's diagonal (0.32 of the radius on each axis).
-    let radius = i64::from(a.footprint.w.min(a.footprint.h) * ppsq) / 2;
+    let radius = i64::from(a.footprint.w.min(a.footprint.h) * ppsq) * i64::from(pct) / 200;
     Stamp {
         height,
         occludes: a.casts_shadow && matches!(a.layer, Layer::Prop | Layer::Wall),
@@ -320,8 +373,12 @@ fn render_clip(
             walls_done = true;
         }
         let (p, a) = (&layout.placements[*i], r.asset);
-        let at = anchor_origin(a, p.x, p.y, r.turns, r.mirror, ppsq);
-        sprites.push(&mut ops, a, r.turns, r.mirror, at);
+        let pose = Pose {
+            scale_pct: r.scale_pct,
+            transpose: r.transpose,
+            ..Pose::turned(r.turns, r.mirror)
+        };
+        sprites.place(&mut ops, a, pose, (p.x, p.y));
         if let Some(light) = a.light {
             pools.push(pool(p.x, p.y, light.radius_ft, light.colour, ppsq));
         }
@@ -432,7 +489,12 @@ fn draw_walls(
             i64::from(e.centre2.0) * p / 2,
             i64::from(e.centre2.1) * p / 2,
         );
-        sprites.push(ops, a, e.turns, false, (cx - p / 2, cy - p / 2));
+        sprites.push(
+            ops,
+            a,
+            Pose::turned(e.turns, false),
+            (cx - p / 2, cy - p / 2),
+        );
     }
     for j in &joints {
         let pieces = lib.wall_pieces(j.kit, j.role);
@@ -441,7 +503,12 @@ fn draw_walls(
             continue;
         };
         let (cx, cy) = (i64::from(j.vertex.0) * p, i64::from(j.vertex.1) * p);
-        sprites.push(ops, a, j.turns, false, (cx - p / 2, cy - p / 2));
+        sprites.push(
+            ops,
+            a,
+            Pose::turned(j.turns, false),
+            (cx - p / 2, cy - p / 2),
+        );
     }
 }
 
@@ -469,6 +536,8 @@ fn draw_grid(img: &mut Rgba, ppsq: u32) {
 mod tests;
 #[cfg(test)]
 mod tests_look;
+#[cfg(test)]
+mod tests_pose;
 #[cfg(test)]
 mod tests_snow;
 #[cfg(test)]

@@ -13,12 +13,21 @@
 //! Assets carrying the free tag [`ROT_FREE`] are also turned and mirrored
 //! by hash when the placement leaves rotation 0 and no mirror.
 //!
+//! Vegetation on a square footprint anchored at its centre is also given a
+//! hashed *pose* when the placement leaves rotation 0 and no mirror: a
+//! scale between [`SCALE_MIN_PCT`] and [`SCALE_MAX_PCT`] percent in steps of
+//! [`SCALE_STEP_PCT`] and, half
+//! the time, a transpose (a mirror across the top-left to bottom-right
+//! diagonal, which keeps a top-left highlight in the top-left). The free tag
+//! [`FIXED_POSE`] opts an asset out. The pose is purely visual: the
+//! footprint, and so blocking and cover, stay as catalogued.
+//!
 //! The position is the placement's anchor in world squares (`origin` plus
 //! the local coordinates) when the layout has an origin, so neighbouring
 //! windows that share a placement draw the same take and turn; without an
 //! origin the placement index is hashed in too.
 
-use crate::catalog::Asset;
+use crate::catalog::{Asset, AssetClass};
 use crate::layout::{AssetRef, Placement, TacticalLayout};
 use crate::library::{family_base, Library};
 use crate::noise::hash2;
@@ -27,6 +36,18 @@ use crate::noise::hash2;
 /// for round or radial things (barrels, crates, trees, bushes, rocks)
 /// whose look and meaning do not depend on which way they face.
 pub const ROT_FREE: &str = "rot_free";
+
+/// Free tag that keeps a vegetation asset at its catalogued size and
+/// orientation (no hashed scale or transpose).
+pub const FIXED_POSE: &str = "fixed_pose";
+
+/// Smallest hashed vegetation scale, percent.
+pub const SCALE_MIN_PCT: u8 = 85;
+/// Largest hashed vegetation scale, percent.
+pub const SCALE_MAX_PCT: u8 = 115;
+/// Step between hashed vegetation scales, percent: coarse enough that each
+/// asset has few distinct sprites to cache (7 scales × 2 transposes).
+pub const SCALE_STEP_PCT: u8 = 5;
 
 /// Sub-square steps per square when hashing a placement's position.
 const POS_STEPS: f32 = 64.0;
@@ -40,6 +61,11 @@ pub struct Resolved<'a> {
     pub turns: u8,
     /// Mirrored before turning.
     pub mirror: bool,
+    /// Drawn size in percent of the footprint (100: as catalogued).
+    pub scale_pct: u8,
+    /// Mirrored across the top-left to bottom-right diagonal, before the
+    /// mirror and turns.
+    pub transpose: bool,
 }
 
 /// Whether `a` may be drawn at `rotation` degrees, mirrored or not.
@@ -107,11 +133,35 @@ pub fn resolve<'a>(
     };
     let asset = nth(&members, h)?;
     let (rotation, mirror) = turn(asset, p, h);
+    let (scale_pct, transpose) = pose(asset, p, h);
     Some(Resolved {
         asset,
         turns: u8::try_from(rotation / 90).unwrap_or(0),
         mirror,
+        scale_pct,
+        transpose,
     })
+}
+
+/// The hashed scale and transpose of a vegetation placement left at
+/// rotation 0 unmirrored, or `(100, false)`. Only square footprints
+/// anchored at their centre qualify, so the sprite stays centred on the
+/// placement and a transpose keeps the footprint; [`FIXED_POSE`] opts out.
+/// `h` is the take pick's key, so overlapping windows agree.
+fn pose(a: &Asset, p: &Placement, h: u64) -> (u8, bool) {
+    let eligible = a.class == AssetClass::Vegetation
+        && a.footprint.w == a.footprint.h
+        && a.anchor_or_centre() == a.footprint_centre()
+        && p.rotation == 0
+        && !p.mirror
+        && !a.tags.free.iter().any(|t| t == FIXED_POSE);
+    if !eligible {
+        return (100, false);
+    }
+    let h = hash2(h, 0x5CA1E, 0);
+    let steps = u64::from((SCALE_MAX_PCT - SCALE_MIN_PCT) / SCALE_STEP_PCT) + 1;
+    let pct = SCALE_MIN_PCT + SCALE_STEP_PCT * u8::try_from(h % steps).unwrap_or(0);
+    (pct, (h >> 32) & 1 == 1)
 }
 
 /// The family a query placement draws from, picked by seed and index

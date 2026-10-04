@@ -103,6 +103,19 @@ impl Rgba {
         out
     }
 
+    /// Mirrors across the top-left to bottom-right diagonal: `(x, y)` moves
+    /// to `(y, x)`, so a highlight in the top-left stays there.
+    #[must_use]
+    pub fn transposed(&self) -> Self {
+        let mut out = Self::new(self.height, self.width);
+        for y in 0..self.height {
+            for x in 0..self.width {
+                out.set(y, x, self.get(x, y));
+            }
+        }
+        out
+    }
+
     /// Rotates clockwise by `quarter_turns` × 90°.
     #[must_use]
     pub fn rotated(&self, quarter_turns: u8) -> Self {

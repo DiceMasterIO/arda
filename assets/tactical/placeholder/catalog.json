@@ -10559,7 +10559,8 @@
         "free": [
           "tree",
           "forest",
-          "broadleaf"
+          "broadleaf",
+          "fixed_pose"
         ]
       },
       "placement": {
@@ -10612,7 +10613,8 @@
         "free": [
           "tree",
           "forest",
-          "broadleaf"
+          "broadleaf",
+          "fixed_pose"
         ]
       },
       "placement": {
@@ -10665,7 +10667,8 @@
         "free": [
           "tree",
           "forest",
-          "broadleaf"
+          "broadleaf",
+          "fixed_pose"
         ]
       },
       "placement": {
@@ -10718,7 +10721,8 @@
         "free": [
           "tree",
           "orchard",
-          "broadleaf"
+          "broadleaf",
+          "fixed_pose"
         ]
       },
       "placement": {
@@ -10773,7 +10777,8 @@
         "free": [
           "tree",
           "forest",
-          "conifer"
+          "conifer",
+          "fixed_pose"
         ]
       },
       "placement": {
@@ -10828,7 +10833,8 @@
         "free": [
           "tree",
           "forest",
-          "conifer"
+          "conifer",
+          "fixed_pose"
         ]
       },
       "placement": {
@@ -10882,7 +10888,8 @@
         "free": [
           "tree",
           "riverside",
-          "broadleaf"
+          "broadleaf",
+          "fixed_pose"
         ]
       },
       "placement": {
@@ -10936,7 +10943,8 @@
         "function": [],
         "free": [
           "tree",
-          "dead"
+          "dead",
+          "fixed_pose"
         ]
       },
       "placement": {
@@ -10990,7 +10998,8 @@
         "free": [
           "tree",
           "riverside",
-          "broadleaf"
+          "broadleaf",
+          "fixed_pose"
         ]
       },
       "placement": {
@@ -11044,7 +11053,8 @@
         "free": [
           "tree",
           "conifer",
-          "stunted"
+          "stunted",
+          "fixed_pose"
         ]
       },
       "placement": {
@@ -11097,7 +11107,8 @@
         "function": [],
         "free": [
           "bush",
-          "conifer"
+          "conifer",
+          "fixed_pose"
         ]
       },
       "placement": {
@@ -11148,7 +11159,8 @@
         "wealth": [],
         "function": [],
         "free": [
-          "bush"
+          "bush",
+          "fixed_pose"
         ]
       },
       "placement": {
@@ -11200,7 +11212,8 @@
         "function": [],
         "free": [
           "bush",
-          "flower"
+          "flower",
+          "fixed_pose"
         ]
       },
       "placement": {
@@ -11253,7 +11266,8 @@
         "function": [],
         "free": [
           "reeds",
-          "water_plant"
+          "water_plant",
+          "fixed_pose"
         ]
       },
       "placement": {
@@ -11312,7 +11326,8 @@
         "function": [],
         "free": [
           "reeds",
-          "water_plant"
+          "water_plant",
+          "fixed_pose"
         ]
       },
       "placement": {
@@ -11370,7 +11385,8 @@
         "function": [],
         "free": [
           "forest",
-          "undergrowth"
+          "undergrowth",
+          "fixed_pose"
         ]
       },
       "placement": {
@@ -11424,7 +11440,8 @@
         "free": [
           "heath",
           "undergrowth",
-          "flower"
+          "flower",
+          "fixed_pose"
         ]
       },
       "placement": {
@@ -11476,7 +11493,8 @@
         "function": [],
         "free": [
           "flower",
-          "meadow"
+          "meadow",
+          "fixed_pose"
         ]
       },
       "placement": {
@@ -11529,7 +11547,8 @@
         "free": [
           "grass",
           "meadow",
-          "undergrowth"
+          "undergrowth",
+          "fixed_pose"
         ]
       },
       "placement": {
@@ -11581,7 +11600,8 @@
         "wealth": [],
         "function": [],
         "free": [
-          "water_plant"
+          "water_plant",
+          "fixed_pose"
         ]
       },
       "placement": {
@@ -11633,7 +11653,8 @@
         "function": [],
         "free": [
           "forest",
-          "fungus"
+          "fungus",
+          "fixed_pose"
         ]
       },
       "placement": {
@@ -11685,7 +11706,8 @@
         "function": [],
         "free": [
           "forest",
-          "log"
+          "log",
+          "fixed_pose"
         ]
       },
       "placement": {
@@ -11737,7 +11759,8 @@
         "function": [],
         "free": [
           "forest",
-          "stump"
+          "stump",
+          "fixed_pose"
         ]
       },
       "placement": {
@@ -11789,7 +11812,8 @@
         "wealth": [],
         "function": [],
         "free": [
-          "rock"
+          "rock",
+          "fixed_pose"
         ]
       },
       "placement": {
@@ -11841,7 +11865,8 @@
         "wealth": [],
         "function": [],
         "free": [
-          "rock"
+          "rock",
+          "fixed_pose"
         ]
       },
       "placement": {
@@ -11893,7 +11918,8 @@
         "wealth": [],
         "function": [],
         "free": [
-          "rock"
+          "rock",
+          "fixed_pose"
         ]
       },
       "placement": {
@@ -11945,7 +11971,8 @@
         "wealth": [],
         "function": [],
         "free": [
-          "rock"
+          "rock",
+          "fixed_pose"
         ]
       },
       "placement": {
@@ -11998,7 +12025,8 @@
         "function": [],
         "free": [
           "rock",
-          "scree"
+          "scree",
+          "fixed_pose"
         ]
       },
       "placement": {
@@ -12051,7 +12079,8 @@
         "function": [],
         "free": [
           "rock",
-          "outcrop"
+          "outcrop",
+          "fixed_pose"
         ]
       },
       "placement": {
