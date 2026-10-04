@@ -491,3 +491,8 @@ test("square vegetation gets an uneven outline and a size that differs between t
   }
   assert.ok(sizes.size >= 4, [...sizes].join(", "));
 });
+
+test("AI takes never inherit the placeholder's fixed_pose tag", () => {
+  for (const [id, asset] of Object.entries(pack.assets))
+    assert.ok(!(asset.tags?.free ?? []).includes("fixed_pose"), id);
+});

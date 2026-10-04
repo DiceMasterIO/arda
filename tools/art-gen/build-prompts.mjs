@@ -791,7 +791,9 @@ const tagsOf = (t) => ({
   culture: [...t.culture],
   wealth: [...t.wealth],
   function: [...t.function],
-  free: [...t.free],
+  // Pose tags describe how the placeholder art may be drawn, not the asset: AI takes get
+  // the renderer's size and diagonal-flip variety, so `fixed_pose` never carries over.
+  free: t.free.filter((tag) => tag !== "fixed_pose"),
 });
 const blockingOf = (a) => ({
   blocks_movement: a.blocks_movement,
