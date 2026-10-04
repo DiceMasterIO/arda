@@ -1,0 +1,226 @@
+class,id,file,footprint_squares,pixels,layer,functions,notes,status
+ground,ground.cliff.0,ground/ground.cliff.0.png,2×2,256×256,ground,,"opaque, seamless tile; structured: all variants share one layout",placeholder exists
+ground,ground.cliff.1,ground/ground.cliff.1.png,2×2,256×256,ground,,"opaque, seamless tile; structured: all variants share one layout",placeholder exists
+ground,ground.cobbles.0,ground/ground.cobbles.0.png,4×4,512×512,ground,,"opaque, seamless tile; structured: all variants share one layout",placeholder exists
+ground,ground.cobbles.1,ground/ground.cobbles.1.png,4×4,512×512,ground,,"opaque, seamless tile; structured: all variants share one layout",placeholder exists
+ground,ground.cobbles.2,ground/ground.cobbles.2.png,4×4,512×512,ground,,"opaque, seamless tile; structured: all variants share one layout",placeholder exists
+ground,ground.dirt.0,ground/ground.dirt.0.png,2×2,256×256,ground,,"opaque, seamless tile",placeholder exists
+ground,ground.dirt.1,ground/ground.dirt.1.png,2×2,256×256,ground,,"opaque, seamless tile",placeholder exists
+ground,ground.dirt.2,ground/ground.dirt.2.png,2×2,256×256,ground,,"opaque, seamless tile",placeholder exists
+ground,ground.farmland.0,ground/ground.farmland.0.png,2×2,256×256,ground,,"opaque, seamless tile; structured: all variants share one layout",placeholder exists
+ground,ground.farmland.1,ground/ground.farmland.1.png,2×2,256×256,ground,,"opaque, seamless tile; structured: all variants share one layout",placeholder exists
+ground,ground.flagstone.0,ground/ground.flagstone.0.png,4×4,512×512,ground,,"opaque, seamless tile; structured: all variants share one layout",placeholder exists
+ground,ground.flagstone.1,ground/ground.flagstone.1.png,4×4,512×512,ground,,"opaque, seamless tile; structured: all variants share one layout",placeholder exists
+ground,ground.forest_floor.0,ground/ground.forest_floor.0.png,2×2,256×256,ground,,"opaque, seamless tile",placeholder exists
+ground,ground.forest_floor.1,ground/ground.forest_floor.1.png,2×2,256×256,ground,,"opaque, seamless tile",placeholder exists
+ground,ground.forest_floor.2,ground/ground.forest_floor.2.png,2×2,256×256,ground,,"opaque, seamless tile",placeholder exists
+ground,ground.grass.0,ground/ground.grass.0.png,2×2,256×256,ground,,"opaque, seamless tile",placeholder exists
+ground,ground.grass.1,ground/ground.grass.1.png,2×2,256×256,ground,,"opaque, seamless tile",placeholder exists
+ground,ground.grass.2,ground/ground.grass.2.png,2×2,256×256,ground,,"opaque, seamless tile",placeholder exists
+ground,ground.gravel.0,ground/ground.gravel.0.png,2×2,256×256,ground,,"opaque, seamless tile",placeholder exists
+ground,ground.gravel.1,ground/ground.gravel.1.png,2×2,256×256,ground,,"opaque, seamless tile",placeholder exists
+ground,ground.heath.0,ground/ground.heath.0.png,2×2,256×256,ground,,"opaque, seamless tile",placeholder exists
+ground,ground.heath.1,ground/ground.heath.1.png,2×2,256×256,ground,,"opaque, seamless tile",placeholder exists
+ground,ground.ice.0,ground/ground.ice.0.png,2×2,256×256,ground,,"opaque, seamless tile",placeholder exists
+ground,ground.ice.1,ground/ground.ice.1.png,2×2,256×256,ground,,"opaque, seamless tile",placeholder exists
+ground,ground.leaf_litter.0,ground/ground.leaf_litter.0.png,2×2,256×256,ground,,"opaque, seamless tile",placeholder exists
+ground,ground.leaf_litter.1,ground/ground.leaf_litter.1.png,2×2,256×256,ground,,"opaque, seamless tile",placeholder exists
+ground,ground.marsh.0,ground/ground.marsh.0.png,2×2,256×256,ground,,"opaque, seamless tile",placeholder exists
+ground,ground.marsh.1,ground/ground.marsh.1.png,2×2,256×256,ground,,"opaque, seamless tile",placeholder exists
+ground,ground.meadow.0,ground/ground.meadow.0.png,2×2,256×256,ground,,"opaque, seamless tile",placeholder exists
+ground,ground.meadow.1,ground/ground.meadow.1.png,2×2,256×256,ground,,"opaque, seamless tile",placeholder exists
+ground,ground.meadow.2,ground/ground.meadow.2.png,2×2,256×256,ground,,"opaque, seamless tile",placeholder exists
+ground,ground.moss.0,ground/ground.moss.0.png,2×2,256×256,ground,,"opaque, seamless tile",placeholder exists
+ground,ground.moss.1,ground/ground.moss.1.png,2×2,256×256,ground,,"opaque, seamless tile",placeholder exists
+ground,ground.mud.0,ground/ground.mud.0.png,2×2,256×256,ground,,"opaque, seamless tile",placeholder exists
+ground,ground.mud.1,ground/ground.mud.1.png,2×2,256×256,ground,,"opaque, seamless tile",placeholder exists
+ground,ground.mudflat.0,ground/ground.mudflat.0.png,2×2,256×256,ground,,"opaque, seamless tile",placeholder exists
+ground,ground.mudflat.1,ground/ground.mudflat.1.png,2×2,256×256,ground,,"opaque, seamless tile",placeholder exists
+ground,ground.packed_earth.0,ground/ground.packed_earth.0.png,2×2,256×256,ground,,"opaque, seamless tile",placeholder exists
+ground,ground.packed_earth.1,ground/ground.packed_earth.1.png,2×2,256×256,ground,,"opaque, seamless tile",placeholder exists
+ground,ground.pasture.0,ground/ground.pasture.0.png,2×2,256×256,ground,,"opaque, seamless tile",placeholder exists
+ground,ground.pasture.1,ground/ground.pasture.1.png,2×2,256×256,ground,,"opaque, seamless tile",placeholder exists
+ground,ground.pasture.2,ground/ground.pasture.2.png,2×2,256×256,ground,,"opaque, seamless tile",placeholder exists
+ground,ground.planks.0,ground/ground.planks.0.png,2×2,256×256,ground,,"opaque, seamless tile; structured: all variants share one layout",placeholder exists
+ground,ground.planks.1,ground/ground.planks.1.png,2×2,256×256,ground,,"opaque, seamless tile; structured: all variants share one layout",placeholder exists
+ground,ground.reed_bed.0,ground/ground.reed_bed.0.png,2×2,256×256,ground,,"opaque, seamless tile",placeholder exists
+ground,ground.reed_bed.1,ground/ground.reed_bed.1.png,2×2,256×256,ground,,"opaque, seamless tile",placeholder exists
+ground,ground.rock.0,ground/ground.rock.0.png,2×2,256×256,ground,,"opaque, seamless tile",placeholder exists
+ground,ground.rock.1,ground/ground.rock.1.png,2×2,256×256,ground,,"opaque, seamless tile",placeholder exists
+ground,ground.rug.0,ground/ground.rug.0.png,2×2,256×256,ground,,"opaque, seamless tile; structured: all variants share one layout",placeholder exists
+ground,ground.rug.1,ground/ground.rug.1.png,2×2,256×256,ground,,"opaque, seamless tile; structured: all variants share one layout",placeholder exists
+ground,ground.salt_crust.0,ground/ground.salt_crust.0.png,2×2,256×256,ground,,"opaque, seamless tile",placeholder exists
+ground,ground.salt_crust.1,ground/ground.salt_crust.1.png,2×2,256×256,ground,,"opaque, seamless tile",placeholder exists
+ground,ground.sand.0,ground/ground.sand.0.png,2×2,256×256,ground,,"opaque, seamless tile",placeholder exists
+ground,ground.sand.1,ground/ground.sand.1.png,2×2,256×256,ground,,"opaque, seamless tile",placeholder exists
+ground,ground.scree.0,ground/ground.scree.0.png,2×2,256×256,ground,,"opaque, seamless tile",placeholder exists
+ground,ground.scree.1,ground/ground.scree.1.png,2×2,256×256,ground,,"opaque, seamless tile",placeholder exists
+ground,ground.scree.2,ground/ground.scree.2.png,2×2,256×256,ground,,"opaque, seamless tile",placeholder exists
+ground,ground.scrub.0,ground/ground.scrub.0.png,2×2,256×256,ground,,"opaque, seamless tile",placeholder exists
+ground,ground.scrub.1,ground/ground.scrub.1.png,2×2,256×256,ground,,"opaque, seamless tile",placeholder exists
+ground,ground.snow.0,ground/ground.snow.0.png,2×2,256×256,ground,,"opaque, seamless tile",placeholder exists
+ground,ground.snow.1,ground/ground.snow.1.png,2×2,256×256,ground,,"opaque, seamless tile",placeholder exists
+ground,ground.stone_floor.0,ground/ground.stone_floor.0.png,2×2,256×256,ground,,"opaque, seamless tile; structured: all variants share one layout",placeholder exists
+ground,ground.stone_floor.1,ground/ground.stone_floor.1.png,2×2,256×256,ground,,"opaque, seamless tile; structured: all variants share one layout",placeholder exists
+ground,ground.trail.0,ground/ground.trail.0.png,2×2,256×256,ground,,"opaque, seamless tile",placeholder exists
+ground,ground.trail.1,ground/ground.trail.1.png,2×2,256×256,ground,,"opaque, seamless tile",placeholder exists
+water,water.water_deep.0,ground/water.water_deep.0.png,2×2,256×256,water,,"opaque, seamless tile",placeholder exists
+water,water.water_deep.1,ground/water.water_deep.1.png,2×2,256×256,water,,"opaque, seamless tile",placeholder exists
+water,water.water_shallow.0,ground/water.water_shallow.0.png,2×2,256×256,water,,"opaque, seamless tile",placeholder exists
+water,water.water_shallow.1,ground/water.water_shallow.1.png,2×2,256×256,water,,"opaque, seamless tile",placeholder exists
+wall,wall.city_wall.corner,walls/wall.city_wall.corner.png,1×1,128×128,wall,"keep, guardhouse, barracks, street","transparent cut-out, no cast shadow; kit city_wall, role corner; height 25 ft",placeholder exists
+wall,wall.city_wall.cross,walls/wall.city_wall.cross.png,1×1,128×128,wall,"keep, guardhouse, barracks, street","transparent cut-out, no cast shadow; kit city_wall, role cross; height 25 ft",placeholder exists
+wall,wall.city_wall.door,walls/wall.city_wall.door.png,1×1,128×128,wall,"keep, guardhouse, barracks, street","transparent cut-out, no cast shadow; kit city_wall, role door; height 25 ft",placeholder exists
+wall,wall.city_wall.end,walls/wall.city_wall.end.png,1×1,128×128,wall,"keep, guardhouse, barracks, street","transparent cut-out, no cast shadow; kit city_wall, role end; height 25 ft",placeholder exists
+wall,wall.city_wall.gate,walls/wall.city_wall.gate.png,1×1,128×128,wall,"keep, guardhouse, barracks, street","transparent cut-out, no cast shadow; kit city_wall, role gate; height 25 ft",placeholder exists
+wall,wall.city_wall.post,walls/wall.city_wall.post.png,1×1,128×128,wall,"keep, guardhouse, barracks, street","transparent cut-out, no cast shadow; kit city_wall, role post; height 25 ft",placeholder exists
+wall,wall.city_wall.run,walls/wall.city_wall.run.png,1×1,128×128,wall,"keep, guardhouse, barracks, street","transparent cut-out, no cast shadow; kit city_wall, role run; height 25 ft",placeholder exists
+wall,wall.city_wall.tee,walls/wall.city_wall.tee.png,1×1,128×128,wall,"keep, guardhouse, barracks, street","transparent cut-out, no cast shadow; kit city_wall, role tee; height 25 ft",placeholder exists
+wall,wall.city_wall.window,walls/wall.city_wall.window.png,1×1,128×128,wall,"keep, guardhouse, barracks, street","transparent cut-out, no cast shadow; kit city_wall, role window; height 25 ft",placeholder exists
+wall,wall.drystone.corner,walls/wall.drystone.corner.png,1×1,128×128,wall,"farm, street","transparent cut-out, no cast shadow; kit drystone, role corner; height 4 ft",placeholder exists
+wall,wall.drystone.cross,walls/wall.drystone.cross.png,1×1,128×128,wall,"farm, street","transparent cut-out, no cast shadow; kit drystone, role cross; height 4 ft",placeholder exists
+wall,wall.drystone.door,walls/wall.drystone.door.png,1×1,128×128,wall,"farm, street","transparent cut-out, no cast shadow; kit drystone, role door; height 4 ft",placeholder exists
+wall,wall.drystone.end,walls/wall.drystone.end.png,1×1,128×128,wall,"farm, street","transparent cut-out, no cast shadow; kit drystone, role end; height 4 ft",placeholder exists
+wall,wall.drystone.gate,walls/wall.drystone.gate.png,1×1,128×128,wall,"farm, street","transparent cut-out, no cast shadow; kit drystone, role gate; height 4 ft",placeholder exists
+wall,wall.drystone.post,walls/wall.drystone.post.png,1×1,128×128,wall,"farm, street","transparent cut-out, no cast shadow; kit drystone, role post; height 4 ft",placeholder exists
+wall,wall.drystone.run,walls/wall.drystone.run.png,1×1,128×128,wall,"farm, street","transparent cut-out, no cast shadow; kit drystone, role run; height 4 ft",placeholder exists
+wall,wall.drystone.tee,walls/wall.drystone.tee.png,1×1,128×128,wall,"farm, street","transparent cut-out, no cast shadow; kit drystone, role tee; height 4 ft",placeholder exists
+wall,wall.drystone.window,walls/wall.drystone.window.png,1×1,128×128,wall,"farm, street","transparent cut-out, no cast shadow; kit drystone, role window; height 4 ft",placeholder exists
+wall,wall.hedge.corner,walls/wall.hedge.corner.png,1×1,128×128,wall,"farm, street","transparent cut-out, no cast shadow; kit hedge, role corner; height 6 ft",placeholder exists
+wall,wall.hedge.cross,walls/wall.hedge.cross.png,1×1,128×128,wall,"farm, street","transparent cut-out, no cast shadow; kit hedge, role cross; height 6 ft",placeholder exists
+wall,wall.hedge.door,walls/wall.hedge.door.png,1×1,128×128,wall,"farm, street","transparent cut-out, no cast shadow; kit hedge, role door; height 6 ft",placeholder exists
+wall,wall.hedge.end,walls/wall.hedge.end.png,1×1,128×128,wall,"farm, street","transparent cut-out, no cast shadow; kit hedge, role end; height 6 ft",placeholder exists
+wall,wall.hedge.gate,walls/wall.hedge.gate.png,1×1,128×128,wall,"farm, street","transparent cut-out, no cast shadow; kit hedge, role gate; height 6 ft",placeholder exists
+wall,wall.hedge.post,walls/wall.hedge.post.png,1×1,128×128,wall,"farm, street","transparent cut-out, no cast shadow; kit hedge, role post; height 6 ft",placeholder exists
+wall,wall.hedge.run,walls/wall.hedge.run.png,1×1,128×128,wall,"farm, street","transparent cut-out, no cast shadow; kit hedge, role run; height 6 ft",placeholder exists
+wall,wall.hedge.tee,walls/wall.hedge.tee.png,1×1,128×128,wall,"farm, street","transparent cut-out, no cast shadow; kit hedge, role tee; height 6 ft",placeholder exists
+wall,wall.hedge.window,walls/wall.hedge.window.png,1×1,128×128,wall,"farm, street","transparent cut-out, no cast shadow; kit hedge, role window; height 6 ft",placeholder exists
+wall,wall.palisade.corner,walls/wall.palisade.corner.png,1×1,128×128,wall,"keep, barracks, farm","transparent cut-out, no cast shadow; kit palisade, role corner; height 12 ft",placeholder exists
+wall,wall.palisade.cross,walls/wall.palisade.cross.png,1×1,128×128,wall,"keep, barracks, farm","transparent cut-out, no cast shadow; kit palisade, role cross; height 12 ft",placeholder exists
+wall,wall.palisade.door,walls/wall.palisade.door.png,1×1,128×128,wall,"keep, barracks, farm","transparent cut-out, no cast shadow; kit palisade, role door; height 12 ft",placeholder exists
+wall,wall.palisade.end,walls/wall.palisade.end.png,1×1,128×128,wall,"keep, barracks, farm","transparent cut-out, no cast shadow; kit palisade, role end; height 12 ft",placeholder exists
+wall,wall.palisade.gate,walls/wall.palisade.gate.png,1×1,128×128,wall,"keep, barracks, farm","transparent cut-out, no cast shadow; kit palisade, role gate; height 12 ft",placeholder exists
+wall,wall.palisade.post,walls/wall.palisade.post.png,1×1,128×128,wall,"keep, barracks, farm","transparent cut-out, no cast shadow; kit palisade, role post; height 12 ft",placeholder exists
+wall,wall.palisade.run,walls/wall.palisade.run.png,1×1,128×128,wall,"keep, barracks, farm","transparent cut-out, no cast shadow; kit palisade, role run; height 12 ft",placeholder exists
+wall,wall.palisade.tee,walls/wall.palisade.tee.png,1×1,128×128,wall,"keep, barracks, farm","transparent cut-out, no cast shadow; kit palisade, role tee; height 12 ft",placeholder exists
+wall,wall.palisade.window,walls/wall.palisade.window.png,1×1,128×128,wall,"keep, barracks, farm","transparent cut-out, no cast shadow; kit palisade, role window; height 12 ft",placeholder exists
+wall,wall.stone.corner,walls/wall.stone.corner.png,1×1,128×128,wall,"house, warehouse, manor, temple, library, keep, smithy, mill","transparent cut-out, no cast shadow; kit stone, role corner; height 10 ft",placeholder exists
+wall,wall.stone.cross,walls/wall.stone.cross.png,1×1,128×128,wall,"house, warehouse, manor, temple, library, keep, smithy, mill","transparent cut-out, no cast shadow; kit stone, role cross; height 10 ft",placeholder exists
+wall,wall.stone.door,walls/wall.stone.door.png,1×1,128×128,wall,"house, warehouse, manor, temple, library, keep, smithy, mill","transparent cut-out, no cast shadow; kit stone, role door; height 10 ft",placeholder exists
+wall,wall.stone.end,walls/wall.stone.end.png,1×1,128×128,wall,"house, warehouse, manor, temple, library, keep, smithy, mill","transparent cut-out, no cast shadow; kit stone, role end; height 10 ft",placeholder exists
+wall,wall.stone.gate,walls/wall.stone.gate.png,1×1,128×128,wall,"house, warehouse, manor, temple, library, keep, smithy, mill","transparent cut-out, no cast shadow; kit stone, role gate; height 10 ft",placeholder exists
+wall,wall.stone.post,walls/wall.stone.post.png,1×1,128×128,wall,"house, warehouse, manor, temple, library, keep, smithy, mill","transparent cut-out, no cast shadow; kit stone, role post; height 10 ft",placeholder exists
+wall,wall.stone.run,walls/wall.stone.run.png,1×1,128×128,wall,"house, warehouse, manor, temple, library, keep, smithy, mill","transparent cut-out, no cast shadow; kit stone, role run; height 10 ft",placeholder exists
+wall,wall.stone.tee,walls/wall.stone.tee.png,1×1,128×128,wall,"house, warehouse, manor, temple, library, keep, smithy, mill","transparent cut-out, no cast shadow; kit stone, role tee; height 10 ft",placeholder exists
+wall,wall.stone.window,walls/wall.stone.window.png,1×1,128×128,wall,"house, warehouse, manor, temple, library, keep, smithy, mill","transparent cut-out, no cast shadow; kit stone, role window; height 10 ft",placeholder exists
+wall,wall.timber.corner,walls/wall.timber.corner.png,1×1,128×128,wall,"house, farmhouse, cottage, inn, tavern, stable, barn, workshop, bakery, brewery, boathouse","transparent cut-out, no cast shadow; kit timber, role corner; height 9 ft",placeholder exists
+wall,wall.timber.cross,walls/wall.timber.cross.png,1×1,128×128,wall,"house, farmhouse, cottage, inn, tavern, stable, barn, workshop, bakery, brewery, boathouse","transparent cut-out, no cast shadow; kit timber, role cross; height 9 ft",placeholder exists
+wall,wall.timber.door,walls/wall.timber.door.png,1×1,128×128,wall,"house, farmhouse, cottage, inn, tavern, stable, barn, workshop, bakery, brewery, boathouse","transparent cut-out, no cast shadow; kit timber, role door; height 9 ft",placeholder exists
+wall,wall.timber.end,walls/wall.timber.end.png,1×1,128×128,wall,"house, farmhouse, cottage, inn, tavern, stable, barn, workshop, bakery, brewery, boathouse","transparent cut-out, no cast shadow; kit timber, role end; height 9 ft",placeholder exists
+wall,wall.timber.gate,walls/wall.timber.gate.png,1×1,128×128,wall,"house, farmhouse, cottage, inn, tavern, stable, barn, workshop, bakery, brewery, boathouse","transparent cut-out, no cast shadow; kit timber, role gate; height 9 ft",placeholder exists
+wall,wall.timber.post,walls/wall.timber.post.png,1×1,128×128,wall,"house, farmhouse, cottage, inn, tavern, stable, barn, workshop, bakery, brewery, boathouse","transparent cut-out, no cast shadow; kit timber, role post; height 9 ft",placeholder exists
+wall,wall.timber.run,walls/wall.timber.run.png,1×1,128×128,wall,"house, farmhouse, cottage, inn, tavern, stable, barn, workshop, bakery, brewery, boathouse","transparent cut-out, no cast shadow; kit timber, role run; height 9 ft",placeholder exists
+wall,wall.timber.tee,walls/wall.timber.tee.png,1×1,128×128,wall,"house, farmhouse, cottage, inn, tavern, stable, barn, workshop, bakery, brewery, boathouse","transparent cut-out, no cast shadow; kit timber, role tee; height 9 ft",placeholder exists
+wall,wall.timber.window,walls/wall.timber.window.png,1×1,128×128,wall,"house, farmhouse, cottage, inn, tavern, stable, barn, workshop, bakery, brewery, boathouse","transparent cut-out, no cast shadow; kit timber, role window; height 9 ft",placeholder exists
+wall,wall.wattle.corner,walls/wall.wattle.corner.png,1×1,128×128,wall,"cottage, farmhouse, farm, stall","transparent cut-out, no cast shadow; kit wattle, role corner; height 6 ft",placeholder exists
+wall,wall.wattle.cross,walls/wall.wattle.cross.png,1×1,128×128,wall,"cottage, farmhouse, farm, stall","transparent cut-out, no cast shadow; kit wattle, role cross; height 6 ft",placeholder exists
+wall,wall.wattle.door,walls/wall.wattle.door.png,1×1,128×128,wall,"cottage, farmhouse, farm, stall","transparent cut-out, no cast shadow; kit wattle, role door; height 6 ft",placeholder exists
+wall,wall.wattle.end,walls/wall.wattle.end.png,1×1,128×128,wall,"cottage, farmhouse, farm, stall","transparent cut-out, no cast shadow; kit wattle, role end; height 6 ft",placeholder exists
+wall,wall.wattle.gate,walls/wall.wattle.gate.png,1×1,128×128,wall,"cottage, farmhouse, farm, stall","transparent cut-out, no cast shadow; kit wattle, role gate; height 6 ft",placeholder exists
+wall,wall.wattle.post,walls/wall.wattle.post.png,1×1,128×128,wall,"cottage, farmhouse, farm, stall","transparent cut-out, no cast shadow; kit wattle, role post; height 6 ft",placeholder exists
+wall,wall.wattle.run,walls/wall.wattle.run.png,1×1,128×128,wall,"cottage, farmhouse, farm, stall","transparent cut-out, no cast shadow; kit wattle, role run; height 6 ft",placeholder exists
+wall,wall.wattle.tee,walls/wall.wattle.tee.png,1×1,128×128,wall,"cottage, farmhouse, farm, stall","transparent cut-out, no cast shadow; kit wattle, role tee; height 6 ft",placeholder exists
+wall,wall.wattle.window,walls/wall.wattle.window.png,1×1,128×128,wall,"cottage, farmhouse, farm, stall","transparent cut-out, no cast shadow; kit wattle, role window; height 6 ft",placeholder exists
+prop,prop.altar,props/prop.altar.png,2×1,256×128,prop,"temple, shrine","transparent cut-out, no cast shadow; height 4 ft",placeholder exists
+prop,prop.anvil,props/prop.anvil.png,1×1,128×128,prop,smithy,"transparent cut-out, no cast shadow; height 3 ft",placeholder exists
+prop,prop.armour_stand,props/prop.armour_stand.png,1×1,128×128,prop,"barracks, guardhouse, keep, smithy","transparent cut-out, no cast shadow; height 6 ft",placeholder exists
+prop,prop.banner,props/prop.banner.png,1×1,128×128,prop,"keep, manor, barracks, guardhouse, temple","transparent cut-out, no cast shadow; height 8 ft",placeholder exists
+prop,prop.bar_counter,props/prop.bar_counter.png,2×1,256×128,prop,"inn, tavern, brewery","transparent cut-out, no cast shadow; height 4 ft",placeholder exists
+prop,prop.barrel,props/prop.barrel.png,1×1,128×128,prop,"warehouse, dock, inn, tavern, brewery, market, boathouse, market_hall, mine","transparent cut-out, no cast shadow; height 4 ft",placeholder exists
+prop,prop.bed,props/prop.bed.png,1×2,128×256,prop,"house, farmhouse, cottage, manor, inn, barracks","transparent cut-out, no cast shadow; height 2 ft",placeholder exists
+prop,prop.bench,props/prop.bench.png,2×1,256×128,prop,"house, inn, tavern, street, barracks, farmhouse, guardhouse, school, market_hall","transparent cut-out, no cast shadow; height 2 ft",placeholder exists
+prop,prop.bookshelf,props/prop.bookshelf.png,2×1,256×128,prop,"library, manor, temple, apothecary, school","transparent cut-out, no cast shadow; height 7 ft",placeholder exists
+prop,prop.brazier,props/prop.brazier.png,1×1,128×128,prop,"street, inn, keep, temple, guardhouse","transparent cut-out, no cast shadow; height 3 ft",placeholder exists
+prop,prop.bridge_deck,props/prop.bridge_deck.png,1×2,128×256,floor,street,"transparent cut-out, no cast shadow",placeholder exists
+prop,prop.bridge_deck_stone,props/prop.bridge_deck_stone.png,1×1,128×128,floor,"street, toll_house","transparent cut-out, no cast shadow",placeholder exists
+prop,prop.bucket,props/prop.bucket.png,1×1,128×128,prop,"farm, stable, barn, street, tannery, brewery, smithy, mine","transparent cut-out, no cast shadow; height 1 ft",placeholder exists
+prop,prop.candle_stand,props/prop.candle_stand.png,1×1,128×128,prop,"temple, shrine, manor, library","transparent cut-out, no cast shadow; height 4 ft",placeholder exists
+prop,prop.cart,props/prop.cart.png,1×2,128×256,prop,"street, farm, market, barn, stable, mill, mine, lumber_camp","transparent cut-out, no cast shadow; height 4 ft",placeholder exists
+prop,prop.cask_rack,props/prop.cask_rack.png,2×1,256×128,prop,"inn, tavern, brewery, warehouse","transparent cut-out, no cast shadow; height 4 ft",placeholder exists
+prop,prop.chair,props/prop.chair.png,1×1,128×128,prop,"house, farmhouse, cottage, manor, inn, tavern, library, apothecary, guardhouse, workshop","transparent cut-out, no cast shadow; height 3 ft",placeholder exists
+prop,prop.chest,props/prop.chest.png,1×1,128×128,prop,"house, farmhouse, cottage, manor, inn, keep, barracks","transparent cut-out, no cast shadow; height 2 ft",placeholder exists
+prop,prop.crane,props/prop.crane.png,2×2,256×256,prop,"dock, warehouse","transparent cut-out, no cast shadow; height 14 ft",placeholder exists
+prop,prop.crate,props/prop.crate.png,1×1,128×128,prop,"warehouse, dock, market, stall, workshop, barn, boathouse, market_hall, mine, lumber_camp","transparent cut-out, no cast shadow; height 3 ft",placeholder exists
+prop,prop.cupboard,props/prop.cupboard.png,1×1,128×128,prop,"house, farmhouse, cottage, manor, apothecary, bakery","transparent cut-out, no cast shadow; height 6 ft",placeholder exists
+prop,prop.dock_planks,props/prop.dock_planks.png,1×1,128×128,floor,"dock, boathouse","transparent cut-out, no cast shadow",placeholder exists
+prop,prop.fence,props/prop.fence.png,1×1,128×128,prop,"farm, street, house, stable, farmhouse","transparent cut-out, no cast shadow; height 4 ft",placeholder exists
+prop,prop.ferry_boat,props/prop.ferry_boat.png,2×3,256×384,floor,"dock, waystation, toll_house","transparent cut-out, no cast shadow; height 1 ft",placeholder exists
+prop,prop.ferry_rope,props/prop.ferry_rope.png,1×1,128×128,prop,"dock, waystation, toll_house","transparent cut-out, no cast shadow; height 3 ft",placeholder exists
+prop,prop.forge,props/prop.forge.png,2×1,256×128,prop,smithy,"transparent cut-out, no cast shadow; height 4 ft",placeholder exists
+prop,prop.grave,props/prop.grave.png,1×1,128×128,prop,"temple, shrine","transparent cut-out, no cast shadow; height 3 ft",placeholder exists
+prop,prop.grindstone,props/prop.grindstone.png,1×1,128×128,prop,"smithy, workshop, mill, lumber_camp","transparent cut-out, no cast shadow; height 3 ft",placeholder exists
+prop,prop.hay_bale,props/prop.hay_bale.png,1×1,128×128,prop,"farm, barn, stable","transparent cut-out, no cast shadow; height 3 ft",placeholder exists
+prop,prop.haycart,props/prop.haycart.png,1×2,128×256,prop,"farm, barn, stable","transparent cut-out, no cast shadow; height 7 ft",placeholder exists
+prop,prop.hearth,props/prop.hearth.png,2×1,256×128,prop,"house, farmhouse, cottage, manor, inn, tavern, keep","transparent cut-out, no cast shadow; height 4 ft",placeholder exists
+prop,prop.ladder,props/prop.ladder.png,1×2,128×256,prop,"barn, warehouse, workshop, stable, library, mine","transparent cut-out, no cast shadow",placeholder exists
+prop,prop.lantern,props/prop.lantern.png,1×1,128×128,prop,"street, dock, inn, tavern, stable, guardhouse, mine","transparent cut-out, no cast shadow; height 1 ft",placeholder exists
+prop,prop.loom,props/prop.loom.png,2×1,256×128,prop,"workshop, cottage, farmhouse","transparent cut-out, no cast shadow; height 5 ft",placeholder exists
+prop,prop.marker_post,props/prop.marker_post.png,1×1,128×128,prop,"street, waystation, toll_house, farm","transparent cut-out, no cast shadow; height 5 ft",placeholder exists
+prop,prop.market_stall,props/prop.market_stall.png,2×2,256×256,prop,"market, stall, street, market_hall","transparent cut-out, no cast shadow; height 8 ft",placeholder exists
+prop,prop.milestone,props/prop.milestone.png,1×1,128×128,prop,"street, waystation, toll_house","transparent cut-out, no cast shadow; height 3 ft",placeholder exists
+prop,prop.millstone,props/prop.millstone.png,1×1,128×128,prop,mill,"transparent cut-out, no cast shadow; height 1 ft",placeholder exists
+prop,prop.oven,props/prop.oven.png,1×1,128×128,prop,"bakery, inn, farmhouse","transparent cut-out, no cast shadow; height 5 ft",placeholder exists
+prop,prop.pew,props/prop.pew.png,2×1,256×128,prop,temple,"transparent cut-out, no cast shadow; height 3 ft",placeholder exists
+prop,prop.rowboat,props/prop.rowboat.png,1×2,128×256,prop,"dock, boathouse","transparent cut-out, no cast shadow; height 2 ft",placeholder exists
+prop,prop.rug_small,props/prop.rug_small.png,2×1,256×128,floor,"manor, house, inn, temple, library, cottage","transparent cut-out, no cast shadow",placeholder exists
+prop,prop.sacks,props/prop.sacks.png,1×1,128×128,prop,"warehouse, farm, market, mill, bakery, barn, stall, market_hall","transparent cut-out, no cast shadow; height 2 ft",placeholder exists
+prop,prop.shelf,props/prop.shelf.png,1×1,128×128,prop,"house, apothecary, workshop, bakery, library, tannery, stall","transparent cut-out, no cast shadow; height 5 ft",placeholder exists
+prop,prop.signpost,props/prop.signpost.png,1×1,128×128,prop,street,"transparent cut-out, no cast shadow; height 7 ft",placeholder exists
+prop,prop.statue,props/prop.statue.png,1×1,128×128,prop,"temple, shrine, manor, street, keep","transparent cut-out, no cast shadow; height 8 ft",placeholder exists
+prop,prop.stool,props/prop.stool.png,1×1,128×128,prop,"inn, tavern, workshop, smithy, cottage, farmhouse, tannery","transparent cut-out, no cast shadow; height 2 ft",placeholder exists
+prop,prop.table,props/prop.table.png,2×1,256×128,prop,"house, farmhouse, cottage, manor, inn, tavern, warehouse, library, bakery, apothecary, barracks, guardhouse, school, market_hall","transparent cut-out, no cast shadow; height 3 ft",placeholder exists
+prop,prop.tent,props/prop.tent.png,2×2,256×256,prop,"market, farm, barracks, lumber_camp","transparent cut-out, no cast shadow; height 7 ft",placeholder exists
+prop,prop.throne,props/prop.throne.png,1×1,128×128,prop,"keep, manor","transparent cut-out, no cast shadow; height 5 ft",placeholder exists
+prop,prop.trough,props/prop.trough.png,2×1,256×128,prop,"farm, barn, stable","transparent cut-out, no cast shadow; height 2 ft",placeholder exists
+prop,prop.weapon_rack,props/prop.weapon_rack.png,2×1,256×128,prop,"barracks, guardhouse, keep, smithy","transparent cut-out, no cast shadow; height 5 ft",placeholder exists
+prop,prop.well,props/prop.well.png,1×1,128×128,prop,"street, farm, farmhouse, market","transparent cut-out, no cast shadow; height 3 ft",placeholder exists
+prop,prop.wheelbarrow,props/prop.wheelbarrow.png,1×1,128×128,prop,"farm, barn, workshop, mill, mine","transparent cut-out, no cast shadow; height 2 ft",placeholder exists
+prop,prop.woodpile,props/prop.woodpile.png,1×1,128×128,prop,"house, farm, farmhouse, cottage, smithy, bakery, lumber_camp","transparent cut-out, no cast shadow; height 3 ft",placeholder exists
+prop,prop.workbench,props/prop.workbench.png,2×1,256×128,prop,"workshop, smithy, tannery, boathouse, mill, apothecary, lumber_camp, school","transparent cut-out, no cast shadow; height 3 ft",placeholder exists
+vegetation,veg.boulder,vegetation/veg.boulder.png,1×1,128×128,prop,,"transparent cut-out, no cast shadow; height 4 ft",placeholder exists
+vegetation,veg.bush,vegetation/veg.bush.png,1×1,128×128,prop,,"transparent cut-out, no cast shadow; height 3 ft",placeholder exists
+vegetation,veg.bush_flowering,vegetation/veg.bush_flowering.png,1×1,128×128,prop,,"transparent cut-out, no cast shadow; height 3 ft",placeholder exists
+vegetation,veg.cattail,vegetation/veg.cattail.png,1×1,128×128,prop,,"transparent cut-out, no cast shadow; height 5 ft",placeholder exists
+vegetation,veg.fallen_log,vegetation/veg.fallen_log.png,2×1,256×128,prop,,"transparent cut-out, no cast shadow; height 2 ft",placeholder exists
+vegetation,veg.fern,vegetation/veg.fern.png,1×1,128×128,prop,,"transparent cut-out, no cast shadow; height 2 ft",placeholder exists
+vegetation,veg.flower_patch,vegetation/veg.flower_patch.png,1×1,128×128,prop,,"transparent cut-out, no cast shadow; height 1 ft",placeholder exists
+vegetation,veg.heather,vegetation/veg.heather.png,1×1,128×128,prop,,"transparent cut-out, no cast shadow; height 2 ft",placeholder exists
+vegetation,veg.juniper,vegetation/veg.juniper.png,1×1,128×128,prop,,"transparent cut-out, no cast shadow; height 4 ft",placeholder exists
+vegetation,veg.lily_pads,vegetation/veg.lily_pads.png,1×1,128×128,floor,,"transparent cut-out, no cast shadow",placeholder exists
+vegetation,veg.mushroom_ring,vegetation/veg.mushroom_ring.png,1×1,128×128,prop,,"transparent cut-out, no cast shadow",placeholder exists
+vegetation,veg.reeds,vegetation/veg.reeds.png,1×1,128×128,prop,,"transparent cut-out, no cast shadow; height 5 ft",placeholder exists
+vegetation,veg.rock_large,vegetation/veg.rock_large.png,2×2,256×256,prop,,"transparent cut-out, no cast shadow; height 8 ft",placeholder exists
+vegetation,veg.rock_outcrop,vegetation/veg.rock_outcrop.png,3×3,384×384,prop,,"transparent cut-out, no cast shadow; height 10 ft",placeholder exists
+vegetation,veg.rock_small,vegetation/veg.rock_small.png,1×1,128×128,prop,,"transparent cut-out, no cast shadow; height 3 ft",placeholder exists
+vegetation,veg.scree_patch,vegetation/veg.scree_patch.png,2×2,256×256,prop,,"transparent cut-out, no cast shadow; height 1 ft",placeholder exists
+vegetation,veg.stones,vegetation/veg.stones.png,1×1,128×128,prop,,"transparent cut-out, no cast shadow; height 2 ft",placeholder exists
+vegetation,veg.stump,vegetation/veg.stump.png,1×1,128×128,prop,,"transparent cut-out, no cast shadow; height 2 ft",placeholder exists
+vegetation,veg.tall_grass,vegetation/veg.tall_grass.png,1×1,128×128,prop,,"transparent cut-out, no cast shadow; height 3 ft",placeholder exists
+vegetation,veg.tree_alder,vegetation/veg.tree_alder.png,2×2,256×256,canopy,,"transparent cut-out, no cast shadow; height 30 ft",placeholder exists
+vegetation,veg.tree_birch,vegetation/veg.tree_birch.png,2×2,256×256,canopy,,"transparent cut-out, no cast shadow; height 25 ft",placeholder exists
+vegetation,veg.tree_dead,vegetation/veg.tree_dead.png,2×2,256×256,canopy,,"transparent cut-out, no cast shadow; height 25 ft",placeholder exists
+vegetation,veg.tree_elm,vegetation/veg.tree_elm.png,3×3,384×384,canopy,,"transparent cut-out, no cast shadow; height 35 ft",placeholder exists
+vegetation,veg.tree_fruit,vegetation/veg.tree_fruit.png,2×2,256×256,canopy,,"transparent cut-out, no cast shadow; height 15 ft",placeholder exists
+vegetation,veg.tree_oak,vegetation/veg.tree_oak.png,3×3,384×384,canopy,,"transparent cut-out, no cast shadow; height 30 ft",placeholder exists
+vegetation,veg.tree_pine,vegetation/veg.tree_pine.png,2×2,256×256,canopy,,"transparent cut-out, no cast shadow; height 40 ft",placeholder exists
+vegetation,veg.tree_spruce,vegetation/veg.tree_spruce.png,2×2,256×256,canopy,,"transparent cut-out, no cast shadow; height 45 ft",placeholder exists
+vegetation,veg.tree_stunted,vegetation/veg.tree_stunted.png,1×1,128×128,canopy,,"transparent cut-out, no cast shadow; height 8 ft",placeholder exists
+vegetation,veg.tree_willow,vegetation/veg.tree_willow.png,3×3,384×384,canopy,,"transparent cut-out, no cast shadow; height 30 ft",placeholder exists
+ground,ground.stubble.0,,2×2,256×256,,,opaque seamless; harvested field,NO art at all yet
+ground,ground.fallow.0,,2×2,256×256,,,opaque seamless; resting field,NO art at all yet
+prop,prop.waterwheel,,2×2,256×256,,,cut-out; mill wheel,NO art at all yet
+prop,prop.sheep,,1×1,128×128,,,cut-out,NO art at all yet
+prop,prop.cow,,1×2,128×256,,,cut-out,NO art at all yet
+prop,prop.hen,,1×1,128×128,,,cut-out; small,NO art at all yet
+prop,prop.stairs,,1×2,128×256,,,cut-out; interior stairs,NO art at all yet
+prop,prop.drain,,1×1,128×128,,,cut-out; street drain grate,NO art at all yet
