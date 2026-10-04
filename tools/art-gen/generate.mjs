@@ -600,8 +600,8 @@ export async function main(argv, io = { out: process.stdout, err: process.stderr
     return 1;
   }
   // Submitted earlier and still running or done but not yet downloaded: wait for those
-  // rather than paying for them again.
-  const inFlight = options.dryRun
+  // rather than paying for them again; --overwrite means make them again regardless.
+  const inFlight = options.dryRun || options.overwrite
     ? []
     : assets.filter((a) => state.assets[a.id]?.projectId && !["failed", "downloaded"].includes(state.assets[a.id].status));
   // A batch sent but never confirmed (the connection dropped, or the script stopped): it is
