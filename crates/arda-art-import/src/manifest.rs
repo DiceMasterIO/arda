@@ -21,6 +21,7 @@
 //! height_ft = 3
 //! tags = { function = ["smithy"], free = ["craft:smith"] }
 //! holes = "keep"                   # or "clear"; default by class
+//! rot_free = true                  # may be turned and mirrored by hash
 //! ```
 
 use crate::error::{ImportError, ImportResult};
@@ -113,6 +114,11 @@ pub struct AssetEntry {
     pub tags: Option<Tags>,
     /// Marks a texture as `structured` (aligned variants).
     pub structured: Option<bool>,
+    /// Adds (or removes) the free tag `rot_free`: the compositor may turn
+    /// and mirror the cut-out by hash. Only for round or radial things
+    /// (barrels, crates, trees, bushes, rocks) whose shading reads from
+    /// any side.
+    pub rot_free: Option<bool>,
     /// Shadow handling: `strip` (default) or `keep` (never strip, still flag).
     pub shadow: Option<ShadowMode>,
     /// Enclosed backdrop-coloured pockets: `clear` (any size) or `keep`
@@ -235,6 +241,7 @@ mod tests {
             [[asset]]
             id = "veg.tree_oak"
             holes = "clear"
+            rot_free = true
             "##,
         )
         .unwrap();
@@ -248,6 +255,7 @@ mod tests {
             m.for_id("veg.tree_oak").unwrap().holes,
             Some(HoleMode::Clear)
         );
+        assert_eq!(m.for_id("veg.tree_oak").unwrap().rot_free, Some(true));
         assert!(toml::from_str::<Manifest>("[[asset]]\nholes = \"fill\"").is_err());
         assert_eq!(parse_hex("#6b7d45"), Some([0x6b, 0x7d, 0x45]));
         assert!(toml::from_str::<Manifest>("[library]\nnmae = 1").is_err());

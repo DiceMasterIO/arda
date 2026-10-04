@@ -8,6 +8,7 @@ use crate::naming::{is_water, Target};
 use arda_tactical::catalog::{
     Asset, AssetClass, Catalog, Cover, Footprint, Layer, PlacementRules, Tags, WallPiece,
 };
+use arda_tactical::compose::ROT_FREE;
 
 /// Ground keys whose variants share an aligned layout by default.
 const STRUCTURED_KEYS: &[&str] = &[
@@ -289,10 +290,12 @@ pub fn apply_entry(a: &mut Asset, e: &AssetEntry) {
     if let Some(t) = &e.tags {
         a.tags = t.clone();
     }
-    if let Some(s) = e.structured {
-        a.tags.free.retain(|t| t != "structured");
-        if s {
-            a.tags.free.push("structured".into());
+    for (flag, tag) in [(e.structured, "structured"), (e.rot_free, ROT_FREE)] {
+        if let Some(on) = flag {
+            a.tags.free.retain(|t| t != tag);
+            if on {
+                a.tags.free.push(tag.into());
+            }
         }
     }
 }
