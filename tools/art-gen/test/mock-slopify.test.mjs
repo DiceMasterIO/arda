@@ -89,13 +89,14 @@ test("submits, polls, downloads and writes import.toml; --resume skips what is d
   const fake = await fakeSlopify();
   const out = mkdtempSync(join(tmpdir(), "art-gen-"));
   try {
-    const args = ["--server", fake.url, "--out", out, "--only", "prop.barrel,prop.crate,prop.anvil,prop.bed", "--poll", "1", "--yes"];
+    const args = ["--server", fake.url, "--out", out, "--only", "prop.barrel,prop.barrel.alt1,prop.crate,prop.anvil,prop.bed", "--poll", "1", "--yes"];
     const err = sink();
     const code = await main(args, { out: sink(), err });
     assert.equal(code, 1, err.text); // the anvil fails on purpose
     assert.ok(existsSync(join(out, "prop.crate.png")));
     assert.ok(existsSync(join(out, "prop.bed.png")));
     assert.ok(existsSync(join(out, "prop.barrel.jpg")), "JPEG kept as .jpg");
+    assert.ok(existsSync(join(out, "prop.barrel__alt1.jpg")), "an alt is saved as <id>__altN for the importer");
     assert.ok(!existsSync(join(out, "prop.anvil.png")));
     assert.match(err.text, /FAILED prop\.anvil: provider refused/);
     // Two frames, so two batches; one Library prompt created.
@@ -105,6 +106,9 @@ test("submits, polls, downloads and writes import.toml; --resume skips what is d
     assert.match(toml, /file = "prop\.barrel\.jpg"/);
     assert.match(toml, /prompt = "rendered prop\.crate"/);
     assert.match(toml, /footprint = \[1, 2\]/);
+    assert.match(toml, /file = "prop\.barrel__alt1\.jpg"/);
+    assert.match(toml, /^layer = "prop"$/m);
+    assert.match(toml, /^tags = \{ biome = \["temperate"\]/m);
     assert.doesNotMatch(toml, /prop\.anvil/);
 
     // Without --resume, existing files stop the run before anything is sent.
@@ -115,7 +119,7 @@ test("submits, polls, downloads and writes import.toml; --resume skips what is d
     // With --resume only the failed anvil is sent again.
     const again = sink();
     await main([...args, "--resume"], { out: sink(), err: again });
-    assert.match(again.text, /skipping 3 already downloaded/);
+    assert.match(again.text, /skipping 4 already downloaded/);
     assert.match(again.text, /1 images in 1 batch/);
   } finally {
     fake.server.close();

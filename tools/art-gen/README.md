@@ -1,12 +1,14 @@
 # art-gen: Arda's tactical art through Slopify
 
-This folder holds a prompt pack for the 225 assets in Arda's tactical art library, and a script that has a local Slopify generate them. The output is a folder that `arda tactical import` reads directly.
+This folder holds a prompt pack for Arda's tactical art library, and a script that has a local Slopify generate it. The pack has 1,425 assets: the first 225 from the checklist, then 1,200 more in `expansion.mjs`. The expansion holds variants of every asset, building-function props, biome sets, culture sets and two wall kits. `plan.md` gives the order, tiers and commands for generating them. The output is a folder that `arda tactical import` reads directly.
 
 | file | what it is |
 |---|---|
 | `checklist.csv` | the asset list: id, class, footprint, pixels, layer, functions, notes. It is a copy of `docs/art-library-checklist.csv` from the art planning branch. |
-| `prompts.json` | one entry per asset id: its keyword values, the full prompt, the frame, footprint and pixels. Generated; don't edit it by hand. |
-| `build-prompts.mjs` | writes `prompts.json` from the checklist and the descriptions in the script. Edit descriptions here. |
+| `expansion.mjs` | every asset beyond the 225: ground variants, wall alts and kits, prop and vegetation families with their metadata. Edit or add assets here. |
+| `prompts.json` | one entry per asset id: its keyword values, the full prompt, the frame, the tier and the catalogue metadata (footprint, layer, height, cover, blocking, tags). Generated; don't edit it by hand. |
+| `build-prompts.mjs` | writes `prompts.json` from the checklist, `expansion.mjs` and the descriptions in the script. Edit the first 225's descriptions here. |
+| `plan.md` | the batching plan: tiers, times and the exact commands. |
 | `generate.mjs` | the driver: selects assets, sends Slopify batches, waits, downloads, and writes `import.toml`. |
 | `test/` | `node --test tools/art-gen/test/` |
 
@@ -121,15 +123,13 @@ cargo run --release -p arda-cli -- tactical render --layout all \
 
 ### 5. Generate the rest
 
-Follow the checklist's order, biggest visual impact first:
+Every asset has a `tier`: 0 is the first 225, 1 is their variants, 2 the building-function and biome sets, 3 the culture sets and rare dressing. Within a tier, `prompts.json` lists the assets by visual impact, so `--tier 1 --limit 200` takes the 200 that change maps the most. `plan.md` has the exact commands per tier. They include the reference runs that structured ground variants and wall alts need.
 
 ```sh
-node tools/art-gen/generate.mjs --class ground,water --resume --yes
-node tools/art-gen/generate.mjs --only "veg.tree_*,veg.bush" --resume --yes
-node tools/art-gen/generate.mjs --only "wall.stone.*,wall.timber.*" --resume --yes
-node tools/art-gen/generate.mjs --class prop,vegetation --resume --yes
-node tools/art-gen/generate.mjs --resume --yes          # whatever is left
+node tools/art-gen/generate.mjs --tier 1 --limit 200 --resume --yes
 ```
+
+A further take of a cut-out or wall piece is `<id>.altN`, and the script saves it as `<id>__altN.png`. The importer then numbers it `<id>.altN`, the same id. `import.toml` carries each asset's layer, height, cover, blocking and tags from `prompts.json`, so new ids import with their real metadata.
 
 `--resume` skips assets that are already downloaded. Without it, the script stops if any selected asset already has a file, unless you pass `--overwrite`. `--overwrite` moves the old file to `out/art-gen/raw-replaced/` before making a new one.
 
@@ -153,6 +153,7 @@ The leftmost library wins, and the placeholder fills every slot the AI library l
 
 ```
 --class LIST          ground, water, wall, prop, vegetation (comma-separated)
+--tier LIST           generation tiers, e.g. 1 or 2,3 (0 is the first 225; see plan.md)
 --only GLOB           asset ids; * and ?, comma-separated alternatives
 --limit N             at most N assets
 --resume              skip assets already downloaded
@@ -160,6 +161,8 @@ The leftmost library wins, and the placeholder fills every slot the AI library l
 --provider ID         openai-image (default), google-image, fal, replicate, codex-image;
                       aliases openai, google, codex
 --model ID            default gpt-image-2
+--thinking EFFORT     reasoning effort for models that take one, e.g. high
+--channel NAME        the Slopify channel the runs go to, default "DiceMaster Assets"
 --reference FILE      a style reference, sent as Slopify's establishing image
 --batch-size N        at most 50 (Slopify's limit), default 50
 --price-per-image USD for the estimate when Slopify's catalogue has no price
@@ -234,8 +237,12 @@ node --test tools/art-gen/test/
 
 The tests never start Slopify or call a provider. They check the following:
 
-- `prompts.json` covers every checklist id, is up to date, and stays within Slopify's limits;
-- the dry-run payloads for each class pass Slopify's own code: the run-draft zod schema, a copy of the batch route's body schema, the admission rules and the keyword substitution. The copied schema is checked against the built route;
+- `prompts.json` keeps the checklist's 225 as tier 0, is up to date, and stays within Slopify's limits;
+- every id follows the importer's naming and a known class, and every tag is in the catalogue vocabulary;
+- alts share their base's footprint, layer, tags and blocking, and each reads differently from its siblings;
+- every cut-out has at least three takes, every wall piece two and every ground key three, and every wall kit is complete;
+- floor tiles are rail-less and fill their footprint, and doors and gates are contrasting slabs;
+- the dry-run payloads for each class and tier pass Slopify's own code: the run-draft zod schema, a copy of the batch route's body schema, the admission rules and the keyword substitution. The copied schema is checked against the built route;
 - the default models are in Slopify's model list;
 - the submit, poll, download and `--resume` path works against a stand-in HTTP server.
 

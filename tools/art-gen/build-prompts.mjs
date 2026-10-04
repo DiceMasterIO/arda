@@ -15,11 +15,16 @@
 import { readFileSync, writeFileSync } from "node:fs";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
+import { entries as expansion, groundTargets, newKits, wallVariants } from "./expansion.mjs";
 import { pair, readChecklist, render, slotsOf } from "./lib.mjs";
 
 const here = dirname(fileURLToPath(import.meta.url));
 const checklistPath = join(here, "checklist.csv");
 const outPath = join(here, "prompts.json");
+// The placeholder library's records carry the 225's catalogue metadata (tags, blocking, cover),
+// and its vocabulary is the one the importer writes, so every tag here must come from it.
+const placeholderPath = join(here, "../../assets/tactical/placeholder/catalog.json");
+const placeholder = JSON.parse(readFileSync(placeholderPath, "utf8"));
 const valueMax = 200;
 
 // ---------------------------------------------------------------------------------------------
@@ -219,17 +224,20 @@ const naturalVariant = [
   "One patch of this surface with an even, random arrangement.",
   "A different patch of the same surface: same colours, scale and density, a new random arrangement.",
   "Another patch of the same surface: same colours, scale and density, a new random arrangement.",
+  "A fourth patch of the same surface: same colours, scale and density, a new random arrangement.",
 ];
 const structuredVariant = [
   "Variant A, the master layout: clean and well kept.",
   "Variant B: exactly the same layout as variant A, only more worn, with grime and a little moss in the joints.",
   "Variant C: exactly the same layout as variant A, stained and damp in places.",
+  "Variant D: exactly the same layout as variant A, dusty and a little faded, with a few chips.",
 ];
 const structuredOverrides = {
   planks: [
     "Variant A, the master layout: clean, lightly oiled boards.",
     "Variant B: exactly the same boards as variant A, scuffed and dusty, with a few scratches.",
     "Variant C: exactly the same boards as variant A, with dark spill stains and water marks.",
+    "Variant D: exactly the same boards as variant A, sun-faded and paler, with a few dark nail stains.",
   ],
   rug: [
     "Variant A, the master layout: rich colours.",
@@ -240,6 +248,7 @@ const structuredOverrides = {
     "Variant A, the master layout: freshly turned soil.",
     "Variant B: exactly the same furrows as variant A, a little drier and paler, with a few small weeds.",
     "Variant C: exactly the same furrows as variant A, damp and darker after rain.",
+    "Variant D: exactly the same furrows as variant A, with a faint green haze of seedlings along the ridges.",
   ],
   cliff: [
     "Variant A, the master layout: clean rock.",
@@ -316,6 +325,8 @@ const kits = {
     post: "a square buttress wider than the wall",
   },
 };
+
+for (const [name, kit] of Object.entries(newKits)) kits[name] = kit;
 
 const across = "it runs from the left edge to the right edge along the horizontal centre line";
 const roles = {
@@ -735,19 +746,122 @@ function heightOf(notes) {
   return match === null ? null : Number(match[1]);
 }
 
+// ---------------------------------------------------------------------------------------------
+// Catalogue metadata: what goes into import.toml beside the image.
+
+// What a piece does to movement, sight and cover. Expansion families name one of these.
+const blocking = {
+  solid: { blocks_movement: true, blocks_sight: false, difficult_terrain: false, cover: "half" },
+  tall: { blocks_movement: true, blocks_sight: true, difficult_terrain: false, cover: "three_quarters" },
+  total: { blocks_movement: true, blocks_sight: true, difficult_terrain: false, cover: "total" },
+  post: { blocks_movement: true, blocks_sight: false, difficult_terrain: false, cover: "none" },
+  low: { blocks_movement: false, blocks_sight: false, difficult_terrain: true, cover: "half" },
+  rough: { blocks_movement: false, blocks_sight: false, difficult_terrain: true, cover: "none" },
+  clear: { blocks_movement: false, blocks_sight: false, difficult_terrain: false, cover: "none" },
+  canopy: { blocks_movement: false, blocks_sight: false, difficult_terrain: false, cover: "half" },
+  wall: { blocks_movement: true, blocks_sight: true, difficult_terrain: false, cover: "total" },
+};
+
+const placeholderById = new Map(placeholder.assets.map((a) => [a.id, a]));
+const placeholderByGround = new Map();
+for (const a of placeholder.assets) if (a.ground && !placeholderByGround.has(a.ground)) placeholderByGround.set(a.ground, a);
+
+const tagsOf = (t) => ({
+  biome: [...t.biome],
+  culture: [...t.culture],
+  wealth: [...t.wealth],
+  function: [...t.function],
+  free: [...t.free],
+});
+const blockingOf = (a) => ({
+  blocks_movement: a.blocks_movement,
+  blocks_sight: a.blocks_sight,
+  difficult_terrain: a.difficult_terrain,
+  cover: a.cover === "full" ? "total" : a.cover,
+});
+const human = (fn, free, wealth = ["poor", "modest"]) => ({ biome: ["temperate"], culture: ["human"], wealth, function: fn, free });
+
+// The few of the 225 the placeholder library does not draw yet.
+const extraMeta = {
+  "prop.waterwheel": { tags: human(["mill"], ["structure", "water"]), layer: "prop", height_ft: 12, ...blocking.solid },
+  "prop.sheep": { tags: human(["farm", "barn"], ["animal", "livestock:sheep"]), layer: "prop", height_ft: 3, ...blocking.rough },
+  "prop.cow": { tags: human(["farm", "barn"], ["animal", "livestock:cattle"]), layer: "prop", height_ft: 5, ...blocking.solid },
+  "prop.hen": { tags: human(["farm", "barn", "farmhouse"], ["animal", "livestock:poultry"]), layer: "prop", height_ft: 1, ...blocking.clear },
+  "prop.stairs": {
+    tags: human(["house", "inn", "tavern", "manor", "keep", "library", "warehouse", "temple"], ["structure"]),
+    layer: "prop",
+    height_ft: 0,
+    ...blocking.rough,
+  },
+  "prop.drain": { tags: human(["street"], ["road"]), layer: "floor", height_ft: 0, ...blocking.clear },
+};
+
+function originalMeta(id, groundKey, layer, height) {
+  const base = placeholderById.get(id) ?? (groundKey === undefined ? undefined : placeholderByGround.get(groundKey));
+  if (base !== undefined)
+    return { layer: layer || base.layer, height_ft: height ?? base.height_ft, tags: tagsOf(base.tags), ...blockingOf(base) };
+  if (extraMeta[id] !== undefined) {
+    const m = extraMeta[id];
+    return { layer: m.layer, height_ft: height ?? m.height_ft, tags: tagsOf(m.tags), ...blockingOf(m) };
+  }
+  if (groundKey !== undefined)
+    return { layer: layer || "ground", height_ft: 0, tags: tagsOf(human([], [], [])), ...blocking.clear };
+  throw new Error(`no metadata for ${id}`);
+}
+
+// Metadata an alt shares with its base, so the two are interchangeable.
+const sharedMeta = (base) => ({
+  footprint: [...base.footprint],
+  pixels: [...base.pixels],
+  layer: base.layer,
+  height_ft: base.height_ft,
+  functions: [...base.functions],
+  tags: tagsOf(base.tags),
+  ...blockingOf(base),
+});
+
+const dirOf = { ground: "ground", water: "ground", wall: "walls", prop: "props", vegetation: "vegetation" };
+
+// Every entry in prompts.json goes through here: one trimmed line per keyword, at most 200
+// characters, every template slot filled, and the prompt rendered the way Slopify renders it.
+function finish(id, entry) {
+  for (const [name, value] of Object.entries(entry.values)) {
+    if (value.length > valueMax || /[\n\r]/.test(value) || value.trim() !== value || value.length === 0)
+      problems.push(`${id}: ${name} is ${value.length} chars or not one trimmed line`);
+  }
+  const body = templates[entry.template].body;
+  const missing = slotsOf(body).filter((name) => !(name in entry.values));
+  if (missing.length) throw new Error(`${id}: no value for ${missing.join(", ")}`);
+  entry.prompt = render(body, entry.values);
+  return entry;
+}
+
+function textureValues(key, variant, structured, footprint) {
+  const text = ground[key];
+  if (text === undefined) throw new Error(`no ground description for ${key}`);
+  const wording = structured ? (structuredOverrides[key] ?? structuredVariant)[variant] : naturalVariant[variant];
+  if (wording === undefined) throw new Error(`no variant wording ${variant} for ${key}`);
+  return { Subject: text[0], Shape: textureShape(footprint), Detail: text[1], Variant: wording };
+}
+
+// ---------------------------------------------------------------------------------------------
+// The 225 of the checklist (tier 0: the first run).
+
 function describe(row) {
   const cls = row.class;
   const footprint = pair(row.footprint_squares);
   const pixels = pair(row.pixels);
   const parts = row.id.split(".");
+  const groundKey = cls === "ground" || cls === "water" ? parts[1] : undefined;
+  const meta = originalMeta(row.id, groundKey, row.layer, heightOf(row.notes));
   const entry = {
     class: cls,
     template: classes[cls].template,
     format: formatOf(cls, footprint),
     footprint,
     pixels,
-    layer: row.layer || null,
-    height_ft: heightOf(row.notes),
+    layer: meta.layer,
+    height_ft: meta.height_ft,
     functions: row.functions
       ? row.functions
           .split(",")
@@ -756,55 +870,223 @@ function describe(row) {
       : [],
     file: row.file || null,
     status: row.status,
+    tier: 0,
+    tags: meta.tags,
+    blocks_movement: meta.blocks_movement,
+    blocks_sight: meta.blocks_sight,
+    difficult_terrain: meta.difficult_terrain,
+    cover: meta.cover,
   };
-  let subject;
-  let shape;
-  let detail;
-  let variantWording;
-  if (cls === "ground" || cls === "water") {
-    const [, key, index] = parts;
-    const variant = Number(index);
+  if (groundKey !== undefined) {
+    const variant = Number(parts[2]);
     const structured = /structured/.test(row.notes);
-    const text = ground[key];
-    if (text === undefined) throw new Error(`no ground description for ${key}`);
-    subject = text[0];
-    shape = textureShape(footprint);
-    variantWording = structured
-      ? (structuredOverrides[key] ?? structuredVariant)[variant]
-      : naturalVariant[variant];
-    detail = text[1];
-    entry.ground = key;
+    entry.ground = groundKey;
     entry.structured = structured;
     entry.variant = variant;
-    if (structured && variant > 0) entry.derive_from = `${parts[0]}.${key}.0`;
+    if (structured && variant > 0) entry.derive_from = `${parts[0]}.${groundKey}.0`;
+    entry.values = textureValues(groundKey, variant, structured, footprint);
   } else if (cls === "wall") {
     const [, kitName, role] = parts;
     const kit = kits[kitName];
     if (kit === undefined || roles[role] === undefined) throw new Error(`no wall text for ${row.id}`);
-    subject = kit.subject;
-    shape = roles[role](kit);
-    detail = `${kit.detail} The wall band is ${kit.thickness} thick.`;
     entry.kit = kitName;
     entry.role = role;
+    entry.values = { Subject: kit.subject, Shape: roles[role](kit), Detail: `${kit.detail} The wall band is ${kit.thickness} thick.` };
   } else {
     const name = parts.slice(1).join(".");
     const text = (cls === "prop" ? props : vegetation)[name];
     if (text === undefined) throw new Error(`no ${cls} description for ${row.id}`);
-    [subject, detail] = text;
-    shape = cutoutShape(footprint);
+    entry.values = { Subject: text[0], Shape: cutoutShape(footprint), Detail: text[1] };
   }
-  entry.values = { Subject: subject, Shape: shape, Detail: detail };
-  if (variantWording !== undefined) entry.values.Variant = variantWording;
-  for (const [name, value] of Object.entries(entry.values)) {
-    if (value.length > valueMax || /[\n\r]/.test(value) || value.trim() !== value)
-      problems.push(`${row.id}: ${name} is ${value.length} chars or not one trimmed line`);
-  }
-  const body = templates[entry.template].body;
-  const missing = slotsOf(body).filter((name) => !(name in entry.values));
-  if (missing.length) throw new Error(`${row.id}: no value for ${missing.join(", ")}`);
-  entry.prompt = render(body, entry.values);
-  return entry;
+  return finish(row.id, entry);
 }
+
+// ---------------------------------------------------------------------------------------------
+// The expansion (expansion.mjs): ground variants, wall variants and kits, cut-out families.
+
+const roleOrder = ["run", "door", "window", "gate", "post", "corner", "tee", "cross", "end"];
+
+function groundExpansion() {
+  const out = [];
+  for (const [key, [target, tier]] of Object.entries(groundTargets)) {
+    const prefix = key.startsWith("water_") ? "water" : "ground";
+    const first = assets[`${prefix}.${key}.0`];
+    if (first === undefined) throw new Error(`groundTargets names ${key}, which the checklist lacks`);
+    const have = Object.values(assets).filter((a) => a.ground === key).length;
+    for (let variant = have; variant < target; variant += 1) {
+      const id = `${prefix}.${key}.${variant}`;
+      const entry = {
+        class: first.class,
+        template: first.template,
+        format: first.format,
+        ...sharedMeta(first),
+        file: `ground/${id}.png`,
+        status: "new",
+        tier,
+        ground: key,
+        structured: first.structured,
+        variant,
+      };
+      if (first.structured) entry.derive_from = `${prefix}.${key}.0`;
+      entry.values = textureValues(key, variant, first.structured, first.footprint);
+      out.push([id, finish(id, entry)]);
+    }
+  }
+  return out;
+}
+
+function wallEntry(id, kitName, role, tier, meta, detail, opening, extra = {}) {
+  const kit = kits[kitName];
+  const entry = {
+    class: "wall",
+    template: classes.wall.template,
+    format: "1:1",
+    ...meta,
+    file: `walls/${id}.png`,
+    status: "new",
+    tier,
+    kit: kitName,
+    role,
+    ...extra,
+    values: {
+      Subject: kit.subject,
+      Shape: roles[role]({ ...kit, ...opening }),
+      Detail: `${detail} The wall band is ${kit.thickness} thick.`,
+    },
+  };
+  return [id, finish(id, entry)];
+}
+
+function wallExpansion() {
+  const out = [];
+  // New kits: every piece, with the kit's own tags.
+  for (const [kitName, kit] of Object.entries(newKits)) {
+    const meta = {
+      footprint: [1, 1],
+      pixels: [128, 128],
+      layer: "wall",
+      height_ft: 10,
+      functions: [...kit.fn],
+      tags: {
+        biome: kit.tags.biome ?? ["temperate"],
+        culture: kit.tags.culture ?? ["human"],
+        wealth: [],
+        function: [...kit.fn],
+        free: kit.tags.free ?? [],
+      },
+      ...blocking.wall,
+    };
+    for (const role of roleOrder) {
+      const id = `wall.${kitName}.${role}`;
+      const entry = wallEntry(id, kitName, role, kit.tier, meta, kit.detail, {});
+      assets[id] = entry[1];
+      out.push(entry);
+    }
+  }
+  // Alts of every piece: two for the run, one for each other role.
+  const variants = {
+    ...wallVariants,
+    ...Object.fromEntries(
+      Object.entries(newKits).map(([name, k]) => [
+        name,
+        { same: k.same, wear: k.wear, door: k.altDoor, window: k.altWindow, gate: k.altGate, post: k.altPost, tier: k.tier },
+      ]),
+    ),
+  };
+  for (const [kitName, v] of Object.entries(variants)) {
+    if (kits[kitName] === undefined) throw new Error(`wall variants for unknown kit ${kitName}`);
+    const opening = { door: v.door, window: v.window, gate: v.gate, post: v.post };
+    roleOrder.forEach((role, at) => {
+      const baseId = `wall.${kitName}.${role}`;
+      const base = assets[baseId];
+      if (base === undefined) throw new Error(`no base piece ${baseId}`);
+      const wears = role === "run" ? [v.wear[0], v.wear[1]] : [v.wear[(at + 1) % v.wear.length]];
+      wears.forEach((wear, n) => {
+        const id = `${baseId}.alt${n + 1}`;
+        out.push(
+          wallEntry(id, kitName, role, v.tier ?? 1, sharedMeta(base), `${v.same}, ${wear}.`, opening, {
+            variant_of: baseId,
+            derive_from: baseId,
+          }),
+        );
+      });
+    });
+  }
+  return out;
+}
+
+function cutoutExpansion() {
+  const out = [];
+  for (const e of expansion) {
+    const cls = e.id.startsWith("veg.") ? "vegetation" : "prop";
+    let meta;
+    if (e.variant_of !== undefined) {
+      const base = assets[e.variant_of];
+      if (base === undefined) throw new Error(`${e.id}: no base ${e.variant_of}`);
+      if (base.class !== cls) throw new Error(`${e.id}: class differs from ${e.variant_of}`);
+      meta = sharedMeta(base);
+    } else {
+      const m = e.meta;
+      if (blocking[m.block] === undefined) throw new Error(`${e.id}: unknown block ${m.block}`);
+      const footprint = [...m.fp];
+      meta = {
+        footprint,
+        pixels: footprint.map((n) => n * 128),
+        layer: m.layer ?? "prop",
+        height_ft: m.h,
+        functions: [...m.fn],
+        tags: {
+          biome: m.biome ?? ["temperate"],
+          culture: m.culture ?? ["human"],
+          wealth: m.wealth ?? (cls === "prop" ? ["poor", "modest"] : []),
+          function: [...m.fn],
+          free: m.free ?? [],
+        },
+        ...blocking[m.block],
+      };
+    }
+    const entry = {
+      class: cls,
+      template: classes[cls].template,
+      format: formatOf(cls, meta.footprint),
+      ...meta,
+      file: `${dirOf[cls]}/${e.id}.png`,
+      status: "new",
+      tier: e.tier,
+    };
+    if (e.variant_of !== undefined) entry.variant_of = e.variant_of;
+    entry.values = { Subject: e.subject, Shape: cutoutShape(meta.footprint), Detail: e.detail };
+    if (assets[e.id] !== undefined) throw new Error(`duplicate id ${e.id}`);
+    assets[e.id] = finish(e.id, entry);
+    out.push([e.id, assets[e.id]]);
+  }
+  return out;
+}
+
+// Generation order: tier, then visual impact, then rounds (every first alt before any second
+// alt), then the order of the source. `--tier 1 --limit 200` therefore takes the 200 that
+// change maps the most.
+const frequent = new Set(
+  [
+    "barrel", "crate", "sacks", "table", "bench", "bed", "chair", "chest", "cart", "stool", "shelf",
+    "cupboard", "lantern", "bucket", "woodpile", "hay_bale", "fence", "market_stall", "tent", "rug_small",
+  ].map((n) => `prop.${n}`),
+);
+function impact(id, a) {
+  if (a.class === "ground" || a.class === "water") return 0;
+  if (a.class === "vegetation") return a.layer === "canopy" ? 1 : 4;
+  if (a.class === "wall") return a.role === "run" ? 2 : 5;
+  return frequent.has(a.variant_of ?? id) ? 3 : 6;
+}
+// The nth new variant of a ground key counts as round n, like the nth alt of a cut-out.
+const originalVariants = {};
+function round(id, a) {
+  const alt = /\.alt(\d+)$/.exec(id);
+  if (alt !== null) return Number(alt[1]);
+  return a.ground === undefined ? 0 : a.variant - originalVariants[a.ground] + 1;
+}
+
+// ---------------------------------------------------------------------------------------------
 
 const problems = [];
 const rows = readChecklist(checklistPath);
@@ -813,17 +1095,38 @@ for (const row of rows) {
   if (assets[row.id] !== undefined) throw new Error(`duplicate id ${row.id}`);
   assets[row.id] = describe(row);
 }
+const originals = Object.keys(assets);
+for (const id of originals) {
+  const g = assets[id].ground;
+  if (g !== undefined) originalVariants[g] = (originalVariants[g] ?? 0) + 1;
+}
+const added = [...groundExpansion(), ...wallExpansion(), ...cutoutExpansion()];
+const seen = new Set(originals);
+for (const [id] of added) {
+  if (seen.has(id)) throw new Error(`duplicate id ${id}`);
+  seen.add(id);
+}
+const order = added.map(([id, a], at) => ({ id, a, key: [a.tier, impact(id, a), round(id, a), at] }));
+order.sort((x, y) => {
+  for (let i = 0; i < x.key.length; i += 1) if (x.key[i] !== y.key[i]) return x.key[i] - y.key[i];
+  return 0;
+});
+const ordered = Object.fromEntries([...originals.map((id) => [id, assets[id]]), ...order.map(({ id, a }) => [id, a])]);
 
 if (problems.length) {
   console.error(problems.join("\n"));
   process.exit(1);
 }
 
+const tierCounts = {};
+for (const a of Object.values(ordered)) tierCounts[a.tier] = (tierCounts[a.tier] ?? 0) + 1;
+
 const pack = {
   format_version: 1,
   about:
-    "Arda tactical art prompts for Slopify. Built by build-prompts.mjs from checklist.csv; edit that script, not this file.",
+    "Arda tactical art prompts for Slopify. Built by build-prompts.mjs from checklist.csv (the first 225) and expansion.mjs (the rest); edit those, not this file.",
   checklist: "checklist.csv",
+  expansion: "expansion.mjs",
   keywords: ["Subject", "Shape", "Detail", "Variant (ground and water only)"],
   keyword_max_chars: valueMax,
   style,
@@ -831,26 +1134,34 @@ const pack = {
     Object.entries(classes).map(([cls, c]) => [cls, { template: c.template, rules: c.rules }]),
   ),
   templates,
+  tiers: {
+    counts: tierCounts,
+    about:
+      "0: the first 225 (already generated). 1: every variant of those 225, which fixes repetition on every map. 2: building-function and biome sets. 3: culture sets, rare dressing and the new wall kits. Within a tier, assets run in order of visual impact.",
+  },
   notes: {
     structured:
-      "Structured ground variants must share one layout. A model cannot be relied on to repeat a layout, so generate variant .0 first and either derive .1/.2 from it by hand (tint, wear and stains in an image editor) or generate them with --reference pointing at the accepted .0.",
+      "Structured ground variants must share one layout. A model cannot be relied on to repeat a layout, so generate variant .0 first and either derive the others from it by hand (tint, wear and stains in an image editor) or generate them with --reference pointing at the accepted .0.",
     walls:
-      "The importer centre-crops a wall canvas to a square and turns it to the canonical arms (run W-E, corner E+S, tee E+S+W, end E, cross all four). The prompts ask for arms that reach the image edges, so the square middle of a 16:9 frame keeps them.",
+      "The importer centre-crops a wall canvas to a square and turns it to the canonical arms (run W-E, corner E+S, tee E+S+W, end E, cross all four). The prompts ask for arms that reach the image edges, so the square middle of a 16:9 frame keeps them. Wall alts keep the base piece's band: generate them with --reference pointing at the accepted base piece (derive_from).",
+    variants:
+      "<id>.altN is a further take of <id>, which the compositor picks among by seed. Alts share their base's footprint, layer and tags exactly, so any take fits any place the base fits. generate.mjs saves them as <id>__altN.png so the importer numbers them in the same order.",
     sizes:
       "The importer crops each cut-out to its silhouette and scales it to fill its footprint, so relative size comes from the footprint, not from the prompt.",
   },
-  assets,
+  assets: ordered,
 };
 
 const text = `${JSON.stringify(pack, null, 2)}\n`;
+const count = Object.keys(ordered).length;
 if (process.argv.includes("--check")) {
   const current = readFileSync(outPath, "utf8");
   if (current !== text) {
     console.error("prompts.json is out of date: run node tools/art-gen/build-prompts.mjs");
     process.exit(1);
   }
-  console.log(`prompts.json is up to date (${rows.length} assets).`);
+  console.log(`prompts.json is up to date (${count} assets).`);
 } else {
   writeFileSync(outPath, text);
-  console.log(`wrote ${outPath} (${rows.length} assets)`);
+  console.log(`wrote ${outPath} (${count} assets; by tier ${JSON.stringify(tierCounts)})`);
 }

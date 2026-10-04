@@ -13,7 +13,7 @@ import { basename, dirname, join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 import { setTimeout as sleep } from "node:timers/promises";
 import { parseArgs } from "node:util";
-import { globMatcher } from "./lib.mjs";
+import { globMatcher, rawStem } from "./lib.mjs";
 
 const here = dirname(fileURLToPath(import.meta.url));
 
@@ -54,6 +54,7 @@ const usage = `Usage: node tools/art-gen/generate.mjs [options]
 
 Selection
   --class LIST          ground, water, wall, prop, vegetation (comma-separated)
+  --tier LIST           generation tiers, e.g. 1 or 1,2 (see plan.md); 0 is the first 225
   --only GLOB           asset ids, e.g. "ground.grass.*" or "wall.stone.*,prop.barrel"
   --limit N             at most N assets (after the other filters)
   --resume              skip assets already downloaded to --out
@@ -87,6 +88,7 @@ export function parseOptions(argv) {
     args: argv,
     options: {
       class: { type: "string" },
+      tier: { type: "string" },
       only: { type: "string" },
       limit: { type: "string" },
       resume: { type: "boolean", default: false },
@@ -121,6 +123,11 @@ export function parseOptions(argv) {
   const provider = providerAliases[values.provider] ?? values.provider;
   return {
     classes: values.class?.split(",").map((c) => c.trim()).filter(Boolean),
+    tiers: values.tier?.split(",").map((t) => {
+      const n = Number(t.trim());
+      if (!Number.isInteger(n) || n < 0) throw new UsageError(`--tier takes tier numbers such as 1 or 1,2; got "${values.tier}"`);
+      return n;
+    }),
     only: values.only,
     limit: values.limit === undefined ? undefined : Math.floor(number("limit", 1)),
     resume: values.resume,
@@ -175,14 +182,20 @@ export function select(pack, options) {
     const unknown = classes.filter((c) => !known.has(c));
     if (unknown.length) throw new UsageError(`unknown --class ${unknown.join(", ")}; known: ${[...known].join(", ")}`);
   }
+  const tiers = options.tiers;
   return Object.entries(pack.assets)
-    .filter(([id, asset]) => (classes === undefined || classes.includes(asset.class)) && match(id))
+    .filter(
+      ([id, asset]) =>
+        (classes === undefined || classes.includes(asset.class)) &&
+        (tiers === undefined || tiers.includes(asset.tier ?? 0)) &&
+        match(id),
+    )
     .map(([id, asset]) => ({ id, ...asset }));
 }
 
 export function downloadedFile(out, id) {
   for (const ext of [".png", ".jpg"]) {
-    const path = join(out, `${id}${ext}`);
+    const path = join(out, `${rawStem(id)}${ext}`);
     if (existsSync(path)) return path;
   }
   return undefined;
@@ -299,6 +312,19 @@ export function importToml(records, options) {
       `footprint = [${r.footprint.join(", ")}]`,
     );
     if (r.structured) lines.push("structured = true");
+    const m = r.meta;
+    if (m !== undefined) {
+      if (m.layer) lines.push(`layer = ${tomlString(m.layer)}`);
+      if (Number.isInteger(m.height_ft)) lines.push(`height_ft = ${m.height_ft}`);
+      if (m.cover) lines.push(`cover = ${tomlString(m.cover)}`);
+      for (const flag of ["blocks_sight", "blocks_movement", "difficult_terrain"])
+        if (typeof m[flag] === "boolean") lines.push(`${flag} = ${m[flag]}`);
+      if (m.tags) {
+        const list = (values) => `[${values.map(tomlString).join(", ")}]`;
+        const fields = ["biome", "culture", "wealth", "function", "free"].map((k) => `${k} = ${list(m.tags[k] ?? [])}`);
+        lines.push(`tags = { ${fields.join(", ")} }`);
+      }
+    }
   }
   return `${lines.join("\n")}\n`;
 }
@@ -419,16 +445,19 @@ function writeState(out, state) {
   renameSync(`${path}.tmp`, path);
 }
 
-function writeManifest(out, state, options) {
-  const records = Object.values(state.assets)
-    .filter((r) => r.file !== undefined && existsSync(join(out, r.file)))
+// The catalogue metadata (layer, height, cover, blocking, tags) comes from prompts.json at write
+// time, so a manifest rewritten after a prompts.json update carries the current metadata.
+function writeManifest(out, state, options, pack) {
+  const records = Object.entries(state.assets)
+    .filter(([, r]) => r.file !== undefined && existsSync(join(out, r.file)))
+    .map(([id, r]) => ({ ...r, meta: pack?.assets[id] }))
     .sort((a, b) => a.file.localeCompare(b.file));
   writeFileSync(join(out, "import.toml"), importToml(records, options));
 }
 
 const finished = new Set(["done", "partial", "failed", "canceled"]);
 
-async function collect(api, out, state, ids, options, log) {
+async function collect(api, out, state, ids, options, log, pack) {
   const deadline = Date.now() + options.timeout * 60_000;
   const pending = new Set(ids);
   while (pending.size > 0) {
@@ -451,7 +480,7 @@ async function collect(api, out, state, ids, options, log) {
       const response = await api.get(`/files/${record.projectId}/${asset}`, { raw: true });
       const bytes = Buffer.from(await response.arrayBuffer());
       const ext = sniff(bytes);
-      const file = `${id}${ext}`;
+      const file = `${rawStem(id)}${ext}`;
       writeFileSync(join(out, file), bytes);
       if (ext === ".webp" || ext === ".bin")
         log(`WARNING ${id}: saved ${file}, which arda tactical import cannot read; convert it to PNG.`);
@@ -463,7 +492,7 @@ async function collect(api, out, state, ids, options, log) {
         model: image.meta?.model ?? record.model,
       });
       writeState(out, state);
-      writeManifest(out, state, options);
+      writeManifest(out, state, options, pack);
       log(`saved ${file} (${pending.size} still waiting)`);
     }
     if (pending.size === 0) break;
@@ -527,12 +556,18 @@ export async function main(argv, io = { out: process.stdout, err: process.stderr
   const batches = planBatches(limited, options.batchSize);
   const cost = estimate(limited.length, options);
   const byClass = {};
-  for (const a of limited) byClass[a.class] = (byClass[a.class] ?? 0) + 1;
+  const byTier = {};
+  for (const a of limited) {
+    byClass[a.class] = (byClass[a.class] ?? 0) + 1;
+    byTier[a.tier ?? 0] = (byTier[a.tier ?? 0] ?? 0) + 1;
+  }
   log(`Slopify ${options.server}, ${options.provider} / ${options.model}${options.reference ? `, reference ${options.reference}` : ""}`);
   log(
     `${limited.length} images in ${batches.length} batch${batches.length === 1 ? "" : "es"} (${Object.entries(byClass)
       .map(([c, n]) => `${c} ${n}`)
-      .join(", ") || "nothing"})${inFlight.length ? `; ${inFlight.length} submitted earlier will be collected` : ""}${
+      .join(", ") || "nothing"}; tier ${Object.entries(byTier)
+      .map(([t, n]) => `${t}: ${n}`)
+      .join(", ") || "none"})${inFlight.length ? `; ${inFlight.length} submitted earlier will be collected` : ""}${
       recovering.size ? `; ${recovering.size} in ${unconfirmed.length} unconfirmed earlier batch(es) will be re-sent with their original requestId` : ""
     }`,
   );
@@ -645,8 +680,8 @@ export async function main(argv, io = { out: process.stdout, err: process.stderr
       throw new SlopifyError(`project ${state.assets[id].projectId} is titled "${view.project?.title}", expected ${id}`);
   }
 
-  const complete = await collect(api, options.out, state, [...inFlight.map((a) => a.id), ...submitted], options, log);
-  writeManifest(options.out, state, options);
+  const complete = await collect(api, options.out, state, [...inFlight.map((a) => a.id), ...submitted], options, log, pack);
+  writeManifest(options.out, state, options, pack);
   const failed = Object.entries(state.assets).filter(([, r]) => r.status === "failed");
   log(`import.toml written to ${join(options.out, "import.toml")}`);
   if (failed.length) log(`${failed.length} failed; run again with --resume to retry them.`);

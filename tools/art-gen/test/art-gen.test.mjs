@@ -15,22 +15,31 @@ import { existsSync, readFileSync } from "node:fs";
 import { dirname, join, resolve } from "node:path";
 import { test } from "node:test";
 import { fileURLToPath, pathToFileURL } from "node:url";
-import { batchBody, importToml, licenceProblem, planBatches, select } from "../generate.mjs";
-import { readChecklist, render, slotsOf } from "../lib.mjs";
+import { entries as expansion } from "../expansion.mjs";
+import { batchBody, importToml, licenceProblem, parseOptions, planBatches, select } from "../generate.mjs";
+import { rawStem, readChecklist, render, slotsOf } from "../lib.mjs";
 
 const here = dirname(fileURLToPath(import.meta.url));
 const tool = resolve(here, "..");
 const repo = resolve(tool, "../..");
 const pack = JSON.parse(readFileSync(join(tool, "prompts.json"), "utf8"));
+const vocabulary = JSON.parse(readFileSync(join(repo, "assets/tactical/placeholder/catalog.json"), "utf8")).vocabulary;
+const total = Object.keys(pack.assets).length;
 const slopify = resolve(process.env.SLOPIFY_DIR ?? join(repo, "../slopify"));
 const dist = join(slopify, "packages/app/dist");
 
 // --- the prompt pack ---------------------------------------------------------------------------
 
-test("prompts.json has exactly one entry per checklist id", () => {
+test("prompts.json keeps the checklist's 225 as tier 0 and adds the expansion after them", () => {
   const ids = readChecklist(join(tool, "checklist.csv")).map((row) => row.id);
   assert.equal(ids.length, 225);
-  assert.deepEqual(Object.keys(pack.assets).sort(), [...ids].sort());
+  assert.deepEqual(Object.keys(pack.assets).slice(0, 225), ids, "the 225 come first, in checklist order");
+  for (const id of ids) assert.equal(pack.assets[id].tier, 0, id);
+  assert.ok(total >= 1000 && total <= 1500, `${total} assets`);
+  const own = expansion.map((e) => e.id);
+  assert.equal(new Set(own).size, own.length, "expansion.mjs ids are unique");
+  for (const id of own) assert.ok(!ids.includes(id), `${id} collides with the checklist`);
+  for (const id of own) assert.ok(pack.assets[id] !== undefined, `${id} is in prompts.json`);
 });
 
 test("prompts.json is what build-prompts.mjs makes", () => {
@@ -99,6 +108,133 @@ test("structured ground variants say they share variant A's layout", () => {
   }
 });
 
+// --- the expansion's ids, metadata and variants ----------------------------------------------
+
+const roles = ["run", "door", "window", "gate", "post", "corner", "tee", "cross", "end"];
+const idGrammar = {
+  ground: /^ground\.[a-z0-9_]+\.\d$/,
+  water: /^water\.water_(shallow|deep)\.\d$/,
+  wall: new RegExp(`^wall\\.[a-z0-9_]+\\.(${roles.join("|")})(\\.alt[1-9])?$`),
+  prop: /^prop\.[a-z0-9_]+(\.alt[1-9])?$/,
+  vegetation: /^veg\.[a-z0-9_]+(\.alt[1-9])?$/,
+};
+const layers = ["ground", "water", "floor", "prop", "wall", "canopy"];
+const covers = ["none", "half", "three_quarters", "total"];
+
+test("every id uses a known class and arda-art-import's naming", () => {
+  for (const [id, a] of Object.entries(pack.assets)) {
+    assert.ok(Object.hasOwn(idGrammar, a.class), `${id}: unknown class ${a.class}`);
+    assert.match(id, idGrammar[a.class], id);
+    assert.equal(a.template, pack.classes[a.class].template, id);
+    if (a.class === "wall") assert.equal(id.split(".").slice(1, 3).join("."), `${a.kit}.${a.role}`, id);
+    if (a.ground !== undefined) assert.equal(id, `${a.class}.${a.ground}.${a.variant}`, id);
+  }
+});
+
+test("every asset carries valid catalogue metadata and tags", () => {
+  for (const [id, a] of Object.entries(pack.assets)) {
+    assert.ok(layers.includes(a.layer), `${id}: layer ${a.layer}`);
+    assert.ok(covers.includes(a.cover), `${id}: cover ${a.cover}`);
+    assert.ok(Number.isInteger(a.height_ft) && a.height_ft >= 0, `${id}: height_ft ${a.height_ft}`);
+    for (const flag of ["blocks_movement", "blocks_sight", "difficult_terrain"]) assert.equal(typeof a[flag], "boolean", `${id} ${flag}`);
+    assert.ok(a.footprint.every((n) => Number.isInteger(n) && n >= 1 && n <= 16), `${id}: footprint`);
+    assert.ok([0, 1, 2, 3].includes(a.tier), `${id}: tier ${a.tier}`);
+    assert.deepEqual(Object.keys(a.tags).sort(), ["biome", "culture", "free", "function", "wealth"], id);
+    for (const list of ["biome", "culture", "wealth", "function"])
+      for (const tag of a.tags[list]) assert.ok(vocabulary[list].includes(tag), `${id}: ${list} "${tag}" is not in the catalogue vocabulary`);
+    for (const tag of a.tags.free) assert.match(tag, /^[a-z0-9_]+(:[a-z0-9_]+)?$/, `${id}: free tag ${tag}`);
+    for (const f of a.functions) assert.ok(vocabulary.function.includes(f), `${id}: function ${f}`);
+    if (a.class === "ground" || a.class === "water") assert.ok(["ground", "water"].includes(a.layer), id);
+    if (a.class === "wall") assert.equal(a.layer, "wall", id);
+    if (a.class === "prop" || a.class === "vegetation") assert.ok(["floor", "prop", "canopy"].includes(a.layer), id);
+  }
+});
+
+test("alts are interchangeable with their base: same footprint, layer, tags and blocking", () => {
+  const shared = ["class", "template", "format", "footprint", "pixels", "layer", "height_ft", "tags", "blocks_movement", "blocks_sight", "difficult_terrain", "cover"];
+  const altsOf = {};
+  for (const [id, a] of Object.entries(pack.assets)) {
+    const alt = /^(.*)\.alt(\d)$/.exec(id);
+    assert.equal(a.variant_of, alt?.[1], `${id}: variant_of`);
+    if (alt === null) continue;
+    const base = pack.assets[a.variant_of];
+    assert.ok(base !== undefined, `${id}: no base ${a.variant_of}`);
+    for (const key of shared) assert.deepEqual(a[key], base[key], `${id}: ${key} differs from ${a.variant_of}`);
+    (altsOf[a.variant_of] ??= []).push(id);
+  }
+  for (const [base, list] of Object.entries(altsOf)) {
+    const numbers = list.map((id) => Number(id.slice(-1))).sort();
+    assert.deepEqual(numbers, numbers.map((_, i) => i + 1), `${base}: alts run .alt1 to .alt${numbers.length}`);
+    // Each take reads differently, so the model draws visibly different images.
+    const texts = [base, ...list].map((id) => `${pack.assets[id].values.Subject}|${pack.assets[id].values.Detail}`);
+    assert.equal(new Set(texts).size, texts.length, `${base}: two takes share Subject and Detail`);
+  }
+});
+
+test("every cut-out has at least three takes, every wall piece two, every ground key three", () => {
+  const takes = {};
+  for (const [id, a] of Object.entries(pack.assets)) {
+    const key = a.ground !== undefined ? `ground:${a.ground}` : (a.variant_of ?? id);
+    takes[key] = (takes[key] ?? 0) + 1;
+  }
+  for (const [key, n] of Object.entries(takes)) {
+    const min = key.startsWith("wall.") ? 2 : 3;
+    assert.ok(n >= min, `${key} has ${n} takes, want at least ${min}`);
+    assert.ok(n <= (key.startsWith("ground:") ? 10 : 9), `${key} has ${n} takes; the importer numbers at most nine alts or ten variants in order`);
+  }
+  for (const freq of ["prop.barrel", "prop.crate", "prop.table", "prop.chair", "prop.bed", "prop.chest", "veg.tree_oak", "veg.tree_pine", "veg.tree_spruce"])
+    assert.ok(takes[freq] >= 5, `${freq} has ${takes[freq]} takes`);
+});
+
+test("every wall kit is complete and its alts start from an accepted base piece", () => {
+  const kits = {};
+  for (const a of Object.values(pack.assets)) if (a.class === "wall") (kits[a.kit] ??= new Set()).add(a.role);
+  for (const [kit, have] of Object.entries(kits)) assert.deepEqual([...have].sort(), [...roles].sort(), `kit ${kit}`);
+  for (const [id, a] of Object.entries(pack.assets))
+    if (a.class === "wall" && a.variant_of !== undefined) assert.equal(a.derive_from, a.variant_of, id);
+});
+
+test("variants of the first 225 are tier 1, and each tier runs in impact order", () => {
+  for (const [id, a] of Object.entries(pack.assets)) {
+    const base = a.variant_of ?? (a.ground !== undefined ? `${a.class}.${a.ground}.0` : undefined);
+    if (a.tier !== 0 && base !== undefined && pack.assets[base]?.tier === 0) assert.equal(a.tier, 1, id);
+  }
+  const tiers = Object.values(pack.assets).map((a) => a.tier);
+  assert.deepEqual(tiers, [...tiers].sort((x, y) => x - y), "prompts.json is ordered by tier");
+  const counts = pack.tiers.counts;
+  assert.equal(counts[0], 225);
+  assert.ok(counts[1] >= 200 && counts[2] >= 300 && counts[3] >= 100, JSON.stringify(counts));
+});
+
+test("floor tiles are rail-less and fill their footprint; doors and gates are contrasting slabs", () => {
+  for (const [id, a] of Object.entries(pack.assets)) {
+    if (/^prop\.(bridge_deck|dock_planks|gangplank)(\.alt\d)?$/.test(id) && (a.tier > 0 || id === "prop.bridge_deck")) {
+      assert.match(a.prompt, /no rails/, id);
+      assert.match(a.prompt, /square-cut|straight cut/, id);
+    }
+    if (/^prop\.bridge_deck_stone/.test(id)) assert.match(a.prompt, /no parapets/, id);
+    if (/^prop\.bridge_deck(\.alt\d)?$/.test(id)) assert.match(a.values.Subject, /five narrow (\w+ )?planks, each about one foot wide/, id);
+    if (a.class === "wall" && (a.role === "door" || a.role === "gate")) assert.match(a.values.Shape, /closed, wall-thick, contrasting/, id);
+  }
+});
+
+test("rawStem saves alts so the importer numbers them like the prompt ids", () => {
+  assert.equal(rawStem("prop.barrel"), "prop.barrel");
+  assert.equal(rawStem("prop.barrel.alt3"), "prop.barrel__alt3");
+  assert.equal(rawStem("wall.stone.run.alt1"), "wall.stone.run__alt1");
+  assert.equal(rawStem("ground.grass.3"), "ground.grass.3");
+  const files = ["prop.barrel.alt2", "prop.barrel", "prop.barrel.alt1"].map((id) => `${rawStem(id)}.png`).sort();
+  assert.deepEqual(files, ["prop.barrel.png", "prop.barrel__alt1.png", "prop.barrel__alt2.png"]);
+});
+
+test("--tier selects whole tiers and rejects nonsense", () => {
+  const one = select(pack, parseOptions(["--tier", "1"]));
+  assert.ok(one.length > 0 && one.every((a) => a.tier === 1));
+  const both = select(pack, parseOptions(["--tier", "2,3", "--class", "prop"]));
+  assert.ok(both.every((a) => (a.tier === 2 || a.tier === 3) && a.class === "prop"));
+  assert.throws(() => parseOptions(["--tier", "one"]), /--tier/);
+});
+
 // --- generate.mjs, offline -------------------------------------------------------------------
 
 test("FLUX.1 [dev] models are refused; commercial ones pass", () => {
@@ -118,7 +254,7 @@ test("FLUX.1 [dev] models are refused; commercial ones pass", () => {
 test("batches group by template and frame, at most 50 items", () => {
   const assets = select(pack, {});
   const batches = planBatches(assets, 50);
-  assert.equal(batches.flat().length, 225);
+  assert.equal(batches.flat().length, total);
   for (const batch of batches) {
     assert.ok(batch.length >= 1 && batch.length <= 50);
     assert.equal(new Set(batch.map((a) => `${a.template}|${a.format}`)).size, 1);
@@ -147,6 +283,15 @@ test("import.toml escapes prompts and carries provenance", () => {
   assert.match(text, /^prompt = "say \\"hi\\"\\\\ok"$/m);
   assert.match(text, /^model = "gpt-image-2"$/m);
   assert.match(text, /^tool = "Slopify \(openai-image\)"$/m);
+  const meta = importToml(
+    [{ file: "prop.barrel__alt1.png", prompt: "p", provider: "codex-image", model: "gpt-6-astra", footprint: [1, 1], projectId: "01K", template: "arda-prop", at: "now", meta: pack.assets["prop.barrel.alt1"] }],
+    { licence: "CC0-1.0" },
+  );
+  assert.match(meta, /^layer = "prop"$/m);
+  assert.match(meta, /^height_ft = 4$/m);
+  assert.match(meta, /^cover = "half"$/m);
+  assert.match(meta, /^blocks_movement = true$/m);
+  assert.match(meta, /^tags = \{ biome = \["temperate"\], culture = \["human"\], wealth = \["poor", "modest"\], function = \[.*"warehouse".*\], free = \["container"\] \}$/m);
 });
 
 // Runs the real CLI with --dry-run, with `fetch` made to fail the run if it is ever called.
@@ -171,6 +316,8 @@ const runs = {
   props: ["--class", "prop", "--provider", "google", "--model", "gemini-3.1-flash-image"],
   vegetation: ["--class", "vegetation"],
   "with a reference": ["--class", "vegetation,prop", "--limit", "12", "--reference", join(tool, "checklist.csv")],
+  "tier 1": ["--tier", "1"],
+  "tiers 2 and 3": ["--tier", "2,3", "--provider", "codex", "--model", "gpt-6-astra", "--thinking", "high"],
 };
 
 test("dry runs print payloads without touching the network", () => {
@@ -183,7 +330,16 @@ test("dry runs print payloads without touching the network", () => {
   assert.equal(out.payloads[0].path, "/api/projects/batch");
   assert.equal(out.templates["arda-ground"].body, pack.templates["arda-ground"].body);
   const all = dryRun(runs["all walls"]);
-  assert.equal(all.payloads.flatMap((p) => p.body.items).length, 63);
+  const walls = Object.values(pack.assets).filter((a) => a.class === "wall").length;
+  assert.equal(all.payloads.flatMap((p) => p.body.items).length, walls);
+  const tier = dryRun(runs["tier 1"]);
+  const items = tier.payloads.flatMap((p) => p.body.items.map((i) => i.title));
+  assert.deepEqual(
+    items.sort(),
+    Object.keys(pack.assets)
+      .filter((id) => pack.assets[id].tier === 1)
+      .sort(),
+  );
 });
 
 // --- against Slopify's own code -------------------------------------------------------------

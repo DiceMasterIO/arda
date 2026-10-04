@@ -88,3 +88,11 @@ export function globMatcher(pattern) {
     );
   return (id) => parts.some((re) => re.test(id));
 }
+
+// The raw file stem for an asset id. A cut-out or wall alt `<id>.altN` is saved as `<id>__altN`:
+// arda-art-import ignores everything after `__` and numbers further takes of one id in sorted
+// file order, and `.` sorts before `_`, so `<id>.png` stays the base and `__alt1`, `__alt2`, …
+// become `.alt1`, `.alt2`, … in the same order as the prompt ids (for up to nine alts).
+export function rawStem(id) {
+  return id.replace(/\.(alt\d+)$/, "__$1");
+}
