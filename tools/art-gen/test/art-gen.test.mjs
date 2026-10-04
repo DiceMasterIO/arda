@@ -481,3 +481,13 @@ test("fences are drawn as a thin line seen from above", () => {
   for (const [id, asset] of Object.entries(pack.assets))
     if (/^prop\.fence/.test(id)) assert.match(asset.values.Shape, /thin line from the left edge to the right edge.*no side view/, id);
 });
+
+test("square vegetation gets an uneven outline and a size that differs between takes", () => {
+  const sizes = new Set();
+  for (const [id, asset] of Object.entries(pack.assets)) {
+    if (!id.startsWith("veg.") || asset.footprint[0] !== asset.footprint[1]) continue;
+    assert.match(asset.values.Shape, /irregular and uneven, never a neat circle/, id);
+    sizes.add(/fills (.*?) of the frame/.exec(asset.values.Shape)[1]);
+  }
+  assert.ok(sizes.size >= 4, [...sizes].join(", "));
+});

@@ -733,8 +733,19 @@ function cutoutShape([w, h]) {
 const linearBarrier = /^prop\.(fence|fence_[a-z_]+|railing|hurdle)(\.alt\d+)?$/;
 const linearShape =
   "From straight above it is a thin line from the left edge to the right edge through the centre, a fifth of the frame tall: post tops as small squares, rail tops as narrow strips; no side view.";
+// Vegetation on a square footprint: an uneven outline and a size picked per asset, so the
+// takes of one species differ in silhouette and size, not just in colour.
+const vegSizes = ["about 60%", "about 70%", "about 80%", "about 90%", "nearly all"];
+function vegShape(id, [w]) {
+  let h = 0;
+  for (const c of id) h = (h * 31 + c.charCodeAt(0)) >>> 0;
+  return `Its outline is irregular and uneven, never a neat circle or star; it bulges or reaches out on one or two sides. It fills ${vegSizes[h % vegSizes.length]} of the frame, ${w * 5} feet at most.`;
+}
+
 function shapeFor(id, footprint) {
-  return linearBarrier.test(id) ? linearShape : cutoutShape(footprint);
+  if (linearBarrier.test(id)) return linearShape;
+  if (id.startsWith("veg.") && footprint[0] === footprint[1]) return vegShape(id, footprint);
+  return cutoutShape(footprint);
 }
 
 function textureShape([w]) {
