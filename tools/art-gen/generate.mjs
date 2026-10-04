@@ -97,6 +97,7 @@ Review (on by default: a failed image is made again)
   --review-mode MODE    redo (default) or flag
   --reviewer ID         claude-code (default) or codex
   --reviewer-model ID   default ${defaults.reviewerModel}
+  --reviewer-thinking L the reviewer's effort, e.g. high
   --review-retries N    remakes per image, 0 to 5; default ${defaults.reviewRetries}
 
 Output
@@ -143,6 +144,7 @@ export function parseOptions(argv) {
       "review-mode": { type: "string", default: "redo" },
       reviewer: { type: "string", default: defaults.reviewer },
       "reviewer-model": { type: "string", default: defaults.reviewerModel },
+      "reviewer-thinking": { type: "string" },
       "review-retries": { type: "string", default: String(defaults.reviewRetries) },
       channel: { type: "string", default: "DiceMaster Assets" },
       reference: { type: "string" },
@@ -189,6 +191,7 @@ export function parseOptions(argv) {
       : {
           provider: reviewerProvider(values.reviewer),
           model: values["reviewer-model"],
+          thinking: values["reviewer-thinking"],
           mode: reviewMode(values["review-mode"]),
           retries: Math.floor(number("review-retries", 0, 5)),
         },
@@ -303,6 +306,7 @@ export function batchBody(batch, options, { requestId = randomUUID(), referenceI
           reviews: {
             provider: options.review.provider,
             model: options.review.model,
+            ...(options.review.thinking ? { thinking: options.review.thinking } : {}),
             retries: options.review.retries,
             stages: { images: { mode: options.review.mode, prompt: reviewPromptName } },
           },

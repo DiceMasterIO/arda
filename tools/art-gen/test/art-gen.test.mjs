@@ -466,10 +466,10 @@ test("batches carry an image reviewer that remakes failed images, unless turned 
   );
   assert.equal(on.draft.reviews.stages.images.mode, "redo");
   assert.equal(on.draft.reviews.stages.images.prompt, "arda-asset-review");
-  const flag = batchBody([asset], parseOptions(["--review-mode", "flag", "--reviewer", "codex", "--reviewer-model", "gpt-6-astra", "--review-retries", "4"]));
+  const flag = batchBody([asset], parseOptions(["--review-mode", "flag", "--reviewer", "codex", "--reviewer-model", "gpt-6-astra", "--reviewer-thinking", "high", "--review-retries", "4"]));
   assert.deepEqual(
     { ...flag.draft.reviews, stages: undefined },
-    { provider: "codex", model: "gpt-6-astra", retries: 4, stages: undefined },
+    { provider: "codex", model: "gpt-6-astra", thinking: "high", retries: 4, stages: undefined },
   );
   assert.equal(flag.draft.reviews.stages.images.mode, "flag");
   assert.equal(batchBody([asset], parseOptions(["--no-review"])).draft.reviews, undefined);
