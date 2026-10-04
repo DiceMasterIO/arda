@@ -307,8 +307,8 @@ const kits = {
     post: "a thicker rounded clump of hedge",
   },
   palisade: {
-    subject: "a 5-foot section of palisade, sharpened upright logs set side by side, seen from directly above as a row of round log tops",
-    detail: "Rough wooden log ends, brown bark rims, axe-hewn tips, visible grain; matte wood, never metal, not studs or cones.",
+    subject: "a 5-foot section of log palisade seen from directly above as a tight row of round wooden log ends",
+    detail: "Each log end is a flat wooden disc: brown bark rim, pale end grain with growth rings and cracks; rope lashing; matte wood, no cones or metal.",
     thickness: "about one sixth of the image height",
     door: "a narrow log postern door",
     window: "an arrow slit between two logs",
