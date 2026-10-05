@@ -35,7 +35,7 @@ use std::collections::BTreeMap;
 use std::sync::Arc;
 use terrain::Terrain;
 pub use variants::{
-    candidates, resolve, Resolved, FIXED_POSE, ROT_FREE, SCALE_MAX_PCT, SCALE_MIN_PCT,
+    candidates, resolve, resolve_all, Resolved, FIXED_POSE, ROT_FREE, SCALE_MAX_PCT, SCALE_MIN_PCT,
     SCALE_STEP_PCT,
 };
 
@@ -356,8 +356,8 @@ fn render_clip(
         cache: BTreeMap::new(),
     };
     let mut placed: Vec<(Layer, i16, usize, Resolved<'_>)> = Vec::new();
-    for i in 0..layout.placements.len() {
-        let r = resolve(lib, layout, i, seed).ok_or_else(|| TacticalError::Layout {
+    for (i, r) in resolve_all(lib, layout, seed).into_iter().enumerate() {
+        let r = r.ok_or_else(|| TacticalError::Layout {
             layout: layout.name.clone(),
             message: format!("placement {i} matches no asset"),
         })?;
@@ -540,5 +540,7 @@ mod tests_look;
 mod tests_pose;
 #[cfg(test)]
 mod tests_snow;
+#[cfg(test)]
+mod tests_structures;
 #[cfg(test)]
 mod tests_variants;

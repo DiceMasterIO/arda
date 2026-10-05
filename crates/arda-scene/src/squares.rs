@@ -5,7 +5,7 @@ use crate::rle::Grid;
 use crate::sidecar::RulesSidecar;
 use crate::types::{BlockerKind, CoverLevel, Movement, Obscurement, VisionBlocker};
 use arda_tactical::catalog::{Asset, Layer};
-use arda_tactical::compose::resolve;
+use arda_tactical::compose;
 use arda_tactical::layout::TacticalLayout;
 use arda_tactical::noise::hash_str;
 use arda_tactical::Library;
@@ -56,8 +56,9 @@ pub fn resolve_all<'a>(
 ) -> Result<Vec<Placed<'a>>, SceneError> {
     let s = art_seed(lib, seed);
     let mut out = Vec::with_capacity(layout.placements.len());
-    for (i, p) in layout.placements.iter().enumerate() {
-        let r = resolve(lib, layout, i, s).ok_or_else(|| {
+    let all = compose::resolve_all(lib, layout, s);
+    for (i, (p, r)) in layout.placements.iter().zip(all).enumerate() {
+        let r = r.ok_or_else(|| {
             SceneError::Tactical(arda_tactical::TacticalError::Layout {
                 layout: layout.name.clone(),
                 message: format!("placement {i} matches no asset"),

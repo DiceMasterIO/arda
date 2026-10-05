@@ -12,14 +12,14 @@ use crate::library::family_base;
 use std::collections::{BTreeMap, BTreeSet};
 use std::path::Path;
 
-fn placeholder() -> Library {
+pub(super) fn placeholder() -> Library {
     let dir = Path::new(env!("CARGO_MANIFEST_DIR")).join("../../assets/tactical/placeholder");
     Library::load(&dir).unwrap()
 }
 
 /// The placeholder plus `takes` extra takes of each id in `ids`, each
 /// tinted differently, with `extra_tags` added to the whole family.
-fn with_takes(ids: &[&str], takes: u32, extra_tags: &[&str]) -> Library {
+pub(super) fn with_takes(ids: &[&str], takes: u32, extra_tags: &[&str]) -> Library {
     let base = placeholder();
     let mut cat = base.catalog.clone();
     let mut images: BTreeMap<String, Rgba> = cat
@@ -50,7 +50,7 @@ fn with_takes(ids: &[&str], takes: u32, extra_tags: &[&str]) -> Library {
     Library::from_parts(cat, images).unwrap()
 }
 
-fn put(l: &mut TacticalLayout, asset: AssetRef, x: f32, y: f32) {
+pub(super) fn put(l: &mut TacticalLayout, asset: AssetRef, x: f32, y: f32) {
     l.placements.push(Placement {
         asset,
         x,
@@ -71,7 +71,7 @@ fn barrels(w: u32, h: u32, asset: &AssetRef) -> TacticalLayout {
     l
 }
 
-fn picks(lib: &Library, l: &TacticalLayout, seed: u64) -> Vec<(String, u8, bool)> {
+pub(super) fn picks(lib: &Library, l: &TacticalLayout, seed: u64) -> Vec<(String, u8, bool)> {
     (0..l.placements.len())
         .map(|i| {
             let r = resolve(lib, l, i, seed).unwrap();
@@ -80,7 +80,7 @@ fn picks(lib: &Library, l: &TacticalLayout, seed: u64) -> Vec<(String, u8, bool)
         .collect()
 }
 
-fn plain(ppsq: u32) -> RenderOptions {
+pub(super) fn plain(ppsq: u32) -> RenderOptions {
     RenderOptions {
         ppsq,
         grid: false,
@@ -258,7 +258,7 @@ fn world(w: u32, h: u32) -> TacticalLayout {
 
 /// Squares `[x0, x0 + w)` of `l` with a world origin; placements and walls
 /// inside are listed in reverse, so their indices differ between windows.
-fn window(l: &TacticalLayout, x0: u32, w: u32) -> TacticalLayout {
+pub(super) fn window(l: &TacticalLayout, x0: u32, w: u32) -> TacticalLayout {
     let mut out = TacticalLayout::new("window", w, l.height, "grass");
     out.origin = Some([1000 + i64::from(x0), -40]);
     let inside = |x: f32| (x0 as f32..(x0 + w) as f32).contains(&x);

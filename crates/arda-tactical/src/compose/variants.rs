@@ -10,6 +10,11 @@
 //! the seed and placement index (as it always has), then among the chosen
 //! family's matching takes by position.
 //!
+//! Floor-layer props (bridge decks, dock planks) of one family whose
+//! squares touch form a *structure* that draws a single take, keyed by
+//! the structure's smallest world anchor ([`resolve_all`]), so a bridge
+//! is not a patchwork of takes. Pinned takes join no structure.
+//!
 //! Assets carrying the free tag [`ROT_FREE`] are also turned and mirrored
 //! by hash when the placement leaves rotation 0 and no mirror.
 //!
@@ -27,10 +32,11 @@
 //! windows that share a placement draw the same take and turn; without an
 //! origin the placement index is hashed in too.
 
-use crate::catalog::{Asset, AssetClass};
+use crate::catalog::{Asset, AssetClass, Layer};
 use crate::layout::{AssetRef, Placement, TacticalLayout};
 use crate::library::{family_base, Library};
 use crate::noise::hash2;
+use std::collections::BTreeMap;
 
 /// Free tag that lets the compositor turn and mirror an asset by hash:
 /// for round or radial things (barrels, crates, trees, bushes, rocks)
@@ -84,19 +90,29 @@ pub fn candidates<'a>(lib: &'a Library, r: &AssetRef) -> Vec<&'a Asset> {
     }
 }
 
-/// The hash key of placement `index` of `layout`: its world position, plus
-/// its index when the layout has no origin.
+/// A placement's anchor in world 1/64 squares (`origin` plus local).
 #[allow(clippy::cast_possible_truncation)] // rounded map positions
-fn key(layout: &TacticalLayout, p: &Placement, index: usize, seed: u64) -> u64 {
+fn world_steps(layout: &TacticalLayout, p: &Placement) -> (i64, i64) {
     let step = |v: f32| (v * POS_STEPS).round() as i64;
     let (ox, oy) = layout.world_origin();
     let steps = POS_STEPS as i64;
-    let (x, y) = (ox * steps + step(p.x), oy * steps + step(p.y));
+    (ox * steps + step(p.x), oy * steps + step(p.y))
+}
+
+/// The take key of an anchor at world steps `(x, y)` held by placement
+/// `index`: the position, plus the index when the layout has no origin.
+fn key_at(layout: &TacticalLayout, (x, y): (i64, i64), index: usize, seed: u64) -> u64 {
     let index = match layout.origin {
         Some(_) => 0,
         None => i64::try_from(index).unwrap_or(0),
     };
     hash2(hash2(seed ^ 0x7A57, x, y), index, 0)
+}
+
+/// The hash key of placement `index` of `layout`: its world position, plus
+/// its index when the layout has no origin.
+fn key(layout: &TacticalLayout, p: &Placement, index: usize, seed: u64) -> u64 {
+    key_at(layout, world_steps(layout, p), index, seed)
 }
 
 fn nth<'a>(all: &[&'a Asset], h: u64) -> Option<&'a Asset> {
@@ -107,31 +123,210 @@ fn nth<'a>(all: &[&'a Asset], h: u64) -> Option<&'a Asset> {
     all.get(usize::try_from(h % n).ok()?).copied()
 }
 
-/// Resolves placement `index` of `layout` to an asset, rotation and mirror.
+/// The takes a placement may draw, before the pick.
+struct Choice<'a> {
+    /// Its family's takes it may draw: for an id those allowing its
+    /// rotation and mirror, for a query the chosen family's matches.
+    members: Vec<&'a Asset>,
+    /// The family whose structure it joins: set for floor-layer props of a
+    /// family with several takes, unless the id pins one take.
+    floor: Option<&'a str>,
+}
+
+fn choice<'a>(lib: &'a Library, p: &Placement, index: usize, seed: u64) -> Option<Choice<'a>> {
+    let all = candidates(lib, &p.asset);
+    let (members, family): (Vec<&Asset>, Option<&str>) = match &p.asset {
+        AssetRef::Id(id) => {
+            let members = all
+                .iter()
+                .copied()
+                .filter(|a| fits(a, p.rotation, p.mirror))
+                .collect();
+            // A pinned take (`x.alt2`) is its own family of one.
+            let family = (family_base(id) == id.as_str())
+                .then(|| all.first().map(|a| family_base(&a.id)))
+                .flatten();
+            (members, family)
+        }
+        AssetRef::Query { .. } => {
+            let family = pick_family(&all, seed, index)?;
+            let members = all
+                .into_iter()
+                .filter(|a| family_base(&a.id) == family)
+                .collect();
+            (members, Some(family))
+        }
+    };
+    let floor = family.filter(|_| {
+        members.len() > 1
+            && members
+                .iter()
+                .all(|a| a.layer == Layer::Floor && a.class == AssetClass::Prop)
+    });
+    Some(Choice { members, floor })
+}
+
+/// The squares `a` covers when placed by `p` at its own rotation and
+/// mirror: those whose centre lies inside the footprint, or the anchor's
+/// square when none does.
+#[allow(clippy::cast_possible_truncation, clippy::cast_precision_loss)]
+fn squares(a: &Asset, p: &Placement) -> Vec<(i64, i64)> {
+    let anchor = a.anchor_or_centre();
+    let (mut ax, mut ay) = (anchor.x, anchor.y);
+    let (mut w, mut h) = (a.footprint.w as f32, a.footprint.h as f32);
+    if p.mirror {
+        ax = w - ax;
+    }
+    for _ in 0..(p.rotation / 90) % 4 {
+        // Same clockwise turn as the compositor: (x, y) -> (h - y, x).
+        (ax, ay) = (h - ay, ax);
+        (w, h) = (h, w);
+    }
+    let (x0, y0) = (p.x - ax, p.y - ay);
+    // Centre i + 0.5 lies in [v0, v1) iff i in [ceil(v0 - 0.5), ceil(v1 - 0.5)).
+    let lo = |v: f32| (v - 0.5).ceil() as i64;
+    let (xs, ys) = (lo(x0)..lo(x0 + w), lo(y0)..lo(y0 + h));
+    let out: Vec<(i64, i64)> = ys.flat_map(|y| xs.clone().map(move |x| (x, y))).collect();
+    if out.is_empty() {
+        vec![(p.x.floor() as i64, p.y.floor() as i64)]
+    } else {
+        out
+    }
+}
+
+fn root(parent: &mut [usize], mut i: usize) -> usize {
+    while parent[i] != i {
+        parent[i] = parent[parent[i]];
+        i = parent[i];
+    }
+    i
+}
+
+/// Groups the floor placements into structures: placements of one family
+/// whose covered squares touch (share a square or a side). Returns each
+/// placement's structure as the index of a representative member.
+fn structures(layout: &TacticalLayout, choices: &[Option<Choice<'_>>]) -> Vec<Option<usize>> {
+    let mut parent: Vec<usize> = (0..choices.len()).collect();
+    let mut at: BTreeMap<(&str, i64, i64), usize> = BTreeMap::new();
+    for (i, c) in choices.iter().enumerate() {
+        let (Some(c), Some(p)) = (c, layout.placements.get(i)) else {
+            continue;
+        };
+        let (Some(family), Some(a)) = (c.floor, c.members.first()) else {
+            continue;
+        };
+        for (x, y) in squares(a, p) {
+            for (dx, dy) in [(0, 0), (1, 0), (-1, 0), (0, 1), (0, -1)] {
+                if let Some(&j) = at.get(&(family, x + dx, y + dy)) {
+                    let (ri, rj) = (root(&mut parent, i), root(&mut parent, j));
+                    parent[ri.max(rj)] = ri.min(rj);
+                }
+            }
+            at.entry((family, x, y)).or_insert(i);
+        }
+    }
+    (0..choices.len())
+        .map(|i| {
+            choices[i]
+                .as_ref()
+                .and_then(|c| c.floor)
+                .map(|_| root(&mut parent, i))
+        })
+        .collect()
+}
+
+/// The take every member of one structure draws, or `None` when no take
+/// of the family suits every member (each then draws the family's base
+/// asset if it may, else its own pick).
+fn structure_take<'a>(
+    layout: &TacticalLayout,
+    choices: &[Option<Choice<'a>>],
+    group: &[usize],
+    seed: u64,
+) -> Option<&'a Asset> {
+    let first = choices.get(*group.first()?)?.as_ref()?;
+    let common: Vec<&Asset> = first
+        .members
+        .iter()
+        .copied()
+        .filter(|a| {
+            group.iter().all(|&j| {
+                let (Some(Some(c)), Some(p)) = (choices.get(j), layout.placements.get(j)) else {
+                    return false;
+                };
+                fits(a, p.rotation, p.mirror) && c.members.iter().any(|m| m.id == a.id)
+            })
+        })
+        .collect();
+    // The structure's key: its smallest anchor in world steps (ties to the
+    // lowest index), plus that index when the layout has no origin.
+    let (pos, index) = group
+        .iter()
+        .filter_map(|&j| Some((world_steps(layout, layout.placements.get(j)?), j)))
+        .min()?;
+    nth(&common, key_at(layout, pos, index, seed))
+}
+
+/// Resolves every placement of `layout`, in layout order. Floor-layer
+/// props of one family whose squares touch form a *structure* (a bridge,
+/// a boardwalk) and draw one take between them; see [`resolve`].
 #[must_use]
-pub fn resolve<'a>(
+pub fn resolve_all<'a>(
     lib: &'a Library,
+    layout: &TacticalLayout,
+    seed: u64,
+) -> Vec<Option<Resolved<'a>>> {
+    let choices: Vec<Option<Choice<'a>>> = layout
+        .placements
+        .iter()
+        .enumerate()
+        .map(|(i, p)| choice(lib, p, i, seed))
+        .collect();
+    let groups = structures(layout, &choices);
+    let mut members: BTreeMap<usize, Vec<usize>> = BTreeMap::new();
+    for (i, g) in groups.iter().enumerate() {
+        if let Some(r) = g {
+            members.entry(*r).or_default().push(i);
+        }
+    }
+    let takes: BTreeMap<usize, Option<&Asset>> = members
+        .iter()
+        .map(|(r, group)| (*r, structure_take(layout, &choices, group, seed)))
+        .collect();
+    (0..layout.placements.len())
+        .map(|i| {
+            let c = choices.get(i)?.as_ref()?;
+            let take = groups
+                .get(i)
+                .copied()
+                .flatten()
+                .map(|r| takes.get(&r).copied().flatten());
+            finish(layout, i, seed, c, take)
+        })
+        .collect()
+}
+
+/// Draws placement `index` from its choice: the structure's take when
+/// `take` is `Some(Some(_))`, the base asset (or its own pick) when the
+/// structure found no common take (`Some(None)`), else its own pick.
+fn finish<'a>(
     layout: &TacticalLayout,
     index: usize,
     seed: u64,
+    c: &Choice<'a>,
+    take: Option<Option<&'a Asset>>,
 ) -> Option<Resolved<'a>> {
     let p = layout.placements.get(index)?;
     let h = key(layout, p, index, seed);
-    let all = candidates(lib, &p.asset);
-    let members: Vec<&Asset> = match &p.asset {
-        AssetRef::Id(_) => all
-            .iter()
-            .copied()
+    let asset = match take {
+        Some(Some(a)) => a,
+        Some(None) => c
+            .floor
+            .and_then(|f| c.members.iter().copied().find(|a| a.id == f))
             .filter(|a| fits(a, p.rotation, p.mirror))
-            .collect(),
-        AssetRef::Query { .. } => {
-            let family = pick_family(&all, seed, index)?;
-            all.into_iter()
-                .filter(|a| family_base(&a.id) == family)
-                .collect()
-        }
+            .or_else(|| nth(&c.members, h))?,
+        None => nth(&c.members, h)?,
     };
-    let asset = nth(&members, h)?;
     let (rotation, mirror) = turn(asset, p, h);
     let (scale_pct, transpose) = pose(asset, p, h);
     Some(Resolved {
@@ -141,6 +336,29 @@ pub fn resolve<'a>(
         scale_pct,
         transpose,
     })
+}
+
+/// Resolves placement `index` of `layout` to an asset, rotation and mirror.
+///
+/// A floor-layer prop with several takes draws its structure's take,
+/// which needs the whole layout: prefer [`resolve_all`] when resolving
+/// every placement.
+#[must_use]
+pub fn resolve<'a>(
+    lib: &'a Library,
+    layout: &TacticalLayout,
+    index: usize,
+    seed: u64,
+) -> Option<Resolved<'a>> {
+    let p = layout.placements.get(index)?;
+    let c = choice(lib, p, index, seed)?;
+    if c.floor.is_some() {
+        return resolve_all(lib, layout, seed)
+            .into_iter()
+            .nth(index)
+            .flatten();
+    }
+    finish(layout, index, seed, &c, None)
 }
 
 /// The hashed scale and transpose of a vegetation placement left at
