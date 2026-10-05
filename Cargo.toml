@@ -3,32 +3,32 @@ members = ["crates/*"]
 resolver = "2"
 
 [workspace.package]
-version = "0.6.0"
+version = "0.7.0"
 edition = "2021"
 license = "Apache-2.0"
 repository = "https://github.com/gentbajko/arda"
 
 [workspace.dependencies]
-arda-core = { path = "crates/arda-core", version = "0.6.0" }
-arda-gen = { path = "crates/arda-gen", version = "0.6.0" }
-arda-render = { path = "crates/arda-render", version = "0.6.0" }
-arda = { path = "crates/arda", version = "0.6.0" }
-arda-tactical = { path = "crates/arda-tactical", version = "0.6.0" }
-arda-art-import = { path = "crates/arda-art-import", version = "0.6.0" }
-arda-ids = { path = "crates/arda-ids", version = "0.6.0" }
-arda-npc = { path = "crates/arda-npc", version = "0.6.0" }
-arda-scene = { path = "crates/arda-scene", version = "0.6.0" }
-arda-refine = { path = "crates/arda-refine", version = "0.6.0" }
-arda-ways = { path = "crates/arda-ways", version = "0.6.0" }
-arda-fields = { path = "crates/arda-fields", version = "0.6.0" }
-arda-town = { path = "crates/arda-town", version = "0.6.0" }
-arda-blocks = { path = "crates/arda-blocks", version = "0.6.0" }
-arda-names = { path = "crates/arda-names", version = "0.6.0" }
-arda-settle = { path = "crates/arda-settle", version = "0.6.0" }
-arda-society = { path = "crates/arda-society", version = "0.6.0" }
-arda-people = { path = "crates/arda-people", version = "0.6.0" }
-arda-midzoom = { path = "crates/arda-midzoom", version = "0.6.0" }
-arda-wfc = { path = "crates/arda-wfc", version = "0.6.0" }
+arda-core = { path = "crates/arda-core", version = "0.7.0" }
+arda-gen = { path = "crates/arda-gen", version = "0.7.0" }
+arda-render = { path = "crates/arda-render", version = "0.7.0" }
+arda = { path = "crates/arda", version = "0.7.0" }
+arda-tactical = { path = "crates/arda-tactical", version = "0.7.0" }
+arda-art-import = { path = "crates/arda-art-import", version = "0.7.0" }
+arda-ids = { path = "crates/arda-ids", version = "0.7.0" }
+arda-npc = { path = "crates/arda-npc", version = "0.7.0" }
+arda-scene = { path = "crates/arda-scene", version = "0.7.0" }
+arda-refine = { path = "crates/arda-refine", version = "0.7.0" }
+arda-ways = { path = "crates/arda-ways", version = "0.7.0" }
+arda-fields = { path = "crates/arda-fields", version = "0.7.0" }
+arda-town = { path = "crates/arda-town", version = "0.7.0" }
+arda-blocks = { path = "crates/arda-blocks", version = "0.7.0" }
+arda-names = { path = "crates/arda-names", version = "0.7.0" }
+arda-settle = { path = "crates/arda-settle", version = "0.7.0" }
+arda-society = { path = "crates/arda-society", version = "0.7.0" }
+arda-people = { path = "crates/arda-people", version = "0.7.0" }
+arda-midzoom = { path = "crates/arda-midzoom", version = "0.7.0" }
+arda-wfc = { path = "crates/arda-wfc", version = "0.7.0" }
 ab_glyph = "0.2"
 zstd = "0.13"
 png = "0.17"

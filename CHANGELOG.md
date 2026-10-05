@@ -3,6 +3,17 @@
 Release notes for Arda. The design ledger (decisions, stage records and per-change detail)
 lives in `docs/capstone/changelog.md` and `docs/capstone/changelog.d/`.
 
+## 0.7.0 — 2026-10-06
+
+- **AI art pipeline (`tools/art-gen`).** A Node driver turns a 1,425-asset prompt pack into a tactical art library through a local Slopify instance. Assets are ground and water tiles, wall kits, props and vegetation, each with variant takes. `--parallel N` (default 5) keeps N assets generating at once. Every image is checked by an image reviewer (Claude Code or Codex, `--reviewer*` flags) against the brief and Arda's rules, and failed images are remade up to twice. Runs are filed into a named Slopify channel, recover from dropped connections and Slopify updates, and `--resume` / `--overwrite` pick up where a run left off. The prompt pack fixes several systematic misreadings: doors and gates sit in a gap along the wall line, wall posts are the post alone, fences are a thin line from above, vegetation has uneven outlines and varied sizes, and palisades are flat log ends.
+- **Variant takes in the compositor.** A library may hold several takes of one asset (`<id>.altN`). Each placement draws one, hashed from the seed and its world position, so neighbouring windows agree. Wall pieces pick takes per world edge or vertex. Tag queries pick a family, then a take. An explicit `.altN` id stays pinned.
+- **One take per floor structure.** Bridges, docks and other floor-layer props draw a single take per connected structure instead of a patchwork. Separate structures can still differ. `compose::resolve_all` resolves a whole layout in one pass.
+- **Vegetation pose.** Square vegetation is drawn at one of seven sizes (85–115%) and is sometimes flipped across the diagonal, which keeps light from the top-left. `fixed_pose` opts out; the placeholder library uses it, so placeholder renders are unchanged. The scale is visual only, and rules data follows the footprint.
+- **Importer.** Enclosed backdrop pockets are cleared (holes inside foliage and props). Floor-layer tiles fill their footprint edge to edge. Vegetation keeps its drawn size relative to the frame and flags tiny objects. New manifest keys: `holes`, `rot_free`, `fixed_pose`.
+- **Riverside layout.** Rails along both sides of the bridge.
+
+No change to world generation, terrain, rendering of world maps, or saved formats.
+
 ## 0.6.0 — 2026-10-02
 
 - **Worked land on relief tiles.** With a `society/` directory, close-zoom relief tiles draw field parcels with hedgerows and drystone walls, pasture, arable, orchards and woodland, roads and lanes, and settlements' buildings and streets, from the same geometry as the tactical maps. On low ground, valley floors and interfluves are tinted and slope light is amplified as local relief shrinks, so terraces and bluffs read. Worlds without `society/` render as before.
