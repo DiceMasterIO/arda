@@ -281,8 +281,7 @@ New module names explicitly marked **proposed** do not exist yet.
 Each item records the starting point, dependencies, code targets, ordered steps
 and a completion gate. Closing an item requires its evidence, not merely code
 that compiles. Update its status and link the resulting verification when it
-ships. The [map roadmap](../tactical-map-roadmap.md) explains the visual goal;
-this queue provides the detailed delivery order and includes non-map leftovers.
+ships. This queue provides the detailed delivery order and includes non-map leftovers.
 
 ### Required result at each scale
 

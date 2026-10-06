@@ -53,13 +53,11 @@ Current terrain milestone: opt-in recipe-2 source and Atlas delivery completed, 
 
 | File | What it is |
 |---|---|
-| [Map legend](../map-legend.md) | Saved offline colour swatches and interpretation for world and detailed area PNGs. |
 | `generation-issues.md` (optional, local only) | User-requested diagnosis, ignored by Git; available only in checkouts where it was created. |
 | [standards.md](standards.md) | Normative coding rules, migrated from code-prefs.md. |
 | [integration-plan.md](integration-plan.md) | Merge order, expected conflicts, cross-crate adapters and the end-to-end acceptance test for the parallel product branches; lists the inconsistencies found between their goal prompts. |
 | [implementation.md](implementation.md) | Retained build plan with source-audited completion/partial-completion states; old skeleton ceilings are reconciled with installed code. |
 | [open-items.md](open-items.md) | Source-audited status plus a detailed work queue with dependencies, implementation steps and completion gates; covers every earlier open item and the world/area/tactical-map requirements, preserving historical evidence. |
-| [World, area and tactical map roadmap](../tactical-map-roadmap.md) | Proposed visual pipeline and per-scale requirements, including richer world rendering and shared layouts; detailed delivery tasks live in open-items.md. |
 | [mockup-artifact.md](mockup-artifact.md) | User-provided generator logic artifact. |
 | [mockup/README.md](mockup/README.md) | Retained product brief, surface inventory and assumptions. |
 | [mockup/01-generate.md](mockup/01-generate.md) | Retained generate surface design. |

@@ -41,8 +41,7 @@
 </p>
 
 <p align="center">
-  Read the <a href="docs/map-legend.md">map legend</a> or explore the
-  <a href="docs/capstone/00-index.md">architecture reference</a>.
+  Explore the <a href="docs/capstone/00-index.md">architecture reference</a>.
 </p>
 
 ---
@@ -219,9 +218,7 @@ area grid's aspect ratio and use the selected quality for the long edge.
 Detailed area maps still use the same **100 m terrain grid**. Their
 additional pixels make channel geometry easier to inspect and smooth Atlas
 colour/lighting transitions; they do not add finer terrain measurements. Overview river strokes are symbolic and
-should not be read as physical channel widths. The
-[map legend](docs/map-legend.md) explains the terrain colours and water
-presentation.
+should not be read as physical channel widths.
 
 Area JSON includes selected terrain and water fields for every cell, plus
 water objects. Temperature and rainfall are saved in the world and
@@ -415,7 +412,6 @@ only when an intended generation change has been reviewed.
 
 | Document | Use it for |
 | --- | --- |
-| [Map legend](docs/map-legend.md) | Reading terrain colours, hillshade, rivers, and lakes |
 | [Reference index](docs/capstone/00-index.md) | Navigating the implementation |
 | [Architecture](docs/capstone/01-architecture.md) | Crate boundaries and generation stages |
 | [Data models](docs/capstone/02-models.md) | Cells, water features, and saved formats |

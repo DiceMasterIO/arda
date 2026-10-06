@@ -313,7 +313,6 @@ It follows the manifest's area aspect ratio, rounds the shorter axis and uses
 16,384 pixels on the long edge. A 9×19 world renders at 7,761×16,384. It refuses
 an existing output and reads areas one at a time without generating terrain.
 The CLI now supports this size directly with `export --overview --quality 16k`.
-The [map legend](../map-legend.md) explains overview and area colours.
 Source: [export_world_16k.rs](../../crates/arda/examples/export_world_16k.rs).
 
 Tactical generation currently samples land cells at stride 64 in both area axes;

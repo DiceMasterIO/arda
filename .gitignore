@@ -7,3 +7,7 @@
 JOURNAL.md
 JOURNAL-*.md
 docs/journal/
+
+# Only the capstone reference docs are committed
+/docs/*
+!/docs/capstone/
