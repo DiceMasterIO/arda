@@ -207,7 +207,9 @@ impl WallGrid {
         self.near[usize::try_from(y * self.w + x).unwrap_or(0)]
     }
 
-    fn wall(&self, axis: EdgeAxis, x: i64, y: i64) -> bool {
+    /// Whether a wall stands on edge `(x, y, axis)` (layout coordinates).
+    #[must_use]
+    pub fn wall(&self, axis: EdgeAxis, x: i64, y: i64) -> bool {
         if x < 0 || y < 0 || x > self.w || y > self.h {
             return false;
         }

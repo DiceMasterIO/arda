@@ -26,13 +26,13 @@ use super::field::{
     WIDE_STEP,
 };
 pub use super::sample::TextureSet;
-use super::sample::{sample, CellTable, KeyTextures};
+use super::sample::{sample_finish, CellTable, KeyTextures};
 use super::snow::{Snow, SNOW};
 use super::terrain::Terrain;
 pub use super::water::paint_water;
 use super::weights::Weights;
-use crate::layout::TacticalLayout;
-use crate::noise::{hash_str, mix};
+use crate::layout::{EdgeAxis, TacticalLayout};
+use crate::noise::{hash2, hash_str, mix};
 use crate::raster::Rgba;
 use rayon::prelude::*;
 
@@ -40,6 +40,13 @@ use rayon::prelude::*;
 const WARP: f32 = 0.6;
 /// Warp feature size in squares.
 const WARP_SCALE: f32 = 1.6;
+/// Largest side, squares, of a walled area that takes its own finish (a
+/// room, a fenced yard); larger or open areas share the key's finish.
+const ROOM_SIDE: i64 = 16;
+/// Salts of the per-room and per-key finish choices.
+const ROOM_SALT: u64 = 0xF1_7105;
+const KEY_SALT: u64 = 0xF1_7106;
+
 /// Height-blend depth and band (weights are in `[0, 1]`).
 const HB_DEPTH: f32 = 0.42;
 const HB_BAND: f32 = 0.16;
@@ -66,6 +73,7 @@ struct Key<'a> {
     cells: CellTable,
     class: f32,
     rough: Field,
+    salt: u64,
 }
 
 /// Everything the per-pixel ground function needs.
@@ -75,6 +83,9 @@ pub struct Ground<'a> {
     keys: Vec<Key<'a>>,
     grid: Vec<usize>,
     uniform: Vec<bool>,
+    /// Per square: the world square naming its walled room, when it lies
+    /// in one ([`rooms`]).
+    rooms: Vec<Option<(i64, i64)>>,
     walls: WallGrid,
     /// Border warp x, y, cell-border warp x, y, macro tint and hue.
     fields: Fields<6>,
@@ -112,12 +123,18 @@ impl<'a> Ground<'a> {
                     rough: Field::new(&frame, cw, ch, |u, v| {
                         centred(mix(salt), u * 2.4, v * 2.4, 2)
                     }),
+                    salt,
                 });
                 keys.len() - 1
             };
             grid.push(k);
         }
         let walls = WallGrid::new(layout);
+        let rooms = if keys.iter().any(|k| k.tex.finishes) {
+            rooms(layout, &walls, frame.origin)
+        } else {
+            vec![None; grid.len()]
+        };
         let (w, h) = (i64::from(layout.width), i64::from(layout.height));
         let mut uniform = vec![false; grid.len()];
         for y in 0..h {
@@ -150,6 +167,7 @@ impl<'a> Ground<'a> {
             keys,
             grid,
             uniform,
+            rooms,
             walls,
             fields,
             terrain,
@@ -300,12 +318,32 @@ impl<'a> Ground<'a> {
         self.weights(bx, by, &f)
     }
 
+    /// The finish a key of distinct finishes shows at a pixel: its room's
+    /// when the pixel's square lies in a walled room, else the key's own,
+    /// so a floor or field never patches two finishes together.
+    #[allow(clippy::cast_precision_loss)]
+    fn finish(&self, key: &Key<'_>, px: u32, py: u32) -> Option<usize> {
+        if !key.tex.finishes {
+            return None;
+        }
+        let n = key.tex.variants.len().max(1) as u64;
+        let s = self.frame.ppsq as f32;
+        let own = own_square(self.layout, (px as f32 + 0.5) / s, (py as f32 + 0.5) / s);
+        let oi = usize::try_from(own.1 * i64::from(self.layout.width) + own.0).unwrap_or(0);
+        let h = match self.rooms.get(oi).copied().flatten() {
+            Some((rx, ry)) => hash2(key.salt ^ ROOM_SALT, rx, ry),
+            None => mix(key.salt ^ KEY_SALT),
+        };
+        usize::try_from(h % n).ok()
+    }
+
     /// Samples and height-blends the keys of `w` at a pixel (unshaded).
     fn blend(&self, px: u32, py: u32, w: &Weights, cw: (f32, f32)) -> ([f32; 3], usize) {
         let mut samples = [[0.0f32; 3]; 4];
         for (i, e) in w.k[..w.n].iter().enumerate() {
             let key = &self.keys[e.0];
-            samples[i] = sample(key.tex, &key.cells, &self.frame, px, py, cw);
+            let finish = self.finish(key, px, py);
+            samples[i] = sample_finish(key.tex, &key.cells, &self.frame, (px, py), cw, finish);
         }
         if w.n > 1 {
             self.height_blend(w, &samples)
@@ -357,7 +395,10 @@ impl<'a> Ground<'a> {
             return (ground, best);
         }
         let key = &self.keys[snow.key];
-        let white = Snow::tint(sample(key.tex, &key.cells, &self.frame, px, py, cw), a);
+        let white = Snow::tint(
+            sample_finish(key.tex, &key.cells, &self.frame, (px, py), cw, None),
+            a,
+        );
         let c = std::array::from_fn(|k| ground[k] + (white[k] - ground[k]) * a);
         (c, if a >= 0.5 { snow.key } else { best })
     }
@@ -432,6 +473,62 @@ impl<'a> Ground<'a> {
                 }
             });
     }
+}
+
+/// The walled rooms of a layout: each square of a wall-bounded area that
+/// stays clear of the layout's border and spans at most [`ROOM_SIDE`]
+/// squares a side gets the world square of the area's first square (row
+/// by row), so every window holding the whole room names it alike.
+fn rooms(layout: &TacticalLayout, walls: &WallGrid, origin: (i64, i64)) -> Vec<Option<(i64, i64)>> {
+    let (w, h) = (i64::from(layout.width), i64::from(layout.height));
+    let n = usize::try_from(w * h).unwrap_or(0);
+    let idx = |x: i64, y: i64| usize::try_from(y * w + x).unwrap_or(0);
+    let mut out = vec![None; n];
+    let mut seen = vec![false; n];
+    let mut members = Vec::new();
+    for y0 in 0..h {
+        for x0 in 0..w {
+            if seen[idx(x0, y0)] {
+                continue;
+            }
+            seen[idx(x0, y0)] = true;
+            members.clear();
+            let mut stack = vec![(x0, y0)];
+            let mut closed = true;
+            let (mut lx, mut ly, mut hx, mut hy) = (x0, y0, x0, y0);
+            while let Some((x, y)) = stack.pop() {
+                members.push((x, y));
+                (lx, ly, hx, hy) = (lx.min(x), ly.min(y), hx.max(x), hy.max(y));
+                // (neighbour, the edge between them).
+                let steps = [
+                    (x + 1, y, EdgeAxis::Vertical, x + 1, y),
+                    (x - 1, y, EdgeAxis::Vertical, x, y),
+                    (x, y + 1, EdgeAxis::Horizontal, x, y + 1),
+                    (x, y - 1, EdgeAxis::Horizontal, x, y),
+                ];
+                for (nx, ny, axis, ex, ey) in steps {
+                    if walls.wall(axis, ex, ey) {
+                        continue;
+                    }
+                    if !(0..w).contains(&nx) || !(0..h).contains(&ny) {
+                        closed = false;
+                        continue;
+                    }
+                    if !seen[idx(nx, ny)] {
+                        seen[idx(nx, ny)] = true;
+                        stack.push((nx, ny));
+                    }
+                }
+            }
+            if closed && hx - lx < ROOM_SIDE && hy - ly < ROOM_SIDE {
+                let name = (origin.0 + x0, origin.1 + y0);
+                for &(x, y) in &members {
+                    out[idx(x, y)] = Some(name);
+                }
+            }
+        }
+    }
+    out
 }
 
 /// Paints the ground layer over the whole canvas.
