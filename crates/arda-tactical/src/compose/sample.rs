@@ -299,3 +299,36 @@ pub fn sample_finish(
         (tex.mean[2] + acc[2] * k).clamp(0.0, 255.0),
     ]
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    fn solid(v: u8) -> Rgba {
+        Rgba::filled(8, 8, [v, v, v, 255])
+    }
+
+    #[test]
+    fn far_apart_structured_variants_are_finishes_and_a_finish_is_exact() {
+        let near = KeyTextures::new(vec![solid(100), solid(110)], true);
+        assert!(!near.finishes, "a 10-luma spread is one surface");
+        let loose = KeyTextures::new(vec![solid(60), solid(160)], false);
+        assert!(!loose.finishes, "natural textures keep their cells");
+        let boards = KeyTextures::new(vec![solid(60), solid(160)], true);
+        assert!(boards.finishes);
+        let frame = Frame {
+            ppsq: 4,
+            origin: (0, 0),
+        };
+        let cells = CellTable::new(&boards, 7, &frame, 8, 8);
+        for py in 0..32 {
+            for px in 0..32 {
+                for v in 0..2 {
+                    let c = sample_finish(&boards, &cells, &frame, (px, py), (0.0, 0.0), Some(v));
+                    let want = if v == 0 { 60.0 } else { 160.0 };
+                    assert!((c[0] - want).abs() < 1e-3, "{px},{py}: {c:?}");
+                }
+            }
+        }
+    }
+}

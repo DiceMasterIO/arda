@@ -578,3 +578,47 @@ pub fn dominant_ground(
     }
     Some(out)
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::catalog::WallRole;
+    use crate::layout::WallSegment;
+
+    fn wall(x: u32, y: u32, axis: EdgeAxis) -> WallSegment {
+        WallSegment {
+            x,
+            y,
+            axis,
+            kind: WallRole::Run,
+            kit: "timber".into(),
+        }
+    }
+
+    #[test]
+    fn a_walled_room_is_named_by_its_first_world_square() {
+        // A 2 x 2 room at (2, 2)..(4, 4) of a 6 x 6 layout, one door edge
+        // walled too (doors are wall segments).
+        let mut l = TacticalLayout::new("t", 6, 6, "planks");
+        for k in 2..4 {
+            l.walls.push(wall(k, 2, EdgeAxis::Horizontal));
+            l.walls.push(wall(k, 4, EdgeAxis::Horizontal));
+            l.walls.push(wall(2, k, EdgeAxis::Vertical));
+            l.walls.push(wall(4, k, EdgeAxis::Vertical));
+        }
+        let walls = WallGrid::new(&l);
+        let r = rooms(&l, &walls, (100, 200));
+        for y in 0..6 {
+            for x in 0..6 {
+                let inside = (2..4).contains(&x) && (2..4).contains(&y);
+                let want = inside.then_some((102, 202));
+                assert_eq!(r[y * 6 + x], want, "square {x},{y}");
+            }
+        }
+        // Opened on one side the area runs to the border: no room.
+        l.walls
+            .retain(|w| (w.x, w.y, w.axis) != (4, 3, EdgeAxis::Vertical));
+        let r = rooms(&l, &WallGrid::new(&l), (100, 200));
+        assert!(r.iter().all(Option::is_none));
+    }
+}
