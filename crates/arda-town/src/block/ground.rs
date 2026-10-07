@@ -153,16 +153,13 @@ pub fn at(plan: &TownPlan, poor: bool, gx: i64, gy: i64) -> Ground {
                 "grass"
             }
         }
-        Kind::Yard => {
-            if n > -0.1 {
-                "packed_earth"
-            } else {
-                "grass"
-            }
-        }
+        // A working yard is beaten earth from fence to fence.
+        Kind::Yard => "packed_earth",
         Kind::Garden => {
-            // Vegetable beds in rows within grass.
-            if n > 0.2 && gy.rem_euclid(3) != 0 {
+            // A plot's back garden is dug as one bed or left as grass, so
+            // its edges follow the plot's fences, never a noise contour.
+            let plot = plan.grid.gidx(gx, gy).map_or(0, |k| plan.grid.plot[k]);
+            if unit(hash_i(seed ^ 0x6A4D, i64::from(plot), 0)) < 0.6 {
                 "farmland"
             } else {
                 "grass"
@@ -195,22 +192,10 @@ fn croft(plan: &TownPlan, gx: i64, gy: i64, n: f64) -> &'static str {
     match use_of(p) {
         Use::Paddock => "pasture",
         Use::Orchard => "grass",
-        Use::Kitchen => {
-            let row = if p & 1 == 0 { gx } else { gy };
-            if row.rem_euclid(3) == 0 {
-                "grass"
-            } else {
-                "farmland"
-            }
-        }
+        // One dug ground per parcel: its hedges are its edges.
+        Use::Kitchen => "farmland",
         Use::Meadow => "meadow",
-        Use::Yard => {
-            if n > -0.25 {
-                "packed_earth"
-            } else {
-                "grass"
-            }
-        }
+        Use::Yard => "packed_earth",
     }
 }
 

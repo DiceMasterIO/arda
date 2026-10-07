@@ -139,10 +139,11 @@ fn square_ground(plan: &Plan, s: Sq, d: u8) -> GroundOut {
                     if d <= 1 {
                         return ("grass", None, None);
                     }
+                    // Balks stay unploughed but are not painted as grass: a
+                    // one-square line of grass between strips breaks into
+                    // ragged blobs once ground borders blend; each strip's
+                    // own crop marks it off from its neighbours.
                     let at = strips::locate(seed, site, s.centre());
-                    if at.balk {
-                        return ("grass", None, None);
-                    }
                     let c = strips::crop(seed, site, f.crop, at.index);
                     let fur = (c == Crop::Ploughed).then_some(at.along);
                     (c.ground(), Some(c), fur)
@@ -175,14 +176,8 @@ fn square_ground(plan: &Plan, s: Sq, d: u8) -> GroundOut {
                     (g, Some(Crop::Grazed), None)
                 }
                 FieldKind::Meadow => ("meadow", Some(f.crop), None),
-                FieldKind::Fallow => {
-                    let g = if patch(seed, 0xFA11, s, 0.12) > 0.66 {
-                        "scrub"
-                    } else {
-                        "fallow"
-                    };
-                    (g, Some(Crop::Fallow), None)
-                }
+                // One fallow ground to the hedge, not scrub blots.
+                FieldKind::Fallow => ("fallow", Some(Crop::Fallow), None),
                 FieldKind::Orchard => ("grass", Some(Crop::Grazed), None),
                 FieldKind::Woodland => {
                     if d <= woodland_edge(seed, s) {

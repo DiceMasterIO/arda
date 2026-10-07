@@ -222,6 +222,23 @@ pub fn compose(
             .iter()
             .any(|&(sx, sy)| at(sx, sy).is_some_and(|k| claimed[k]))
     };
+    // An edge whose every in-window side the layer now owns is the layer's
+    // alone: a lower layer's wall there (a farmstead's fence under a town
+    // croft, say) would cross the new owner's buildings and yards, so it
+    // goes, and only the layer's own walls stand on such edges.
+    let covers = |axis, x, y| {
+        let mut any = false;
+        for (sx, sy) in sides(axis, x, y) {
+            match at(sx, sy) {
+                Some(k) if claimed[k] => any = true,
+                Some(_) => return false,
+                None => {}
+            }
+        }
+        any
+    };
+    layout.walls.retain(|b| !covers(b.axis, b.x, b.y));
+    rules.edges.retain(|b| !covers(b.axis, b.x, b.y));
     for wall in &layer.layout.walls {
         if touches(wall.axis, wall.x, wall.y) {
             layout
@@ -369,6 +386,42 @@ mod tests {
         assert_eq!(owners, [Owner::Ways, Owner::Croft, Owner::Town]);
         let grounds: Vec<&str> = base.squares.iter().map(|s| s.ground.as_str()).collect();
         assert_eq!(grounds, ["dirt", "grass", "grass"]);
+    }
+
+    fn fence(x: u32) -> arda_tactical::layout::WallSegment {
+        arda_tactical::layout::WallSegment {
+            x,
+            y: 0,
+            axis: EdgeAxis::Vertical,
+            kind: arda_tactical::WallRole::Run,
+            kit: "wattle".into(),
+        }
+    }
+
+    #[test]
+    fn a_lower_layers_walls_never_stand_inside_ground_a_layer_takes_over() {
+        let mut base = TacticalLayout::new("t", 4, 1, "grass");
+        let mut rules = RulesSidecar::empty(4, 1);
+        let mut owners = vec![Owner::Natural; 4];
+        // A farmstead fence on every inner edge.
+        let mut fields = layer("dirt", vec![true; 3], Vec::new());
+        fields.layout = TacticalLayout::new("t", 4, 1, "dirt");
+        fields.owned = vec![true; 4];
+        fields.rules = RulesSidecar::empty(4, 1);
+        fields.layout.walls = vec![fence(1), fence(2), fence(3)];
+        compose(&mut base, &mut rules, &mut owners, &fields, Owner::Fields).unwrap();
+        assert_eq!(base.walls.len(), 3);
+        // The town takes squares 2 and 3 and walls only its own outline.
+        let mut town = layer("planks", vec![true; 3], Vec::new());
+        town.layout = TacticalLayout::new("t", 4, 1, "planks");
+        town.owned = vec![false, false, true, true];
+        town.rules = RulesSidecar::empty(4, 1);
+        town.layout.walls = vec![fence(2)];
+        compose(&mut base, &mut rules, &mut owners, &town, Owner::Town).unwrap();
+        let xs: Vec<u32> = base.walls.iter().map(|w| w.x).collect();
+        // Edge 1 lies between fields squares, edge 2 is the town's own,
+        // edge 3 lies inside the town and loses the old fence.
+        assert_eq!(xs, [1, 2]);
     }
 
     #[derive(Debug)]

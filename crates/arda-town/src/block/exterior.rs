@@ -401,6 +401,7 @@ pub fn fixed(plan: &TownPlan, x0: i64, y0: i64, x1: i64, y1: i64) -> (Vec<GProp>
             }
             _ => {}
         }
+        super::yard::working(plan, b, &mut props);
     }
     square(plan, &mut props);
     let inside = |p: &GProp| {

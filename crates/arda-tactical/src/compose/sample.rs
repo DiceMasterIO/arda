@@ -27,6 +27,11 @@ use std::collections::BTreeMap;
 
 /// Cell size in squares.
 pub const CELL: f32 = 1.75;
+/// Spread of the variants' mean luma (0–255) above which a structured
+/// key's variants are different finishes (pale and dark boards, light and
+/// dark furrows) rather than one surface: a room or field then takes one
+/// finish instead of a patchwork of cells (see [`KeyTextures::finishes`]).
+pub const FINISH_SPREAD: f32 = 16.0;
 /// Blend band at each cell border, as a fraction of the cell.
 const BAND: f32 = 0.22;
 
@@ -38,6 +43,10 @@ pub struct KeyTextures {
     pub structured: bool,
     /// Mean colour over all variants, for the variance-preserving blend.
     pub mean: [f32; 3],
+    /// Whether the variants are distinct finishes of a structured surface
+    /// (their mean lumas spread over [`FINISH_SPREAD`]): one is chosen per
+    /// enclosed room, else per key, never per cell.
+    pub finishes: bool,
     pow2: bool,
 }
 
@@ -45,14 +54,24 @@ impl KeyTextures {
     fn new(variants: Vec<Rgba>, structured: bool) -> Self {
         let mut sum = [0.0f64; 3];
         let mut n = 0u64;
+        let (mut lo, mut hi) = (f64::MAX, f64::MIN);
         for img in &variants {
+            let mut own = [0.0f64; 3];
+            let mut k = 0u64;
             for p in img.data.as_chunks::<4>().0 {
-                for (s, v) in sum.iter_mut().zip(p) {
+                for ((s, o), v) in sum.iter_mut().zip(&mut own).zip(p) {
                     *s += f64::from(*v);
+                    *o += f64::from(*v);
                 }
-                n += 1;
+                k += 1;
             }
+            n += k;
+            #[allow(clippy::cast_precision_loss)] // pixel counts
+            let luma = (0.3 * own[0] + 0.59 * own[1] + 0.11 * own[2]) / k.max(1) as f64;
+            lo = lo.min(luma);
+            hi = hi.max(luma);
         }
+        let finishes = structured && hi - lo > f64::from(FINISH_SPREAD);
         // Means of bounded bytes: the narrowing is exact enough.
         #[allow(clippy::cast_possible_truncation, clippy::cast_precision_loss)]
         let mean = sum.map(|s| (s / n.max(1) as f64) as f32);
@@ -63,6 +82,7 @@ impl KeyTextures {
             variants,
             structured,
             mean,
+            finishes,
             pow2,
         }
     }
@@ -221,6 +241,22 @@ pub fn sample(
     py: u32,
     warp: (f32, f32),
 ) -> [f32; 3] {
+    sample_finish(tex, cells, frame, (px, py), warp, None)
+}
+
+/// [`sample`] with every cell's variant replaced by `finish` when given
+/// (texel offsets are kept), so a surface shows one finish throughout.
+#[must_use]
+// Cell indices are floors of bounded world positions.
+#[allow(clippy::cast_possible_truncation, clippy::cast_precision_loss)]
+pub fn sample_finish(
+    tex: &KeyTextures,
+    cells: &CellTable,
+    frame: &Frame,
+    (px, py): (u32, u32),
+    warp: (f32, f32),
+    finish: Option<usize>,
+) -> [f32; 3] {
     let (wx, wy) = frame.world_px(px, py);
     let (u, v) = frame.world_sq(px as f32 + 0.5, py as f32 + 0.5);
     let cx = (u + warp.0) / CELL;
@@ -238,6 +274,7 @@ pub fn sample(
                 continue;
             }
             let (v, ox, oy) = cells.get(tex, ci + dx, cj + dy);
+            let v = finish.filter(|&f| f < tex.variants.len()).unwrap_or(v);
             let c = fetch(tex, v, wx + ox, wy + oy);
             for k in 0..3 {
                 acc[k] += w * (c[k] - tex.mean[k]);
@@ -261,4 +298,37 @@ pub fn sample(
         (tex.mean[1] + acc[1] * k).clamp(0.0, 255.0),
         (tex.mean[2] + acc[2] * k).clamp(0.0, 255.0),
     ]
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    fn solid(v: u8) -> Rgba {
+        Rgba::filled(8, 8, [v, v, v, 255])
+    }
+
+    #[test]
+    fn far_apart_structured_variants_are_finishes_and_a_finish_is_exact() {
+        let near = KeyTextures::new(vec![solid(100), solid(110)], true);
+        assert!(!near.finishes, "a 10-luma spread is one surface");
+        let loose = KeyTextures::new(vec![solid(60), solid(160)], false);
+        assert!(!loose.finishes, "natural textures keep their cells");
+        let boards = KeyTextures::new(vec![solid(60), solid(160)], true);
+        assert!(boards.finishes);
+        let frame = Frame {
+            ppsq: 4,
+            origin: (0, 0),
+        };
+        let cells = CellTable::new(&boards, 7, &frame, 8, 8);
+        for py in 0..32 {
+            for px in 0..32 {
+                for v in 0..2 {
+                    let c = sample_finish(&boards, &cells, &frame, (px, py), (0.0, 0.0), Some(v));
+                    let want = if v == 0 { 60.0 } else { 160.0 };
+                    assert!((c[0] - want).abs() < 1e-3, "{px},{py}: {c:?}");
+                }
+            }
+        }
+    }
 }
