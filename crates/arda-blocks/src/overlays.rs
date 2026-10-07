@@ -16,6 +16,10 @@ use arda_scene::{RulesCell, RulesSidecar};
 use arda_tactical::layout::{EdgeAxis, TacticalLayout};
 use arda_tactical::Library;
 
+/// Deepest base water, feet, a town may build over in its own footprint
+/// (quays and made ground over a shore or marsh fringe).
+const MADE_GROUND_FT: u8 = 1;
+
 /// Who reserves a square, in rising precedence (logic/09 §reservations:
 /// town 1 > ways 2 > water 3 > fields 4 > natural ground). Two soft
 /// claims sit between: a road's verge yields to fields, and the open
@@ -182,8 +186,13 @@ pub fn compose(
         .map(|i| {
             let (sq, cell) = (&layer.layout.squares[i], &layer.rules.squares[i]);
             let keeps_water = sq.water_depth_ft > 0 || cell.deck == Some(true);
-            let base_wet = layout.squares[i].water_depth_ft > 0;
-            layer.owned[i] && owners[i] < rank(i) && (keeps_water || !base_wet)
+            let base_ft = layout.squares[i].water_depth_ft;
+            // A town plans its own water (harbours, rivers through it): in
+            // its footprint the base's shallow standing fringe (a shore or
+            // marsh edge at most `MADE_GROUND_FT` deep) is made ground.
+            let made_ground = owner == Owner::Town && base_ft <= MADE_GROUND_FT;
+            let outranks = owners[i] < rank(i) || (made_ground && owners[i] == Owner::Water);
+            layer.owned[i] && outranks && (keeps_water || base_ft == 0 || made_ground)
         })
         .collect();
     let at = |x: i64, y: i64| -> Option<usize> {
@@ -386,6 +395,26 @@ mod tests {
         assert_eq!(owners, [Owner::Ways, Owner::Croft, Owner::Town]);
         let grounds: Vec<&str> = base.squares.iter().map(|s| s.ground.as_str()).collect();
         assert_eq!(grounds, ["dirt", "grass", "grass"]);
+    }
+
+    #[test]
+    fn a_town_builds_over_a_shallow_fringe_but_not_deep_water() {
+        let mut base = TacticalLayout::new("t", 3, 1, "water_shallow");
+        base.squares[0].water_depth_ft = 1;
+        base.squares[1].water_depth_ft = 4;
+        base.squares[2].water_depth_ft = 1;
+        let mut rules = RulesSidecar::empty(3, 1);
+        let mut owners = vec![Owner::Water; 3];
+        // Fields never take water; a town takes the 1-ft fringe, not 4 ft.
+        let fields = layer("pasture", vec![true; 3], Vec::new());
+        compose(&mut base, &mut rules, &mut owners, &fields, Owner::Fields).unwrap();
+        assert_eq!(owners, [Owner::Water; 3]);
+        let town = layer("cobbles", vec![true; 3], vec![true, true, false]);
+        compose(&mut base, &mut rules, &mut owners, &town, Owner::Town).unwrap();
+        let grounds: Vec<&str> = base.squares.iter().map(|s| s.ground.as_str()).collect();
+        assert_eq!(grounds, ["cobbles", "water_shallow", "cobbles"]);
+        let depths: Vec<u8> = base.squares.iter().map(|s| s.water_depth_ft).collect();
+        assert_eq!(depths, [0, 4, 0]);
     }
 
     fn fence(x: u32) -> arda_tactical::layout::WallSegment {
