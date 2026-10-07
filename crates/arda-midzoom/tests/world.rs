@@ -160,7 +160,10 @@ fn saved_rivers_are_drawn_in_blue_teal() {
     assert!(river > 200, "{river} river pixels");
 }
 
+/// Wall-clock bound, a release gate like the one in `checks.rs`: run with
+/// `cargo test -p arda-midzoom --test world -- --ignored`.
 #[test]
+#[ignore = "wall-clock timing; release gate"]
 fn a_warm_256_px_tile_at_ten_metres_renders_within_budget() {
     let (rw, p) = relief();
     let z = 7; // 6.25 m/px on 9.765625 m nodes

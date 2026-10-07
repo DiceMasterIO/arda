@@ -328,7 +328,11 @@ fn gentle_low_ground_stays_smooth() {
     assert!(worst < 250, "plain curvature {worst} mm per node²");
 }
 
+/// Wall-clock bound: shared CI runners take 2-3x the budget, so it is a
+/// release gate. Run it on a quiet machine with
+/// `cargo test -p arda-midzoom --test checks -- --ignored`.
 #[test]
+#[ignore = "wall-clock timing; release gate"]
 fn a_tile_of_nodes_refines_well_within_budget() {
     let w = world();
     let c = centre_node(4) - 128;

@@ -1,6 +1,8 @@
 //! Performance (goal 50): a block in under 250 ms, a quarter-block battle
 //! map in under 100 ms. Timed as the best of several runs so a loaded test
-//! machine does not flake; run `cargo test --release` for the real figure.
+//! machine does not flake. Both are wall-clock release gates, ignored by
+//! default because shared CI runners are several times slower; run
+//! `cargo test --release -p arda-refine --test perf -- --ignored`.
 #![allow(
     clippy::cast_possible_truncation,
     clippy::cast_sign_loss,
@@ -25,6 +27,7 @@ fn best<F: FnMut()>(mut f: F) -> Duration {
 }
 
 #[test]
+#[ignore = "wall-clock timing; release gate"]
 fn a_block_generates_in_under_250_ms() {
     let src = common::world(42);
     for k in [common::RIVER_CELL, common::FOREST_CELL, CellKey::new(3, 10)] {
@@ -37,6 +40,7 @@ fn a_block_generates_in_under_250_ms() {
 }
 
 #[test]
+#[ignore = "wall-clock timing; release gate"]
 fn a_quarter_block_generates_in_under_100_ms() {
     let src = common::world(42);
     let (x0, y0) = (
