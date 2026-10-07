@@ -88,6 +88,35 @@ pub struct WallSegment {
     pub kind: WallRole,
     /// Wall kit name.
     pub kit: String,
+    /// Free tags on the edge (`docs/goal-prompts/vocabulary.md`): on a
+    /// door, `locked` (needs a key or a check to open) and `secret` (drawn
+    /// as a plain run of its kit; the scene marks it a secret door).
+    /// Omitted when empty, so older layouts round-trip unchanged.
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub tags: Vec<String>,
+}
+
+/// Edge tag: a locked door.
+pub const TAG_LOCKED: &str = "locked";
+/// Edge tag: a secret door, drawn as a plain wall run.
+pub const TAG_SECRET: &str = "secret";
+
+impl WallSegment {
+    /// Whether the segment carries free tag `tag`.
+    #[must_use]
+    pub fn has_tag(&self, tag: &str) -> bool {
+        self.tags.iter().any(|t| t == tag)
+    }
+
+    /// The role the compositor draws: a secret door looks like a plain run.
+    #[must_use]
+    pub fn drawn_role(&self) -> WallRole {
+        if self.kind == WallRole::Door && self.has_tag(TAG_SECRET) {
+            WallRole::Run
+        } else {
+            self.kind
+        }
+    }
 }
 
 /// An asset chosen by id or by a deterministic tag query.
@@ -306,6 +335,7 @@ mod tests {
             axis: EdgeAxis::Vertical,
             kind: WallRole::Door,
             kit: "stone".into(),
+            tags: Vec::new(),
         });
         l.placements.push(Placement {
             asset: AssetRef::Id("prop.barrel".into()),

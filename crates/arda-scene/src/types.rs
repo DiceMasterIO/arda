@@ -146,6 +146,10 @@ pub struct Wall {
     pub cover: CoverLevel,
     /// Wall kit name.
     pub kit: String,
+    /// A locked door, gate or secret door (layout edge tag `locked`): it
+    /// needs a key or a check to open. Omitted when false.
+    #[serde(default, skip_serializing_if = "std::ops::Not::not")]
+    pub locked: bool,
 }
 
 /// Where a vision blocker comes from.

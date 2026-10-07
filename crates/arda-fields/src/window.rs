@@ -273,6 +273,7 @@ fn layout(
             axis: e.axis,
             kind: info.role,
             kit: info.kit.to_string(),
+            tags: Vec::new(),
         });
     }
     #[allow(clippy::cast_possible_truncation)] // window-local positions

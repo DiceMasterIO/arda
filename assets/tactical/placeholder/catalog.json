@@ -3468,6 +3468,202 @@
       "licence": "Apache-2.0 (generated placeholder)"
     },
     {
+      "id": "ground.cave_floor.0",
+      "class": "ground",
+      "image": "ground/ground.cave_floor.0.png",
+      "footprint": {
+        "w": 2,
+        "h": 2
+      },
+      "anchor": null,
+      "rotations": [
+        0,
+        90,
+        180,
+        270
+      ],
+      "mirror": true,
+      "tags": {
+        "biome": [
+          "temperate"
+        ],
+        "culture": [
+          "human"
+        ],
+        "wealth": [],
+        "function": [],
+        "free": []
+      },
+      "placement": {
+        "on_water": false,
+        "against_wall": false,
+        "near_road": false,
+        "clearance_squares": 0,
+        "ground": []
+      },
+      "blocks_sight": false,
+      "blocks_movement": false,
+      "difficult_terrain": false,
+      "cover": "none",
+      "light": null,
+      "layer": "ground",
+      "z": 0,
+      "casts_shadow": false,
+      "height_ft": 0,
+      "tileable": true,
+      "ground": "cave_floor",
+      "wall": null,
+      "provenance": "arda-tactical placeholder generator, seed 58",
+      "licence": "Apache-2.0 (generated placeholder)"
+    },
+    {
+      "id": "ground.cave_floor.1",
+      "class": "ground",
+      "image": "ground/ground.cave_floor.1.png",
+      "footprint": {
+        "w": 2,
+        "h": 2
+      },
+      "anchor": null,
+      "rotations": [
+        0,
+        90,
+        180,
+        270
+      ],
+      "mirror": true,
+      "tags": {
+        "biome": [
+          "temperate"
+        ],
+        "culture": [
+          "human"
+        ],
+        "wealth": [],
+        "function": [],
+        "free": []
+      },
+      "placement": {
+        "on_water": false,
+        "against_wall": false,
+        "near_road": false,
+        "clearance_squares": 0,
+        "ground": []
+      },
+      "blocks_sight": false,
+      "blocks_movement": false,
+      "difficult_terrain": false,
+      "cover": "none",
+      "light": null,
+      "layer": "ground",
+      "z": 0,
+      "casts_shadow": false,
+      "height_ft": 0,
+      "tileable": true,
+      "ground": "cave_floor",
+      "wall": null,
+      "provenance": "arda-tactical placeholder generator, seed 58",
+      "licence": "Apache-2.0 (generated placeholder)"
+    },
+    {
+      "id": "ground.bedrock.0",
+      "class": "ground",
+      "image": "ground/ground.bedrock.0.png",
+      "footprint": {
+        "w": 2,
+        "h": 2
+      },
+      "anchor": null,
+      "rotations": [
+        0,
+        90,
+        180,
+        270
+      ],
+      "mirror": true,
+      "tags": {
+        "biome": [
+          "temperate"
+        ],
+        "culture": [
+          "human"
+        ],
+        "wealth": [],
+        "function": [],
+        "free": []
+      },
+      "placement": {
+        "on_water": false,
+        "against_wall": false,
+        "near_road": false,
+        "clearance_squares": 0,
+        "ground": []
+      },
+      "blocks_sight": false,
+      "blocks_movement": false,
+      "difficult_terrain": false,
+      "cover": "none",
+      "light": null,
+      "layer": "ground",
+      "z": 0,
+      "casts_shadow": false,
+      "height_ft": 0,
+      "tileable": true,
+      "ground": "bedrock",
+      "wall": null,
+      "provenance": "arda-tactical placeholder generator, seed 58",
+      "licence": "Apache-2.0 (generated placeholder)"
+    },
+    {
+      "id": "ground.bedrock.1",
+      "class": "ground",
+      "image": "ground/ground.bedrock.1.png",
+      "footprint": {
+        "w": 2,
+        "h": 2
+      },
+      "anchor": null,
+      "rotations": [
+        0,
+        90,
+        180,
+        270
+      ],
+      "mirror": true,
+      "tags": {
+        "biome": [
+          "temperate"
+        ],
+        "culture": [
+          "human"
+        ],
+        "wealth": [],
+        "function": [],
+        "free": []
+      },
+      "placement": {
+        "on_water": false,
+        "against_wall": false,
+        "near_road": false,
+        "clearance_squares": 0,
+        "ground": []
+      },
+      "blocks_sight": false,
+      "blocks_movement": false,
+      "difficult_terrain": false,
+      "cover": "none",
+      "light": null,
+      "layer": "ground",
+      "z": 0,
+      "casts_shadow": false,
+      "height_ft": 0,
+      "tileable": true,
+      "ground": "bedrock",
+      "wall": null,
+      "provenance": "arda-tactical placeholder generator, seed 58",
+      "licence": "Apache-2.0 (generated placeholder)"
+    },
+    {
       "id": "wall.stone.run",
       "class": "wall",
       "image": "walls/wall.stone.run.png",
@@ -7113,6 +7309,474 @@
       "licence": "Apache-2.0 (generated placeholder)"
     },
     {
+      "id": "wall.cave.run",
+      "class": "wall",
+      "image": "walls/wall.cave.run.png",
+      "footprint": {
+        "w": 1,
+        "h": 1
+      },
+      "anchor": null,
+      "rotations": [
+        0,
+        90,
+        180,
+        270
+      ],
+      "mirror": false,
+      "tags": {
+        "biome": [
+          "temperate"
+        ],
+        "culture": [
+          "human"
+        ],
+        "wealth": [],
+        "function": [],
+        "free": []
+      },
+      "placement": {
+        "on_water": false,
+        "against_wall": false,
+        "near_road": false,
+        "clearance_squares": 0,
+        "ground": []
+      },
+      "blocks_sight": true,
+      "blocks_movement": true,
+      "difficult_terrain": false,
+      "cover": "total",
+      "light": null,
+      "layer": "wall",
+      "z": 0,
+      "casts_shadow": true,
+      "height_ft": 12,
+      "tileable": false,
+      "ground": null,
+      "wall": {
+        "kit": "cave",
+        "role": "run"
+      },
+      "provenance": "arda-tactical placeholder generator, seed 58",
+      "licence": "Apache-2.0 (generated placeholder)"
+    },
+    {
+      "id": "wall.cave.door",
+      "class": "wall",
+      "image": "walls/wall.cave.door.png",
+      "footprint": {
+        "w": 1,
+        "h": 1
+      },
+      "anchor": null,
+      "rotations": [
+        0,
+        90,
+        180,
+        270
+      ],
+      "mirror": false,
+      "tags": {
+        "biome": [
+          "temperate"
+        ],
+        "culture": [
+          "human"
+        ],
+        "wealth": [],
+        "function": [],
+        "free": []
+      },
+      "placement": {
+        "on_water": false,
+        "against_wall": false,
+        "near_road": false,
+        "clearance_squares": 0,
+        "ground": []
+      },
+      "blocks_sight": true,
+      "blocks_movement": true,
+      "difficult_terrain": false,
+      "cover": "total",
+      "light": null,
+      "layer": "wall",
+      "z": 0,
+      "casts_shadow": true,
+      "height_ft": 12,
+      "tileable": false,
+      "ground": null,
+      "wall": {
+        "kit": "cave",
+        "role": "door"
+      },
+      "provenance": "arda-tactical placeholder generator, seed 58",
+      "licence": "Apache-2.0 (generated placeholder)"
+    },
+    {
+      "id": "wall.cave.window",
+      "class": "wall",
+      "image": "walls/wall.cave.window.png",
+      "footprint": {
+        "w": 1,
+        "h": 1
+      },
+      "anchor": null,
+      "rotations": [
+        0,
+        90,
+        180,
+        270
+      ],
+      "mirror": false,
+      "tags": {
+        "biome": [
+          "temperate"
+        ],
+        "culture": [
+          "human"
+        ],
+        "wealth": [],
+        "function": [],
+        "free": []
+      },
+      "placement": {
+        "on_water": false,
+        "against_wall": false,
+        "near_road": false,
+        "clearance_squares": 0,
+        "ground": []
+      },
+      "blocks_sight": false,
+      "blocks_movement": true,
+      "difficult_terrain": false,
+      "cover": "three_quarters",
+      "light": null,
+      "layer": "wall",
+      "z": 0,
+      "casts_shadow": true,
+      "height_ft": 12,
+      "tileable": false,
+      "ground": null,
+      "wall": {
+        "kit": "cave",
+        "role": "window"
+      },
+      "provenance": "arda-tactical placeholder generator, seed 58",
+      "licence": "Apache-2.0 (generated placeholder)"
+    },
+    {
+      "id": "wall.cave.gate",
+      "class": "wall",
+      "image": "walls/wall.cave.gate.png",
+      "footprint": {
+        "w": 1,
+        "h": 1
+      },
+      "anchor": null,
+      "rotations": [
+        0,
+        90,
+        180,
+        270
+      ],
+      "mirror": false,
+      "tags": {
+        "biome": [
+          "temperate"
+        ],
+        "culture": [
+          "human"
+        ],
+        "wealth": [],
+        "function": [],
+        "free": []
+      },
+      "placement": {
+        "on_water": false,
+        "against_wall": false,
+        "near_road": false,
+        "clearance_squares": 0,
+        "ground": []
+      },
+      "blocks_sight": true,
+      "blocks_movement": true,
+      "difficult_terrain": false,
+      "cover": "total",
+      "light": null,
+      "layer": "wall",
+      "z": 0,
+      "casts_shadow": true,
+      "height_ft": 12,
+      "tileable": false,
+      "ground": null,
+      "wall": {
+        "kit": "cave",
+        "role": "gate"
+      },
+      "provenance": "arda-tactical placeholder generator, seed 58",
+      "licence": "Apache-2.0 (generated placeholder)"
+    },
+    {
+      "id": "wall.cave.corner",
+      "class": "wall",
+      "image": "walls/wall.cave.corner.png",
+      "footprint": {
+        "w": 1,
+        "h": 1
+      },
+      "anchor": null,
+      "rotations": [
+        0,
+        90,
+        180,
+        270
+      ],
+      "mirror": false,
+      "tags": {
+        "biome": [
+          "temperate"
+        ],
+        "culture": [
+          "human"
+        ],
+        "wealth": [],
+        "function": [],
+        "free": []
+      },
+      "placement": {
+        "on_water": false,
+        "against_wall": false,
+        "near_road": false,
+        "clearance_squares": 0,
+        "ground": []
+      },
+      "blocks_sight": true,
+      "blocks_movement": true,
+      "difficult_terrain": false,
+      "cover": "total",
+      "light": null,
+      "layer": "wall",
+      "z": 0,
+      "casts_shadow": true,
+      "height_ft": 12,
+      "tileable": false,
+      "ground": null,
+      "wall": {
+        "kit": "cave",
+        "role": "corner"
+      },
+      "provenance": "arda-tactical placeholder generator, seed 58",
+      "licence": "Apache-2.0 (generated placeholder)"
+    },
+    {
+      "id": "wall.cave.tee",
+      "class": "wall",
+      "image": "walls/wall.cave.tee.png",
+      "footprint": {
+        "w": 1,
+        "h": 1
+      },
+      "anchor": null,
+      "rotations": [
+        0,
+        90,
+        180,
+        270
+      ],
+      "mirror": false,
+      "tags": {
+        "biome": [
+          "temperate"
+        ],
+        "culture": [
+          "human"
+        ],
+        "wealth": [],
+        "function": [],
+        "free": []
+      },
+      "placement": {
+        "on_water": false,
+        "against_wall": false,
+        "near_road": false,
+        "clearance_squares": 0,
+        "ground": []
+      },
+      "blocks_sight": true,
+      "blocks_movement": true,
+      "difficult_terrain": false,
+      "cover": "total",
+      "light": null,
+      "layer": "wall",
+      "z": 0,
+      "casts_shadow": true,
+      "height_ft": 12,
+      "tileable": false,
+      "ground": null,
+      "wall": {
+        "kit": "cave",
+        "role": "tee"
+      },
+      "provenance": "arda-tactical placeholder generator, seed 58",
+      "licence": "Apache-2.0 (generated placeholder)"
+    },
+    {
+      "id": "wall.cave.cross",
+      "class": "wall",
+      "image": "walls/wall.cave.cross.png",
+      "footprint": {
+        "w": 1,
+        "h": 1
+      },
+      "anchor": null,
+      "rotations": [
+        0,
+        90,
+        180,
+        270
+      ],
+      "mirror": false,
+      "tags": {
+        "biome": [
+          "temperate"
+        ],
+        "culture": [
+          "human"
+        ],
+        "wealth": [],
+        "function": [],
+        "free": []
+      },
+      "placement": {
+        "on_water": false,
+        "against_wall": false,
+        "near_road": false,
+        "clearance_squares": 0,
+        "ground": []
+      },
+      "blocks_sight": true,
+      "blocks_movement": true,
+      "difficult_terrain": false,
+      "cover": "total",
+      "light": null,
+      "layer": "wall",
+      "z": 0,
+      "casts_shadow": true,
+      "height_ft": 12,
+      "tileable": false,
+      "ground": null,
+      "wall": {
+        "kit": "cave",
+        "role": "cross"
+      },
+      "provenance": "arda-tactical placeholder generator, seed 58",
+      "licence": "Apache-2.0 (generated placeholder)"
+    },
+    {
+      "id": "wall.cave.end",
+      "class": "wall",
+      "image": "walls/wall.cave.end.png",
+      "footprint": {
+        "w": 1,
+        "h": 1
+      },
+      "anchor": null,
+      "rotations": [
+        0,
+        90,
+        180,
+        270
+      ],
+      "mirror": false,
+      "tags": {
+        "biome": [
+          "temperate"
+        ],
+        "culture": [
+          "human"
+        ],
+        "wealth": [],
+        "function": [],
+        "free": []
+      },
+      "placement": {
+        "on_water": false,
+        "against_wall": false,
+        "near_road": false,
+        "clearance_squares": 0,
+        "ground": []
+      },
+      "blocks_sight": true,
+      "blocks_movement": true,
+      "difficult_terrain": false,
+      "cover": "total",
+      "light": null,
+      "layer": "wall",
+      "z": 0,
+      "casts_shadow": true,
+      "height_ft": 12,
+      "tileable": false,
+      "ground": null,
+      "wall": {
+        "kit": "cave",
+        "role": "end"
+      },
+      "provenance": "arda-tactical placeholder generator, seed 58",
+      "licence": "Apache-2.0 (generated placeholder)"
+    },
+    {
+      "id": "wall.cave.post",
+      "class": "wall",
+      "image": "walls/wall.cave.post.png",
+      "footprint": {
+        "w": 1,
+        "h": 1
+      },
+      "anchor": null,
+      "rotations": [
+        0,
+        90,
+        180,
+        270
+      ],
+      "mirror": false,
+      "tags": {
+        "biome": [
+          "temperate"
+        ],
+        "culture": [
+          "human"
+        ],
+        "wealth": [],
+        "function": [],
+        "free": []
+      },
+      "placement": {
+        "on_water": false,
+        "against_wall": false,
+        "near_road": false,
+        "clearance_squares": 0,
+        "ground": []
+      },
+      "blocks_sight": true,
+      "blocks_movement": true,
+      "difficult_terrain": false,
+      "cover": "total",
+      "light": null,
+      "layer": "wall",
+      "z": 0,
+      "casts_shadow": true,
+      "height_ft": 12,
+      "tileable": false,
+      "ground": null,
+      "wall": {
+        "kit": "cave",
+        "role": "post"
+      },
+      "provenance": "arda-tactical placeholder generator, seed 58",
+      "licence": "Apache-2.0 (generated placeholder)"
+    },
+    {
       "id": "prop.barrel",
       "class": "prop",
       "image": "props/prop.barrel.png",
@@ -10532,6 +11196,620 @@
       "licence": "Apache-2.0 (generated placeholder)"
     },
     {
+      "id": "prop.tomb",
+      "class": "prop",
+      "image": "props/prop.tomb.png",
+      "footprint": {
+        "w": 1,
+        "h": 2
+      },
+      "anchor": null,
+      "rotations": [
+        0,
+        90,
+        180,
+        270
+      ],
+      "mirror": true,
+      "tags": {
+        "biome": [
+          "temperate"
+        ],
+        "culture": [
+          "human"
+        ],
+        "wealth": [
+          "poor",
+          "modest"
+        ],
+        "function": [],
+        "free": [
+          "dungeon",
+          "crypt"
+        ]
+      },
+      "placement": {
+        "on_water": false,
+        "against_wall": true,
+        "near_road": false,
+        "clearance_squares": 0,
+        "ground": []
+      },
+      "blocks_sight": false,
+      "blocks_movement": true,
+      "difficult_terrain": false,
+      "cover": "half",
+      "light": null,
+      "layer": "prop",
+      "z": 0,
+      "casts_shadow": true,
+      "height_ft": 4,
+      "tileable": false,
+      "ground": null,
+      "wall": null,
+      "provenance": "arda-tactical placeholder generator, seed 58",
+      "licence": "Apache-2.0 (generated placeholder)"
+    },
+    {
+      "id": "prop.coffin",
+      "class": "prop",
+      "image": "props/prop.coffin.png",
+      "footprint": {
+        "w": 1,
+        "h": 2
+      },
+      "anchor": null,
+      "rotations": [
+        0,
+        90,
+        180,
+        270
+      ],
+      "mirror": true,
+      "tags": {
+        "biome": [
+          "temperate"
+        ],
+        "culture": [
+          "human"
+        ],
+        "wealth": [
+          "poor",
+          "modest"
+        ],
+        "function": [],
+        "free": [
+          "dungeon",
+          "crypt"
+        ]
+      },
+      "placement": {
+        "on_water": false,
+        "against_wall": false,
+        "near_road": false,
+        "clearance_squares": 0,
+        "ground": []
+      },
+      "blocks_sight": false,
+      "blocks_movement": false,
+      "difficult_terrain": true,
+      "cover": "half",
+      "light": null,
+      "layer": "prop",
+      "z": 0,
+      "casts_shadow": true,
+      "height_ft": 2,
+      "tileable": false,
+      "ground": null,
+      "wall": null,
+      "provenance": "arda-tactical placeholder generator, seed 58",
+      "licence": "Apache-2.0 (generated placeholder)"
+    },
+    {
+      "id": "prop.bone_pile",
+      "class": "prop",
+      "image": "props/prop.bone_pile.png",
+      "footprint": {
+        "w": 1,
+        "h": 1
+      },
+      "anchor": null,
+      "rotations": [
+        0,
+        90,
+        180,
+        270
+      ],
+      "mirror": true,
+      "tags": {
+        "biome": [
+          "temperate"
+        ],
+        "culture": [
+          "human"
+        ],
+        "wealth": [
+          "poor",
+          "modest"
+        ],
+        "function": [],
+        "free": [
+          "dungeon",
+          "bones"
+        ]
+      },
+      "placement": {
+        "on_water": false,
+        "against_wall": false,
+        "near_road": false,
+        "clearance_squares": 0,
+        "ground": []
+      },
+      "blocks_sight": false,
+      "blocks_movement": false,
+      "difficult_terrain": true,
+      "cover": "none",
+      "light": null,
+      "layer": "prop",
+      "z": 0,
+      "casts_shadow": true,
+      "height_ft": 1,
+      "tileable": false,
+      "ground": null,
+      "wall": null,
+      "provenance": "arda-tactical placeholder generator, seed 58",
+      "licence": "Apache-2.0 (generated placeholder)"
+    },
+    {
+      "id": "prop.skeleton",
+      "class": "prop",
+      "image": "props/prop.skeleton.png",
+      "footprint": {
+        "w": 1,
+        "h": 2
+      },
+      "anchor": null,
+      "rotations": [
+        0,
+        90,
+        180,
+        270
+      ],
+      "mirror": true,
+      "tags": {
+        "biome": [
+          "temperate"
+        ],
+        "culture": [
+          "human"
+        ],
+        "wealth": [
+          "poor",
+          "modest"
+        ],
+        "function": [],
+        "free": [
+          "dungeon",
+          "bones"
+        ]
+      },
+      "placement": {
+        "on_water": false,
+        "against_wall": false,
+        "near_road": false,
+        "clearance_squares": 0,
+        "ground": []
+      },
+      "blocks_sight": false,
+      "blocks_movement": false,
+      "difficult_terrain": false,
+      "cover": "none",
+      "light": null,
+      "layer": "prop",
+      "z": 0,
+      "casts_shadow": false,
+      "height_ft": 0,
+      "tileable": false,
+      "ground": null,
+      "wall": null,
+      "provenance": "arda-tactical placeholder generator, seed 58",
+      "licence": "Apache-2.0 (generated placeholder)"
+    },
+    {
+      "id": "prop.cage",
+      "class": "prop",
+      "image": "props/prop.cage.png",
+      "footprint": {
+        "w": 1,
+        "h": 1
+      },
+      "anchor": null,
+      "rotations": [
+        0,
+        90,
+        180,
+        270
+      ],
+      "mirror": true,
+      "tags": {
+        "biome": [
+          "temperate"
+        ],
+        "culture": [
+          "human"
+        ],
+        "wealth": [
+          "poor",
+          "modest"
+        ],
+        "function": [],
+        "free": [
+          "dungeon",
+          "prison"
+        ]
+      },
+      "placement": {
+        "on_water": false,
+        "against_wall": false,
+        "near_road": false,
+        "clearance_squares": 0,
+        "ground": []
+      },
+      "blocks_sight": true,
+      "blocks_movement": true,
+      "difficult_terrain": false,
+      "cover": "three_quarters",
+      "light": null,
+      "layer": "prop",
+      "z": 0,
+      "casts_shadow": true,
+      "height_ft": 6,
+      "tileable": false,
+      "ground": null,
+      "wall": null,
+      "provenance": "arda-tactical placeholder generator, seed 58",
+      "licence": "Apache-2.0 (generated placeholder)"
+    },
+    {
+      "id": "prop.gaol_cot",
+      "class": "prop",
+      "image": "props/prop.gaol_cot.png",
+      "footprint": {
+        "w": 1,
+        "h": 2
+      },
+      "anchor": null,
+      "rotations": [
+        0,
+        90,
+        180,
+        270
+      ],
+      "mirror": true,
+      "tags": {
+        "biome": [
+          "temperate"
+        ],
+        "culture": [
+          "human"
+        ],
+        "wealth": [
+          "poor",
+          "modest"
+        ],
+        "function": [],
+        "free": [
+          "dungeon",
+          "prison"
+        ]
+      },
+      "placement": {
+        "on_water": false,
+        "against_wall": true,
+        "near_road": false,
+        "clearance_squares": 0,
+        "ground": []
+      },
+      "blocks_sight": false,
+      "blocks_movement": false,
+      "difficult_terrain": true,
+      "cover": "none",
+      "light": null,
+      "layer": "prop",
+      "z": 0,
+      "casts_shadow": true,
+      "height_ft": 2,
+      "tileable": false,
+      "ground": null,
+      "wall": null,
+      "provenance": "arda-tactical placeholder generator, seed 58",
+      "licence": "Apache-2.0 (generated placeholder)"
+    },
+    {
+      "id": "prop.rubble_pile",
+      "class": "prop",
+      "image": "props/prop.rubble_pile.png",
+      "footprint": {
+        "w": 1,
+        "h": 1
+      },
+      "anchor": null,
+      "rotations": [
+        0,
+        90,
+        180,
+        270
+      ],
+      "mirror": true,
+      "tags": {
+        "biome": [
+          "temperate"
+        ],
+        "culture": [
+          "human"
+        ],
+        "wealth": [
+          "poor",
+          "modest"
+        ],
+        "function": [],
+        "free": [
+          "dungeon",
+          "rubble"
+        ]
+      },
+      "placement": {
+        "on_water": false,
+        "against_wall": false,
+        "near_road": false,
+        "clearance_squares": 0,
+        "ground": []
+      },
+      "blocks_sight": false,
+      "blocks_movement": false,
+      "difficult_terrain": true,
+      "cover": "none",
+      "light": null,
+      "layer": "prop",
+      "z": 0,
+      "casts_shadow": true,
+      "height_ft": 2,
+      "tileable": false,
+      "ground": null,
+      "wall": null,
+      "provenance": "arda-tactical placeholder generator, seed 58",
+      "licence": "Apache-2.0 (generated placeholder)"
+    },
+    {
+      "id": "prop.chest_treasure",
+      "class": "prop",
+      "image": "props/prop.chest_treasure.png",
+      "footprint": {
+        "w": 1,
+        "h": 1
+      },
+      "anchor": null,
+      "rotations": [
+        0,
+        90,
+        180,
+        270
+      ],
+      "mirror": true,
+      "tags": {
+        "biome": [
+          "temperate"
+        ],
+        "culture": [
+          "human"
+        ],
+        "wealth": [
+          "poor",
+          "modest"
+        ],
+        "function": [],
+        "free": [
+          "dungeon",
+          "treasure"
+        ]
+      },
+      "placement": {
+        "on_water": false,
+        "against_wall": false,
+        "near_road": false,
+        "clearance_squares": 0,
+        "ground": []
+      },
+      "blocks_sight": false,
+      "blocks_movement": false,
+      "difficult_terrain": true,
+      "cover": "half",
+      "light": null,
+      "layer": "prop",
+      "z": 0,
+      "casts_shadow": true,
+      "height_ft": 2,
+      "tileable": false,
+      "ground": null,
+      "wall": null,
+      "provenance": "arda-tactical placeholder generator, seed 58",
+      "licence": "Apache-2.0 (generated placeholder)"
+    },
+    {
+      "id": "prop.stairs",
+      "class": "prop",
+      "image": "props/prop.stairs.png",
+      "footprint": {
+        "w": 1,
+        "h": 2
+      },
+      "anchor": null,
+      "rotations": [
+        0,
+        90,
+        180,
+        270
+      ],
+      "mirror": true,
+      "tags": {
+        "biome": [
+          "temperate"
+        ],
+        "culture": [
+          "human"
+        ],
+        "wealth": [
+          "poor",
+          "modest"
+        ],
+        "function": [],
+        "free": [
+          "dungeon",
+          "stairs",
+          "stairs_up"
+        ]
+      },
+      "placement": {
+        "on_water": false,
+        "against_wall": false,
+        "near_road": false,
+        "clearance_squares": 0,
+        "ground": []
+      },
+      "blocks_sight": false,
+      "blocks_movement": false,
+      "difficult_terrain": true,
+      "cover": "none",
+      "light": null,
+      "layer": "prop",
+      "z": 0,
+      "casts_shadow": false,
+      "height_ft": 0,
+      "tileable": false,
+      "ground": null,
+      "wall": null,
+      "provenance": "arda-tactical placeholder generator, seed 58",
+      "licence": "Apache-2.0 (generated placeholder)"
+    },
+    {
+      "id": "prop.stairs_down",
+      "class": "prop",
+      "image": "props/prop.stairs_down.png",
+      "footprint": {
+        "w": 1,
+        "h": 2
+      },
+      "anchor": null,
+      "rotations": [
+        0,
+        90,
+        180,
+        270
+      ],
+      "mirror": true,
+      "tags": {
+        "biome": [
+          "temperate"
+        ],
+        "culture": [
+          "human"
+        ],
+        "wealth": [
+          "poor",
+          "modest"
+        ],
+        "function": [],
+        "free": [
+          "dungeon",
+          "stairs",
+          "stairs_down"
+        ]
+      },
+      "placement": {
+        "on_water": false,
+        "against_wall": false,
+        "near_road": false,
+        "clearance_squares": 0,
+        "ground": []
+      },
+      "blocks_sight": false,
+      "blocks_movement": false,
+      "difficult_terrain": true,
+      "cover": "none",
+      "light": null,
+      "layer": "prop",
+      "z": 0,
+      "casts_shadow": false,
+      "height_ft": 0,
+      "tileable": false,
+      "ground": null,
+      "wall": null,
+      "provenance": "arda-tactical placeholder generator, seed 58",
+      "licence": "Apache-2.0 (generated placeholder)"
+    },
+    {
+      "id": "prop.torch_sconce",
+      "class": "prop",
+      "image": "props/prop.torch_sconce.png",
+      "footprint": {
+        "w": 1,
+        "h": 1
+      },
+      "anchor": null,
+      "rotations": [
+        0,
+        90,
+        180,
+        270
+      ],
+      "mirror": true,
+      "tags": {
+        "biome": [
+          "temperate"
+        ],
+        "culture": [
+          "human"
+        ],
+        "wealth": [
+          "poor",
+          "modest"
+        ],
+        "function": [],
+        "free": [
+          "dungeon",
+          "wall_light"
+        ]
+      },
+      "placement": {
+        "on_water": false,
+        "against_wall": true,
+        "near_road": false,
+        "clearance_squares": 0,
+        "ground": []
+      },
+      "blocks_sight": false,
+      "blocks_movement": false,
+      "difficult_terrain": false,
+      "cover": "none",
+      "light": {
+        "radius_ft": 20,
+        "colour": [
+          255,
+          170,
+          84
+        ]
+      },
+      "layer": "prop",
+      "z": 0,
+      "casts_shadow": false,
+      "height_ft": 0,
+      "tileable": false,
+      "ground": null,
+      "wall": null,
+      "provenance": "arda-tactical placeholder generator, seed 58",
+      "licence": "Apache-2.0 (generated placeholder)"
+    },
+    {
       "id": "veg.tree_oak",
       "class": "vegetation",
       "image": "vegetation/veg.tree_oak.png",
@@ -12184,7 +13462,7 @@
         "wealth": [],
         "function": [],
         "free": [
-          "rock",
+          "sea_rock",
           "coast",
           "fixed_pose"
         ]
@@ -12344,7 +13622,7 @@
         "wealth": [],
         "function": [],
         "free": [
-          "rock",
+          "stone",
           "lichen",
           "fixed_pose"
         ]
@@ -12398,7 +13676,7 @@
         "wealth": [],
         "function": [],
         "free": [
-          "rock",
+          "stone",
           "snow",
           "fixed_pose"
         ]
@@ -12795,6 +14073,59 @@
       "z": 0,
       "casts_shadow": true,
       "height_ft": 1,
+      "tileable": false,
+      "ground": null,
+      "wall": null,
+      "provenance": "arda-tactical placeholder generator, seed 58",
+      "licence": "Apache-2.0 (generated placeholder)"
+    },
+    {
+      "id": "veg.stalagmite",
+      "class": "vegetation",
+      "image": "vegetation/veg.stalagmite.png",
+      "footprint": {
+        "w": 1,
+        "h": 1
+      },
+      "anchor": null,
+      "rotations": [
+        0,
+        90,
+        180,
+        270
+      ],
+      "mirror": true,
+      "tags": {
+        "biome": [
+          "temperate"
+        ],
+        "culture": [
+          "human"
+        ],
+        "wealth": [],
+        "function": [],
+        "free": [
+          "cave",
+          "stalagmite",
+          "fixed_pose"
+        ]
+      },
+      "placement": {
+        "on_water": false,
+        "against_wall": false,
+        "near_road": false,
+        "clearance_squares": 0,
+        "ground": []
+      },
+      "blocks_sight": true,
+      "blocks_movement": true,
+      "difficult_terrain": false,
+      "cover": "three_quarters",
+      "light": null,
+      "layer": "prop",
+      "z": 0,
+      "casts_shadow": true,
+      "height_ft": 6,
       "tileable": false,
       "ground": null,
       "wall": null,

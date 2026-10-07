@@ -495,7 +495,8 @@ curl -s $B/layouts
 ### `GET /v1/tactical/layout/{name}`
 
 Returns the `TacticalLayout` JSON the compositor draws: row-major `squares` (ground key,
-elevation, water depth), wall `walls` on square edges, `placements` and `lights`. TS type:
+elevation, water depth), wall `walls` on square edges (each may carry free `tags?`: `locked`
+and `secret` on doors; a secret door is drawn as a plain run), `placements` and `lights`. TS type:
 `TacticalLayoutDto`, a field-for-field mirror of `arda_tactical::TacticalLayout`. An unknown
 name is **404 `not_found`**.
 
@@ -623,7 +624,8 @@ by night at home (`resident`), on a free floor square nearest the building's cen
   (bit `d` set, `d` = 0 N … 7 NW, means that step needs climbing), `cover` (`CoverLevelDto`),
   `obscured` (`ObscurementDto`: `clear`, `light`, `heavy`), `elevation_ft`, `water_depth_ft`;
   then `walls` (`SceneWallDto`: `kind`, `open?`, `points` as `[x, y]` grid vertices,
-  `blocks_sight`, `blocks_movement`, `blocks_light`, `cover`, `kit`), `vision_blockers`,
+  `blocks_sight`, `blocks_movement`, `blocks_light`, `cover`, `kit`, `locked?` (`true` on a
+  locked door, gate or secret door)), `vision_blockers`,
   `lights` (`bright_ft`, `dim_ft`, `colour`, `asset?`), `regions` (even-odd rings),
   `spawn_hints` (`open` squares and `entrances` as `SqDto` `[x, y]` pairs, `exits` per edge
   `N`/`E`/`S`/`W`) and `tokens` (scene token slots, empty here). A block's `scene` also
@@ -724,6 +726,50 @@ The loaded catalogue for layout editors: `grounds` (`key`, texture `variants`, `
 `wall_kits` (`kit`, `roles`) and placeable `assets` (`id`, `class`, `layer`, `footprint`,
 `rotations`, `tags` as `key:value` strings, `cover`, `blocks_sight`, `blocks_movement`,
 `difficult_terrain`). TS type: `TacticalLibraryDto`.
+
+### `GET /v1/tactical/dungeon?seed=|gx=&gy=[&kind=dungeon|cave&w=&h=]`
+
+A dungeon or cave battle map from `arda-dungeon`. Name the level by `seed` (a decimal u64), or
+by a world cell `gx`/`gy`, whose seed is `arda_dungeon::site_seed(world seed, gx, gy, salt)`
+(salt 0 for `dungeon`, 1 for `cave`), so a world's site always opens onto the same level.
+`kind` is `dungeon` (rooms and corridors, the default) or `cave` (natural caverns); `w` and `h`
+are the size in squares, each 16–160, default 48 × 36. The same query always returns the same
+bytes.
+
+The body is `{params, layout, rules, rooms, doors, exits}`:
+
+- `layout`: a `TacticalLayout` (`TacticalLayoutDto`), so `POST /render` and every layout tool
+  take it as it is. Unexcavated rock is ground `bedrock` walled off from the floor; dungeons use
+  the `stone` kit, caves the `cave` kit. Door edges carry `tags` `locked` or `secret`.
+- `rules`: the per-square rules sidecar (`RulesSidecarDto`, format 2): rock squares
+  `blocks_movement` and `blocks_sight`, cave scree `difficult`. Pass it with the layout to any
+  scene builder; `/dungeon/scene` below already does.
+- `rooms`: `{id, purpose, x, y, w, h}`; `purpose` is `entrance`, `crypt`, `barracks`, `storage`,
+  `shrine`, `prison`, `treasure`, `hall`, or `cavern` (one room spanning a cave).
+- `doors`: `{x, y, axis, locked, secret}` in layout edge terms.
+- `exits`: `{kind, x, y}`, `kind` `stairs_up`, `stairs_down` or `mouth` (an opening on the map
+  edge); `x, y` is the floor square a token arrives on.
+
+Errors: neither `seed` nor both `gx` and `gy`, or both, an unknown `kind` or a side out of range
+are **400 `bad_request`**; a cell outside the world is **400 `out_of_range`**. `Cache-Control:
+no-cache`.
+
+```sh
+curl -s "$B/dungeon?seed=7&kind=dungeon&w=48&h=36" | jq '.rooms[] | .purpose'
+curl -s "$B/dungeon?gx=618&gy=689&kind=cave" | jq '.exits'
+```
+
+### `GET /v1/tactical/dungeon.png?…[&ppsq=64|96|128&grid=0|1]`
+
+The level above, painted with the served library (missing assets fall back to the placeholder
+art) and the world seed. Headers, caching and `ETag` as for layout PNGs; the render limits of
+`POST /render` apply.
+
+### `GET /v1/tactical/dungeon/scene?…`
+
+The `arda-scene` scene of the level (`SceneDto`), built with its rules sidecar: rock impassable
+and opaque, closed doors solid (`locked` ones flagged), secret doors as `kind: "secret"`, water
+`wade`/`swim`, rubble and scree `difficult`.
 
 ### Timing (goal 50; release, MICRO seed 42, `ppsq=64`, 32 threads)
 

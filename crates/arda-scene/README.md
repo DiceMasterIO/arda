@@ -102,8 +102,12 @@ up and going down.
     to `blocks_sight`;
   - the placeholder window blocks movement, not sight, and gives
     `three_quarters` cover to a creature behind it.
-- `secret`: the layout schema has no secret role yet. The doors of a kit
-  whose door piece carries the free tag `secret` become secret doors.
+- `secret`: a door segment carrying the layout edge tag `secret` is a secret
+  door (the compositor draws it as a plain run of its kit). The doors of a
+  kit whose door piece carries the free tag `secret` are secret doors too.
+- `locked`: present and `true` on a door, gate or secret door whose layout
+  segment carries the edge tag `locked`. It is information for the game (a
+  key or a check opens it); `set_open` does not refuse locked doors.
 - `Scene::set_open(index, open)` toggles a door. Rebuild any `SceneIndex`
   afterwards.
 

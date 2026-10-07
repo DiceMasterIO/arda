@@ -18,6 +18,7 @@ arda.workspace = true
 arda-core.workspace = true
 arda-npc.workspace = true
 arda-blocks.workspace = true
+arda-dungeon.workspace = true
 arda-ids.workspace = true
 arda-people.workspace = true
 arda-midzoom.workspace = true

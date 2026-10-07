@@ -25,4 +25,8 @@ kind: WallRoleDto,
 /**
  * Wall kit name.
  */
-kit: string, };
+kit: string, 
+/**
+ * Free edge tags: `locked` and `secret` on doors. Absent when empty.
+ */
+tags?: Array<string>, };

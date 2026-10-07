@@ -477,7 +477,7 @@ fn draw_walls(
     let p = i64::from(sprites.ppsq);
     let (ox, oy) = layout.world_origin();
     for e in &edges {
-        let pieces = lib.wall_pieces(&e.segment.kit, e.segment.kind);
+        let pieces = lib.wall_pieces(&e.segment.kit, e.segment.drawn_role());
         let (wx, wy) = (
             2 * ox + i64::from(e.centre2.0),
             2 * oy + i64::from(e.centre2.1),

@@ -165,10 +165,13 @@ dependencies = [
  "anyhow",
  "arda",
  "arda-art-import",
+ "arda-dungeon",
  "arda-people",
+ "arda-scene",
  "arda-settle",
  "arda-tactical",
  "clap",
+ "serde_json",
 ]
 
 [[package]]
@@ -182,6 +185,18 @@ dependencies = [
  "serde_json",
  "thiserror 1.0.69",
  "zstd",
+]
+
+[[package]]
+name = "arda-dungeon"
+version = "0.7.0"
+dependencies = [
+ "arda-scene",
+ "arda-tactical",
+ "blake3",
+ "serde",
+ "serde_json",
+ "thiserror 1.0.69",
 ]
 
 [[package]]
@@ -328,6 +343,7 @@ dependencies = [
  "arda",
  "arda-blocks",
  "arda-core",
+ "arda-dungeon",
  "arda-ids",
  "arda-midzoom",
  "arda-names",

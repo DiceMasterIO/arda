@@ -395,6 +395,7 @@ mod tests {
             axis: EdgeAxis::Vertical,
             kind: arda_tactical::WallRole::Run,
             kit: "wattle".into(),
+            tags: Vec::new(),
         }
     }
 

@@ -364,6 +364,7 @@ fn assemble(
             axis,
             kind,
             kit: kit.to_string(),
+            tags: Vec::new(),
         })
         .collect();
     let mut remap = vec![None; props.len()];

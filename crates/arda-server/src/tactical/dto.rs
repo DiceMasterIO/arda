@@ -208,6 +208,10 @@ pub struct WallSegmentDto {
     pub kind: WallRoleDto,
     /// Wall kit name.
     pub kit: String,
+    /// Free edge tags: `locked` and `secret` on doors. Absent when empty.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[ts(optional)]
+    pub tags: Option<Vec<String>>,
 }
 
 /// An asset chosen by id or by a deterministic tag query.

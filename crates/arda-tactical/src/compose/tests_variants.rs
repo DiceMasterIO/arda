@@ -219,6 +219,7 @@ fn wall_takes_are_picked_per_edge() {
             axis: EdgeAxis::Horizontal,
             kind: WallRole::Run,
             kit: "stone".into(),
+            tags: Vec::new(),
         });
     }
     let varied = render(&l, &lib, 6, &plain(16)).unwrap();
@@ -251,6 +252,7 @@ fn world(w: u32, h: u32) -> TacticalLayout {
             axis: EdgeAxis::Horizontal,
             kind: WallRole::Run,
             kit: "stone".into(),
+            tags: Vec::new(),
         });
     }
     l

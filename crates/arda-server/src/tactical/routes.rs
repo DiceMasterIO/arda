@@ -53,6 +53,9 @@ pub fn router(max_body_bytes: usize) -> Router<Arc<AppState>> {
         .route("/window.png", get(super::world_routes::window_png))
         .route("/library", get(super::world_routes::library))
         .route("/prefetch", post(prefetch))
+        .route("/dungeon", get(super::dungeon::dungeon))
+        .route("/dungeon.png", get(super::dungeon::dungeon_png))
+        .route("/dungeon/scene", get(super::dungeon::dungeon_scene))
 }
 
 /// `POST /v1/tactical/prefetch`: queues the neighbours of a cell for the

@@ -182,6 +182,8 @@ fn kit_functions(kit: &str) -> &'static [&'static str] {
         "wattle" => &["cottage", "farmhouse", "farm", "stall"],
         "palisade" => &["keep", "barracks", "farm"],
         "hedge" | "drystone" => &["farm", "street"],
+        // Natural rock: no building function, so no tradition picks it.
+        "cave" => &[],
         _ => &["keep", "guardhouse", "barracks", "street"],
     }
 }

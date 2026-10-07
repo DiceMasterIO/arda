@@ -12,6 +12,7 @@ pub mod admit;
 pub mod block;
 pub mod cells;
 pub mod dto;
+pub mod dungeon;
 pub mod encode;
 pub mod images;
 pub mod key;

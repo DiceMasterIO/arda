@@ -1,5 +1,5 @@
-//! Placeholder wall kits: stone, timber, wattle, palisade, hedge, drystone
-//! and city wall.
+//! Placeholder wall kits: stone, timber, wattle, palisade, hedge, drystone,
+//! city wall and cave rock.
 //!
 //! Every piece is one square. Edge pieces run west to east through the image
 //! centre, vertex to vertex. Joint pieces sit on the centre with short arms
@@ -59,7 +59,7 @@ const fn kit(
 }
 
 /// Every placeholder kit.
-pub const ALL_KITS: [Kit; 7] = [
+pub const ALL_KITS: [Kit; 8] = [
     kit(
         "stone",
         0.26,
@@ -95,6 +95,8 @@ pub const ALL_KITS: [Kit; 7] = [
         (0.12, 0.24),
         25,
     ),
+    // Natural cave rock (arda-dungeon): a thick band of rough dark stone.
+    kit("cave", 0.32, [92, 86, 78], [104, 98, 88], (0.0, 0.0), 12),
 ];
 
 /// The two original kits (kept for callers of the first catalogue).
@@ -117,7 +119,10 @@ const DOOR_WOOD: Rgb = [112, 74, 42];
 const IRON: Rgb = [58, 58, 62];
 
 fn rustic(kit: &Kit) -> bool {
-    matches!(kit.name, "wattle" | "hedge" | "drystone" | "palisade")
+    matches!(
+        kit.name,
+        "wattle" | "hedge" | "drystone" | "palisade" | "cave"
+    )
 }
 
 /// Paints one kit piece.
