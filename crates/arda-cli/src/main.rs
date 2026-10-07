@@ -9,6 +9,7 @@ use arda::{
 use clap::{Parser, Subcommand, ValueEnum};
 use std::path::{Path, PathBuf};
 
+mod dungeon;
 mod generate;
 mod society;
 mod tactical;
@@ -141,6 +142,9 @@ enum Command {
         #[command(subcommand)]
         command: tactical::TacticalCommand,
     },
+    /// Generate a dungeon or cave battle map (layout JSON, optional rules
+    /// sidecar, scene and PNG).
+    Dungeon(dungeon::DungeonArgs),
 }
 
 #[derive(Clone, Copy, ValueEnum)]
@@ -358,6 +362,7 @@ fn main() -> Result<()> {
         Command::Settle { world } => society::settle(&world),
         Command::Society { command } => society::run(command),
         Command::Tactical { command } => tactical::run(command),
+        Command::Dungeon(args) => dungeon::run(&args),
         Command::Generate {
             seed,
             size,
