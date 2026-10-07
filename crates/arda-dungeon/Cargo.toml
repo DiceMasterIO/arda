@@ -1,0 +1,20 @@
+[package]
+name = "arda-dungeon"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+repository.workspace = true
+description = "Deterministic dungeon and cave battle maps for arda: rooms and corridors, cellular-automaton caverns, as tactical layouts plus SRD rules sidecars"
+
+[dependencies]
+arda-scene.workspace = true
+arda-tactical.workspace = true
+serde.workspace = true
+serde_json.workspace = true
+thiserror.workspace = true
+
+[dev-dependencies]
+blake3.workspace = true
+
+[lints]
+workspace = true
