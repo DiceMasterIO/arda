@@ -1,0 +1,7 @@
+# Check out text with LF on every platform: golden fixtures, JSON tables and
+# assets are compared and hashed byte-for-byte, and Windows runners default
+# to core.autocrlf=true, which would rewrite them to CRLF.
+* text=auto eol=lf
+
+# Committed with CRLF; keep it byte-identical.
+tools/art-gen/checklist.csv -text

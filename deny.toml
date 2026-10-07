@@ -1,7 +1,7 @@
 [licenses]
 # MIT-0 (borrow-or-share) and Zlib (foldhash) come in only through the dev-only
 # jsonschema validator; both are permissive and allow commercial use.
-allow = ["MIT", "MIT-0", "Apache-2.0", "Apache-2.0 WITH LLVM-exception", "CC0-1.0", "Unicode-DFS-2016", "Unicode-3.0", "BSD-3-Clause", "ISC", "Zlib"]
+allow = ["MIT", "MIT-0", "Apache-2.0", "Apache-2.0 WITH LLVM-exception", "CC0-1.0", "Unicode-3.0", "BSD-3-Clause", "Zlib"]
 confidence-threshold = 0.9
 
 [bans]
@@ -9,6 +9,15 @@ multiple-versions = "warn"
 
 [advisories]
 yanked = "deny"
+ignore = [
+    # ttf-parser (via ab_glyph -> owned_ttf_parser) is unmaintained; no safe
+    # upgrade exists and no ab_glyph release drops it. It is not a
+    # vulnerability: arda-settle only parses its own embedded Noto Serif
+    # subsets (crates/arda-settle/assets/fonts), never untrusted font input.
+    # Moving to skrifa means a new rasterizer and re-blessing every labelled
+    # golden, so it is tracked as follow-up work rather than done in CI.
+    { id = "RUSTSEC-2026-0192", reason = "ttf-parser unmaintained; only parses embedded, trusted fonts; no ab_glyph release without it" },
+]
 
 [sources]
 unknown-registry = "deny"

@@ -3,6 +3,7 @@
 //! be swapped, and swapped in piecemeal, without a rebuild).
 //!
 //! A stack is written `top:…:bottom`, like `PATH`; the leftmost library wins.
+//! Windows drive prefixes (`C:\…`) stay part of their path (see [`stack_dirs`]).
 //! Fallback is resolved per *thing the compositor picks among*, so styles
 //! never mix inside one pick:
 //! - props and vegetation: per asset family (an id and its `.alt<N>`
@@ -32,16 +33,40 @@ pub const STACK_SEPARATOR: char = ':';
 
 /// The directories named by `spec`, top first. A path that exists as a
 /// directory is taken whole, even if it contains the separator.
+///
+/// A Windows drive prefix is not a separator: `C:\art:D:/base` names
+/// `C:\art` and `D:/base`. A one-letter part (optionally behind a `\\?\`
+/// or `\\.\` device prefix) followed by a part starting with `\` or `/` is
+/// rejoined, on every platform, so a stack means the same everywhere.
 #[must_use]
 pub fn stack_dirs(spec: &Path) -> Vec<PathBuf> {
     if spec.is_dir() {
         return vec![spec.to_path_buf()];
     }
-    spec.to_string_lossy()
-        .split(STACK_SEPARATOR)
-        .filter(|s| !s.is_empty())
-        .map(PathBuf::from)
-        .collect()
+    let text = spec.to_string_lossy();
+    let mut dirs: Vec<String> = Vec::new();
+    let mut parts = text.split(STACK_SEPARATOR).peekable();
+    while let Some(part) = parts.next() {
+        let mut dir = part.to_string();
+        if is_drive(part) && parts.peek().is_some_and(|n| n.starts_with(['\\', '/'])) {
+            dir.push(STACK_SEPARATOR);
+            dir.push_str(parts.next().unwrap_or_default());
+        }
+        if !dir.is_empty() {
+            dirs.push(dir);
+        }
+    }
+    dirs.into_iter().map(PathBuf::from).collect()
+}
+
+/// Whether `part` is a bare drive letter, as in `C` of `C:\`, possibly behind
+/// a `\\?\` (verbatim) or `\\.\` (device) prefix.
+fn is_drive(part: &str) -> bool {
+    let letter = part
+        .strip_prefix(r"\\?\")
+        .or_else(|| part.strip_prefix(r"\\.\"))
+        .unwrap_or(part);
+    letter.len() == 1 && letter.bytes().all(|b| b.is_ascii_alphabetic())
 }
 
 /// What decides whether a lower library's asset is shadowed by a higher one.
@@ -238,6 +263,32 @@ mod tests {
         assert_eq!(stack_dirs(&dir), vec![dir.clone()]);
         let spec = PathBuf::from("a:b::c");
         assert_eq!(stack_dirs(&spec).len(), 3);
+    }
+
+    fn dirs(spec: &str) -> Vec<String> {
+        stack_dirs(Path::new(spec))
+            .iter()
+            .map(|d| d.to_string_lossy().into_owned())
+            .collect()
+    }
+
+    #[test]
+    fn windows_drive_letters_are_not_separators() {
+        assert_eq!(
+            dirs(r"D:\a\lib:D:\a\placeholder"),
+            [r"D:\a\lib", r"D:\a\placeholder"]
+        );
+        assert_eq!(dirs("c:/art:assets/base"), ["c:/art", "assets/base"]);
+        assert_eq!(dirs(r"rel\lib:Z:\base"), [r"rel\lib", r"Z:\base"]);
+        assert_eq!(
+            dirs(r"\\?\C:\top:\\.\D:\bottom"),
+            [r"\\?\C:\top", r"\\.\D:\bottom"]
+        );
+        // A one-letter relative directory not followed by a rooted path is
+        // still its own layer.
+        assert_eq!(dirs("a:b:/abs"), ["a", "b:/abs"]);
+        assert_eq!(dirs("x:y"), ["x", "y"]);
+        assert_eq!(dirs("/top:/bottom"), ["/top", "/bottom"]);
     }
 
     #[test]

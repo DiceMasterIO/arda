@@ -343,7 +343,11 @@ fn generate_world_inner(
             admission.area,
         )
         .map_err(GenError::Area)?;
-        if fine.is_some_and(|(_, descriptor)| descriptor.recipe_version >= 4) {
+        // Ground ecology (moisture, canopy, cover) reads only saved climate,
+        // relief and drainage, so it applies to legacy terrain as well as to
+        // fine recipe >= 4. Fine recipes 1-3 replay their published bytes and
+        // keep the grass/marsh-only composition (logic/02 §ground material).
+        if fine.is_none_or(|(_, descriptor)| descriptor.recipe_version >= 4) {
             fine_materials::apply(&mut cells, seed, area);
         }
         write_area(seed, area, &cells, &objects, &output, &mut writes)?;
