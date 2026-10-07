@@ -194,6 +194,7 @@ fn walls_draw_over_props_and_canopies_over_walls() {
         axis: crate::layout::EdgeAxis::Horizontal,
         kind: crate::catalog::WallRole::Run,
         kit: "stone".into(),
+        tags: Vec::new(),
     });
     l.placements.push(Placement {
         asset: AssetRef::Id("prop.crate".into()),

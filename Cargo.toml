@@ -29,6 +29,7 @@ arda-society = { path = "crates/arda-society", version = "0.7.0" }
 arda-people = { path = "crates/arda-people", version = "0.7.0" }
 arda-midzoom = { path = "crates/arda-midzoom", version = "0.7.0" }
 arda-wfc = { path = "crates/arda-wfc", version = "0.7.0" }
+arda-dungeon = { path = "crates/arda-dungeon", version = "0.7.0" }
 ab_glyph = "0.2"
 zstd = "0.13"
 png = "0.17"

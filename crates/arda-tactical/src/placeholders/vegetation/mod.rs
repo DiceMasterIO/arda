@@ -36,6 +36,7 @@ enum Look {
     Stunted,
     Juniper,
     Outcrop,
+    Stalagmite,
 }
 
 /// A vegetation description: id, size in squares, look, height, cover,
@@ -82,7 +83,7 @@ const WET: &[&str] = &["wetland"];
 const HILL: &[&str] = &["alpine"];
 
 #[rustfmt::skip]
-const VEGETATION: [VegSpec; 29] = [
+const VEGETATION: [VegSpec; 30] = [
     v("veg.tree_oak", (3, 3), Broadleaf([78, 112, 44], false, None), 30, Half, false, &["tree", "forest", "broadleaf"], &[]),
     v("veg.tree_elm", (3, 3), Broadleaf([62, 98, 50], false, None), 35, Half, false, &["tree", "forest", "broadleaf"], &[]),
     v("veg.tree_birch", (2, 2), Broadleaf([124, 152, 62], true, None), 25, Half, false, &["tree", "forest", "broadleaf"], &[]),
@@ -112,6 +113,9 @@ const VEGETATION: [VegSpec; 29] = [
     v("veg.rock_large", (2, 2), Look::RockLarge, 8, Cover::Full, true, &["rock"], HILL),
     v("veg.scree_patch", (2, 2), Look::Scree, 1, Open, false, &["rock", "scree"], HILL),
     v("veg.rock_outcrop", (3, 3), Look::Outcrop, 10, Cover::Full, true, &["rock", "outcrop"], HILL),
+    // Cave dressing (arda-dungeon); deliberately not tagged `rock`, so the
+    // field and wild dressing queries never pick it.
+    v("veg.stalagmite", (1, 1), Look::Stalagmite, 6, Most, true, &["cave", "stalagmite"], &[]),
 ];
 
 fn paint(look: Look, r: &mut Relief, seed: u64) {
@@ -146,6 +150,7 @@ fn paint(look: Look, r: &mut Relief, seed: u64) {
         Look::Stunted => trees::stunted(r, seed, [74, 96, 66]),
         Look::Juniper => plants::bush(r, seed, [66, 100, 72], false),
         Look::Outcrop => rocks::outcrop(r, seed),
+        Look::Stalagmite => super::props::dungeon::stalagmite(r, seed),
     }
 }
 

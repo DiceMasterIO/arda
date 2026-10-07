@@ -25,7 +25,9 @@
 // or `culture:human` leaves them out.
 //
 // Tiers: 1 is every variant of the original 225 (they fix repetition on every map at once), 2 the
-// building-function and biome sets, 3 the culture sets, rare dressing and the new wall kits.
+// building-function and biome sets, 3 the culture sets, rare dressing and the new wall kits, 4 the
+// underground set (arda-dungeon): cave and bedrock ground, the cave wall kit, stairs down, torch
+// sconces and stalagmites.
 
 export const entries = [];
 
@@ -93,6 +95,27 @@ export const groundTargets = {
   reed_bed: [3, 1],
   rug: [3, 1],
   salt_crust: [3, 1],
+};
+
+// Ground keys the checklist lacks, complete: [subject, detail], how many variants and the tier.
+export const newGround = {
+  cave_floor: {
+    tier: 4,
+    variants: 3,
+    text: [
+      "the damp floor of a natural cave",
+      "Packed grey-brown grit over uneven rock, small loose pebbles, a few flat stones and darker damp patches; walkable ground.",
+    ],
+  },
+  bedrock: {
+    tier: 4,
+    variants: 3,
+    text: [
+      "solid dark rock mass seen from above, the unbroken stone around underground passages",
+      "Very dark charcoal grey stone with faint broad plates and fine cracks, low contrast and nearly featureless.",
+    ],
+    block: "wall",
+  },
 };
 
 // ---------------------------------------------------------------------------------------------
@@ -231,6 +254,24 @@ export const newKits = {
     altWindow: "a small window with carved white trim",
     altGate: "a pair of plank doors painted deep green",
     altPost: "a squared corner post with dovetailed log ends",
+  },
+  cave: {
+    tier: 4,
+    subject: "a 5-foot section of natural cave wall, a ridge of rough dark rock seen from directly above",
+    detail: "Irregular grey-brown boulders fused into one craggy band, damp dark cracks and a few pale mineral streaks.",
+    thickness: "about one third of the image height",
+    door: "a rough plank door wedged into the rock",
+    window: "a narrow natural crack through the rock",
+    gate: "crude timber gate leaves",
+    post: "a rounded rock pillar",
+    tags: { biome: [], culture: [], free: ["cave", "dungeon"] },
+    fn: [],
+    same: "The same craggy band of dark fused boulders as the plain run",
+    wear: ["glistening wet patches and a little green slime", "a few pale crystal flecks in the rock", "a cracked boulder with grit at its foot", "white mineral crust streaking down one face"],
+    altDoor: "a door of grey weathered planks",
+    altWindow: "a thin fissure with a sliver of darkness through it",
+    altGate: "a crude gate of lashed poles",
+    altPost: "a squat column of fused rock",
   },
 };
 
@@ -2013,4 +2054,23 @@ fam("veg.alpine_flowers", plant([1, 1], 1, "rough", ["alpine"], ["flower", "mead
   ["a cushion of alpine flowers: gentians and edelweiss", "Deep blue trumpets and white woolly stars."],
   ["a cushion of alpine saxifrage", "Tight green rosettes with tiny white flowers."],
   ["a cushion of mountain avens", "White eight-petalled flowers over small dark leaves."],
+]);
+
+// ---------------------------------------------------------------------------------------------
+// Underground (tier 4, arda-dungeon): what dungeons and caves need beyond the crypt and ruin sets.
+
+fam("prop.stairs_down", M([1, 2], 0, "rough", [], { free: ["dungeon", "stairs", "stairs_down"], culture: [] }), 4, [
+  ["a flight of stone steps descending into darkness, seen from directly above", "Grey stone treads, light at the bottom edge, each step darker towards the top edge, which ends in black shadow."],
+  ["worn stone stairs going down between two low side walls", "Dished, chipped treads fading into a black opening at the top edge."],
+  ["a narrow spiral of rough stone steps leading down into the dark", "Wedge-shaped treads curling towards a black hole near the top edge."],
+]);
+fam("prop.torch_sconce", M([1, 1], 0, "clear", [], { free: ["dungeon", "wall_light"], culture: [] }), 4, [
+  ["an iron wall sconce holding a burning torch, seen from directly above", "A small iron bracket at the top edge of the frame, a wooden torch with a bright orange flame at its tip."],
+  ["a rusty ring sconce with a smoking pitch torch", "Iron ring fixed at the top edge, a torch wrapped in dark rags, a small flame."],
+  ["a wrought iron sconce shaped like a claw holding a torch", "Black iron claw at the top edge, a short torch with a yellow flame."],
+]);
+fam("veg.stalagmite", plant([1, 1], 6, "tall", [], ["cave", "stalagmite"]), 4, [
+  ["a cluster of limestone stalagmites rising from a cave floor, seen from directly above", "Tapering pale cream and grey cones, the largest in the middle, each with a lighter wet tip."],
+  ["a single thick stalagmite with a ring of smaller ones", "Rounded ridged pale stone, glistening tips."],
+  ["a pair of stalagmites joined at the base, crusted with minerals", "Pale yellow-grey limestone with white mineral flow lines."],
 ]);

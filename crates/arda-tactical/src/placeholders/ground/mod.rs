@@ -28,7 +28,7 @@ use crate::noise::{fbm, hash2, mix as mix64, unit};
 use crate::raster::Rgba;
 
 /// Ground types, their variant counts and whether they are water.
-pub const TYPES: [(&str, u32, bool); 31] = [
+pub const TYPES: [(&str, u32, bool); 33] = [
     ("grass", 3, false),
     ("dirt", 3, false),
     ("cobbles", 3, false),
@@ -60,6 +60,8 @@ pub const TYPES: [(&str, u32, bool); 31] = [
     ("trail", 2, false),
     ("salt_crust", 2, false),
     ("mudflat", 2, false),
+    ("cave_floor", 2, false),
+    ("bedrock", 2, false),
 ];
 
 /// Ground kinds whose variants share a layout that must stay aligned: the
@@ -205,6 +207,8 @@ pub fn texture(kind: &str, seed: u64, structure: u64, ppsq: u32) -> Rgba {
         "scree" => rocky::scree(&t),
         "rock" => rocky::rock(&t),
         "cliff" => rocky::cliff(&t),
+        "cave_floor" => rocky::cave_floor(&t),
+        "bedrock" => rocky::bedrock(&t),
         "cobbles" => built::cobbles(&t),
         "stone_floor" => built::stone_floor(&t),
         "flagstone" => built::flagstone(&t),

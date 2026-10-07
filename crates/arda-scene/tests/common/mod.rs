@@ -30,6 +30,7 @@ impl L {
             axis,
             kind,
             kit: "stone".into(),
+            tags: Vec::new(),
         });
         self
     }

@@ -75,9 +75,10 @@
       "0": 225,
       "1": 415,
       "2": 467,
-      "3": 318
+      "3": 318,
+      "4": 34
     },
-    "about": "0: the first 225 (already generated). 1: every variant of those 225, which fixes repetition on every map. 2: building-function and biome sets. 3: culture sets, rare dressing and the new wall kits. Within a tier, assets run in order of visual impact."
+    "about": "0: the first 225 (already generated). 1: every variant of those 225, which fixes repetition on every map. 2: building-function and biome sets. 3: culture sets, rare dressing and the new wall kits. 4: the underground set for arda-dungeon (cave and bedrock ground, the cave wall kit, stairs down, torch sconces, stalagmites). Within a tier, assets run in order of visual impact."
   },
   "notes": {
     "structured": "Structured ground variants must share one layout. A model cannot be relied on to repeat a layout, so generate variant .0 first and either derive the others from it by hand (tint, wear and stains in an image editor) or generate them with --reference pointing at the accepted .0.",
@@ -74588,6 +74589,1465 @@
         "Detail": "Round stones in a pillar, red marks."
       },
       "prompt": "Top-down battle-map asset for a tabletop fantasy grid map, in a rich hand-painted style: confident painterly brushwork, fine dark ink outlines, crisp small detail and a muted, earthy, slightly warm palette. Strictly orthographic view from directly overhead: no perspective, no horizon, no tilted or isometric angle. Soft light from the top-left, so upper-left edges catch highlights and lower-right edges fall into gentle form shading; no cast shadow and no drop shadow anywhere. No text, no letters, no numbers, no grid lines, no frame, no border, no vignette, no watermark, no signature. Subject: a totem of stacked stones painted with ochre handprints, seen from directly above. Its outline is compact and about as wide as it is long, fitting one 5-foot square. Round stones in a pillar, red marks. Exactly one subject, centred, filling about 70% of the frame's shorter side, on a fully transparent background (a PNG with a real alpha channel, background: transparent; no white or colour behind the subject); nothing else in the image: no floor, no ground patch, no base or rug under it, no other objects, no shadow."
+    },
+    "ground.cave_floor.0": {
+      "class": "ground",
+      "template": "arda-ground",
+      "format": "1:1",
+      "footprint": [
+        2,
+        2
+      ],
+      "pixels": [
+        256,
+        256
+      ],
+      "layer": "ground",
+      "height_ft": 0,
+      "functions": [],
+      "tags": {
+        "biome": [
+          "temperate"
+        ],
+        "culture": [
+          "human"
+        ],
+        "wealth": [],
+        "function": [],
+        "free": []
+      },
+      "blocks_movement": false,
+      "blocks_sight": false,
+      "difficult_terrain": false,
+      "cover": "none",
+      "file": "ground/ground.cave_floor.0.png",
+      "status": "new",
+      "tier": 4,
+      "ground": "cave_floor",
+      "structured": false,
+      "variant": 0,
+      "values": {
+        "Subject": "the damp floor of a natural cave",
+        "Shape": "The frame height spans about 10 feet at true scale for a 5-foot battle-map grid.",
+        "Detail": "Packed grey-brown grit over uneven rock, small loose pebbles, a few flat stones and darker damp patches; walkable ground.",
+        "Variant": "One patch of this surface with an even, random arrangement."
+      },
+      "prompt": "Top-down battle-map asset for a tabletop fantasy grid map, in a rich hand-painted style: confident painterly brushwork, fine dark ink outlines, crisp small detail and a muted, earthy, slightly warm palette. Strictly orthographic view from directly overhead: no perspective, no horizon, no tilted or isometric angle. Soft light from the top-left, so upper-left edges catch highlights and lower-right edges fall into gentle form shading; no cast shadow and no drop shadow anywhere. No text, no letters, no numbers, no grid lines, no frame, no border, no vignette, no watermark, no signature. Subject: a ground texture of the damp floor of a natural cave. The frame height spans about 10 feet at true scale for a 5-foot battle-map grid. Packed grey-brown grit over uneven rock, small loose pebbles, a few flat stones and darker damp patches; walkable ground. One patch of this surface with an even, random arrangement. Seamless tileable texture, even lighting, no large light or dark patches, no single dominant feature and no objects lying on it; fills the whole frame edge to edge, with no background, border or empty margin anywhere."
+    },
+    "ground.cave_floor.1": {
+      "class": "ground",
+      "template": "arda-ground",
+      "format": "1:1",
+      "footprint": [
+        2,
+        2
+      ],
+      "pixels": [
+        256,
+        256
+      ],
+      "layer": "ground",
+      "height_ft": 0,
+      "functions": [],
+      "tags": {
+        "biome": [
+          "temperate"
+        ],
+        "culture": [
+          "human"
+        ],
+        "wealth": [],
+        "function": [],
+        "free": []
+      },
+      "blocks_movement": false,
+      "blocks_sight": false,
+      "difficult_terrain": false,
+      "cover": "none",
+      "file": "ground/ground.cave_floor.1.png",
+      "status": "new",
+      "tier": 4,
+      "ground": "cave_floor",
+      "structured": false,
+      "variant": 1,
+      "values": {
+        "Subject": "the damp floor of a natural cave",
+        "Shape": "The frame height spans about 10 feet at true scale for a 5-foot battle-map grid.",
+        "Detail": "Packed grey-brown grit over uneven rock, small loose pebbles, a few flat stones and darker damp patches; walkable ground.",
+        "Variant": "A different patch of the same surface: same colours, scale and density, a new random arrangement."
+      },
+      "prompt": "Top-down battle-map asset for a tabletop fantasy grid map, in a rich hand-painted style: confident painterly brushwork, fine dark ink outlines, crisp small detail and a muted, earthy, slightly warm palette. Strictly orthographic view from directly overhead: no perspective, no horizon, no tilted or isometric angle. Soft light from the top-left, so upper-left edges catch highlights and lower-right edges fall into gentle form shading; no cast shadow and no drop shadow anywhere. No text, no letters, no numbers, no grid lines, no frame, no border, no vignette, no watermark, no signature. Subject: a ground texture of the damp floor of a natural cave. The frame height spans about 10 feet at true scale for a 5-foot battle-map grid. Packed grey-brown grit over uneven rock, small loose pebbles, a few flat stones and darker damp patches; walkable ground. A different patch of the same surface: same colours, scale and density, a new random arrangement. Seamless tileable texture, even lighting, no large light or dark patches, no single dominant feature and no objects lying on it; fills the whole frame edge to edge, with no background, border or empty margin anywhere."
+    },
+    "ground.cave_floor.2": {
+      "class": "ground",
+      "template": "arda-ground",
+      "format": "1:1",
+      "footprint": [
+        2,
+        2
+      ],
+      "pixels": [
+        256,
+        256
+      ],
+      "layer": "ground",
+      "height_ft": 0,
+      "functions": [],
+      "tags": {
+        "biome": [
+          "temperate"
+        ],
+        "culture": [
+          "human"
+        ],
+        "wealth": [],
+        "function": [],
+        "free": []
+      },
+      "blocks_movement": false,
+      "blocks_sight": false,
+      "difficult_terrain": false,
+      "cover": "none",
+      "file": "ground/ground.cave_floor.2.png",
+      "status": "new",
+      "tier": 4,
+      "ground": "cave_floor",
+      "structured": false,
+      "variant": 2,
+      "values": {
+        "Subject": "the damp floor of a natural cave",
+        "Shape": "The frame height spans about 10 feet at true scale for a 5-foot battle-map grid.",
+        "Detail": "Packed grey-brown grit over uneven rock, small loose pebbles, a few flat stones and darker damp patches; walkable ground.",
+        "Variant": "Another patch of the same surface: same colours, scale and density, a new random arrangement."
+      },
+      "prompt": "Top-down battle-map asset for a tabletop fantasy grid map, in a rich hand-painted style: confident painterly brushwork, fine dark ink outlines, crisp small detail and a muted, earthy, slightly warm palette. Strictly orthographic view from directly overhead: no perspective, no horizon, no tilted or isometric angle. Soft light from the top-left, so upper-left edges catch highlights and lower-right edges fall into gentle form shading; no cast shadow and no drop shadow anywhere. No text, no letters, no numbers, no grid lines, no frame, no border, no vignette, no watermark, no signature. Subject: a ground texture of the damp floor of a natural cave. The frame height spans about 10 feet at true scale for a 5-foot battle-map grid. Packed grey-brown grit over uneven rock, small loose pebbles, a few flat stones and darker damp patches; walkable ground. Another patch of the same surface: same colours, scale and density, a new random arrangement. Seamless tileable texture, even lighting, no large light or dark patches, no single dominant feature and no objects lying on it; fills the whole frame edge to edge, with no background, border or empty margin anywhere."
+    },
+    "ground.bedrock.0": {
+      "class": "ground",
+      "template": "arda-ground",
+      "format": "1:1",
+      "footprint": [
+        2,
+        2
+      ],
+      "pixels": [
+        256,
+        256
+      ],
+      "layer": "ground",
+      "height_ft": 0,
+      "functions": [],
+      "tags": {
+        "biome": [
+          "temperate"
+        ],
+        "culture": [
+          "human"
+        ],
+        "wealth": [],
+        "function": [],
+        "free": []
+      },
+      "blocks_movement": true,
+      "blocks_sight": true,
+      "difficult_terrain": false,
+      "cover": "total",
+      "file": "ground/ground.bedrock.0.png",
+      "status": "new",
+      "tier": 4,
+      "ground": "bedrock",
+      "structured": false,
+      "variant": 0,
+      "values": {
+        "Subject": "solid dark rock mass seen from above, the unbroken stone around underground passages",
+        "Shape": "The frame height spans about 10 feet at true scale for a 5-foot battle-map grid.",
+        "Detail": "Very dark charcoal grey stone with faint broad plates and fine cracks, low contrast and nearly featureless.",
+        "Variant": "One patch of this surface with an even, random arrangement."
+      },
+      "prompt": "Top-down battle-map asset for a tabletop fantasy grid map, in a rich hand-painted style: confident painterly brushwork, fine dark ink outlines, crisp small detail and a muted, earthy, slightly warm palette. Strictly orthographic view from directly overhead: no perspective, no horizon, no tilted or isometric angle. Soft light from the top-left, so upper-left edges catch highlights and lower-right edges fall into gentle form shading; no cast shadow and no drop shadow anywhere. No text, no letters, no numbers, no grid lines, no frame, no border, no vignette, no watermark, no signature. Subject: a ground texture of solid dark rock mass seen from above, the unbroken stone around underground passages. The frame height spans about 10 feet at true scale for a 5-foot battle-map grid. Very dark charcoal grey stone with faint broad plates and fine cracks, low contrast and nearly featureless. One patch of this surface with an even, random arrangement. Seamless tileable texture, even lighting, no large light or dark patches, no single dominant feature and no objects lying on it; fills the whole frame edge to edge, with no background, border or empty margin anywhere."
+    },
+    "ground.bedrock.1": {
+      "class": "ground",
+      "template": "arda-ground",
+      "format": "1:1",
+      "footprint": [
+        2,
+        2
+      ],
+      "pixels": [
+        256,
+        256
+      ],
+      "layer": "ground",
+      "height_ft": 0,
+      "functions": [],
+      "tags": {
+        "biome": [
+          "temperate"
+        ],
+        "culture": [
+          "human"
+        ],
+        "wealth": [],
+        "function": [],
+        "free": []
+      },
+      "blocks_movement": true,
+      "blocks_sight": true,
+      "difficult_terrain": false,
+      "cover": "total",
+      "file": "ground/ground.bedrock.1.png",
+      "status": "new",
+      "tier": 4,
+      "ground": "bedrock",
+      "structured": false,
+      "variant": 1,
+      "values": {
+        "Subject": "solid dark rock mass seen from above, the unbroken stone around underground passages",
+        "Shape": "The frame height spans about 10 feet at true scale for a 5-foot battle-map grid.",
+        "Detail": "Very dark charcoal grey stone with faint broad plates and fine cracks, low contrast and nearly featureless.",
+        "Variant": "A different patch of the same surface: same colours, scale and density, a new random arrangement."
+      },
+      "prompt": "Top-down battle-map asset for a tabletop fantasy grid map, in a rich hand-painted style: confident painterly brushwork, fine dark ink outlines, crisp small detail and a muted, earthy, slightly warm palette. Strictly orthographic view from directly overhead: no perspective, no horizon, no tilted or isometric angle. Soft light from the top-left, so upper-left edges catch highlights and lower-right edges fall into gentle form shading; no cast shadow and no drop shadow anywhere. No text, no letters, no numbers, no grid lines, no frame, no border, no vignette, no watermark, no signature. Subject: a ground texture of solid dark rock mass seen from above, the unbroken stone around underground passages. The frame height spans about 10 feet at true scale for a 5-foot battle-map grid. Very dark charcoal grey stone with faint broad plates and fine cracks, low contrast and nearly featureless. A different patch of the same surface: same colours, scale and density, a new random arrangement. Seamless tileable texture, even lighting, no large light or dark patches, no single dominant feature and no objects lying on it; fills the whole frame edge to edge, with no background, border or empty margin anywhere."
+    },
+    "ground.bedrock.2": {
+      "class": "ground",
+      "template": "arda-ground",
+      "format": "1:1",
+      "footprint": [
+        2,
+        2
+      ],
+      "pixels": [
+        256,
+        256
+      ],
+      "layer": "ground",
+      "height_ft": 0,
+      "functions": [],
+      "tags": {
+        "biome": [
+          "temperate"
+        ],
+        "culture": [
+          "human"
+        ],
+        "wealth": [],
+        "function": [],
+        "free": []
+      },
+      "blocks_movement": true,
+      "blocks_sight": true,
+      "difficult_terrain": false,
+      "cover": "total",
+      "file": "ground/ground.bedrock.2.png",
+      "status": "new",
+      "tier": 4,
+      "ground": "bedrock",
+      "structured": false,
+      "variant": 2,
+      "values": {
+        "Subject": "solid dark rock mass seen from above, the unbroken stone around underground passages",
+        "Shape": "The frame height spans about 10 feet at true scale for a 5-foot battle-map grid.",
+        "Detail": "Very dark charcoal grey stone with faint broad plates and fine cracks, low contrast and nearly featureless.",
+        "Variant": "Another patch of the same surface: same colours, scale and density, a new random arrangement."
+      },
+      "prompt": "Top-down battle-map asset for a tabletop fantasy grid map, in a rich hand-painted style: confident painterly brushwork, fine dark ink outlines, crisp small detail and a muted, earthy, slightly warm palette. Strictly orthographic view from directly overhead: no perspective, no horizon, no tilted or isometric angle. Soft light from the top-left, so upper-left edges catch highlights and lower-right edges fall into gentle form shading; no cast shadow and no drop shadow anywhere. No text, no letters, no numbers, no grid lines, no frame, no border, no vignette, no watermark, no signature. Subject: a ground texture of solid dark rock mass seen from above, the unbroken stone around underground passages. The frame height spans about 10 feet at true scale for a 5-foot battle-map grid. Very dark charcoal grey stone with faint broad plates and fine cracks, low contrast and nearly featureless. Another patch of the same surface: same colours, scale and density, a new random arrangement. Seamless tileable texture, even lighting, no large light or dark patches, no single dominant feature and no objects lying on it; fills the whole frame edge to edge, with no background, border or empty margin anywhere."
+    },
+    "wall.cave.run": {
+      "class": "wall",
+      "template": "arda-wall",
+      "format": "1:1",
+      "footprint": [
+        1,
+        1
+      ],
+      "pixels": [
+        128,
+        128
+      ],
+      "layer": "wall",
+      "height_ft": 10,
+      "functions": [],
+      "tags": {
+        "biome": [],
+        "culture": [],
+        "wealth": [],
+        "function": [],
+        "free": [
+          "cave",
+          "dungeon"
+        ]
+      },
+      "blocks_movement": true,
+      "blocks_sight": true,
+      "difficult_terrain": false,
+      "cover": "total",
+      "file": "walls/wall.cave.run.png",
+      "status": "new",
+      "tier": 4,
+      "kit": "cave",
+      "role": "run",
+      "values": {
+        "Subject": "a 5-foot section of natural cave wall, a ridge of rough dark rock seen from directly above",
+        "Shape": "A straight run: it runs from the left edge to the right edge along the horizontal centre line, with no branches and no openings.",
+        "Detail": "Irregular grey-brown boulders fused into one craggy band, damp dark cracks and a few pale mineral streaks. The wall band is about one third of the image height thick."
+      },
+      "prompt": "Top-down battle-map asset for a tabletop fantasy grid map, in a rich hand-painted style: confident painterly brushwork, fine dark ink outlines, crisp small detail and a muted, earthy, slightly warm palette. Strictly orthographic view from directly overhead: no perspective, no horizon, no tilted or isometric angle. Soft light from the top-left, so upper-left edges catch highlights and lower-right edges fall into gentle form shading; no cast shadow and no drop shadow anywhere. No text, no letters, no numbers, no grid lines, no frame, no border, no vignette, no watermark, no signature. Subject: one modular wall piece from a grid-map wall kit, a 5-foot section of natural cave wall, a ridge of rough dark rock seen from directly above. A straight run: it runs from the left edge to the right edge along the horizontal centre line, with no branches and no openings. Irregular grey-brown boulders fused into one craggy band, damp dark cracks and a few pale mineral streaks. The wall band is about one third of the image height thick. Wall pieces join into long walls on a square grid, so the top of the wall is seen as a straight band of even thickness, every arm runs perfectly straight along the image's horizontal or vertical centre line and is cut off square exactly at the image edge it reaches. The junction is exactly at the centre of the image. Everything that is not wall is fully transparent (a PNG with a real alpha channel, background: transparent): no ground, no grass, no floor, no shadow."
+    },
+    "wall.cave.run.alt1": {
+      "class": "wall",
+      "template": "arda-wall",
+      "format": "1:1",
+      "footprint": [
+        1,
+        1
+      ],
+      "pixels": [
+        128,
+        128
+      ],
+      "layer": "wall",
+      "height_ft": 10,
+      "functions": [],
+      "tags": {
+        "biome": [],
+        "culture": [],
+        "wealth": [],
+        "function": [],
+        "free": [
+          "cave",
+          "dungeon"
+        ]
+      },
+      "blocks_movement": true,
+      "blocks_sight": true,
+      "difficult_terrain": false,
+      "cover": "total",
+      "file": "walls/wall.cave.run.alt1.png",
+      "status": "new",
+      "tier": 4,
+      "kit": "cave",
+      "role": "run",
+      "variant_of": "wall.cave.run",
+      "derive_from": "wall.cave.run",
+      "values": {
+        "Subject": "a 5-foot section of natural cave wall, a ridge of rough dark rock seen from directly above",
+        "Shape": "A straight run: it runs from the left edge to the right edge along the horizontal centre line, with no branches and no openings.",
+        "Detail": "The same craggy band of dark fused boulders as the plain run, glistening wet patches and a little green slime. The wall band is about one third of the image height thick."
+      },
+      "prompt": "Top-down battle-map asset for a tabletop fantasy grid map, in a rich hand-painted style: confident painterly brushwork, fine dark ink outlines, crisp small detail and a muted, earthy, slightly warm palette. Strictly orthographic view from directly overhead: no perspective, no horizon, no tilted or isometric angle. Soft light from the top-left, so upper-left edges catch highlights and lower-right edges fall into gentle form shading; no cast shadow and no drop shadow anywhere. No text, no letters, no numbers, no grid lines, no frame, no border, no vignette, no watermark, no signature. Subject: one modular wall piece from a grid-map wall kit, a 5-foot section of natural cave wall, a ridge of rough dark rock seen from directly above. A straight run: it runs from the left edge to the right edge along the horizontal centre line, with no branches and no openings. The same craggy band of dark fused boulders as the plain run, glistening wet patches and a little green slime. The wall band is about one third of the image height thick. Wall pieces join into long walls on a square grid, so the top of the wall is seen as a straight band of even thickness, every arm runs perfectly straight along the image's horizontal or vertical centre line and is cut off square exactly at the image edge it reaches. The junction is exactly at the centre of the image. Everything that is not wall is fully transparent (a PNG with a real alpha channel, background: transparent): no ground, no grass, no floor, no shadow."
+    },
+    "wall.cave.run.alt2": {
+      "class": "wall",
+      "template": "arda-wall",
+      "format": "1:1",
+      "footprint": [
+        1,
+        1
+      ],
+      "pixels": [
+        128,
+        128
+      ],
+      "layer": "wall",
+      "height_ft": 10,
+      "functions": [],
+      "tags": {
+        "biome": [],
+        "culture": [],
+        "wealth": [],
+        "function": [],
+        "free": [
+          "cave",
+          "dungeon"
+        ]
+      },
+      "blocks_movement": true,
+      "blocks_sight": true,
+      "difficult_terrain": false,
+      "cover": "total",
+      "file": "walls/wall.cave.run.alt2.png",
+      "status": "new",
+      "tier": 4,
+      "kit": "cave",
+      "role": "run",
+      "variant_of": "wall.cave.run",
+      "derive_from": "wall.cave.run",
+      "values": {
+        "Subject": "a 5-foot section of natural cave wall, a ridge of rough dark rock seen from directly above",
+        "Shape": "A straight run: it runs from the left edge to the right edge along the horizontal centre line, with no branches and no openings.",
+        "Detail": "The same craggy band of dark fused boulders as the plain run, a few pale crystal flecks in the rock. The wall band is about one third of the image height thick."
+      },
+      "prompt": "Top-down battle-map asset for a tabletop fantasy grid map, in a rich hand-painted style: confident painterly brushwork, fine dark ink outlines, crisp small detail and a muted, earthy, slightly warm palette. Strictly orthographic view from directly overhead: no perspective, no horizon, no tilted or isometric angle. Soft light from the top-left, so upper-left edges catch highlights and lower-right edges fall into gentle form shading; no cast shadow and no drop shadow anywhere. No text, no letters, no numbers, no grid lines, no frame, no border, no vignette, no watermark, no signature. Subject: one modular wall piece from a grid-map wall kit, a 5-foot section of natural cave wall, a ridge of rough dark rock seen from directly above. A straight run: it runs from the left edge to the right edge along the horizontal centre line, with no branches and no openings. The same craggy band of dark fused boulders as the plain run, a few pale crystal flecks in the rock. The wall band is about one third of the image height thick. Wall pieces join into long walls on a square grid, so the top of the wall is seen as a straight band of even thickness, every arm runs perfectly straight along the image's horizontal or vertical centre line and is cut off square exactly at the image edge it reaches. The junction is exactly at the centre of the image. Everything that is not wall is fully transparent (a PNG with a real alpha channel, background: transparent): no ground, no grass, no floor, no shadow."
+    },
+    "veg.stalagmite": {
+      "class": "vegetation",
+      "template": "arda-vegetation",
+      "format": "1:1",
+      "footprint": [
+        1,
+        1
+      ],
+      "pixels": [
+        128,
+        128
+      ],
+      "layer": "prop",
+      "height_ft": 6,
+      "functions": [],
+      "tags": {
+        "biome": [],
+        "culture": [
+          "human"
+        ],
+        "wealth": [],
+        "function": [],
+        "free": [
+          "cave",
+          "stalagmite"
+        ]
+      },
+      "blocks_movement": true,
+      "blocks_sight": true,
+      "difficult_terrain": false,
+      "cover": "three_quarters",
+      "file": "vegetation/veg.stalagmite.png",
+      "status": "new",
+      "tier": 4,
+      "values": {
+        "Subject": "a cluster of limestone stalagmites rising from a cave floor, seen from directly above",
+        "Shape": "Its outline is irregular and uneven, never a neat circle or star; it bulges or reaches out on one or two sides. It fills about 70% of the frame, 5 feet at most.",
+        "Detail": "Tapering pale cream and grey cones, the largest in the middle, each with a lighter wet tip."
+      },
+      "prompt": "Top-down battle-map asset for a tabletop fantasy grid map, in a rich hand-painted style: confident painterly brushwork, fine dark ink outlines, crisp small detail and a muted, earthy, slightly warm palette. Strictly orthographic view from directly overhead: no perspective, no horizon, no tilted or isometric angle. Soft light from the top-left, so upper-left edges catch highlights and lower-right edges fall into gentle form shading; no cast shadow and no drop shadow anywhere. No text, no letters, no numbers, no grid lines, no frame, no border, no vignette, no watermark, no signature. Subject: a cluster of limestone stalagmites rising from a cave floor, seen from directly above, seen from directly above. Its outline is irregular and uneven, never a neat circle or star; it bulges or reaches out on one or two sides. It fills about 70% of the frame, 5 feet at most. Tapering pale cream and grey cones, the largest in the middle, each with a lighter wet tip. Exactly one subject, centred, filling about 70% of the frame's shorter side, on a fully transparent background (a PNG with a real alpha channel, background: transparent; no white or colour behind the subject); nothing else in the image: no floor, no ground patch, no base or rug under it, no other objects, no shadow. No grass, soil or other plants around it."
+    },
+    "veg.stalagmite.alt1": {
+      "class": "vegetation",
+      "template": "arda-vegetation",
+      "format": "1:1",
+      "footprint": [
+        1,
+        1
+      ],
+      "pixels": [
+        128,
+        128
+      ],
+      "layer": "prop",
+      "height_ft": 6,
+      "functions": [],
+      "tags": {
+        "biome": [],
+        "culture": [
+          "human"
+        ],
+        "wealth": [],
+        "function": [],
+        "free": [
+          "cave",
+          "stalagmite"
+        ]
+      },
+      "blocks_movement": true,
+      "blocks_sight": true,
+      "difficult_terrain": false,
+      "cover": "three_quarters",
+      "file": "vegetation/veg.stalagmite.alt1.png",
+      "status": "new",
+      "tier": 4,
+      "variant_of": "veg.stalagmite",
+      "values": {
+        "Subject": "a single thick stalagmite with a ring of smaller ones",
+        "Shape": "Its outline is irregular and uneven, never a neat circle or star; it bulges or reaches out on one or two sides. It fills about 60% of the frame, 5 feet at most.",
+        "Detail": "Rounded ridged pale stone, glistening tips."
+      },
+      "prompt": "Top-down battle-map asset for a tabletop fantasy grid map, in a rich hand-painted style: confident painterly brushwork, fine dark ink outlines, crisp small detail and a muted, earthy, slightly warm palette. Strictly orthographic view from directly overhead: no perspective, no horizon, no tilted or isometric angle. Soft light from the top-left, so upper-left edges catch highlights and lower-right edges fall into gentle form shading; no cast shadow and no drop shadow anywhere. No text, no letters, no numbers, no grid lines, no frame, no border, no vignette, no watermark, no signature. Subject: a single thick stalagmite with a ring of smaller ones, seen from directly above. Its outline is irregular and uneven, never a neat circle or star; it bulges or reaches out on one or two sides. It fills about 60% of the frame, 5 feet at most. Rounded ridged pale stone, glistening tips. Exactly one subject, centred, filling about 70% of the frame's shorter side, on a fully transparent background (a PNG with a real alpha channel, background: transparent; no white or colour behind the subject); nothing else in the image: no floor, no ground patch, no base or rug under it, no other objects, no shadow. No grass, soil or other plants around it."
+    },
+    "veg.stalagmite.alt2": {
+      "class": "vegetation",
+      "template": "arda-vegetation",
+      "format": "1:1",
+      "footprint": [
+        1,
+        1
+      ],
+      "pixels": [
+        128,
+        128
+      ],
+      "layer": "prop",
+      "height_ft": 6,
+      "functions": [],
+      "tags": {
+        "biome": [],
+        "culture": [
+          "human"
+        ],
+        "wealth": [],
+        "function": [],
+        "free": [
+          "cave",
+          "stalagmite"
+        ]
+      },
+      "blocks_movement": true,
+      "blocks_sight": true,
+      "difficult_terrain": false,
+      "cover": "three_quarters",
+      "file": "vegetation/veg.stalagmite.alt2.png",
+      "status": "new",
+      "tier": 4,
+      "variant_of": "veg.stalagmite",
+      "values": {
+        "Subject": "a pair of stalagmites joined at the base, crusted with minerals",
+        "Shape": "Its outline is irregular and uneven, never a neat circle or star; it bulges or reaches out on one or two sides. It fills about 70% of the frame, 5 feet at most.",
+        "Detail": "Pale yellow-grey limestone with white mineral flow lines."
+      },
+      "prompt": "Top-down battle-map asset for a tabletop fantasy grid map, in a rich hand-painted style: confident painterly brushwork, fine dark ink outlines, crisp small detail and a muted, earthy, slightly warm palette. Strictly orthographic view from directly overhead: no perspective, no horizon, no tilted or isometric angle. Soft light from the top-left, so upper-left edges catch highlights and lower-right edges fall into gentle form shading; no cast shadow and no drop shadow anywhere. No text, no letters, no numbers, no grid lines, no frame, no border, no vignette, no watermark, no signature. Subject: a pair of stalagmites joined at the base, crusted with minerals, seen from directly above. Its outline is irregular and uneven, never a neat circle or star; it bulges or reaches out on one or two sides. It fills about 70% of the frame, 5 feet at most. Pale yellow-grey limestone with white mineral flow lines. Exactly one subject, centred, filling about 70% of the frame's shorter side, on a fully transparent background (a PNG with a real alpha channel, background: transparent; no white or colour behind the subject); nothing else in the image: no floor, no ground patch, no base or rug under it, no other objects, no shadow. No grass, soil or other plants around it."
+    },
+    "wall.cave.door": {
+      "class": "wall",
+      "template": "arda-wall",
+      "format": "1:1",
+      "footprint": [
+        1,
+        1
+      ],
+      "pixels": [
+        128,
+        128
+      ],
+      "layer": "wall",
+      "height_ft": 10,
+      "functions": [],
+      "tags": {
+        "biome": [],
+        "culture": [],
+        "wealth": [],
+        "function": [],
+        "free": [
+          "cave",
+          "dungeon"
+        ]
+      },
+      "blocks_movement": true,
+      "blocks_sight": true,
+      "difficult_terrain": false,
+      "cover": "total",
+      "file": "walls/wall.cave.door.png",
+      "status": "new",
+      "tier": 4,
+      "kit": "cave",
+      "role": "door",
+      "values": {
+        "Subject": "a 5-foot section of natural cave wall, a ridge of rough dark rock seen from directly above",
+        "Shape": "Doorway in a straight run from left edge to right edge on the centre line; middle third: a gap between jambs, wall top stopped, shut by a rough plank door wedged into the rock along the wall line.",
+        "Detail": "Irregular grey-brown boulders fused into one craggy band, damp dark cracks and a few pale mineral streaks. The wall band is about one third of the image height thick."
+      },
+      "prompt": "Top-down battle-map asset for a tabletop fantasy grid map, in a rich hand-painted style: confident painterly brushwork, fine dark ink outlines, crisp small detail and a muted, earthy, slightly warm palette. Strictly orthographic view from directly overhead: no perspective, no horizon, no tilted or isometric angle. Soft light from the top-left, so upper-left edges catch highlights and lower-right edges fall into gentle form shading; no cast shadow and no drop shadow anywhere. No text, no letters, no numbers, no grid lines, no frame, no border, no vignette, no watermark, no signature. Subject: one modular wall piece from a grid-map wall kit, a 5-foot section of natural cave wall, a ridge of rough dark rock seen from directly above. Doorway in a straight run from left edge to right edge on the centre line; middle third: a gap between jambs, wall top stopped, shut by a rough plank door wedged into the rock along the wall line. Irregular grey-brown boulders fused into one craggy band, damp dark cracks and a few pale mineral streaks. The wall band is about one third of the image height thick. Wall pieces join into long walls on a square grid, so the top of the wall is seen as a straight band of even thickness, every arm runs perfectly straight along the image's horizontal or vertical centre line and is cut off square exactly at the image edge it reaches. The junction is exactly at the centre of the image. Everything that is not wall is fully transparent (a PNG with a real alpha channel, background: transparent): no ground, no grass, no floor, no shadow."
+    },
+    "wall.cave.window": {
+      "class": "wall",
+      "template": "arda-wall",
+      "format": "1:1",
+      "footprint": [
+        1,
+        1
+      ],
+      "pixels": [
+        128,
+        128
+      ],
+      "layer": "wall",
+      "height_ft": 10,
+      "functions": [],
+      "tags": {
+        "biome": [],
+        "culture": [],
+        "wealth": [],
+        "function": [],
+        "free": [
+          "cave",
+          "dungeon"
+        ]
+      },
+      "blocks_movement": true,
+      "blocks_sight": true,
+      "difficult_terrain": false,
+      "cover": "total",
+      "file": "walls/wall.cave.window.png",
+      "status": "new",
+      "tier": 4,
+      "kit": "cave",
+      "role": "window",
+      "values": {
+        "Subject": "a 5-foot section of natural cave wall, a ridge of rough dark rock seen from directly above",
+        "Shape": "A straight run with a window: it runs from the left edge to the right edge along the horizontal centre line, with a narrow natural crack through the rock in the middle third.",
+        "Detail": "Irregular grey-brown boulders fused into one craggy band, damp dark cracks and a few pale mineral streaks. The wall band is about one third of the image height thick."
+      },
+      "prompt": "Top-down battle-map asset for a tabletop fantasy grid map, in a rich hand-painted style: confident painterly brushwork, fine dark ink outlines, crisp small detail and a muted, earthy, slightly warm palette. Strictly orthographic view from directly overhead: no perspective, no horizon, no tilted or isometric angle. Soft light from the top-left, so upper-left edges catch highlights and lower-right edges fall into gentle form shading; no cast shadow and no drop shadow anywhere. No text, no letters, no numbers, no grid lines, no frame, no border, no vignette, no watermark, no signature. Subject: one modular wall piece from a grid-map wall kit, a 5-foot section of natural cave wall, a ridge of rough dark rock seen from directly above. A straight run with a window: it runs from the left edge to the right edge along the horizontal centre line, with a narrow natural crack through the rock in the middle third. Irregular grey-brown boulders fused into one craggy band, damp dark cracks and a few pale mineral streaks. The wall band is about one third of the image height thick. Wall pieces join into long walls on a square grid, so the top of the wall is seen as a straight band of even thickness, every arm runs perfectly straight along the image's horizontal or vertical centre line and is cut off square exactly at the image edge it reaches. The junction is exactly at the centre of the image. Everything that is not wall is fully transparent (a PNG with a real alpha channel, background: transparent): no ground, no grass, no floor, no shadow."
+    },
+    "wall.cave.gate": {
+      "class": "wall",
+      "template": "arda-wall",
+      "format": "1:1",
+      "footprint": [
+        1,
+        1
+      ],
+      "pixels": [
+        128,
+        128
+      ],
+      "layer": "wall",
+      "height_ft": 10,
+      "functions": [],
+      "tags": {
+        "biome": [],
+        "culture": [],
+        "wealth": [],
+        "function": [],
+        "free": [
+          "cave",
+          "dungeon"
+        ]
+      },
+      "blocks_movement": true,
+      "blocks_sight": true,
+      "difficult_terrain": false,
+      "cover": "total",
+      "file": "walls/wall.cave.gate.png",
+      "status": "new",
+      "tier": 4,
+      "kit": "cave",
+      "role": "gate",
+      "values": {
+        "Subject": "a 5-foot section of natural cave wall, a ridge of rough dark rock seen from directly above",
+        "Shape": "Gateway in a straight run from left edge to right edge on the centre line; middle: a gap between posts, wall top stopped, shut by crude timber gate leaves along the wall line.",
+        "Detail": "Irregular grey-brown boulders fused into one craggy band, damp dark cracks and a few pale mineral streaks. The wall band is about one third of the image height thick."
+      },
+      "prompt": "Top-down battle-map asset for a tabletop fantasy grid map, in a rich hand-painted style: confident painterly brushwork, fine dark ink outlines, crisp small detail and a muted, earthy, slightly warm palette. Strictly orthographic view from directly overhead: no perspective, no horizon, no tilted or isometric angle. Soft light from the top-left, so upper-left edges catch highlights and lower-right edges fall into gentle form shading; no cast shadow and no drop shadow anywhere. No text, no letters, no numbers, no grid lines, no frame, no border, no vignette, no watermark, no signature. Subject: one modular wall piece from a grid-map wall kit, a 5-foot section of natural cave wall, a ridge of rough dark rock seen from directly above. Gateway in a straight run from left edge to right edge on the centre line; middle: a gap between posts, wall top stopped, shut by crude timber gate leaves along the wall line. Irregular grey-brown boulders fused into one craggy band, damp dark cracks and a few pale mineral streaks. The wall band is about one third of the image height thick. Wall pieces join into long walls on a square grid, so the top of the wall is seen as a straight band of even thickness, every arm runs perfectly straight along the image's horizontal or vertical centre line and is cut off square exactly at the image edge it reaches. The junction is exactly at the centre of the image. Everything that is not wall is fully transparent (a PNG with a real alpha channel, background: transparent): no ground, no grass, no floor, no shadow."
+    },
+    "wall.cave.post": {
+      "class": "wall",
+      "template": "arda-wall",
+      "format": "1:1",
+      "footprint": [
+        1,
+        1
+      ],
+      "pixels": [
+        128,
+        128
+      ],
+      "layer": "wall",
+      "height_ft": 10,
+      "functions": [],
+      "tags": {
+        "biome": [],
+        "culture": [],
+        "wealth": [],
+        "function": [],
+        "free": [
+          "cave",
+          "dungeon"
+        ]
+      },
+      "blocks_movement": true,
+      "blocks_sight": true,
+      "difficult_terrain": false,
+      "cover": "total",
+      "file": "walls/wall.cave.post.png",
+      "status": "new",
+      "tier": 4,
+      "kit": "cave",
+      "role": "post",
+      "values": {
+        "Subject": "a 5-foot section of natural cave wall, a ridge of rough dark rock seen from directly above",
+        "Shape": "Only a rounded rock pillar, alone at the exact centre, about a quarter of the image wide; no wall runs out from it, the rest is empty.",
+        "Detail": "Irregular grey-brown boulders fused into one craggy band, damp dark cracks and a few pale mineral streaks. The wall band is about one third of the image height thick."
+      },
+      "prompt": "Top-down battle-map asset for a tabletop fantasy grid map, in a rich hand-painted style: confident painterly brushwork, fine dark ink outlines, crisp small detail and a muted, earthy, slightly warm palette. Strictly orthographic view from directly overhead: no perspective, no horizon, no tilted or isometric angle. Soft light from the top-left, so upper-left edges catch highlights and lower-right edges fall into gentle form shading; no cast shadow and no drop shadow anywhere. No text, no letters, no numbers, no grid lines, no frame, no border, no vignette, no watermark, no signature. Subject: one modular wall piece from a grid-map wall kit, a 5-foot section of natural cave wall, a ridge of rough dark rock seen from directly above. Only a rounded rock pillar, alone at the exact centre, about a quarter of the image wide; no wall runs out from it, the rest is empty. Irregular grey-brown boulders fused into one craggy band, damp dark cracks and a few pale mineral streaks. The wall band is about one third of the image height thick. Wall pieces join into long walls on a square grid, so the top of the wall is seen as a straight band of even thickness, every arm runs perfectly straight along the image's horizontal or vertical centre line and is cut off square exactly at the image edge it reaches. The junction is exactly at the centre of the image. Everything that is not wall is fully transparent (a PNG with a real alpha channel, background: transparent): no ground, no grass, no floor, no shadow."
+    },
+    "wall.cave.corner": {
+      "class": "wall",
+      "template": "arda-wall",
+      "format": "1:1",
+      "footprint": [
+        1,
+        1
+      ],
+      "pixels": [
+        128,
+        128
+      ],
+      "layer": "wall",
+      "height_ft": 10,
+      "functions": [],
+      "tags": {
+        "biome": [],
+        "culture": [],
+        "wealth": [],
+        "function": [],
+        "free": [
+          "cave",
+          "dungeon"
+        ]
+      },
+      "blocks_movement": true,
+      "blocks_sight": true,
+      "difficult_terrain": false,
+      "cover": "total",
+      "file": "walls/wall.cave.corner.png",
+      "status": "new",
+      "tier": 4,
+      "kit": "cave",
+      "role": "corner",
+      "values": {
+        "Subject": "a 5-foot section of natural cave wall, a ridge of rough dark rock seen from directly above",
+        "Shape": "An L-shaped corner: one arm runs from the centre to the right edge and the other from the centre to the bottom edge; nothing left of or above the centre.",
+        "Detail": "Irregular grey-brown boulders fused into one craggy band, damp dark cracks and a few pale mineral streaks. The wall band is about one third of the image height thick."
+      },
+      "prompt": "Top-down battle-map asset for a tabletop fantasy grid map, in a rich hand-painted style: confident painterly brushwork, fine dark ink outlines, crisp small detail and a muted, earthy, slightly warm palette. Strictly orthographic view from directly overhead: no perspective, no horizon, no tilted or isometric angle. Soft light from the top-left, so upper-left edges catch highlights and lower-right edges fall into gentle form shading; no cast shadow and no drop shadow anywhere. No text, no letters, no numbers, no grid lines, no frame, no border, no vignette, no watermark, no signature. Subject: one modular wall piece from a grid-map wall kit, a 5-foot section of natural cave wall, a ridge of rough dark rock seen from directly above. An L-shaped corner: one arm runs from the centre to the right edge and the other from the centre to the bottom edge; nothing left of or above the centre. Irregular grey-brown boulders fused into one craggy band, damp dark cracks and a few pale mineral streaks. The wall band is about one third of the image height thick. Wall pieces join into long walls on a square grid, so the top of the wall is seen as a straight band of even thickness, every arm runs perfectly straight along the image's horizontal or vertical centre line and is cut off square exactly at the image edge it reaches. The junction is exactly at the centre of the image. Everything that is not wall is fully transparent (a PNG with a real alpha channel, background: transparent): no ground, no grass, no floor, no shadow."
+    },
+    "wall.cave.tee": {
+      "class": "wall",
+      "template": "arda-wall",
+      "format": "1:1",
+      "footprint": [
+        1,
+        1
+      ],
+      "pixels": [
+        128,
+        128
+      ],
+      "layer": "wall",
+      "height_ft": 10,
+      "functions": [],
+      "tags": {
+        "biome": [],
+        "culture": [],
+        "wealth": [],
+        "function": [],
+        "free": [
+          "cave",
+          "dungeon"
+        ]
+      },
+      "blocks_movement": true,
+      "blocks_sight": true,
+      "difficult_terrain": false,
+      "cover": "total",
+      "file": "walls/wall.cave.tee.png",
+      "status": "new",
+      "tier": 4,
+      "kit": "cave",
+      "role": "tee",
+      "values": {
+        "Subject": "a 5-foot section of natural cave wall, a ridge of rough dark rock seen from directly above",
+        "Shape": "A T-junction: arms run from the centre to the left edge, the right edge and the bottom edge; nothing above the centre.",
+        "Detail": "Irregular grey-brown boulders fused into one craggy band, damp dark cracks and a few pale mineral streaks. The wall band is about one third of the image height thick."
+      },
+      "prompt": "Top-down battle-map asset for a tabletop fantasy grid map, in a rich hand-painted style: confident painterly brushwork, fine dark ink outlines, crisp small detail and a muted, earthy, slightly warm palette. Strictly orthographic view from directly overhead: no perspective, no horizon, no tilted or isometric angle. Soft light from the top-left, so upper-left edges catch highlights and lower-right edges fall into gentle form shading; no cast shadow and no drop shadow anywhere. No text, no letters, no numbers, no grid lines, no frame, no border, no vignette, no watermark, no signature. Subject: one modular wall piece from a grid-map wall kit, a 5-foot section of natural cave wall, a ridge of rough dark rock seen from directly above. A T-junction: arms run from the centre to the left edge, the right edge and the bottom edge; nothing above the centre. Irregular grey-brown boulders fused into one craggy band, damp dark cracks and a few pale mineral streaks. The wall band is about one third of the image height thick. Wall pieces join into long walls on a square grid, so the top of the wall is seen as a straight band of even thickness, every arm runs perfectly straight along the image's horizontal or vertical centre line and is cut off square exactly at the image edge it reaches. The junction is exactly at the centre of the image. Everything that is not wall is fully transparent (a PNG with a real alpha channel, background: transparent): no ground, no grass, no floor, no shadow."
+    },
+    "wall.cave.cross": {
+      "class": "wall",
+      "template": "arda-wall",
+      "format": "1:1",
+      "footprint": [
+        1,
+        1
+      ],
+      "pixels": [
+        128,
+        128
+      ],
+      "layer": "wall",
+      "height_ft": 10,
+      "functions": [],
+      "tags": {
+        "biome": [],
+        "culture": [],
+        "wealth": [],
+        "function": [],
+        "free": [
+          "cave",
+          "dungeon"
+        ]
+      },
+      "blocks_movement": true,
+      "blocks_sight": true,
+      "difficult_terrain": false,
+      "cover": "total",
+      "file": "walls/wall.cave.cross.png",
+      "status": "new",
+      "tier": 4,
+      "kit": "cave",
+      "role": "cross",
+      "values": {
+        "Subject": "a 5-foot section of natural cave wall, a ridge of rough dark rock seen from directly above",
+        "Shape": "A cross junction: arms run from the centre to all four edges (left, right, top and bottom), meeting in a plus shape.",
+        "Detail": "Irregular grey-brown boulders fused into one craggy band, damp dark cracks and a few pale mineral streaks. The wall band is about one third of the image height thick."
+      },
+      "prompt": "Top-down battle-map asset for a tabletop fantasy grid map, in a rich hand-painted style: confident painterly brushwork, fine dark ink outlines, crisp small detail and a muted, earthy, slightly warm palette. Strictly orthographic view from directly overhead: no perspective, no horizon, no tilted or isometric angle. Soft light from the top-left, so upper-left edges catch highlights and lower-right edges fall into gentle form shading; no cast shadow and no drop shadow anywhere. No text, no letters, no numbers, no grid lines, no frame, no border, no vignette, no watermark, no signature. Subject: one modular wall piece from a grid-map wall kit, a 5-foot section of natural cave wall, a ridge of rough dark rock seen from directly above. A cross junction: arms run from the centre to all four edges (left, right, top and bottom), meeting in a plus shape. Irregular grey-brown boulders fused into one craggy band, damp dark cracks and a few pale mineral streaks. The wall band is about one third of the image height thick. Wall pieces join into long walls on a square grid, so the top of the wall is seen as a straight band of even thickness, every arm runs perfectly straight along the image's horizontal or vertical centre line and is cut off square exactly at the image edge it reaches. The junction is exactly at the centre of the image. Everything that is not wall is fully transparent (a PNG with a real alpha channel, background: transparent): no ground, no grass, no floor, no shadow."
+    },
+    "wall.cave.end": {
+      "class": "wall",
+      "template": "arda-wall",
+      "format": "1:1",
+      "footprint": [
+        1,
+        1
+      ],
+      "pixels": [
+        128,
+        128
+      ],
+      "layer": "wall",
+      "height_ft": 10,
+      "functions": [],
+      "tags": {
+        "biome": [],
+        "culture": [],
+        "wealth": [],
+        "function": [],
+        "free": [
+          "cave",
+          "dungeon"
+        ]
+      },
+      "blocks_movement": true,
+      "blocks_sight": true,
+      "difficult_terrain": false,
+      "cover": "total",
+      "file": "walls/wall.cave.end.png",
+      "status": "new",
+      "tier": 4,
+      "kit": "cave",
+      "role": "end",
+      "values": {
+        "Subject": "a 5-foot section of natural cave wall, a ridge of rough dark rock seen from directly above",
+        "Shape": "A wall end: one arm runs in from the right edge and stops at the centre with a finished, capped end; nothing left of, above or below the centre.",
+        "Detail": "Irregular grey-brown boulders fused into one craggy band, damp dark cracks and a few pale mineral streaks. The wall band is about one third of the image height thick."
+      },
+      "prompt": "Top-down battle-map asset for a tabletop fantasy grid map, in a rich hand-painted style: confident painterly brushwork, fine dark ink outlines, crisp small detail and a muted, earthy, slightly warm palette. Strictly orthographic view from directly overhead: no perspective, no horizon, no tilted or isometric angle. Soft light from the top-left, so upper-left edges catch highlights and lower-right edges fall into gentle form shading; no cast shadow and no drop shadow anywhere. No text, no letters, no numbers, no grid lines, no frame, no border, no vignette, no watermark, no signature. Subject: one modular wall piece from a grid-map wall kit, a 5-foot section of natural cave wall, a ridge of rough dark rock seen from directly above. A wall end: one arm runs in from the right edge and stops at the centre with a finished, capped end; nothing left of, above or below the centre. Irregular grey-brown boulders fused into one craggy band, damp dark cracks and a few pale mineral streaks. The wall band is about one third of the image height thick. Wall pieces join into long walls on a square grid, so the top of the wall is seen as a straight band of even thickness, every arm runs perfectly straight along the image's horizontal or vertical centre line and is cut off square exactly at the image edge it reaches. The junction is exactly at the centre of the image. Everything that is not wall is fully transparent (a PNG with a real alpha channel, background: transparent): no ground, no grass, no floor, no shadow."
+    },
+    "wall.cave.door.alt1": {
+      "class": "wall",
+      "template": "arda-wall",
+      "format": "1:1",
+      "footprint": [
+        1,
+        1
+      ],
+      "pixels": [
+        128,
+        128
+      ],
+      "layer": "wall",
+      "height_ft": 10,
+      "functions": [],
+      "tags": {
+        "biome": [],
+        "culture": [],
+        "wealth": [],
+        "function": [],
+        "free": [
+          "cave",
+          "dungeon"
+        ]
+      },
+      "blocks_movement": true,
+      "blocks_sight": true,
+      "difficult_terrain": false,
+      "cover": "total",
+      "file": "walls/wall.cave.door.alt1.png",
+      "status": "new",
+      "tier": 4,
+      "kit": "cave",
+      "role": "door",
+      "variant_of": "wall.cave.door",
+      "derive_from": "wall.cave.door",
+      "values": {
+        "Subject": "a 5-foot section of natural cave wall, a ridge of rough dark rock seen from directly above",
+        "Shape": "Doorway in a straight run from left edge to right edge on the centre line; middle third: a gap between jambs, wall top stopped, shut by a door of grey weathered planks along the wall line.",
+        "Detail": "The same craggy band of dark fused boulders as the plain run, a cracked boulder with grit at its foot. The wall band is about one third of the image height thick."
+      },
+      "prompt": "Top-down battle-map asset for a tabletop fantasy grid map, in a rich hand-painted style: confident painterly brushwork, fine dark ink outlines, crisp small detail and a muted, earthy, slightly warm palette. Strictly orthographic view from directly overhead: no perspective, no horizon, no tilted or isometric angle. Soft light from the top-left, so upper-left edges catch highlights and lower-right edges fall into gentle form shading; no cast shadow and no drop shadow anywhere. No text, no letters, no numbers, no grid lines, no frame, no border, no vignette, no watermark, no signature. Subject: one modular wall piece from a grid-map wall kit, a 5-foot section of natural cave wall, a ridge of rough dark rock seen from directly above. Doorway in a straight run from left edge to right edge on the centre line; middle third: a gap between jambs, wall top stopped, shut by a door of grey weathered planks along the wall line. The same craggy band of dark fused boulders as the plain run, a cracked boulder with grit at its foot. The wall band is about one third of the image height thick. Wall pieces join into long walls on a square grid, so the top of the wall is seen as a straight band of even thickness, every arm runs perfectly straight along the image's horizontal or vertical centre line and is cut off square exactly at the image edge it reaches. The junction is exactly at the centre of the image. Everything that is not wall is fully transparent (a PNG with a real alpha channel, background: transparent): no ground, no grass, no floor, no shadow."
+    },
+    "wall.cave.window.alt1": {
+      "class": "wall",
+      "template": "arda-wall",
+      "format": "1:1",
+      "footprint": [
+        1,
+        1
+      ],
+      "pixels": [
+        128,
+        128
+      ],
+      "layer": "wall",
+      "height_ft": 10,
+      "functions": [],
+      "tags": {
+        "biome": [],
+        "culture": [],
+        "wealth": [],
+        "function": [],
+        "free": [
+          "cave",
+          "dungeon"
+        ]
+      },
+      "blocks_movement": true,
+      "blocks_sight": true,
+      "difficult_terrain": false,
+      "cover": "total",
+      "file": "walls/wall.cave.window.alt1.png",
+      "status": "new",
+      "tier": 4,
+      "kit": "cave",
+      "role": "window",
+      "variant_of": "wall.cave.window",
+      "derive_from": "wall.cave.window",
+      "values": {
+        "Subject": "a 5-foot section of natural cave wall, a ridge of rough dark rock seen from directly above",
+        "Shape": "A straight run with a window: it runs from the left edge to the right edge along the horizontal centre line, with a thin fissure with a sliver of darkness through it in the middle third.",
+        "Detail": "The same craggy band of dark fused boulders as the plain run, white mineral crust streaking down one face. The wall band is about one third of the image height thick."
+      },
+      "prompt": "Top-down battle-map asset for a tabletop fantasy grid map, in a rich hand-painted style: confident painterly brushwork, fine dark ink outlines, crisp small detail and a muted, earthy, slightly warm palette. Strictly orthographic view from directly overhead: no perspective, no horizon, no tilted or isometric angle. Soft light from the top-left, so upper-left edges catch highlights and lower-right edges fall into gentle form shading; no cast shadow and no drop shadow anywhere. No text, no letters, no numbers, no grid lines, no frame, no border, no vignette, no watermark, no signature. Subject: one modular wall piece from a grid-map wall kit, a 5-foot section of natural cave wall, a ridge of rough dark rock seen from directly above. A straight run with a window: it runs from the left edge to the right edge along the horizontal centre line, with a thin fissure with a sliver of darkness through it in the middle third. The same craggy band of dark fused boulders as the plain run, white mineral crust streaking down one face. The wall band is about one third of the image height thick. Wall pieces join into long walls on a square grid, so the top of the wall is seen as a straight band of even thickness, every arm runs perfectly straight along the image's horizontal or vertical centre line and is cut off square exactly at the image edge it reaches. The junction is exactly at the centre of the image. Everything that is not wall is fully transparent (a PNG with a real alpha channel, background: transparent): no ground, no grass, no floor, no shadow."
+    },
+    "wall.cave.gate.alt1": {
+      "class": "wall",
+      "template": "arda-wall",
+      "format": "1:1",
+      "footprint": [
+        1,
+        1
+      ],
+      "pixels": [
+        128,
+        128
+      ],
+      "layer": "wall",
+      "height_ft": 10,
+      "functions": [],
+      "tags": {
+        "biome": [],
+        "culture": [],
+        "wealth": [],
+        "function": [],
+        "free": [
+          "cave",
+          "dungeon"
+        ]
+      },
+      "blocks_movement": true,
+      "blocks_sight": true,
+      "difficult_terrain": false,
+      "cover": "total",
+      "file": "walls/wall.cave.gate.alt1.png",
+      "status": "new",
+      "tier": 4,
+      "kit": "cave",
+      "role": "gate",
+      "variant_of": "wall.cave.gate",
+      "derive_from": "wall.cave.gate",
+      "values": {
+        "Subject": "a 5-foot section of natural cave wall, a ridge of rough dark rock seen from directly above",
+        "Shape": "Gateway in a straight run from left edge to right edge on the centre line; middle: a gap between posts, wall top stopped, shut by a crude gate of lashed poles along the wall line.",
+        "Detail": "The same craggy band of dark fused boulders as the plain run, glistening wet patches and a little green slime. The wall band is about one third of the image height thick."
+      },
+      "prompt": "Top-down battle-map asset for a tabletop fantasy grid map, in a rich hand-painted style: confident painterly brushwork, fine dark ink outlines, crisp small detail and a muted, earthy, slightly warm palette. Strictly orthographic view from directly overhead: no perspective, no horizon, no tilted or isometric angle. Soft light from the top-left, so upper-left edges catch highlights and lower-right edges fall into gentle form shading; no cast shadow and no drop shadow anywhere. No text, no letters, no numbers, no grid lines, no frame, no border, no vignette, no watermark, no signature. Subject: one modular wall piece from a grid-map wall kit, a 5-foot section of natural cave wall, a ridge of rough dark rock seen from directly above. Gateway in a straight run from left edge to right edge on the centre line; middle: a gap between posts, wall top stopped, shut by a crude gate of lashed poles along the wall line. The same craggy band of dark fused boulders as the plain run, glistening wet patches and a little green slime. The wall band is about one third of the image height thick. Wall pieces join into long walls on a square grid, so the top of the wall is seen as a straight band of even thickness, every arm runs perfectly straight along the image's horizontal or vertical centre line and is cut off square exactly at the image edge it reaches. The junction is exactly at the centre of the image. Everything that is not wall is fully transparent (a PNG with a real alpha channel, background: transparent): no ground, no grass, no floor, no shadow."
+    },
+    "wall.cave.post.alt1": {
+      "class": "wall",
+      "template": "arda-wall",
+      "format": "1:1",
+      "footprint": [
+        1,
+        1
+      ],
+      "pixels": [
+        128,
+        128
+      ],
+      "layer": "wall",
+      "height_ft": 10,
+      "functions": [],
+      "tags": {
+        "biome": [],
+        "culture": [],
+        "wealth": [],
+        "function": [],
+        "free": [
+          "cave",
+          "dungeon"
+        ]
+      },
+      "blocks_movement": true,
+      "blocks_sight": true,
+      "difficult_terrain": false,
+      "cover": "total",
+      "file": "walls/wall.cave.post.alt1.png",
+      "status": "new",
+      "tier": 4,
+      "kit": "cave",
+      "role": "post",
+      "variant_of": "wall.cave.post",
+      "derive_from": "wall.cave.post",
+      "values": {
+        "Subject": "a 5-foot section of natural cave wall, a ridge of rough dark rock seen from directly above",
+        "Shape": "Only a squat column of fused rock, alone at the exact centre, about a quarter of the image wide; no wall runs out from it, the rest is empty.",
+        "Detail": "The same craggy band of dark fused boulders as the plain run, a few pale crystal flecks in the rock. The wall band is about one third of the image height thick."
+      },
+      "prompt": "Top-down battle-map asset for a tabletop fantasy grid map, in a rich hand-painted style: confident painterly brushwork, fine dark ink outlines, crisp small detail and a muted, earthy, slightly warm palette. Strictly orthographic view from directly overhead: no perspective, no horizon, no tilted or isometric angle. Soft light from the top-left, so upper-left edges catch highlights and lower-right edges fall into gentle form shading; no cast shadow and no drop shadow anywhere. No text, no letters, no numbers, no grid lines, no frame, no border, no vignette, no watermark, no signature. Subject: one modular wall piece from a grid-map wall kit, a 5-foot section of natural cave wall, a ridge of rough dark rock seen from directly above. Only a squat column of fused rock, alone at the exact centre, about a quarter of the image wide; no wall runs out from it, the rest is empty. The same craggy band of dark fused boulders as the plain run, a few pale crystal flecks in the rock. The wall band is about one third of the image height thick. Wall pieces join into long walls on a square grid, so the top of the wall is seen as a straight band of even thickness, every arm runs perfectly straight along the image's horizontal or vertical centre line and is cut off square exactly at the image edge it reaches. The junction is exactly at the centre of the image. Everything that is not wall is fully transparent (a PNG with a real alpha channel, background: transparent): no ground, no grass, no floor, no shadow."
+    },
+    "wall.cave.corner.alt1": {
+      "class": "wall",
+      "template": "arda-wall",
+      "format": "1:1",
+      "footprint": [
+        1,
+        1
+      ],
+      "pixels": [
+        128,
+        128
+      ],
+      "layer": "wall",
+      "height_ft": 10,
+      "functions": [],
+      "tags": {
+        "biome": [],
+        "culture": [],
+        "wealth": [],
+        "function": [],
+        "free": [
+          "cave",
+          "dungeon"
+        ]
+      },
+      "blocks_movement": true,
+      "blocks_sight": true,
+      "difficult_terrain": false,
+      "cover": "total",
+      "file": "walls/wall.cave.corner.alt1.png",
+      "status": "new",
+      "tier": 4,
+      "kit": "cave",
+      "role": "corner",
+      "variant_of": "wall.cave.corner",
+      "derive_from": "wall.cave.corner",
+      "values": {
+        "Subject": "a 5-foot section of natural cave wall, a ridge of rough dark rock seen from directly above",
+        "Shape": "An L-shaped corner: one arm runs from the centre to the right edge and the other from the centre to the bottom edge; nothing left of or above the centre.",
+        "Detail": "The same craggy band of dark fused boulders as the plain run, a cracked boulder with grit at its foot. The wall band is about one third of the image height thick."
+      },
+      "prompt": "Top-down battle-map asset for a tabletop fantasy grid map, in a rich hand-painted style: confident painterly brushwork, fine dark ink outlines, crisp small detail and a muted, earthy, slightly warm palette. Strictly orthographic view from directly overhead: no perspective, no horizon, no tilted or isometric angle. Soft light from the top-left, so upper-left edges catch highlights and lower-right edges fall into gentle form shading; no cast shadow and no drop shadow anywhere. No text, no letters, no numbers, no grid lines, no frame, no border, no vignette, no watermark, no signature. Subject: one modular wall piece from a grid-map wall kit, a 5-foot section of natural cave wall, a ridge of rough dark rock seen from directly above. An L-shaped corner: one arm runs from the centre to the right edge and the other from the centre to the bottom edge; nothing left of or above the centre. The same craggy band of dark fused boulders as the plain run, a cracked boulder with grit at its foot. The wall band is about one third of the image height thick. Wall pieces join into long walls on a square grid, so the top of the wall is seen as a straight band of even thickness, every arm runs perfectly straight along the image's horizontal or vertical centre line and is cut off square exactly at the image edge it reaches. The junction is exactly at the centre of the image. Everything that is not wall is fully transparent (a PNG with a real alpha channel, background: transparent): no ground, no grass, no floor, no shadow."
+    },
+    "wall.cave.tee.alt1": {
+      "class": "wall",
+      "template": "arda-wall",
+      "format": "1:1",
+      "footprint": [
+        1,
+        1
+      ],
+      "pixels": [
+        128,
+        128
+      ],
+      "layer": "wall",
+      "height_ft": 10,
+      "functions": [],
+      "tags": {
+        "biome": [],
+        "culture": [],
+        "wealth": [],
+        "function": [],
+        "free": [
+          "cave",
+          "dungeon"
+        ]
+      },
+      "blocks_movement": true,
+      "blocks_sight": true,
+      "difficult_terrain": false,
+      "cover": "total",
+      "file": "walls/wall.cave.tee.alt1.png",
+      "status": "new",
+      "tier": 4,
+      "kit": "cave",
+      "role": "tee",
+      "variant_of": "wall.cave.tee",
+      "derive_from": "wall.cave.tee",
+      "values": {
+        "Subject": "a 5-foot section of natural cave wall, a ridge of rough dark rock seen from directly above",
+        "Shape": "A T-junction: arms run from the centre to the left edge, the right edge and the bottom edge; nothing above the centre.",
+        "Detail": "The same craggy band of dark fused boulders as the plain run, white mineral crust streaking down one face. The wall band is about one third of the image height thick."
+      },
+      "prompt": "Top-down battle-map asset for a tabletop fantasy grid map, in a rich hand-painted style: confident painterly brushwork, fine dark ink outlines, crisp small detail and a muted, earthy, slightly warm palette. Strictly orthographic view from directly overhead: no perspective, no horizon, no tilted or isometric angle. Soft light from the top-left, so upper-left edges catch highlights and lower-right edges fall into gentle form shading; no cast shadow and no drop shadow anywhere. No text, no letters, no numbers, no grid lines, no frame, no border, no vignette, no watermark, no signature. Subject: one modular wall piece from a grid-map wall kit, a 5-foot section of natural cave wall, a ridge of rough dark rock seen from directly above. A T-junction: arms run from the centre to the left edge, the right edge and the bottom edge; nothing above the centre. The same craggy band of dark fused boulders as the plain run, white mineral crust streaking down one face. The wall band is about one third of the image height thick. Wall pieces join into long walls on a square grid, so the top of the wall is seen as a straight band of even thickness, every arm runs perfectly straight along the image's horizontal or vertical centre line and is cut off square exactly at the image edge it reaches. The junction is exactly at the centre of the image. Everything that is not wall is fully transparent (a PNG with a real alpha channel, background: transparent): no ground, no grass, no floor, no shadow."
+    },
+    "wall.cave.cross.alt1": {
+      "class": "wall",
+      "template": "arda-wall",
+      "format": "1:1",
+      "footprint": [
+        1,
+        1
+      ],
+      "pixels": [
+        128,
+        128
+      ],
+      "layer": "wall",
+      "height_ft": 10,
+      "functions": [],
+      "tags": {
+        "biome": [],
+        "culture": [],
+        "wealth": [],
+        "function": [],
+        "free": [
+          "cave",
+          "dungeon"
+        ]
+      },
+      "blocks_movement": true,
+      "blocks_sight": true,
+      "difficult_terrain": false,
+      "cover": "total",
+      "file": "walls/wall.cave.cross.alt1.png",
+      "status": "new",
+      "tier": 4,
+      "kit": "cave",
+      "role": "cross",
+      "variant_of": "wall.cave.cross",
+      "derive_from": "wall.cave.cross",
+      "values": {
+        "Subject": "a 5-foot section of natural cave wall, a ridge of rough dark rock seen from directly above",
+        "Shape": "A cross junction: arms run from the centre to all four edges (left, right, top and bottom), meeting in a plus shape.",
+        "Detail": "The same craggy band of dark fused boulders as the plain run, glistening wet patches and a little green slime. The wall band is about one third of the image height thick."
+      },
+      "prompt": "Top-down battle-map asset for a tabletop fantasy grid map, in a rich hand-painted style: confident painterly brushwork, fine dark ink outlines, crisp small detail and a muted, earthy, slightly warm palette. Strictly orthographic view from directly overhead: no perspective, no horizon, no tilted or isometric angle. Soft light from the top-left, so upper-left edges catch highlights and lower-right edges fall into gentle form shading; no cast shadow and no drop shadow anywhere. No text, no letters, no numbers, no grid lines, no frame, no border, no vignette, no watermark, no signature. Subject: one modular wall piece from a grid-map wall kit, a 5-foot section of natural cave wall, a ridge of rough dark rock seen from directly above. A cross junction: arms run from the centre to all four edges (left, right, top and bottom), meeting in a plus shape. The same craggy band of dark fused boulders as the plain run, glistening wet patches and a little green slime. The wall band is about one third of the image height thick. Wall pieces join into long walls on a square grid, so the top of the wall is seen as a straight band of even thickness, every arm runs perfectly straight along the image's horizontal or vertical centre line and is cut off square exactly at the image edge it reaches. The junction is exactly at the centre of the image. Everything that is not wall is fully transparent (a PNG with a real alpha channel, background: transparent): no ground, no grass, no floor, no shadow."
+    },
+    "wall.cave.end.alt1": {
+      "class": "wall",
+      "template": "arda-wall",
+      "format": "1:1",
+      "footprint": [
+        1,
+        1
+      ],
+      "pixels": [
+        128,
+        128
+      ],
+      "layer": "wall",
+      "height_ft": 10,
+      "functions": [],
+      "tags": {
+        "biome": [],
+        "culture": [],
+        "wealth": [],
+        "function": [],
+        "free": [
+          "cave",
+          "dungeon"
+        ]
+      },
+      "blocks_movement": true,
+      "blocks_sight": true,
+      "difficult_terrain": false,
+      "cover": "total",
+      "file": "walls/wall.cave.end.alt1.png",
+      "status": "new",
+      "tier": 4,
+      "kit": "cave",
+      "role": "end",
+      "variant_of": "wall.cave.end",
+      "derive_from": "wall.cave.end",
+      "values": {
+        "Subject": "a 5-foot section of natural cave wall, a ridge of rough dark rock seen from directly above",
+        "Shape": "A wall end: one arm runs in from the right edge and stops at the centre with a finished, capped end; nothing left of, above or below the centre.",
+        "Detail": "The same craggy band of dark fused boulders as the plain run, a few pale crystal flecks in the rock. The wall band is about one third of the image height thick."
+      },
+      "prompt": "Top-down battle-map asset for a tabletop fantasy grid map, in a rich hand-painted style: confident painterly brushwork, fine dark ink outlines, crisp small detail and a muted, earthy, slightly warm palette. Strictly orthographic view from directly overhead: no perspective, no horizon, no tilted or isometric angle. Soft light from the top-left, so upper-left edges catch highlights and lower-right edges fall into gentle form shading; no cast shadow and no drop shadow anywhere. No text, no letters, no numbers, no grid lines, no frame, no border, no vignette, no watermark, no signature. Subject: one modular wall piece from a grid-map wall kit, a 5-foot section of natural cave wall, a ridge of rough dark rock seen from directly above. A wall end: one arm runs in from the right edge and stops at the centre with a finished, capped end; nothing left of, above or below the centre. The same craggy band of dark fused boulders as the plain run, a few pale crystal flecks in the rock. The wall band is about one third of the image height thick. Wall pieces join into long walls on a square grid, so the top of the wall is seen as a straight band of even thickness, every arm runs perfectly straight along the image's horizontal or vertical centre line and is cut off square exactly at the image edge it reaches. The junction is exactly at the centre of the image. Everything that is not wall is fully transparent (a PNG with a real alpha channel, background: transparent): no ground, no grass, no floor, no shadow."
+    },
+    "prop.stairs_down": {
+      "class": "prop",
+      "template": "arda-prop",
+      "format": "9:16",
+      "footprint": [
+        1,
+        2
+      ],
+      "pixels": [
+        128,
+        256
+      ],
+      "layer": "prop",
+      "height_ft": 0,
+      "functions": [],
+      "tags": {
+        "biome": [
+          "temperate"
+        ],
+        "culture": [],
+        "wealth": [
+          "poor",
+          "modest"
+        ],
+        "function": [],
+        "free": [
+          "dungeon",
+          "stairs",
+          "stairs_down"
+        ]
+      },
+      "blocks_movement": false,
+      "blocks_sight": false,
+      "difficult_terrain": true,
+      "cover": "none",
+      "file": "props/prop.stairs_down.png",
+      "status": "new",
+      "tier": 4,
+      "values": {
+        "Subject": "a flight of stone steps descending into darkness, seen from directly above",
+        "Shape": "Its outline is about twice as long as it is wide (5 by 10 feet), its long axis running top to bottom.",
+        "Detail": "Grey stone treads, light at the bottom edge, each step darker towards the top edge, which ends in black shadow."
+      },
+      "prompt": "Top-down battle-map asset for a tabletop fantasy grid map, in a rich hand-painted style: confident painterly brushwork, fine dark ink outlines, crisp small detail and a muted, earthy, slightly warm palette. Strictly orthographic view from directly overhead: no perspective, no horizon, no tilted or isometric angle. Soft light from the top-left, so upper-left edges catch highlights and lower-right edges fall into gentle form shading; no cast shadow and no drop shadow anywhere. No text, no letters, no numbers, no grid lines, no frame, no border, no vignette, no watermark, no signature. Subject: a flight of stone steps descending into darkness, seen from directly above, seen from directly above. Its outline is about twice as long as it is wide (5 by 10 feet), its long axis running top to bottom. Grey stone treads, light at the bottom edge, each step darker towards the top edge, which ends in black shadow. Exactly one subject, centred, filling about 70% of the frame's shorter side, on a fully transparent background (a PNG with a real alpha channel, background: transparent; no white or colour behind the subject); nothing else in the image: no floor, no ground patch, no base or rug under it, no other objects, no shadow."
+    },
+    "prop.torch_sconce": {
+      "class": "prop",
+      "template": "arda-prop",
+      "format": "1:1",
+      "footprint": [
+        1,
+        1
+      ],
+      "pixels": [
+        128,
+        128
+      ],
+      "layer": "prop",
+      "height_ft": 0,
+      "functions": [],
+      "tags": {
+        "biome": [
+          "temperate"
+        ],
+        "culture": [],
+        "wealth": [
+          "poor",
+          "modest"
+        ],
+        "function": [],
+        "free": [
+          "dungeon",
+          "wall_light"
+        ]
+      },
+      "blocks_movement": false,
+      "blocks_sight": false,
+      "difficult_terrain": false,
+      "cover": "none",
+      "file": "props/prop.torch_sconce.png",
+      "status": "new",
+      "tier": 4,
+      "values": {
+        "Subject": "an iron wall sconce holding a burning torch, seen from directly above",
+        "Shape": "Its outline is compact and about as wide as it is long, fitting one 5-foot square.",
+        "Detail": "A small iron bracket at the top edge of the frame, a wooden torch with a bright orange flame at its tip."
+      },
+      "prompt": "Top-down battle-map asset for a tabletop fantasy grid map, in a rich hand-painted style: confident painterly brushwork, fine dark ink outlines, crisp small detail and a muted, earthy, slightly warm palette. Strictly orthographic view from directly overhead: no perspective, no horizon, no tilted or isometric angle. Soft light from the top-left, so upper-left edges catch highlights and lower-right edges fall into gentle form shading; no cast shadow and no drop shadow anywhere. No text, no letters, no numbers, no grid lines, no frame, no border, no vignette, no watermark, no signature. Subject: an iron wall sconce holding a burning torch, seen from directly above, seen from directly above. Its outline is compact and about as wide as it is long, fitting one 5-foot square. A small iron bracket at the top edge of the frame, a wooden torch with a bright orange flame at its tip. Exactly one subject, centred, filling about 70% of the frame's shorter side, on a fully transparent background (a PNG with a real alpha channel, background: transparent; no white or colour behind the subject); nothing else in the image: no floor, no ground patch, no base or rug under it, no other objects, no shadow."
+    },
+    "prop.stairs_down.alt1": {
+      "class": "prop",
+      "template": "arda-prop",
+      "format": "9:16",
+      "footprint": [
+        1,
+        2
+      ],
+      "pixels": [
+        128,
+        256
+      ],
+      "layer": "prop",
+      "height_ft": 0,
+      "functions": [],
+      "tags": {
+        "biome": [
+          "temperate"
+        ],
+        "culture": [],
+        "wealth": [
+          "poor",
+          "modest"
+        ],
+        "function": [],
+        "free": [
+          "dungeon",
+          "stairs",
+          "stairs_down"
+        ]
+      },
+      "blocks_movement": false,
+      "blocks_sight": false,
+      "difficult_terrain": true,
+      "cover": "none",
+      "file": "props/prop.stairs_down.alt1.png",
+      "status": "new",
+      "tier": 4,
+      "variant_of": "prop.stairs_down",
+      "values": {
+        "Subject": "worn stone stairs going down between two low side walls",
+        "Shape": "Its outline is about twice as long as it is wide (5 by 10 feet), its long axis running top to bottom.",
+        "Detail": "Dished, chipped treads fading into a black opening at the top edge."
+      },
+      "prompt": "Top-down battle-map asset for a tabletop fantasy grid map, in a rich hand-painted style: confident painterly brushwork, fine dark ink outlines, crisp small detail and a muted, earthy, slightly warm palette. Strictly orthographic view from directly overhead: no perspective, no horizon, no tilted or isometric angle. Soft light from the top-left, so upper-left edges catch highlights and lower-right edges fall into gentle form shading; no cast shadow and no drop shadow anywhere. No text, no letters, no numbers, no grid lines, no frame, no border, no vignette, no watermark, no signature. Subject: worn stone stairs going down between two low side walls, seen from directly above. Its outline is about twice as long as it is wide (5 by 10 feet), its long axis running top to bottom. Dished, chipped treads fading into a black opening at the top edge. Exactly one subject, centred, filling about 70% of the frame's shorter side, on a fully transparent background (a PNG with a real alpha channel, background: transparent; no white or colour behind the subject); nothing else in the image: no floor, no ground patch, no base or rug under it, no other objects, no shadow."
+    },
+    "prop.torch_sconce.alt1": {
+      "class": "prop",
+      "template": "arda-prop",
+      "format": "1:1",
+      "footprint": [
+        1,
+        1
+      ],
+      "pixels": [
+        128,
+        128
+      ],
+      "layer": "prop",
+      "height_ft": 0,
+      "functions": [],
+      "tags": {
+        "biome": [
+          "temperate"
+        ],
+        "culture": [],
+        "wealth": [
+          "poor",
+          "modest"
+        ],
+        "function": [],
+        "free": [
+          "dungeon",
+          "wall_light"
+        ]
+      },
+      "blocks_movement": false,
+      "blocks_sight": false,
+      "difficult_terrain": false,
+      "cover": "none",
+      "file": "props/prop.torch_sconce.alt1.png",
+      "status": "new",
+      "tier": 4,
+      "variant_of": "prop.torch_sconce",
+      "values": {
+        "Subject": "a rusty ring sconce with a smoking pitch torch",
+        "Shape": "Its outline is compact and about as wide as it is long, fitting one 5-foot square.",
+        "Detail": "Iron ring fixed at the top edge, a torch wrapped in dark rags, a small flame."
+      },
+      "prompt": "Top-down battle-map asset for a tabletop fantasy grid map, in a rich hand-painted style: confident painterly brushwork, fine dark ink outlines, crisp small detail and a muted, earthy, slightly warm palette. Strictly orthographic view from directly overhead: no perspective, no horizon, no tilted or isometric angle. Soft light from the top-left, so upper-left edges catch highlights and lower-right edges fall into gentle form shading; no cast shadow and no drop shadow anywhere. No text, no letters, no numbers, no grid lines, no frame, no border, no vignette, no watermark, no signature. Subject: a rusty ring sconce with a smoking pitch torch, seen from directly above. Its outline is compact and about as wide as it is long, fitting one 5-foot square. Iron ring fixed at the top edge, a torch wrapped in dark rags, a small flame. Exactly one subject, centred, filling about 70% of the frame's shorter side, on a fully transparent background (a PNG with a real alpha channel, background: transparent; no white or colour behind the subject); nothing else in the image: no floor, no ground patch, no base or rug under it, no other objects, no shadow."
+    },
+    "prop.stairs_down.alt2": {
+      "class": "prop",
+      "template": "arda-prop",
+      "format": "9:16",
+      "footprint": [
+        1,
+        2
+      ],
+      "pixels": [
+        128,
+        256
+      ],
+      "layer": "prop",
+      "height_ft": 0,
+      "functions": [],
+      "tags": {
+        "biome": [
+          "temperate"
+        ],
+        "culture": [],
+        "wealth": [
+          "poor",
+          "modest"
+        ],
+        "function": [],
+        "free": [
+          "dungeon",
+          "stairs",
+          "stairs_down"
+        ]
+      },
+      "blocks_movement": false,
+      "blocks_sight": false,
+      "difficult_terrain": true,
+      "cover": "none",
+      "file": "props/prop.stairs_down.alt2.png",
+      "status": "new",
+      "tier": 4,
+      "variant_of": "prop.stairs_down",
+      "values": {
+        "Subject": "a narrow spiral of rough stone steps leading down into the dark",
+        "Shape": "Its outline is about twice as long as it is wide (5 by 10 feet), its long axis running top to bottom.",
+        "Detail": "Wedge-shaped treads curling towards a black hole near the top edge."
+      },
+      "prompt": "Top-down battle-map asset for a tabletop fantasy grid map, in a rich hand-painted style: confident painterly brushwork, fine dark ink outlines, crisp small detail and a muted, earthy, slightly warm palette. Strictly orthographic view from directly overhead: no perspective, no horizon, no tilted or isometric angle. Soft light from the top-left, so upper-left edges catch highlights and lower-right edges fall into gentle form shading; no cast shadow and no drop shadow anywhere. No text, no letters, no numbers, no grid lines, no frame, no border, no vignette, no watermark, no signature. Subject: a narrow spiral of rough stone steps leading down into the dark, seen from directly above. Its outline is about twice as long as it is wide (5 by 10 feet), its long axis running top to bottom. Wedge-shaped treads curling towards a black hole near the top edge. Exactly one subject, centred, filling about 70% of the frame's shorter side, on a fully transparent background (a PNG with a real alpha channel, background: transparent; no white or colour behind the subject); nothing else in the image: no floor, no ground patch, no base or rug under it, no other objects, no shadow."
+    },
+    "prop.torch_sconce.alt2": {
+      "class": "prop",
+      "template": "arda-prop",
+      "format": "1:1",
+      "footprint": [
+        1,
+        1
+      ],
+      "pixels": [
+        128,
+        128
+      ],
+      "layer": "prop",
+      "height_ft": 0,
+      "functions": [],
+      "tags": {
+        "biome": [
+          "temperate"
+        ],
+        "culture": [],
+        "wealth": [
+          "poor",
+          "modest"
+        ],
+        "function": [],
+        "free": [
+          "dungeon",
+          "wall_light"
+        ]
+      },
+      "blocks_movement": false,
+      "blocks_sight": false,
+      "difficult_terrain": false,
+      "cover": "none",
+      "file": "props/prop.torch_sconce.alt2.png",
+      "status": "new",
+      "tier": 4,
+      "variant_of": "prop.torch_sconce",
+      "values": {
+        "Subject": "a wrought iron sconce shaped like a claw holding a torch",
+        "Shape": "Its outline is compact and about as wide as it is long, fitting one 5-foot square.",
+        "Detail": "Black iron claw at the top edge, a short torch with a yellow flame."
+      },
+      "prompt": "Top-down battle-map asset for a tabletop fantasy grid map, in a rich hand-painted style: confident painterly brushwork, fine dark ink outlines, crisp small detail and a muted, earthy, slightly warm palette. Strictly orthographic view from directly overhead: no perspective, no horizon, no tilted or isometric angle. Soft light from the top-left, so upper-left edges catch highlights and lower-right edges fall into gentle form shading; no cast shadow and no drop shadow anywhere. No text, no letters, no numbers, no grid lines, no frame, no border, no vignette, no watermark, no signature. Subject: a wrought iron sconce shaped like a claw holding a torch, seen from directly above. Its outline is compact and about as wide as it is long, fitting one 5-foot square. Black iron claw at the top edge, a short torch with a yellow flame. Exactly one subject, centred, filling about 70% of the frame's shorter side, on a fully transparent background (a PNG with a real alpha channel, background: transparent; no white or colour behind the subject); nothing else in the image: no floor, no ground patch, no base or rug under it, no other objects, no shadow."
     }
   }
 }

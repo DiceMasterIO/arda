@@ -15,7 +15,7 @@
 import { readFileSync, writeFileSync } from "node:fs";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
-import { entries as expansion, groundTargets, newKits, wallVariants } from "./expansion.mjs";
+import { entries as expansion, groundTargets, newGround, newKits, wallVariants } from "./expansion.mjs";
 import { pair, readChecklist, render, slotsOf } from "./lib.mjs";
 
 const here = dirname(fileURLToPath(import.meta.url));
@@ -217,6 +217,11 @@ const ground = {
     "Light turquoise water with gentle ripples, the sandy, pebbled bottom visible through it.",
   ],
 };
+
+for (const [key, g] of Object.entries(newGround)) {
+  if (ground[key] !== undefined) throw new Error(`newGround ${key} is already described`);
+  ground[key] = g.text;
+}
 
 // Variant wording. Natural surfaces differ only in arrangement; structured surfaces (one layout
 // shared by every variant) differ only in wear and stains.
@@ -819,7 +824,12 @@ const extraMeta = {
 };
 
 function originalMeta(id, groundKey, layer, height) {
-  const base = placeholderById.get(id) ?? (groundKey === undefined ? undefined : placeholderByGround.get(groundKey));
+  // extraMeta wins: those ids' pack metadata predates any placeholder art drawn for them later
+  // (prop.stairs now has a dungeon placeholder with dungeon-only tags).
+  const fromPlaceholder = extraMeta[id] === undefined;
+  const base = fromPlaceholder
+    ? placeholderById.get(id) ?? (groundKey === undefined ? undefined : placeholderByGround.get(groundKey))
+    : undefined;
   if (base !== undefined)
     return { layer: layer || base.layer, height_ft: height ?? base.height_ft, tags: tagsOf(base.tags), ...blockingOf(base) };
   if (extraMeta[id] !== undefined) {
@@ -951,6 +961,38 @@ function groundExpansion() {
       };
       if (first.structured) entry.derive_from = `${prefix}.${key}.0`;
       entry.values = textureValues(key, variant, first.structured, first.footprint);
+      out.push([id, finish(id, entry)]);
+    }
+  }
+  return out;
+}
+
+// Ground keys the checklist lacks (expansion.mjs newGround): every variant, natural layout.
+function newGroundExpansion() {
+  const out = [];
+  for (const [key, g] of Object.entries(newGround)) {
+    for (let variant = 0; variant < g.variants; variant += 1) {
+      const id = `ground.${key}.${variant}`;
+      const footprint = [2, 2];
+      const entry = {
+        class: "ground",
+        template: classes.ground.template,
+        format: "1:1",
+        footprint,
+        pixels: footprint.map((n) => n * 128),
+        layer: "ground",
+        height_ft: 0,
+        functions: [],
+        tags: { biome: ["temperate"], culture: ["human"], wealth: [], function: [], free: [] },
+        ...blocking[g.block ?? "clear"],
+        file: `ground/${id}.png`,
+        status: "new",
+        tier: g.tier,
+        ground: key,
+        structured: false,
+        variant,
+      };
+      entry.values = textureValues(key, variant, false, footprint);
       out.push([id, finish(id, entry)]);
     }
   }
@@ -1122,7 +1164,7 @@ for (const id of originals) {
   const g = assets[id].ground;
   if (g !== undefined) originalVariants[g] = (originalVariants[g] ?? 0) + 1;
 }
-const added = [...groundExpansion(), ...wallExpansion(), ...cutoutExpansion()];
+const added = [...groundExpansion(), ...newGroundExpansion(), ...wallExpansion(), ...cutoutExpansion()];
 const seen = new Set(originals);
 for (const [id] of added) {
   if (seen.has(id)) throw new Error(`duplicate id ${id}`);
@@ -1159,7 +1201,7 @@ const pack = {
   tiers: {
     counts: tierCounts,
     about:
-      "0: the first 225 (already generated). 1: every variant of those 225, which fixes repetition on every map. 2: building-function and biome sets. 3: culture sets, rare dressing and the new wall kits. Within a tier, assets run in order of visual impact.",
+      "0: the first 225 (already generated). 1: every variant of those 225, which fixes repetition on every map. 2: building-function and biome sets. 3: culture sets, rare dressing and the new wall kits. 4: the underground set for arda-dungeon (cave and bedrock ground, the cave wall kit, stairs down, torch sconces, stalagmites). Within a tier, assets run in order of visual impact.",
   },
   notes: {
     structured:

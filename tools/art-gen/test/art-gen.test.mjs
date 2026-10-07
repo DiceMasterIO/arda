@@ -138,7 +138,7 @@ test("every asset carries valid catalogue metadata and tags", () => {
     assert.ok(Number.isInteger(a.height_ft) && a.height_ft >= 0, `${id}: height_ft ${a.height_ft}`);
     for (const flag of ["blocks_movement", "blocks_sight", "difficult_terrain"]) assert.equal(typeof a[flag], "boolean", `${id} ${flag}`);
     assert.ok(a.footprint.every((n) => Number.isInteger(n) && n >= 1 && n <= 16), `${id}: footprint`);
-    assert.ok([0, 1, 2, 3].includes(a.tier), `${id}: tier ${a.tier}`);
+    assert.ok([0, 1, 2, 3, 4].includes(a.tier), `${id}: tier ${a.tier}`);
     assert.deepEqual(Object.keys(a.tags).sort(), ["biome", "culture", "free", "function", "wealth"], id);
     for (const list of ["biome", "culture", "wealth", "function"])
       for (const tag of a.tags[list]) assert.ok(vocabulary[list].includes(tag), `${id}: ${list} "${tag}" is not in the catalogue vocabulary`);

@@ -88,6 +88,10 @@ pub struct SceneWallDto {
     pub cover: CoverLevelDto,
     /// Wall kit name.
     pub kit: String,
+    /// `true` on a locked door, gate or secret door; absent otherwise.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[ts(optional)]
+    pub locked: Option<bool>,
 }
 
 /// Where a vision blocker comes from.

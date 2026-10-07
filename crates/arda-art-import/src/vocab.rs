@@ -37,6 +37,8 @@ pub const GROUND_KEYS: &[&str] = &[
     "salt_crust",
     "mudflat",
     "trail",
+    "cave_floor",
+    "bedrock",
 ];
 
 /// Wall kits (`WallSegment.kit`).
@@ -48,6 +50,7 @@ pub const WALL_KITS: &[&str] = &[
     "hedge",
     "drystone",
     "city_wall",
+    "cave",
 ];
 
 /// Prop names (`prop.<name>`).
@@ -114,6 +117,16 @@ pub const PROPS: &[&str] = &[
     "ferry_boat",
     "bridge_deck_stone",
     "drain",
+    "tomb",
+    "coffin",
+    "bone_pile",
+    "skeleton",
+    "cage",
+    "gaol_cot",
+    "rubble_pile",
+    "chest_treasure",
+    "stairs_down",
+    "torch_sconce",
 ];
 
 /// Vegetation names (`veg.<name>`).
@@ -147,6 +160,7 @@ pub const VEGETATION: &[&str] = &[
     "tree_stunted",
     "juniper",
     "rock_outcrop",
+    "stalagmite",
 ];
 
 /// Building functions (`function` tags).

@@ -277,6 +277,16 @@
           "description": "Wall kit name.",
           "type": "string"
         },
+        "tags": {
+          "description": "Free edge tags: `locked` and `secret` on doors. Absent when empty.",
+          "items": {
+            "type": "string"
+          },
+          "type": [
+            "array",
+            "null"
+          ]
+        },
         "x": {
           "description": "Square column.",
           "format": "uint32",

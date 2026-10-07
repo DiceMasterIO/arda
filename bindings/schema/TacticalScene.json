@@ -554,6 +554,13 @@
           "description": "Wall kit name.",
           "type": "string"
         },
+        "locked": {
+          "description": "`true` on a locked door, gate or secret door; absent otherwise.",
+          "type": [
+            "boolean",
+            "null"
+          ]
+        },
         "open": {
           "description": "Open state of doors, gates and secret doors; absent otherwise.",
           "type": [

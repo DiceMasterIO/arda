@@ -131,6 +131,7 @@ impl Builder {
             axis,
             kind,
             kit: kit.to_string(),
+            tags: Vec::new(),
         });
         self
     }
