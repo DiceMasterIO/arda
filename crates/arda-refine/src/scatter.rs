@@ -75,17 +75,20 @@ const LAYERS: [Layer; 9] = [
         grid: 7.0,
         radius: 7.5,
     },
+    // Trees stand close enough for crowns (2-3 squares across in the art)
+    // to close over a dense wood: a stand at full canopy covers most of the
+    // ground, and the woods' grove field thins it to the forest density.
     Layer {
         kind: Kind::TreeLarge,
         tag: 0x7001,
-        grid: 2.6,
-        radius: 2.9,
+        grid: 1.6,
+        radius: 1.05,
     },
     Layer {
         kind: Kind::TreeSmall,
         tag: 0x7002,
-        grid: 2.2,
-        radius: 1.8,
+        grid: 1.6,
+        radius: 1.1,
     },
     Layer {
         kind: Kind::Undergrowth,
@@ -172,8 +175,14 @@ fn hard_core(seed: u64, l: &Layer, x0: f64, y0: f64, x1: f64, y1: f64) -> Vec<(f
 
 /// Clearance between two solid items, squares.
 fn clearance(a: Kind, b: Kind) -> f64 {
+    let tree = |k: Kind| matches!(k, Kind::TreeLarge | Kind::TreeSmall);
+    let under = |k: Kind| tree(k) || k == Kind::Undergrowth;
     if a == Kind::Outcrop || b == Kind::Outcrop {
         2.4
+    } else if under(a) && under(b) {
+        // Trunks of a closed stand, and shrubs between them: crowns
+        // overlap overhead.
+        1.0
     } else {
         1.6
     }

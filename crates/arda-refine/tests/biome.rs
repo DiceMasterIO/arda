@@ -223,3 +223,48 @@ fn biome_rules_stay_seamless() {
         check(&a, &b);
     }
 }
+
+/// Share of the block under tree crowns, from the art's footprints: 3 × 3
+/// broadleaves show about 2.3 squares of crown, 2 × 2 trees 1.5, stunted
+/// ones 0.8.
+fn canopy(b: &Block) -> f64 {
+    const N: i64 = 4;
+    let side = 64 * N;
+    let mut cov = vec![false; usize::try_from(side * side).unwrap()];
+    for it in &b.items {
+        let r = match it.asset {
+            "veg.tree_oak" | "veg.tree_elm" | "veg.tree_willow" => 1.15,
+            "veg.tree_stunted" => 0.4,
+            a if a.starts_with("veg.tree_") => 0.75,
+            _ => continue,
+        };
+        let (x, y) = (it.x - b.origin.0 as f64, it.y - b.origin.1 as f64);
+        for j in 0..side {
+            for i in 0..side {
+                let (u, v) = ((i as f64 + 0.5) / N as f64, (j as f64 + 0.5) / N as f64);
+                if (u - x).powi(2) + (v - y).powi(2) <= r * r {
+                    cov[usize::try_from(j * side + i).unwrap()] = true;
+                }
+            }
+        }
+    }
+    cov.iter().filter(|c| **c).count() as f64 / cov.len() as f64
+}
+
+#[test]
+fn forest_canopy_closes_to_about_the_forest_density() {
+    let forest = |fd: u8| {
+        world(move |_, _, c| {
+            c.cover = Cover::Forest;
+            c.forest_density = fd;
+        })
+    };
+    let dense = canopy(&refine(&forest(215), MID).unwrap());
+    let sparse = canopy(&refine(&forest(100), MID).unwrap());
+    assert!(dense > 0.65, "dense forest canopy {dense:.2}");
+    assert!(
+        (0.2..0.6).contains(&sparse),
+        "open woodland canopy {sparse:.2}"
+    );
+    assert!(dense > sparse + 0.2, "{dense:.2} vs {sparse:.2}");
+}

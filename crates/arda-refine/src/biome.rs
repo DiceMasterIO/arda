@@ -62,7 +62,7 @@ pub fn arid(c: &Cell) -> f64 {
         return 0.0;
     }
     let need = 300.0 + 45.0 * temp_c(c).max(0.0);
-    smoothstep(0.95, 0.4, rain / need)
+    smoothstep(0.75, 0.35, rain / need)
 }
 
 /// How snowbound the cell is, from its mean annual temperature.
@@ -131,7 +131,7 @@ mod tests {
             c.rainfall = RainfallMm::new(400);
             c.temperature = TempCentiC::new(1280);
         });
-        assert!(arid(&steppe) > 0.9, "{}", arid(&steppe));
+        assert!(arid(&steppe) > 0.75, "{}", arid(&steppe));
         let wet = cell(|c| c.rainfall = RainfallMm::new(1200));
         assert!(arid(&wet) < 1e-9);
         assert!(arid(&cell(|c| c.rainfall = RainfallMm::new(0))) < 1e-9);

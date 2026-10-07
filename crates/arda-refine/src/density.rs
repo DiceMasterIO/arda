@@ -45,7 +45,11 @@ fn quantile(fd: f64) -> f64 {
 pub fn woods(ctx: &Ctx, e: &Eco, x: f64, y: f64) -> Woods {
     let open = (1.0 - e.rocky) * (1.0 - 0.7 * e.marsh);
     // Steppe keeps its copses few: dry country grows trees only by water.
-    let target = (e.fd + 0.07 * e.grass * (1.0 - e.fd)) * open * (1.0 - 0.8 * e.arid);
+    // A stand closes only to about four fifths (gaps between crowns), so
+    // the wooded share runs a little over the density to give canopy cover
+    // close to it.
+    let target =
+        ((e.fd * 1.15).min(0.995) + 0.07 * e.grass * (1.0 - e.fd)) * open * (1.0 - 0.8 * e.arid);
     let n = fbm(ctx.seed, 0xC1, x, y, 26.0, 2, 0.5);
     let q = quantile(target);
     let grove = smoothstep(-0.03, 0.03, n - q);
@@ -60,7 +64,7 @@ pub fn woods(ctx: &Ctx, e: &Eco, x: f64, y: f64) -> Woods {
     };
     let drift = smoothstep(-0.08, 0.22, fbm(ctx.seed, 0xC5, x, y, 11.0, 2, 0.5));
     Woods {
-        canopy: (0.92 * grove).max(line) * grow,
+        canopy: grove.max(line) * grow,
         edge: rim.max(0.5 * line) * grow.max(0.3),
         drift,
         stony: smoothstep(-0.12, 0.2, fbm(ctx.seed, 0xC6, x, y, 9.0, 2, 0.5)),
@@ -91,7 +95,7 @@ pub fn density(kind: Kind, e: &Eco, w: &Woods, p: &Phys) -> f64 {
         Kind::Boulder if p.water == Water::Sea && p.depth_m < 2.5 => 0.04 + 0.35 * e.shore_rock,
         Kind::TreeLarge if firm(p) => w.canopy,
         Kind::TreeSmall if firm(p) => {
-            (0.3 * w.canopy + 0.4 * w.edge + 0.1 * e.scrub * w.drift).min(1.0)
+            (0.5 * w.canopy + 0.4 * w.edge + 0.1 * e.scrub * w.drift).min(1.0)
         }
         Kind::Log if firm(p) => 0.2 * w.canopy * e.growth.max(0.3),
         Kind::Undergrowth if firm(p) => {

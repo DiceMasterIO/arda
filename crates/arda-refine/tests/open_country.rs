@@ -151,7 +151,9 @@ fn feature_counts_stay_within_bounds() {
             let low = count(Kind::Low);
             let large = count(Kind::TreeLarge);
             assert!(outcrops <= 12, "{x},{y}: {outcrops} outcrops");
-            assert!(large <= 220, "{x},{y}: {large} large trees");
+            // A closed stand packs a trunk every ~4 square-squares so the
+            // art's 2-3 square crowns overlap (biome pass, v0.7.x).
+            assert!(large <= 1300, "{x},{y}: {large} large trees");
             assert!(low <= 900, "{x},{y}: {low} low plants");
             let dry = b.depth_ft.iter().filter(|d| **d == 0).count();
             if dry > 3000 && !common::ROCK.contains(&(x, y)) {
