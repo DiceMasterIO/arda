@@ -348,10 +348,7 @@ fn compounds_never_stand_on_a_settlement_core() {
     let s = synthetic::orchard_farmstead();
     let win = window_rect(s.origin_m, s.w, s.h).unwrap();
     let free = Plan::build(&s.inputs(), win, SEED);
-    let first = free
-        .compounds
-        .first()
-        .expect("the scenario has a farmstead");
+    let first = free.compounds.first().unwrap();
     // A core touching one square of the farmstead removes the whole
     // compound: none of its walls may cross the town's ground.
     let hit = *first.squares.keys().next().unwrap();
