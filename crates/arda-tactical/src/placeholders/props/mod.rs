@@ -14,6 +14,7 @@
 )]
 
 pub mod civic;
+pub mod dungeon;
 pub mod farm;
 pub mod fire;
 pub mod furniture;

@@ -89,3 +89,37 @@ pub fn cliff(t: &Tex) -> Tile {
     );
     tile
 }
+
+/// Cave floor: damp, packed grey-brown grit over uneven rock, with puddle
+/// stains, loose pebbles and a few flat stones. Walkable.
+pub fn cave_floor(t: &Tex) -> Tile {
+    const BED: Palette = [[62, 58, 52], [88, 82, 74], [114, 108, 98]];
+    const GRIT: Palette = [[78, 74, 68], [108, 102, 94], [138, 132, 120]];
+    let mut tile = base_with(t, &BED, 4, 0.12, (0.25, 0.45));
+    tile.map(|x, y, c| {
+        let damp = 1.0 - 0.18 * spread(t.noise(51, x, y, 5, 3), 1.8).max(0.0);
+        let mottle = 0.92 + 0.16 * t.noise(52, x, y, 14, 2);
+        let k = damp * mottle;
+        [c[0] * k, c[1] * k, c[2] * k]
+    });
+    let mut rng = t.rng(0xCA7E);
+    cracks(&mut tile, t, &mut rng, 6, 5, 6.0, 1.0, [48, 44, 40]);
+    pebbles(&mut tile, t, &mut rng, 260, (0.8, 2.0), &GRIT, &anywhere);
+    stones(&mut tile, t, &mut rng, 30, (3.0, 6.5), &GRIT, &anywhere);
+    tile
+}
+
+/// Bedrock: the dark, unbroken rock mass around dug or natural passages.
+/// Low contrast and nearly featureless, so walkable floors stand out.
+pub fn bedrock(t: &Tex) -> Tile {
+    const MASS: Palette = [[30, 28, 27], [44, 42, 40], [58, 56, 52]];
+    let mut tile = base_with(t, &MASS, 3, 0.1, (0.2, 0.35));
+    tile.map(|x, y, c| {
+        let (_, _, id, _) = t.voronoi(x, y, 3, 0.9);
+        let plate = 0.92 + 0.12 * unit(mix64(id ^ t.seed));
+        [c[0] * plate, c[1] * plate, c[2] * plate]
+    });
+    let mut rng = t.rng(0xBED0);
+    cracks(&mut tile, t, &mut rng, 8, 7, 8.0, 1.2, [20, 19, 18]);
+    tile
+}

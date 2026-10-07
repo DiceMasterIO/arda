@@ -2,7 +2,9 @@
 //! and the `function` tags that dressing queries such as `function:inn`
 //! or `function:smithy` use to find furniture.
 
-use super::props::{civic, farm, fire, furniture as fur, river, storage as st, work, yard};
+use super::props::{
+    civic, dungeon as dg, farm, fire, furniture as fur, river, storage as st, work, yard,
+};
 use super::relief::Relief;
 use super::{base, PPSQ};
 use crate::catalog::{Asset, AssetClass, Cover, Layer, Light};
@@ -79,7 +81,7 @@ use Cover::{Half, None as Open, ThreeQuarters as Most};
 
 /// Every placeholder prop.
 #[rustfmt::skip]
-pub const PROPS: [PropSpec; 56] = [
+pub const PROPS: [PropSpec; 67] = [
     p("prop.barrel", (1, 1), st::barrel, 4, Half, &["warehouse", "dock", "inn", "tavern", "brewery", "market", "boathouse", "market_hall", "mine"], &["container"]),
     p("prop.crate", (1, 1), st::crate_box, 3, Half, STORES, &["container"]),
     p("prop.sacks", (1, 1), st::sacks, 2, Half, &["warehouse", "farm", "market", "mill", "bakery", "barn", "stall", "market_hall"], &["container"]),
@@ -136,6 +138,19 @@ pub const PROPS: [PropSpec; 56] = [
     p("prop.ferry_rope", (1, 1), river::ferry_rope, 3, Open, &["dock", "waystation", "toll_house"], &["ferry", "water"]),
     p("prop.ferry_boat", (2, 3), river::ferry_boat, 1, Open, &["dock", "waystation", "toll_house"], &["ferry", "vehicle", "boat", "floor"]),
     p("prop.bridge_deck_stone", (1, 1), river::bridge_deck_stone, 0, Open, &["street", "toll_house"], &["floor", "bridge"]),
+    // Dungeon and cave dressing (arda-dungeon). Free tags only, and none an
+    // existing tag query uses, so town and field dressing never pick them.
+    p("prop.tomb", (1, 2), dg::tomb, 4, Half, &[], &["dungeon", "crypt"]),
+    p("prop.coffin", (1, 2), dg::coffin, 2, Half, &[], &["dungeon", "crypt"]),
+    p("prop.bone_pile", (1, 1), dg::bone_pile, 1, Open, &[], &["dungeon", "bones"]),
+    p("prop.skeleton", (1, 2), dg::skeleton, 0, Open, &[], &["dungeon", "bones"]),
+    p("prop.cage", (1, 1), dg::cage, 6, Most, &[], &["dungeon", "prison"]),
+    p("prop.gaol_cot", (1, 2), dg::gaol_cot, 2, Open, &[], &["dungeon", "prison"]),
+    p("prop.rubble_pile", (1, 1), dg::rubble_pile, 2, Open, &[], &["dungeon", "rubble"]),
+    p("prop.chest_treasure", (1, 1), dg::chest_treasure, 2, Half, &[], &["dungeon", "treasure"]),
+    p("prop.stairs", (1, 2), dg::stairs, 0, Open, &[], &["dungeon", "stairs", "stairs_up"]),
+    p("prop.stairs_down", (1, 2), dg::stairs_down, 0, Open, &[], &["dungeon", "stairs", "stairs_down"]),
+    p("prop.torch_sconce", (1, 1), dg::torch_sconce, 0, Open, &[], &["dungeon", "wall_light"]),
 ];
 
 /// Lights by prop id: radius in feet and colour.
@@ -147,6 +162,8 @@ fn light(id: &str) -> Option<Light> {
         "prop.oven" => (10, [255, 160, 80]),
         "prop.lantern" => (15, [255, 204, 124]),
         "prop.candle_stand" | "prop.altar" => (10, [255, 212, 150]),
+        // A torch: bright light 20 ft, dim 20 ft more (SRD 5.1).
+        "prop.torch_sconce" => (20, [255, 170, 84]),
         _ => return None,
     };
     Some(Light { radius_ft, colour })
@@ -191,6 +208,12 @@ pub fn prop_asset(spec: &PropSpec, seed: u64) -> (Asset, Rgba) {
             a.blocks_movement = false;
         }
         "prop.rug_small" => a.layer = Layer::Floor,
+        "prop.stairs" | "prop.stairs_down" => {
+            // Steps are climbed: difficult terrain, as in the AI library.
+            a.difficult_terrain = true;
+            a.rotations = vec![0, 90, 180, 270];
+        }
+        "prop.torch_sconce" => a.placement.against_wall = true,
         "prop.rowboat" => a.placement.on_water = true,
         "prop.fence" => a.rotations = vec![0, 90],
         "prop.market_stall" | "prop.cart" | "prop.well" | "prop.signpost" | "prop.haycart" => {
@@ -198,7 +221,8 @@ pub fn prop_asset(spec: &PropSpec, seed: u64) -> (Asset, Rgba) {
         }
         "prop.bed" | "prop.chest" | "prop.bench" | "prop.cupboard" | "prop.shelf"
         | "prop.bookshelf" | "prop.hearth" | "prop.cask_rack" | "prop.weapon_rack"
-        | "prop.workbench" | "prop.banner" | "prop.oven" | "prop.forge" => {
+        | "prop.workbench" | "prop.banner" | "prop.oven" | "prop.forge" | "prop.tomb"
+        | "prop.gaol_cot" => {
             a.placement.against_wall = true;
         }
         _ => {}

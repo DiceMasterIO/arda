@@ -52,7 +52,7 @@ pub fn cover_class(key: &str) -> u8 {
         "grass" | "meadow" | "pasture" | "heath" | "scrub" | "moss" | "forest_floor"
         | "leaf_litter" | "marsh" | "reed_bed" => 2,
         "dirt" | "mud" | "sand" | "gravel" | "packed_earth" | "farmland" | "scree" | "snow"
-        | "mudflat" => 1,
+        | "mudflat" | "cave_floor" => 1,
         // Laid surfaces hold their edges against loose ground.
         "cobbles" | "flagstone" | "stone_floor" | "planks" | "rug" => 1,
         _ => 0,

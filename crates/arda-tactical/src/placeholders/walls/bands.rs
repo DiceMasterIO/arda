@@ -114,6 +114,7 @@ pub fn body(r: &mut Relief, kit: &Kit, seed: u64, f: Frame, u0: f32, u1: f32, sc
         "palisade" => palisade(r, kit, seed, f, (u0, u1), t),
         "hedge" => hedge(r, kit, seed, f, (u0, u1), t),
         "drystone" => drystone(r, kit, seed, f, (u0, u1), t),
+        "cave" => cave(r, kit, seed, f, (u0, u1), t),
         _ => rampart(r, kit, seed, f, (u0, u1), t, s),
     }
 }
@@ -335,6 +336,22 @@ fn drystone(r: &mut Relief, kit: &Kit, seed: u64, f: Frame, (u0, u1): (f32, f32)
             false,
         );
     }
+}
+
+/// Cave rock: an unbroken dark rock band (so every arm reads solid to the
+/// importer's arm detector) heaped with rough boulders.
+fn cave(r: &mut Relief, kit: &Kit, seed: u64, f: Frame, (u0, u1): (f32, f32), t: f32) {
+    block(
+        r,
+        f,
+        ((u0 + u1) / 2.0, 0.0),
+        ((u1 - u0) / 2.0, t / 2.0),
+        t * 0.3,
+        stone(seed ^ 0x41, tone(kit.body, 0.7)),
+        0.0,
+        4.0,
+    );
+    drystone(r, kit, seed, f, (u0, u1), t);
 }
 
 /// Rampart: a flagged wall-walk between crenellated parapets.
