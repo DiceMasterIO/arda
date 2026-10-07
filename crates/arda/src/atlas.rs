@@ -123,9 +123,9 @@ pub(crate) fn atlas_terrain(
                 .map_or(0, |descriptor| descriptor.recipe_version);
             let formed = recipe >= 5;
             let halo_um = if formed { FORMED_HALO_UM } else { 150_000_000 };
-            let (bounds, window) = fine_window(reader, at, halo_um).map_err(&source_error)?;
+            let (bounds, window) = fine_window(reader, at, halo_um).map_err(source_error)?;
             if formed {
-                let sky = sky_context(reader, at).map_err(&source_error)?;
+                let sky = sky_context(reader, at).map_err(source_error)?;
                 // logic/04 §atlas-formed recipes: the world's recipe picks
                 // the formed look, so recipe-5 worlds render as v0.1 drew them.
                 let terrain = AtlasTerrain::new_with_fine_formed(
@@ -168,7 +168,7 @@ pub(crate) fn atlas_terrain(
                 .fine_terrain
                 .is_some_and(|descriptor| descriptor.recipe_version >= 4)
             {
-                let sky = sky_context(reader, at).map_err(&source_error)?;
+                let sky = sky_context(reader, at).map_err(source_error)?;
                 Ok(AtlasTerrain::new_with_fine_sky(
                     cells, lakes, halo, at, bounds, window, sky,
                 )?)

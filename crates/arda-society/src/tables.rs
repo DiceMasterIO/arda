@@ -347,10 +347,8 @@ impl Tables {
         if !self.names.cultures.contains_key(&self.names.default) {
             return bad("names.json", "default culture missing".to_string());
         }
-        for key in ["monarchy"] {
-            if !self.politics.governments.contains_key(key) {
-                return bad("politics.json", format!("missing government {key}"));
-            }
+        if !self.politics.governments.contains_key("monarchy") {
+            return bad("politics.json", "missing government monarchy".to_string());
         }
         Ok(())
     }

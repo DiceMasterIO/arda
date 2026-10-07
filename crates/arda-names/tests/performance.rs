@@ -6,7 +6,10 @@ use arda_names::{
 };
 use std::time::Instant;
 
+/// Wall-clock bound, so a release gate (shared CI runners are several
+/// times slower): `cargo test --release -p arda-names --test performance -- --ignored`.
 #[test]
+#[ignore = "wall-clock timing; release gate"]
 fn hundred_thousand_names_under_a_second() {
     let langs: Vec<Language> = Preset::ALL.iter().map(|&p| Language::new(77, p)).collect();
     let tags = [

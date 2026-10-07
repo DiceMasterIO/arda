@@ -116,7 +116,10 @@ async fn tiles_are_webp_bounded_and_match_the_render() {
     );
 }
 
+/// Wall-clock bound, so a release gate: run with
+/// `cargo test -p arda-server --test world_api a_cached_png -- --ignored`.
 #[tokio::test]
+#[ignore = "wall-clock timing; release gate"]
 async fn a_cached_png_returns_in_under_5_ms() {
     let uri = "/v1/tactical/layout/riverside.png";
     assert_eq!(get(uri).await.status, StatusCode::OK);
