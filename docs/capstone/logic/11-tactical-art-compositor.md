@@ -30,7 +30,7 @@ The canonical tactical keys (copied from `docs/goal-prompts/vocabulary.md`, whic
 - **Wall kits** (`WallSegment.kit`): `stone`, `timber`, `wattle`, `palisade`, `hedge`, `drystone`, `city_wall`.
 - **Building functions** (`function:` tags): see [10](10-town-layout.md) §town-function-keys, including the three additions `mine`, `lumber_camp`, `school`.
 - **Prop ids** (`prop.<name>`): barrel, crate, sacks, chest, table, bench, bed, cart, rowboat, market_stall, tent, fence, dock_planks, bridge_deck, crane, well, brazier, woodpile, chair, stool, cupboard, shelf, bookshelf, hearth, oven, bar_counter, cask_rack, anvil, forge, workbench, loom, grindstone, weapon_rack, armour_stand, altar, pew, candle_stand, statue, hay_bale, trough, millstone, bucket, wheelbarrow, ladder, throne, banner, rug_small, lantern, signpost, grave, haycart.
-- **Vegetation ids** (`veg.<name>`): tree_oak, tree_elm, tree_birch, tree_fruit, bush, bush_flowering, reeds, boulder, stones, tree_pine, tree_spruce, tree_willow, tree_dead, fallen_log, stump, fern, mushroom_ring, heather, flower_patch, tall_grass, cattail, lily_pads, rock_small, rock_large, scree_patch.
+- **Vegetation ids** (`veg.<name>`): tree_oak, tree_elm, tree_birch, tree_fruit, bush, bush_flowering, reeds, boulder, stones, tree_pine, tree_spruce, tree_willow, tree_dead, fallen_log, stump, fern, mushroom_ring, heather, flower_patch, tall_grass, cattail, lily_pads, rock_small, rock_large, scree_patch; the biome scatter of 09 §ground-field adds driftwood, sea_rock, tide_pool, dune_grass, lichen_rock, rock_snow, alpine_flowers, tussock, krummholz, sagebrush, dry_grass, sedge, marsh_flowers.
 
 ### §tag-query
 
@@ -75,6 +75,10 @@ Draw order is ground → water → floor → prop → wall → canopy, then ligh
 ### §ground-blend
 
 Each texture key has one or more variants; a square's variant is chosen by the canonical hash of its **global** square coordinate and the render seed, and neighbouring variants cross-fade. Borders between ground keys are soft and noise-shaped: each pixel's position is domain-warped by value noise sampled through integer rotation matrices (never axis-aligned), the warped position interpolates the per-square ground weights, per-key noise roughens them, and a sharpening curve sets the border width. Borders never cross a wall. Water uses the same warp at lower amplitude and a 1.5 px threshold, so its edge stays clean; depth (capped at 8 ft) blends `water_shallow` to `water_deep` (about 2 ft reads shallow, ≥ 7 ft deep; values from feat/tactical-catalogue).
+
+**Flattened variants (`compose/sample.rs`).** Natural (non-`structured`) texture variants are flattened once per texture set: most of each variant's low-frequency tone (85 % for ground, 50 % for water; its wrap-around box blur at an eighth of its width) is replaced by the key's mean over all variants, so variants differ in grain only. AI and photo textures carry per-variant tone shifts and lighting gradients that stochastic tiling cut into 1.75-square cells, a visible checker; flattened, cell borders vanish and the world-space macro tint supplies the large-scale variation. One variant covers a region of 3 × 3 cells (offsets stay per cell). Every placeholder render changes slightly with this (intended, v0.7.x biome pass).
+
+**Climate dryness (`Square.dryness`, `compose/ground.rs`).** An optional per-square `dryness` (0–255, omitted when 0; refined layouts carry `biome::arid`) tints ground toward dry grass after the blend: the colour moves toward its own luma times (1.32, 1.12, 0.62) by `0.75 · dryness · share`, where `share` is the weight of keys that take the tint (turf 1, marsh, reed beds and worked fields ½, bare earth and trails ¼, stone, sand, water, snow and laid surfaces 0). Dryness is interpolated bilinearly between square centres, so the tint has no square edges and is seam-exact; layouts without dryness skip the step and render exactly as before.
 
 ### §snow-cover
 
