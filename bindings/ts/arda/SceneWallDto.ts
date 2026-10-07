@@ -37,4 +37,8 @@ cover: CoverLevelDto,
 /**
  * Wall kit name.
  */
-kit: string, };
+kit: string, 
+/**
+ * `true` on a locked door, gate or secret door; absent otherwise.
+ */
+locked?: boolean, };

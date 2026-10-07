@@ -345,6 +345,7 @@ fn emit(layout: &mut TacticalLayout, g: &Grid, win: Window) -> Sidecar {
             axis,
             kind: wall.kind,
             kit: wall.kit.to_string(),
+            tags: Vec::new(),
         });
         let solid = wall.role == EdgeRole::Building && wall.kind != WallRole::Door;
         edges.push(EdgeRule {

@@ -4,12 +4,12 @@ use crate::error::SceneError;
 use crate::sidecar::{EdgeRule, RulesSidecar};
 use crate::types::{CoverLevel, Scene, Wall, WallKind};
 use arda_tactical::catalog::WallRole;
-use arda_tactical::layout::{EdgeAxis, TacticalLayout, WallSegment};
+use arda_tactical::layout::{EdgeAxis, TacticalLayout, WallSegment, TAG_LOCKED, TAG_SECRET};
 use arda_tactical::Library;
 use std::collections::BTreeMap;
 
-/// Free tag on a kit's door piece that makes its doors secret doors (the
-/// layout schema has no secret role of its own).
+/// Free tag on a kit's door piece that makes its doors secret doors. A
+/// single door is made secret by the layout edge tag `secret` instead.
 pub const SECRET_TAG: &str = "secret";
 
 /// Everything but position that must match for two edges to merge.
@@ -22,12 +22,16 @@ struct Attrs {
     blocks_light: bool,
     cover: CoverLevel,
     kit: String,
+    locked: bool,
 }
 
 fn attrs(lib: &Library, seg: &WallSegment) -> Attrs {
     let piece = lib.wall_pieces(&seg.kit, seg.kind).into_iter().next();
     let kind = match seg.kind {
-        WallRole::Door if piece.is_some_and(|p| p.tags.free.iter().any(|t| t == SECRET_TAG)) => {
+        WallRole::Door
+            if seg.has_tag(TAG_SECRET)
+                || piece.is_some_and(|p| p.tags.free.iter().any(|t| t == SECRET_TAG)) =>
+        {
             WallKind::Secret
         }
         WallRole::Door => WallKind::Door,
@@ -38,7 +42,9 @@ fn attrs(lib: &Library, seg: &WallSegment) -> Attrs {
     if kind.opens() {
         // Layouts carry no door state: everything starts closed, and a closed
         // door, gate or secret door is solid.
-        return closed(kind, seg.kit.clone());
+        let mut a = closed(kind, seg.kit.clone());
+        a.locked = seg.has_tag(TAG_LOCKED);
+        return a;
     }
     let (sight, movement, cover) = match piece {
         Some(p) => (p.blocks_sight, p.blocks_movement, CoverLevel::from(p.cover)),
@@ -53,6 +59,7 @@ fn attrs(lib: &Library, seg: &WallSegment) -> Attrs {
         blocks_light: sight,
         cover,
         kit: seg.kit.clone(),
+        locked: false,
     }
 }
 
@@ -65,6 +72,7 @@ fn closed(kind: WallKind, kit: String) -> Attrs {
         blocks_light: true,
         cover: CoverLevel::Total,
         kit,
+        locked: false,
     }
 }
 
@@ -131,6 +139,7 @@ pub fn build(layout: &TacticalLayout, lib: &Library, rules: Option<&RulesSidecar
                 blocks_light: a.blocks_light,
                 cover: a.cover,
                 kit: a.kit,
+                locked: a.locked,
             }
         })
         .collect()
@@ -162,6 +171,7 @@ impl Scene {
                 blocks_light: false,
                 cover: CoverLevel::None,
                 kit: String::new(),
+                locked: false,
             }
         } else {
             closed(w.kind, String::new())

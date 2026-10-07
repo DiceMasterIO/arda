@@ -81,6 +81,7 @@ fn doors_of_a_secret_tagged_kit_are_secret_doors() {
         axis: arda_tactical::layout::EdgeAxis::Horizontal,
         kind: WallRole::Door,
         kit: "timber".into(),
+        tags: Vec::new(),
     });
     let mut s = build_scene(&l.0, &secret_library(), 1, None).unwrap();
     assert_eq!(s.walls[0].kind, WallKind::Secret);
@@ -203,6 +204,7 @@ fn a_secret_door_is_no_spawn_entrance() {
         axis: arda_tactical::layout::EdgeAxis::Horizontal,
         kind: WallRole::Door,
         kit: "timber".into(),
+        tags: Vec::new(),
     });
     let secret = build_scene(&l.0, &secret_library(), 1, None).unwrap();
     assert_eq!(secret.walls[0].kind, WallKind::Secret);

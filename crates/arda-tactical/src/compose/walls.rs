@@ -185,6 +185,7 @@ mod tests {
             axis,
             kind,
             kit: kit.into(),
+            tags: Vec::new(),
         }
     }
 
