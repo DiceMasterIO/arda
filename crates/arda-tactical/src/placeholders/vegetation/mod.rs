@@ -82,7 +82,7 @@ const WET: &[&str] = &["wetland"];
 const HILL: &[&str] = &["alpine"];
 
 #[rustfmt::skip]
-const VEGETATION: [VegSpec; 29] = [
+const VEGETATION: [VegSpec; 42] = [
     v("veg.tree_oak", (3, 3), Broadleaf([78, 112, 44], false, None), 30, Half, false, &["tree", "forest", "broadleaf"], &[]),
     v("veg.tree_elm", (3, 3), Broadleaf([62, 98, 50], false, None), 35, Half, false, &["tree", "forest", "broadleaf"], &[]),
     v("veg.tree_birch", (2, 2), Broadleaf([124, 152, 62], true, None), 25, Half, false, &["tree", "forest", "broadleaf"], &[]),
@@ -112,6 +112,20 @@ const VEGETATION: [VegSpec; 29] = [
     v("veg.rock_large", (2, 2), Look::RockLarge, 8, Cover::Full, true, &["rock"], HILL),
     v("veg.scree_patch", (2, 2), Look::Scree, 1, Open, false, &["rock", "scree"], HILL),
     v("veg.rock_outcrop", (3, 3), Look::Outcrop, 10, Cover::Full, true, &["rock", "outcrop"], HILL),
+    // Biome scatter (arda-refine `biome`): coast, alpine, steppe and marsh.
+    v("veg.driftwood", (2, 1), Look::Log, 2, Half, false, &["deadwood", "coast"], &[]),
+    v("veg.sea_rock", (1, 1), Boulders(2), 5, Most, true, &["rock", "coast"], &[]),
+    v("veg.tide_pool", (2, 2), Look::Scree, 0, Open, false, &["coast", "tide_pool"], &[]),
+    v("veg.dune_grass", (1, 1), Look::TallGrass, 2, Open, false, &["coast", "dune"], &[]),
+    v("veg.lichen_rock", (1, 1), Boulders(1), 3, Half, true, &["rock", "lichen"], HILL),
+    v("veg.rock_snow", (1, 1), Boulders(1), 4, Most, true, &["rock", "snow"], HILL),
+    v("veg.alpine_flowers", (1, 1), Look::Heather, 1, Open, false, &["alpine_plant", "flower"], HILL),
+    v("veg.tussock", (1, 1), Look::TallGrass, 2, Open, false, &["tussock", "steppe"], &[]),
+    v("veg.krummholz", (1, 1), Look::Stunted, 6, Half, false, &["conifer", "stunted", "krummholz"], HILL),
+    v("veg.sagebrush", (1, 1), Look::Juniper, 3, Half, false, &["shrub", "steppe"], &[]),
+    v("veg.dry_grass", (1, 1), Look::TallGrass, 2, Open, false, &["dry_grass", "steppe"], &[]),
+    v("veg.sedge", (1, 1), Look::TallGrass, 2, Open, false, &["sedge", "water_plant"], WET),
+    v("veg.marsh_flowers", (1, 1), Look::Flowers, 1, Open, false, &["flower", "marsh_plant"], WET),
 ];
 
 fn paint(look: Look, r: &mut Relief, seed: u64) {
@@ -195,7 +209,8 @@ pub fn assets(seed: u64) -> Vec<(Asset, Rgba)> {
                         .to_vec();
                 }
                 "veg.lily_pads" => a.placement.on_water = true,
-                "veg.fallen_log" => a.rotations = vec![0, 90, 180, 270],
+                "veg.fallen_log" | "veg.driftwood" => a.rotations = vec![0, 90, 180, 270],
+                "veg.sea_rock" => a.placement.on_water = true,
                 _ => {}
             }
             let mut r = Relief::new(w * PPSQ, h * PPSQ);
