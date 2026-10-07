@@ -12,7 +12,7 @@ jobs:
       - uses: actions/checkout@v4
       - uses: dtolnay/rust-toolchain@stable
       - name: Workspace tests, including determinism
-        run: cargo test --workspace --all-features
+        run: cargo test --workspace --all-features --no-fail-fast
 
   msrv:
     runs-on: ubuntu-latest
