@@ -465,3 +465,57 @@ fn yards_gardens_and_croft_parcels_have_one_ground_each() {
         }
     }
 }
+
+/// Yards are dressed for their building's trade, sparsely: a few distinct
+/// pieces that never touch one another and never stand on a doorway's
+/// path, on the building's own yard.
+#[test]
+fn yards_hold_a_few_distinct_props_clear_of_doors() {
+    use arda_town::block::ground::kind;
+    use arda_town::block::interior::GProp;
+    use arda_town::block::yard::{working, YARD_MOST};
+    use arda_town::plan::grid::Kind;
+    let mut dressed = 0;
+    for p in plans() {
+        let clear: BTreeSet<(i64, i64)> = p
+            .buildings
+            .iter()
+            .flat_map(|b| b.doors.iter())
+            .flat_map(|d| {
+                let (ox, oy) = d.outside();
+                let (sx, sy) = d.side.step();
+                [(ox, oy), (ox + sx, oy + sy), (ox + 2 * sx, oy + 2 * sy)]
+            })
+            .collect();
+        for b in &p.buildings {
+            let mut out: Vec<GProp> = Vec::new();
+            working(p, b, &mut out);
+            assert!(
+                out.len() <= YARD_MOST,
+                "{}: {} yard props",
+                p.name,
+                out.len()
+            );
+            let ids: BTreeSet<String> = out.iter().map(|g| format!("{:?}", g.want)).collect();
+            assert_eq!(ids.len(), out.len(), "{}: a repeated yard prop", p.name);
+            #[allow(clippy::cast_possible_truncation)]
+            let squares = |g: &GProp| {
+                let e = g.extent.map(|v| v.round() as i64);
+                (e[1]..e[3]).flat_map(move |y| (e[0]..e[2]).map(move |x| (x, y)))
+            };
+            for (i, g) in out.iter().enumerate() {
+                for (x, y) in squares(g) {
+                    assert_eq!(kind(p, x, y), Kind::Yard, "{}: prop off the yard", p.name);
+                    assert!(!clear.contains(&(x, y)), "{}: prop in a doorway", p.name);
+                }
+                for o in &out[i + 1..] {
+                    let (a, c) = (g.extent, o.extent);
+                    let apart = a[0] > c[2] || c[0] > a[2] || a[1] > c[3] || c[1] > a[3];
+                    assert!(apart, "{}: yard props touch", p.name);
+                }
+            }
+            dressed += usize::from(!out.is_empty());
+        }
+    }
+    assert!(dressed > 10, "only {dressed} yards dressed");
+}
