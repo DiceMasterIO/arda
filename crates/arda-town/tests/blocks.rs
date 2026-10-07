@@ -425,3 +425,43 @@ fn only_poor_towns_have_a_little_mud_on_their_streets() {
     }
     assert!(arda_town::block::ground::poor(&poor));
 }
+
+/// Yards, gardens and croft parcels each take one ground to their fences
+/// and hedges (no noise contours or one-square stripes that break into
+/// ragged blobs once borders blend).
+#[test]
+fn yards_gardens_and_croft_parcels_have_one_ground_each() {
+    use arda_town::block::ground;
+    use arda_town::plan::croft::{parcel, rim};
+    use arda_town::plan::grid::Kind;
+    for p in plans() {
+        let g = &p.grid;
+        let mut gardens: BTreeMap<u32, BTreeSet<&str>> = BTreeMap::new();
+        let mut parcels: BTreeMap<u64, BTreeSet<&str>> = BTreeMap::new();
+        for j in 0..g.h {
+            for i in 0..g.w {
+                let (x, y) = (g.gx0 + i, g.gy0 + j);
+                let k = g.gidx(x, y).unwrap();
+                let key = ground::at(p, false, x, y).key;
+                match g.kind[k] {
+                    Kind::Yard => assert_eq!(key, "packed_earth", "{}: yard {x},{y}", p.name),
+                    Kind::Garden => {
+                        gardens.entry(g.plot[k]).or_default().insert(key);
+                    }
+                    Kind::Croft
+                        if !rim(p.seed, |x, y| ground::kind(p, x, y) == Kind::Open, x, y) =>
+                    {
+                        parcels.entry(parcel(p.seed, x, y)).or_default().insert(key);
+                    }
+                    _ => {}
+                }
+            }
+        }
+        for (plot, keys) in &gardens {
+            assert_eq!(keys.len(), 1, "{}: garden of plot {plot}: {keys:?}", p.name);
+        }
+        for (id, keys) in &parcels {
+            assert_eq!(keys.len(), 1, "{}: croft parcel {id}: {keys:?}", p.name);
+        }
+    }
+}
