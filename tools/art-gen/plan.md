@@ -145,6 +145,16 @@ gen --tier 3 --limit 200 --yes
 gen --tier 3 --yes
 ```
 
+### Tier 4: underground (arda-dungeon)
+
+34 images for dungeons and caves: `ground.cave_floor.0–2`, `ground.bedrock.0–2`, the `cave` wall kit (nine pieces and their alts), `prop.stairs_down`, `prop.torch_sconce` and `veg.stalagmite` (three takes each). The crypt, prison and ruin props dungeons also use (`prop.tomb`, `prop.coffin`, `prop.bone_pile`, `prop.skeleton`, `prop.cage`, `prop.gaol_cot`, `prop.rubble_pile`, `prop.chest_treasure`) are already in tiers 2 and 3. Until tier 4 is generated, these slots fall back to the placeholder art. Make the kit's run first and use it as the reference, as for tier 3.
+
+```sh
+gen --only "wall.cave.run" --yes
+gen --only "wall.cave.*" --reference out/art-gen/raw/wall.cave.run.png --resume --yes
+gen --tier 4 --resume --yes
+```
+
 ## How variants reach the library
 
 - **Cut-outs and wall pieces:** `<id>.altN` in `prompts.json`. `generate.mjs` saves it as `<id>__altN.png`. `arda tactical import` ignores what follows `__` and numbers the takes of one id in sorted file order. Because `.` sorts before `_`, `<id>.png` stays `<id>`, and `__alt1`, `__alt2`, … become `<id>.alt1`, `<id>.alt2`, …, the same ids as the prompts. The exception is a missing take: the importer numbers the files it has, so after a gap the later takes shift down.
