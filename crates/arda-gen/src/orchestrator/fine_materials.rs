@@ -1,4 +1,4 @@
-//! Fine-world ecology derived from saved climate, water and relief.
+//! World ecology derived from saved climate, water and relief.
 //!
 //! This runs after the shared physical water solve, so the stored material
 //! fields describe the same terrain and drainage that Atlas later displays.
@@ -8,7 +8,8 @@
 use crate::noise::value_noise;
 use arda_core::{AreaCells, AreaCoord, Cell, CellCoord, Cover, TerrainKind, AREA_CELLS};
 
-/// Populate material fields for the opt-in fine-terrain path.
+/// Populate material fields (moisture, wetness, canopy, cover) for legacy
+/// terrain and fine recipe >= 4.
 pub(super) fn apply(cells: &mut AreaCells, seed: u64, area: AreaCoord) {
     let ox = area.x * i32::from(AREA_CELLS);
     let oy = area.y * i32::from(AREA_CELLS);
