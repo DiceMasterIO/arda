@@ -535,6 +535,8 @@ fn draw_grid(img: &mut Rgba, ppsq: u32) {
 #[cfg(test)]
 mod tests;
 #[cfg(test)]
+mod tests_biome;
+#[cfg(test)]
 mod tests_look;
 #[cfg(test)]
 mod tests_pose;

@@ -573,7 +573,9 @@ server derives the scene from the same layout (goal 48). The cell must lie insid
 ```
 
 - `layout` is `arda-tactical`'s `TacticalLayout`; its optional `origin` (I10) is the world
-  square of square `(0, 0)`, here `[64·gx, 64·gy]`.
+  square of square `(0, 0)`, here `[64·gx, 64·gy]`. A square's optional `dryness` (0–255,
+  omitted when 0) is the cell climate's aridity; the compositor tints turf toward dry grass
+  by it.
 - `rules` is `arda-scene`'s `RulesSidecar` **format 2**, the one per-square rules schema
   (I9; TS `RulesSidecarDto`): `difficult`, `water_depth_ft`, `cover`, `blocks_sight`,
   `lightly_obscured`, `blocks_movement`, `deck`, each optional, plus an `ext` map for layer

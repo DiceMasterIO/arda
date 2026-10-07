@@ -158,6 +158,9 @@ fn dry_steppe_grows_dry_grass_and_bare_patches() {
     assert!(share(&b, &["dirt"]) > 0.03, "bare patches on steppe");
     let wet = refine(&world(|_, _, _| {}), MID).unwrap();
     assert!(assets(&wet).iter().all(|id| *id != "veg.dry_grass"));
+    // The compositor's dry-grass tint rides on every square.
+    assert!(b.dryness.iter().all(|&d| d > 200), "steppe dryness");
+    assert!(wet.dryness.iter().all(|&d| d == 0), "temperate dryness");
 }
 
 #[test]

@@ -131,6 +131,17 @@ pub struct SquareDto {
     /// Water depth in feet; zero is dry land.
     #[serde(default)]
     pub water_depth_ft: u8,
+    /// Climate dryness, `0` (lush) to `255` (parched steppe); omitted when
+    /// zero. The compositor tints vegetated ground toward dry grass by it.
+    #[serde(default, skip_serializing_if = "is_zero")]
+    #[ts(optional, as = "Option<u8>")]
+    pub dryness: u8,
+}
+
+// serde's `skip_serializing_if` passes a reference.
+#[allow(clippy::trivially_copy_pass_by_ref)]
+const fn is_zero(v: &u8) -> bool {
+    *v == 0
 }
 
 /// Which edge of a square a segment lies on.

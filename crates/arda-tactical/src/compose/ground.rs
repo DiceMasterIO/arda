@@ -59,6 +59,26 @@ pub fn cover_class(key: &str) -> u8 {
     }
 }
 
+/// How much of the climate dryness tint a ground key takes: living turf
+/// all of it, wet or worked ground half, bare earth a little, stone,
+/// sand, water, snow and laid surfaces none.
+#[must_use]
+pub fn dry_share(key: &str) -> f32 {
+    match key {
+        "grass" | "meadow" | "pasture" | "heath" | "scrub" | "moss" | "forest_floor"
+        | "leaf_litter" => 1.0,
+        "marsh" | "reed_bed" | "farmland" | "stubble" | "fallow" => 0.5,
+        "dirt" | "packed_earth" | "trail" | "mud" => 0.25,
+        _ => 0.0,
+    }
+}
+
+/// Pull of fully dry turf toward the dry-grass colour.
+const DRY_STRENGTH: f32 = 0.75;
+/// The dry-grass colour as a multiple of the ground's own luma: straw and
+/// tawny olive, so the texture's grain survives the tint.
+const DRY_TONE: [f32; 3] = [1.32, 1.12, 0.62];
+
 /// One ground key in use.
 struct Key<'a> {
     name: &'a str,
@@ -66,6 +86,7 @@ struct Key<'a> {
     cells: CellTable,
     class: f32,
     rough: Field,
+    dry: f32,
 }
 
 /// Everything the per-pixel ground function needs.
@@ -82,6 +103,8 @@ pub struct Ground<'a> {
     heights: &'a [i32],
     /// Soft snow cover, when the layout has snow.
     snow: Option<Snow>,
+    /// Per-square climate dryness in `[0, 1]`, when any square has some.
+    dryness: Option<Vec<f32>>,
 }
 
 impl<'a> Ground<'a> {
@@ -112,6 +135,7 @@ impl<'a> Ground<'a> {
                     rough: Field::new(&frame, cw, ch, |u, v| {
                         centred(mix(salt), u * 2.4, v * 2.4, 2)
                     }),
+                    dry: dry_share(&sq.ground),
                 });
                 keys.len() - 1
             };
@@ -144,6 +168,13 @@ impl<'a> Ground<'a> {
         });
         let snow_key = keys.iter().position(|k| k.name == SNOW);
         let snow = Snow::new(layout, &grid, snow_key, &frame, seed);
+        let dryness = layout.squares.iter().any(|q| q.dryness > 0).then(|| {
+            layout
+                .squares
+                .iter()
+                .map(|q| f32::from(q.dryness) / 255.0)
+                .collect()
+        });
         Some(Self {
             layout,
             frame,
@@ -155,7 +186,44 @@ impl<'a> Ground<'a> {
             terrain,
             heights,
             snow,
+            dryness,
         })
+    }
+
+    /// Climate dryness at a pixel centre, bilinear between square centres.
+    #[allow(clippy::cast_precision_loss)]
+    fn dryness_at(&self, dry: &[f32], fx: f32, fy: f32) -> f32 {
+        let s = self.frame.ppsq as f32;
+        let (u, v) = (fx / s - 0.5, fy / s - 0.5);
+        let (x0, y0) = (u.floor(), v.floor());
+        let (tx, ty) = (u - x0, v - y0);
+        let (w, h) = (i64::from(self.layout.width), i64::from(self.layout.height));
+        let at = |x: i64, y: i64| {
+            let (cx, cy) = (x.clamp(0, w - 1), y.clamp(0, h - 1));
+            dry[usize::try_from(cy * w + cx).unwrap_or(0)]
+        };
+        let (x, y) = (x0 as i64, y0 as i64);
+        let top = at(x, y) + (at(x + 1, y) - at(x, y)) * tx;
+        let bottom = at(x, y + 1) + (at(x + 1, y + 1) - at(x, y + 1)) * tx;
+        top + (bottom - top) * ty
+    }
+
+    /// Tints a blended colour toward dry grass by the climate dryness and
+    /// the share of the pixel's keys that take the tint (`dry_share`).
+    fn dry_tint(&self, c: [f32; 3], w: &Weights, fx: f32, fy: f32) -> [f32; 3] {
+        let Some(dry) = &self.dryness else {
+            return c;
+        };
+        let share: f32 = w.k[..w.n].iter().map(|e| e.1 * self.keys[e.0].dry).sum();
+        if share <= 0.0 {
+            return c;
+        }
+        let t = DRY_STRENGTH * share * self.dryness_at(dry, fx, fy);
+        if t <= 0.0 {
+            return c;
+        }
+        let luma = 0.3 * c[0] + 0.59 * c[1] + 0.11 * c[2];
+        std::array::from_fn(|k| c[k] + (luma * DRY_TONE[k] - c[k]) * t)
     }
 
     fn key_at(&self, x: i64, y: i64) -> usize {
@@ -372,6 +440,7 @@ impl<'a> Ground<'a> {
             Some(soft) => self.snow_blend((px, py), w, cw, soft),
             None => self.blend(px, py, w, cw),
         };
+        let c = self.dry_tint(c, w, fx, fy);
         let (m1, m2) = (f[4], f[5]);
         let shade = self
             .terrain

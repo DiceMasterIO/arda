@@ -11,6 +11,7 @@ fn layout(origin: [i64; 2], ground: &str) -> TacticalLayout {
                 ground: ground.into(),
                 elevation_ft: 0,
                 water_depth_ft: 0,
+                dryness: 0,
             };
             64
         ],

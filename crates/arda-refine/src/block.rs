@@ -43,6 +43,9 @@ pub struct Block {
     pub elevation_ft: Vec<i16>,
     /// Water depth in feet.
     pub depth_ft: Vec<u8>,
+    /// Climate dryness per square, `0..=255` ([`crate::biome::arid`]
+    /// interpolated between cell centres): the compositor's dry-grass tint.
+    pub dryness: Vec<u8>,
     /// Pre-WFC decision per square.
     pub fixed: Vec<Fixed>,
     /// Corner classes, 65 × 65 row-major.
@@ -247,6 +250,7 @@ pub fn refine(src: &dyn Source, cell: CellKey) -> Result<Block, RefineError> {
         ground: Vec::with_capacity(SIDE * SIDE),
         elevation_ft: Vec::with_capacity(SIDE * SIDE),
         depth_ft: Vec::with_capacity(SIDE * SIDE),
+        dryness: Vec::with_capacity(SIDE * SIDE),
         fixed: Vec::with_capacity(SIDE * SIDE),
         corners: sol.classes.clone(),
         items: Vec::new(),
@@ -298,6 +302,7 @@ pub fn refine(src: &dyn Source, cell: CellKey) -> Result<Block, RefineError> {
             block.ground.push(key);
             block.elevation_ft.push(contour_ft(p.elev_m));
             block.depth_ft.push(d);
+            block.dryness.push(dryness(&ctx, x, y));
             block.fixed.push(f);
         }
     }
@@ -319,6 +324,15 @@ pub fn refine(src: &dyn Source, cell: CellKey) -> Result<Block, RefineError> {
         .filter(|it| it.x >= x0f && it.x < x0f + 64.0 && it.y >= y0f && it.y < y0f + 64.0)
         .collect();
     Ok(block)
+}
+
+/// Climate dryness of square `(x, y)` on the layout's `0..=255` scale.
+#[allow(clippy::cast_precision_loss)] // square coordinates are small
+fn dryness(ctx: &Ctx, x: i64, y: i64) -> u8 {
+    let d = ctx.bilinear(x as f64 + 0.5, y as f64 + 0.5, |c, _| crate::biome::arid(c));
+    #[allow(clippy::cast_possible_truncation, clippy::cast_sign_loss)]
+    let q = (d.clamp(0.0, 1.0) * 255.0).round() as u8;
+    q
 }
 
 /// Whether ground or water makes a square difficult terrain.
