@@ -162,18 +162,9 @@ pub fn palette(c: Class) -> &'static [(&'static str, u32)] {
             ("prop.woodpile", 3),
             ("veg.bush_flowering", 4),
         ],
-        Class::Yard => &[
-            ("ground", 120),
-            ("prop.woodpile", 10),
-            ("prop.barrel", 6),
-            ("prop.crate", 5),
-            ("prop.hay_bale", 4),
-            ("prop.bucket", 3),
-            ("prop.wheelbarrow", 2),
-            ("prop.cart", 2),
-            ("prop.trough", 2),
-            ("prop.well", 1),
-        ],
+        // A building's yard is dressed for its trade afterwards
+        // (`block::yard::working`), sparsely and clear of its doors.
+        Class::Yard => &[("ground", 1)],
         Class::Garden => &[
             ("ground", 150),
             ("veg.tree_fruit", 3),
@@ -205,9 +196,9 @@ pub fn palette(c: Class) -> &'static [(&'static str, u32)] {
             ("veg.tall_grass", 8),
         ],
         Class::Workyard => &[
-            ("ground", 150),
-            ("prop.hay_bale", 6),
-            ("prop.woodpile", 5),
+            ("ground", 600),
+            ("prop.hay_bale", 4),
+            ("prop.woodpile", 3),
             ("prop.cart", 2),
             ("prop.barrel", 2),
         ],

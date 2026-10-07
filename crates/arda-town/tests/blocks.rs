@@ -425,3 +425,97 @@ fn only_poor_towns_have_a_little_mud_on_their_streets() {
     }
     assert!(arda_town::block::ground::poor(&poor));
 }
+
+/// Yards, gardens and croft parcels each take one ground to their fences
+/// and hedges (no noise contours or one-square stripes that break into
+/// ragged blobs once borders blend).
+#[test]
+fn yards_gardens_and_croft_parcels_have_one_ground_each() {
+    use arda_town::block::ground;
+    use arda_town::plan::croft::{parcel, rim};
+    use arda_town::plan::grid::Kind;
+    for p in plans() {
+        let g = &p.grid;
+        let mut gardens: BTreeMap<u32, BTreeSet<&str>> = BTreeMap::new();
+        let mut parcels: BTreeMap<u64, BTreeSet<&str>> = BTreeMap::new();
+        for j in 0..g.h {
+            for i in 0..g.w {
+                let (x, y) = (g.gx0 + i, g.gy0 + j);
+                let k = g.gidx(x, y).unwrap();
+                let key = ground::at(p, false, x, y).key;
+                match g.kind[k] {
+                    Kind::Yard => assert_eq!(key, "packed_earth", "{}: yard {x},{y}", p.name),
+                    Kind::Garden => {
+                        gardens.entry(g.plot[k]).or_default().insert(key);
+                    }
+                    Kind::Croft
+                        if !rim(p.seed, |x, y| ground::kind(p, x, y) == Kind::Open, x, y) =>
+                    {
+                        parcels.entry(parcel(p.seed, x, y)).or_default().insert(key);
+                    }
+                    _ => {}
+                }
+            }
+        }
+        for (plot, keys) in &gardens {
+            assert_eq!(keys.len(), 1, "{}: garden of plot {plot}: {keys:?}", p.name);
+        }
+        for (id, keys) in &parcels {
+            assert_eq!(keys.len(), 1, "{}: croft parcel {id}: {keys:?}", p.name);
+        }
+    }
+}
+
+/// Yards are dressed for their building's trade, sparsely: a few distinct
+/// pieces that never touch one another and never stand on a doorway's
+/// path, on the building's own yard.
+#[test]
+fn yards_hold_a_few_distinct_props_clear_of_doors() {
+    use arda_town::block::ground::kind;
+    use arda_town::block::interior::GProp;
+    use arda_town::block::yard::{working, YARD_MOST};
+    use arda_town::plan::grid::Kind;
+    let mut dressed = 0;
+    for p in plans() {
+        let clear: BTreeSet<(i64, i64)> = p
+            .buildings
+            .iter()
+            .flat_map(|b| b.doors.iter())
+            .flat_map(|d| {
+                let (ox, oy) = d.outside();
+                let (sx, sy) = d.side.step();
+                [(ox, oy), (ox + sx, oy + sy), (ox + 2 * sx, oy + 2 * sy)]
+            })
+            .collect();
+        for b in &p.buildings {
+            let mut out: Vec<GProp> = Vec::new();
+            working(p, b, &mut out);
+            assert!(
+                out.len() <= YARD_MOST,
+                "{}: {} yard props",
+                p.name,
+                out.len()
+            );
+            let ids: BTreeSet<String> = out.iter().map(|g| format!("{:?}", g.want)).collect();
+            assert_eq!(ids.len(), out.len(), "{}: a repeated yard prop", p.name);
+            #[allow(clippy::cast_possible_truncation)]
+            let squares = |g: &GProp| {
+                let e = g.extent.map(|v| v.round() as i64);
+                (e[1]..e[3]).flat_map(move |y| (e[0]..e[2]).map(move |x| (x, y)))
+            };
+            for (i, g) in out.iter().enumerate() {
+                for (x, y) in squares(g) {
+                    assert_eq!(kind(p, x, y), Kind::Yard, "{}: prop off the yard", p.name);
+                    assert!(!clear.contains(&(x, y)), "{}: prop in a doorway", p.name);
+                }
+                for o in &out[i + 1..] {
+                    let (a, c) = (g.extent, o.extent);
+                    let apart = a[0] > c[2] || c[0] > a[2] || a[1] > c[3] || c[1] > a[3];
+                    assert!(apart, "{}: yard props touch", p.name);
+                }
+            }
+            dressed += usize::from(!out.is_empty());
+        }
+    }
+    assert!(dressed > 10, "only {dressed} yards dressed");
+}

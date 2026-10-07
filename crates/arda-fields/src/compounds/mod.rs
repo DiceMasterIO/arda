@@ -356,10 +356,23 @@ pub fn enumerate(
                 }
                 _ => None,
             };
-            out.extend(c);
+            out.extend(c.filter(|c| !meets_core(inputs, c)));
         }
     }
     out
+}
+
+/// Whether a compound would stand on or against a settlement's built-up
+/// core (the caller's town footprints): such a farmstead, mill or mine
+/// is left out, since the town plan already builds that ground and its
+/// walls would cross the town's buildings and fences.
+fn meets_core(inputs: &FieldInputs<'_>, c: &Compound) -> bool {
+    let Some(core) = inputs.cores else {
+        return false;
+    };
+    c.squares
+        .keys()
+        .any(|s| (-1..=1).any(|dy| (-1..=1).any(|dx| core(s.x + dx, s.y + dy))))
 }
 
 /// The global centre square of a cell.

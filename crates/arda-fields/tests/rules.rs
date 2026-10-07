@@ -342,3 +342,25 @@ fn deep_water_is_swum_not_impassable() {
     }
     assert!(deep > 0, "some scenario has deep water");
 }
+
+#[test]
+fn compounds_never_stand_on_a_settlement_core() {
+    let s = synthetic::orchard_farmstead();
+    let win = window_rect(s.origin_m, s.w, s.h).unwrap();
+    let free = Plan::build(&s.inputs(), win, SEED);
+    let first = free.compounds.first().unwrap();
+    // A core touching one square of the farmstead removes the whole
+    // compound: none of its walls may cross the town's ground.
+    let hit = *first.squares.keys().next().unwrap();
+    let core = move |x: i64, y: i64| (x, y) == (hit.x, hit.y);
+    let mut inputs = s.inputs();
+    inputs.cores = Some(&core);
+    let cored = Plan::build(&inputs, win, SEED);
+    assert_eq!(cored.compounds.len() + 1, free.compounds.len());
+    for c in &cored.compounds {
+        assert!(c
+            .squares
+            .keys()
+            .all(|q| (q.x - hit.x).abs() > 1 || (q.y - hit.y).abs() > 1));
+    }
+}

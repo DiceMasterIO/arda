@@ -155,6 +155,157 @@ pub fn home(plan: &TownPlan, b: &Building, rng: &mut Rng, out: &mut Vec<GProp>) 
     }
 }
 
+/// Most props a working yard holds.
+pub const YARD_MOST: usize = 4;
+/// Yard squares per prop: a yard of fewer squares holds fewer props.
+const SQUARES_PER_PROP: usize = 10;
+
+/// What a building's trade leaves in its yard, each piece once, in order
+/// of importance. Pieces flagged `true` stand against the building's wall
+/// (stacks, barrels, a bench); the others one square out in the open (a
+/// cart, a trough, a well).
+fn yard_kit(f: F, w: W) -> &'static [(&'static str, bool)] {
+    match (f, w) {
+        (F::Farmhouse, _) => &[
+            ("prop.hay_bale", true),
+            ("prop.trough", false),
+            ("prop.woodpile", true),
+            ("prop.cart", false),
+        ],
+        (F::Barn, _) => &[("prop.hay_bale", true), ("prop.haycart", false)],
+        (F::Stable, _) => &[("prop.trough", false), ("prop.hay_bale", true)],
+        (F::Smithy, _) => &[
+            ("prop.grindstone", false),
+            ("prop.trough", false),
+            ("prop.woodpile", true),
+        ],
+        (F::Bakery, _) => &[("prop.woodpile", true), ("prop.sacks", true)],
+        (F::Brewery, _) => &[
+            ("prop.barrel", true),
+            ("prop.cask_rack", true),
+            ("prop.cart", false),
+        ],
+        (F::Tannery, _) => &[("prop.trough", false), ("prop.barrel", true)],
+        (F::Workshop, _) => &[
+            ("prop.crate", true),
+            ("prop.woodpile", true),
+            ("prop.sacks", true),
+        ],
+        (F::Mill, _) => &[("prop.sacks", true), ("prop.cart", false)],
+        (F::Inn | F::Tavern, _) => &[
+            ("prop.barrel", true),
+            ("prop.trough", false),
+            ("prop.crate", true),
+        ],
+        (F::Manor, _) | (F::House, W::Wealthy) => &[
+            ("prop.bench", true),
+            ("prop.well", false),
+            ("prop.woodpile", true),
+        ],
+        (F::Cottage, _) | (F::House, W::Poor) => &[("prop.woodpile", true), ("prop.bucket", true)],
+        (F::House, _) => &[("prop.woodpile", true), ("prop.barrel", true)],
+        _ => &[],
+    }
+}
+
+/// Squares a doorway keeps clear: the square outside each door of the
+/// buildings near `b`, its two neighbours along the wall and the two
+/// squares straight out from it.
+fn door_paths(plan: &TownPlan, b: &Building) -> Vec<(i64, i64)> {
+    let near = b.rect.grown(6);
+    let mut out = Vec::new();
+    for o in plan.buildings.iter().filter(|o| o.rect.overlaps(&near)) {
+        for d in &o.doors {
+            let (ox, oy) = d.outside();
+            let (sx, sy) = d.side.step();
+            out.extend([
+                (ox, oy),
+                (ox + sx, oy + sy),
+                (ox + 2 * sx, oy + 2 * sy),
+                (ox + sy, oy + sx),
+                (ox - sy, oy - sx),
+            ]);
+        }
+    }
+    out
+}
+
+/// A working yard dressed for its building's trade (the WFC leaves yards
+/// bare): at most [`YARD_MOST`] props and one per [`SQUARES_PER_PROP`] yard
+/// squares, each piece of the trade's kit once, never on a doorway's path
+/// and never touching another of this yard's props. A pure function of the
+/// plan and the building, so every window agrees.
+pub fn working(plan: &TownPlan, b: &Building, out: &mut Vec<GProp>) {
+    let kit = yard_kit(b.function, b.wealth_level);
+    if kit.is_empty() {
+        return;
+    }
+    let plot = b.plot.map(|p| p.0 + 1);
+    let own = |x: i64, y: i64| {
+        kind(plan, x, y) == Kind::Yard
+            && plot.is_none_or(|p| plan.grid.gidx(x, y).is_some_and(|k| plan.grid.plot[k] == p))
+    };
+    let r = b.rect;
+    // Yard squares within two of the building, with their ring: 1 touches
+    // its wall, 2 stands one square out.
+    let mut spots: Vec<(u64, i64, i64, i64)> = Vec::new();
+    for y in r.y0 - 2..r.y1 + 2 {
+        for x in r.x0 - 2..r.x1 + 2 {
+            let ring = (r.x0 - x).max(x - r.x1 + 1).max(r.y0 - y).max(y - r.y1 + 1);
+            if (1..=2).contains(&ring) && own(x, y) {
+                let h = crate::rng::hash_i(plan.seed ^ 0x7A2D ^ b.id.0, x, y);
+                spots.push((h, ring, x, y));
+            }
+        }
+    }
+    let yard = spots.len();
+    spots.sort_unstable();
+    let most = kit
+        .len()
+        .min(YARD_MOST)
+        .min(yard.div_ceil(SQUARES_PER_PROP));
+    let clear = door_paths(plan, b);
+    // The kit's order rotates by building, so neighbours lead with
+    // different pieces.
+    let turn = usize::try_from(mix(plan.seed ^ b.id.0 ^ 0x7A2E) % 64).unwrap_or(0);
+    let mut taken: Vec<[i64; 4]> = Vec::new();
+    let mut placed = 0;
+    for i in 0..kit.len() {
+        if placed >= most {
+            break;
+        }
+        // The first piece is the trade's mark and stays first.
+        let (id, wall) = if i == 0 {
+            kit[0]
+        } else {
+            kit[1 + (i - 1 + turn) % (kit.len() - 1).max(1)]
+        };
+        let (w, h) = super::interior::size(id);
+        let fit = spots.iter().find_map(|&(_, ring, x, y)| {
+            if ring != if wall { 1 } else { 2 } {
+                return None;
+            }
+            [(0, w, h), (90, h, w)]
+                .into_iter()
+                .find_map(|(rot, fw, fh)| {
+                    let e = [x, y, x + fw, y + fh];
+                    let free = (y..y + fh).all(|yy| (x..x + fw).all(|xx| own(xx, yy)))
+                        && all(plan, x, y, fw, fh, &[Kind::Yard])
+                        && !(y..y + fh).any(|yy| (x..x + fw).any(|xx| clear.contains(&(xx, yy))))
+                        && taken
+                            .iter()
+                            .all(|t| e[0] > t[2] || t[0] > e[2] || e[1] > t[3] || t[1] > e[3]);
+                    free.then_some((rot, e))
+                })
+        });
+        if let Some((rot, e)) = fit {
+            taken.push(e);
+            out.push(prop(id, e[0], e[1], rot));
+            placed += 1;
+        }
+    }
+}
+
 /// A parcel's density in permille of the base rates, 500–1500.
 fn density(p: u64) -> u64 {
     500 + mix(p ^ 0xDE45) % 1001

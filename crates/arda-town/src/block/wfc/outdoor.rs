@@ -150,7 +150,9 @@ pub fn class(plan: &TownPlan, site: &Site, x: i64, y: i64) -> Class {
             }
         }
         Kind::Front => Class::Front,
-        Kind::Yard | Kind::Bailey => Class::Yard,
+        Kind::Yard => Class::Yard,
+        // A bailey has no one building's trade: a work yard's stacks.
+        Kind::Bailey => Class::Workyard,
         Kind::Garden => Class::Garden,
         Kind::Churchyard => Class::Churchyard,
         Kind::Green => Class::Green,
