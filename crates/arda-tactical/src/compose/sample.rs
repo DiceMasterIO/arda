@@ -50,7 +50,7 @@ pub struct KeyTextures {
 /// [`flatten`]: variants keep their grain but share one tone.
 const FLATTEN: f32 = 0.85;
 /// The same for water, whose darker pools are part of the look.
-const FLATTEN_WATER: f32 = 0.5;
+const FLATTEN_WATER: f32 = 0.8;
 
 /// Wrap-around box blur of one channel plane, radius `r` pixels, applied
 /// along x then y.
