@@ -130,3 +130,39 @@ fn flattened_variants_share_one_tone_and_keep_their_grain() {
     }
     assert!(grain / v.width as f32 > 1.0, "grain {grain}");
 }
+
+/// Share of pixels whose dominant ground is not their own square's, among
+/// pixels at least `margin` squares from the key border at `x = 4`.
+fn stray(ground: &str, margin: f32) -> f32 {
+    let lib = lib();
+    let ppsq = 32;
+    let mut l = TacticalLayout::new("edge", 8, 8, "grass");
+    for y in 0..8 {
+        for x in 4..8 {
+            l.square_mut(x, y).unwrap().ground = ground.into();
+        }
+    }
+    let set = ground::TextureSet::new(&lib, ppsq);
+    let map = ground::dominant_ground(&l, &set, 5, ppsq).unwrap();
+    let (mut bad, mut n) = (0, 0);
+    for py in 0..8 * ppsq {
+        for px in 0..8 * ppsq {
+            let u = (px as f32 + 0.5) / ppsq as f32;
+            if (u - 4.0).abs() < margin {
+                continue;
+            }
+            let own = usize::from(u >= 4.0);
+            n += 1;
+            bad += usize::from(map[(py * 8 * ppsq + px) as usize] != own);
+        }
+    }
+    bad as f32 / n as f32
+}
+
+#[test]
+fn field_edges_are_crisp_and_natural_borders_wander() {
+    let field = stray("farmland", 0.15);
+    let natural = stray("dirt", 0.15);
+    assert!(field < 0.002, "farmland strays {field}");
+    assert!(natural > 5.0 * field.max(0.001), "dirt strays {natural}");
+}

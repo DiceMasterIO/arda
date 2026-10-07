@@ -80,6 +80,18 @@ pub fn dry_share(key: &str) -> f32 {
     }
 }
 
+/// Worked parcels whose edges are drawn crisp: a ploughed field, stubble
+/// or fallow ends in a clean line along its headland or hedge, while
+/// natural ground keeps its wandering, painted borders.
+#[must_use]
+pub fn crisp_edge(key: &str) -> bool {
+    matches!(key, "farmland" | "stubble" | "fallow")
+}
+
+/// Warp and roughening left on a crisp border, as a share of the natural.
+const CRISP_WARP: f32 = 0.12;
+const CRISP_ROUGH: f32 = 0.1;
+
 /// Pull of fully dry turf toward the dry-grass colour.
 const DRY_STRENGTH: f32 = 0.75;
 /// The dry-grass colour as a multiple of the ground's own luma: straw and
@@ -95,6 +107,7 @@ struct Key<'a> {
     rough: Field,
     dry: f32,
     salt: u64,
+    crisp: bool,
 }
 
 /// Everything the per-pixel ground function needs.
@@ -104,6 +117,9 @@ pub struct Ground<'a> {
     keys: Vec<Key<'a>>,
     grid: Vec<usize>,
     uniform: Vec<bool>,
+    /// Per square: a worked parcel (`crisp_edge`) lies in its 3 × 3
+    /// neighbourhood, so its borders are drawn crisp.
+    crisp: Vec<bool>,
     /// Per square: the world square naming its walled room, when it lies
     /// in one ([`rooms`]).
     rooms: Vec<Option<(i64, i64)>>,
@@ -148,6 +164,7 @@ impl<'a> Ground<'a> {
                     }),
                     dry: dry_share(&sq.ground),
                     salt,
+                    crisp: crisp_edge(&sq.ground),
                 });
                 keys.len() - 1
             };
@@ -161,6 +178,7 @@ impl<'a> Ground<'a> {
         };
         let (w, h) = (i64::from(layout.width), i64::from(layout.height));
         let mut uniform = vec![false; grid.len()];
+        let mut crisp = vec![false; grid.len()];
         for y in 0..h {
             for x in 0..w {
                 let i = usize::try_from(y * w + x).unwrap_or(0);
@@ -169,6 +187,7 @@ impl<'a> Ground<'a> {
                     grid[usize::try_from(sy * w + sx).unwrap_or(0)]
                 };
                 uniform[i] = (-1..=1).all(|dy| (-1..=1).all(|dx| at(dx, dy) == grid[i]));
+                crisp[i] = (-1..=1).any(|dy| (-1..=1).any(|dx| keys[at(dx, dy)].crisp));
             }
         }
         let c =
@@ -198,6 +217,7 @@ impl<'a> Ground<'a> {
             keys,
             grid,
             uniform,
+            crisp,
             rooms,
             walls,
             fields,
@@ -268,7 +288,9 @@ impl<'a> Ground<'a> {
         // Never warp through a wall: retry with less warp so borders near
         // walls stay noise-shaped instead of snapping to the own square.
         let (mut wx, mut wy) = (uw, vw);
-        for amp in [WARP, WARP * 0.5, WARP * 0.25] {
+        let crisp = self.crisp[oi];
+        let warp = if crisp { WARP * CRISP_WARP } else { WARP };
+        for amp in [warp, warp * 0.5, warp * 0.25] {
             let (x, y) = (uw + amp * dx, vw + amp * dy);
             if !walled
                 || !self
@@ -296,9 +318,11 @@ impl<'a> Ground<'a> {
         let mut total = 0.0;
         for e in &mut acc.k[..acc.n] {
             let rough = self.keys[e.0].rough.at(fx, fy);
-            let r = e.1 * (1.0 + 0.75 * rough);
-            // Sharpen: w^4 keeps the transition soft but narrow.
-            e.1 = r * r * r * r;
+            let r = e.1 * (1.0 + 0.75 * rough * if crisp { CRISP_ROUGH } else { 1.0 });
+            // Sharpen: w^4 keeps the transition soft but narrow; a parcel
+            // edge takes w^12, a clean line a few pixels wide.
+            let r4 = r * r * r * r;
+            e.1 = if crisp { r4 * r4 * r4 } else { r4 };
             total += e.1;
         }
         // Normalise and drop negligible keys (under 1 %): they could not
