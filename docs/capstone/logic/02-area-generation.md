@@ -277,9 +277,10 @@ creep only; stream-power incision belongs to the existing shared 100 m evolution
    positive-depth `Lake`, or `Land` classification determines final fields.
    Physical height stays the bed; final temperature is persisted. Saved nonland
    rainfall and dry river fields are zero, while the full precipitation used
-   by annual accounting remains represented in the shared ledger. Current cover
-   is bare on water and grass/marsh on land; richer ecology/social fields remain
-   deferred. Source:
+   by annual accounting remains represented in the shared ledger. Composition
+   sets cover to bare on water and grass/marsh on land; the ground-material
+   pass (§Ground material) then derives moisture, canopy and the final land
+   cover for legacy terrain and fine recipe ≥ 4. Source:
    [final_index.rs:137](../../../crates/arda-gen/src/hydrology/final_index.rs:137),
    [hydrology.rs:238](../../../crates/arda-core/src/hydrology.rs:238),
    [area_output.rs:289](../../../crates/arda-gen/src/hydrology/area_output.rs:289),
@@ -993,10 +994,10 @@ layer load with no forms.
 - Peak RAM is admitted before allocation: about 33 bytes per finest cell plus the
   parent level (planned ≈10.8 GB for 500×1000 km).
 
-## Fine recipe-4 ground material
+## Ground material
 
-The opt-in recipe-4 world applies a material pass after the shared annual water
-solve and before area publication. It replaces the saturating flat-ground
+Legacy terrain (the CLI default) and fine recipe ≥ 4 apply a material pass
+after the shared annual water solve and before area publication. It replaces the saturating flat-ground
 wetness calculation with a logarithmic drainage/slope score, estimates soil
 moisture from rainfall relative to continuous centi-degree evaporation demand,
 and scores canopy from temperature, water balance, slope, aspect and slow
@@ -1004,8 +1005,12 @@ absolute-coordinate patches. Drainage ownership and height above the river
 remain saved diagnostics; their angular routing boundaries do not tint the
 recipe-4 vegetation palette.
 Physics overrides classify ice, rock and marsh before forest, scrub, bare or
-grass. These fields are persisted in the existing cell format; older recipes
-and legacy generation retain their previous composition. Recipe 5 keeps this pass for
+grass. These fields are persisted in the existing cell format. Fine recipes
+1–3 replay their published bytes and keep the grass/marsh-only composition.
+Legacy generation skipped this pass until 2026-10-07, which left every legacy
+land cell with zero moisture and canopy, grass cover and no tactical trees in
+temperate, wet climates; the pass reads only saved climate, relief and drainage,
+so it is terrain-source independent (changelog.d/2026-10-07-legacy-ecology.md). Recipe 5 keeps this pass for
 moisture and wetness, but its Atlas land colour no longer uses the per-cell canopy
 classes (logic/04 §atlas-formed). Source:
 [fine_materials.rs](../../../crates/arda-gen/src/orchestrator/fine_materials.rs).
