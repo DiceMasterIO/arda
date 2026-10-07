@@ -1010,6 +1010,13 @@
       "additionalProperties": false,
       "description": "One 5-ft square.",
       "properties": {
+        "dryness": {
+          "description": "Climate dryness, `0` (lush) to `255` (parched steppe); omitted when\nzero. The compositor tints vegetated ground toward dry grass by it.",
+          "format": "uint8",
+          "maximum": 255,
+          "minimum": 0,
+          "type": "integer"
+        },
         "elevation_ft": {
           "default": 0,
           "description": "Elevation in feet.",

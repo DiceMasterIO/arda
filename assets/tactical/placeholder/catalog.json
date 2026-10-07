@@ -13384,6 +13384,702 @@
       "licence": "Apache-2.0 (generated placeholder)"
     },
     {
+      "id": "veg.driftwood",
+      "class": "vegetation",
+      "image": "vegetation/veg.driftwood.png",
+      "footprint": {
+        "w": 2,
+        "h": 1
+      },
+      "anchor": null,
+      "rotations": [
+        0,
+        90,
+        180,
+        270
+      ],
+      "mirror": true,
+      "tags": {
+        "biome": [
+          "temperate"
+        ],
+        "culture": [
+          "human"
+        ],
+        "wealth": [],
+        "function": [],
+        "free": [
+          "deadwood",
+          "coast",
+          "fixed_pose"
+        ]
+      },
+      "placement": {
+        "on_water": false,
+        "against_wall": false,
+        "near_road": false,
+        "clearance_squares": 0,
+        "ground": []
+      },
+      "blocks_sight": false,
+      "blocks_movement": false,
+      "difficult_terrain": true,
+      "cover": "half",
+      "light": null,
+      "layer": "prop",
+      "z": 0,
+      "casts_shadow": true,
+      "height_ft": 2,
+      "tileable": false,
+      "ground": null,
+      "wall": null,
+      "provenance": "arda-tactical placeholder generator, seed 58",
+      "licence": "Apache-2.0 (generated placeholder)"
+    },
+    {
+      "id": "veg.sea_rock",
+      "class": "vegetation",
+      "image": "vegetation/veg.sea_rock.png",
+      "footprint": {
+        "w": 1,
+        "h": 1
+      },
+      "anchor": null,
+      "rotations": [
+        0,
+        90,
+        180,
+        270
+      ],
+      "mirror": true,
+      "tags": {
+        "biome": [
+          "temperate"
+        ],
+        "culture": [
+          "human"
+        ],
+        "wealth": [],
+        "function": [],
+        "free": [
+          "sea_rock",
+          "coast",
+          "fixed_pose"
+        ]
+      },
+      "placement": {
+        "on_water": true,
+        "against_wall": false,
+        "near_road": false,
+        "clearance_squares": 0,
+        "ground": []
+      },
+      "blocks_sight": true,
+      "blocks_movement": true,
+      "difficult_terrain": false,
+      "cover": "three_quarters",
+      "light": null,
+      "layer": "prop",
+      "z": 0,
+      "casts_shadow": true,
+      "height_ft": 5,
+      "tileable": false,
+      "ground": null,
+      "wall": null,
+      "provenance": "arda-tactical placeholder generator, seed 58",
+      "licence": "Apache-2.0 (generated placeholder)"
+    },
+    {
+      "id": "veg.tide_pool",
+      "class": "vegetation",
+      "image": "vegetation/veg.tide_pool.png",
+      "footprint": {
+        "w": 2,
+        "h": 2
+      },
+      "anchor": null,
+      "rotations": [
+        0,
+        90,
+        180,
+        270
+      ],
+      "mirror": true,
+      "tags": {
+        "biome": [
+          "temperate"
+        ],
+        "culture": [
+          "human"
+        ],
+        "wealth": [],
+        "function": [],
+        "free": [
+          "coast",
+          "tide_pool",
+          "fixed_pose"
+        ]
+      },
+      "placement": {
+        "on_water": false,
+        "against_wall": false,
+        "near_road": false,
+        "clearance_squares": 0,
+        "ground": []
+      },
+      "blocks_sight": false,
+      "blocks_movement": false,
+      "difficult_terrain": false,
+      "cover": "none",
+      "light": null,
+      "layer": "prop",
+      "z": 0,
+      "casts_shadow": false,
+      "height_ft": 0,
+      "tileable": false,
+      "ground": null,
+      "wall": null,
+      "provenance": "arda-tactical placeholder generator, seed 58",
+      "licence": "Apache-2.0 (generated placeholder)"
+    },
+    {
+      "id": "veg.dune_grass",
+      "class": "vegetation",
+      "image": "vegetation/veg.dune_grass.png",
+      "footprint": {
+        "w": 1,
+        "h": 1
+      },
+      "anchor": null,
+      "rotations": [
+        0,
+        90,
+        180,
+        270
+      ],
+      "mirror": true,
+      "tags": {
+        "biome": [
+          "temperate"
+        ],
+        "culture": [
+          "human"
+        ],
+        "wealth": [],
+        "function": [],
+        "free": [
+          "coast",
+          "dune",
+          "fixed_pose"
+        ]
+      },
+      "placement": {
+        "on_water": false,
+        "against_wall": false,
+        "near_road": false,
+        "clearance_squares": 0,
+        "ground": []
+      },
+      "blocks_sight": false,
+      "blocks_movement": false,
+      "difficult_terrain": true,
+      "cover": "none",
+      "light": null,
+      "layer": "prop",
+      "z": 0,
+      "casts_shadow": true,
+      "height_ft": 2,
+      "tileable": false,
+      "ground": null,
+      "wall": null,
+      "provenance": "arda-tactical placeholder generator, seed 58",
+      "licence": "Apache-2.0 (generated placeholder)"
+    },
+    {
+      "id": "veg.lichen_rock",
+      "class": "vegetation",
+      "image": "vegetation/veg.lichen_rock.png",
+      "footprint": {
+        "w": 1,
+        "h": 1
+      },
+      "anchor": null,
+      "rotations": [
+        0,
+        90,
+        180,
+        270
+      ],
+      "mirror": true,
+      "tags": {
+        "biome": [
+          "temperate",
+          "alpine"
+        ],
+        "culture": [
+          "human"
+        ],
+        "wealth": [],
+        "function": [],
+        "free": [
+          "stone",
+          "lichen",
+          "fixed_pose"
+        ]
+      },
+      "placement": {
+        "on_water": false,
+        "against_wall": false,
+        "near_road": false,
+        "clearance_squares": 0,
+        "ground": []
+      },
+      "blocks_sight": false,
+      "blocks_movement": true,
+      "difficult_terrain": false,
+      "cover": "half",
+      "light": null,
+      "layer": "prop",
+      "z": 0,
+      "casts_shadow": true,
+      "height_ft": 3,
+      "tileable": false,
+      "ground": null,
+      "wall": null,
+      "provenance": "arda-tactical placeholder generator, seed 58",
+      "licence": "Apache-2.0 (generated placeholder)"
+    },
+    {
+      "id": "veg.rock_snow",
+      "class": "vegetation",
+      "image": "vegetation/veg.rock_snow.png",
+      "footprint": {
+        "w": 1,
+        "h": 1
+      },
+      "anchor": null,
+      "rotations": [
+        0,
+        90,
+        180,
+        270
+      ],
+      "mirror": true,
+      "tags": {
+        "biome": [
+          "temperate",
+          "alpine"
+        ],
+        "culture": [
+          "human"
+        ],
+        "wealth": [],
+        "function": [],
+        "free": [
+          "stone",
+          "snow",
+          "fixed_pose"
+        ]
+      },
+      "placement": {
+        "on_water": false,
+        "against_wall": false,
+        "near_road": false,
+        "clearance_squares": 0,
+        "ground": []
+      },
+      "blocks_sight": true,
+      "blocks_movement": true,
+      "difficult_terrain": false,
+      "cover": "three_quarters",
+      "light": null,
+      "layer": "prop",
+      "z": 0,
+      "casts_shadow": true,
+      "height_ft": 4,
+      "tileable": false,
+      "ground": null,
+      "wall": null,
+      "provenance": "arda-tactical placeholder generator, seed 58",
+      "licence": "Apache-2.0 (generated placeholder)"
+    },
+    {
+      "id": "veg.alpine_flowers",
+      "class": "vegetation",
+      "image": "vegetation/veg.alpine_flowers.png",
+      "footprint": {
+        "w": 1,
+        "h": 1
+      },
+      "anchor": null,
+      "rotations": [
+        0,
+        90,
+        180,
+        270
+      ],
+      "mirror": true,
+      "tags": {
+        "biome": [
+          "temperate",
+          "alpine"
+        ],
+        "culture": [
+          "human"
+        ],
+        "wealth": [],
+        "function": [],
+        "free": [
+          "alpine_plant",
+          "flower",
+          "fixed_pose"
+        ]
+      },
+      "placement": {
+        "on_water": false,
+        "against_wall": false,
+        "near_road": false,
+        "clearance_squares": 0,
+        "ground": []
+      },
+      "blocks_sight": false,
+      "blocks_movement": false,
+      "difficult_terrain": true,
+      "cover": "none",
+      "light": null,
+      "layer": "prop",
+      "z": 0,
+      "casts_shadow": true,
+      "height_ft": 1,
+      "tileable": false,
+      "ground": null,
+      "wall": null,
+      "provenance": "arda-tactical placeholder generator, seed 58",
+      "licence": "Apache-2.0 (generated placeholder)"
+    },
+    {
+      "id": "veg.tussock",
+      "class": "vegetation",
+      "image": "vegetation/veg.tussock.png",
+      "footprint": {
+        "w": 1,
+        "h": 1
+      },
+      "anchor": null,
+      "rotations": [
+        0,
+        90,
+        180,
+        270
+      ],
+      "mirror": true,
+      "tags": {
+        "biome": [
+          "temperate"
+        ],
+        "culture": [
+          "human"
+        ],
+        "wealth": [],
+        "function": [],
+        "free": [
+          "tussock",
+          "steppe",
+          "fixed_pose"
+        ]
+      },
+      "placement": {
+        "on_water": false,
+        "against_wall": false,
+        "near_road": false,
+        "clearance_squares": 0,
+        "ground": []
+      },
+      "blocks_sight": false,
+      "blocks_movement": false,
+      "difficult_terrain": true,
+      "cover": "none",
+      "light": null,
+      "layer": "prop",
+      "z": 0,
+      "casts_shadow": true,
+      "height_ft": 2,
+      "tileable": false,
+      "ground": null,
+      "wall": null,
+      "provenance": "arda-tactical placeholder generator, seed 58",
+      "licence": "Apache-2.0 (generated placeholder)"
+    },
+    {
+      "id": "veg.krummholz",
+      "class": "vegetation",
+      "image": "vegetation/veg.krummholz.png",
+      "footprint": {
+        "w": 1,
+        "h": 1
+      },
+      "anchor": null,
+      "rotations": [
+        0,
+        90,
+        180,
+        270
+      ],
+      "mirror": true,
+      "tags": {
+        "biome": [
+          "temperate",
+          "alpine"
+        ],
+        "culture": [
+          "human"
+        ],
+        "wealth": [],
+        "function": [],
+        "free": [
+          "conifer",
+          "stunted",
+          "krummholz",
+          "fixed_pose"
+        ]
+      },
+      "placement": {
+        "on_water": false,
+        "against_wall": false,
+        "near_road": false,
+        "clearance_squares": 0,
+        "ground": []
+      },
+      "blocks_sight": false,
+      "blocks_movement": false,
+      "difficult_terrain": true,
+      "cover": "half",
+      "light": null,
+      "layer": "prop",
+      "z": 0,
+      "casts_shadow": true,
+      "height_ft": 6,
+      "tileable": false,
+      "ground": null,
+      "wall": null,
+      "provenance": "arda-tactical placeholder generator, seed 58",
+      "licence": "Apache-2.0 (generated placeholder)"
+    },
+    {
+      "id": "veg.sagebrush",
+      "class": "vegetation",
+      "image": "vegetation/veg.sagebrush.png",
+      "footprint": {
+        "w": 1,
+        "h": 1
+      },
+      "anchor": null,
+      "rotations": [
+        0,
+        90,
+        180,
+        270
+      ],
+      "mirror": true,
+      "tags": {
+        "biome": [
+          "temperate"
+        ],
+        "culture": [
+          "human"
+        ],
+        "wealth": [],
+        "function": [],
+        "free": [
+          "shrub",
+          "steppe",
+          "fixed_pose"
+        ]
+      },
+      "placement": {
+        "on_water": false,
+        "against_wall": false,
+        "near_road": false,
+        "clearance_squares": 0,
+        "ground": []
+      },
+      "blocks_sight": false,
+      "blocks_movement": false,
+      "difficult_terrain": true,
+      "cover": "half",
+      "light": null,
+      "layer": "prop",
+      "z": 0,
+      "casts_shadow": true,
+      "height_ft": 3,
+      "tileable": false,
+      "ground": null,
+      "wall": null,
+      "provenance": "arda-tactical placeholder generator, seed 58",
+      "licence": "Apache-2.0 (generated placeholder)"
+    },
+    {
+      "id": "veg.dry_grass",
+      "class": "vegetation",
+      "image": "vegetation/veg.dry_grass.png",
+      "footprint": {
+        "w": 1,
+        "h": 1
+      },
+      "anchor": null,
+      "rotations": [
+        0,
+        90,
+        180,
+        270
+      ],
+      "mirror": true,
+      "tags": {
+        "biome": [
+          "temperate"
+        ],
+        "culture": [
+          "human"
+        ],
+        "wealth": [],
+        "function": [],
+        "free": [
+          "dry_grass",
+          "steppe",
+          "fixed_pose"
+        ]
+      },
+      "placement": {
+        "on_water": false,
+        "against_wall": false,
+        "near_road": false,
+        "clearance_squares": 0,
+        "ground": []
+      },
+      "blocks_sight": false,
+      "blocks_movement": false,
+      "difficult_terrain": true,
+      "cover": "none",
+      "light": null,
+      "layer": "prop",
+      "z": 0,
+      "casts_shadow": true,
+      "height_ft": 2,
+      "tileable": false,
+      "ground": null,
+      "wall": null,
+      "provenance": "arda-tactical placeholder generator, seed 58",
+      "licence": "Apache-2.0 (generated placeholder)"
+    },
+    {
+      "id": "veg.sedge",
+      "class": "vegetation",
+      "image": "vegetation/veg.sedge.png",
+      "footprint": {
+        "w": 1,
+        "h": 1
+      },
+      "anchor": null,
+      "rotations": [
+        0,
+        90,
+        180,
+        270
+      ],
+      "mirror": true,
+      "tags": {
+        "biome": [
+          "temperate",
+          "wetland"
+        ],
+        "culture": [
+          "human"
+        ],
+        "wealth": [],
+        "function": [],
+        "free": [
+          "sedge",
+          "water_plant",
+          "fixed_pose"
+        ]
+      },
+      "placement": {
+        "on_water": false,
+        "against_wall": false,
+        "near_road": false,
+        "clearance_squares": 0,
+        "ground": []
+      },
+      "blocks_sight": false,
+      "blocks_movement": false,
+      "difficult_terrain": true,
+      "cover": "none",
+      "light": null,
+      "layer": "prop",
+      "z": 0,
+      "casts_shadow": true,
+      "height_ft": 2,
+      "tileable": false,
+      "ground": null,
+      "wall": null,
+      "provenance": "arda-tactical placeholder generator, seed 58",
+      "licence": "Apache-2.0 (generated placeholder)"
+    },
+    {
+      "id": "veg.marsh_flowers",
+      "class": "vegetation",
+      "image": "vegetation/veg.marsh_flowers.png",
+      "footprint": {
+        "w": 1,
+        "h": 1
+      },
+      "anchor": null,
+      "rotations": [
+        0,
+        90,
+        180,
+        270
+      ],
+      "mirror": true,
+      "tags": {
+        "biome": [
+          "temperate",
+          "wetland"
+        ],
+        "culture": [
+          "human"
+        ],
+        "wealth": [],
+        "function": [],
+        "free": [
+          "flower",
+          "marsh_plant",
+          "fixed_pose"
+        ]
+      },
+      "placement": {
+        "on_water": false,
+        "against_wall": false,
+        "near_road": false,
+        "clearance_squares": 0,
+        "ground": []
+      },
+      "blocks_sight": false,
+      "blocks_movement": false,
+      "difficult_terrain": true,
+      "cover": "none",
+      "light": null,
+      "layer": "prop",
+      "z": 0,
+      "casts_shadow": true,
+      "height_ft": 1,
+      "tileable": false,
+      "ground": null,
+      "wall": null,
+      "provenance": "arda-tactical placeholder generator, seed 58",
+      "licence": "Apache-2.0 (generated placeholder)"
+    },
+    {
       "id": "veg.stalagmite",
       "class": "vegetation",
       "image": "vegetation/veg.stalagmite.png",

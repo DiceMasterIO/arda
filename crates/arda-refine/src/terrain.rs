@@ -91,21 +91,50 @@ pub fn warp(ctx: &Ctx, tag: u64, u: f64, v: f64, amp: f64, wavelength: f64) -> (
     )
 }
 
+/// Rise of one rock stratum on craggy ground, metres.
+pub const STRATUM_M: f64 = 7.0;
+/// Share of a stratum's run taken by its riser.
+const RISER: f64 = 0.25;
+/// How far craggy ground is pulled onto its strata (`0..=1`).
+const STRATA: f64 = 0.6;
+
+/// Strata: on craggy ground ([`crate::biome::craggy`]) a steep hillside
+/// breaks into benches and rock risers instead of one even grade, so a
+/// mountain shows ledges, cliff bands and flat footholds. The bench
+/// heights wander with a slow noise so the bands follow the contours
+/// loosely, never in rulered lines. Identity where the cells are not
+/// craggy.
+fn strata(ctx: &Ctx, u: f64, v: f64, h: f64) -> f64 {
+    let crag = ctx.bilinear(u, v, |c, _| crate::biome::craggy(c));
+    if crag <= 0.0 {
+        return h;
+    }
+    let t = (h + 3.0 * fbm(ctx.seed, 0x57A7, u, v, 36.0, 3, 0.5)) / STRATUM_M;
+    let base = t.floor();
+    let stepped = (base + smoothstep(1.0 - RISER, 1.0, t - base)) * STRATUM_M;
+    let off = stepped - t * STRATUM_M;
+    h + STRATA * crag * off
+}
+
 /// Continuous land elevation at global square position `(u, v)`, metres.
 #[must_use]
 pub fn land_height(ctx: &Ctx, u: f64, v: f64) -> f64 {
     let amp = ctx.bilinear(u, v, |c, _| roughness(c));
     let (wu, wv) = warp(ctx, 0xA3A3, u, v, 4.0, 45.0);
-    ctx.base_height(wu, wv) + amp * fbm(ctx.seed, 0xE1E7, u, v, 26.0, 3, 0.5)
+    let h = ctx.base_height(wu, wv) + amp * fbm(ctx.seed, 0xE1E7, u, v, 26.0, 3, 0.5);
+    strata(ctx, u, v, h)
 }
 
 /// Standing-water indicator: Catmull-Rom of ±1 over cells, bent by noise so
 /// shores never follow cell edges.
 fn standing(ctx: &Ctx, u: f64, v: f64, level: f64, land: f64) -> f64 {
     let (wu, wv) = warp(ctx, 0x5A5A, u, v, 9.0, 60.0);
+    // Land at sea level (`biome::coastal`) is where the shoreline runs, so
+    // it sits halfway: the sea reaches into coast cells instead of
+    // stopping at their edge.
     let base = ctx.bicubic(wu, wv, |c, _| {
         if c.terrain == TerrainKind::Land {
-            -1.0
+            -1.0 + crate::biome::coastal(c)
         } else {
             1.0
         }

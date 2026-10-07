@@ -9,6 +9,11 @@
 //! out to a blurry average. Structured textures (cobbles, boards, slabs,
 //! furrows) keep their alignment and only cross-fade between variants,
 //! whose layouts match.
+//!
+//! Natural variants are flattened when the set is built ([`flatten`]):
+//! most of their low-frequency tone is removed so the cells never show as
+//! a checker of lighter and darker squares, and one variant covers a
+//! region of 3 × 3 cells.
 // Pixel, grid and cell indices are bounded by the canvas size (at most
 // 1024 ppsq × a few hundred squares), so these conversions cannot lose
 // meaningful range.
@@ -50,8 +55,98 @@ pub struct KeyTextures {
     pow2: bool,
 }
 
+/// Share of each natural ground variant's low-frequency tone removed by
+/// [`flatten`]: variants keep their grain but share one tone.
+const FLATTEN: f32 = 0.85;
+/// The same for water, whose darker pools are part of the look.
+const FLATTEN_WATER: f32 = 0.8;
+
+/// Wrap-around box blur of one channel plane, radius `r` pixels, applied
+/// along x then y.
+fn blur_wrap(plane: &[f32], w: usize, h: usize, r: usize) -> Vec<f32> {
+    let k = (2 * r + 1) as f32;
+    let mut tmp = vec![0.0f32; plane.len()];
+    for y in 0..h {
+        let row = &plane[y * w..(y + 1) * w];
+        let mut acc: f32 = (0..=2 * r).map(|i| row[(i + w - r % w) % w]).sum();
+        for x in 0..w {
+            tmp[y * w + x] = acc / k;
+            acc += row[(x + r + 1) % w] - row[(x + w - r % w) % w];
+        }
+    }
+    let mut out = vec![0.0f32; plane.len()];
+    for x in 0..w {
+        let at = |y: usize| tmp[(y % h) * w + x];
+        let mut acc: f32 = (0..=2 * r).map(|i| at(i + h - r % h)).sum();
+        for y in 0..h {
+            out[y * w + x] = acc / k;
+            acc += at(y + r + 1) - at(y + h - r % h);
+        }
+    }
+    out
+}
+
+/// Removes most of a natural texture variant's low-frequency tone (its
+/// wrap-around blur at a quarter of its width) and re-centres it on the
+/// key's mean over all variants. AI and photo textures carry lighting
+/// gradients and per-variant tone shifts; stochastic tiling cuts them into
+/// 1.75-square cells, which read as a blocky checker. Flattened variants
+/// differ only in grain, so cell borders vanish; the compositor's own
+/// world-space macro tint supplies the large-scale variation instead.
+fn flatten(img: &Rgba, mean: [f32; 3], strength: f32) -> Rgba {
+    let (w, h) = (img.width as usize, img.height as usize);
+    let r = (w.min(h) / 8).max(1);
+    if w < 4 || h < 4 {
+        return img.clone();
+    }
+    let mut out = img.clone();
+    for ch in 0..3 {
+        let plane: Vec<f32> = img
+            .data
+            .as_chunks::<4>()
+            .0
+            .iter()
+            .map(|p| f32::from(p[ch]))
+            .collect();
+        let low = blur_wrap(&plane, w, h, r);
+        for (i, px) in out.data.as_chunks_mut::<4>().0.iter_mut().enumerate() {
+            let v = plane[i] - strength * (low[i] - mean[ch]);
+            px[ch] = v.round().clamp(0.0, 255.0) as u8;
+        }
+    }
+    out
+}
+
+fn mean_of(variants: &[Rgba]) -> [f32; 3] {
+    let mut sum = [0.0f64; 3];
+    let mut n = 0u64;
+    for img in variants {
+        for p in img.data.as_chunks::<4>().0 {
+            for (s, v) in sum.iter_mut().zip(p) {
+                *s += f64::from(*v);
+            }
+            n += 1;
+        }
+    }
+    sum.map(|s| (s / n.max(1) as f64) as f32)
+}
+
 impl KeyTextures {
-    fn new(variants: Vec<Rgba>, structured: bool) -> Self {
+    fn new(key: &str, variants: Vec<Rgba>, structured: bool) -> Self {
+        let variants = if structured {
+            variants
+        } else {
+            let mean = mean_of(&variants);
+            let strength = if key.starts_with("water") {
+                FLATTEN_WATER
+            } else {
+                FLATTEN
+            };
+            variants
+                .iter()
+                .map(|v| flatten(v, mean, strength))
+                .collect()
+        };
         let mut sum = [0.0f64; 3];
         let mut n = 0u64;
         let (mut lo, mut hi) = (f64::MAX, f64::MIN);
@@ -121,7 +216,10 @@ impl TextureSet {
         }
         let by_key = raw
             .into_iter()
-            .map(|(k, (v, s))| (k, KeyTextures::new(v, s)))
+            .map(|(k, (v, s))| {
+                let t = KeyTextures::new(&k, v, s);
+                (k, t)
+            })
             .collect();
         Self { by_key }
     }
@@ -133,14 +231,21 @@ impl TextureSet {
     }
 }
 
-/// One cell's choice: variant index and texel offset.
+/// Cells per side of a natural texture's variant region.
+const REGION: i64 = 3;
+
+/// One cell's choice: variant index and texel offset. Natural textures
+/// share one variant over a region of [`REGION`] × [`REGION`] cells (each
+/// cell still takes its own offset), so the grain changes character in
+/// patches several squares across rather than cell by cell.
 fn cell_pick(tex: &KeyTextures, salt: u64, ci: i64, cj: i64) -> (usize, i64, i64) {
     let h = hash2(salt, ci, cj);
     let n = tex.variants.len() as u64;
-    let v = usize::try_from(h % n.max(1)).unwrap_or(0);
     if tex.structured {
-        return (v, 0, 0);
+        return (usize::try_from(h % n.max(1)).unwrap_or(0), 0, 0);
     }
+    let region = hash2(salt ^ 0x7E61, ci.div_euclid(REGION), cj.div_euclid(REGION));
+    let v = usize::try_from(region % n.max(1)).unwrap_or(0);
     let img = &tex.variants[v];
     let hx = mix(h ^ 0x51);
     let (w, hh) = (u64::from(img.width), u64::from(img.height));
@@ -310,11 +415,11 @@ mod tests {
 
     #[test]
     fn far_apart_structured_variants_are_finishes_and_a_finish_is_exact() {
-        let near = KeyTextures::new(vec![solid(100), solid(110)], true);
+        let near = KeyTextures::new("test", vec![solid(100), solid(110)], true);
         assert!(!near.finishes, "a 10-luma spread is one surface");
-        let loose = KeyTextures::new(vec![solid(60), solid(160)], false);
+        let loose = KeyTextures::new("test", vec![solid(60), solid(160)], false);
         assert!(!loose.finishes, "natural textures keep their cells");
-        let boards = KeyTextures::new(vec![solid(60), solid(160)], true);
+        let boards = KeyTextures::new("test", vec![solid(60), solid(160)], true);
         assert!(boards.finishes);
         let frame = Frame {
             ppsq: 4,

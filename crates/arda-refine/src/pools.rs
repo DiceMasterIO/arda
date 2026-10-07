@@ -42,11 +42,8 @@ fn site(ctx: &Ctx, i: i64, j: i64) -> (f64, f64, u64) {
 /// Wetness of the site's cell neighbourhood: `(marsh, floodplain)`, each
 /// `0..1`.
 fn wetness(ctx: &Ctx, u: f64, v: f64) -> (f64, f64) {
-    let marsh = ctx.bilinear(u, v, |c, _| {
-        f64::from(u8::from(
-            c.terrain == TerrainKind::Land && c.cover == Cover::Marsh,
-        ))
-    });
+    // Marsh cover or saturated ground (`biome::marshy`).
+    let marsh = ctx.bilinear(u, v, |c, _| crate::biome::marshy(c));
     let flood = ctx.bilinear(u, v, |c, _| {
         if c.terrain != TerrainKind::Land || c.watercourse_order > 0 {
             return 0.0;
@@ -85,6 +82,7 @@ pub fn wet_cell(c: &arda::Cell) -> bool {
     }
     let wet = f64::from(c.wetness) / 255.0;
     c.cover == Cover::Marsh
+        || crate::biome::marshy(c) > 0.5
         || (c.watercourse_order == 0 && c.height_above_river_dm < 15 && wet > 0.45)
 }
 

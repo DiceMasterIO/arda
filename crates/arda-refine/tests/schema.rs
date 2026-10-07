@@ -50,7 +50,7 @@ const GROUND: [&str; 23] = [
     "mudflat",
 ];
 
-const VEG: [&str; 29] = [
+const VEG: [&str; 42] = [
     "tree_alder",
     "tree_stunted",
     "juniper",
@@ -80,6 +80,19 @@ const VEG: [&str; 29] = [
     "rock_small",
     "rock_large",
     "scree_patch",
+    "driftwood",
+    "sea_rock",
+    "tide_pool",
+    "dune_grass",
+    "lichen_rock",
+    "rock_snow",
+    "alpine_flowers",
+    "tussock",
+    "krummholz",
+    "sagebrush",
+    "dry_grass",
+    "sedge",
+    "marsh_flowers",
 ];
 
 #[derive(Deserialize)]

@@ -15,4 +15,9 @@ elevation_ft: number,
 /**
  * Water depth in feet; zero is dry land.
  */
-water_depth_ft: number, };
+water_depth_ft: number, 
+/**
+ * Climate dryness, `0` (lush) to `255` (parched steppe); omitted when
+ * zero. The compositor tints vegetated ground toward dry grass by it.
+ */
+dryness?: number, };

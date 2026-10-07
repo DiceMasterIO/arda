@@ -44,7 +44,12 @@ fn quantile(fd: f64) -> f64 {
 #[must_use]
 pub fn woods(ctx: &Ctx, e: &Eco, x: f64, y: f64) -> Woods {
     let open = (1.0 - e.rocky) * (1.0 - 0.7 * e.marsh);
-    let target = (e.fd + 0.07 * e.grass * (1.0 - e.fd)) * open;
+    // Steppe keeps its copses few: dry country grows trees only by water.
+    // A stand closes only to about four fifths (gaps between crowns), so
+    // the wooded share runs a little over the density to give canopy cover
+    // close to it.
+    let target =
+        ((e.fd * 1.15).min(0.995) + 0.07 * e.grass * (1.0 - e.fd)) * open * (1.0 - 0.8 * e.arid);
     let n = fbm(ctx.seed, 0xC1, x, y, 26.0, 2, 0.5);
     let q = quantile(target);
     let grove = smoothstep(-0.03, 0.03, n - q);
@@ -59,7 +64,7 @@ pub fn woods(ctx: &Ctx, e: &Eco, x: f64, y: f64) -> Woods {
     };
     let drift = smoothstep(-0.08, 0.22, fbm(ctx.seed, 0xC5, x, y, 11.0, 2, 0.5));
     Woods {
-        canopy: (0.92 * grove).max(line) * grow,
+        canopy: grove.max(line) * grow,
         edge: rim.max(0.5 * line) * grow.max(0.3),
         drift,
         stony: smoothstep(-0.12, 0.2, fbm(ctx.seed, 0xC6, x, y, 9.0, 2, 0.5)),
@@ -76,20 +81,35 @@ fn firm(p: &Phys) -> bool {
 pub fn density(kind: Kind, e: &Eco, w: &Woods, p: &Phys) -> f64 {
     let dry = p.water == Water::Dry;
     let s = &e.shape;
+    // Nothing grows through lying snow; above the tree line plants thin
+    // out to sparse cushions and only krummholz holds on near its edge.
+    let bare = 1.0 - smoothstep(0.3, 0.65, e.snow);
+    let alive = smoothstep(0.0, 0.2, e.growth);
     match kind {
+        // The sea shore (logic/09 §shores): driftwood and wrack on the
+        // beach, dune grass behind it, tide pools on rocky strands, sea
+        // stacks and rocks standing in the shallows.
+        Kind::Log if dry && e.beach > 0.2 => 0.1 * e.beach,
+        Kind::Low if dry && e.dune > 0.2 => 0.55 * e.dune * bare,
+        Kind::Rock if dry && e.beach > 0.3 => 0.04 + 0.3 * e.shore_rock * e.beach,
+        Kind::Boulder if p.water == Water::Sea && p.depth_m < 2.5 => 0.04 + 0.35 * e.shore_rock,
         Kind::TreeLarge if firm(p) => w.canopy,
         Kind::TreeSmall if firm(p) => {
-            (0.3 * w.canopy + 0.4 * w.edge + 0.1 * e.scrub * w.drift).min(1.0)
+            (0.5 * w.canopy + 0.4 * w.edge + 0.1 * e.scrub * w.drift).min(1.0)
         }
         Kind::Log if firm(p) => 0.2 * w.canopy * e.growth.max(0.3),
         Kind::Undergrowth if firm(p) => {
-            let juniper = 0.3 * smoothstep(7.0, 2.0, e.temp) * (1.0 - e.rocky);
-            let open = (0.4 * e.scrub + juniper) * w.drift;
-            (0.12 * w.canopy + 0.55 * w.edge + open + 0.25 * s.talus).min(1.0)
+            let juniper = 0.3 * smoothstep(7.0, 2.0, e.temp) * (1.0 - e.rocky) * alive;
+            let steppe = 0.15 * e.arid;
+            let open = (0.4 * e.scrub + juniper + steppe) * w.drift;
+            ((0.12 * w.canopy + 0.55 * w.edge + open + 0.25 * s.talus * alive).min(1.0)) * bare
         }
         Kind::Outcrop if dry && p.river_d > 1.5 => {
             let knoll = smoothstep(0.25, 0.7, s.ridge()) * smoothstep(10.0, 28.0, p.slope_deg);
-            ((0.45 + e.rocky) * knoll + 0.08 * e.rocky).min(0.9)
+            // Crags: outcrops break out of steep mountainsides even off
+            // the knolls.
+            let crag = smoothstep(24.0, 40.0, p.slope_deg) * (0.35 + 0.65 * s.ridge());
+            ((0.45 + e.rocky) * knoll + 0.08 * e.rocky + 0.3 * crag + 0.06 * e.alpine).min(0.9)
         }
         Kind::Boulder | Kind::Rock if dry && p.river_d > 0.3 => {
             (0.35 + 0.9 * w.stony).min(1.0)
@@ -97,8 +117,9 @@ pub fn density(kind: Kind, e: &Eco, w: &Woods, p: &Phys) -> f64 {
                     + 0.35 * e.rocky
                     + 0.45 * smoothstep(20.0, 42.0, p.slope_deg)
                     + 0.9 * s.talus
-                    + 0.2 * s.ridge() * smoothstep(8.0, 25.0, p.slope_deg))
-                .min(0.92)
+                    + 0.2 * s.ridge() * smoothstep(8.0, 25.0, p.slope_deg)
+                    + 0.25 * e.alpine)
+                    .min(0.92)
         }
         Kind::Reeds => {
             let shore = if dry {
@@ -126,12 +147,15 @@ pub fn density(kind: Kind, e: &Eco, w: &Woods, p: &Phys) -> f64 {
             // trees and along wood edges.
             let open = (0.05 + 0.5 * e.grass + 0.3 * e.scrub) * w.drift * (1.0 - 0.6 * w.canopy);
             let wood = 0.3 * w.canopy + 0.4 * w.edge;
-            ((open + wood + 0.15 * s.bowl()) * (1.0 - 0.8 * e.rocky)).min(0.7)
+            let base = (open + wood + 0.15 * s.bowl()) * (1.0 - 0.8 * e.rocky);
+            // Marsh sedges stand thick; alpine cushions are sparse.
+            let marsh = 0.35 * e.marsh * w.drift;
+            ((base + marsh) * (1.0 - 0.65 * e.alpine) * (1.0 - 0.6 * e.crag) * bare).min(0.7)
         }
         // Crevices and ledges: grass tufts and shrubs in the hollows of
         // rocky ground too steep for anything else.
         Kind::Undergrowth | Kind::Low if dry && p.slope_deg < 48.0 && p.river_d > 0.6 => {
-            0.5 * e.rocky * s.bowl() * e.growth
+            0.5 * e.rocky * s.bowl() * e.growth * bare
         }
         _ => 0.0,
     }
@@ -154,6 +178,9 @@ pub fn choose(kind: Kind, e: &Eco, w: &Woods, r: f64, q: f64) -> (Kind, Species)
             (k, t)
         }
         Kind::Undergrowth => (kind, shrub(e, r)),
+        Kind::Log if e.beach > 0.2 => (kind, ("veg.driftwood", "deadwood:driftwood")),
+        Kind::Rock if e.beach > 0.3 => (Kind::Low, ("veg.tide_pool", "shore:tide_pool")),
+        Kind::Boulder if e.in_sea => (Kind::Boulder, ("veg.sea_rock", "rock:sea")),
         Kind::Outcrop => {
             if r < 0.65 {
                 (Kind::Outcrop, ("veg.rock_outcrop", "rock:outcrop"))
@@ -163,7 +190,11 @@ pub fn choose(kind: Kind, e: &Eco, w: &Woods, r: f64, q: f64) -> (Kind, Species)
         }
         Kind::Boulder | Kind::Rock => {
             let s = &e.shape;
-            if s.talus > 0.35 {
+            if e.snow > 0.5 && r < 0.5 {
+                (Kind::Boulder, ("veg.rock_snow", "rock:snow"))
+            } else if e.alpine > 0.4 && r > 1.0 - 0.45 * e.alpine {
+                (Kind::Rock, ("veg.lichen_rock", "rock:lichen"))
+            } else if s.talus > 0.35 {
                 // A boulder field under a crag: big blocks among smaller.
                 if r < 0.35 {
                     (Kind::Boulder, ("veg.boulder", "rock:boulder"))

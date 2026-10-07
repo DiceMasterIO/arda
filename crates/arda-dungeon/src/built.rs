@@ -484,6 +484,7 @@ pub(crate) fn generate(p: &Params) -> Result<Dungeon, DungeonError> {
                 ground: ground.into(),
                 elevation_ft: 0,
                 water_depth_ft: 0,
+                dryness: 0,
             };
         }
     }

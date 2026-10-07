@@ -152,6 +152,7 @@ pub fn assemble<B: std::borrow::Borrow<Block>>(
             ground: "grass".into(),
             elevation_ft: 0,
             water_depth_ft: 0,
+            dryness: 0,
         };
         wu * hu
     ];
@@ -183,6 +184,7 @@ pub fn assemble<B: std::borrow::Borrow<Block>>(
                     ground: b.ground[k].to_string(),
                     elevation_ft: b.elevation_ft[k],
                     water_depth_ft: b.depth_ft[k],
+                    dryness: b.dryness[k],
                 };
                 rules[oy * wu + ox] = b.rules[k];
             }

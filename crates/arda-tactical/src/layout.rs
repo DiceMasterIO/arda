@@ -49,6 +49,18 @@ pub struct Square {
     /// Water depth in feet; zero is dry land.
     #[serde(default)]
     pub water_depth_ft: u8,
+    /// Climate dryness, `0` (lush, the default) to `255` (parched
+    /// steppe): the compositor tints vegetated ground toward dry grass by
+    /// it, interpolated between square centres. Omitted when zero, so
+    /// layouts without it read and render exactly as before.
+    #[serde(default, skip_serializing_if = "is_zero")]
+    pub dryness: u8,
+}
+
+// serde's `skip_serializing_if` passes a reference.
+#[allow(clippy::trivially_copy_pass_by_ref)]
+const fn is_zero(v: &u8) -> bool {
+    *v == 0
 }
 
 /// Which edge of a square a segment lies on.
@@ -167,6 +179,7 @@ impl TacticalLayout {
             ground: ground.to_string(),
             elevation_ft: 0,
             water_depth_ft: 0,
+            dryness: 0,
         };
         Self {
             name: name.to_string(),

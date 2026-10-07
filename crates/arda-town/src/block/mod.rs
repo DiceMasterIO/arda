@@ -353,6 +353,7 @@ fn assemble(
             ground: g.key.to_string(),
             elevation_ft: g.elevation_ft,
             water_depth_ft: g.water_ft,
+            dryness: 0,
         })
         .collect();
     layout.walls = walls

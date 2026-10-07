@@ -241,6 +241,7 @@ fn layout(
             ground: (*dressed.ground.get(s).unwrap_or(&"grass")).to_string(),
             elevation_ft: feet(t.height_m, 0, ELEV_STEP_FT),
             water_depth_ft: 0,
+            dryness: 0,
         };
         if plan.at(s) == Cover::Water {
             let d = feet(t.water_depth_m, 0, 1.0).clamp(1, 255);

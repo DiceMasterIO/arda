@@ -19,6 +19,7 @@
 
 #![cfg_attr(test, allow(clippy::unwrap_used, clippy::expect_used))]
 
+pub mod biome;
 pub mod block;
 pub mod borders;
 pub mod classes;

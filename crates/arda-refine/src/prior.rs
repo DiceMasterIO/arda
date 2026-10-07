@@ -111,6 +111,7 @@ pub fn cell_weights(c: &Cell) -> Weights {
         set(Marsh, 0.5 * soggy);
         set(Mud, 0.2 * soggy);
         set(ReedBed, 0.2 * soggy);
+        biome_weights(c, open, &mut w);
     }
     let snow = smoothstep(1.5, -2.5, temp);
     for k in [
@@ -129,6 +130,51 @@ pub fn cell_weights(c: &Cell) -> Weights {
     w[Snow.index()] += 1.6 * snow;
     w[Ice.index()] += 0.2 * snow;
     w
+}
+
+/// Ground of the cell's biome signals ([`crate::biome`]), whatever its
+/// cover says: saturated ground is marsh with reed beds and mud; dry
+/// country trades meadow and moss for bare earth and scrub; sea-level land
+/// is beach; above the tree line and on crags rock, scree and moss take
+/// over from turf.
+fn biome_weights(c: &Cell, open: f64, w: &mut Weights) {
+    use crate::biome::{alpine, arid, coastal, craggy, marshy};
+    use Class::*;
+    let bog = if c.cover == Cover::Marsh {
+        0.0
+    } else {
+        marshy(c)
+    };
+    let (dry, coast, alp, crag) = (arid(c), coastal(c), alpine(c), craggy(c));
+    let mut add = |k: Class, v: f64| w[k.index()] += v;
+    add(Marsh, 1.4 * bog * open);
+    add(ReedBed, 1.0 * bog * open);
+    add(Mud, 0.5 * bog);
+    add(Dirt, 0.45 * dry);
+    add(Scrub, 0.12 * dry);
+    add(Sand, 0.06 * dry * dry + 0.45 * coast);
+    add(Gravel, 0.04 * dry + 0.15 * coast);
+    add(Rock, 0.35 * alp + 0.2 * crag);
+    add(Scree, 0.3 * alp + 0.3 * crag);
+    add(Moss, 0.2 * alp * (1.0 - dry));
+    add(Heath, 0.15 * alp);
+    let mut scale = |k: Class, f: f64| w[k.index()] *= f.clamp(0.0, 1.0);
+    scale(
+        Grass,
+        (1.0 - 0.8 * bog)
+            * (1.0 - 0.3 * dry)
+            * (1.0 - 0.5 * coast)
+            * (1.0 - 0.4 * alp)
+            * (1.0 - 0.5 * crag),
+    );
+    scale(
+        Meadow,
+        (1.0 - 0.6 * bog) * (1.0 - 0.85 * dry) * (1.0 - 0.7 * coast) * (1.0 - 0.5 * alp),
+    );
+    scale(Moss, 1.0 - 0.9 * dry);
+    scale(ForestFloor, 1.0 - 0.9 * alp);
+    scale(LeafLitter, 1.0 - 0.9 * alp);
+    scale(Scrub, 1.0 - 0.7 * alp);
 }
 
 /// Precomputed cell weights for a block's neighbourhood.
@@ -193,8 +239,11 @@ impl Prior {
         let steep = smoothstep(16.0, 36.0, slope);
         let crag = smoothstep(26.0, 44.0, slope);
         w[Scree.index()] = w[Scree.index()] * (1.0 + 3.0 * steep) + 0.35 * steep;
-        w[Rock.index()] = w[Rock.index()] * (1.0 + 4.0 * crag) + 0.5 * crag;
-        w[Cliff.index()] = 0.6 * smoothstep(34.0, 46.0, slope);
+        // Steep squares break out as bare rock and cliff faces, so a
+        // mountainside reads as rock bands among the scree, not a flat
+        // talus sheet.
+        w[Rock.index()] = w[Rock.index()] * (1.0 + 4.0 * crag) + 0.9 * crag;
+        w[Cliff.index()] = 0.9 * smoothstep(32.0, 44.0, slope);
         for k in [Grass, Meadow, Dirt, Marsh, Mud, ReedBed, Sand] {
             w[k.index()] *= 1.0 - 0.8 * steep;
         }
@@ -253,11 +302,28 @@ fn landform(
     w[Marsh.index()] += 0.5 * bowl * smoothstep(0.35, 0.8, wet) * (1.0 - steepish);
     w[Mud.index()] += 0.12 * bowl * smoothstep(0.45, 0.9, wet) * (1.0 - steepish);
     // Snow patches: cold country only, in proportion to shade.
+    w[Snow.index()] += 1.8 * lie(ctx, u, v, slope, north, bowl);
+}
+
+fn lie(ctx: &Ctx, u: f64, v: f64, slope: f64, north: f64, bowl: f64) -> f64 {
     let temp = ctx.bilinear(u, v, |c, _| f64::from(c.temperature.raw()) / 100.0);
     let cold = smoothstep(5.0, 0.0, temp);
     let shade = (north * smoothstep(4.0, 22.0, slope)).max(0.0);
-    let lie = smoothstep(0.45, 0.9, 0.55 * shade + 0.8 * bowl + 0.15 * north);
-    w[Snow.index()] += 1.8 * cold * lie;
+    cold * smoothstep(0.45, 0.9, 0.55 * shade + 0.8 * bowl + 0.15 * north)
+}
+
+/// How strongly snow lingers at a square in cold shade and hollows
+/// (`0..=1`), the term the ground prior adds to snow; scatter reads it so
+/// no flower stands on a drift.
+#[must_use]
+pub fn snow_lie(
+    ctx: &Ctx,
+    u: f64,
+    v: f64,
+    p: &crate::terrain::Phys,
+    s: crate::shape::Shape,
+) -> f64 {
+    lie(ctx, u, v, p.slope_deg, p.north, s.bowl())
 }
 
 fn split(t: f64) -> (i64, f64) {
