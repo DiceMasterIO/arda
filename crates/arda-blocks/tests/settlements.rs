@@ -2,6 +2,8 @@
 //! society overlay: buildings never overlap, no wall doubles up on an edge,
 //! and no lower layer's wall (a farmstead's fence, a field hedge) stands
 //! inside the ground the town owns, so no fence cuts through a building.
+//! Party walls stand between two buildings and partitions inside one, and
+//! building materials follow the settlement's data and history.
 //!
 //! World resolution: `$ARDA_TEST_WORLD`, then `<workspace>/out/micro42`
 //! when it holds `society/`, else a MICRO world generated and settled once
@@ -14,7 +16,7 @@ mod fixture_dir;
 use arda_blocks::society::SocietyOverlays;
 use arda_blocks::{OverlayCtx, Overlays, Owner, Pipeline};
 use arda_settle::model::Tier;
-use arda_tactical::layout::EdgeAxis;
+use arda_tactical::layout::{EdgeAxis, TAG_PARTITION, TAG_PARTY};
 use arda_tactical::Library;
 use std::collections::{BTreeMap, BTreeSet};
 use std::path::{Path, PathBuf};
@@ -117,6 +119,7 @@ fn settlement_cells_have_one_wall_per_edge_and_no_foreign_walls_in_town() {
     let pipeline = Pipeline::new(Box::new(world.src.clone()), 16);
     let library = lib();
     let mut checked = 0;
+    let (mut party, mut partitions) = (0, 0);
     for (gx, gy) in sampled {
         let win = (gx * 64, gy * 64, 64, 64);
         let composed = pipeline.window(win, &library, Some(&society)).unwrap();
@@ -149,6 +152,13 @@ fn settlement_cells_have_one_wall_per_edge_and_no_foreign_walls_in_town() {
                 .as_ref()
                 .is_some_and(|x| x.contains_key("building"))
         };
+        let building_id = |i: usize| {
+            composed.rules.squares[i]
+                .ext
+                .as_ref()
+                .and_then(|x| x.get("building"))
+                .and_then(|v| v.as_str().map(str::to_owned))
+        };
         for w in walls {
             let e = (w.x, w.y, w.axis);
             let s = sides(e, 64, 64);
@@ -164,8 +174,95 @@ fn settlement_cells_have_one_wall_per_edge_and_no_foreign_walls_in_town() {
                     w.kit
                 );
             }
+            // A partition has one building on both sides, a party wall two.
+            if s.len() == 2 && (w.has_tag(TAG_PARTITION) || w.has_tag(TAG_PARTY)) {
+                let (a, b) = (building_id(s[0]), building_id(s[1]));
+                assert!(
+                    a.is_some() && b.is_some(),
+                    "cell {gx},{gy}: {e:?} {:?}",
+                    w.tags
+                );
+                assert_eq!(
+                    a == b,
+                    w.has_tag(TAG_PARTITION),
+                    "cell {gx},{gy}: {e:?} tagged {:?} between {a:?} and {b:?}",
+                    w.tags
+                );
+                if w.has_tag(TAG_PARTY) {
+                    party += 1;
+                } else {
+                    partitions += 1;
+                }
+            }
         }
         checked += 1;
     }
     assert!(checked >= 4, "only {checked} settlement cells checked");
+    assert!(
+        party > 0 && partitions > 0,
+        "{party} party walls, {partitions} partitions"
+    );
+}
+
+#[test]
+fn building_materials_follow_settlement_data_and_history() {
+    use arda_town::block::kits;
+    let dir = world_dir();
+    let world = arda_people::World::open(&dir).unwrap();
+    let Some(society) = world.society.as_ref() else {
+        return;
+    };
+    for s in &world.files.settlements.settlements {
+        if !matches!(s.tier, Tier::Town | Tier::City) {
+            continue;
+        }
+        let Some(plan) = world.plan(s.id.get()).unwrap().as_ref().clone() else {
+            continue;
+        };
+        // History is read into the plan's fabric.
+        let fires = society
+            .history
+            .events
+            .iter()
+            .filter(|e| {
+                e.kind == arda_society::history::EventKind::Fire
+                    && e.settlements.contains(&s.id.get())
+            })
+            .count();
+        assert_eq!(usize::from(plan.fabric.fires), fires, "{}", plan.name);
+        let homes: Vec<kits::Look> = plan
+            .buildings
+            .iter()
+            .filter(|b| {
+                b.function.walled()
+                    && !matches!(
+                        b.function,
+                        arda_town::BuildingFunction::Barn
+                            | arda_town::BuildingFunction::Stable
+                            | arda_town::BuildingFunction::Boathouse
+                    )
+            })
+            .map(|b| kits::look(&plan, b))
+            .collect();
+        if kits::stone_town(&plan.fabric, plan.tier) {
+            // A rich merchant town: stone throughout, floors still vary.
+            assert!(homes.iter().all(|l| l.material.is_stone()), "{}", plan.name);
+            let floors: BTreeSet<&str> = homes.iter().map(|l| l.floor).collect();
+            assert!(floors.len() >= 2, "{}: {floors:?}", plan.name);
+        } else {
+            // Otherwise districts split stone from the vernacular (unless
+            // the vernacular itself is masonry, as in the stone-building
+            // south).
+            let stone = homes.iter().filter(|l| l.material.is_stone()).count();
+            let (poor, middling) = kits::vernacular(
+                kits::tradition(&plan.culture),
+                &plan.fabric.biome,
+                plan.fabric.forest,
+            );
+            assert!(stone > 0, "{}: no stone", plan.name);
+            if !poor.is_stone() || !middling.is_stone() {
+                assert!(stone < homes.len(), "{}: all stone", plan.name);
+            }
+        }
+    }
 }

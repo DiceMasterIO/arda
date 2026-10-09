@@ -150,6 +150,7 @@ dependencies = [
  "arda-refine",
  "arda-scene",
  "arda-settle",
+ "arda-society",
  "arda-tactical",
  "arda-town",
  "arda-ways",

@@ -409,3 +409,258 @@ pub fn look(plan: &TownPlan, b: &Building) -> Look {
             }
         })
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::plan::grid::{Side, SquareRect};
+    use crate::plan::BuildingId;
+    use DistrictKind as D;
+    use Material as M;
+    use WealthLevel as W;
+
+    fn house(id: u64, function: F, wealth_level: W) -> Building {
+        Building {
+            id: BuildingId(id),
+            function,
+            plot: None,
+            footprint: Vec::new(),
+            rect: SquareRect {
+                x0: 0,
+                y0: 0,
+                x1: 5,
+                y1: 8,
+            },
+            storeys: 2,
+            wealth: 128,
+            wealth_level,
+            front: Side::North,
+            doors: Vec::new(),
+            ancillary: false,
+            tags: Vec::new(),
+        }
+    }
+
+    fn fabric(wealth: u8, merchant: bool, biome: &str) -> Fabric {
+        Fabric {
+            wealth,
+            merchant,
+            biome: biome.into(),
+            ..Fabric::default()
+        }
+    }
+
+    fn of(f: &Fabric, tier: Tier, culture: &str, d: D, b: &Building) -> Material {
+        let ctx = Context {
+            district: d,
+            inside_wall: true,
+        };
+        material(f, tier, culture, b, ctx, 42)
+    }
+
+    const DISTRICTS: [D; 7] = [
+        D::Market,
+        D::Residential,
+        D::Craft,
+        D::Waterfront,
+        D::Religious,
+        D::Castle,
+        D::Suburb,
+    ];
+    const HOMES: [F; 6] = [
+        F::House,
+        F::Cottage,
+        F::Workshop,
+        F::Tavern,
+        F::Inn,
+        F::Bakery,
+    ];
+
+    #[test]
+    fn a_rich_merchant_city_is_stone_throughout() {
+        let f = fabric(250, true, "temperate_forest");
+        for culture in ["heartland", "sylvan", "southern", "coastal"] {
+            for d in DISTRICTS {
+                for (i, func) in HOMES.iter().enumerate() {
+                    for w in [W::Poor, W::Modest, W::Wealthy] {
+                        let b = house(i as u64 + 1, *func, w);
+                        let m = of(&f, Tier::City, culture, d, &b);
+                        assert!(m.is_stone(), "{culture} {d:?} {func:?} {w:?}: {m:?}");
+                        // Variation stays within stone: rubble for the poor.
+                        assert_eq!(m == M::Rubble, w == W::Poor);
+                    }
+                }
+            }
+        }
+        // Without merchants, or poorer, the same city splits by district.
+        assert!(!stone_town(&fabric(250, false, "temperate"), Tier::City));
+        assert!(!stone_town(&fabric(200, true, "temperate"), Tier::City));
+        assert!(!stone_town(&fabric(250, true, "temperate"), Tier::Village));
+    }
+
+    #[test]
+    fn otherwise_materials_divide_by_district() {
+        // A heartland market town of wealth 183, like seed 42's Dilrou.
+        let f = fabric(183, true, "wetland");
+        let modest = |d: D, id: u64| {
+            of(
+                &f,
+                Tier::Town,
+                "heartland",
+                d,
+                &house(id, F::House, W::Modest),
+            )
+        };
+        for id in 1..40 {
+            assert_eq!(modest(D::Market, id), M::Stone);
+            assert_eq!(modest(D::Religious, id), M::Stone);
+            assert_eq!(modest(D::Residential, id), M::Timber);
+            assert_eq!(modest(D::Suburb, id), M::Wattle);
+        }
+        // Artisan streets mix stone and timber, house by house.
+        let craft: Vec<M> = (1..40).map(|id| modest(D::Craft, id)).collect();
+        assert!(
+            craft.contains(&M::Stone) && craft.contains(&M::Timber),
+            "{craft:?}"
+        );
+        assert!(craft.iter().all(|m| matches!(m, M::Stone | M::Timber)));
+        // A house's own wealth moves it one step.
+        let rich = of(
+            &f,
+            Tier::Town,
+            "heartland",
+            D::Residential,
+            &house(1, F::House, W::Wealthy),
+        );
+        let poor = of(
+            &f,
+            Tier::Town,
+            "heartland",
+            D::Residential,
+            &house(1, F::House, W::Poor),
+        );
+        assert!(matches!(rich, M::Stone | M::Timber));
+        assert_eq!(poor, M::Wattle);
+        // Civic buildings are always stone.
+        let temple = house(1, F::Temple, W::Poor);
+        assert_eq!(
+            of(&f, Tier::Town, "heartland", D::Suburb, &temple),
+            M::Stone
+        );
+    }
+
+    #[test]
+    fn region_and_culture_set_the_vernacular() {
+        let village = |f: &Fabric, culture: &str, w: W| {
+            of(
+                f,
+                Tier::Village,
+                culture,
+                D::Farmstead,
+                &house(1, F::Farmhouse, w),
+            )
+        };
+        // A poor sylvan forest village: logs, wattle for the poorest.
+        let mut forest = fabric(90, false, "temperate_forest");
+        forest.forest = true;
+        assert_eq!(village(&forest, "sylvan", W::Modest), M::Wattle);
+        assert_eq!(village(&forest, "sylvan", W::Wealthy), M::Log);
+        // The same village a little richer: logs for the middling.
+        forest.wealth = 130;
+        assert_eq!(village(&forest, "sylvan", W::Modest), M::Log);
+        // Heartland timber; the steppe and the warm south build mud brick.
+        assert_eq!(
+            village(&fabric(130, false, "temperate"), "heartland", W::Modest),
+            M::Timber
+        );
+        assert_eq!(
+            village(&fabric(130, false, "steppe"), "heartland", W::Modest),
+            M::Adobe
+        );
+        assert_eq!(
+            village(&fabric(90, false, "warm_temperate"), "southern", W::Modest),
+            M::Adobe
+        );
+        assert_eq!(
+            village(&fabric(130, false, "boreal_forest"), "heartland", W::Modest),
+            M::Log
+        );
+        // Building stone at hand lifts a village to stone.
+        let mut hill = fabric(130, false, "temperate");
+        hill.stone = true;
+        let m = village(&hill, "heartland", W::Modest);
+        assert!(matches!(m, M::Stone | M::Timber), "{m:?}");
+    }
+
+    #[test]
+    fn history_rebuilds_in_stone() {
+        let base = fabric(183, true, "wetland");
+        let res = |f: &Fabric, id| {
+            of(
+                f,
+                Tier::Town,
+                "heartland",
+                D::Residential,
+                &house(id, F::House, W::Modest),
+            )
+        };
+        let craft = |f: &Fabric, id| {
+            of(
+                f,
+                Tier::Town,
+                "heartland",
+                D::Craft,
+                &house(id, F::House, W::Modest),
+            )
+        };
+        let mut burnt = base.clone();
+        burnt.fires = 1;
+        let mut golden = base.clone();
+        golden.golden_age = true;
+        let stone = |g: &dyn Fn(u64) -> M| (1..60).filter(|&id| g(id).is_stone()).count();
+        assert_eq!(stone(&|id| res(&base, id)), 0);
+        // After a great fire the residential streets are part stone, the
+        // artisan streets all stone.
+        assert!(stone(&|id| res(&burnt, id)) > 10);
+        assert_eq!(stone(&|id| craft(&burnt, id)), 59);
+        // A golden age rebuilds the core, not the residential streets.
+        assert_eq!(stone(&|id| res(&golden, id)), 0);
+        let market = of(
+            &golden,
+            Tier::Town,
+            "heartland",
+            D::Market,
+            &house(1, F::House, W::Poor),
+        );
+        assert!(market.is_stone());
+    }
+
+    #[test]
+    fn floors_follow_material_and_neighbours_differ() {
+        assert_eq!(floor_palette(M::Stone, W::Wealthy)[0], "flagstone");
+        assert_eq!(floor_palette(M::Wattle, W::Poor)[0], "packed_earth");
+        assert_eq!(fixed_floor(F::Smithy), Some("packed_earth"));
+        for name in crate::samples::NAMES {
+            let (site, terrain) = crate::samples::by_name(name).unwrap();
+            let plan = crate::generate(&site, &terrain, 42).unwrap();
+            let looks = looks(&plan);
+            let homes: Vec<usize> = (0..plan.buildings.len())
+                .filter(|&i| fixed_floor(plan.buildings[i].function).is_none())
+                .collect();
+            let (mut pairs, mut same) = (0, 0);
+            for &i in &homes {
+                for &j in homes.iter().filter(|&&j| j > i) {
+                    if touching(&plan.buildings[i].rect, &plan.buildings[j].rect) {
+                        pairs += 1;
+                        same += usize::from(looks[i].floor == looks[j].floor);
+                    }
+                }
+            }
+            assert!(
+                same * 5 <= pairs,
+                "{name}: {same} of {pairs} neighbours share a floor"
+            );
+            assert_eq!(looks, super::looks(&plan), "{name}: deterministic");
+        }
+    }
+}

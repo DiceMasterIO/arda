@@ -519,3 +519,53 @@ fn yards_hold_a_few_distinct_props_clear_of_doors() {
     }
     assert!(dressed > 10, "only {dressed} yards dressed");
 }
+
+#[test]
+fn party_walls_and_partitions_are_told_apart() {
+    use arda_tactical::layout::{TAG_PARTITION, TAG_PARTY};
+    for name in ["aldermere", "highcrag"] {
+        let p = plan(name);
+        let blk = block::generate(p, market_window(p, 96, 96)).unwrap();
+        let at = |x: i64, y: i64| {
+            p.buildings
+                .iter()
+                .find(|b| b.function.walled() && b.rect.contains(x, y))
+        };
+        let (mut party, mut partition) = (0, 0);
+        for w in &blk.layout.walls {
+            let (x, y) = (
+                blk.origin[0] + i64::from(w.x),
+                blk.origin[1] + i64::from(w.y),
+            );
+            let (a, b) = match w.axis {
+                EdgeAxis::Horizontal => (at(x, y - 1), at(x, y)),
+                EdgeAxis::Vertical => (at(x - 1, y), at(x, y)),
+            };
+            let edge = (x, y, w.axis);
+            match (a, b) {
+                (Some(a), Some(b)) if a.id == b.id => {
+                    assert!(
+                        w.has_tag(TAG_PARTITION),
+                        "{name}: untagged partition {edge:?}"
+                    );
+                    assert!(!block::on_boundary(&a.rect, edge), "{name}: {edge:?}");
+                    partition += 1;
+                }
+                (Some(a), Some(b)) => {
+                    assert!(w.has_tag(TAG_PARTY), "{name}: untagged party wall {edge:?}");
+                    assert!(block::on_boundary(&a.rect, edge) && block::on_boundary(&b.rect, edge));
+                    party += 1;
+                }
+                _ => assert!(
+                    !w.has_tag(TAG_PARTY) && !w.has_tag(TAG_PARTITION),
+                    "{name}: {edge:?} tagged {:?} without a building on both sides",
+                    w.tags
+                ),
+            }
+        }
+        assert!(
+            party > 10 && partition > 10,
+            "{name}: {party} party, {partition} partition"
+        );
+    }
+}

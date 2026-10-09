@@ -21,5 +21,8 @@ serde_json.workspace = true
 thiserror.workspace = true
 rayon.workspace = true
 
+[dev-dependencies]
+arda-society.workspace = true
+
 [lints]
 workspace = true
