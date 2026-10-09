@@ -6,7 +6,7 @@ use crate::buildings::first_of;
 use crate::ctx::Ctx;
 use crate::economy::EconomyRun;
 use crate::history::{EventKind, History};
-use crate::input::Function;
+use crate::input::{Function, Tier};
 use crate::num::{i64_of, u8_of};
 use crate::rng::Stream;
 use crate::roles::{head_kind, role_id};
@@ -151,10 +151,14 @@ pub fn factions(
         if s.tier < k.min_tier || !(open || by_b || by_f) {
             continue;
         }
-        let leader = if k.leader == "head" {
+        let leader = match (s.tier, k.leader_hamlet.as_deref()) {
+            (Tier::Hamlet, Some(small)) => small,
+            _ => k.leader.as_str(),
+        };
+        let leader = if leader == "head" {
             head_kind(ctx, i)
         } else {
-            k.leader.as_str()
+            leader
         };
         let mut influence = i64::from(k.power) + rng.range(-5, 5);
         influence += match k.key.as_str() {

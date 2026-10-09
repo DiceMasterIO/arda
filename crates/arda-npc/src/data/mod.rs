@@ -121,9 +121,43 @@ impl Data {
                 .map_err(|_| format!("land job {}", land.job))?;
         }
         for tier in self.tiers.tiers.values() {
-            for job in tier.officials.iter().chain(&tier.promote) {
+            let promote = tier.promote.iter().filter(|j| *j != content::KEEP_LAND_JOB);
+            for job in tier.officials.iter().chain(promote) {
                 self.job(job).map_err(|_| format!("tier job {job}"))?;
             }
+        }
+        let ranks = self
+            .occupations
+            .jobs
+            .iter()
+            .map(|(k, j)| (format!("job {k}"), j.rank, &j.rank_by_tier))
+            .chain(
+                self.occupations
+                    .offices
+                    .iter()
+                    .map(|(k, o)| (format!("office {k}"), o.rank, &o.rank_by_tier)),
+            );
+        for (what, rank, by_tier) in ranks {
+            if let Some(t) = by_tier.keys().find(|t| !self.tiers.tiers.contains_key(*t)) {
+                return Err(format!("{what}: unknown tier {t}"));
+            }
+            if by_tier.values().chain([&rank]).any(|&r| r > 5) {
+                return Err(format!("{what}: rank above 5"));
+            }
+        }
+        for (key, office) in &self.occupations.offices {
+            for job in &office.covers {
+                self.job(job)
+                    .map_err(|_| format!("office {key}: unknown job {job}"))?;
+            }
+        }
+        if let Some((rank, _)) = self
+            .occupations
+            .rank_lifestyles
+            .iter()
+            .find(|(_, [lo, hi])| lo > hi)
+        {
+            return Err(format!("rank {rank:?}: lifestyle band is inverted"));
         }
         for culture in self.cultures.cultures.values() {
             if let Some(a) = culture.ancestry.keys().find(|a| self.srd.race(a).is_none()) {

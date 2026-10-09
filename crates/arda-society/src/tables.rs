@@ -139,6 +139,10 @@ pub struct FactionKind {
     pub goals_rural: Vec<String>,
     /// Role kind of its leader.
     pub leader: String,
+    /// Role kind of its leader in a hamlet, where one figure speaks for
+    /// everyone (`head` = the settlement's elder); `leader` when absent.
+    #[serde(default)]
+    pub leader_hamlet: Option<String>,
     /// Base influence.
     pub power: u32,
     /// Preferred seat buildings, first match wins.

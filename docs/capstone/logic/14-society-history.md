@@ -48,7 +48,7 @@ Between every pair of realms that share a land border (08 `neighbours`), a relat
 
 ### §soc-offices
 
-An office is `{kind, settlement_id, building_key, house}` with kind in {`ruler`, `lord`, `abbot`, `high_priest`, `mayor`, `reeve`}. The holder is resolved on demand: the NPC whose job is the office's job at that building (masters of keeps and manors for `ruler`/`lord`, the master of the temple for `high_priest`, the abbey temple for `abbot`, the officials of 13 §npc-jobs for `mayor` and `reeve`). Offices are stored; holders are not (goal 56).
+An office is `{kind, settlement_id, building_key, house}` with kind in {`ruler`, `lord`, `abbot`, `high_priest`, `mayor`, `reeve`}. The holder is resolved on demand: the NPC whose job is the office's job at that building (masters of keeps and manors for `ruler`/`lord`, the master of the temple for `high_priest`, the abbey temple for `abbot`, the officials of 13 §npc-jobs for `mayor` and `reeve`). Offices are stored; holders are not (goal 56). A hamlet has one civic office, its `elder`: a hamlet landing raises no `harbourmaster` office, and the hamlet commons faction is led by the elder (`factions.json` `leader_hamlet: "head"`) rather than a separate voice of the commons. An office whose own building kind is missing (a woodward without a lumber camp) sits in a dwelling, so its holder is a resident and never the master of another office's building. The NPC layer ranks each holder by the office (13 §npc-ranks) and lets a held office stand in for the tier official it covers (13 §npc-jobs).
 
 ### §soc-present
 

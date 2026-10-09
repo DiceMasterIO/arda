@@ -29,7 +29,7 @@ pub mod shared;
 pub mod terrain;
 pub mod town;
 
-pub use build::{build, BuildReport};
+pub use build::{build, compute, BuildReport, Built};
 pub use files::{NotablesFile, SocietyFiles, StoredNotable};
 pub use people::World;
 

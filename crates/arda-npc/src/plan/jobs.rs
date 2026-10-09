@@ -3,6 +3,7 @@
 //! outsiders, then officials, then land jobs; finally notables are settled
 //! into the tier's range.
 
+use crate::data::content::KEEP_LAND_JOB;
 use crate::error::NpcError;
 use crate::input::{BuildingFunction, SettlementFunction};
 use crate::plan::{Plan, Role};
@@ -67,7 +68,8 @@ impl Plan<'_> {
             };
             while let Some(&p) = pool.get(*cursor) {
                 *cursor += 1;
-                if !taken[p] && (!mature || plan.mature(p)) {
+                let bound = plan.bound.get(p).is_some_and(Option::is_some);
+                if !taken[p] && !bound && (!mature || plan.mature(p)) {
                     taken[p] = true;
                     return Some(p);
                 }
@@ -85,6 +87,10 @@ impl Plan<'_> {
                 self.set_slot(b, s, p);
             }
         }
+        // Society offices bind to the staffed workplaces before officials
+        // are appointed, so an office stands in for the official it covers.
+        let slots = self.notables;
+        self.bind_slots(slots);
         let office = OFFICE
             .iter()
             .find_map(|&f| self.buildings.iter().position(|b| b.function == f));
@@ -93,10 +99,23 @@ impl Plan<'_> {
         if self.settlement.has(SettlementFunction::Capital) {
             officials.extend(self.data.tiers.capital_officials.iter().map(String::as_str));
         }
+        let covered: Vec<&str> = (0..self.people.len())
+            .filter_map(|p| self.office_of(p))
+            .flat_map(|o| o.covers.iter().map(String::as_str))
+            .collect();
+        let mut civic = self.civic_count();
         for job in officials {
+            if covered.contains(&job) {
+                continue;
+            }
+            let is_civic = self.data.job(job)?.category == "government";
+            if is_civic && civic >= self.civic_cap() {
+                continue;
+            }
             let Some(p) = next(self, true, &mut taken) else {
                 break;
             };
+            civic += usize::from(is_civic);
             let person = &mut self.people[p];
             person.job = job;
             person.workplace = office;
@@ -268,18 +287,38 @@ impl Plan<'_> {
         rng.pick(&options).copied()
     }
 
-    /// Notables are the masters of notable workplaces plus officials. Too
-    /// many: the least important are demoted to their job's stat block. Too
-    /// few: mature household heads are promoted to local leaders.
+    /// Civic figures among the notables so far (`Plan::civic`).
+    fn civic_count(&self) -> usize {
+        (0..self.people.len())
+            .filter(|&p| self.people[p].notable && self.civic(p))
+            .count()
+    }
+
+    /// The tier's civic cap.
+    fn civic_cap(&self) -> usize {
+        usize::try_from(self.tier.civic_cap).unwrap_or(usize::MAX)
+    }
+
+    /// Notables are the masters of notable workplaces, the holders of
+    /// society offices and the officials. Too many: the least important
+    /// masters are demoted to their job's stat block (office holders never
+    /// are). Too few: mature household heads are promoted by the tier's
+    /// list, skipping civic titles once the tier's civic cap is reached
+    /// (a hamlet has one civic figure; logic/13 §npc-notables).
     fn settle_notables(&mut self) -> Result<(), NpcError> {
         let [min, max] = self
             .tier
             .notables
             .map(|n| usize::try_from(n).unwrap_or(usize::MAX));
-        let mut notables: Vec<usize> = (0..self.people.len())
+        let held = |plan: &Self, p: usize| plan.bound.get(p).is_some_and(Option::is_some);
+        let total = (0..self.people.len())
             .filter(|&p| self.people[p].notable)
+            .count();
+        let mut notables: Vec<usize> = (0..self.people.len())
+            .filter(|&p| self.people[p].notable && !held(self, p))
             .collect();
-        if notables.len() > max {
+        if total > max {
+            let keep = max.saturating_sub(total - notables.len());
             let rank = |p: usize| {
                 let person = &self.people[p];
                 let job = self.data.job(person.job).map(|j| j.leader).unwrap_or(false);
@@ -292,10 +331,10 @@ impl Plan<'_> {
                 (std::cmp::Reverse((job, importance, wealth)), p)
             };
             notables.sort_by_key(|&p| rank(p));
-            for &p in &notables[max..] {
+            for &p in notables.iter().skip(keep) {
                 self.people[p].notable = false;
             }
-        } else if notables.len() < min {
+        } else if total < min {
             let mut heads: Vec<(u64, usize)> = (0..self.people.len())
                 .filter(|&p| {
                     let person = &self.people[p];
@@ -308,13 +347,29 @@ impl Plan<'_> {
                 .collect();
             heads.sort_unstable();
             let titles = &self.tier.promote;
-            for (i, &(_, p)) in heads.iter().take(min - notables.len()).enumerate() {
-                let Some(job) = titles.get(i % titles.len().max(1)) else {
+            let mut civic = self.civic_count();
+            let mut cursor = 0;
+            for &(_, p) in heads.iter().take(min - total) {
+                let pick = (0..titles.len())
+                    .map(|k| (cursor + k) % titles.len())
+                    .find_map(|k| {
+                        let job = match titles[k].as_str() {
+                            KEEP_LAND_JOB => self.people[p].job,
+                            title => title,
+                        };
+                        let is_civic = self.data.job(job).ok()?.category == "government";
+                        (!is_civic || civic < self.civic_cap()).then_some((k, job, is_civic))
+                    });
+                let Some((k, job, is_civic)) = pick else {
                     break;
                 };
+                cursor = k + 1;
+                civic += usize::from(is_civic);
                 let person = &mut self.people[p];
-                person.job = job.as_str();
-                person.workplace = Some(person.building);
+                if person.job != job {
+                    person.job = job;
+                    person.workplace = Some(person.building);
+                }
                 person.notable = true;
             }
         }
