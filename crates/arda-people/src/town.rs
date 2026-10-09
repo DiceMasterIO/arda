@@ -136,6 +136,33 @@ pub fn plan(
     Ok(arda_town::generate(&site(record)?, &t, src.seed()).ok())
 }
 
+/// Wealth a prosperity sample needs to count towards a golden age.
+pub const GOLDEN_WEALTH: i32 = 160;
+
+/// Amends a plan's building-material facts with the settlement's history
+/// (logic/09 §building-materials): its great fires and whether it stayed
+/// prosperous (at least [`GOLDEN_WEALTH`]) through at least half of four or
+/// more prosperity samples. Layout-neutral: only kits and floors change.
+pub fn read_history(plan: &mut TownPlan, society: &arda_society::Society) {
+    let id = plan.site.0;
+    let fires = society
+        .history
+        .events
+        .iter()
+        .filter(|e| e.kind == arda_society::history::EventKind::Fire && e.settlements.contains(&id))
+        .count();
+    plan.fabric.fires = u8::try_from(fires).unwrap_or(u8::MAX);
+    plan.fabric.golden_age = society
+        .settlements
+        .iter()
+        .find(|s| s.id == id)
+        .is_some_and(|s| {
+            let samples = &s.prosperity.samples;
+            let good = samples.iter().filter(|x| x[1] >= GOLDEN_WEALTH).count();
+            samples.len() >= 4 && 2 * good >= samples.len()
+        });
+}
+
 fn function(f: arda_town::BuildingFunction) -> Option<BuildingFunction> {
     BuildingFunction::from_key(f.key())
 }

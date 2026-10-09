@@ -205,15 +205,15 @@ pub fn build(plan: &TownPlan, b: &Building) -> Interior {
 #[must_use]
 pub fn canon(plan: &TownPlan, b: &Building, salt: u8) -> (Canon, Frame) {
     let frame = Frame::new(b.rect, b.front.turns());
-    let t = kits::tradition(&plan.culture);
+    let look = kits::look(plan, b);
     // Salt 0 keeps the building's original stream.
     let key = 0xB01D ^ (u64::from(salt) << 20);
     let mut ctx = Ctx {
         b,
         rng: Rng::keyed(plan.seed, key, b.id.0),
-        kit: kits::shell(b, t),
-        pkit: kits::partition(b),
-        floor: kits::floor(b),
+        kit: look.shell,
+        pkit: look.partition,
+        floor: look.floor,
     };
     let mut c = Canon::new(frame.w, frame.d, ctx.floor);
     if b.function.walled() {

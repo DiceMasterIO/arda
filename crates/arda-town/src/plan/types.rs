@@ -336,6 +336,42 @@ pub struct TownPlan {
     /// ([`crate::block::interior::variety::salts`]; not serialised).
     #[serde(skip)]
     pub interior_salts: std::sync::OnceLock<Vec<u8>>,
+    /// What the settlement builds with: the facts the wall-kit and floor
+    /// table reads (logic/09 §building-materials). Never changes the
+    /// layout, so history read after planning may still amend it.
+    #[serde(default)]
+    pub fabric: Fabric,
+    /// Each building's wall kits and floor, by position, drawn on first
+    /// use ([`crate::block::kits::looks`]; not serialised).
+    #[serde(skip)]
+    pub looks: std::sync::OnceLock<Vec<crate::block::kits::Look>>,
+}
+
+/// The settlement facts behind its building materials (logic/09
+/// §building-materials): the record's wealth, trade, biome and site, and
+/// the society's history (great fires, a long golden age) when it has been
+/// read. Deterministic and layout-neutral.
+#[derive(Debug, Clone, Default, PartialEq, Eq, Serialize, Deserialize)]
+#[cfg_attr(feature = "schema", derive(schemars::JsonSchema))]
+pub struct Fabric {
+    /// Settlement wealth, 0–255.
+    pub wealth: u8,
+    /// A market or port: merchants set the tone.
+    pub merchant: bool,
+    /// Biome key.
+    pub biome: String,
+    /// Woodland at hand (`forest` or `timber` site tags, logging, forest
+    /// biomes).
+    pub forest: bool,
+    /// Building stone at hand (`hill`, `mountain` or `quarry` site tags,
+    /// mining, highland and alpine biomes).
+    pub stone: bool,
+    /// Great fires in the settlement's history (`arda-society`).
+    #[serde(default)]
+    pub fires: u8,
+    /// Prosperous through most of its history (`arda-society`).
+    #[serde(default)]
+    pub golden_age: bool,
 }
 
 impl TownPlan {

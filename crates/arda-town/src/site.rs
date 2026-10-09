@@ -118,6 +118,28 @@ pub struct TownSite {
     pub buildings: BTreeMap<String, u32>,
 }
 
+/// The record's building-material facts (history not yet read).
+#[must_use]
+pub fn fabric(site: &TownSite) -> crate::plan::Fabric {
+    let forest_biome = matches!(site.biome.as_str(), "temperate_forest" | "boreal_forest");
+    crate::plan::Fabric {
+        wealth: site.wealth,
+        merchant: site.has(SettlementFunction::Market) || site.has(SettlementFunction::Port),
+        biome: site.biome.clone(),
+        forest: forest_biome
+            || site.tagged("forest")
+            || site.tagged("timber")
+            || site.has(SettlementFunction::Logging),
+        stone: matches!(site.biome.as_str(), "highland" | "alpine")
+            || site.tagged("hill")
+            || site.tagged("mountain")
+            || site.tagged("quarry")
+            || site.has(SettlementFunction::Mining),
+        fires: 0,
+        golden_age: false,
+    }
+}
+
 impl TownSite {
     /// Whether the record lists `f`.
     #[must_use]

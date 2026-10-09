@@ -144,7 +144,11 @@ impl World {
             }
         }
         let (s, record) = self.files.settlement(id)?;
-        let plan = Arc::new(town::plan(&self.src, s, record, &self.files.roads.roads)?);
+        let mut plan = town::plan(&self.src, s, record, &self.files.roads.roads)?;
+        if let (Some(p), Some(society)) = (plan.as_mut(), self.society.as_ref()) {
+            town::read_history(p, society);
+        }
+        let plan = Arc::new(plan);
         let mut g = self.lock_plans()?;
         let tick = g.0;
         g.1.insert(id, (tick, Arc::clone(&plan)));
