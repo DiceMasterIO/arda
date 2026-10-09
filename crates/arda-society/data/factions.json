@@ -323,6 +323,7 @@
    "label": "commons",
    "min_tier": "hamlet",
    "leader": "commons_voice",
+   "leader_hamlet": "head",
    "power": 15,
    "seat": [
     "tavern",

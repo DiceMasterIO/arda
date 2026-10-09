@@ -55,6 +55,9 @@ pub struct NpcRole {
     pub duties: String,
 }
 
+/// Dwellings an office without a building of its own kind sits in.
+const HOMES: [&str; 3] = ["house", "cottage", "farmhouse"];
+
 /// Stable role id.
 #[must_use]
 pub fn role_id(settlement: u64, kind: &str) -> String {
@@ -98,7 +101,9 @@ fn required(ctx: &Ctx<'_>, i: usize) -> Vec<&'static str> {
     add(has("temple"), "high_priest");
     add(s.has(Function::Abbey), "abbot");
     add(has("shrine") && !has("temple"), "shrine_keeper");
-    add(has("dock"), "harbourmaster");
+    // A hamlet's landing has no harbour office: its one civic figure is
+    // the elder (logic/14 §soc-offices).
+    add(has("dock") && s.tier > Tier::Hamlet, "harbourmaster");
     add(has("mine"), "mine_overseer");
     add(seat && has("library"), "court_mage");
     add(seat && s.tier == Tier::City, "spymaster");
@@ -136,11 +141,27 @@ pub fn roles(ctx: &Ctx<'_>, i: usize, factions: &[Faction], realm: &RealmState) 
         for pref in &def.buildings {
             cands.extend(blds.iter().filter(|b| &b.function == pref).map(|b| b.id));
         }
+        // Without a building of its own kind the office sits in a home, so
+        // its holder is a resident rather than another office's master
+        // (a woodward without a lumber camp is not the harbourmaster).
+        let home = || {
+            let homes: Vec<u64> = HOMES
+                .iter()
+                .flat_map(|f| blds.iter().filter(move |b| b.function == *f))
+                .map(|b| b.id)
+                .collect();
+            homes
+                .iter()
+                .copied()
+                .find(|b| !used.contains(b))
+                .or_else(|| homes.first().copied())
+        };
         let building = cands
             .iter()
             .copied()
             .find(|b| !used.contains(b))
             .or_else(|| cands.first().copied())
+            .or_else(home)
             .or_else(|| blds.first().map(|b| b.id));
         if let Some(b) = building {
             used.push(b);
