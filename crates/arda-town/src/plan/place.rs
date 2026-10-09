@@ -12,7 +12,7 @@ use super::params::Params;
 use super::plots::{Col, RawPlot};
 use super::types::Door;
 use crate::function::BuildingFunction as F;
-use crate::rng::Rng;
+use crate::rng::{hash_i, unit, Rng};
 use crate::site::Tier;
 
 /// A building before ids and wealth are final.
@@ -107,6 +107,26 @@ fn symmetric(f: F) -> bool {
     )
 }
 
+/// Whether a town row house leaves an eaves-drip gap (ambitus) in its
+/// plot's last column: a deterministic share of street-front plots, by a
+/// hash of the plot's first front square, never on the market square and
+/// never below a three-square frontage. The column stays plot ground, so
+/// it opens a one-square alley to the yard between two houses.
+fn ambitus(g: &PlanGrid, plot: &RawPlot, params: &Params, passage: i64, wmax: i64) -> bool {
+    let Some(c) = plot.cols.first() else {
+        return false;
+    };
+    params.ambitus > 0.0
+        && plot.street.is_some()
+        && passage == 0
+        && wmax > 3
+        && i64::try_from(plot.cols.len()).unwrap_or(0) == wmax
+        && unit(hash_i(AMBITUS, g.gx0 + c.front.0, g.gy0 + c.front.1)) < params.ambitus
+}
+
+/// Hash key of the ambitus draw.
+const AMBITUS: u64 = 0xA3B1_7C50;
+
 /// Places one assigned building (and its barn) on its merged plot.
 #[must_use]
 pub fn place(
@@ -128,8 +148,9 @@ pub fn place(
     let passage = i64::from(barn && gap == 0);
     let wmax = (n - 2 * gap - passage).max(3);
     let want = i64::from(rng.range(w0, w1));
+    let gap_col = urban && row_building(f) && ambitus(g, &plot, params, passage, wmax);
     let w = if urban && row_building(f) {
-        wmax
+        wmax - i64::from(gap_col)
     } else {
         want.min(wmax)
     };
@@ -141,9 +162,13 @@ pub fn place(
         0
     };
     let win = &plot.cols[usize::try_from(k0).unwrap_or(0)..usize::try_from(k0 + w).unwrap_or(0)];
+    // Front line and depth are measured over the whole frontage, gap
+    // column included, so an ambitus only takes that column away.
+    let full = &plot.cols[usize::try_from(k0).unwrap_or(0)
+        ..usize::try_from(k0 + w + i64::from(gap_col)).unwrap_or(0)];
     let setback = i64::from(rng.range(params.setback.0, params.setback.1));
-    let front_line = win.iter().map(|c| along(axis, c.front)).max().unwrap_or(0) + setback;
-    let rear = win
+    let front_line = full.iter().map(|c| along(axis, c.front)).max().unwrap_or(0) + setback;
+    let rear = full
         .iter()
         .map(|c| along(axis, c.front) + c.len)
         .min()
@@ -158,10 +183,13 @@ pub fn place(
     }
     let rect = rect_of(g, axis, win, front_line, front_line + depth);
     let front = axis.opposite();
+    // The door is drawn over the width before any ambitus, so the gap
+    // never changes what the stream draws for later buildings.
     let du = if symmetric(f) {
         w / 2
     } else {
-        i64::from(rng.range(1, i32::try_from((w - 2).max(1)).unwrap_or(1)))
+        let drawn = w + i64::from(gap_col);
+        i64::from(rng.range(1, i32::try_from((drawn - 2).max(1)).unwrap_or(1))).min((w - 2).max(1))
     };
     let door_col = win[usize::try_from(du.clamp(0, w - 1)).unwrap_or(0)];
     let (di, dj) = cell_at(axis, &door_col, front_line);

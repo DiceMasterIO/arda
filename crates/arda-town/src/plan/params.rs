@@ -24,6 +24,9 @@ pub struct Params {
     pub setback: (i32, i32),
     /// Free squares left beside a building on its plot.
     pub side_gap: i32,
+    /// Share of street-front row plots (towns and cities) whose house
+    /// leaves a one-square eaves-drip gap (ambitus) on one side.
+    pub ambitus: f64,
     /// Whether the town is walled.
     pub walled: bool,
     /// Whether a castle ward is built at the focal point.
@@ -63,6 +66,7 @@ impl Params {
                 depth: (16, 24),
                 setback: (0, 0),
                 side_gap: 0,
+                ambitus: 0.15,
                 walled: true,
                 castle,
                 back_lanes: true,
@@ -79,6 +83,7 @@ impl Params {
                 depth: (18, 26),
                 setback: (0, 1),
                 side_gap: 0,
+                ambitus: 0.25,
                 walled: true,
                 castle,
                 back_lanes: true,
@@ -95,6 +100,7 @@ impl Params {
                 depth: (18, 30),
                 setback: (1, 3),
                 side_gap: 1,
+                ambitus: 0.0,
                 walled: false,
                 castle,
                 back_lanes: true,
@@ -111,6 +117,7 @@ impl Params {
                 depth: (14, 24),
                 setback: (1, 4),
                 side_gap: 2,
+                ambitus: 0.0,
                 walled: false,
                 castle,
                 back_lanes: false,
