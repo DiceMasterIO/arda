@@ -140,7 +140,7 @@ pub fn plan(
 pub const GOLDEN_WEALTH: i32 = 160;
 
 /// Amends a plan's building-material facts with the settlement's history
-/// (logic/09 §building-materials): its great fires and whether it stayed
+/// (logic/10 §building-materials): its great fires and whether it stayed
 /// prosperous (at least [`GOLDEN_WEALTH`]) through at least half of four or
 /// more prosperity samples. Layout-neutral: only kits and floors change.
 pub fn read_history(plan: &mut TownPlan, society: &arda_society::Society) {

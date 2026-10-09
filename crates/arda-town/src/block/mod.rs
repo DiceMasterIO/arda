@@ -145,7 +145,7 @@ fn asset(w: &Want) -> AssetRef {
     }
 }
 
-/// What a wall edge is to the buildings beside it (logic/09
+/// What a wall edge is to the buildings beside it (logic/10
 /// §party-walls).
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum WallClass {

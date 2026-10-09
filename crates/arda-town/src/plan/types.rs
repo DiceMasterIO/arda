@@ -337,7 +337,7 @@ pub struct TownPlan {
     #[serde(skip)]
     pub interior_salts: std::sync::OnceLock<Vec<u8>>,
     /// What the settlement builds with: the facts the wall-kit and floor
-    /// table reads (logic/09 §building-materials). Never changes the
+    /// table reads (logic/10 §building-materials). Never changes the
     /// layout, so history read after planning may still amend it.
     #[serde(default)]
     pub fabric: Fabric,
@@ -347,7 +347,7 @@ pub struct TownPlan {
     pub looks: std::sync::OnceLock<Vec<crate::block::kits::Look>>,
 }
 
-/// The settlement facts behind its building materials (logic/09
+/// The settlement facts behind its building materials (logic/10
 /// §building-materials): the record's wealth, trade, biome and site, and
 /// the society's history (great fires, a long golden age) when it has been
 /// read. Deterministic and layout-neutral.

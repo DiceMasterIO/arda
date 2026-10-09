@@ -217,7 +217,7 @@ export const wallVariants = {
   },
 };
 
-// New kits, complete. arda-town picks `log` and `adobe` by biome and culture (logic/09
+// New kits, complete. arda-town picks `log` and `adobe` by biome and culture (logic/10
 // §building-materials); the `*_partition` kits draw interior partitions. See plan.md.
 export const newKits = {
   adobe: {

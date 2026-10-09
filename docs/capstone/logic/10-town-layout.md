@@ -85,7 +85,7 @@ Buildings are assigned to plots from the settlement's building mix (08 §settle-
 
 ### §town-footprints
 
-Every building is a rectangle or an L of squares inside its plot, set back 0–1 square from the frontage (assumed). Typed base sizes in squares (w × h, before rotation to face the street; assumed, tunable; ±1 square jitter keyed by building id):
+Every building is a rectangle or an L of squares inside its plot, set back 0–1 square from the frontage (assumed). Town and city row houses (house, cottage, workshop, bakery, apothecary, tavern, brewery) fill their frontage, so a street front is a terrace of party walls, except for an **ambitus**: a deterministic share of street-front row plots (a quarter in towns, `Params::ambitus = 0.25`; about one in seven in cities' denser cores, `0.15`; none on the market square, none on plots under four squares wide or with a side passage) keeps its last frontage column free as a one-square eaves-drip gap to the yard. The draw is a hash of the plot's first front square, not the plan's random stream; the front line and depth are measured over the whole frontage, so the gap only takes that column away and no other building moves. Villages and hamlets keep their side gaps instead (assumed, tunable). Typed base sizes in squares (w × h, before rotation to face the street; assumed, tunable; ±1 square jitter keyed by building id):
 
 | Key | Size | Key | Size | Key | Size |
 |---|---|---|---|---|---|
@@ -102,14 +102,47 @@ Every building is a rectangle or an L of squares inside its plot, set back 0–1
 
 ### §town-walls
 
-- Wall kits (canonical `WallSegment.kit` keys): `stone` for temples, keeps, manors, market halls, and any building of wealth ≥ 160 in towns and cities; `timber` for other town buildings and village buildings of wealth ≥ 80; `wattle` for poorer cottages and barns; `drystone` and `hedge` belong to fields (09 §reservations); `palisade` encloses a fortress village or a town without a wall; `city_wall` encloses cities and fortress towns, following the footprint hull at a 2-square offset, with a `gate` edge piece where every street crosses it (all assumed, tunable).
+- Building wall kits (canonical `WallSegment.kit` keys) come from the settlement's data by §building-materials: `stone`, `drystone` (rubble stone), `timber`, `wattle`, `log` and `adobe`. Field walls `drystone` and `hedge` belong to fields (09 §reservations); `palisade` encloses a fortress village or a town without a wall; `city_wall` encloses cities and fortress towns, following the footprint hull at a 2-square offset, with a `gate` edge piece where every street crosses it (all assumed, tunable).
 - Every building's outline is a closed loop of wall segments. Doors: at least one `door` segment on the side facing its street or plaza; windows: a `window` on every exterior run of ≥ 4 squares in towns (assumed).
+
+### §party-walls
+
+A terrace must read as a row of houses, not one building with many rooms (`arda_town::block`):
+
+- An edge on a building's footprint boundary is its **shell**. When a second building's shell claims the same edge (a terraced neighbour), the edge is a **party wall**, tagged `party`; the stronger piece still wins the edge (doors over runs over windows, then the lower id). An edge strictly inside one footprint is an interior **partition**, tagged `partition` (11 §walls-assembly draws it thin). Curtain walls, fences and hedges carry no tag.
+- Rules are unchanged: party walls and partitions block movement and sight like any wall (12 scene walls read the edge, not the tag).
+- Neighbours sharing a wall take different floors where their palettes allow (§building-materials), so the boundary also shows in the floor.
+
+### §building-materials
+
+Materials come from the settlement, never per house at random (`arda_town::block::kits`, a data table; deterministic). The plan carries a `Fabric`: the record's wealth, `merchant` (market or port), biome, `forest` (forest biomes, `forest` or `timber` site tags, logging) and `stone` (highland or alpine biome, `hill`, `mountain` or `quarry` tags, mining); and, read from `society.json` after planning by `arda-people` (layout-neutral), `fires` (great-fire events naming the settlement) and `golden_age` (wealth ≥ 160 in at least half of four or more prosperity samples).
+
+1. **Vernacular** `(poor, middling)` by biome and culture tradition (heartland and coastal build timber, highland and southern stone, sylvan and borderland wattle):
+
+   | Biome / tradition | poor | middling |
+   |---|---|---|
+   | steppe (any) | adobe | adobe |
+   | boreal forest (any) | log | log |
+   | highland, alpine (any) | rubble | stone |
+   | warm temperate, stone tradition | adobe | stone |
+   | other, stone tradition | rubble | stone |
+   | wattle tradition with woodland at hand | wattle | log |
+   | other timber or wattle tradition | wattle | timber |
+
+2. **Always stone:** temple, keep, library, school, guardhouse, barracks, market hall, manor. **Farm buildings** (barn, stable, boathouse) take the vernacular: poor at low standing, else middling.
+3. **A rich merchant town or city** (town or city, merchant, wealth ≥ 220) is stone throughout: ashlar `stone`, rubble `drystone` for houses of low standing (below); neighbours still differ by finish and floor.
+4. **Otherwise rank by district:** castle 4; market and religious 3; waterfront, craft and farmstead 2; residential 1; suburb 0. Add the settlement: wealth < 100 −1, 170–229 +1, ≥ 230 +2; city +1, hamlet −1; building stone at hand +1. Add history: a golden age +1 in the core (castle, market, religious); any great fire +1 inside the wall outside suburbs and farmsteads (rebuilt in stone under the town's ordinances). Add the house's **standing** within its own settlement: +1 when its wealth is at least 45 above the settlement's (manors, the best market houses), −1 when at least 40 below (cottages, suburb houses, poor barns), else 0. Standing is relative, so a rich town's ordinary houses do not count as wealthy twice.
+5. **Rank to material:** ≥ 4 stone (rubble for a house of low standing); 3 mixed, stone or the middling vernacular by a hash of the building id (half each); 2 middling; ≤ 1 poor.
+6. **Partitions:** adobe in adobe houses, wattle in wattle houses and in houses of the poor wealth band, timber otherwise.
+7. **Floors:** working and civic buildings keep a fixed floor (temple, shrine, keep, library, market hall `flagstone`; warehouse, barracks, guardhouse, mill, bakery `stone_floor`; smithy, stable, barn, tannery, brewery `packed_earth`). Homes take a palette by material and wealth (wealthy stone `flagstone`, `planks`, `stone_floor`; modest stone `stone_floor`, `planks`, `flagstone`; poor stone `stone_floor`, `packed_earth`; wealthy timber or log `planks`, `flagstone`; modest timber or log `planks`, `packed_earth`; wealthy adobe `flagstone`, `stone_floor`; other adobe `packed_earth`, `stone_floor`; other poor `packed_earth`, `planks`). In building-id order each home takes the first floor of its palette, starting one step down for a hashed quarter of homes, that no lower-id neighbour sharing a wall already has. Room floors (`rug` accents, kitchens) still override per room.
+
+On MICRO seed 42: the city Eayeyil (wealth 254, port and market) is stone throughout; the heartland town Dilrou (183) has a stone market and temple close, mixed stone and timber craft and waterfront streets, timber residential streets and wattle suburbs; the sylvan town Vefleth (196) builds logs where Dilrou builds timber; the southern town Fetarmedhe (two great fires) builds stone; the poor sylvan forest village Tudeeyude (90) builds wattle with log houses for the better off.
 
 ### §town-interiors
 
 - v1 depth is the **ground floor only** (the goal-prompt open question "interior depth" is decided here for v1 as ground floor; upper storeys are Dimensions not in play).
 - Every non-trivial building (not stall, dock, mine or barn) has an interior: interior walls on square edges from a per-function room template (for example inn: common room ≥ 50 % of the floor, kitchen, store, private room; smithy: forge room open to the yard; temple: nave and sanctum; house: hall and one or two rooms). Room templates are data, not code.
-- Floor ground keys: `planks` (timber buildings and wealthy houses), `stone_floor` (stone buildings), `packed_earth` (poor cottages, barns, smithy), with `rug` accents in wealthy rooms (vocabulary.md keys).
+- Floor ground keys follow §building-materials (`planks`, `stone_floor`, `flagstone`, `packed_earth`), with `rug` accents in wealthy rooms (vocabulary.md keys).
 - Each room has a typed `room` tag (`common`, `kitchen`, `store`, `bedroom`, `forge`, `nave`, `sanctum`, `office`, `cell`, …) for dressing (11 §dress).
 - Furniture and props are placed by dressing (11 §dress), not by the plan.
 
@@ -220,6 +253,9 @@ None. The plan is a pure function cached by the service (16-service-api §api-ca
 7. Clip consistency: the union of `town_reservation` over all blocks of the plan equals the plan, and each wall segment appears in exactly one block [42, 45].
 8. No building footprint but a dock's covers river water; every street square over river water is a bridge deck; every deck row reaches a bank (or a wall in the river) at both ends (`arda_town::plan::check::water`, tested on the synthetic sites and on MICRO seed 42's riverine plans).
 9. Every NPC's `home_building` and `workplace_building` is a building of the plan (tested through 13-npc-population) [45, 55].
+10. Party walls and partitions: an edge tagged `partition` has one building on both sides and lies inside its footprint; an edge tagged `party` lies on the footprints of two different buildings; no other edge carries either tag (`arda-town/tests/blocks.rs`, `arda-blocks/tests/settlements.rs` against the scene's building ids).
+11. Materials: a rich merchant town or city is stone throughout; other towns split by district; history only upgrades towards stone; materials never change the layout (`block::kits` tests, `arda-blocks/tests/settlements.rs`).
+12. Ambitus: in towns and cities 10–40 % of street-front row houses leave a one-square gap and full frontages stay the majority; the gap is plot ground with no building in it (`arda-town/tests/plan.rs`).
 
 ## Outcomes & side effects
 
