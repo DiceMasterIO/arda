@@ -90,7 +90,10 @@ pub struct WallSegment {
     pub kit: String,
     /// Free tags on the edge (`docs/goal-prompts/vocabulary.md`): on a
     /// door, `locked` (needs a key or a check to open) and `secret` (drawn
-    /// as a plain run of its kit; the scene marks it a secret door).
+    /// as a plain run of its kit; the scene marks it a secret door); on
+    /// any piece, `partition` (an interior wall inside one building, drawn
+    /// thin) and `party` (a wall two buildings share, drawn as an exterior
+    /// wall). Neither changes the rules: every wall blocks.
     /// Omitted when empty, so older layouts round-trip unchanged.
     #[serde(default, skip_serializing_if = "Vec::is_empty")]
     pub tags: Vec<String>,
@@ -100,12 +103,25 @@ pub struct WallSegment {
 pub const TAG_LOCKED: &str = "locked";
 /// Edge tag: a secret door, drawn as a plain wall run.
 pub const TAG_SECRET: &str = "secret";
+/// Edge tag: an interior partition inside one building, drawn as the thin
+/// `<kit>_partition` piece, or the kit's piece squeezed when the library
+/// has none.
+pub const TAG_PARTITION: &str = "partition";
+/// Edge tag: a party wall shared by two buildings, drawn as an exterior
+/// wall.
+pub const TAG_PARTY: &str = "party";
 
 impl WallSegment {
     /// Whether the segment carries free tag `tag`.
     #[must_use]
     pub fn has_tag(&self, tag: &str) -> bool {
         self.tags.iter().any(|t| t == tag)
+    }
+
+    /// Whether the segment is an interior partition ([`TAG_PARTITION`]).
+    #[must_use]
+    pub fn is_partition(&self) -> bool {
+        self.has_tag(TAG_PARTITION)
     }
 
     /// The role the compositor draws: a secret door looks like a plain run.

@@ -372,6 +372,55 @@
       ],
       "type": "object"
     },
+    "Fabric": {
+      "description": "The settlement facts behind its building materials (logic/10\n§building-materials): the record's wealth, trade, biome and site, and\nthe society's history (great fires, a long golden age) when it has been\nread. Deterministic and layout-neutral.",
+      "properties": {
+        "biome": {
+          "description": "Biome key.",
+          "type": "string"
+        },
+        "fires": {
+          "default": 0,
+          "description": "Great fires in the settlement's history (`arda-society`).",
+          "format": "uint8",
+          "maximum": 255,
+          "minimum": 0,
+          "type": "integer"
+        },
+        "forest": {
+          "description": "Woodland at hand (`forest` or `timber` site tags, logging, forest\nbiomes).",
+          "type": "boolean"
+        },
+        "golden_age": {
+          "default": false,
+          "description": "Prosperous through most of its history (`arda-society`).",
+          "type": "boolean"
+        },
+        "merchant": {
+          "description": "A market or port: merchants set the tone.",
+          "type": "boolean"
+        },
+        "stone": {
+          "description": "Building stone at hand (`hill`, `mountain` or `quarry` site tags,\nmining, highland and alpine biomes).",
+          "type": "boolean"
+        },
+        "wealth": {
+          "description": "Settlement wealth, 0–255.",
+          "format": "uint8",
+          "maximum": 255,
+          "minimum": 0,
+          "type": "integer"
+        }
+      },
+      "required": [
+        "wealth",
+        "merchant",
+        "biome",
+        "forest",
+        "stone"
+      ],
+      "type": "object"
+    },
     "Focal": {
       "description": "The focal point and where the market sits.",
       "properties": {
@@ -818,6 +867,19 @@
         "type": "array"
       },
       "type": "array"
+    },
+    "fabric": {
+      "$ref": "#/$defs/Fabric",
+      "default": {
+        "biome": "",
+        "fires": 0,
+        "forest": false,
+        "golden_age": false,
+        "merchant": false,
+        "stone": false,
+        "wealth": 0
+      },
+      "description": "What the settlement builds with: the facts the wall-kit and floor\ntable reads (logic/10 §building-materials). Never changes the\nlayout, so history read after planning may still amend it."
     },
     "focal": {
       "$ref": "#/$defs/Focal",

@@ -155,6 +155,17 @@ gen --only "wall.cave.*" --reference out/art-gen/raw/wall.cave.run.png --resume 
 gen --tier 4 --resume --yes
 ```
 
+### Tier 5: interior partitions
+
+57 images: three thin partition kits, `wall.timber_partition.*`, `wall.wattle_partition.*` and `wall.adobe_partition.*` (nine pieces each, with alts). `arda-town` tags every wall edge inside one building `partition`; the compositor draws the edge with the `<kit>_partition` piece when the library has it, and until then squeezes the kit's own piece to half thickness, so these are an upgrade, not a gap. Make each kit's run first and use it as the reference.
+
+```sh
+for k in timber_partition wattle_partition adobe_partition; do
+  gen --only "wall.$k.run" --yes
+  gen --only "wall.$k.*" --reference out/art-gen/raw/wall.$k.run.png --resume --yes
+done
+```
+
 ## How variants reach the library
 
 - **Cut-outs and wall pieces:** `<id>.altN` in `prompts.json`. `generate.mjs` saves it as `<id>__altN.png`. `arda tactical import` ignores what follows `__` and numbers the takes of one id in sorted file order. Because `.` sorts before `_`, `<id>.png` stays `<id>`, and `__alt1`, `__alt2`, … become `<id>.alt1`, `<id>.alt2`, …, the same ids as the prompts. The exception is a missing take: the importer numbers the files it has, so after a gap the later takes shift down.

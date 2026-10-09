@@ -66,6 +66,8 @@ pub fn ground_chain(key: &str) -> &'static [&'static str] {
 pub fn kit_chain(kit: &str) -> &'static [&'static str] {
     match kit {
         "wattle" | "palisade" | "hedge" => &["timber", "stone"],
+        "log" => &["timber", "wattle", "stone"],
+        "adobe" => &["stone", "drystone", "timber"],
         "drystone" | "city_wall" => &["stone", "timber"],
         "timber" => &["stone"],
         _ => &["stone", "timber"],

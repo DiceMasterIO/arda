@@ -247,3 +247,60 @@ fn crofts_fill_the_footprint_and_stay_near_the_plots() {
         }
     }
 }
+
+/// Row houses on street plots: `(fill the frontage, leave a one-square
+/// ambitus)`.
+fn row_frontages(p: &arda_town::plan::TownPlan) -> (usize, usize) {
+    use arda_town::plan::grid::{Side, SQUARE_M};
+    let (mut full, mut gap) = (0, 0);
+    for b in &p.buildings {
+        let row = matches!(
+            b.function,
+            F::House
+                | F::Bakery
+                | F::Apothecary
+                | F::Workshop
+                | F::Tavern
+                | F::Brewery
+                | F::Cottage
+        );
+        let Some(plot) = b.plot.and_then(|id| p.plots.iter().find(|pl| pl.id == id)) else {
+            continue;
+        };
+        if !row || plot.street.is_none() {
+            continue;
+        }
+        let width = match b.front {
+            Side::North | Side::South => b.rect.w(),
+            Side::East | Side::West => b.rect.h(),
+        };
+        let squares = arda_town::num::round_i(plot.frontage_m / SQUARE_M);
+        match squares - width {
+            0 => full += 1,
+            1 => gap += 1,
+            _ => {}
+        }
+    }
+    (full, gap)
+}
+
+#[test]
+fn some_town_row_houses_leave_an_eaves_drip_gap() {
+    for p in plans() {
+        let (full, gap) = row_frontages(p);
+        if matches!(p.tier, Tier::Town | Tier::City) {
+            #[allow(clippy::cast_precision_loss)]
+            let share = gap as f64 / (full + gap).max(1) as f64;
+            assert!(
+                (0.1..=0.4).contains(&share),
+                "{}: {gap} of {} row houses leave a gap",
+                p.name,
+                full + gap
+            );
+            // Street frontage stays mostly continuous.
+            assert!(full > 2 * gap, "{}: {full} full, {gap} gaps", p.name);
+        }
+        // The gap is plot ground: nothing stands in it.
+        assert!(check::overlaps(p).is_empty(), "{}", p.name);
+    }
+}

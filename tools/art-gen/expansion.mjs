@@ -217,7 +217,8 @@ export const wallVariants = {
   },
 };
 
-// New kits, complete. Not yet chosen by any arda-town tradition; see plan.md.
+// New kits, complete. arda-town picks `log` and `adobe` by biome and culture (logic/10
+// §building-materials); the `*_partition` kits draw interior partitions. See plan.md.
 export const newKits = {
   adobe: {
     tier: 3,
@@ -254,6 +255,63 @@ export const newKits = {
     altWindow: "a small window with carved white trim",
     altGate: "a pair of plank doors painted deep green",
     altPost: "a squared corner post with dovetailed log ends",
+  },
+  // Tier 5: thin interior partitions (arda-town tags an edge inside one
+  // building `partition`; the compositor draws `<kit>_partition` pieces when
+  // the library has them and squeezes the kit's own pieces until then).
+  timber_partition: {
+    tier: 5,
+    subject: "a 5-foot section of thin interior partition wall, a single timber stud frame with plastered panels, seen from directly above",
+    detail: "A narrow cream plaster band between two slim dark oak sole plates; plainer and much thinner than an outer wall.",
+    thickness: "about one twelfth of the image height",
+    door: "a narrow plank door",
+    window: "a small interior hatch with a wooden shutter",
+    gate: "a wide opening with a plain timber lintel",
+    post: "a slim square oak post",
+    tags: { biome: [], culture: [], free: ["partition"] },
+    fn: ["house", "cottage", "inn", "tavern", "bakery", "workshop", "manor"],
+    same: "The same thin plastered stud partition as the plain run",
+    wear: ["a scuffed lower edge and a patched panel", "freshly limewashed white", "a darker smoke stain near one end", "one stud showing through cracked plaster"],
+    altDoor: "a ledged door painted green",
+    altWindow: "a small hatch with a sliding board",
+    altGate: "an opening hung with a heavy wool curtain",
+    altPost: "a slim turned oak post",
+  },
+  wattle_partition: {
+    tier: 5,
+    subject: "a 5-foot section of thin interior wattle screen, woven hazel rods daubed with clay, seen from directly above",
+    detail: "A narrow band of woven hazel with pale clay daub pressed between the rods; light and much thinner than an outer wall.",
+    thickness: "about one fourteenth of the image height",
+    door: "a hanging hide flap over a gap",
+    window: "a small gap in the weave with a twig lattice",
+    gate: "a wide gap closed by a woven hurdle",
+    post: "a slim upright hazel stake",
+    tags: { biome: [], culture: [], free: ["partition"] },
+    fn: ["house", "cottage", "farmhouse", "stall"],
+    same: "The same thin daubed wattle screen as the plain run",
+    wear: ["daub flaking off a few rods", "fresh grey clay daub", "a sagging stretch of loose weave", "straw mixed through the daub"],
+    altDoor: "a lashed hurdle door",
+    altWindow: "a gap with a woven reed shutter",
+    altGate: "a wide gap with a rough plank board",
+    altPost: "a forked hazel stake",
+  },
+  adobe_partition: {
+    tier: 5,
+    subject: "a 5-foot section of thin interior adobe partition, a single course of mud brick under smooth plaster, seen from directly above",
+    detail: "A narrow rounded band of pale ochre plaster with a few hairline cracks; plainer and much thinner than an outer wall.",
+    thickness: "about one tenth of the image height",
+    door: "a low plank door",
+    window: "a small arched niche through the wall",
+    gate: "a wide arched opening",
+    post: "a slim plastered pilaster",
+    tags: { biome: [], culture: [], free: ["arid", "partition"] },
+    fn: ["house", "cottage", "farmhouse", "inn", "tavern", "bakery", "workshop"],
+    same: "The same thin ochre-plastered adobe partition as the plain run",
+    wear: ["a fresh coat of cream limewash", "a chipped corner showing mud brick", "a faint hand-painted blue band", "a darker damp patch at one end"],
+    altDoor: "a turquoise plank door",
+    altWindow: "a small niche with a clay lamp ledge",
+    altGate: "an arched opening hung with a striped curtain",
+    altPost: "a slim pilaster with a rounded cap",
   },
   cave: {
     tier: 4,

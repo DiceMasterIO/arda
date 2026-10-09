@@ -288,5 +288,7 @@ pub fn finish(mut p: Parts<'_>) -> TownPlan {
         notes: p.notes,
         grid: p.grid,
         interior_salts: std::sync::OnceLock::new(),
+        fabric: crate::site::fabric(p.site),
+        looks: std::sync::OnceLock::new(),
     }
 }

@@ -27,7 +27,8 @@ A library is a directory with `catalog.json` plus PNG images named by each asset
 The canonical tactical keys (copied from `docs/goal-prompts/vocabulary.md`, which is untracked; this list is normative once merged, and keys are only ever added, never renamed):
 
 - **Ground keys** (`Square.ground`): `grass`, `dirt`, `cobbles`, `mud`, `sand`, `gravel`, `stone_floor`, `planks`, `water_shallow`, `water_deep`, `meadow`, `forest_floor`, `leaf_litter`, `heath`, `scrub`, `moss`, `scree`, `rock`, `cliff`, `snow`, `ice`, `marsh`, `reed_bed`, `farmland`, `pasture`, `packed_earth`, `flagstone`, `rug`, `salt_crust`, `mudflat` (recipe-7 playas).
-- **Wall kits** (`WallSegment.kit`): `stone`, `timber`, `wattle`, `palisade`, `hedge`, `drystone`, `city_wall`.
+- **Wall kits** (`WallSegment.kit`): `stone`, `timber`, `wattle`, `palisade`, `hedge`, `drystone`, `city_wall`, `log`, `adobe`; optional thin partition kits `<kit>_partition` (`timber_partition`, `wattle_partition`, `adobe_partition`), which a library may provide and the compositor prefers for edges tagged `partition` (§walls-assembly).
+- **Edge tags** (`WallSegment.tags`): `locked`, `secret` (doors); `partition` (an interior wall inside one building) and `party` (a wall two buildings share); see 10 §party-walls.
 - **Building functions** (`function:` tags): see [10](10-town-layout.md) §town-function-keys, including the three additions `mine`, `lumber_camp`, `school`.
 - **Prop ids** (`prop.<name>`): barrel, crate, sacks, chest, table, bench, bed, cart, rowboat, market_stall, tent, fence, dock_planks, bridge_deck, crane, well, brazier, woodpile, chair, stool, cupboard, shelf, bookshelf, hearth, oven, bar_counter, cask_rack, anvil, forge, workbench, loom, grindstone, weapon_rack, armour_stand, altar, pew, candle_stand, statue, hay_bale, trough, millstone, bucket, wheelbarrow, ladder, throne, banner, rug_small, lantern, signpost, grave, haycart.
 - **Vegetation ids** (`veg.<name>`): tree_oak, tree_elm, tree_birch, tree_fruit, bush, bush_flowering, reeds, boulder, stones, tree_pine, tree_spruce, tree_willow, tree_dead, fallen_log, stump, fern, mushroom_ring, heather, flower_patch, tall_grass, cattail, lily_pads, rock_small, rock_large, scree_patch; the biome scatter of 09 §ground-field adds driftwood, sea_rock, tide_pool, dune_grass, lichen_rock, rock_snow, alpine_flowers, tussock, krummholz, sagebrush, dry_grass, sedge, marsh_flowers.
@@ -90,6 +91,8 @@ Snow is a cover laid over the ground, not a key with a painted border (goal 49; 
 
 Walls sit on square edges. Edge pieces (`run`, `door`, `window`, `gate`) span one edge; joint pieces sit on vertices and are chosen from the vertex's arm mask: `corner` (E, S), `tee` (E, S, W), `cross` (all), `end` (E), optional `post` (E, W), rotated clockwise until the canonical arms match. Where two segments share an edge, the later one wins (a door punched into a run). Multiple assets per role are chosen per edge or vertex by hash.
 
+Interior partitions read lighter than outer and party walls (`compose/walls.rs`, `draw_walls`). An edge tagged `partition` takes the library's `<kit>_partition` piece for its role when there is one, drawn as painted; otherwise the kit's own piece with its band squeezed to `PARTITION_PCT` = 50 % of its thickness towards the edge line. A vertex where a partition meets an untagged or `party` wall takes its joint from the non-partition arms alone, in their kit, so the outer wall runs on unbroken and the partition only abuts it; a vertex with partition arms only takes a thin joint (the dedicated piece, or the kit's joint shrunk to 50 % about the vertex). `party` walls draw exactly as outer walls.
+
 ### §seam-art
 
 Neighbouring blocks must join invisibly (goals 46, 49, 67):
@@ -150,7 +153,7 @@ None for rendering. `arda tactical placeholders` writes the placeholder director
 
 1. Determinism: rendering twice gives the same hash; the same identity on two machines gives the same bytes [62].
 2. Blends are not grid-aligned: the orientation histogram of the ground-border mask shows no bias toward 0° or 90° (statistical test on a two-key checkerboard layout) [62; goal-prompt §7].
-3. Wall-kit selection: every arm mask of the 16 maps to the right role and rotation, or to nothing for an isolated vertex [62].
+3. Wall-kit selection: every arm mask of the 16 maps to the right role and rotation, or to nothing for an isolated vertex [62]. A partition meeting an outer wall leaves the outer joint straight; partitions draw about half as thick as outer walls, or with their dedicated `<kit>_partition` art when present.
 4. Placeholders pass the validator, including `vocabulary_coverage` for the vertical-slice subset [61].
 5. Seams: a 2 × 1 block window rendered whole equals, pixel for pixel, the two blocks rendered separately with aprons and cropped [46, 49].
 6. Every validator rule has one failing fixture that trips exactly that rule [60].

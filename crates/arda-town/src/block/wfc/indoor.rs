@@ -61,8 +61,9 @@ pub struct Plan<'a> {
 
 fn shell_canon(plan: &TownPlan, b: &Building) -> (Canon, Frame, Vec<(i64, i64, bool)>) {
     let frame = Frame::new(b.rect, b.front.turns());
-    let kit = kits::shell(b, kits::tradition(&plan.culture));
-    let mut c = Canon::new(frame.w, frame.d, kits::floor(b));
+    let look = kits::look(plan, b);
+    let kit = look.shell;
+    let mut c = Canon::new(frame.w, frame.d, look.floor);
     c.shell(kit);
     let mut doors = Vec::new();
     for (k, d) in b.doors.iter().enumerate() {
@@ -195,8 +196,8 @@ pub fn diversity(plan: &TownPlan) -> interior::variety::Diversity {
 pub fn draw_canon(plan: &TownPlan, p: &Plan<'_>) -> (Canon, Frame) {
     let b = p.b;
     let (mut c, frame, _) = shell_canon(plan, b);
-    let kit = kits::shell(b, kits::tradition(&plan.culture));
-    let pkit = kits::partition(b);
+    let look = kits::look(plan, b);
+    let (kit, pkit) = (look.shell, look.partition);
     let (w, d) = (c.w, c.d);
     let lay = &p.layout;
     for r in &lay.rooms {

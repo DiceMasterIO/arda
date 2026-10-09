@@ -295,3 +295,98 @@ fn cached_texture_sets_equal_fresh_ones() {
     }
     assert!(std::sync::Arc::ptr_eq(&cached, &lib.texture_set(32)));
 }
+
+/// Rows of the centre column a lone horizontal timber run changes over a
+/// plain render, with or without the `partition` tag.
+fn wall_rows(partition: bool) -> usize {
+    use crate::catalog::WallRole;
+    use crate::layout::{EdgeAxis, WallSegment, TAG_PARTITION};
+    let opts = RenderOptions {
+        ppsq: 64,
+        grid: false,
+        lighting: false,
+    };
+    let lib = lib();
+    let empty = TacticalLayout::new("wall", 3, 2, "dirt");
+    let mut l = empty.clone();
+    l.walls.push(WallSegment {
+        x: 1,
+        y: 1,
+        axis: EdgeAxis::Horizontal,
+        kind: WallRole::Run,
+        kit: "timber".into(),
+        tags: if partition {
+            vec![TAG_PARTITION.into()]
+        } else {
+            Vec::new()
+        },
+    });
+    let a = render(&empty, &lib, 7, &opts).unwrap();
+    let b = render(&l, &lib, 7, &opts).unwrap();
+    (0..a.height)
+        .filter(|&y| a.get(96, y) != b.get(96, y))
+        .count()
+}
+
+#[test]
+fn a_partition_is_drawn_about_half_as_thick_as_an_outer_wall() {
+    let (outer, inner) = (wall_rows(false), wall_rows(true));
+    assert!(inner > 0, "the partition is drawn");
+    assert!(
+        inner * 10 <= outer * 7 && inner * 10 >= outer * 3,
+        "outer {outer} rows, partition {inner} rows"
+    );
+}
+
+#[test]
+fn a_partition_uses_dedicated_partition_art_when_the_library_has_it() {
+    use crate::catalog::WallRole;
+    use crate::layout::{EdgeAxis, WallSegment, TAG_PARTITION};
+    let base = lib();
+    let mut cat = base.catalog.clone();
+    let mut images: std::collections::BTreeMap<String, Rgba> = cat
+        .assets
+        .iter()
+        .map(|a| (a.id.clone(), base.image(&a.id).unwrap().clone()))
+        .collect();
+    let extra: Vec<_> = cat
+        .assets
+        .iter()
+        .filter(|a| a.wall.as_ref().is_some_and(|w| w.kit == "timber"))
+        .cloned()
+        .collect();
+    for mut a in extra {
+        let src = &images[&a.id];
+        a.id = a.id.replace("wall.timber.", "wall.timber_partition.");
+        if let Some(w) = a.wall.as_mut() {
+            w.kit = "timber_partition".into();
+        }
+        // The same alpha, painted pure red.
+        let mut red = src.clone();
+        for y in 0..red.height {
+            for x in 0..red.width {
+                let alpha = red.get(x, y)[3];
+                red.set(x, y, [255, 0, 0, alpha]);
+            }
+        }
+        images.insert(a.id.clone(), red);
+        cat.assets.push(a);
+    }
+    let lib = Library::from_parts(cat, images).unwrap();
+    let mut l = TacticalLayout::new("wall", 3, 2, "dirt");
+    l.walls.push(WallSegment {
+        x: 1,
+        y: 1,
+        axis: EdgeAxis::Horizontal,
+        kind: WallRole::Run,
+        kit: "timber".into(),
+        tags: vec![TAG_PARTITION.into()],
+    });
+    let opts = RenderOptions {
+        ppsq: 64,
+        grid: false,
+        lighting: false,
+    };
+    let img = render(&l, &lib, 7, &opts).unwrap();
+    assert_eq!(img.get(96, 64)[..3], [255, 0, 0]);
+}
