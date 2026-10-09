@@ -164,6 +164,25 @@ impl Rgba {
         out
     }
 
+    /// Resamples to `width × height` and centres the result on a transparent
+    /// canvas of the original size (thin partition pieces: a wall band
+    /// squeezed towards its centre line, a joint shrunk about its vertex).
+    #[must_use]
+    pub fn inset(&self, width: u32, height: u32) -> Self {
+        let small = self.resized(width.clamp(1, self.width), height.clamp(1, self.height));
+        let mut out = Self::new(self.width, self.height);
+        let (ox, oy) = (
+            (self.width - small.width) / 2,
+            (self.height - small.height) / 2,
+        );
+        for y in 0..small.height {
+            for x in 0..small.width {
+                out.set(ox + x, oy + y, small.get(x, y));
+            }
+        }
+        out
+    }
+
     fn area_average(&self, ox: u32, oy: u32, width: u32, height: u32) -> [u8; 4] {
         let x0 = u64::from(ox) * u64::from(self.width) / u64::from(width);
         let x1 = (u64::from(ox + 1) * u64::from(self.width)).div_ceil(u64::from(width));

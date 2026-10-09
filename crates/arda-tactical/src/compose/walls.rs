@@ -1,5 +1,11 @@
 //! Wall-kit assembly (goal 62): edge pieces on square edges, joint pieces on
 //! grid vertices chosen from each vertex's four-arm connectivity mask.
+//!
+//! Interior partitions (edges tagged `partition`) are drawn thin. A vertex
+//! where a partition meets an exterior or party wall takes its joint from
+//! the exterior arms alone, so the heavy shell runs on unbroken and the
+//! partition only abuts it; a vertex with partition arms only takes a thin
+//! joint.
 
 use crate::catalog::WallRole;
 use crate::layout::{EdgeAxis, TacticalLayout, WallSegment};
@@ -78,6 +84,8 @@ pub struct JointDraw<'a> {
     pub role: WallRole,
     /// Clockwise quarter turns.
     pub turns: u8,
+    /// Every arm is an interior partition: draw the thin joint.
+    pub thin: bool,
 }
 
 /// Every edge and joint piece of a layout, in draw order.
@@ -117,16 +125,20 @@ pub fn assemble(layout: &TacticalLayout) -> (Vec<EdgeDraw<'_>>, Vec<JointDraw<'_
                 arm(EdgeAxis::Vertical, Some(vx), Some(vy)),
                 arm(EdgeAxis::Horizontal, vx.checked_sub(1), Some(vy)),
             ];
-            let mask = found.map(|f| f.is_some());
+            let outer = found.map(|f| f.filter(|s| !s.is_partition()));
+            let thin = outer.iter().all(Option::is_none);
+            let arms = if thin { found } else { outer };
+            let mask = arms.map(|f| f.is_some());
             let Some((role, turns)) = select_joint(mask) else {
                 continue;
             };
-            if let Some(seg) = found.iter().flatten().next() {
+            if let Some(seg) = arms.iter().flatten().next() {
                 joints.push(JointDraw {
                     vertex: (vx, vy),
                     kit: &seg.kit,
                     role,
                     turns,
+                    thin,
                 });
             }
         }
@@ -227,5 +239,39 @@ mod tests {
         assert_eq!(at((2, 2)), Some((WallRole::Tee, 2, "timber")));
         assert_eq!(at((2, 1)), Some((WallRole::Post, 1, "timber")));
         assert_eq!(at((1, 0)), Some((WallRole::Post, 0, "stone")));
+        assert!(joints.iter().all(|j| !j.thin));
+    }
+
+    #[test]
+    fn a_tagged_partition_abuts_the_shell_and_has_thin_joints_of_its_own() {
+        let mut l = TacticalLayout::new("room", 4, 2, "dirt");
+        for x in 0..4 {
+            l.walls
+                .push(seg(x, 0, EdgeAxis::Horizontal, WallRole::Run, "timber"));
+            l.walls
+                .push(seg(x, 2, EdgeAxis::Horizontal, WallRole::Run, "timber"));
+        }
+        for y in 0..2 {
+            l.walls
+                .push(seg(0, y, EdgeAxis::Vertical, WallRole::Run, "timber"));
+            l.walls
+                .push(seg(4, y, EdgeAxis::Vertical, WallRole::Run, "timber"));
+            let mut p = seg(2, y, EdgeAxis::Vertical, WallRole::Run, "timber");
+            p.tags.push(crate::layout::TAG_PARTITION.into());
+            l.walls.push(p);
+        }
+        let (_, joints) = assemble(&l);
+        let at = |v| {
+            joints
+                .iter()
+                .find(|j| j.vertex == v)
+                .map(|j| (j.role, j.turns, j.thin))
+        };
+        // Where the partition meets the shell the shell runs on straight.
+        assert_eq!(at((2, 0)), Some((WallRole::Post, 0, false)));
+        assert_eq!(at((2, 2)), Some((WallRole::Post, 0, false)));
+        // Between two partition edges the joint is thin.
+        assert_eq!(at((2, 1)), Some((WallRole::Post, 1, true)));
+        assert_eq!(at((0, 0)), Some((WallRole::Corner, 0, false)));
     }
 }

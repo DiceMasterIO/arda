@@ -22,7 +22,7 @@ pub mod water;
 mod weights;
 pub mod world_tint;
 
-use crate::catalog::{Asset, Layer};
+use crate::catalog::{Asset, Layer, WallRole};
 use crate::error::TacticalError;
 use crate::layout::TacticalLayout;
 use crate::library::Library;
@@ -86,7 +86,23 @@ struct Pose {
     mirror: bool,
     scale_pct: u8,
     transpose: bool,
+    thin: Thin,
 }
+
+/// How a wall piece is thinned for an interior partition that has no
+/// dedicated `<kit>_partition` art.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord)]
+enum Thin {
+    /// Drawn as painted.
+    No,
+    /// An edge piece: the band squeezed towards its centre line.
+    Band,
+    /// A joint: shrunk about its vertex.
+    Joint,
+}
+
+/// Thickness of a squeezed partition piece, percent of the kit's band.
+pub const PARTITION_PCT: u32 = 50;
 
 impl Pose {
     /// Turned and mirrored only.
@@ -96,6 +112,7 @@ impl Pose {
             mirror,
             scale_pct: 100,
             transpose: false,
+            thin: Thin::No,
         }
     }
 }
@@ -116,6 +133,12 @@ impl Sprites<'_> {
         let src = self.lib.image(&a.id)?;
         let px = |squares: u32| (squares * self.ppsq * u32::from(pose.scale_pct) + 50) / 100;
         let mut img = src.resized(px(a.footprint.w).max(1), px(a.footprint.h).max(1));
+        let thin = |v: u32| (v * PARTITION_PCT).div_ceil(100);
+        match pose.thin {
+            Thin::No => {}
+            Thin::Band => img = img.inset(img.width, thin(img.height)),
+            Thin::Joint => img = img.inset(thin(img.width), thin(img.height)),
+        }
         if pose.transpose {
             img = img.transposed();
         }
@@ -464,6 +487,26 @@ fn pick<'a>(pieces: &[&'a Asset], seed: u64, a: i64, b: i64) -> Option<&'a Asset
     pieces.get(i).copied()
 }
 
+/// The pieces of `kit` with `role`: for a partition, the dedicated
+/// `<kit>_partition` pieces when the library has them, else the kit's own
+/// pieces thinned by `fallback`.
+fn kit_pieces<'a>(
+    lib: &'a Library,
+    kit: &str,
+    role: WallRole,
+    partition: bool,
+    fallback: Thin,
+) -> (Vec<&'a Asset>, Thin) {
+    if partition {
+        let own = lib.wall_pieces(&format!("{kit}_partition"), role);
+        if !own.is_empty() {
+            return (own, Thin::No);
+        }
+        return (lib.wall_pieces(kit, role), fallback);
+    }
+    (lib.wall_pieces(kit, role), Thin::No)
+}
+
 /// Queues edge pieces, then joints over their ends. Pieces are picked by
 /// world edge midpoint (in half squares) and world vertex.
 fn draw_walls(
@@ -477,7 +520,13 @@ fn draw_walls(
     let p = i64::from(sprites.ppsq);
     let (ox, oy) = layout.world_origin();
     for e in &edges {
-        let pieces = lib.wall_pieces(&e.segment.kit, e.segment.drawn_role());
+        let (pieces, thin) = kit_pieces(
+            lib,
+            &e.segment.kit,
+            e.segment.drawn_role(),
+            e.segment.is_partition(),
+            Thin::Band,
+        );
         let (wx, wy) = (
             2 * ox + i64::from(e.centre2.0),
             2 * oy + i64::from(e.centre2.1),
@@ -492,12 +541,15 @@ fn draw_walls(
         sprites.push(
             ops,
             a,
-            Pose::turned(e.turns, false),
+            Pose {
+                thin,
+                ..Pose::turned(e.turns, false)
+            },
             (cx - p / 2, cy - p / 2),
         );
     }
     for j in &joints {
-        let pieces = lib.wall_pieces(j.kit, j.role);
+        let (pieces, thin) = kit_pieces(lib, j.kit, j.role, j.thin, Thin::Joint);
         let (wx, wy) = (ox + i64::from(j.vertex.0), oy + i64::from(j.vertex.1));
         let Some(a) = pick(&pieces, seed, wx, wy) else {
             continue;
@@ -506,7 +558,10 @@ fn draw_walls(
         sprites.push(
             ops,
             a,
-            Pose::turned(j.turns, false),
+            Pose {
+                thin,
+                ..Pose::turned(j.turns, false)
+            },
             (cx - p / 2, cy - p / 2),
         );
     }
