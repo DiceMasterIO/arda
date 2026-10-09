@@ -76,7 +76,8 @@
       "1": 415,
       "2": 467,
       "3": 318,
-      "4": 34
+      "4": 34,
+      "5": 57
     },
     "about": "0: the first 225 (already generated). 1: every variant of those 225, which fixes repetition on every map. 2: building-function and biome sets. 3: culture sets, rare dressing and the new wall kits. 4: the underground set for arda-dungeon (cave and bedrock ground, the cave wall kit, stairs down, torch sconces, stalagmites). Within a tier, assets run in order of visual impact."
   },
@@ -76048,6 +76049,3163 @@
         "Detail": "Black iron claw at the top edge, a short torch with a yellow flame."
       },
       "prompt": "Top-down battle-map asset for a tabletop fantasy grid map, in a rich hand-painted style: confident painterly brushwork, fine dark ink outlines, crisp small detail and a muted, earthy, slightly warm palette. Strictly orthographic view from directly overhead: no perspective, no horizon, no tilted or isometric angle. Soft light from the top-left, so upper-left edges catch highlights and lower-right edges fall into gentle form shading; no cast shadow and no drop shadow anywhere. No text, no letters, no numbers, no grid lines, no frame, no border, no vignette, no watermark, no signature. Subject: a wrought iron sconce shaped like a claw holding a torch, seen from directly above. Its outline is compact and about as wide as it is long, fitting one 5-foot square. Black iron claw at the top edge, a short torch with a yellow flame. Exactly one subject, centred, filling about 70% of the frame's shorter side, on a fully transparent background (a PNG with a real alpha channel, background: transparent; no white or colour behind the subject); nothing else in the image: no floor, no ground patch, no base or rug under it, no other objects, no shadow."
+    },
+    "wall.timber_partition.run": {
+      "class": "wall",
+      "template": "arda-wall",
+      "format": "1:1",
+      "footprint": [
+        1,
+        1
+      ],
+      "pixels": [
+        128,
+        128
+      ],
+      "layer": "wall",
+      "height_ft": 10,
+      "functions": [
+        "house",
+        "cottage",
+        "inn",
+        "tavern",
+        "bakery",
+        "workshop",
+        "manor"
+      ],
+      "tags": {
+        "biome": [],
+        "culture": [],
+        "wealth": [],
+        "function": [
+          "house",
+          "cottage",
+          "inn",
+          "tavern",
+          "bakery",
+          "workshop",
+          "manor"
+        ],
+        "free": [
+          "partition"
+        ]
+      },
+      "blocks_movement": true,
+      "blocks_sight": true,
+      "difficult_terrain": false,
+      "cover": "total",
+      "file": "walls/wall.timber_partition.run.png",
+      "status": "new",
+      "tier": 5,
+      "kit": "timber_partition",
+      "role": "run",
+      "values": {
+        "Subject": "a 5-foot section of thin interior partition wall, a single timber stud frame with plastered panels, seen from directly above",
+        "Shape": "A straight run: it runs from the left edge to the right edge along the horizontal centre line, with no branches and no openings.",
+        "Detail": "A narrow cream plaster band between two slim dark oak sole plates; plainer and much thinner than an outer wall. The wall band is about one twelfth of the image height thick."
+      },
+      "prompt": "Top-down battle-map asset for a tabletop fantasy grid map, in a rich hand-painted style: confident painterly brushwork, fine dark ink outlines, crisp small detail and a muted, earthy, slightly warm palette. Strictly orthographic view from directly overhead: no perspective, no horizon, no tilted or isometric angle. Soft light from the top-left, so upper-left edges catch highlights and lower-right edges fall into gentle form shading; no cast shadow and no drop shadow anywhere. No text, no letters, no numbers, no grid lines, no frame, no border, no vignette, no watermark, no signature. Subject: one modular wall piece from a grid-map wall kit, a 5-foot section of thin interior partition wall, a single timber stud frame with plastered panels, seen from directly above. A straight run: it runs from the left edge to the right edge along the horizontal centre line, with no branches and no openings. A narrow cream plaster band between two slim dark oak sole plates; plainer and much thinner than an outer wall. The wall band is about one twelfth of the image height thick. Wall pieces join into long walls on a square grid, so the top of the wall is seen as a straight band of even thickness, every arm runs perfectly straight along the image's horizontal or vertical centre line and is cut off square exactly at the image edge it reaches. The junction is exactly at the centre of the image. Everything that is not wall is fully transparent (a PNG with a real alpha channel, background: transparent): no ground, no grass, no floor, no shadow."
+    },
+    "wall.wattle_partition.run": {
+      "class": "wall",
+      "template": "arda-wall",
+      "format": "1:1",
+      "footprint": [
+        1,
+        1
+      ],
+      "pixels": [
+        128,
+        128
+      ],
+      "layer": "wall",
+      "height_ft": 10,
+      "functions": [
+        "house",
+        "cottage",
+        "farmhouse",
+        "stall"
+      ],
+      "tags": {
+        "biome": [],
+        "culture": [],
+        "wealth": [],
+        "function": [
+          "house",
+          "cottage",
+          "farmhouse",
+          "stall"
+        ],
+        "free": [
+          "partition"
+        ]
+      },
+      "blocks_movement": true,
+      "blocks_sight": true,
+      "difficult_terrain": false,
+      "cover": "total",
+      "file": "walls/wall.wattle_partition.run.png",
+      "status": "new",
+      "tier": 5,
+      "kit": "wattle_partition",
+      "role": "run",
+      "values": {
+        "Subject": "a 5-foot section of thin interior wattle screen, woven hazel rods daubed with clay, seen from directly above",
+        "Shape": "A straight run: it runs from the left edge to the right edge along the horizontal centre line, with no branches and no openings.",
+        "Detail": "A narrow band of woven hazel with pale clay daub pressed between the rods; light and much thinner than an outer wall. The wall band is about one fourteenth of the image height thick."
+      },
+      "prompt": "Top-down battle-map asset for a tabletop fantasy grid map, in a rich hand-painted style: confident painterly brushwork, fine dark ink outlines, crisp small detail and a muted, earthy, slightly warm palette. Strictly orthographic view from directly overhead: no perspective, no horizon, no tilted or isometric angle. Soft light from the top-left, so upper-left edges catch highlights and lower-right edges fall into gentle form shading; no cast shadow and no drop shadow anywhere. No text, no letters, no numbers, no grid lines, no frame, no border, no vignette, no watermark, no signature. Subject: one modular wall piece from a grid-map wall kit, a 5-foot section of thin interior wattle screen, woven hazel rods daubed with clay, seen from directly above. A straight run: it runs from the left edge to the right edge along the horizontal centre line, with no branches and no openings. A narrow band of woven hazel with pale clay daub pressed between the rods; light and much thinner than an outer wall. The wall band is about one fourteenth of the image height thick. Wall pieces join into long walls on a square grid, so the top of the wall is seen as a straight band of even thickness, every arm runs perfectly straight along the image's horizontal or vertical centre line and is cut off square exactly at the image edge it reaches. The junction is exactly at the centre of the image. Everything that is not wall is fully transparent (a PNG with a real alpha channel, background: transparent): no ground, no grass, no floor, no shadow."
+    },
+    "wall.adobe_partition.run": {
+      "class": "wall",
+      "template": "arda-wall",
+      "format": "1:1",
+      "footprint": [
+        1,
+        1
+      ],
+      "pixels": [
+        128,
+        128
+      ],
+      "layer": "wall",
+      "height_ft": 10,
+      "functions": [
+        "house",
+        "cottage",
+        "farmhouse",
+        "inn",
+        "tavern",
+        "bakery",
+        "workshop"
+      ],
+      "tags": {
+        "biome": [],
+        "culture": [],
+        "wealth": [],
+        "function": [
+          "house",
+          "cottage",
+          "farmhouse",
+          "inn",
+          "tavern",
+          "bakery",
+          "workshop"
+        ],
+        "free": [
+          "arid",
+          "partition"
+        ]
+      },
+      "blocks_movement": true,
+      "blocks_sight": true,
+      "difficult_terrain": false,
+      "cover": "total",
+      "file": "walls/wall.adobe_partition.run.png",
+      "status": "new",
+      "tier": 5,
+      "kit": "adobe_partition",
+      "role": "run",
+      "values": {
+        "Subject": "a 5-foot section of thin interior adobe partition, a single course of mud brick under smooth plaster, seen from directly above",
+        "Shape": "A straight run: it runs from the left edge to the right edge along the horizontal centre line, with no branches and no openings.",
+        "Detail": "A narrow rounded band of pale ochre plaster with a few hairline cracks; plainer and much thinner than an outer wall. The wall band is about one tenth of the image height thick."
+      },
+      "prompt": "Top-down battle-map asset for a tabletop fantasy grid map, in a rich hand-painted style: confident painterly brushwork, fine dark ink outlines, crisp small detail and a muted, earthy, slightly warm palette. Strictly orthographic view from directly overhead: no perspective, no horizon, no tilted or isometric angle. Soft light from the top-left, so upper-left edges catch highlights and lower-right edges fall into gentle form shading; no cast shadow and no drop shadow anywhere. No text, no letters, no numbers, no grid lines, no frame, no border, no vignette, no watermark, no signature. Subject: one modular wall piece from a grid-map wall kit, a 5-foot section of thin interior adobe partition, a single course of mud brick under smooth plaster, seen from directly above. A straight run: it runs from the left edge to the right edge along the horizontal centre line, with no branches and no openings. A narrow rounded band of pale ochre plaster with a few hairline cracks; plainer and much thinner than an outer wall. The wall band is about one tenth of the image height thick. Wall pieces join into long walls on a square grid, so the top of the wall is seen as a straight band of even thickness, every arm runs perfectly straight along the image's horizontal or vertical centre line and is cut off square exactly at the image edge it reaches. The junction is exactly at the centre of the image. Everything that is not wall is fully transparent (a PNG with a real alpha channel, background: transparent): no ground, no grass, no floor, no shadow."
+    },
+    "wall.timber_partition.run.alt1": {
+      "class": "wall",
+      "template": "arda-wall",
+      "format": "1:1",
+      "footprint": [
+        1,
+        1
+      ],
+      "pixels": [
+        128,
+        128
+      ],
+      "layer": "wall",
+      "height_ft": 10,
+      "functions": [
+        "house",
+        "cottage",
+        "inn",
+        "tavern",
+        "bakery",
+        "workshop",
+        "manor"
+      ],
+      "tags": {
+        "biome": [],
+        "culture": [],
+        "wealth": [],
+        "function": [
+          "house",
+          "cottage",
+          "inn",
+          "tavern",
+          "bakery",
+          "workshop",
+          "manor"
+        ],
+        "free": [
+          "partition"
+        ]
+      },
+      "blocks_movement": true,
+      "blocks_sight": true,
+      "difficult_terrain": false,
+      "cover": "total",
+      "file": "walls/wall.timber_partition.run.alt1.png",
+      "status": "new",
+      "tier": 5,
+      "kit": "timber_partition",
+      "role": "run",
+      "variant_of": "wall.timber_partition.run",
+      "derive_from": "wall.timber_partition.run",
+      "values": {
+        "Subject": "a 5-foot section of thin interior partition wall, a single timber stud frame with plastered panels, seen from directly above",
+        "Shape": "A straight run: it runs from the left edge to the right edge along the horizontal centre line, with no branches and no openings.",
+        "Detail": "The same thin plastered stud partition as the plain run, a scuffed lower edge and a patched panel. The wall band is about one twelfth of the image height thick."
+      },
+      "prompt": "Top-down battle-map asset for a tabletop fantasy grid map, in a rich hand-painted style: confident painterly brushwork, fine dark ink outlines, crisp small detail and a muted, earthy, slightly warm palette. Strictly orthographic view from directly overhead: no perspective, no horizon, no tilted or isometric angle. Soft light from the top-left, so upper-left edges catch highlights and lower-right edges fall into gentle form shading; no cast shadow and no drop shadow anywhere. No text, no letters, no numbers, no grid lines, no frame, no border, no vignette, no watermark, no signature. Subject: one modular wall piece from a grid-map wall kit, a 5-foot section of thin interior partition wall, a single timber stud frame with plastered panels, seen from directly above. A straight run: it runs from the left edge to the right edge along the horizontal centre line, with no branches and no openings. The same thin plastered stud partition as the plain run, a scuffed lower edge and a patched panel. The wall band is about one twelfth of the image height thick. Wall pieces join into long walls on a square grid, so the top of the wall is seen as a straight band of even thickness, every arm runs perfectly straight along the image's horizontal or vertical centre line and is cut off square exactly at the image edge it reaches. The junction is exactly at the centre of the image. Everything that is not wall is fully transparent (a PNG with a real alpha channel, background: transparent): no ground, no grass, no floor, no shadow."
+    },
+    "wall.wattle_partition.run.alt1": {
+      "class": "wall",
+      "template": "arda-wall",
+      "format": "1:1",
+      "footprint": [
+        1,
+        1
+      ],
+      "pixels": [
+        128,
+        128
+      ],
+      "layer": "wall",
+      "height_ft": 10,
+      "functions": [
+        "house",
+        "cottage",
+        "farmhouse",
+        "stall"
+      ],
+      "tags": {
+        "biome": [],
+        "culture": [],
+        "wealth": [],
+        "function": [
+          "house",
+          "cottage",
+          "farmhouse",
+          "stall"
+        ],
+        "free": [
+          "partition"
+        ]
+      },
+      "blocks_movement": true,
+      "blocks_sight": true,
+      "difficult_terrain": false,
+      "cover": "total",
+      "file": "walls/wall.wattle_partition.run.alt1.png",
+      "status": "new",
+      "tier": 5,
+      "kit": "wattle_partition",
+      "role": "run",
+      "variant_of": "wall.wattle_partition.run",
+      "derive_from": "wall.wattle_partition.run",
+      "values": {
+        "Subject": "a 5-foot section of thin interior wattle screen, woven hazel rods daubed with clay, seen from directly above",
+        "Shape": "A straight run: it runs from the left edge to the right edge along the horizontal centre line, with no branches and no openings.",
+        "Detail": "The same thin daubed wattle screen as the plain run, daub flaking off a few rods. The wall band is about one fourteenth of the image height thick."
+      },
+      "prompt": "Top-down battle-map asset for a tabletop fantasy grid map, in a rich hand-painted style: confident painterly brushwork, fine dark ink outlines, crisp small detail and a muted, earthy, slightly warm palette. Strictly orthographic view from directly overhead: no perspective, no horizon, no tilted or isometric angle. Soft light from the top-left, so upper-left edges catch highlights and lower-right edges fall into gentle form shading; no cast shadow and no drop shadow anywhere. No text, no letters, no numbers, no grid lines, no frame, no border, no vignette, no watermark, no signature. Subject: one modular wall piece from a grid-map wall kit, a 5-foot section of thin interior wattle screen, woven hazel rods daubed with clay, seen from directly above. A straight run: it runs from the left edge to the right edge along the horizontal centre line, with no branches and no openings. The same thin daubed wattle screen as the plain run, daub flaking off a few rods. The wall band is about one fourteenth of the image height thick. Wall pieces join into long walls on a square grid, so the top of the wall is seen as a straight band of even thickness, every arm runs perfectly straight along the image's horizontal or vertical centre line and is cut off square exactly at the image edge it reaches. The junction is exactly at the centre of the image. Everything that is not wall is fully transparent (a PNG with a real alpha channel, background: transparent): no ground, no grass, no floor, no shadow."
+    },
+    "wall.adobe_partition.run.alt1": {
+      "class": "wall",
+      "template": "arda-wall",
+      "format": "1:1",
+      "footprint": [
+        1,
+        1
+      ],
+      "pixels": [
+        128,
+        128
+      ],
+      "layer": "wall",
+      "height_ft": 10,
+      "functions": [
+        "house",
+        "cottage",
+        "farmhouse",
+        "inn",
+        "tavern",
+        "bakery",
+        "workshop"
+      ],
+      "tags": {
+        "biome": [],
+        "culture": [],
+        "wealth": [],
+        "function": [
+          "house",
+          "cottage",
+          "farmhouse",
+          "inn",
+          "tavern",
+          "bakery",
+          "workshop"
+        ],
+        "free": [
+          "arid",
+          "partition"
+        ]
+      },
+      "blocks_movement": true,
+      "blocks_sight": true,
+      "difficult_terrain": false,
+      "cover": "total",
+      "file": "walls/wall.adobe_partition.run.alt1.png",
+      "status": "new",
+      "tier": 5,
+      "kit": "adobe_partition",
+      "role": "run",
+      "variant_of": "wall.adobe_partition.run",
+      "derive_from": "wall.adobe_partition.run",
+      "values": {
+        "Subject": "a 5-foot section of thin interior adobe partition, a single course of mud brick under smooth plaster, seen from directly above",
+        "Shape": "A straight run: it runs from the left edge to the right edge along the horizontal centre line, with no branches and no openings.",
+        "Detail": "The same thin ochre-plastered adobe partition as the plain run, a fresh coat of cream limewash. The wall band is about one tenth of the image height thick."
+      },
+      "prompt": "Top-down battle-map asset for a tabletop fantasy grid map, in a rich hand-painted style: confident painterly brushwork, fine dark ink outlines, crisp small detail and a muted, earthy, slightly warm palette. Strictly orthographic view from directly overhead: no perspective, no horizon, no tilted or isometric angle. Soft light from the top-left, so upper-left edges catch highlights and lower-right edges fall into gentle form shading; no cast shadow and no drop shadow anywhere. No text, no letters, no numbers, no grid lines, no frame, no border, no vignette, no watermark, no signature. Subject: one modular wall piece from a grid-map wall kit, a 5-foot section of thin interior adobe partition, a single course of mud brick under smooth plaster, seen from directly above. A straight run: it runs from the left edge to the right edge along the horizontal centre line, with no branches and no openings. The same thin ochre-plastered adobe partition as the plain run, a fresh coat of cream limewash. The wall band is about one tenth of the image height thick. Wall pieces join into long walls on a square grid, so the top of the wall is seen as a straight band of even thickness, every arm runs perfectly straight along the image's horizontal or vertical centre line and is cut off square exactly at the image edge it reaches. The junction is exactly at the centre of the image. Everything that is not wall is fully transparent (a PNG with a real alpha channel, background: transparent): no ground, no grass, no floor, no shadow."
+    },
+    "wall.timber_partition.run.alt2": {
+      "class": "wall",
+      "template": "arda-wall",
+      "format": "1:1",
+      "footprint": [
+        1,
+        1
+      ],
+      "pixels": [
+        128,
+        128
+      ],
+      "layer": "wall",
+      "height_ft": 10,
+      "functions": [
+        "house",
+        "cottage",
+        "inn",
+        "tavern",
+        "bakery",
+        "workshop",
+        "manor"
+      ],
+      "tags": {
+        "biome": [],
+        "culture": [],
+        "wealth": [],
+        "function": [
+          "house",
+          "cottage",
+          "inn",
+          "tavern",
+          "bakery",
+          "workshop",
+          "manor"
+        ],
+        "free": [
+          "partition"
+        ]
+      },
+      "blocks_movement": true,
+      "blocks_sight": true,
+      "difficult_terrain": false,
+      "cover": "total",
+      "file": "walls/wall.timber_partition.run.alt2.png",
+      "status": "new",
+      "tier": 5,
+      "kit": "timber_partition",
+      "role": "run",
+      "variant_of": "wall.timber_partition.run",
+      "derive_from": "wall.timber_partition.run",
+      "values": {
+        "Subject": "a 5-foot section of thin interior partition wall, a single timber stud frame with plastered panels, seen from directly above",
+        "Shape": "A straight run: it runs from the left edge to the right edge along the horizontal centre line, with no branches and no openings.",
+        "Detail": "The same thin plastered stud partition as the plain run, freshly limewashed white. The wall band is about one twelfth of the image height thick."
+      },
+      "prompt": "Top-down battle-map asset for a tabletop fantasy grid map, in a rich hand-painted style: confident painterly brushwork, fine dark ink outlines, crisp small detail and a muted, earthy, slightly warm palette. Strictly orthographic view from directly overhead: no perspective, no horizon, no tilted or isometric angle. Soft light from the top-left, so upper-left edges catch highlights and lower-right edges fall into gentle form shading; no cast shadow and no drop shadow anywhere. No text, no letters, no numbers, no grid lines, no frame, no border, no vignette, no watermark, no signature. Subject: one modular wall piece from a grid-map wall kit, a 5-foot section of thin interior partition wall, a single timber stud frame with plastered panels, seen from directly above. A straight run: it runs from the left edge to the right edge along the horizontal centre line, with no branches and no openings. The same thin plastered stud partition as the plain run, freshly limewashed white. The wall band is about one twelfth of the image height thick. Wall pieces join into long walls on a square grid, so the top of the wall is seen as a straight band of even thickness, every arm runs perfectly straight along the image's horizontal or vertical centre line and is cut off square exactly at the image edge it reaches. The junction is exactly at the centre of the image. Everything that is not wall is fully transparent (a PNG with a real alpha channel, background: transparent): no ground, no grass, no floor, no shadow."
+    },
+    "wall.wattle_partition.run.alt2": {
+      "class": "wall",
+      "template": "arda-wall",
+      "format": "1:1",
+      "footprint": [
+        1,
+        1
+      ],
+      "pixels": [
+        128,
+        128
+      ],
+      "layer": "wall",
+      "height_ft": 10,
+      "functions": [
+        "house",
+        "cottage",
+        "farmhouse",
+        "stall"
+      ],
+      "tags": {
+        "biome": [],
+        "culture": [],
+        "wealth": [],
+        "function": [
+          "house",
+          "cottage",
+          "farmhouse",
+          "stall"
+        ],
+        "free": [
+          "partition"
+        ]
+      },
+      "blocks_movement": true,
+      "blocks_sight": true,
+      "difficult_terrain": false,
+      "cover": "total",
+      "file": "walls/wall.wattle_partition.run.alt2.png",
+      "status": "new",
+      "tier": 5,
+      "kit": "wattle_partition",
+      "role": "run",
+      "variant_of": "wall.wattle_partition.run",
+      "derive_from": "wall.wattle_partition.run",
+      "values": {
+        "Subject": "a 5-foot section of thin interior wattle screen, woven hazel rods daubed with clay, seen from directly above",
+        "Shape": "A straight run: it runs from the left edge to the right edge along the horizontal centre line, with no branches and no openings.",
+        "Detail": "The same thin daubed wattle screen as the plain run, fresh grey clay daub. The wall band is about one fourteenth of the image height thick."
+      },
+      "prompt": "Top-down battle-map asset for a tabletop fantasy grid map, in a rich hand-painted style: confident painterly brushwork, fine dark ink outlines, crisp small detail and a muted, earthy, slightly warm palette. Strictly orthographic view from directly overhead: no perspective, no horizon, no tilted or isometric angle. Soft light from the top-left, so upper-left edges catch highlights and lower-right edges fall into gentle form shading; no cast shadow and no drop shadow anywhere. No text, no letters, no numbers, no grid lines, no frame, no border, no vignette, no watermark, no signature. Subject: one modular wall piece from a grid-map wall kit, a 5-foot section of thin interior wattle screen, woven hazel rods daubed with clay, seen from directly above. A straight run: it runs from the left edge to the right edge along the horizontal centre line, with no branches and no openings. The same thin daubed wattle screen as the plain run, fresh grey clay daub. The wall band is about one fourteenth of the image height thick. Wall pieces join into long walls on a square grid, so the top of the wall is seen as a straight band of even thickness, every arm runs perfectly straight along the image's horizontal or vertical centre line and is cut off square exactly at the image edge it reaches. The junction is exactly at the centre of the image. Everything that is not wall is fully transparent (a PNG with a real alpha channel, background: transparent): no ground, no grass, no floor, no shadow."
+    },
+    "wall.adobe_partition.run.alt2": {
+      "class": "wall",
+      "template": "arda-wall",
+      "format": "1:1",
+      "footprint": [
+        1,
+        1
+      ],
+      "pixels": [
+        128,
+        128
+      ],
+      "layer": "wall",
+      "height_ft": 10,
+      "functions": [
+        "house",
+        "cottage",
+        "farmhouse",
+        "inn",
+        "tavern",
+        "bakery",
+        "workshop"
+      ],
+      "tags": {
+        "biome": [],
+        "culture": [],
+        "wealth": [],
+        "function": [
+          "house",
+          "cottage",
+          "farmhouse",
+          "inn",
+          "tavern",
+          "bakery",
+          "workshop"
+        ],
+        "free": [
+          "arid",
+          "partition"
+        ]
+      },
+      "blocks_movement": true,
+      "blocks_sight": true,
+      "difficult_terrain": false,
+      "cover": "total",
+      "file": "walls/wall.adobe_partition.run.alt2.png",
+      "status": "new",
+      "tier": 5,
+      "kit": "adobe_partition",
+      "role": "run",
+      "variant_of": "wall.adobe_partition.run",
+      "derive_from": "wall.adobe_partition.run",
+      "values": {
+        "Subject": "a 5-foot section of thin interior adobe partition, a single course of mud brick under smooth plaster, seen from directly above",
+        "Shape": "A straight run: it runs from the left edge to the right edge along the horizontal centre line, with no branches and no openings.",
+        "Detail": "The same thin ochre-plastered adobe partition as the plain run, a chipped corner showing mud brick. The wall band is about one tenth of the image height thick."
+      },
+      "prompt": "Top-down battle-map asset for a tabletop fantasy grid map, in a rich hand-painted style: confident painterly brushwork, fine dark ink outlines, crisp small detail and a muted, earthy, slightly warm palette. Strictly orthographic view from directly overhead: no perspective, no horizon, no tilted or isometric angle. Soft light from the top-left, so upper-left edges catch highlights and lower-right edges fall into gentle form shading; no cast shadow and no drop shadow anywhere. No text, no letters, no numbers, no grid lines, no frame, no border, no vignette, no watermark, no signature. Subject: one modular wall piece from a grid-map wall kit, a 5-foot section of thin interior adobe partition, a single course of mud brick under smooth plaster, seen from directly above. A straight run: it runs from the left edge to the right edge along the horizontal centre line, with no branches and no openings. The same thin ochre-plastered adobe partition as the plain run, a chipped corner showing mud brick. The wall band is about one tenth of the image height thick. Wall pieces join into long walls on a square grid, so the top of the wall is seen as a straight band of even thickness, every arm runs perfectly straight along the image's horizontal or vertical centre line and is cut off square exactly at the image edge it reaches. The junction is exactly at the centre of the image. Everything that is not wall is fully transparent (a PNG with a real alpha channel, background: transparent): no ground, no grass, no floor, no shadow."
+    },
+    "wall.timber_partition.door": {
+      "class": "wall",
+      "template": "arda-wall",
+      "format": "1:1",
+      "footprint": [
+        1,
+        1
+      ],
+      "pixels": [
+        128,
+        128
+      ],
+      "layer": "wall",
+      "height_ft": 10,
+      "functions": [
+        "house",
+        "cottage",
+        "inn",
+        "tavern",
+        "bakery",
+        "workshop",
+        "manor"
+      ],
+      "tags": {
+        "biome": [],
+        "culture": [],
+        "wealth": [],
+        "function": [
+          "house",
+          "cottage",
+          "inn",
+          "tavern",
+          "bakery",
+          "workshop",
+          "manor"
+        ],
+        "free": [
+          "partition"
+        ]
+      },
+      "blocks_movement": true,
+      "blocks_sight": true,
+      "difficult_terrain": false,
+      "cover": "total",
+      "file": "walls/wall.timber_partition.door.png",
+      "status": "new",
+      "tier": 5,
+      "kit": "timber_partition",
+      "role": "door",
+      "values": {
+        "Subject": "a 5-foot section of thin interior partition wall, a single timber stud frame with plastered panels, seen from directly above",
+        "Shape": "Doorway in a straight run from left edge to right edge on the centre line; middle third: a gap between jambs, wall top stopped, shut by a narrow plank door along the wall line.",
+        "Detail": "A narrow cream plaster band between two slim dark oak sole plates; plainer and much thinner than an outer wall. The wall band is about one twelfth of the image height thick."
+      },
+      "prompt": "Top-down battle-map asset for a tabletop fantasy grid map, in a rich hand-painted style: confident painterly brushwork, fine dark ink outlines, crisp small detail and a muted, earthy, slightly warm palette. Strictly orthographic view from directly overhead: no perspective, no horizon, no tilted or isometric angle. Soft light from the top-left, so upper-left edges catch highlights and lower-right edges fall into gentle form shading; no cast shadow and no drop shadow anywhere. No text, no letters, no numbers, no grid lines, no frame, no border, no vignette, no watermark, no signature. Subject: one modular wall piece from a grid-map wall kit, a 5-foot section of thin interior partition wall, a single timber stud frame with plastered panels, seen from directly above. Doorway in a straight run from left edge to right edge on the centre line; middle third: a gap between jambs, wall top stopped, shut by a narrow plank door along the wall line. A narrow cream plaster band between two slim dark oak sole plates; plainer and much thinner than an outer wall. The wall band is about one twelfth of the image height thick. Wall pieces join into long walls on a square grid, so the top of the wall is seen as a straight band of even thickness, every arm runs perfectly straight along the image's horizontal or vertical centre line and is cut off square exactly at the image edge it reaches. The junction is exactly at the centre of the image. Everything that is not wall is fully transparent (a PNG with a real alpha channel, background: transparent): no ground, no grass, no floor, no shadow."
+    },
+    "wall.timber_partition.window": {
+      "class": "wall",
+      "template": "arda-wall",
+      "format": "1:1",
+      "footprint": [
+        1,
+        1
+      ],
+      "pixels": [
+        128,
+        128
+      ],
+      "layer": "wall",
+      "height_ft": 10,
+      "functions": [
+        "house",
+        "cottage",
+        "inn",
+        "tavern",
+        "bakery",
+        "workshop",
+        "manor"
+      ],
+      "tags": {
+        "biome": [],
+        "culture": [],
+        "wealth": [],
+        "function": [
+          "house",
+          "cottage",
+          "inn",
+          "tavern",
+          "bakery",
+          "workshop",
+          "manor"
+        ],
+        "free": [
+          "partition"
+        ]
+      },
+      "blocks_movement": true,
+      "blocks_sight": true,
+      "difficult_terrain": false,
+      "cover": "total",
+      "file": "walls/wall.timber_partition.window.png",
+      "status": "new",
+      "tier": 5,
+      "kit": "timber_partition",
+      "role": "window",
+      "values": {
+        "Subject": "a 5-foot section of thin interior partition wall, a single timber stud frame with plastered panels, seen from directly above",
+        "Shape": "A straight run with a window: it runs from the left edge to the right edge along the horizontal centre line, with a small interior hatch with a wooden shutter in the middle third.",
+        "Detail": "A narrow cream plaster band between two slim dark oak sole plates; plainer and much thinner than an outer wall. The wall band is about one twelfth of the image height thick."
+      },
+      "prompt": "Top-down battle-map asset for a tabletop fantasy grid map, in a rich hand-painted style: confident painterly brushwork, fine dark ink outlines, crisp small detail and a muted, earthy, slightly warm palette. Strictly orthographic view from directly overhead: no perspective, no horizon, no tilted or isometric angle. Soft light from the top-left, so upper-left edges catch highlights and lower-right edges fall into gentle form shading; no cast shadow and no drop shadow anywhere. No text, no letters, no numbers, no grid lines, no frame, no border, no vignette, no watermark, no signature. Subject: one modular wall piece from a grid-map wall kit, a 5-foot section of thin interior partition wall, a single timber stud frame with plastered panels, seen from directly above. A straight run with a window: it runs from the left edge to the right edge along the horizontal centre line, with a small interior hatch with a wooden shutter in the middle third. A narrow cream plaster band between two slim dark oak sole plates; plainer and much thinner than an outer wall. The wall band is about one twelfth of the image height thick. Wall pieces join into long walls on a square grid, so the top of the wall is seen as a straight band of even thickness, every arm runs perfectly straight along the image's horizontal or vertical centre line and is cut off square exactly at the image edge it reaches. The junction is exactly at the centre of the image. Everything that is not wall is fully transparent (a PNG with a real alpha channel, background: transparent): no ground, no grass, no floor, no shadow."
+    },
+    "wall.timber_partition.gate": {
+      "class": "wall",
+      "template": "arda-wall",
+      "format": "1:1",
+      "footprint": [
+        1,
+        1
+      ],
+      "pixels": [
+        128,
+        128
+      ],
+      "layer": "wall",
+      "height_ft": 10,
+      "functions": [
+        "house",
+        "cottage",
+        "inn",
+        "tavern",
+        "bakery",
+        "workshop",
+        "manor"
+      ],
+      "tags": {
+        "biome": [],
+        "culture": [],
+        "wealth": [],
+        "function": [
+          "house",
+          "cottage",
+          "inn",
+          "tavern",
+          "bakery",
+          "workshop",
+          "manor"
+        ],
+        "free": [
+          "partition"
+        ]
+      },
+      "blocks_movement": true,
+      "blocks_sight": true,
+      "difficult_terrain": false,
+      "cover": "total",
+      "file": "walls/wall.timber_partition.gate.png",
+      "status": "new",
+      "tier": 5,
+      "kit": "timber_partition",
+      "role": "gate",
+      "values": {
+        "Subject": "a 5-foot section of thin interior partition wall, a single timber stud frame with plastered panels, seen from directly above",
+        "Shape": "Gateway in a straight run from left edge to right edge on the centre line; middle: a gap between posts, wall top stopped, shut by a wide opening with a plain timber lintel along the wall line.",
+        "Detail": "A narrow cream plaster band between two slim dark oak sole plates; plainer and much thinner than an outer wall. The wall band is about one twelfth of the image height thick."
+      },
+      "prompt": "Top-down battle-map asset for a tabletop fantasy grid map, in a rich hand-painted style: confident painterly brushwork, fine dark ink outlines, crisp small detail and a muted, earthy, slightly warm palette. Strictly orthographic view from directly overhead: no perspective, no horizon, no tilted or isometric angle. Soft light from the top-left, so upper-left edges catch highlights and lower-right edges fall into gentle form shading; no cast shadow and no drop shadow anywhere. No text, no letters, no numbers, no grid lines, no frame, no border, no vignette, no watermark, no signature. Subject: one modular wall piece from a grid-map wall kit, a 5-foot section of thin interior partition wall, a single timber stud frame with plastered panels, seen from directly above. Gateway in a straight run from left edge to right edge on the centre line; middle: a gap between posts, wall top stopped, shut by a wide opening with a plain timber lintel along the wall line. A narrow cream plaster band between two slim dark oak sole plates; plainer and much thinner than an outer wall. The wall band is about one twelfth of the image height thick. Wall pieces join into long walls on a square grid, so the top of the wall is seen as a straight band of even thickness, every arm runs perfectly straight along the image's horizontal or vertical centre line and is cut off square exactly at the image edge it reaches. The junction is exactly at the centre of the image. Everything that is not wall is fully transparent (a PNG with a real alpha channel, background: transparent): no ground, no grass, no floor, no shadow."
+    },
+    "wall.timber_partition.post": {
+      "class": "wall",
+      "template": "arda-wall",
+      "format": "1:1",
+      "footprint": [
+        1,
+        1
+      ],
+      "pixels": [
+        128,
+        128
+      ],
+      "layer": "wall",
+      "height_ft": 10,
+      "functions": [
+        "house",
+        "cottage",
+        "inn",
+        "tavern",
+        "bakery",
+        "workshop",
+        "manor"
+      ],
+      "tags": {
+        "biome": [],
+        "culture": [],
+        "wealth": [],
+        "function": [
+          "house",
+          "cottage",
+          "inn",
+          "tavern",
+          "bakery",
+          "workshop",
+          "manor"
+        ],
+        "free": [
+          "partition"
+        ]
+      },
+      "blocks_movement": true,
+      "blocks_sight": true,
+      "difficult_terrain": false,
+      "cover": "total",
+      "file": "walls/wall.timber_partition.post.png",
+      "status": "new",
+      "tier": 5,
+      "kit": "timber_partition",
+      "role": "post",
+      "values": {
+        "Subject": "a 5-foot section of thin interior partition wall, a single timber stud frame with plastered panels, seen from directly above",
+        "Shape": "Only a slim square oak post, alone at the exact centre, about a quarter of the image wide; no wall runs out from it, the rest is empty.",
+        "Detail": "A narrow cream plaster band between two slim dark oak sole plates; plainer and much thinner than an outer wall. The wall band is about one twelfth of the image height thick."
+      },
+      "prompt": "Top-down battle-map asset for a tabletop fantasy grid map, in a rich hand-painted style: confident painterly brushwork, fine dark ink outlines, crisp small detail and a muted, earthy, slightly warm palette. Strictly orthographic view from directly overhead: no perspective, no horizon, no tilted or isometric angle. Soft light from the top-left, so upper-left edges catch highlights and lower-right edges fall into gentle form shading; no cast shadow and no drop shadow anywhere. No text, no letters, no numbers, no grid lines, no frame, no border, no vignette, no watermark, no signature. Subject: one modular wall piece from a grid-map wall kit, a 5-foot section of thin interior partition wall, a single timber stud frame with plastered panels, seen from directly above. Only a slim square oak post, alone at the exact centre, about a quarter of the image wide; no wall runs out from it, the rest is empty. A narrow cream plaster band between two slim dark oak sole plates; plainer and much thinner than an outer wall. The wall band is about one twelfth of the image height thick. Wall pieces join into long walls on a square grid, so the top of the wall is seen as a straight band of even thickness, every arm runs perfectly straight along the image's horizontal or vertical centre line and is cut off square exactly at the image edge it reaches. The junction is exactly at the centre of the image. Everything that is not wall is fully transparent (a PNG with a real alpha channel, background: transparent): no ground, no grass, no floor, no shadow."
+    },
+    "wall.timber_partition.corner": {
+      "class": "wall",
+      "template": "arda-wall",
+      "format": "1:1",
+      "footprint": [
+        1,
+        1
+      ],
+      "pixels": [
+        128,
+        128
+      ],
+      "layer": "wall",
+      "height_ft": 10,
+      "functions": [
+        "house",
+        "cottage",
+        "inn",
+        "tavern",
+        "bakery",
+        "workshop",
+        "manor"
+      ],
+      "tags": {
+        "biome": [],
+        "culture": [],
+        "wealth": [],
+        "function": [
+          "house",
+          "cottage",
+          "inn",
+          "tavern",
+          "bakery",
+          "workshop",
+          "manor"
+        ],
+        "free": [
+          "partition"
+        ]
+      },
+      "blocks_movement": true,
+      "blocks_sight": true,
+      "difficult_terrain": false,
+      "cover": "total",
+      "file": "walls/wall.timber_partition.corner.png",
+      "status": "new",
+      "tier": 5,
+      "kit": "timber_partition",
+      "role": "corner",
+      "values": {
+        "Subject": "a 5-foot section of thin interior partition wall, a single timber stud frame with plastered panels, seen from directly above",
+        "Shape": "An L-shaped corner: one arm runs from the centre to the right edge and the other from the centre to the bottom edge; nothing left of or above the centre.",
+        "Detail": "A narrow cream plaster band between two slim dark oak sole plates; plainer and much thinner than an outer wall. The wall band is about one twelfth of the image height thick."
+      },
+      "prompt": "Top-down battle-map asset for a tabletop fantasy grid map, in a rich hand-painted style: confident painterly brushwork, fine dark ink outlines, crisp small detail and a muted, earthy, slightly warm palette. Strictly orthographic view from directly overhead: no perspective, no horizon, no tilted or isometric angle. Soft light from the top-left, so upper-left edges catch highlights and lower-right edges fall into gentle form shading; no cast shadow and no drop shadow anywhere. No text, no letters, no numbers, no grid lines, no frame, no border, no vignette, no watermark, no signature. Subject: one modular wall piece from a grid-map wall kit, a 5-foot section of thin interior partition wall, a single timber stud frame with plastered panels, seen from directly above. An L-shaped corner: one arm runs from the centre to the right edge and the other from the centre to the bottom edge; nothing left of or above the centre. A narrow cream plaster band between two slim dark oak sole plates; plainer and much thinner than an outer wall. The wall band is about one twelfth of the image height thick. Wall pieces join into long walls on a square grid, so the top of the wall is seen as a straight band of even thickness, every arm runs perfectly straight along the image's horizontal or vertical centre line and is cut off square exactly at the image edge it reaches. The junction is exactly at the centre of the image. Everything that is not wall is fully transparent (a PNG with a real alpha channel, background: transparent): no ground, no grass, no floor, no shadow."
+    },
+    "wall.timber_partition.tee": {
+      "class": "wall",
+      "template": "arda-wall",
+      "format": "1:1",
+      "footprint": [
+        1,
+        1
+      ],
+      "pixels": [
+        128,
+        128
+      ],
+      "layer": "wall",
+      "height_ft": 10,
+      "functions": [
+        "house",
+        "cottage",
+        "inn",
+        "tavern",
+        "bakery",
+        "workshop",
+        "manor"
+      ],
+      "tags": {
+        "biome": [],
+        "culture": [],
+        "wealth": [],
+        "function": [
+          "house",
+          "cottage",
+          "inn",
+          "tavern",
+          "bakery",
+          "workshop",
+          "manor"
+        ],
+        "free": [
+          "partition"
+        ]
+      },
+      "blocks_movement": true,
+      "blocks_sight": true,
+      "difficult_terrain": false,
+      "cover": "total",
+      "file": "walls/wall.timber_partition.tee.png",
+      "status": "new",
+      "tier": 5,
+      "kit": "timber_partition",
+      "role": "tee",
+      "values": {
+        "Subject": "a 5-foot section of thin interior partition wall, a single timber stud frame with plastered panels, seen from directly above",
+        "Shape": "A T-junction: arms run from the centre to the left edge, the right edge and the bottom edge; nothing above the centre.",
+        "Detail": "A narrow cream plaster band between two slim dark oak sole plates; plainer and much thinner than an outer wall. The wall band is about one twelfth of the image height thick."
+      },
+      "prompt": "Top-down battle-map asset for a tabletop fantasy grid map, in a rich hand-painted style: confident painterly brushwork, fine dark ink outlines, crisp small detail and a muted, earthy, slightly warm palette. Strictly orthographic view from directly overhead: no perspective, no horizon, no tilted or isometric angle. Soft light from the top-left, so upper-left edges catch highlights and lower-right edges fall into gentle form shading; no cast shadow and no drop shadow anywhere. No text, no letters, no numbers, no grid lines, no frame, no border, no vignette, no watermark, no signature. Subject: one modular wall piece from a grid-map wall kit, a 5-foot section of thin interior partition wall, a single timber stud frame with plastered panels, seen from directly above. A T-junction: arms run from the centre to the left edge, the right edge and the bottom edge; nothing above the centre. A narrow cream plaster band between two slim dark oak sole plates; plainer and much thinner than an outer wall. The wall band is about one twelfth of the image height thick. Wall pieces join into long walls on a square grid, so the top of the wall is seen as a straight band of even thickness, every arm runs perfectly straight along the image's horizontal or vertical centre line and is cut off square exactly at the image edge it reaches. The junction is exactly at the centre of the image. Everything that is not wall is fully transparent (a PNG with a real alpha channel, background: transparent): no ground, no grass, no floor, no shadow."
+    },
+    "wall.timber_partition.cross": {
+      "class": "wall",
+      "template": "arda-wall",
+      "format": "1:1",
+      "footprint": [
+        1,
+        1
+      ],
+      "pixels": [
+        128,
+        128
+      ],
+      "layer": "wall",
+      "height_ft": 10,
+      "functions": [
+        "house",
+        "cottage",
+        "inn",
+        "tavern",
+        "bakery",
+        "workshop",
+        "manor"
+      ],
+      "tags": {
+        "biome": [],
+        "culture": [],
+        "wealth": [],
+        "function": [
+          "house",
+          "cottage",
+          "inn",
+          "tavern",
+          "bakery",
+          "workshop",
+          "manor"
+        ],
+        "free": [
+          "partition"
+        ]
+      },
+      "blocks_movement": true,
+      "blocks_sight": true,
+      "difficult_terrain": false,
+      "cover": "total",
+      "file": "walls/wall.timber_partition.cross.png",
+      "status": "new",
+      "tier": 5,
+      "kit": "timber_partition",
+      "role": "cross",
+      "values": {
+        "Subject": "a 5-foot section of thin interior partition wall, a single timber stud frame with plastered panels, seen from directly above",
+        "Shape": "A cross junction: arms run from the centre to all four edges (left, right, top and bottom), meeting in a plus shape.",
+        "Detail": "A narrow cream plaster band between two slim dark oak sole plates; plainer and much thinner than an outer wall. The wall band is about one twelfth of the image height thick."
+      },
+      "prompt": "Top-down battle-map asset for a tabletop fantasy grid map, in a rich hand-painted style: confident painterly brushwork, fine dark ink outlines, crisp small detail and a muted, earthy, slightly warm palette. Strictly orthographic view from directly overhead: no perspective, no horizon, no tilted or isometric angle. Soft light from the top-left, so upper-left edges catch highlights and lower-right edges fall into gentle form shading; no cast shadow and no drop shadow anywhere. No text, no letters, no numbers, no grid lines, no frame, no border, no vignette, no watermark, no signature. Subject: one modular wall piece from a grid-map wall kit, a 5-foot section of thin interior partition wall, a single timber stud frame with plastered panels, seen from directly above. A cross junction: arms run from the centre to all four edges (left, right, top and bottom), meeting in a plus shape. A narrow cream plaster band between two slim dark oak sole plates; plainer and much thinner than an outer wall. The wall band is about one twelfth of the image height thick. Wall pieces join into long walls on a square grid, so the top of the wall is seen as a straight band of even thickness, every arm runs perfectly straight along the image's horizontal or vertical centre line and is cut off square exactly at the image edge it reaches. The junction is exactly at the centre of the image. Everything that is not wall is fully transparent (a PNG with a real alpha channel, background: transparent): no ground, no grass, no floor, no shadow."
+    },
+    "wall.timber_partition.end": {
+      "class": "wall",
+      "template": "arda-wall",
+      "format": "1:1",
+      "footprint": [
+        1,
+        1
+      ],
+      "pixels": [
+        128,
+        128
+      ],
+      "layer": "wall",
+      "height_ft": 10,
+      "functions": [
+        "house",
+        "cottage",
+        "inn",
+        "tavern",
+        "bakery",
+        "workshop",
+        "manor"
+      ],
+      "tags": {
+        "biome": [],
+        "culture": [],
+        "wealth": [],
+        "function": [
+          "house",
+          "cottage",
+          "inn",
+          "tavern",
+          "bakery",
+          "workshop",
+          "manor"
+        ],
+        "free": [
+          "partition"
+        ]
+      },
+      "blocks_movement": true,
+      "blocks_sight": true,
+      "difficult_terrain": false,
+      "cover": "total",
+      "file": "walls/wall.timber_partition.end.png",
+      "status": "new",
+      "tier": 5,
+      "kit": "timber_partition",
+      "role": "end",
+      "values": {
+        "Subject": "a 5-foot section of thin interior partition wall, a single timber stud frame with plastered panels, seen from directly above",
+        "Shape": "A wall end: one arm runs in from the right edge and stops at the centre with a finished, capped end; nothing left of, above or below the centre.",
+        "Detail": "A narrow cream plaster band between two slim dark oak sole plates; plainer and much thinner than an outer wall. The wall band is about one twelfth of the image height thick."
+      },
+      "prompt": "Top-down battle-map asset for a tabletop fantasy grid map, in a rich hand-painted style: confident painterly brushwork, fine dark ink outlines, crisp small detail and a muted, earthy, slightly warm palette. Strictly orthographic view from directly overhead: no perspective, no horizon, no tilted or isometric angle. Soft light from the top-left, so upper-left edges catch highlights and lower-right edges fall into gentle form shading; no cast shadow and no drop shadow anywhere. No text, no letters, no numbers, no grid lines, no frame, no border, no vignette, no watermark, no signature. Subject: one modular wall piece from a grid-map wall kit, a 5-foot section of thin interior partition wall, a single timber stud frame with plastered panels, seen from directly above. A wall end: one arm runs in from the right edge and stops at the centre with a finished, capped end; nothing left of, above or below the centre. A narrow cream plaster band between two slim dark oak sole plates; plainer and much thinner than an outer wall. The wall band is about one twelfth of the image height thick. Wall pieces join into long walls on a square grid, so the top of the wall is seen as a straight band of even thickness, every arm runs perfectly straight along the image's horizontal or vertical centre line and is cut off square exactly at the image edge it reaches. The junction is exactly at the centre of the image. Everything that is not wall is fully transparent (a PNG with a real alpha channel, background: transparent): no ground, no grass, no floor, no shadow."
+    },
+    "wall.wattle_partition.door": {
+      "class": "wall",
+      "template": "arda-wall",
+      "format": "1:1",
+      "footprint": [
+        1,
+        1
+      ],
+      "pixels": [
+        128,
+        128
+      ],
+      "layer": "wall",
+      "height_ft": 10,
+      "functions": [
+        "house",
+        "cottage",
+        "farmhouse",
+        "stall"
+      ],
+      "tags": {
+        "biome": [],
+        "culture": [],
+        "wealth": [],
+        "function": [
+          "house",
+          "cottage",
+          "farmhouse",
+          "stall"
+        ],
+        "free": [
+          "partition"
+        ]
+      },
+      "blocks_movement": true,
+      "blocks_sight": true,
+      "difficult_terrain": false,
+      "cover": "total",
+      "file": "walls/wall.wattle_partition.door.png",
+      "status": "new",
+      "tier": 5,
+      "kit": "wattle_partition",
+      "role": "door",
+      "values": {
+        "Subject": "a 5-foot section of thin interior wattle screen, woven hazel rods daubed with clay, seen from directly above",
+        "Shape": "Doorway in a straight run from left edge to right edge on the centre line; middle third: a gap between jambs, wall top stopped, shut by a hanging hide flap over a gap along the wall line.",
+        "Detail": "A narrow band of woven hazel with pale clay daub pressed between the rods; light and much thinner than an outer wall. The wall band is about one fourteenth of the image height thick."
+      },
+      "prompt": "Top-down battle-map asset for a tabletop fantasy grid map, in a rich hand-painted style: confident painterly brushwork, fine dark ink outlines, crisp small detail and a muted, earthy, slightly warm palette. Strictly orthographic view from directly overhead: no perspective, no horizon, no tilted or isometric angle. Soft light from the top-left, so upper-left edges catch highlights and lower-right edges fall into gentle form shading; no cast shadow and no drop shadow anywhere. No text, no letters, no numbers, no grid lines, no frame, no border, no vignette, no watermark, no signature. Subject: one modular wall piece from a grid-map wall kit, a 5-foot section of thin interior wattle screen, woven hazel rods daubed with clay, seen from directly above. Doorway in a straight run from left edge to right edge on the centre line; middle third: a gap between jambs, wall top stopped, shut by a hanging hide flap over a gap along the wall line. A narrow band of woven hazel with pale clay daub pressed between the rods; light and much thinner than an outer wall. The wall band is about one fourteenth of the image height thick. Wall pieces join into long walls on a square grid, so the top of the wall is seen as a straight band of even thickness, every arm runs perfectly straight along the image's horizontal or vertical centre line and is cut off square exactly at the image edge it reaches. The junction is exactly at the centre of the image. Everything that is not wall is fully transparent (a PNG with a real alpha channel, background: transparent): no ground, no grass, no floor, no shadow."
+    },
+    "wall.wattle_partition.window": {
+      "class": "wall",
+      "template": "arda-wall",
+      "format": "1:1",
+      "footprint": [
+        1,
+        1
+      ],
+      "pixels": [
+        128,
+        128
+      ],
+      "layer": "wall",
+      "height_ft": 10,
+      "functions": [
+        "house",
+        "cottage",
+        "farmhouse",
+        "stall"
+      ],
+      "tags": {
+        "biome": [],
+        "culture": [],
+        "wealth": [],
+        "function": [
+          "house",
+          "cottage",
+          "farmhouse",
+          "stall"
+        ],
+        "free": [
+          "partition"
+        ]
+      },
+      "blocks_movement": true,
+      "blocks_sight": true,
+      "difficult_terrain": false,
+      "cover": "total",
+      "file": "walls/wall.wattle_partition.window.png",
+      "status": "new",
+      "tier": 5,
+      "kit": "wattle_partition",
+      "role": "window",
+      "values": {
+        "Subject": "a 5-foot section of thin interior wattle screen, woven hazel rods daubed with clay, seen from directly above",
+        "Shape": "A straight run with a window: it runs from the left edge to the right edge along the horizontal centre line, with a small gap in the weave with a twig lattice in the middle third.",
+        "Detail": "A narrow band of woven hazel with pale clay daub pressed between the rods; light and much thinner than an outer wall. The wall band is about one fourteenth of the image height thick."
+      },
+      "prompt": "Top-down battle-map asset for a tabletop fantasy grid map, in a rich hand-painted style: confident painterly brushwork, fine dark ink outlines, crisp small detail and a muted, earthy, slightly warm palette. Strictly orthographic view from directly overhead: no perspective, no horizon, no tilted or isometric angle. Soft light from the top-left, so upper-left edges catch highlights and lower-right edges fall into gentle form shading; no cast shadow and no drop shadow anywhere. No text, no letters, no numbers, no grid lines, no frame, no border, no vignette, no watermark, no signature. Subject: one modular wall piece from a grid-map wall kit, a 5-foot section of thin interior wattle screen, woven hazel rods daubed with clay, seen from directly above. A straight run with a window: it runs from the left edge to the right edge along the horizontal centre line, with a small gap in the weave with a twig lattice in the middle third. A narrow band of woven hazel with pale clay daub pressed between the rods; light and much thinner than an outer wall. The wall band is about one fourteenth of the image height thick. Wall pieces join into long walls on a square grid, so the top of the wall is seen as a straight band of even thickness, every arm runs perfectly straight along the image's horizontal or vertical centre line and is cut off square exactly at the image edge it reaches. The junction is exactly at the centre of the image. Everything that is not wall is fully transparent (a PNG with a real alpha channel, background: transparent): no ground, no grass, no floor, no shadow."
+    },
+    "wall.wattle_partition.gate": {
+      "class": "wall",
+      "template": "arda-wall",
+      "format": "1:1",
+      "footprint": [
+        1,
+        1
+      ],
+      "pixels": [
+        128,
+        128
+      ],
+      "layer": "wall",
+      "height_ft": 10,
+      "functions": [
+        "house",
+        "cottage",
+        "farmhouse",
+        "stall"
+      ],
+      "tags": {
+        "biome": [],
+        "culture": [],
+        "wealth": [],
+        "function": [
+          "house",
+          "cottage",
+          "farmhouse",
+          "stall"
+        ],
+        "free": [
+          "partition"
+        ]
+      },
+      "blocks_movement": true,
+      "blocks_sight": true,
+      "difficult_terrain": false,
+      "cover": "total",
+      "file": "walls/wall.wattle_partition.gate.png",
+      "status": "new",
+      "tier": 5,
+      "kit": "wattle_partition",
+      "role": "gate",
+      "values": {
+        "Subject": "a 5-foot section of thin interior wattle screen, woven hazel rods daubed with clay, seen from directly above",
+        "Shape": "Gateway in a straight run from left edge to right edge on the centre line; middle: a gap between posts, wall top stopped, shut by a wide gap closed by a woven hurdle along the wall line.",
+        "Detail": "A narrow band of woven hazel with pale clay daub pressed between the rods; light and much thinner than an outer wall. The wall band is about one fourteenth of the image height thick."
+      },
+      "prompt": "Top-down battle-map asset for a tabletop fantasy grid map, in a rich hand-painted style: confident painterly brushwork, fine dark ink outlines, crisp small detail and a muted, earthy, slightly warm palette. Strictly orthographic view from directly overhead: no perspective, no horizon, no tilted or isometric angle. Soft light from the top-left, so upper-left edges catch highlights and lower-right edges fall into gentle form shading; no cast shadow and no drop shadow anywhere. No text, no letters, no numbers, no grid lines, no frame, no border, no vignette, no watermark, no signature. Subject: one modular wall piece from a grid-map wall kit, a 5-foot section of thin interior wattle screen, woven hazel rods daubed with clay, seen from directly above. Gateway in a straight run from left edge to right edge on the centre line; middle: a gap between posts, wall top stopped, shut by a wide gap closed by a woven hurdle along the wall line. A narrow band of woven hazel with pale clay daub pressed between the rods; light and much thinner than an outer wall. The wall band is about one fourteenth of the image height thick. Wall pieces join into long walls on a square grid, so the top of the wall is seen as a straight band of even thickness, every arm runs perfectly straight along the image's horizontal or vertical centre line and is cut off square exactly at the image edge it reaches. The junction is exactly at the centre of the image. Everything that is not wall is fully transparent (a PNG with a real alpha channel, background: transparent): no ground, no grass, no floor, no shadow."
+    },
+    "wall.wattle_partition.post": {
+      "class": "wall",
+      "template": "arda-wall",
+      "format": "1:1",
+      "footprint": [
+        1,
+        1
+      ],
+      "pixels": [
+        128,
+        128
+      ],
+      "layer": "wall",
+      "height_ft": 10,
+      "functions": [
+        "house",
+        "cottage",
+        "farmhouse",
+        "stall"
+      ],
+      "tags": {
+        "biome": [],
+        "culture": [],
+        "wealth": [],
+        "function": [
+          "house",
+          "cottage",
+          "farmhouse",
+          "stall"
+        ],
+        "free": [
+          "partition"
+        ]
+      },
+      "blocks_movement": true,
+      "blocks_sight": true,
+      "difficult_terrain": false,
+      "cover": "total",
+      "file": "walls/wall.wattle_partition.post.png",
+      "status": "new",
+      "tier": 5,
+      "kit": "wattle_partition",
+      "role": "post",
+      "values": {
+        "Subject": "a 5-foot section of thin interior wattle screen, woven hazel rods daubed with clay, seen from directly above",
+        "Shape": "Only a slim upright hazel stake, alone at the exact centre, about a quarter of the image wide; no wall runs out from it, the rest is empty.",
+        "Detail": "A narrow band of woven hazel with pale clay daub pressed between the rods; light and much thinner than an outer wall. The wall band is about one fourteenth of the image height thick."
+      },
+      "prompt": "Top-down battle-map asset for a tabletop fantasy grid map, in a rich hand-painted style: confident painterly brushwork, fine dark ink outlines, crisp small detail and a muted, earthy, slightly warm palette. Strictly orthographic view from directly overhead: no perspective, no horizon, no tilted or isometric angle. Soft light from the top-left, so upper-left edges catch highlights and lower-right edges fall into gentle form shading; no cast shadow and no drop shadow anywhere. No text, no letters, no numbers, no grid lines, no frame, no border, no vignette, no watermark, no signature. Subject: one modular wall piece from a grid-map wall kit, a 5-foot section of thin interior wattle screen, woven hazel rods daubed with clay, seen from directly above. Only a slim upright hazel stake, alone at the exact centre, about a quarter of the image wide; no wall runs out from it, the rest is empty. A narrow band of woven hazel with pale clay daub pressed between the rods; light and much thinner than an outer wall. The wall band is about one fourteenth of the image height thick. Wall pieces join into long walls on a square grid, so the top of the wall is seen as a straight band of even thickness, every arm runs perfectly straight along the image's horizontal or vertical centre line and is cut off square exactly at the image edge it reaches. The junction is exactly at the centre of the image. Everything that is not wall is fully transparent (a PNG with a real alpha channel, background: transparent): no ground, no grass, no floor, no shadow."
+    },
+    "wall.wattle_partition.corner": {
+      "class": "wall",
+      "template": "arda-wall",
+      "format": "1:1",
+      "footprint": [
+        1,
+        1
+      ],
+      "pixels": [
+        128,
+        128
+      ],
+      "layer": "wall",
+      "height_ft": 10,
+      "functions": [
+        "house",
+        "cottage",
+        "farmhouse",
+        "stall"
+      ],
+      "tags": {
+        "biome": [],
+        "culture": [],
+        "wealth": [],
+        "function": [
+          "house",
+          "cottage",
+          "farmhouse",
+          "stall"
+        ],
+        "free": [
+          "partition"
+        ]
+      },
+      "blocks_movement": true,
+      "blocks_sight": true,
+      "difficult_terrain": false,
+      "cover": "total",
+      "file": "walls/wall.wattle_partition.corner.png",
+      "status": "new",
+      "tier": 5,
+      "kit": "wattle_partition",
+      "role": "corner",
+      "values": {
+        "Subject": "a 5-foot section of thin interior wattle screen, woven hazel rods daubed with clay, seen from directly above",
+        "Shape": "An L-shaped corner: one arm runs from the centre to the right edge and the other from the centre to the bottom edge; nothing left of or above the centre.",
+        "Detail": "A narrow band of woven hazel with pale clay daub pressed between the rods; light and much thinner than an outer wall. The wall band is about one fourteenth of the image height thick."
+      },
+      "prompt": "Top-down battle-map asset for a tabletop fantasy grid map, in a rich hand-painted style: confident painterly brushwork, fine dark ink outlines, crisp small detail and a muted, earthy, slightly warm palette. Strictly orthographic view from directly overhead: no perspective, no horizon, no tilted or isometric angle. Soft light from the top-left, so upper-left edges catch highlights and lower-right edges fall into gentle form shading; no cast shadow and no drop shadow anywhere. No text, no letters, no numbers, no grid lines, no frame, no border, no vignette, no watermark, no signature. Subject: one modular wall piece from a grid-map wall kit, a 5-foot section of thin interior wattle screen, woven hazel rods daubed with clay, seen from directly above. An L-shaped corner: one arm runs from the centre to the right edge and the other from the centre to the bottom edge; nothing left of or above the centre. A narrow band of woven hazel with pale clay daub pressed between the rods; light and much thinner than an outer wall. The wall band is about one fourteenth of the image height thick. Wall pieces join into long walls on a square grid, so the top of the wall is seen as a straight band of even thickness, every arm runs perfectly straight along the image's horizontal or vertical centre line and is cut off square exactly at the image edge it reaches. The junction is exactly at the centre of the image. Everything that is not wall is fully transparent (a PNG with a real alpha channel, background: transparent): no ground, no grass, no floor, no shadow."
+    },
+    "wall.wattle_partition.tee": {
+      "class": "wall",
+      "template": "arda-wall",
+      "format": "1:1",
+      "footprint": [
+        1,
+        1
+      ],
+      "pixels": [
+        128,
+        128
+      ],
+      "layer": "wall",
+      "height_ft": 10,
+      "functions": [
+        "house",
+        "cottage",
+        "farmhouse",
+        "stall"
+      ],
+      "tags": {
+        "biome": [],
+        "culture": [],
+        "wealth": [],
+        "function": [
+          "house",
+          "cottage",
+          "farmhouse",
+          "stall"
+        ],
+        "free": [
+          "partition"
+        ]
+      },
+      "blocks_movement": true,
+      "blocks_sight": true,
+      "difficult_terrain": false,
+      "cover": "total",
+      "file": "walls/wall.wattle_partition.tee.png",
+      "status": "new",
+      "tier": 5,
+      "kit": "wattle_partition",
+      "role": "tee",
+      "values": {
+        "Subject": "a 5-foot section of thin interior wattle screen, woven hazel rods daubed with clay, seen from directly above",
+        "Shape": "A T-junction: arms run from the centre to the left edge, the right edge and the bottom edge; nothing above the centre.",
+        "Detail": "A narrow band of woven hazel with pale clay daub pressed between the rods; light and much thinner than an outer wall. The wall band is about one fourteenth of the image height thick."
+      },
+      "prompt": "Top-down battle-map asset for a tabletop fantasy grid map, in a rich hand-painted style: confident painterly brushwork, fine dark ink outlines, crisp small detail and a muted, earthy, slightly warm palette. Strictly orthographic view from directly overhead: no perspective, no horizon, no tilted or isometric angle. Soft light from the top-left, so upper-left edges catch highlights and lower-right edges fall into gentle form shading; no cast shadow and no drop shadow anywhere. No text, no letters, no numbers, no grid lines, no frame, no border, no vignette, no watermark, no signature. Subject: one modular wall piece from a grid-map wall kit, a 5-foot section of thin interior wattle screen, woven hazel rods daubed with clay, seen from directly above. A T-junction: arms run from the centre to the left edge, the right edge and the bottom edge; nothing above the centre. A narrow band of woven hazel with pale clay daub pressed between the rods; light and much thinner than an outer wall. The wall band is about one fourteenth of the image height thick. Wall pieces join into long walls on a square grid, so the top of the wall is seen as a straight band of even thickness, every arm runs perfectly straight along the image's horizontal or vertical centre line and is cut off square exactly at the image edge it reaches. The junction is exactly at the centre of the image. Everything that is not wall is fully transparent (a PNG with a real alpha channel, background: transparent): no ground, no grass, no floor, no shadow."
+    },
+    "wall.wattle_partition.cross": {
+      "class": "wall",
+      "template": "arda-wall",
+      "format": "1:1",
+      "footprint": [
+        1,
+        1
+      ],
+      "pixels": [
+        128,
+        128
+      ],
+      "layer": "wall",
+      "height_ft": 10,
+      "functions": [
+        "house",
+        "cottage",
+        "farmhouse",
+        "stall"
+      ],
+      "tags": {
+        "biome": [],
+        "culture": [],
+        "wealth": [],
+        "function": [
+          "house",
+          "cottage",
+          "farmhouse",
+          "stall"
+        ],
+        "free": [
+          "partition"
+        ]
+      },
+      "blocks_movement": true,
+      "blocks_sight": true,
+      "difficult_terrain": false,
+      "cover": "total",
+      "file": "walls/wall.wattle_partition.cross.png",
+      "status": "new",
+      "tier": 5,
+      "kit": "wattle_partition",
+      "role": "cross",
+      "values": {
+        "Subject": "a 5-foot section of thin interior wattle screen, woven hazel rods daubed with clay, seen from directly above",
+        "Shape": "A cross junction: arms run from the centre to all four edges (left, right, top and bottom), meeting in a plus shape.",
+        "Detail": "A narrow band of woven hazel with pale clay daub pressed between the rods; light and much thinner than an outer wall. The wall band is about one fourteenth of the image height thick."
+      },
+      "prompt": "Top-down battle-map asset for a tabletop fantasy grid map, in a rich hand-painted style: confident painterly brushwork, fine dark ink outlines, crisp small detail and a muted, earthy, slightly warm palette. Strictly orthographic view from directly overhead: no perspective, no horizon, no tilted or isometric angle. Soft light from the top-left, so upper-left edges catch highlights and lower-right edges fall into gentle form shading; no cast shadow and no drop shadow anywhere. No text, no letters, no numbers, no grid lines, no frame, no border, no vignette, no watermark, no signature. Subject: one modular wall piece from a grid-map wall kit, a 5-foot section of thin interior wattle screen, woven hazel rods daubed with clay, seen from directly above. A cross junction: arms run from the centre to all four edges (left, right, top and bottom), meeting in a plus shape. A narrow band of woven hazel with pale clay daub pressed between the rods; light and much thinner than an outer wall. The wall band is about one fourteenth of the image height thick. Wall pieces join into long walls on a square grid, so the top of the wall is seen as a straight band of even thickness, every arm runs perfectly straight along the image's horizontal or vertical centre line and is cut off square exactly at the image edge it reaches. The junction is exactly at the centre of the image. Everything that is not wall is fully transparent (a PNG with a real alpha channel, background: transparent): no ground, no grass, no floor, no shadow."
+    },
+    "wall.wattle_partition.end": {
+      "class": "wall",
+      "template": "arda-wall",
+      "format": "1:1",
+      "footprint": [
+        1,
+        1
+      ],
+      "pixels": [
+        128,
+        128
+      ],
+      "layer": "wall",
+      "height_ft": 10,
+      "functions": [
+        "house",
+        "cottage",
+        "farmhouse",
+        "stall"
+      ],
+      "tags": {
+        "biome": [],
+        "culture": [],
+        "wealth": [],
+        "function": [
+          "house",
+          "cottage",
+          "farmhouse",
+          "stall"
+        ],
+        "free": [
+          "partition"
+        ]
+      },
+      "blocks_movement": true,
+      "blocks_sight": true,
+      "difficult_terrain": false,
+      "cover": "total",
+      "file": "walls/wall.wattle_partition.end.png",
+      "status": "new",
+      "tier": 5,
+      "kit": "wattle_partition",
+      "role": "end",
+      "values": {
+        "Subject": "a 5-foot section of thin interior wattle screen, woven hazel rods daubed with clay, seen from directly above",
+        "Shape": "A wall end: one arm runs in from the right edge and stops at the centre with a finished, capped end; nothing left of, above or below the centre.",
+        "Detail": "A narrow band of woven hazel with pale clay daub pressed between the rods; light and much thinner than an outer wall. The wall band is about one fourteenth of the image height thick."
+      },
+      "prompt": "Top-down battle-map asset for a tabletop fantasy grid map, in a rich hand-painted style: confident painterly brushwork, fine dark ink outlines, crisp small detail and a muted, earthy, slightly warm palette. Strictly orthographic view from directly overhead: no perspective, no horizon, no tilted or isometric angle. Soft light from the top-left, so upper-left edges catch highlights and lower-right edges fall into gentle form shading; no cast shadow and no drop shadow anywhere. No text, no letters, no numbers, no grid lines, no frame, no border, no vignette, no watermark, no signature. Subject: one modular wall piece from a grid-map wall kit, a 5-foot section of thin interior wattle screen, woven hazel rods daubed with clay, seen from directly above. A wall end: one arm runs in from the right edge and stops at the centre with a finished, capped end; nothing left of, above or below the centre. A narrow band of woven hazel with pale clay daub pressed between the rods; light and much thinner than an outer wall. The wall band is about one fourteenth of the image height thick. Wall pieces join into long walls on a square grid, so the top of the wall is seen as a straight band of even thickness, every arm runs perfectly straight along the image's horizontal or vertical centre line and is cut off square exactly at the image edge it reaches. The junction is exactly at the centre of the image. Everything that is not wall is fully transparent (a PNG with a real alpha channel, background: transparent): no ground, no grass, no floor, no shadow."
+    },
+    "wall.adobe_partition.door": {
+      "class": "wall",
+      "template": "arda-wall",
+      "format": "1:1",
+      "footprint": [
+        1,
+        1
+      ],
+      "pixels": [
+        128,
+        128
+      ],
+      "layer": "wall",
+      "height_ft": 10,
+      "functions": [
+        "house",
+        "cottage",
+        "farmhouse",
+        "inn",
+        "tavern",
+        "bakery",
+        "workshop"
+      ],
+      "tags": {
+        "biome": [],
+        "culture": [],
+        "wealth": [],
+        "function": [
+          "house",
+          "cottage",
+          "farmhouse",
+          "inn",
+          "tavern",
+          "bakery",
+          "workshop"
+        ],
+        "free": [
+          "arid",
+          "partition"
+        ]
+      },
+      "blocks_movement": true,
+      "blocks_sight": true,
+      "difficult_terrain": false,
+      "cover": "total",
+      "file": "walls/wall.adobe_partition.door.png",
+      "status": "new",
+      "tier": 5,
+      "kit": "adobe_partition",
+      "role": "door",
+      "values": {
+        "Subject": "a 5-foot section of thin interior adobe partition, a single course of mud brick under smooth plaster, seen from directly above",
+        "Shape": "Doorway in a straight run from left edge to right edge on the centre line; middle third: a gap between jambs, wall top stopped, shut by a low plank door along the wall line.",
+        "Detail": "A narrow rounded band of pale ochre plaster with a few hairline cracks; plainer and much thinner than an outer wall. The wall band is about one tenth of the image height thick."
+      },
+      "prompt": "Top-down battle-map asset for a tabletop fantasy grid map, in a rich hand-painted style: confident painterly brushwork, fine dark ink outlines, crisp small detail and a muted, earthy, slightly warm palette. Strictly orthographic view from directly overhead: no perspective, no horizon, no tilted or isometric angle. Soft light from the top-left, so upper-left edges catch highlights and lower-right edges fall into gentle form shading; no cast shadow and no drop shadow anywhere. No text, no letters, no numbers, no grid lines, no frame, no border, no vignette, no watermark, no signature. Subject: one modular wall piece from a grid-map wall kit, a 5-foot section of thin interior adobe partition, a single course of mud brick under smooth plaster, seen from directly above. Doorway in a straight run from left edge to right edge on the centre line; middle third: a gap between jambs, wall top stopped, shut by a low plank door along the wall line. A narrow rounded band of pale ochre plaster with a few hairline cracks; plainer and much thinner than an outer wall. The wall band is about one tenth of the image height thick. Wall pieces join into long walls on a square grid, so the top of the wall is seen as a straight band of even thickness, every arm runs perfectly straight along the image's horizontal or vertical centre line and is cut off square exactly at the image edge it reaches. The junction is exactly at the centre of the image. Everything that is not wall is fully transparent (a PNG with a real alpha channel, background: transparent): no ground, no grass, no floor, no shadow."
+    },
+    "wall.adobe_partition.window": {
+      "class": "wall",
+      "template": "arda-wall",
+      "format": "1:1",
+      "footprint": [
+        1,
+        1
+      ],
+      "pixels": [
+        128,
+        128
+      ],
+      "layer": "wall",
+      "height_ft": 10,
+      "functions": [
+        "house",
+        "cottage",
+        "farmhouse",
+        "inn",
+        "tavern",
+        "bakery",
+        "workshop"
+      ],
+      "tags": {
+        "biome": [],
+        "culture": [],
+        "wealth": [],
+        "function": [
+          "house",
+          "cottage",
+          "farmhouse",
+          "inn",
+          "tavern",
+          "bakery",
+          "workshop"
+        ],
+        "free": [
+          "arid",
+          "partition"
+        ]
+      },
+      "blocks_movement": true,
+      "blocks_sight": true,
+      "difficult_terrain": false,
+      "cover": "total",
+      "file": "walls/wall.adobe_partition.window.png",
+      "status": "new",
+      "tier": 5,
+      "kit": "adobe_partition",
+      "role": "window",
+      "values": {
+        "Subject": "a 5-foot section of thin interior adobe partition, a single course of mud brick under smooth plaster, seen from directly above",
+        "Shape": "A straight run with a window: it runs from the left edge to the right edge along the horizontal centre line, with a small arched niche through the wall in the middle third.",
+        "Detail": "A narrow rounded band of pale ochre plaster with a few hairline cracks; plainer and much thinner than an outer wall. The wall band is about one tenth of the image height thick."
+      },
+      "prompt": "Top-down battle-map asset for a tabletop fantasy grid map, in a rich hand-painted style: confident painterly brushwork, fine dark ink outlines, crisp small detail and a muted, earthy, slightly warm palette. Strictly orthographic view from directly overhead: no perspective, no horizon, no tilted or isometric angle. Soft light from the top-left, so upper-left edges catch highlights and lower-right edges fall into gentle form shading; no cast shadow and no drop shadow anywhere. No text, no letters, no numbers, no grid lines, no frame, no border, no vignette, no watermark, no signature. Subject: one modular wall piece from a grid-map wall kit, a 5-foot section of thin interior adobe partition, a single course of mud brick under smooth plaster, seen from directly above. A straight run with a window: it runs from the left edge to the right edge along the horizontal centre line, with a small arched niche through the wall in the middle third. A narrow rounded band of pale ochre plaster with a few hairline cracks; plainer and much thinner than an outer wall. The wall band is about one tenth of the image height thick. Wall pieces join into long walls on a square grid, so the top of the wall is seen as a straight band of even thickness, every arm runs perfectly straight along the image's horizontal or vertical centre line and is cut off square exactly at the image edge it reaches. The junction is exactly at the centre of the image. Everything that is not wall is fully transparent (a PNG with a real alpha channel, background: transparent): no ground, no grass, no floor, no shadow."
+    },
+    "wall.adobe_partition.gate": {
+      "class": "wall",
+      "template": "arda-wall",
+      "format": "1:1",
+      "footprint": [
+        1,
+        1
+      ],
+      "pixels": [
+        128,
+        128
+      ],
+      "layer": "wall",
+      "height_ft": 10,
+      "functions": [
+        "house",
+        "cottage",
+        "farmhouse",
+        "inn",
+        "tavern",
+        "bakery",
+        "workshop"
+      ],
+      "tags": {
+        "biome": [],
+        "culture": [],
+        "wealth": [],
+        "function": [
+          "house",
+          "cottage",
+          "farmhouse",
+          "inn",
+          "tavern",
+          "bakery",
+          "workshop"
+        ],
+        "free": [
+          "arid",
+          "partition"
+        ]
+      },
+      "blocks_movement": true,
+      "blocks_sight": true,
+      "difficult_terrain": false,
+      "cover": "total",
+      "file": "walls/wall.adobe_partition.gate.png",
+      "status": "new",
+      "tier": 5,
+      "kit": "adobe_partition",
+      "role": "gate",
+      "values": {
+        "Subject": "a 5-foot section of thin interior adobe partition, a single course of mud brick under smooth plaster, seen from directly above",
+        "Shape": "Gateway in a straight run from left edge to right edge on the centre line; middle: a gap between posts, wall top stopped, shut by a wide arched opening along the wall line.",
+        "Detail": "A narrow rounded band of pale ochre plaster with a few hairline cracks; plainer and much thinner than an outer wall. The wall band is about one tenth of the image height thick."
+      },
+      "prompt": "Top-down battle-map asset for a tabletop fantasy grid map, in a rich hand-painted style: confident painterly brushwork, fine dark ink outlines, crisp small detail and a muted, earthy, slightly warm palette. Strictly orthographic view from directly overhead: no perspective, no horizon, no tilted or isometric angle. Soft light from the top-left, so upper-left edges catch highlights and lower-right edges fall into gentle form shading; no cast shadow and no drop shadow anywhere. No text, no letters, no numbers, no grid lines, no frame, no border, no vignette, no watermark, no signature. Subject: one modular wall piece from a grid-map wall kit, a 5-foot section of thin interior adobe partition, a single course of mud brick under smooth plaster, seen from directly above. Gateway in a straight run from left edge to right edge on the centre line; middle: a gap between posts, wall top stopped, shut by a wide arched opening along the wall line. A narrow rounded band of pale ochre plaster with a few hairline cracks; plainer and much thinner than an outer wall. The wall band is about one tenth of the image height thick. Wall pieces join into long walls on a square grid, so the top of the wall is seen as a straight band of even thickness, every arm runs perfectly straight along the image's horizontal or vertical centre line and is cut off square exactly at the image edge it reaches. The junction is exactly at the centre of the image. Everything that is not wall is fully transparent (a PNG with a real alpha channel, background: transparent): no ground, no grass, no floor, no shadow."
+    },
+    "wall.adobe_partition.post": {
+      "class": "wall",
+      "template": "arda-wall",
+      "format": "1:1",
+      "footprint": [
+        1,
+        1
+      ],
+      "pixels": [
+        128,
+        128
+      ],
+      "layer": "wall",
+      "height_ft": 10,
+      "functions": [
+        "house",
+        "cottage",
+        "farmhouse",
+        "inn",
+        "tavern",
+        "bakery",
+        "workshop"
+      ],
+      "tags": {
+        "biome": [],
+        "culture": [],
+        "wealth": [],
+        "function": [
+          "house",
+          "cottage",
+          "farmhouse",
+          "inn",
+          "tavern",
+          "bakery",
+          "workshop"
+        ],
+        "free": [
+          "arid",
+          "partition"
+        ]
+      },
+      "blocks_movement": true,
+      "blocks_sight": true,
+      "difficult_terrain": false,
+      "cover": "total",
+      "file": "walls/wall.adobe_partition.post.png",
+      "status": "new",
+      "tier": 5,
+      "kit": "adobe_partition",
+      "role": "post",
+      "values": {
+        "Subject": "a 5-foot section of thin interior adobe partition, a single course of mud brick under smooth plaster, seen from directly above",
+        "Shape": "Only a slim plastered pilaster, alone at the exact centre, about a quarter of the image wide; no wall runs out from it, the rest is empty.",
+        "Detail": "A narrow rounded band of pale ochre plaster with a few hairline cracks; plainer and much thinner than an outer wall. The wall band is about one tenth of the image height thick."
+      },
+      "prompt": "Top-down battle-map asset for a tabletop fantasy grid map, in a rich hand-painted style: confident painterly brushwork, fine dark ink outlines, crisp small detail and a muted, earthy, slightly warm palette. Strictly orthographic view from directly overhead: no perspective, no horizon, no tilted or isometric angle. Soft light from the top-left, so upper-left edges catch highlights and lower-right edges fall into gentle form shading; no cast shadow and no drop shadow anywhere. No text, no letters, no numbers, no grid lines, no frame, no border, no vignette, no watermark, no signature. Subject: one modular wall piece from a grid-map wall kit, a 5-foot section of thin interior adobe partition, a single course of mud brick under smooth plaster, seen from directly above. Only a slim plastered pilaster, alone at the exact centre, about a quarter of the image wide; no wall runs out from it, the rest is empty. A narrow rounded band of pale ochre plaster with a few hairline cracks; plainer and much thinner than an outer wall. The wall band is about one tenth of the image height thick. Wall pieces join into long walls on a square grid, so the top of the wall is seen as a straight band of even thickness, every arm runs perfectly straight along the image's horizontal or vertical centre line and is cut off square exactly at the image edge it reaches. The junction is exactly at the centre of the image. Everything that is not wall is fully transparent (a PNG with a real alpha channel, background: transparent): no ground, no grass, no floor, no shadow."
+    },
+    "wall.adobe_partition.corner": {
+      "class": "wall",
+      "template": "arda-wall",
+      "format": "1:1",
+      "footprint": [
+        1,
+        1
+      ],
+      "pixels": [
+        128,
+        128
+      ],
+      "layer": "wall",
+      "height_ft": 10,
+      "functions": [
+        "house",
+        "cottage",
+        "farmhouse",
+        "inn",
+        "tavern",
+        "bakery",
+        "workshop"
+      ],
+      "tags": {
+        "biome": [],
+        "culture": [],
+        "wealth": [],
+        "function": [
+          "house",
+          "cottage",
+          "farmhouse",
+          "inn",
+          "tavern",
+          "bakery",
+          "workshop"
+        ],
+        "free": [
+          "arid",
+          "partition"
+        ]
+      },
+      "blocks_movement": true,
+      "blocks_sight": true,
+      "difficult_terrain": false,
+      "cover": "total",
+      "file": "walls/wall.adobe_partition.corner.png",
+      "status": "new",
+      "tier": 5,
+      "kit": "adobe_partition",
+      "role": "corner",
+      "values": {
+        "Subject": "a 5-foot section of thin interior adobe partition, a single course of mud brick under smooth plaster, seen from directly above",
+        "Shape": "An L-shaped corner: one arm runs from the centre to the right edge and the other from the centre to the bottom edge; nothing left of or above the centre.",
+        "Detail": "A narrow rounded band of pale ochre plaster with a few hairline cracks; plainer and much thinner than an outer wall. The wall band is about one tenth of the image height thick."
+      },
+      "prompt": "Top-down battle-map asset for a tabletop fantasy grid map, in a rich hand-painted style: confident painterly brushwork, fine dark ink outlines, crisp small detail and a muted, earthy, slightly warm palette. Strictly orthographic view from directly overhead: no perspective, no horizon, no tilted or isometric angle. Soft light from the top-left, so upper-left edges catch highlights and lower-right edges fall into gentle form shading; no cast shadow and no drop shadow anywhere. No text, no letters, no numbers, no grid lines, no frame, no border, no vignette, no watermark, no signature. Subject: one modular wall piece from a grid-map wall kit, a 5-foot section of thin interior adobe partition, a single course of mud brick under smooth plaster, seen from directly above. An L-shaped corner: one arm runs from the centre to the right edge and the other from the centre to the bottom edge; nothing left of or above the centre. A narrow rounded band of pale ochre plaster with a few hairline cracks; plainer and much thinner than an outer wall. The wall band is about one tenth of the image height thick. Wall pieces join into long walls on a square grid, so the top of the wall is seen as a straight band of even thickness, every arm runs perfectly straight along the image's horizontal or vertical centre line and is cut off square exactly at the image edge it reaches. The junction is exactly at the centre of the image. Everything that is not wall is fully transparent (a PNG with a real alpha channel, background: transparent): no ground, no grass, no floor, no shadow."
+    },
+    "wall.adobe_partition.tee": {
+      "class": "wall",
+      "template": "arda-wall",
+      "format": "1:1",
+      "footprint": [
+        1,
+        1
+      ],
+      "pixels": [
+        128,
+        128
+      ],
+      "layer": "wall",
+      "height_ft": 10,
+      "functions": [
+        "house",
+        "cottage",
+        "farmhouse",
+        "inn",
+        "tavern",
+        "bakery",
+        "workshop"
+      ],
+      "tags": {
+        "biome": [],
+        "culture": [],
+        "wealth": [],
+        "function": [
+          "house",
+          "cottage",
+          "farmhouse",
+          "inn",
+          "tavern",
+          "bakery",
+          "workshop"
+        ],
+        "free": [
+          "arid",
+          "partition"
+        ]
+      },
+      "blocks_movement": true,
+      "blocks_sight": true,
+      "difficult_terrain": false,
+      "cover": "total",
+      "file": "walls/wall.adobe_partition.tee.png",
+      "status": "new",
+      "tier": 5,
+      "kit": "adobe_partition",
+      "role": "tee",
+      "values": {
+        "Subject": "a 5-foot section of thin interior adobe partition, a single course of mud brick under smooth plaster, seen from directly above",
+        "Shape": "A T-junction: arms run from the centre to the left edge, the right edge and the bottom edge; nothing above the centre.",
+        "Detail": "A narrow rounded band of pale ochre plaster with a few hairline cracks; plainer and much thinner than an outer wall. The wall band is about one tenth of the image height thick."
+      },
+      "prompt": "Top-down battle-map asset for a tabletop fantasy grid map, in a rich hand-painted style: confident painterly brushwork, fine dark ink outlines, crisp small detail and a muted, earthy, slightly warm palette. Strictly orthographic view from directly overhead: no perspective, no horizon, no tilted or isometric angle. Soft light from the top-left, so upper-left edges catch highlights and lower-right edges fall into gentle form shading; no cast shadow and no drop shadow anywhere. No text, no letters, no numbers, no grid lines, no frame, no border, no vignette, no watermark, no signature. Subject: one modular wall piece from a grid-map wall kit, a 5-foot section of thin interior adobe partition, a single course of mud brick under smooth plaster, seen from directly above. A T-junction: arms run from the centre to the left edge, the right edge and the bottom edge; nothing above the centre. A narrow rounded band of pale ochre plaster with a few hairline cracks; plainer and much thinner than an outer wall. The wall band is about one tenth of the image height thick. Wall pieces join into long walls on a square grid, so the top of the wall is seen as a straight band of even thickness, every arm runs perfectly straight along the image's horizontal or vertical centre line and is cut off square exactly at the image edge it reaches. The junction is exactly at the centre of the image. Everything that is not wall is fully transparent (a PNG with a real alpha channel, background: transparent): no ground, no grass, no floor, no shadow."
+    },
+    "wall.adobe_partition.cross": {
+      "class": "wall",
+      "template": "arda-wall",
+      "format": "1:1",
+      "footprint": [
+        1,
+        1
+      ],
+      "pixels": [
+        128,
+        128
+      ],
+      "layer": "wall",
+      "height_ft": 10,
+      "functions": [
+        "house",
+        "cottage",
+        "farmhouse",
+        "inn",
+        "tavern",
+        "bakery",
+        "workshop"
+      ],
+      "tags": {
+        "biome": [],
+        "culture": [],
+        "wealth": [],
+        "function": [
+          "house",
+          "cottage",
+          "farmhouse",
+          "inn",
+          "tavern",
+          "bakery",
+          "workshop"
+        ],
+        "free": [
+          "arid",
+          "partition"
+        ]
+      },
+      "blocks_movement": true,
+      "blocks_sight": true,
+      "difficult_terrain": false,
+      "cover": "total",
+      "file": "walls/wall.adobe_partition.cross.png",
+      "status": "new",
+      "tier": 5,
+      "kit": "adobe_partition",
+      "role": "cross",
+      "values": {
+        "Subject": "a 5-foot section of thin interior adobe partition, a single course of mud brick under smooth plaster, seen from directly above",
+        "Shape": "A cross junction: arms run from the centre to all four edges (left, right, top and bottom), meeting in a plus shape.",
+        "Detail": "A narrow rounded band of pale ochre plaster with a few hairline cracks; plainer and much thinner than an outer wall. The wall band is about one tenth of the image height thick."
+      },
+      "prompt": "Top-down battle-map asset for a tabletop fantasy grid map, in a rich hand-painted style: confident painterly brushwork, fine dark ink outlines, crisp small detail and a muted, earthy, slightly warm palette. Strictly orthographic view from directly overhead: no perspective, no horizon, no tilted or isometric angle. Soft light from the top-left, so upper-left edges catch highlights and lower-right edges fall into gentle form shading; no cast shadow and no drop shadow anywhere. No text, no letters, no numbers, no grid lines, no frame, no border, no vignette, no watermark, no signature. Subject: one modular wall piece from a grid-map wall kit, a 5-foot section of thin interior adobe partition, a single course of mud brick under smooth plaster, seen from directly above. A cross junction: arms run from the centre to all four edges (left, right, top and bottom), meeting in a plus shape. A narrow rounded band of pale ochre plaster with a few hairline cracks; plainer and much thinner than an outer wall. The wall band is about one tenth of the image height thick. Wall pieces join into long walls on a square grid, so the top of the wall is seen as a straight band of even thickness, every arm runs perfectly straight along the image's horizontal or vertical centre line and is cut off square exactly at the image edge it reaches. The junction is exactly at the centre of the image. Everything that is not wall is fully transparent (a PNG with a real alpha channel, background: transparent): no ground, no grass, no floor, no shadow."
+    },
+    "wall.adobe_partition.end": {
+      "class": "wall",
+      "template": "arda-wall",
+      "format": "1:1",
+      "footprint": [
+        1,
+        1
+      ],
+      "pixels": [
+        128,
+        128
+      ],
+      "layer": "wall",
+      "height_ft": 10,
+      "functions": [
+        "house",
+        "cottage",
+        "farmhouse",
+        "inn",
+        "tavern",
+        "bakery",
+        "workshop"
+      ],
+      "tags": {
+        "biome": [],
+        "culture": [],
+        "wealth": [],
+        "function": [
+          "house",
+          "cottage",
+          "farmhouse",
+          "inn",
+          "tavern",
+          "bakery",
+          "workshop"
+        ],
+        "free": [
+          "arid",
+          "partition"
+        ]
+      },
+      "blocks_movement": true,
+      "blocks_sight": true,
+      "difficult_terrain": false,
+      "cover": "total",
+      "file": "walls/wall.adobe_partition.end.png",
+      "status": "new",
+      "tier": 5,
+      "kit": "adobe_partition",
+      "role": "end",
+      "values": {
+        "Subject": "a 5-foot section of thin interior adobe partition, a single course of mud brick under smooth plaster, seen from directly above",
+        "Shape": "A wall end: one arm runs in from the right edge and stops at the centre with a finished, capped end; nothing left of, above or below the centre.",
+        "Detail": "A narrow rounded band of pale ochre plaster with a few hairline cracks; plainer and much thinner than an outer wall. The wall band is about one tenth of the image height thick."
+      },
+      "prompt": "Top-down battle-map asset for a tabletop fantasy grid map, in a rich hand-painted style: confident painterly brushwork, fine dark ink outlines, crisp small detail and a muted, earthy, slightly warm palette. Strictly orthographic view from directly overhead: no perspective, no horizon, no tilted or isometric angle. Soft light from the top-left, so upper-left edges catch highlights and lower-right edges fall into gentle form shading; no cast shadow and no drop shadow anywhere. No text, no letters, no numbers, no grid lines, no frame, no border, no vignette, no watermark, no signature. Subject: one modular wall piece from a grid-map wall kit, a 5-foot section of thin interior adobe partition, a single course of mud brick under smooth plaster, seen from directly above. A wall end: one arm runs in from the right edge and stops at the centre with a finished, capped end; nothing left of, above or below the centre. A narrow rounded band of pale ochre plaster with a few hairline cracks; plainer and much thinner than an outer wall. The wall band is about one tenth of the image height thick. Wall pieces join into long walls on a square grid, so the top of the wall is seen as a straight band of even thickness, every arm runs perfectly straight along the image's horizontal or vertical centre line and is cut off square exactly at the image edge it reaches. The junction is exactly at the centre of the image. Everything that is not wall is fully transparent (a PNG with a real alpha channel, background: transparent): no ground, no grass, no floor, no shadow."
+    },
+    "wall.timber_partition.door.alt1": {
+      "class": "wall",
+      "template": "arda-wall",
+      "format": "1:1",
+      "footprint": [
+        1,
+        1
+      ],
+      "pixels": [
+        128,
+        128
+      ],
+      "layer": "wall",
+      "height_ft": 10,
+      "functions": [
+        "house",
+        "cottage",
+        "inn",
+        "tavern",
+        "bakery",
+        "workshop",
+        "manor"
+      ],
+      "tags": {
+        "biome": [],
+        "culture": [],
+        "wealth": [],
+        "function": [
+          "house",
+          "cottage",
+          "inn",
+          "tavern",
+          "bakery",
+          "workshop",
+          "manor"
+        ],
+        "free": [
+          "partition"
+        ]
+      },
+      "blocks_movement": true,
+      "blocks_sight": true,
+      "difficult_terrain": false,
+      "cover": "total",
+      "file": "walls/wall.timber_partition.door.alt1.png",
+      "status": "new",
+      "tier": 5,
+      "kit": "timber_partition",
+      "role": "door",
+      "variant_of": "wall.timber_partition.door",
+      "derive_from": "wall.timber_partition.door",
+      "values": {
+        "Subject": "a 5-foot section of thin interior partition wall, a single timber stud frame with plastered panels, seen from directly above",
+        "Shape": "Doorway in a straight run from left edge to right edge on the centre line; middle third: a gap between jambs, wall top stopped, shut by a ledged door painted green along the wall line.",
+        "Detail": "The same thin plastered stud partition as the plain run, a darker smoke stain near one end. The wall band is about one twelfth of the image height thick."
+      },
+      "prompt": "Top-down battle-map asset for a tabletop fantasy grid map, in a rich hand-painted style: confident painterly brushwork, fine dark ink outlines, crisp small detail and a muted, earthy, slightly warm palette. Strictly orthographic view from directly overhead: no perspective, no horizon, no tilted or isometric angle. Soft light from the top-left, so upper-left edges catch highlights and lower-right edges fall into gentle form shading; no cast shadow and no drop shadow anywhere. No text, no letters, no numbers, no grid lines, no frame, no border, no vignette, no watermark, no signature. Subject: one modular wall piece from a grid-map wall kit, a 5-foot section of thin interior partition wall, a single timber stud frame with plastered panels, seen from directly above. Doorway in a straight run from left edge to right edge on the centre line; middle third: a gap between jambs, wall top stopped, shut by a ledged door painted green along the wall line. The same thin plastered stud partition as the plain run, a darker smoke stain near one end. The wall band is about one twelfth of the image height thick. Wall pieces join into long walls on a square grid, so the top of the wall is seen as a straight band of even thickness, every arm runs perfectly straight along the image's horizontal or vertical centre line and is cut off square exactly at the image edge it reaches. The junction is exactly at the centre of the image. Everything that is not wall is fully transparent (a PNG with a real alpha channel, background: transparent): no ground, no grass, no floor, no shadow."
+    },
+    "wall.timber_partition.window.alt1": {
+      "class": "wall",
+      "template": "arda-wall",
+      "format": "1:1",
+      "footprint": [
+        1,
+        1
+      ],
+      "pixels": [
+        128,
+        128
+      ],
+      "layer": "wall",
+      "height_ft": 10,
+      "functions": [
+        "house",
+        "cottage",
+        "inn",
+        "tavern",
+        "bakery",
+        "workshop",
+        "manor"
+      ],
+      "tags": {
+        "biome": [],
+        "culture": [],
+        "wealth": [],
+        "function": [
+          "house",
+          "cottage",
+          "inn",
+          "tavern",
+          "bakery",
+          "workshop",
+          "manor"
+        ],
+        "free": [
+          "partition"
+        ]
+      },
+      "blocks_movement": true,
+      "blocks_sight": true,
+      "difficult_terrain": false,
+      "cover": "total",
+      "file": "walls/wall.timber_partition.window.alt1.png",
+      "status": "new",
+      "tier": 5,
+      "kit": "timber_partition",
+      "role": "window",
+      "variant_of": "wall.timber_partition.window",
+      "derive_from": "wall.timber_partition.window",
+      "values": {
+        "Subject": "a 5-foot section of thin interior partition wall, a single timber stud frame with plastered panels, seen from directly above",
+        "Shape": "A straight run with a window: it runs from the left edge to the right edge along the horizontal centre line, with a small hatch with a sliding board in the middle third.",
+        "Detail": "The same thin plastered stud partition as the plain run, one stud showing through cracked plaster. The wall band is about one twelfth of the image height thick."
+      },
+      "prompt": "Top-down battle-map asset for a tabletop fantasy grid map, in a rich hand-painted style: confident painterly brushwork, fine dark ink outlines, crisp small detail and a muted, earthy, slightly warm palette. Strictly orthographic view from directly overhead: no perspective, no horizon, no tilted or isometric angle. Soft light from the top-left, so upper-left edges catch highlights and lower-right edges fall into gentle form shading; no cast shadow and no drop shadow anywhere. No text, no letters, no numbers, no grid lines, no frame, no border, no vignette, no watermark, no signature. Subject: one modular wall piece from a grid-map wall kit, a 5-foot section of thin interior partition wall, a single timber stud frame with plastered panels, seen from directly above. A straight run with a window: it runs from the left edge to the right edge along the horizontal centre line, with a small hatch with a sliding board in the middle third. The same thin plastered stud partition as the plain run, one stud showing through cracked plaster. The wall band is about one twelfth of the image height thick. Wall pieces join into long walls on a square grid, so the top of the wall is seen as a straight band of even thickness, every arm runs perfectly straight along the image's horizontal or vertical centre line and is cut off square exactly at the image edge it reaches. The junction is exactly at the centre of the image. Everything that is not wall is fully transparent (a PNG with a real alpha channel, background: transparent): no ground, no grass, no floor, no shadow."
+    },
+    "wall.timber_partition.gate.alt1": {
+      "class": "wall",
+      "template": "arda-wall",
+      "format": "1:1",
+      "footprint": [
+        1,
+        1
+      ],
+      "pixels": [
+        128,
+        128
+      ],
+      "layer": "wall",
+      "height_ft": 10,
+      "functions": [
+        "house",
+        "cottage",
+        "inn",
+        "tavern",
+        "bakery",
+        "workshop",
+        "manor"
+      ],
+      "tags": {
+        "biome": [],
+        "culture": [],
+        "wealth": [],
+        "function": [
+          "house",
+          "cottage",
+          "inn",
+          "tavern",
+          "bakery",
+          "workshop",
+          "manor"
+        ],
+        "free": [
+          "partition"
+        ]
+      },
+      "blocks_movement": true,
+      "blocks_sight": true,
+      "difficult_terrain": false,
+      "cover": "total",
+      "file": "walls/wall.timber_partition.gate.alt1.png",
+      "status": "new",
+      "tier": 5,
+      "kit": "timber_partition",
+      "role": "gate",
+      "variant_of": "wall.timber_partition.gate",
+      "derive_from": "wall.timber_partition.gate",
+      "values": {
+        "Subject": "a 5-foot section of thin interior partition wall, a single timber stud frame with plastered panels, seen from directly above",
+        "Shape": "Gateway in a straight run from left edge to right edge on the centre line; middle: a gap between posts, wall top stopped, shut by an opening hung with a heavy wool curtain along the wall line.",
+        "Detail": "The same thin plastered stud partition as the plain run, a scuffed lower edge and a patched panel. The wall band is about one twelfth of the image height thick."
+      },
+      "prompt": "Top-down battle-map asset for a tabletop fantasy grid map, in a rich hand-painted style: confident painterly brushwork, fine dark ink outlines, crisp small detail and a muted, earthy, slightly warm palette. Strictly orthographic view from directly overhead: no perspective, no horizon, no tilted or isometric angle. Soft light from the top-left, so upper-left edges catch highlights and lower-right edges fall into gentle form shading; no cast shadow and no drop shadow anywhere. No text, no letters, no numbers, no grid lines, no frame, no border, no vignette, no watermark, no signature. Subject: one modular wall piece from a grid-map wall kit, a 5-foot section of thin interior partition wall, a single timber stud frame with plastered panels, seen from directly above. Gateway in a straight run from left edge to right edge on the centre line; middle: a gap between posts, wall top stopped, shut by an opening hung with a heavy wool curtain along the wall line. The same thin plastered stud partition as the plain run, a scuffed lower edge and a patched panel. The wall band is about one twelfth of the image height thick. Wall pieces join into long walls on a square grid, so the top of the wall is seen as a straight band of even thickness, every arm runs perfectly straight along the image's horizontal or vertical centre line and is cut off square exactly at the image edge it reaches. The junction is exactly at the centre of the image. Everything that is not wall is fully transparent (a PNG with a real alpha channel, background: transparent): no ground, no grass, no floor, no shadow."
+    },
+    "wall.timber_partition.post.alt1": {
+      "class": "wall",
+      "template": "arda-wall",
+      "format": "1:1",
+      "footprint": [
+        1,
+        1
+      ],
+      "pixels": [
+        128,
+        128
+      ],
+      "layer": "wall",
+      "height_ft": 10,
+      "functions": [
+        "house",
+        "cottage",
+        "inn",
+        "tavern",
+        "bakery",
+        "workshop",
+        "manor"
+      ],
+      "tags": {
+        "biome": [],
+        "culture": [],
+        "wealth": [],
+        "function": [
+          "house",
+          "cottage",
+          "inn",
+          "tavern",
+          "bakery",
+          "workshop",
+          "manor"
+        ],
+        "free": [
+          "partition"
+        ]
+      },
+      "blocks_movement": true,
+      "blocks_sight": true,
+      "difficult_terrain": false,
+      "cover": "total",
+      "file": "walls/wall.timber_partition.post.alt1.png",
+      "status": "new",
+      "tier": 5,
+      "kit": "timber_partition",
+      "role": "post",
+      "variant_of": "wall.timber_partition.post",
+      "derive_from": "wall.timber_partition.post",
+      "values": {
+        "Subject": "a 5-foot section of thin interior partition wall, a single timber stud frame with plastered panels, seen from directly above",
+        "Shape": "Only a slim turned oak post, alone at the exact centre, about a quarter of the image wide; no wall runs out from it, the rest is empty.",
+        "Detail": "The same thin plastered stud partition as the plain run, freshly limewashed white. The wall band is about one twelfth of the image height thick."
+      },
+      "prompt": "Top-down battle-map asset for a tabletop fantasy grid map, in a rich hand-painted style: confident painterly brushwork, fine dark ink outlines, crisp small detail and a muted, earthy, slightly warm palette. Strictly orthographic view from directly overhead: no perspective, no horizon, no tilted or isometric angle. Soft light from the top-left, so upper-left edges catch highlights and lower-right edges fall into gentle form shading; no cast shadow and no drop shadow anywhere. No text, no letters, no numbers, no grid lines, no frame, no border, no vignette, no watermark, no signature. Subject: one modular wall piece from a grid-map wall kit, a 5-foot section of thin interior partition wall, a single timber stud frame with plastered panels, seen from directly above. Only a slim turned oak post, alone at the exact centre, about a quarter of the image wide; no wall runs out from it, the rest is empty. The same thin plastered stud partition as the plain run, freshly limewashed white. The wall band is about one twelfth of the image height thick. Wall pieces join into long walls on a square grid, so the top of the wall is seen as a straight band of even thickness, every arm runs perfectly straight along the image's horizontal or vertical centre line and is cut off square exactly at the image edge it reaches. The junction is exactly at the centre of the image. Everything that is not wall is fully transparent (a PNG with a real alpha channel, background: transparent): no ground, no grass, no floor, no shadow."
+    },
+    "wall.timber_partition.corner.alt1": {
+      "class": "wall",
+      "template": "arda-wall",
+      "format": "1:1",
+      "footprint": [
+        1,
+        1
+      ],
+      "pixels": [
+        128,
+        128
+      ],
+      "layer": "wall",
+      "height_ft": 10,
+      "functions": [
+        "house",
+        "cottage",
+        "inn",
+        "tavern",
+        "bakery",
+        "workshop",
+        "manor"
+      ],
+      "tags": {
+        "biome": [],
+        "culture": [],
+        "wealth": [],
+        "function": [
+          "house",
+          "cottage",
+          "inn",
+          "tavern",
+          "bakery",
+          "workshop",
+          "manor"
+        ],
+        "free": [
+          "partition"
+        ]
+      },
+      "blocks_movement": true,
+      "blocks_sight": true,
+      "difficult_terrain": false,
+      "cover": "total",
+      "file": "walls/wall.timber_partition.corner.alt1.png",
+      "status": "new",
+      "tier": 5,
+      "kit": "timber_partition",
+      "role": "corner",
+      "variant_of": "wall.timber_partition.corner",
+      "derive_from": "wall.timber_partition.corner",
+      "values": {
+        "Subject": "a 5-foot section of thin interior partition wall, a single timber stud frame with plastered panels, seen from directly above",
+        "Shape": "An L-shaped corner: one arm runs from the centre to the right edge and the other from the centre to the bottom edge; nothing left of or above the centre.",
+        "Detail": "The same thin plastered stud partition as the plain run, a darker smoke stain near one end. The wall band is about one twelfth of the image height thick."
+      },
+      "prompt": "Top-down battle-map asset for a tabletop fantasy grid map, in a rich hand-painted style: confident painterly brushwork, fine dark ink outlines, crisp small detail and a muted, earthy, slightly warm palette. Strictly orthographic view from directly overhead: no perspective, no horizon, no tilted or isometric angle. Soft light from the top-left, so upper-left edges catch highlights and lower-right edges fall into gentle form shading; no cast shadow and no drop shadow anywhere. No text, no letters, no numbers, no grid lines, no frame, no border, no vignette, no watermark, no signature. Subject: one modular wall piece from a grid-map wall kit, a 5-foot section of thin interior partition wall, a single timber stud frame with plastered panels, seen from directly above. An L-shaped corner: one arm runs from the centre to the right edge and the other from the centre to the bottom edge; nothing left of or above the centre. The same thin plastered stud partition as the plain run, a darker smoke stain near one end. The wall band is about one twelfth of the image height thick. Wall pieces join into long walls on a square grid, so the top of the wall is seen as a straight band of even thickness, every arm runs perfectly straight along the image's horizontal or vertical centre line and is cut off square exactly at the image edge it reaches. The junction is exactly at the centre of the image. Everything that is not wall is fully transparent (a PNG with a real alpha channel, background: transparent): no ground, no grass, no floor, no shadow."
+    },
+    "wall.timber_partition.tee.alt1": {
+      "class": "wall",
+      "template": "arda-wall",
+      "format": "1:1",
+      "footprint": [
+        1,
+        1
+      ],
+      "pixels": [
+        128,
+        128
+      ],
+      "layer": "wall",
+      "height_ft": 10,
+      "functions": [
+        "house",
+        "cottage",
+        "inn",
+        "tavern",
+        "bakery",
+        "workshop",
+        "manor"
+      ],
+      "tags": {
+        "biome": [],
+        "culture": [],
+        "wealth": [],
+        "function": [
+          "house",
+          "cottage",
+          "inn",
+          "tavern",
+          "bakery",
+          "workshop",
+          "manor"
+        ],
+        "free": [
+          "partition"
+        ]
+      },
+      "blocks_movement": true,
+      "blocks_sight": true,
+      "difficult_terrain": false,
+      "cover": "total",
+      "file": "walls/wall.timber_partition.tee.alt1.png",
+      "status": "new",
+      "tier": 5,
+      "kit": "timber_partition",
+      "role": "tee",
+      "variant_of": "wall.timber_partition.tee",
+      "derive_from": "wall.timber_partition.tee",
+      "values": {
+        "Subject": "a 5-foot section of thin interior partition wall, a single timber stud frame with plastered panels, seen from directly above",
+        "Shape": "A T-junction: arms run from the centre to the left edge, the right edge and the bottom edge; nothing above the centre.",
+        "Detail": "The same thin plastered stud partition as the plain run, one stud showing through cracked plaster. The wall band is about one twelfth of the image height thick."
+      },
+      "prompt": "Top-down battle-map asset for a tabletop fantasy grid map, in a rich hand-painted style: confident painterly brushwork, fine dark ink outlines, crisp small detail and a muted, earthy, slightly warm palette. Strictly orthographic view from directly overhead: no perspective, no horizon, no tilted or isometric angle. Soft light from the top-left, so upper-left edges catch highlights and lower-right edges fall into gentle form shading; no cast shadow and no drop shadow anywhere. No text, no letters, no numbers, no grid lines, no frame, no border, no vignette, no watermark, no signature. Subject: one modular wall piece from a grid-map wall kit, a 5-foot section of thin interior partition wall, a single timber stud frame with plastered panels, seen from directly above. A T-junction: arms run from the centre to the left edge, the right edge and the bottom edge; nothing above the centre. The same thin plastered stud partition as the plain run, one stud showing through cracked plaster. The wall band is about one twelfth of the image height thick. Wall pieces join into long walls on a square grid, so the top of the wall is seen as a straight band of even thickness, every arm runs perfectly straight along the image's horizontal or vertical centre line and is cut off square exactly at the image edge it reaches. The junction is exactly at the centre of the image. Everything that is not wall is fully transparent (a PNG with a real alpha channel, background: transparent): no ground, no grass, no floor, no shadow."
+    },
+    "wall.timber_partition.cross.alt1": {
+      "class": "wall",
+      "template": "arda-wall",
+      "format": "1:1",
+      "footprint": [
+        1,
+        1
+      ],
+      "pixels": [
+        128,
+        128
+      ],
+      "layer": "wall",
+      "height_ft": 10,
+      "functions": [
+        "house",
+        "cottage",
+        "inn",
+        "tavern",
+        "bakery",
+        "workshop",
+        "manor"
+      ],
+      "tags": {
+        "biome": [],
+        "culture": [],
+        "wealth": [],
+        "function": [
+          "house",
+          "cottage",
+          "inn",
+          "tavern",
+          "bakery",
+          "workshop",
+          "manor"
+        ],
+        "free": [
+          "partition"
+        ]
+      },
+      "blocks_movement": true,
+      "blocks_sight": true,
+      "difficult_terrain": false,
+      "cover": "total",
+      "file": "walls/wall.timber_partition.cross.alt1.png",
+      "status": "new",
+      "tier": 5,
+      "kit": "timber_partition",
+      "role": "cross",
+      "variant_of": "wall.timber_partition.cross",
+      "derive_from": "wall.timber_partition.cross",
+      "values": {
+        "Subject": "a 5-foot section of thin interior partition wall, a single timber stud frame with plastered panels, seen from directly above",
+        "Shape": "A cross junction: arms run from the centre to all four edges (left, right, top and bottom), meeting in a plus shape.",
+        "Detail": "The same thin plastered stud partition as the plain run, a scuffed lower edge and a patched panel. The wall band is about one twelfth of the image height thick."
+      },
+      "prompt": "Top-down battle-map asset for a tabletop fantasy grid map, in a rich hand-painted style: confident painterly brushwork, fine dark ink outlines, crisp small detail and a muted, earthy, slightly warm palette. Strictly orthographic view from directly overhead: no perspective, no horizon, no tilted or isometric angle. Soft light from the top-left, so upper-left edges catch highlights and lower-right edges fall into gentle form shading; no cast shadow and no drop shadow anywhere. No text, no letters, no numbers, no grid lines, no frame, no border, no vignette, no watermark, no signature. Subject: one modular wall piece from a grid-map wall kit, a 5-foot section of thin interior partition wall, a single timber stud frame with plastered panels, seen from directly above. A cross junction: arms run from the centre to all four edges (left, right, top and bottom), meeting in a plus shape. The same thin plastered stud partition as the plain run, a scuffed lower edge and a patched panel. The wall band is about one twelfth of the image height thick. Wall pieces join into long walls on a square grid, so the top of the wall is seen as a straight band of even thickness, every arm runs perfectly straight along the image's horizontal or vertical centre line and is cut off square exactly at the image edge it reaches. The junction is exactly at the centre of the image. Everything that is not wall is fully transparent (a PNG with a real alpha channel, background: transparent): no ground, no grass, no floor, no shadow."
+    },
+    "wall.timber_partition.end.alt1": {
+      "class": "wall",
+      "template": "arda-wall",
+      "format": "1:1",
+      "footprint": [
+        1,
+        1
+      ],
+      "pixels": [
+        128,
+        128
+      ],
+      "layer": "wall",
+      "height_ft": 10,
+      "functions": [
+        "house",
+        "cottage",
+        "inn",
+        "tavern",
+        "bakery",
+        "workshop",
+        "manor"
+      ],
+      "tags": {
+        "biome": [],
+        "culture": [],
+        "wealth": [],
+        "function": [
+          "house",
+          "cottage",
+          "inn",
+          "tavern",
+          "bakery",
+          "workshop",
+          "manor"
+        ],
+        "free": [
+          "partition"
+        ]
+      },
+      "blocks_movement": true,
+      "blocks_sight": true,
+      "difficult_terrain": false,
+      "cover": "total",
+      "file": "walls/wall.timber_partition.end.alt1.png",
+      "status": "new",
+      "tier": 5,
+      "kit": "timber_partition",
+      "role": "end",
+      "variant_of": "wall.timber_partition.end",
+      "derive_from": "wall.timber_partition.end",
+      "values": {
+        "Subject": "a 5-foot section of thin interior partition wall, a single timber stud frame with plastered panels, seen from directly above",
+        "Shape": "A wall end: one arm runs in from the right edge and stops at the centre with a finished, capped end; nothing left of, above or below the centre.",
+        "Detail": "The same thin plastered stud partition as the plain run, freshly limewashed white. The wall band is about one twelfth of the image height thick."
+      },
+      "prompt": "Top-down battle-map asset for a tabletop fantasy grid map, in a rich hand-painted style: confident painterly brushwork, fine dark ink outlines, crisp small detail and a muted, earthy, slightly warm palette. Strictly orthographic view from directly overhead: no perspective, no horizon, no tilted or isometric angle. Soft light from the top-left, so upper-left edges catch highlights and lower-right edges fall into gentle form shading; no cast shadow and no drop shadow anywhere. No text, no letters, no numbers, no grid lines, no frame, no border, no vignette, no watermark, no signature. Subject: one modular wall piece from a grid-map wall kit, a 5-foot section of thin interior partition wall, a single timber stud frame with plastered panels, seen from directly above. A wall end: one arm runs in from the right edge and stops at the centre with a finished, capped end; nothing left of, above or below the centre. The same thin plastered stud partition as the plain run, freshly limewashed white. The wall band is about one twelfth of the image height thick. Wall pieces join into long walls on a square grid, so the top of the wall is seen as a straight band of even thickness, every arm runs perfectly straight along the image's horizontal or vertical centre line and is cut off square exactly at the image edge it reaches. The junction is exactly at the centre of the image. Everything that is not wall is fully transparent (a PNG with a real alpha channel, background: transparent): no ground, no grass, no floor, no shadow."
+    },
+    "wall.wattle_partition.door.alt1": {
+      "class": "wall",
+      "template": "arda-wall",
+      "format": "1:1",
+      "footprint": [
+        1,
+        1
+      ],
+      "pixels": [
+        128,
+        128
+      ],
+      "layer": "wall",
+      "height_ft": 10,
+      "functions": [
+        "house",
+        "cottage",
+        "farmhouse",
+        "stall"
+      ],
+      "tags": {
+        "biome": [],
+        "culture": [],
+        "wealth": [],
+        "function": [
+          "house",
+          "cottage",
+          "farmhouse",
+          "stall"
+        ],
+        "free": [
+          "partition"
+        ]
+      },
+      "blocks_movement": true,
+      "blocks_sight": true,
+      "difficult_terrain": false,
+      "cover": "total",
+      "file": "walls/wall.wattle_partition.door.alt1.png",
+      "status": "new",
+      "tier": 5,
+      "kit": "wattle_partition",
+      "role": "door",
+      "variant_of": "wall.wattle_partition.door",
+      "derive_from": "wall.wattle_partition.door",
+      "values": {
+        "Subject": "a 5-foot section of thin interior wattle screen, woven hazel rods daubed with clay, seen from directly above",
+        "Shape": "Doorway in a straight run from left edge to right edge on the centre line; middle third: a gap between jambs, wall top stopped, shut by a lashed hurdle door along the wall line.",
+        "Detail": "The same thin daubed wattle screen as the plain run, a sagging stretch of loose weave. The wall band is about one fourteenth of the image height thick."
+      },
+      "prompt": "Top-down battle-map asset for a tabletop fantasy grid map, in a rich hand-painted style: confident painterly brushwork, fine dark ink outlines, crisp small detail and a muted, earthy, slightly warm palette. Strictly orthographic view from directly overhead: no perspective, no horizon, no tilted or isometric angle. Soft light from the top-left, so upper-left edges catch highlights and lower-right edges fall into gentle form shading; no cast shadow and no drop shadow anywhere. No text, no letters, no numbers, no grid lines, no frame, no border, no vignette, no watermark, no signature. Subject: one modular wall piece from a grid-map wall kit, a 5-foot section of thin interior wattle screen, woven hazel rods daubed with clay, seen from directly above. Doorway in a straight run from left edge to right edge on the centre line; middle third: a gap between jambs, wall top stopped, shut by a lashed hurdle door along the wall line. The same thin daubed wattle screen as the plain run, a sagging stretch of loose weave. The wall band is about one fourteenth of the image height thick. Wall pieces join into long walls on a square grid, so the top of the wall is seen as a straight band of even thickness, every arm runs perfectly straight along the image's horizontal or vertical centre line and is cut off square exactly at the image edge it reaches. The junction is exactly at the centre of the image. Everything that is not wall is fully transparent (a PNG with a real alpha channel, background: transparent): no ground, no grass, no floor, no shadow."
+    },
+    "wall.wattle_partition.window.alt1": {
+      "class": "wall",
+      "template": "arda-wall",
+      "format": "1:1",
+      "footprint": [
+        1,
+        1
+      ],
+      "pixels": [
+        128,
+        128
+      ],
+      "layer": "wall",
+      "height_ft": 10,
+      "functions": [
+        "house",
+        "cottage",
+        "farmhouse",
+        "stall"
+      ],
+      "tags": {
+        "biome": [],
+        "culture": [],
+        "wealth": [],
+        "function": [
+          "house",
+          "cottage",
+          "farmhouse",
+          "stall"
+        ],
+        "free": [
+          "partition"
+        ]
+      },
+      "blocks_movement": true,
+      "blocks_sight": true,
+      "difficult_terrain": false,
+      "cover": "total",
+      "file": "walls/wall.wattle_partition.window.alt1.png",
+      "status": "new",
+      "tier": 5,
+      "kit": "wattle_partition",
+      "role": "window",
+      "variant_of": "wall.wattle_partition.window",
+      "derive_from": "wall.wattle_partition.window",
+      "values": {
+        "Subject": "a 5-foot section of thin interior wattle screen, woven hazel rods daubed with clay, seen from directly above",
+        "Shape": "A straight run with a window: it runs from the left edge to the right edge along the horizontal centre line, with a gap with a woven reed shutter in the middle third.",
+        "Detail": "The same thin daubed wattle screen as the plain run, straw mixed through the daub. The wall band is about one fourteenth of the image height thick."
+      },
+      "prompt": "Top-down battle-map asset for a tabletop fantasy grid map, in a rich hand-painted style: confident painterly brushwork, fine dark ink outlines, crisp small detail and a muted, earthy, slightly warm palette. Strictly orthographic view from directly overhead: no perspective, no horizon, no tilted or isometric angle. Soft light from the top-left, so upper-left edges catch highlights and lower-right edges fall into gentle form shading; no cast shadow and no drop shadow anywhere. No text, no letters, no numbers, no grid lines, no frame, no border, no vignette, no watermark, no signature. Subject: one modular wall piece from a grid-map wall kit, a 5-foot section of thin interior wattle screen, woven hazel rods daubed with clay, seen from directly above. A straight run with a window: it runs from the left edge to the right edge along the horizontal centre line, with a gap with a woven reed shutter in the middle third. The same thin daubed wattle screen as the plain run, straw mixed through the daub. The wall band is about one fourteenth of the image height thick. Wall pieces join into long walls on a square grid, so the top of the wall is seen as a straight band of even thickness, every arm runs perfectly straight along the image's horizontal or vertical centre line and is cut off square exactly at the image edge it reaches. The junction is exactly at the centre of the image. Everything that is not wall is fully transparent (a PNG with a real alpha channel, background: transparent): no ground, no grass, no floor, no shadow."
+    },
+    "wall.wattle_partition.gate.alt1": {
+      "class": "wall",
+      "template": "arda-wall",
+      "format": "1:1",
+      "footprint": [
+        1,
+        1
+      ],
+      "pixels": [
+        128,
+        128
+      ],
+      "layer": "wall",
+      "height_ft": 10,
+      "functions": [
+        "house",
+        "cottage",
+        "farmhouse",
+        "stall"
+      ],
+      "tags": {
+        "biome": [],
+        "culture": [],
+        "wealth": [],
+        "function": [
+          "house",
+          "cottage",
+          "farmhouse",
+          "stall"
+        ],
+        "free": [
+          "partition"
+        ]
+      },
+      "blocks_movement": true,
+      "blocks_sight": true,
+      "difficult_terrain": false,
+      "cover": "total",
+      "file": "walls/wall.wattle_partition.gate.alt1.png",
+      "status": "new",
+      "tier": 5,
+      "kit": "wattle_partition",
+      "role": "gate",
+      "variant_of": "wall.wattle_partition.gate",
+      "derive_from": "wall.wattle_partition.gate",
+      "values": {
+        "Subject": "a 5-foot section of thin interior wattle screen, woven hazel rods daubed with clay, seen from directly above",
+        "Shape": "Gateway in a straight run from left edge to right edge on the centre line; middle: a gap between posts, wall top stopped, shut by a wide gap with a rough plank board along the wall line.",
+        "Detail": "The same thin daubed wattle screen as the plain run, daub flaking off a few rods. The wall band is about one fourteenth of the image height thick."
+      },
+      "prompt": "Top-down battle-map asset for a tabletop fantasy grid map, in a rich hand-painted style: confident painterly brushwork, fine dark ink outlines, crisp small detail and a muted, earthy, slightly warm palette. Strictly orthographic view from directly overhead: no perspective, no horizon, no tilted or isometric angle. Soft light from the top-left, so upper-left edges catch highlights and lower-right edges fall into gentle form shading; no cast shadow and no drop shadow anywhere. No text, no letters, no numbers, no grid lines, no frame, no border, no vignette, no watermark, no signature. Subject: one modular wall piece from a grid-map wall kit, a 5-foot section of thin interior wattle screen, woven hazel rods daubed with clay, seen from directly above. Gateway in a straight run from left edge to right edge on the centre line; middle: a gap between posts, wall top stopped, shut by a wide gap with a rough plank board along the wall line. The same thin daubed wattle screen as the plain run, daub flaking off a few rods. The wall band is about one fourteenth of the image height thick. Wall pieces join into long walls on a square grid, so the top of the wall is seen as a straight band of even thickness, every arm runs perfectly straight along the image's horizontal or vertical centre line and is cut off square exactly at the image edge it reaches. The junction is exactly at the centre of the image. Everything that is not wall is fully transparent (a PNG with a real alpha channel, background: transparent): no ground, no grass, no floor, no shadow."
+    },
+    "wall.wattle_partition.post.alt1": {
+      "class": "wall",
+      "template": "arda-wall",
+      "format": "1:1",
+      "footprint": [
+        1,
+        1
+      ],
+      "pixels": [
+        128,
+        128
+      ],
+      "layer": "wall",
+      "height_ft": 10,
+      "functions": [
+        "house",
+        "cottage",
+        "farmhouse",
+        "stall"
+      ],
+      "tags": {
+        "biome": [],
+        "culture": [],
+        "wealth": [],
+        "function": [
+          "house",
+          "cottage",
+          "farmhouse",
+          "stall"
+        ],
+        "free": [
+          "partition"
+        ]
+      },
+      "blocks_movement": true,
+      "blocks_sight": true,
+      "difficult_terrain": false,
+      "cover": "total",
+      "file": "walls/wall.wattle_partition.post.alt1.png",
+      "status": "new",
+      "tier": 5,
+      "kit": "wattle_partition",
+      "role": "post",
+      "variant_of": "wall.wattle_partition.post",
+      "derive_from": "wall.wattle_partition.post",
+      "values": {
+        "Subject": "a 5-foot section of thin interior wattle screen, woven hazel rods daubed with clay, seen from directly above",
+        "Shape": "Only a forked hazel stake, alone at the exact centre, about a quarter of the image wide; no wall runs out from it, the rest is empty.",
+        "Detail": "The same thin daubed wattle screen as the plain run, fresh grey clay daub. The wall band is about one fourteenth of the image height thick."
+      },
+      "prompt": "Top-down battle-map asset for a tabletop fantasy grid map, in a rich hand-painted style: confident painterly brushwork, fine dark ink outlines, crisp small detail and a muted, earthy, slightly warm palette. Strictly orthographic view from directly overhead: no perspective, no horizon, no tilted or isometric angle. Soft light from the top-left, so upper-left edges catch highlights and lower-right edges fall into gentle form shading; no cast shadow and no drop shadow anywhere. No text, no letters, no numbers, no grid lines, no frame, no border, no vignette, no watermark, no signature. Subject: one modular wall piece from a grid-map wall kit, a 5-foot section of thin interior wattle screen, woven hazel rods daubed with clay, seen from directly above. Only a forked hazel stake, alone at the exact centre, about a quarter of the image wide; no wall runs out from it, the rest is empty. The same thin daubed wattle screen as the plain run, fresh grey clay daub. The wall band is about one fourteenth of the image height thick. Wall pieces join into long walls on a square grid, so the top of the wall is seen as a straight band of even thickness, every arm runs perfectly straight along the image's horizontal or vertical centre line and is cut off square exactly at the image edge it reaches. The junction is exactly at the centre of the image. Everything that is not wall is fully transparent (a PNG with a real alpha channel, background: transparent): no ground, no grass, no floor, no shadow."
+    },
+    "wall.wattle_partition.corner.alt1": {
+      "class": "wall",
+      "template": "arda-wall",
+      "format": "1:1",
+      "footprint": [
+        1,
+        1
+      ],
+      "pixels": [
+        128,
+        128
+      ],
+      "layer": "wall",
+      "height_ft": 10,
+      "functions": [
+        "house",
+        "cottage",
+        "farmhouse",
+        "stall"
+      ],
+      "tags": {
+        "biome": [],
+        "culture": [],
+        "wealth": [],
+        "function": [
+          "house",
+          "cottage",
+          "farmhouse",
+          "stall"
+        ],
+        "free": [
+          "partition"
+        ]
+      },
+      "blocks_movement": true,
+      "blocks_sight": true,
+      "difficult_terrain": false,
+      "cover": "total",
+      "file": "walls/wall.wattle_partition.corner.alt1.png",
+      "status": "new",
+      "tier": 5,
+      "kit": "wattle_partition",
+      "role": "corner",
+      "variant_of": "wall.wattle_partition.corner",
+      "derive_from": "wall.wattle_partition.corner",
+      "values": {
+        "Subject": "a 5-foot section of thin interior wattle screen, woven hazel rods daubed with clay, seen from directly above",
+        "Shape": "An L-shaped corner: one arm runs from the centre to the right edge and the other from the centre to the bottom edge; nothing left of or above the centre.",
+        "Detail": "The same thin daubed wattle screen as the plain run, a sagging stretch of loose weave. The wall band is about one fourteenth of the image height thick."
+      },
+      "prompt": "Top-down battle-map asset for a tabletop fantasy grid map, in a rich hand-painted style: confident painterly brushwork, fine dark ink outlines, crisp small detail and a muted, earthy, slightly warm palette. Strictly orthographic view from directly overhead: no perspective, no horizon, no tilted or isometric angle. Soft light from the top-left, so upper-left edges catch highlights and lower-right edges fall into gentle form shading; no cast shadow and no drop shadow anywhere. No text, no letters, no numbers, no grid lines, no frame, no border, no vignette, no watermark, no signature. Subject: one modular wall piece from a grid-map wall kit, a 5-foot section of thin interior wattle screen, woven hazel rods daubed with clay, seen from directly above. An L-shaped corner: one arm runs from the centre to the right edge and the other from the centre to the bottom edge; nothing left of or above the centre. The same thin daubed wattle screen as the plain run, a sagging stretch of loose weave. The wall band is about one fourteenth of the image height thick. Wall pieces join into long walls on a square grid, so the top of the wall is seen as a straight band of even thickness, every arm runs perfectly straight along the image's horizontal or vertical centre line and is cut off square exactly at the image edge it reaches. The junction is exactly at the centre of the image. Everything that is not wall is fully transparent (a PNG with a real alpha channel, background: transparent): no ground, no grass, no floor, no shadow."
+    },
+    "wall.wattle_partition.tee.alt1": {
+      "class": "wall",
+      "template": "arda-wall",
+      "format": "1:1",
+      "footprint": [
+        1,
+        1
+      ],
+      "pixels": [
+        128,
+        128
+      ],
+      "layer": "wall",
+      "height_ft": 10,
+      "functions": [
+        "house",
+        "cottage",
+        "farmhouse",
+        "stall"
+      ],
+      "tags": {
+        "biome": [],
+        "culture": [],
+        "wealth": [],
+        "function": [
+          "house",
+          "cottage",
+          "farmhouse",
+          "stall"
+        ],
+        "free": [
+          "partition"
+        ]
+      },
+      "blocks_movement": true,
+      "blocks_sight": true,
+      "difficult_terrain": false,
+      "cover": "total",
+      "file": "walls/wall.wattle_partition.tee.alt1.png",
+      "status": "new",
+      "tier": 5,
+      "kit": "wattle_partition",
+      "role": "tee",
+      "variant_of": "wall.wattle_partition.tee",
+      "derive_from": "wall.wattle_partition.tee",
+      "values": {
+        "Subject": "a 5-foot section of thin interior wattle screen, woven hazel rods daubed with clay, seen from directly above",
+        "Shape": "A T-junction: arms run from the centre to the left edge, the right edge and the bottom edge; nothing above the centre.",
+        "Detail": "The same thin daubed wattle screen as the plain run, straw mixed through the daub. The wall band is about one fourteenth of the image height thick."
+      },
+      "prompt": "Top-down battle-map asset for a tabletop fantasy grid map, in a rich hand-painted style: confident painterly brushwork, fine dark ink outlines, crisp small detail and a muted, earthy, slightly warm palette. Strictly orthographic view from directly overhead: no perspective, no horizon, no tilted or isometric angle. Soft light from the top-left, so upper-left edges catch highlights and lower-right edges fall into gentle form shading; no cast shadow and no drop shadow anywhere. No text, no letters, no numbers, no grid lines, no frame, no border, no vignette, no watermark, no signature. Subject: one modular wall piece from a grid-map wall kit, a 5-foot section of thin interior wattle screen, woven hazel rods daubed with clay, seen from directly above. A T-junction: arms run from the centre to the left edge, the right edge and the bottom edge; nothing above the centre. The same thin daubed wattle screen as the plain run, straw mixed through the daub. The wall band is about one fourteenth of the image height thick. Wall pieces join into long walls on a square grid, so the top of the wall is seen as a straight band of even thickness, every arm runs perfectly straight along the image's horizontal or vertical centre line and is cut off square exactly at the image edge it reaches. The junction is exactly at the centre of the image. Everything that is not wall is fully transparent (a PNG with a real alpha channel, background: transparent): no ground, no grass, no floor, no shadow."
+    },
+    "wall.wattle_partition.cross.alt1": {
+      "class": "wall",
+      "template": "arda-wall",
+      "format": "1:1",
+      "footprint": [
+        1,
+        1
+      ],
+      "pixels": [
+        128,
+        128
+      ],
+      "layer": "wall",
+      "height_ft": 10,
+      "functions": [
+        "house",
+        "cottage",
+        "farmhouse",
+        "stall"
+      ],
+      "tags": {
+        "biome": [],
+        "culture": [],
+        "wealth": [],
+        "function": [
+          "house",
+          "cottage",
+          "farmhouse",
+          "stall"
+        ],
+        "free": [
+          "partition"
+        ]
+      },
+      "blocks_movement": true,
+      "blocks_sight": true,
+      "difficult_terrain": false,
+      "cover": "total",
+      "file": "walls/wall.wattle_partition.cross.alt1.png",
+      "status": "new",
+      "tier": 5,
+      "kit": "wattle_partition",
+      "role": "cross",
+      "variant_of": "wall.wattle_partition.cross",
+      "derive_from": "wall.wattle_partition.cross",
+      "values": {
+        "Subject": "a 5-foot section of thin interior wattle screen, woven hazel rods daubed with clay, seen from directly above",
+        "Shape": "A cross junction: arms run from the centre to all four edges (left, right, top and bottom), meeting in a plus shape.",
+        "Detail": "The same thin daubed wattle screen as the plain run, daub flaking off a few rods. The wall band is about one fourteenth of the image height thick."
+      },
+      "prompt": "Top-down battle-map asset for a tabletop fantasy grid map, in a rich hand-painted style: confident painterly brushwork, fine dark ink outlines, crisp small detail and a muted, earthy, slightly warm palette. Strictly orthographic view from directly overhead: no perspective, no horizon, no tilted or isometric angle. Soft light from the top-left, so upper-left edges catch highlights and lower-right edges fall into gentle form shading; no cast shadow and no drop shadow anywhere. No text, no letters, no numbers, no grid lines, no frame, no border, no vignette, no watermark, no signature. Subject: one modular wall piece from a grid-map wall kit, a 5-foot section of thin interior wattle screen, woven hazel rods daubed with clay, seen from directly above. A cross junction: arms run from the centre to all four edges (left, right, top and bottom), meeting in a plus shape. The same thin daubed wattle screen as the plain run, daub flaking off a few rods. The wall band is about one fourteenth of the image height thick. Wall pieces join into long walls on a square grid, so the top of the wall is seen as a straight band of even thickness, every arm runs perfectly straight along the image's horizontal or vertical centre line and is cut off square exactly at the image edge it reaches. The junction is exactly at the centre of the image. Everything that is not wall is fully transparent (a PNG with a real alpha channel, background: transparent): no ground, no grass, no floor, no shadow."
+    },
+    "wall.wattle_partition.end.alt1": {
+      "class": "wall",
+      "template": "arda-wall",
+      "format": "1:1",
+      "footprint": [
+        1,
+        1
+      ],
+      "pixels": [
+        128,
+        128
+      ],
+      "layer": "wall",
+      "height_ft": 10,
+      "functions": [
+        "house",
+        "cottage",
+        "farmhouse",
+        "stall"
+      ],
+      "tags": {
+        "biome": [],
+        "culture": [],
+        "wealth": [],
+        "function": [
+          "house",
+          "cottage",
+          "farmhouse",
+          "stall"
+        ],
+        "free": [
+          "partition"
+        ]
+      },
+      "blocks_movement": true,
+      "blocks_sight": true,
+      "difficult_terrain": false,
+      "cover": "total",
+      "file": "walls/wall.wattle_partition.end.alt1.png",
+      "status": "new",
+      "tier": 5,
+      "kit": "wattle_partition",
+      "role": "end",
+      "variant_of": "wall.wattle_partition.end",
+      "derive_from": "wall.wattle_partition.end",
+      "values": {
+        "Subject": "a 5-foot section of thin interior wattle screen, woven hazel rods daubed with clay, seen from directly above",
+        "Shape": "A wall end: one arm runs in from the right edge and stops at the centre with a finished, capped end; nothing left of, above or below the centre.",
+        "Detail": "The same thin daubed wattle screen as the plain run, fresh grey clay daub. The wall band is about one fourteenth of the image height thick."
+      },
+      "prompt": "Top-down battle-map asset for a tabletop fantasy grid map, in a rich hand-painted style: confident painterly brushwork, fine dark ink outlines, crisp small detail and a muted, earthy, slightly warm palette. Strictly orthographic view from directly overhead: no perspective, no horizon, no tilted or isometric angle. Soft light from the top-left, so upper-left edges catch highlights and lower-right edges fall into gentle form shading; no cast shadow and no drop shadow anywhere. No text, no letters, no numbers, no grid lines, no frame, no border, no vignette, no watermark, no signature. Subject: one modular wall piece from a grid-map wall kit, a 5-foot section of thin interior wattle screen, woven hazel rods daubed with clay, seen from directly above. A wall end: one arm runs in from the right edge and stops at the centre with a finished, capped end; nothing left of, above or below the centre. The same thin daubed wattle screen as the plain run, fresh grey clay daub. The wall band is about one fourteenth of the image height thick. Wall pieces join into long walls on a square grid, so the top of the wall is seen as a straight band of even thickness, every arm runs perfectly straight along the image's horizontal or vertical centre line and is cut off square exactly at the image edge it reaches. The junction is exactly at the centre of the image. Everything that is not wall is fully transparent (a PNG with a real alpha channel, background: transparent): no ground, no grass, no floor, no shadow."
+    },
+    "wall.adobe_partition.door.alt1": {
+      "class": "wall",
+      "template": "arda-wall",
+      "format": "1:1",
+      "footprint": [
+        1,
+        1
+      ],
+      "pixels": [
+        128,
+        128
+      ],
+      "layer": "wall",
+      "height_ft": 10,
+      "functions": [
+        "house",
+        "cottage",
+        "farmhouse",
+        "inn",
+        "tavern",
+        "bakery",
+        "workshop"
+      ],
+      "tags": {
+        "biome": [],
+        "culture": [],
+        "wealth": [],
+        "function": [
+          "house",
+          "cottage",
+          "farmhouse",
+          "inn",
+          "tavern",
+          "bakery",
+          "workshop"
+        ],
+        "free": [
+          "arid",
+          "partition"
+        ]
+      },
+      "blocks_movement": true,
+      "blocks_sight": true,
+      "difficult_terrain": false,
+      "cover": "total",
+      "file": "walls/wall.adobe_partition.door.alt1.png",
+      "status": "new",
+      "tier": 5,
+      "kit": "adobe_partition",
+      "role": "door",
+      "variant_of": "wall.adobe_partition.door",
+      "derive_from": "wall.adobe_partition.door",
+      "values": {
+        "Subject": "a 5-foot section of thin interior adobe partition, a single course of mud brick under smooth plaster, seen from directly above",
+        "Shape": "Doorway in a straight run from left edge to right edge on the centre line; middle third: a gap between jambs, wall top stopped, shut by a turquoise plank door along the wall line.",
+        "Detail": "The same thin ochre-plastered adobe partition as the plain run, a faint hand-painted blue band. The wall band is about one tenth of the image height thick."
+      },
+      "prompt": "Top-down battle-map asset for a tabletop fantasy grid map, in a rich hand-painted style: confident painterly brushwork, fine dark ink outlines, crisp small detail and a muted, earthy, slightly warm palette. Strictly orthographic view from directly overhead: no perspective, no horizon, no tilted or isometric angle. Soft light from the top-left, so upper-left edges catch highlights and lower-right edges fall into gentle form shading; no cast shadow and no drop shadow anywhere. No text, no letters, no numbers, no grid lines, no frame, no border, no vignette, no watermark, no signature. Subject: one modular wall piece from a grid-map wall kit, a 5-foot section of thin interior adobe partition, a single course of mud brick under smooth plaster, seen from directly above. Doorway in a straight run from left edge to right edge on the centre line; middle third: a gap between jambs, wall top stopped, shut by a turquoise plank door along the wall line. The same thin ochre-plastered adobe partition as the plain run, a faint hand-painted blue band. The wall band is about one tenth of the image height thick. Wall pieces join into long walls on a square grid, so the top of the wall is seen as a straight band of even thickness, every arm runs perfectly straight along the image's horizontal or vertical centre line and is cut off square exactly at the image edge it reaches. The junction is exactly at the centre of the image. Everything that is not wall is fully transparent (a PNG with a real alpha channel, background: transparent): no ground, no grass, no floor, no shadow."
+    },
+    "wall.adobe_partition.window.alt1": {
+      "class": "wall",
+      "template": "arda-wall",
+      "format": "1:1",
+      "footprint": [
+        1,
+        1
+      ],
+      "pixels": [
+        128,
+        128
+      ],
+      "layer": "wall",
+      "height_ft": 10,
+      "functions": [
+        "house",
+        "cottage",
+        "farmhouse",
+        "inn",
+        "tavern",
+        "bakery",
+        "workshop"
+      ],
+      "tags": {
+        "biome": [],
+        "culture": [],
+        "wealth": [],
+        "function": [
+          "house",
+          "cottage",
+          "farmhouse",
+          "inn",
+          "tavern",
+          "bakery",
+          "workshop"
+        ],
+        "free": [
+          "arid",
+          "partition"
+        ]
+      },
+      "blocks_movement": true,
+      "blocks_sight": true,
+      "difficult_terrain": false,
+      "cover": "total",
+      "file": "walls/wall.adobe_partition.window.alt1.png",
+      "status": "new",
+      "tier": 5,
+      "kit": "adobe_partition",
+      "role": "window",
+      "variant_of": "wall.adobe_partition.window",
+      "derive_from": "wall.adobe_partition.window",
+      "values": {
+        "Subject": "a 5-foot section of thin interior adobe partition, a single course of mud brick under smooth plaster, seen from directly above",
+        "Shape": "A straight run with a window: it runs from the left edge to the right edge along the horizontal centre line, with a small niche with a clay lamp ledge in the middle third.",
+        "Detail": "The same thin ochre-plastered adobe partition as the plain run, a darker damp patch at one end. The wall band is about one tenth of the image height thick."
+      },
+      "prompt": "Top-down battle-map asset for a tabletop fantasy grid map, in a rich hand-painted style: confident painterly brushwork, fine dark ink outlines, crisp small detail and a muted, earthy, slightly warm palette. Strictly orthographic view from directly overhead: no perspective, no horizon, no tilted or isometric angle. Soft light from the top-left, so upper-left edges catch highlights and lower-right edges fall into gentle form shading; no cast shadow and no drop shadow anywhere. No text, no letters, no numbers, no grid lines, no frame, no border, no vignette, no watermark, no signature. Subject: one modular wall piece from a grid-map wall kit, a 5-foot section of thin interior adobe partition, a single course of mud brick under smooth plaster, seen from directly above. A straight run with a window: it runs from the left edge to the right edge along the horizontal centre line, with a small niche with a clay lamp ledge in the middle third. The same thin ochre-plastered adobe partition as the plain run, a darker damp patch at one end. The wall band is about one tenth of the image height thick. Wall pieces join into long walls on a square grid, so the top of the wall is seen as a straight band of even thickness, every arm runs perfectly straight along the image's horizontal or vertical centre line and is cut off square exactly at the image edge it reaches. The junction is exactly at the centre of the image. Everything that is not wall is fully transparent (a PNG with a real alpha channel, background: transparent): no ground, no grass, no floor, no shadow."
+    },
+    "wall.adobe_partition.gate.alt1": {
+      "class": "wall",
+      "template": "arda-wall",
+      "format": "1:1",
+      "footprint": [
+        1,
+        1
+      ],
+      "pixels": [
+        128,
+        128
+      ],
+      "layer": "wall",
+      "height_ft": 10,
+      "functions": [
+        "house",
+        "cottage",
+        "farmhouse",
+        "inn",
+        "tavern",
+        "bakery",
+        "workshop"
+      ],
+      "tags": {
+        "biome": [],
+        "culture": [],
+        "wealth": [],
+        "function": [
+          "house",
+          "cottage",
+          "farmhouse",
+          "inn",
+          "tavern",
+          "bakery",
+          "workshop"
+        ],
+        "free": [
+          "arid",
+          "partition"
+        ]
+      },
+      "blocks_movement": true,
+      "blocks_sight": true,
+      "difficult_terrain": false,
+      "cover": "total",
+      "file": "walls/wall.adobe_partition.gate.alt1.png",
+      "status": "new",
+      "tier": 5,
+      "kit": "adobe_partition",
+      "role": "gate",
+      "variant_of": "wall.adobe_partition.gate",
+      "derive_from": "wall.adobe_partition.gate",
+      "values": {
+        "Subject": "a 5-foot section of thin interior adobe partition, a single course of mud brick under smooth plaster, seen from directly above",
+        "Shape": "Gateway in a straight run from left edge to right edge on the centre line; middle: a gap between posts, wall top stopped, shut by an arched opening hung with a striped curtain along the wall line.",
+        "Detail": "The same thin ochre-plastered adobe partition as the plain run, a fresh coat of cream limewash. The wall band is about one tenth of the image height thick."
+      },
+      "prompt": "Top-down battle-map asset for a tabletop fantasy grid map, in a rich hand-painted style: confident painterly brushwork, fine dark ink outlines, crisp small detail and a muted, earthy, slightly warm palette. Strictly orthographic view from directly overhead: no perspective, no horizon, no tilted or isometric angle. Soft light from the top-left, so upper-left edges catch highlights and lower-right edges fall into gentle form shading; no cast shadow and no drop shadow anywhere. No text, no letters, no numbers, no grid lines, no frame, no border, no vignette, no watermark, no signature. Subject: one modular wall piece from a grid-map wall kit, a 5-foot section of thin interior adobe partition, a single course of mud brick under smooth plaster, seen from directly above. Gateway in a straight run from left edge to right edge on the centre line; middle: a gap between posts, wall top stopped, shut by an arched opening hung with a striped curtain along the wall line. The same thin ochre-plastered adobe partition as the plain run, a fresh coat of cream limewash. The wall band is about one tenth of the image height thick. Wall pieces join into long walls on a square grid, so the top of the wall is seen as a straight band of even thickness, every arm runs perfectly straight along the image's horizontal or vertical centre line and is cut off square exactly at the image edge it reaches. The junction is exactly at the centre of the image. Everything that is not wall is fully transparent (a PNG with a real alpha channel, background: transparent): no ground, no grass, no floor, no shadow."
+    },
+    "wall.adobe_partition.post.alt1": {
+      "class": "wall",
+      "template": "arda-wall",
+      "format": "1:1",
+      "footprint": [
+        1,
+        1
+      ],
+      "pixels": [
+        128,
+        128
+      ],
+      "layer": "wall",
+      "height_ft": 10,
+      "functions": [
+        "house",
+        "cottage",
+        "farmhouse",
+        "inn",
+        "tavern",
+        "bakery",
+        "workshop"
+      ],
+      "tags": {
+        "biome": [],
+        "culture": [],
+        "wealth": [],
+        "function": [
+          "house",
+          "cottage",
+          "farmhouse",
+          "inn",
+          "tavern",
+          "bakery",
+          "workshop"
+        ],
+        "free": [
+          "arid",
+          "partition"
+        ]
+      },
+      "blocks_movement": true,
+      "blocks_sight": true,
+      "difficult_terrain": false,
+      "cover": "total",
+      "file": "walls/wall.adobe_partition.post.alt1.png",
+      "status": "new",
+      "tier": 5,
+      "kit": "adobe_partition",
+      "role": "post",
+      "variant_of": "wall.adobe_partition.post",
+      "derive_from": "wall.adobe_partition.post",
+      "values": {
+        "Subject": "a 5-foot section of thin interior adobe partition, a single course of mud brick under smooth plaster, seen from directly above",
+        "Shape": "Only a slim pilaster with a rounded cap, alone at the exact centre, about a quarter of the image wide; no wall runs out from it, the rest is empty.",
+        "Detail": "The same thin ochre-plastered adobe partition as the plain run, a chipped corner showing mud brick. The wall band is about one tenth of the image height thick."
+      },
+      "prompt": "Top-down battle-map asset for a tabletop fantasy grid map, in a rich hand-painted style: confident painterly brushwork, fine dark ink outlines, crisp small detail and a muted, earthy, slightly warm palette. Strictly orthographic view from directly overhead: no perspective, no horizon, no tilted or isometric angle. Soft light from the top-left, so upper-left edges catch highlights and lower-right edges fall into gentle form shading; no cast shadow and no drop shadow anywhere. No text, no letters, no numbers, no grid lines, no frame, no border, no vignette, no watermark, no signature. Subject: one modular wall piece from a grid-map wall kit, a 5-foot section of thin interior adobe partition, a single course of mud brick under smooth plaster, seen from directly above. Only a slim pilaster with a rounded cap, alone at the exact centre, about a quarter of the image wide; no wall runs out from it, the rest is empty. The same thin ochre-plastered adobe partition as the plain run, a chipped corner showing mud brick. The wall band is about one tenth of the image height thick. Wall pieces join into long walls on a square grid, so the top of the wall is seen as a straight band of even thickness, every arm runs perfectly straight along the image's horizontal or vertical centre line and is cut off square exactly at the image edge it reaches. The junction is exactly at the centre of the image. Everything that is not wall is fully transparent (a PNG with a real alpha channel, background: transparent): no ground, no grass, no floor, no shadow."
+    },
+    "wall.adobe_partition.corner.alt1": {
+      "class": "wall",
+      "template": "arda-wall",
+      "format": "1:1",
+      "footprint": [
+        1,
+        1
+      ],
+      "pixels": [
+        128,
+        128
+      ],
+      "layer": "wall",
+      "height_ft": 10,
+      "functions": [
+        "house",
+        "cottage",
+        "farmhouse",
+        "inn",
+        "tavern",
+        "bakery",
+        "workshop"
+      ],
+      "tags": {
+        "biome": [],
+        "culture": [],
+        "wealth": [],
+        "function": [
+          "house",
+          "cottage",
+          "farmhouse",
+          "inn",
+          "tavern",
+          "bakery",
+          "workshop"
+        ],
+        "free": [
+          "arid",
+          "partition"
+        ]
+      },
+      "blocks_movement": true,
+      "blocks_sight": true,
+      "difficult_terrain": false,
+      "cover": "total",
+      "file": "walls/wall.adobe_partition.corner.alt1.png",
+      "status": "new",
+      "tier": 5,
+      "kit": "adobe_partition",
+      "role": "corner",
+      "variant_of": "wall.adobe_partition.corner",
+      "derive_from": "wall.adobe_partition.corner",
+      "values": {
+        "Subject": "a 5-foot section of thin interior adobe partition, a single course of mud brick under smooth plaster, seen from directly above",
+        "Shape": "An L-shaped corner: one arm runs from the centre to the right edge and the other from the centre to the bottom edge; nothing left of or above the centre.",
+        "Detail": "The same thin ochre-plastered adobe partition as the plain run, a faint hand-painted blue band. The wall band is about one tenth of the image height thick."
+      },
+      "prompt": "Top-down battle-map asset for a tabletop fantasy grid map, in a rich hand-painted style: confident painterly brushwork, fine dark ink outlines, crisp small detail and a muted, earthy, slightly warm palette. Strictly orthographic view from directly overhead: no perspective, no horizon, no tilted or isometric angle. Soft light from the top-left, so upper-left edges catch highlights and lower-right edges fall into gentle form shading; no cast shadow and no drop shadow anywhere. No text, no letters, no numbers, no grid lines, no frame, no border, no vignette, no watermark, no signature. Subject: one modular wall piece from a grid-map wall kit, a 5-foot section of thin interior adobe partition, a single course of mud brick under smooth plaster, seen from directly above. An L-shaped corner: one arm runs from the centre to the right edge and the other from the centre to the bottom edge; nothing left of or above the centre. The same thin ochre-plastered adobe partition as the plain run, a faint hand-painted blue band. The wall band is about one tenth of the image height thick. Wall pieces join into long walls on a square grid, so the top of the wall is seen as a straight band of even thickness, every arm runs perfectly straight along the image's horizontal or vertical centre line and is cut off square exactly at the image edge it reaches. The junction is exactly at the centre of the image. Everything that is not wall is fully transparent (a PNG with a real alpha channel, background: transparent): no ground, no grass, no floor, no shadow."
+    },
+    "wall.adobe_partition.tee.alt1": {
+      "class": "wall",
+      "template": "arda-wall",
+      "format": "1:1",
+      "footprint": [
+        1,
+        1
+      ],
+      "pixels": [
+        128,
+        128
+      ],
+      "layer": "wall",
+      "height_ft": 10,
+      "functions": [
+        "house",
+        "cottage",
+        "farmhouse",
+        "inn",
+        "tavern",
+        "bakery",
+        "workshop"
+      ],
+      "tags": {
+        "biome": [],
+        "culture": [],
+        "wealth": [],
+        "function": [
+          "house",
+          "cottage",
+          "farmhouse",
+          "inn",
+          "tavern",
+          "bakery",
+          "workshop"
+        ],
+        "free": [
+          "arid",
+          "partition"
+        ]
+      },
+      "blocks_movement": true,
+      "blocks_sight": true,
+      "difficult_terrain": false,
+      "cover": "total",
+      "file": "walls/wall.adobe_partition.tee.alt1.png",
+      "status": "new",
+      "tier": 5,
+      "kit": "adobe_partition",
+      "role": "tee",
+      "variant_of": "wall.adobe_partition.tee",
+      "derive_from": "wall.adobe_partition.tee",
+      "values": {
+        "Subject": "a 5-foot section of thin interior adobe partition, a single course of mud brick under smooth plaster, seen from directly above",
+        "Shape": "A T-junction: arms run from the centre to the left edge, the right edge and the bottom edge; nothing above the centre.",
+        "Detail": "The same thin ochre-plastered adobe partition as the plain run, a darker damp patch at one end. The wall band is about one tenth of the image height thick."
+      },
+      "prompt": "Top-down battle-map asset for a tabletop fantasy grid map, in a rich hand-painted style: confident painterly brushwork, fine dark ink outlines, crisp small detail and a muted, earthy, slightly warm palette. Strictly orthographic view from directly overhead: no perspective, no horizon, no tilted or isometric angle. Soft light from the top-left, so upper-left edges catch highlights and lower-right edges fall into gentle form shading; no cast shadow and no drop shadow anywhere. No text, no letters, no numbers, no grid lines, no frame, no border, no vignette, no watermark, no signature. Subject: one modular wall piece from a grid-map wall kit, a 5-foot section of thin interior adobe partition, a single course of mud brick under smooth plaster, seen from directly above. A T-junction: arms run from the centre to the left edge, the right edge and the bottom edge; nothing above the centre. The same thin ochre-plastered adobe partition as the plain run, a darker damp patch at one end. The wall band is about one tenth of the image height thick. Wall pieces join into long walls on a square grid, so the top of the wall is seen as a straight band of even thickness, every arm runs perfectly straight along the image's horizontal or vertical centre line and is cut off square exactly at the image edge it reaches. The junction is exactly at the centre of the image. Everything that is not wall is fully transparent (a PNG with a real alpha channel, background: transparent): no ground, no grass, no floor, no shadow."
+    },
+    "wall.adobe_partition.cross.alt1": {
+      "class": "wall",
+      "template": "arda-wall",
+      "format": "1:1",
+      "footprint": [
+        1,
+        1
+      ],
+      "pixels": [
+        128,
+        128
+      ],
+      "layer": "wall",
+      "height_ft": 10,
+      "functions": [
+        "house",
+        "cottage",
+        "farmhouse",
+        "inn",
+        "tavern",
+        "bakery",
+        "workshop"
+      ],
+      "tags": {
+        "biome": [],
+        "culture": [],
+        "wealth": [],
+        "function": [
+          "house",
+          "cottage",
+          "farmhouse",
+          "inn",
+          "tavern",
+          "bakery",
+          "workshop"
+        ],
+        "free": [
+          "arid",
+          "partition"
+        ]
+      },
+      "blocks_movement": true,
+      "blocks_sight": true,
+      "difficult_terrain": false,
+      "cover": "total",
+      "file": "walls/wall.adobe_partition.cross.alt1.png",
+      "status": "new",
+      "tier": 5,
+      "kit": "adobe_partition",
+      "role": "cross",
+      "variant_of": "wall.adobe_partition.cross",
+      "derive_from": "wall.adobe_partition.cross",
+      "values": {
+        "Subject": "a 5-foot section of thin interior adobe partition, a single course of mud brick under smooth plaster, seen from directly above",
+        "Shape": "A cross junction: arms run from the centre to all four edges (left, right, top and bottom), meeting in a plus shape.",
+        "Detail": "The same thin ochre-plastered adobe partition as the plain run, a fresh coat of cream limewash. The wall band is about one tenth of the image height thick."
+      },
+      "prompt": "Top-down battle-map asset for a tabletop fantasy grid map, in a rich hand-painted style: confident painterly brushwork, fine dark ink outlines, crisp small detail and a muted, earthy, slightly warm palette. Strictly orthographic view from directly overhead: no perspective, no horizon, no tilted or isometric angle. Soft light from the top-left, so upper-left edges catch highlights and lower-right edges fall into gentle form shading; no cast shadow and no drop shadow anywhere. No text, no letters, no numbers, no grid lines, no frame, no border, no vignette, no watermark, no signature. Subject: one modular wall piece from a grid-map wall kit, a 5-foot section of thin interior adobe partition, a single course of mud brick under smooth plaster, seen from directly above. A cross junction: arms run from the centre to all four edges (left, right, top and bottom), meeting in a plus shape. The same thin ochre-plastered adobe partition as the plain run, a fresh coat of cream limewash. The wall band is about one tenth of the image height thick. Wall pieces join into long walls on a square grid, so the top of the wall is seen as a straight band of even thickness, every arm runs perfectly straight along the image's horizontal or vertical centre line and is cut off square exactly at the image edge it reaches. The junction is exactly at the centre of the image. Everything that is not wall is fully transparent (a PNG with a real alpha channel, background: transparent): no ground, no grass, no floor, no shadow."
+    },
+    "wall.adobe_partition.end.alt1": {
+      "class": "wall",
+      "template": "arda-wall",
+      "format": "1:1",
+      "footprint": [
+        1,
+        1
+      ],
+      "pixels": [
+        128,
+        128
+      ],
+      "layer": "wall",
+      "height_ft": 10,
+      "functions": [
+        "house",
+        "cottage",
+        "farmhouse",
+        "inn",
+        "tavern",
+        "bakery",
+        "workshop"
+      ],
+      "tags": {
+        "biome": [],
+        "culture": [],
+        "wealth": [],
+        "function": [
+          "house",
+          "cottage",
+          "farmhouse",
+          "inn",
+          "tavern",
+          "bakery",
+          "workshop"
+        ],
+        "free": [
+          "arid",
+          "partition"
+        ]
+      },
+      "blocks_movement": true,
+      "blocks_sight": true,
+      "difficult_terrain": false,
+      "cover": "total",
+      "file": "walls/wall.adobe_partition.end.alt1.png",
+      "status": "new",
+      "tier": 5,
+      "kit": "adobe_partition",
+      "role": "end",
+      "variant_of": "wall.adobe_partition.end",
+      "derive_from": "wall.adobe_partition.end",
+      "values": {
+        "Subject": "a 5-foot section of thin interior adobe partition, a single course of mud brick under smooth plaster, seen from directly above",
+        "Shape": "A wall end: one arm runs in from the right edge and stops at the centre with a finished, capped end; nothing left of, above or below the centre.",
+        "Detail": "The same thin ochre-plastered adobe partition as the plain run, a chipped corner showing mud brick. The wall band is about one tenth of the image height thick."
+      },
+      "prompt": "Top-down battle-map asset for a tabletop fantasy grid map, in a rich hand-painted style: confident painterly brushwork, fine dark ink outlines, crisp small detail and a muted, earthy, slightly warm palette. Strictly orthographic view from directly overhead: no perspective, no horizon, no tilted or isometric angle. Soft light from the top-left, so upper-left edges catch highlights and lower-right edges fall into gentle form shading; no cast shadow and no drop shadow anywhere. No text, no letters, no numbers, no grid lines, no frame, no border, no vignette, no watermark, no signature. Subject: one modular wall piece from a grid-map wall kit, a 5-foot section of thin interior adobe partition, a single course of mud brick under smooth plaster, seen from directly above. A wall end: one arm runs in from the right edge and stops at the centre with a finished, capped end; nothing left of, above or below the centre. The same thin ochre-plastered adobe partition as the plain run, a chipped corner showing mud brick. The wall band is about one tenth of the image height thick. Wall pieces join into long walls on a square grid, so the top of the wall is seen as a straight band of even thickness, every arm runs perfectly straight along the image's horizontal or vertical centre line and is cut off square exactly at the image edge it reaches. The junction is exactly at the centre of the image. Everything that is not wall is fully transparent (a PNG with a real alpha channel, background: transparent): no ground, no grass, no floor, no shadow."
     }
   }
 }

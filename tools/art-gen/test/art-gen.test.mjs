@@ -35,7 +35,7 @@ test("prompts.json keeps the checklist's 225 as tier 0 and adds the expansion af
   assert.equal(ids.length, 225);
   assert.deepEqual(Object.keys(pack.assets).slice(0, 225), ids, "the 225 come first, in checklist order");
   for (const id of ids) assert.equal(pack.assets[id].tier, 0, id);
-  assert.ok(total >= 1000 && total <= 1500, `${total} assets`);
+  assert.ok(total >= 1000 && total <= 1600, `${total} assets`);
   const own = expansion.map((e) => e.id);
   assert.equal(new Set(own).size, own.length, "expansion.mjs ids are unique");
   for (const id of own) assert.ok(!ids.includes(id), `${id} collides with the checklist`);
@@ -138,7 +138,7 @@ test("every asset carries valid catalogue metadata and tags", () => {
     assert.ok(Number.isInteger(a.height_ft) && a.height_ft >= 0, `${id}: height_ft ${a.height_ft}`);
     for (const flag of ["blocks_movement", "blocks_sight", "difficult_terrain"]) assert.equal(typeof a[flag], "boolean", `${id} ${flag}`);
     assert.ok(a.footprint.every((n) => Number.isInteger(n) && n >= 1 && n <= 16), `${id}: footprint`);
-    assert.ok([0, 1, 2, 3, 4].includes(a.tier), `${id}: tier ${a.tier}`);
+    assert.ok([0, 1, 2, 3, 4, 5].includes(a.tier), `${id}: tier ${a.tier}`);
     assert.deepEqual(Object.keys(a.tags).sort(), ["biome", "culture", "free", "function", "wealth"], id);
     for (const list of ["biome", "culture", "wealth", "function"])
       for (const tag of a.tags[list]) assert.ok(vocabulary[list].includes(tag), `${id}: ${list} "${tag}" is not in the catalogue vocabulary`);
