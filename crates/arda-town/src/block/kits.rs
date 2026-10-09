@@ -1,4 +1,4 @@
-//! Wall kits and floors from the settlement's own data (logic/09
+//! Wall kits and floors from the settlement's own data (logic/10
 //! §building-materials), using the shared vocabulary keys (`stone`,
 //! `drystone`, `timber`, `wattle`, `log`, `adobe`; `planks`,
 //! `packed_earth`, `stone_floor`, `flagstone`).
@@ -86,7 +86,7 @@ impl Material {
 }
 
 /// The vernacular `(poor, middling)` materials of a tradition in a biome:
-/// the table of logic/09 §building-materials.
+/// the table of logic/10 §building-materials.
 #[must_use]
 pub fn vernacular(t: Tradition, biome: &str, forest: bool) -> (Material, Material) {
     use Material as M;
@@ -177,7 +177,23 @@ pub struct Context {
     pub inside_wall: bool,
 }
 
-/// The material of `b` in a settlement with `fabric` (logic/09
+/// A building's standing within its own settlement: +1 well above the
+/// settlement's wealth (≥ 45 more: manors, the best market houses), −1 well
+/// below it (≥ 40 less: cottages, suburbs, poor barns), else 0. Relative,
+/// so a rich town's ordinary houses are not all "wealthy" twice over.
+#[must_use]
+pub fn standing(fabric: &Fabric, b: &Building) -> i32 {
+    let rel = i32::from(b.wealth) - i32::from(fabric.wealth);
+    if rel >= 45 {
+        1
+    } else if rel <= -40 {
+        -1
+    } else {
+        0
+    }
+}
+
+/// The material of `b` in a settlement with `fabric` (logic/10
 /// §building-materials). Pure: the same inputs always give the same kit.
 #[must_use]
 pub fn material(
@@ -189,8 +205,9 @@ pub fn material(
     seed: u64,
 ) -> Material {
     let (poor, middling) = vernacular(tradition(culture), &fabric.biome, fabric.forest);
+    let standing = standing(fabric, b);
     let finish = |m: Material| {
-        if m == Material::Stone && b.wealth_level == WealthLevel::Poor {
+        if m == Material::Stone && standing < 0 {
             Material::Rubble
         } else {
             m
@@ -200,11 +217,7 @@ pub fn material(
         return Material::Stone;
     }
     if farm(b.function) {
-        return if b.wealth_level == WealthLevel::Poor {
-            poor
-        } else {
-            middling
-        };
+        return if standing < 0 { poor } else { middling };
     }
     if stone_town(fabric, tier) {
         return finish(Material::Stone);
@@ -220,11 +233,7 @@ pub fn material(
     {
         rank += 1;
     }
-    rank += match b.wealth_level {
-        WealthLevel::Poor => -1,
-        WealthLevel::Modest => 0,
-        WealthLevel::Wealthy => 1,
-    };
+    rank += standing;
     match rank {
         4.. => finish(Material::Stone),
         3 => {
@@ -450,12 +459,20 @@ mod tests {
         }
     }
 
+    /// The material of `b`, its wealth set from its band relative to the
+    /// settlement: poor 50 below, modest level, wealthy 50 above.
     fn of(f: &Fabric, tier: Tier, culture: &str, d: D, b: &Building) -> Material {
         let ctx = Context {
             district: d,
             inside_wall: true,
         };
-        material(f, tier, culture, b, ctx, 42)
+        let mut b = b.clone();
+        b.wealth = match b.wealth_level {
+            W::Poor => f.wealth.saturating_sub(50),
+            W::Modest => f.wealth,
+            W::Wealthy => f.wealth.saturating_add(50),
+        };
+        material(f, tier, culture, &b, ctx, 42)
     }
 
     const DISTRICTS: [D; 7] = [
