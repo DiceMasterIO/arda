@@ -145,7 +145,42 @@ fn asset(w: &Want) -> AssetRef {
     }
 }
 
-type Walls = BTreeMap<(i64, i64, EdgeAxis), (WallRole, &'static str, u64)>;
+/// What a wall edge is to the buildings beside it (logic/09
+/// §party-walls).
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum WallClass {
+    /// Not a building's wall: the curtain, a fence, a hedge.
+    Other,
+    /// A building's outer wall with no building on the far side.
+    Shell,
+    /// An interior partition inside one building (tag `partition`).
+    Partition,
+    /// An outer wall two buildings share (tag `party`).
+    Party,
+}
+
+impl WallClass {
+    /// The edge's free tags.
+    #[must_use]
+    pub fn tags(self) -> Vec<String> {
+        match self {
+            Self::Partition => vec![arda_tactical::layout::TAG_PARTITION.to_string()],
+            Self::Party => vec![arda_tactical::layout::TAG_PARTY.to_string()],
+            Self::Other | Self::Shell => Vec::new(),
+        }
+    }
+}
+
+/// Whether edge `(x, y, axis)` lies on the boundary of `r`.
+#[must_use]
+pub const fn on_boundary(r: &SquareRect, (x, y, axis): (i64, i64, EdgeAxis)) -> bool {
+    match axis {
+        EdgeAxis::Horizontal => (y == r.y0 || y == r.y1) && x >= r.x0 && x < r.x1,
+        EdgeAxis::Vertical => (x == r.x0 || x == r.x1) && y >= r.y0 && y < r.y1,
+    }
+}
+
+type Walls = BTreeMap<(i64, i64, EdgeAxis), (WallRole, &'static str, u64, WallClass)>;
 
 /// Cuts a window out of the plan with the default fill ([`TownFill::Wfc`]).
 ///
@@ -182,7 +217,7 @@ pub fn generate_with(plan: &TownPlan, win: Window, fill: TownFill) -> Result<Tow
     let lin = |x: i64, y: i64| usize::try_from((y - y0) * win.w + (x - x0)).ok();
     let mut walls: Walls = BTreeMap::new();
     for (k, v) in ground::edges(plan, x0, y0, x1, y1) {
-        walls.insert(k, (v.0, v.1, 0));
+        walls.insert(k, (v.0, v.1, 0, WallClass::Other));
     }
     let mut props: Vec<GProp> = Vec::new();
     let mut lights: Vec<GLight> = Vec::new();
@@ -215,7 +250,7 @@ pub fn generate_with(plan: &TownPlan, win: Window, fill: TownFill) -> Result<Tow
                     .get(&k)
                     .is_some_and(|w| w.0 == WallRole::Run && w.2 == 0)
                 {
-                    walls.insert(k, (role, kit, 0));
+                    walls.insert(k, (role, kit, 0, WallClass::Other));
                 }
             }
             let base = props.len();
@@ -275,12 +310,30 @@ pub fn generate_with(plan: &TownPlan, win: Window, fill: TownFill) -> Result<Tow
             }
             // Shared party walls: the stronger piece wins, regardless of
             // which building was visited first (doors over runs over windows).
-            // The curtain wall (owner 0) always wins.
-            let keep = walls.get(&k).is_some_and(|&(r, _, owner)| {
+            // The curtain wall (owner 0) always wins. An outer wall another
+            // building also claims is a party wall, whichever piece wins.
+            let class = if on_boundary(&b.rect, k) {
+                WallClass::Shell
+            } else {
+                WallClass::Partition
+            };
+            let prior = walls.get(&k).copied();
+            let party = class == WallClass::Shell
+                && prior.is_some_and(|(_, _, owner, c)| {
+                    owner != 0
+                        && owner != b.id.0
+                        && matches!(c, WallClass::Shell | WallClass::Party)
+                });
+            let class = if party { WallClass::Party } else { class };
+            let keep = prior.is_some_and(|(r, _, owner, _)| {
                 owner == 0 || (owner != b.id.0 && (priority(r), owner) >= (priority(role), b.id.0))
             });
-            if !keep {
-                walls.insert(k, (role, kit, b.id.0));
+            if keep {
+                if let (true, Some(w)) = (party, walls.get_mut(&k)) {
+                    w.3 = WallClass::Party;
+                }
+            } else {
+                walls.insert(k, (role, kit, b.id.0, class));
             }
         }
         let base = props.len();
@@ -312,7 +365,9 @@ pub fn generate_with(plan: &TownPlan, win: Window, fill: TownFill) -> Result<Tow
     }
     // Fences and hedges never replace a building's or the curtain's wall.
     for (k, v) in ground::fences(plan, x0, y0, x1, y1) {
-        walls.entry(k).or_insert((v.0, v.1, u64::MAX));
+        walls
+            .entry(k)
+            .or_insert((v.0, v.1, u64::MAX, WallClass::Other));
     }
     let (ext_props, ext_lights) = match fill {
         TownFill::Rules => exterior::dress(plan, x0, y0, x1, y1),
@@ -358,13 +413,13 @@ fn assemble(
         .collect();
     layout.walls = walls
         .iter()
-        .map(|(&(x, y, axis), &(kind, kit, _))| WallSegment {
+        .map(|(&(x, y, axis), &(kind, kit, _, class))| WallSegment {
             x: clamp_u32(x - win.x),
             y: clamp_u32(y - win.y),
             axis,
             kind,
             kit: kit.to_string(),
-            tags: Vec::new(),
+            tags: class.tags(),
         })
         .collect();
     let mut remap = vec![None; props.len()];
