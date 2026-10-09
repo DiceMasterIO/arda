@@ -3,6 +3,13 @@
 Release notes for Arda. The design ledger (decisions, stage records and per-change detail)
 lives in `docs/capstone/changelog.md` and `docs/capstone/changelog.d/`.
 
+## 0.8.1 — 2026-10-09
+
+- **Houses read as houses.** Interior partitions are tagged and drawn thin (a library's `<kit>_partition` art when present, otherwise the kit squeezed to half thickness); outer walls and party walls between neighbours stay heavy, so a terraced row no longer reads as one building with many rooms. Scene rules are unchanged: every wall still blocks.
+- **Materials from the town's data and history.** Wall kits and floors come from a table, not a random pick per house: a rich merchant town or city is stone throughout; elsewhere material follows district (castle, market and temple quarters stone; craft and waterfront middling; residential and suburbs the local vernacular), wealth, building stone at hand, a golden age and past great fires (rebuilt in stone). The vernacular follows biome and culture (adobe on the steppe, log in boreal forest, wattle or timber in the heartland). `TownPlan` gains `fabric`. Neighbours sharing a wall take different floors.
+- **Eaves-drip gaps.** About a quarter of town row houses and 15% of city ones leave a one-square gap beside them, never on the market square or on narrow plots.
+- **Art pack:** tier-5 prompt entries for thin timber, wattle and adobe partition kits (not yet generated).
+
 ## 0.8.0 — 2026-10-09
 
 - **Forests on default worlds.** Worlds generated with the default `--terrain legacy` never ran the ground-ecology pass, so every land cell had forest density and moisture 0 and was grass. Legacy worlds now get the same ecology as the fine path: MICRO seeds 1, 7, 42, 99 and 2024 go from 0% to 41–61% forest cover. Saved worlds change for land cells; climate, hydrology and blocks do not.
