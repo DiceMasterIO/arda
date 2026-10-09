@@ -26,12 +26,36 @@ pub struct BuildReport {
     pub population: u64,
 }
 
+/// Everything a build writes, computed but not yet written.
+#[derive(Debug, Clone)]
+pub struct Built {
+    /// What was produced.
+    pub report: BuildReport,
+    /// The simulated society (`society.json`).
+    pub society: arda_society::Society,
+    /// The stored notables (`notables.json`).
+    pub notables: NotablesFile,
+}
+
 /// Runs society and the notables over `<world>/society/` and writes
 /// `society.json` and `notables.json` there.
 ///
 /// # Errors
 /// World, I/O, format, society and NPC failures.
 pub fn build(world_dir: &Path) -> Result<BuildReport, PeopleError> {
+    let built = compute(world_dir)?;
+    let dir = world_dir.join("society");
+    arda_society::output::write_json(&built.society, &dir.join(SOCIETY_FILE))?;
+    files::write(&dir.join(NOTABLES_FILE), &built.notables)?;
+    Ok(built.report)
+}
+
+/// Runs society and the notables over `<world>/society/` without writing
+/// anything (the world is only read).
+///
+/// # Errors
+/// World, I/O, format, society and NPC failures.
+pub fn compute(world_dir: &Path) -> Result<Built, PeopleError> {
     let src = SharedSource::open(world_dir)?;
     let dir = world_dir.join("society");
     let files = crate::files::SocietyFiles::read(&dir)?;
@@ -52,7 +76,6 @@ pub fn build(world_dir: &Path) -> Result<BuildReport, PeopleError> {
     let mut world = WorldSettlements::read_dir(&dir)?;
     world.buildings = explicit;
     let society = arda_society::simulate_society(seed, &world)?;
-    arda_society::output::write_json(&society, &dir.join(SOCIETY_FILE))?;
     let mut stored = Vec::with_capacity(report.settlements);
     for ((s, record), (plan, soc)) in files
         .settlements
@@ -77,15 +100,15 @@ pub fn build(world_dir: &Path) -> Result<BuildReport, PeopleError> {
             npcs: pop.npcs,
         });
     }
-    files::write(
-        &dir.join(NOTABLES_FILE),
-        &NotablesFile {
+    Ok(Built {
+        report,
+        society,
+        notables: NotablesFile {
             format_version: NOTABLES_FORMAT,
             seed: seed.to_string(),
             settlements: stored,
         },
-    )?;
-    Ok(report)
+    })
 }
 
 type Planned = Option<(

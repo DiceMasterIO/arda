@@ -22,6 +22,7 @@ pub mod npc;
 mod personality;
 mod plan;
 pub mod population;
+pub mod ranks;
 pub mod rng;
 pub mod rules;
 pub mod sample;

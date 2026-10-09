@@ -11,6 +11,11 @@ use crate::plan::{Plan, Role};
 use crate::rng::Rng;
 use crate::sheet::{build_block_sheet, build_class_sheet, ClassRequest, Sheet, Wealth};
 
+/// Title prefix reserved for the master rank.
+const MASTER_PREFIX: &str = "Master ";
+/// `SocialRank::Master` on the 0–5 scale.
+const MASTER_LEVEL: u8 = 3;
+
 impl Plan<'_> {
     /// The person's name (cheap; used for bonds that mention others), in
     /// the tongue of their ancestry or settlement (`names.rs`). A slot-bound
@@ -55,13 +60,15 @@ impl Plan<'_> {
     }
 
     /// Display title of a job at a workplace ("Master Weaver", "Priestess").
+    /// "Master" belongs to the master rank: a village smith below it is
+    /// plain "Smith" (logic/13 §npc-ranks).
     fn job_title(&self, person: usize, job: &JobData) -> String {
         let p = &self.people[person];
         let craft = p
             .workplace
             .and_then(|b| self.crafts[b])
             .and_then(|c| self.data.occupations.crafts.get(c.key()));
-        match (p.job, craft) {
+        let title = match (p.job, craft) {
             ("craft_master", Some(c)) => format!("Master {}", c.noun),
             ("journeyman", Some(c)) => format!("Journeyman {}", c.noun),
             ("apprentice", Some(c)) => format!("{}'s Apprentice", c.noun),
@@ -69,17 +76,31 @@ impl Plan<'_> {
                 (Some(t), crate::npc::Sex::Female) => t.clone(),
                 _ => job.title.clone(),
             },
+        };
+        match title.strip_prefix(MASTER_PREFIX) {
+            Some(rest) if self.rank_of(person) < MASTER_LEVEL => rest.to_string(),
+            _ => title,
         }
     }
 
-    /// Wealth 0–255 from settlement, home and rank.
-    fn wealth(&self, person: usize, rank: u8, rng: &mut Rng) -> u8 {
+    /// Wealth 0–255 from settlement, home and rank, kept inside the
+    /// rank's lifestyle band (`rank_lifestyles`) for working people, so a
+    /// labourer is never wealthy and a lord never poor.
+    fn wealth(&self, person: usize, rank: u8, dependent: bool, rng: &mut Rng) -> u8 {
         let p = &self.people[person];
         let home = u32::from(self.buildings[p.building].wealth);
         let town = u32::from(self.settlement.wealth);
-        let rank = u32::from(rank);
-        let value = town / 4 + home / 4 + rank * 30 + rng.below(40);
-        u8::try_from(value.min(255)).unwrap_or(u8::MAX)
+        let value = town / 4 + home / 4 + u32::from(rank) * 30 + rng.below(40);
+        let value = u8::try_from(value.min(255)).unwrap_or(u8::MAX);
+        let band = self
+            .data
+            .occupations
+            .rank_lifestyles
+            .get(&SocialRank::from_level(rank));
+        match band {
+            Some([lo, hi]) if !dependent => value.clamp(lo.wealth_range().0, hi.wealth_range().1),
+            _ => value,
+        }
     }
 
     /// Class level of a notable: the tier's range (leaders use the leader
@@ -158,8 +179,13 @@ impl Plan<'_> {
         let category = JobCategory::from_key(&job_data.category)
             .ok_or_else(|| NpcError::Data(format!("category {}", job_data.category)))?;
         let key = self.person_key(person);
-        let rank = job_data.rank;
-        let wealth = self.wealth(person, rank, &mut key.rng("wealth"));
+        let rank = self.rank_of(person);
+        let wealth = self.wealth(
+            person,
+            rank,
+            category == JobCategory::Dependent,
+            &mut key.rng("wealth"),
+        );
         let lifestyle = Lifestyle::from_wealth(wealth);
         let title = self
             .slot_of(person, self.notables)

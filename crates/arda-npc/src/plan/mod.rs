@@ -8,8 +8,10 @@
 //! 1. sort buildings by id and share the population out by capacity;
 //! 2. households per building from the building's own key (`households.rs`);
 //! 3. jobs: residents staff their own workplace, then the pool fills the
-//!    remaining slots, officials are appointed, everyone else takes a land job,
-//!    and notables are settled to the tier's range (`jobs.rs`);
+//!    remaining slots, society offices bind (`slots.rs`), officials not
+//!    covered by an office are appointed up to the tier's civic cap,
+//!    everyone else takes a land job, and notables are settled to the
+//!    tier's range (`jobs.rs`);
 //! 4. friend and rival pairs (`social.rs`).
 
 mod households;
@@ -170,7 +172,6 @@ impl<'a> Plan<'a> {
         let occupancy = plan.occupancy()?;
         plan.populate(&occupancy)?;
         plan.assign_jobs()?;
-        plan.bind_slots(notables);
         plan.pair_friends_and_rivals();
         plan.index_ids()?;
         Ok(plan)

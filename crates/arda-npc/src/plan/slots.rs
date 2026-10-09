@@ -1,7 +1,9 @@
 //! Binding the society layer's notable slots to inhabitants (logic/14
 //! §soc-offices, logic/13 §npc-notables; adapter A14).
 //!
-//! Slots bind in id order. A slot with a building takes that building's
+//! Slots bind in id order, after workplaces are staffed and before
+//! officials are appointed, so an office stands in for the official it
+//! covers. A slot with a building takes that building's
 //! master, else another of its workers, else a mature resident; a slot
 //! without one (or whose building has nobody) takes an unbound notable,
 //! else a mature household head, in skeleton order. The holder becomes a
@@ -10,6 +12,7 @@
 //! name to it.
 
 use super::{Plan, Role};
+use crate::data::content::OfficeData;
 use crate::input::NotableSlot;
 use crate::npc::Sex;
 
@@ -66,6 +69,35 @@ impl Plan<'_> {
                 (0..self.people.len())
                     .find(|&p| self.free(p) && self.people[p].role == Role::Head && self.mature(p))
             })
+    }
+
+    /// The society office `person` holds, if its kind is in the table.
+    pub(crate) fn office_of(&self, person: usize) -> Option<&'static OfficeData> {
+        let slot = self.slot_of(person, self.notables)?;
+        self.data.occupations.offices.get(&slot.kind)
+    }
+
+    /// Social rank level 0–5: the job's rank in this tier, raised to the
+    /// rank of the office the person holds (an elder who farms ranks as
+    /// an elder; logic/13 §npc-ranks).
+    pub(crate) fn rank_of(&self, person: usize) -> u8 {
+        let tier = self.settlement.tier.key();
+        let job = self
+            .data
+            .job(self.people[person].job)
+            .map_or(0, |j| j.rank_in(tier));
+        let office = self.office_of(person).map_or(0, |o| o.rank_in(tier));
+        job.max(office)
+    }
+
+    /// Whether `person` is a civic figure: a government job or a civic
+    /// office (logic/13 §npc-notables).
+    pub(crate) fn civic(&self, person: usize) -> bool {
+        self.office_of(person).is_some_and(|o| o.civic)
+            || self
+                .data
+                .job(self.people[person].job)
+                .is_ok_and(|j| j.category == "government")
     }
 
     /// The slot bound to `person`, if any.

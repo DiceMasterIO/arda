@@ -185,6 +185,20 @@ impl Lifestyle {
             _ => Self::Aristocratic,
         }
     }
+
+    /// The inclusive wealth range of the lifestyle (`from_wealth`).
+    #[must_use]
+    pub fn wealth_range(self) -> (u8, u8) {
+        match self {
+            Self::Wretched => (0, 19),
+            Self::Squalid => (20, 49),
+            Self::Poor => (50, 89),
+            Self::Modest => (90, 139),
+            Self::Comfortable => (140, 179),
+            Self::Wealthy => (180, 219),
+            Self::Aristocratic => (220, 255),
+        }
+    }
 }
 
 /// An ideal and the alignment it leans toward.

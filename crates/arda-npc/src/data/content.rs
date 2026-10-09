@@ -4,6 +4,8 @@ use std::collections::BTreeMap;
 
 use serde::Deserialize;
 
+use crate::npc::{Lifestyle, SocialRank};
+
 /// A personality trait on one axis.
 #[derive(Debug, Clone, Deserialize)]
 pub struct TraitEntry {
@@ -54,7 +56,12 @@ pub struct JobData {
     pub title: String,
     pub title_female: Option<String>,
     pub category: String,
+    /// Social rank 0–5 (`SocialRank::from_level`).
     pub rank: u8,
+    /// Rank where the tier differs from `rank` (a village smith is
+    /// tradesfolk, a guild master in a town is a master).
+    #[serde(default)]
+    pub rank_by_tier: BTreeMap<String, u8>,
     pub stat_block: String,
     pub classes: BTreeMap<String, u32>,
     pub tools: Vec<String>,
@@ -104,6 +111,39 @@ pub struct LandJob {
     pub needs: Option<String>,
 }
 
+/// A society office (a notable slot's `kind`, logic/14 §soc-offices).
+#[derive(Debug, Clone, Deserialize)]
+pub struct OfficeData {
+    /// Lowest social rank of the holder, 0–5.
+    pub rank: u8,
+    /// Rank where the tier differs from `rank`.
+    #[serde(default)]
+    pub rank_by_tier: BTreeMap<String, u8>,
+    /// Whether the office is civic (counts toward the tier's civic cap).
+    #[serde(default)]
+    pub civic: bool,
+    /// Tier officials the office stands in for: they are not appointed
+    /// again while the office is held.
+    #[serde(default)]
+    pub covers: Vec<String>,
+}
+
+impl JobData {
+    /// The job's social rank in a tier.
+    #[must_use]
+    pub fn rank_in(&self, tier: &str) -> u8 {
+        self.rank_by_tier.get(tier).copied().unwrap_or(self.rank)
+    }
+}
+
+impl OfficeData {
+    /// The office's social rank in a tier.
+    #[must_use]
+    pub fn rank_in(&self, tier: &str) -> u8 {
+        self.rank_by_tier.get(tier).copied().unwrap_or(self.rank)
+    }
+}
+
 /// `occupations.json`.
 #[derive(Debug, Clone, Deserialize)]
 pub struct Occupations {
@@ -111,6 +151,11 @@ pub struct Occupations {
     pub workplaces: BTreeMap<String, WorkplaceData>,
     pub crafts: BTreeMap<String, CraftData>,
     pub land_jobs: Vec<LandJob>,
+    /// Society offices by slot kind.
+    pub offices: BTreeMap<String, OfficeData>,
+    /// Lifestyle band `[lowest, highest]` per working social rank;
+    /// dependants are not banded.
+    pub rank_lifestyles: BTreeMap<SocialRank, [Lifestyle; 2]>,
 }
 
 /// A culture's ancestry weights (its tongue comes from `arda-names`).
@@ -126,6 +171,10 @@ pub struct Cultures {
     pub cultures: BTreeMap<String, Culture>,
 }
 
+/// A `promote` entry that keeps the promoted head's own land job (the
+/// woodcutter of a logging hamlet stays a woodcutter).
+pub const KEEP_LAND_JOB: &str = "land";
+
 /// Per-tier parameters.
 #[derive(Debug, Clone, Deserialize)]
 pub struct TierData {
@@ -136,6 +185,9 @@ pub struct TierData {
     pub urban_pm: u32,
     pub officials: Vec<String>,
     pub promote: Vec<String>,
+    /// Most civic figures (government jobs and civic offices) the tier
+    /// appoints or promotes; society offices always bind.
+    pub civic_cap: u32,
 }
 
 /// Rare high-level exceptions among notables.
