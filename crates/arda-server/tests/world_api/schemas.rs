@@ -64,6 +64,7 @@ async fn served_schemas_are_the_committed_files() {
     assert_eq!(r.status, StatusCode::OK);
     assert_eq!(r.body, std::fs::read(dir.join("index.json")).unwrap());
     let index = r.json();
+    check("SchemaIndex", "/v1/schema", &index).await;
     assert_eq!(
         index["dialect"],
         "https://json-schema.org/draft/2020-12/schema"
@@ -115,6 +116,20 @@ async fn tactical_bodies_validate() {
     check("RulesSidecarDto", "block rules", &block["rules"]).await;
     check("SceneDto", "block scene", &block["scene"]).await;
     check("TacticalBlockDto", "a block", &block).await;
+    let window = ok("/v1/tactical/window?gx0=529&gy0=812&w=2&h=1").await;
+    check("TacticalBlockDto", "a window", &window).await;
+    let dungeon = checked("DungeonDto", "/v1/tactical/dungeon?seed=9&w=32&h=24").await;
+    assert!(
+        dungeon["params"]["seed"].is_string(),
+        "{}",
+        dungeon["params"]
+    );
+    checked(
+        "DungeonDto",
+        "/v1/tactical/dungeon?gx=529&gy=812&kind=cave&w=24&h=24",
+    )
+    .await;
+    checked("SceneDto", "/v1/tactical/dungeon/scene?seed=9&w=32&h=24").await;
     let request = Request::post("/v1/tactical/prefetch")
         .header("content-type", "application/json")
         .body(Body::from(r#"{"gx":529,"gy":812,"radius":1,"ppsq":64}"#))

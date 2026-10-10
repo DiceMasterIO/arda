@@ -7,7 +7,7 @@
 //!   id of a commoner resolves with `?settlement=`;
 //! - `GET /v1/npcs?settlement=&building=&job=&realm=&notable=&limit=&cursor=`:
 //!   a bounded page of matches ([`page`]);
-//! - `GET /v1/buildings/{id}/residents` and `/workers`: who lives or works
+//! - `GET /v1/buildings/{building}/residents` and `/workers`: who lives or works
 //!   in a building, `id` being `<settlement>.<building>` (or the bare
 //!   building id with `?settlement=`).
 //!
@@ -151,7 +151,7 @@ async fn building(
     run(state, f).await
 }
 
-/// `GET /v1/buildings/{id}/residents`.
+/// `GET /v1/buildings/{building}/residents`.
 pub(crate) async fn residents(
     State(state): Shared,
     path: Segments,
@@ -160,7 +160,7 @@ pub(crate) async fn residents(
     building(state, path, query, Link::Residents).await
 }
 
-/// `GET /v1/buildings/{id}/workers`.
+/// `GET /v1/buildings/{building}/workers`.
 pub(crate) async fn workers(
     State(state): Shared,
     path: Segments,

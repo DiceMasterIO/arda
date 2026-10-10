@@ -7,7 +7,7 @@
 //! - `GET /v1/settlements/{id}/plan`: its `arda-town` plan;
 //! - `GET /v1/settlements/{id}/npcs`: its stored notables.
 //!
-//! People (`/v1/npc/{id}`, `/v1/npcs`, `/v1/buildings/{id}/…`) are served by
+//! People (`/v1/npc/{id}`, `/v1/npcs`, `/v1/buildings/{building}/…`) are served by
 //! [`crate::npcs`]. Only notables are stored (goal 56); a world without
 //! `society/` answers 404 `not_found` on every route here.
 

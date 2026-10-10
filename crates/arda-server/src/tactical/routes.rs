@@ -51,6 +51,10 @@ pub fn router(max_body_bytes: usize) -> Router<Arc<AppState>> {
         )
         .route("/window", get(super::world_routes::window))
         .route("/window.png", get(super::world_routes::window_png))
+        .route(
+            "/window/tiles/{z}/{x}/{y}",
+            get(super::world_routes::window_tile),
+        )
         .route("/library", get(super::world_routes::library))
         .route("/prefetch", post(prefetch))
         .route("/dungeon", get(super::dungeon::dungeon))

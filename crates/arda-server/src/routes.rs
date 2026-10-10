@@ -45,8 +45,11 @@ pub fn router(state: Arc<AppState>) -> Router {
         .route("/npc/demo/{npc_id}", get(npc_demo_one))
         .route("/npc/{npc_id}", get(crate::npcs::one))
         .route("/npcs", get(crate::npcs::list))
-        .route("/buildings/{id}/residents", get(crate::npcs::residents))
-        .route("/buildings/{id}/workers", get(crate::npcs::workers))
+        .route(
+            "/buildings/{building}/residents",
+            get(crate::npcs::residents),
+        )
+        .route("/buildings/{building}/workers", get(crate::npcs::workers))
         .route("/settlements", get(crate::people::list))
         .route("/settlements/{id}", get(crate::people::one))
         .route("/settlements/{id}/plan", get(crate::people::plan))

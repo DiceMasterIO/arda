@@ -17,9 +17,11 @@ pub use bodies::{SettlementDetail, SettlementList, SettlementNpcs};
 
 use crate::error::{ServerError, ServerResult};
 use schemars::JsonSchema;
+use serde::{Deserialize, Serialize};
 use serde_json::{json, Value};
 use std::path::PathBuf;
 use std::sync::OnceLock;
+use ts_rs::TS;
 
 /// Workspace-relative directory of the committed schemas.
 pub const SCHEMA_DIR: &str = "bindings/schema";
@@ -89,6 +91,7 @@ use crate::error::{ApiError, NotYetError};
 use crate::npc_dto::{Npc, NpcDemo, Population, PopulationRequest, Sheet};
 use crate::npcs::dto::NpcPage;
 use crate::tactical::dto::{TacticalBlockDto, TacticalLayoutDto, TacticalLayouts};
+use crate::tactical::dungeon_dto::DungeonDto;
 use crate::tactical::library_dto::TacticalLibraryDto;
 use crate::tactical::prefetch::{PrefetchAccepted, PrefetchRequest};
 use crate::tactical::rules_dto::RulesSidecarDto;
@@ -107,13 +110,15 @@ catalog! {
     "NotYetError" => NotYetError, ["501 from /v1/tactical/cell and /window"];
     "TacticalLayouts" => TacticalLayouts, ["GET /v1/tactical/layouts"];
     "TacticalLayoutDto" => TacticalLayoutDto,
-        ["GET /v1/tactical/layout/{name}", "POST /v1/tactical/render (request)"];
+        ["GET /v1/tactical/layout/{name}", "POST /v1/tactical/render (request)", "DungeonDto.layout"];
     "TacticalBlockDto" => TacticalBlockDto,
         ["GET /v1/tactical/cell/{gx}/{gy}", "GET /v1/tactical/window"];
-    "RulesSidecarDto" => RulesSidecarDto, ["TacticalBlockDto.rules"];
-    "SceneDto" => SceneDto, ["TacticalBlockDto.scene", "TacticalScene.scene"];
+    "RulesSidecarDto" => RulesSidecarDto, ["TacticalBlockDto.rules", "DungeonDto.rules"];
+    "SceneDto" => SceneDto,
+        ["GET /v1/tactical/dungeon/scene", "TacticalBlockDto.scene", "TacticalScene.scene"];
     "TacticalScene" => TacticalScene, ["GET /v1/tactical/cell/{gx}/{gy}/scene"];
     "TacticalLibraryDto" => TacticalLibraryDto, ["GET /v1/tactical/library"];
+    "DungeonDto" => DungeonDto, ["GET /v1/tactical/dungeon"];
     "PrefetchRequest" => PrefetchRequest, ["POST /v1/tactical/prefetch (request)"];
     "PrefetchAccepted" => PrefetchAccepted, ["POST /v1/tactical/prefetch"];
     "Npc" => Npc, ["GET /v1/npc/{id}", "GET /v1/npc/demo/{npc_id}"];
@@ -129,6 +134,7 @@ catalog! {
     "SettlementSociety" => arda_society::SettlementSociety, ["SettlementDetail.society"];
     "TownPlan" => arda_town::TownPlan, ["GET /v1/settlements/{id}/plan"];
     "SettlementNpcs" => SettlementNpcs, ["GET /v1/settlements/{id}/npcs"];
+    "SchemaIndex" => SchemaIndex, ["GET /v1/schema"];
 }
 
 fn pretty(v: &Value) -> ServerResult<String> {
@@ -138,26 +144,55 @@ fn pretty(v: &Value) -> ServerResult<String> {
     Ok(text)
 }
 
+/// Text of [`SchemaIndex::note`].
+const INDEX_NOTE: &str = "Schemas describe Arda's own NPC shape; a server started with --sheet-mapping reshapes every Npc it serves (header X-Arda-Sheet-Mapping) and the Npc parts of these schemas no longer apply to it.";
+
+/// `GET /v1/schema`: the catalogue of published schemas (`index.json`).
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, TS, JsonSchema)]
+#[serde(deny_unknown_fields)]
+pub struct SchemaIndex {
+    /// Version of this body ([`INDEX_FORMAT`]).
+    pub format_version: u32,
+    /// The API version (`v1`).
+    pub api_version: String,
+    /// The JSON Schema dialect every file declares ([`DIALECT`]).
+    pub dialect: String,
+    /// How `--sheet-mapping` affects the `Npc` schemas.
+    pub note: String,
+    /// Every schema, in name order.
+    pub schemas: Vec<SchemaIndexEntry>,
+}
+
+/// One schema in [`SchemaIndex`].
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, TS, JsonSchema)]
+#[serde(deny_unknown_fields)]
+pub struct SchemaIndexEntry {
+    /// File stem and TypeScript type name.
+    pub name: String,
+    /// Where it is served: `/v1/schema/{name}.json`.
+    pub url: String,
+    /// The routes (or body parts, such as `TacticalBlockDto.scene`) it describes.
+    pub routes: Vec<String>,
+}
+
 /// The `index.json` body: every schema's name, URL and routes.
 #[must_use]
 pub fn index(entries: &[Entry]) -> Value {
-    let schemas: Vec<Value> = entries
-        .iter()
-        .map(|e| {
-            json!({
-                "name": e.name,
-                "url": format!("/v1/schema/{}.json", e.name),
-                "routes": e.routes,
+    let body = SchemaIndex {
+        format_version: INDEX_FORMAT,
+        api_version: crate::dto::API_VERSION.to_owned(),
+        dialect: DIALECT.to_owned(),
+        note: INDEX_NOTE.to_owned(),
+        schemas: entries
+            .iter()
+            .map(|e| SchemaIndexEntry {
+                name: e.name.to_owned(),
+                url: format!("/v1/schema/{}.json", e.name),
+                routes: e.routes.iter().map(|r| (*r).to_owned()).collect(),
             })
-        })
-        .collect();
-    json!({
-        "format_version": INDEX_FORMAT,
-        "api_version": crate::dto::API_VERSION,
-        "dialect": DIALECT,
-        "note": "Schemas describe Arda's own NPC shape; a server started with --sheet-mapping reshapes every Npc it serves (header X-Arda-Sheet-Mapping) and the Npc parts of these schemas no longer apply to it.",
-        "schemas": schemas,
-    })
+            .collect(),
+    };
+    json!(body)
 }
 
 /// Every file as `(file name, contents)`, sorted by name, `index.json` last.

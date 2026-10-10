@@ -86,3 +86,34 @@ fn scene_runs_are_count_value_pairs_and_seeds_are_strings() {
         .iter()
         .any(|s| s["url"] == "/v1/schema/TacticalScene.json"));
 }
+
+#[test]
+fn the_index_reads_as_schema_index_and_lists_itself() {
+    let entries = catalog().unwrap();
+    let body: SchemaIndex = serde_json::from_value(index(&entries)).unwrap();
+    assert_eq!(body.format_version, INDEX_FORMAT);
+    assert_eq!(body.schemas.len(), entries.len());
+    let route = |name: &str| {
+        body.schemas
+            .iter()
+            .find(|s| s.name == name)
+            .unwrap_or_else(|| panic!("{name} is not listed"))
+            .routes
+            .clone()
+    };
+    assert_eq!(route("SchemaIndex"), ["GET /v1/schema"]);
+    assert_eq!(route("DungeonDto"), ["GET /v1/tactical/dungeon"]);
+    assert!(route("SceneDto").contains(&"GET /v1/tactical/dungeon/scene".to_owned()));
+}
+
+#[test]
+fn the_dungeon_seed_is_a_string() {
+    let dungeon = catalog()
+        .unwrap()
+        .into_iter()
+        .find(|e| e.name == "DungeonDto")
+        .unwrap()
+        .schema;
+    let params = &dungeon["$defs"]["DungeonParamsDto"];
+    assert_eq!(params["properties"]["seed"]["type"], "string", "{dungeon}");
+}

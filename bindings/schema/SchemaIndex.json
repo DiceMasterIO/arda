@@ -1,0 +1,70 @@
+{
+  "$defs": {
+    "SchemaIndexEntry": {
+      "additionalProperties": false,
+      "description": "One schema in [`SchemaIndex`].",
+      "properties": {
+        "name": {
+          "description": "File stem and TypeScript type name.",
+          "type": "string"
+        },
+        "routes": {
+          "description": "The routes (or body parts, such as `TacticalBlockDto.scene`) it describes.",
+          "items": {
+            "type": "string"
+          },
+          "type": "array"
+        },
+        "url": {
+          "description": "Where it is served: `/v1/schema/{name}.json`.",
+          "type": "string"
+        }
+      },
+      "required": [
+        "name",
+        "url",
+        "routes"
+      ],
+      "type": "object"
+    }
+  },
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "additionalProperties": false,
+  "description": "`GET /v1/schema`: the catalogue of published schemas (`index.json`).",
+  "properties": {
+    "api_version": {
+      "description": "The API version (`v1`).",
+      "type": "string"
+    },
+    "dialect": {
+      "description": "The JSON Schema dialect every file declares ([`DIALECT`]).",
+      "type": "string"
+    },
+    "format_version": {
+      "description": "Version of this body ([`INDEX_FORMAT`]).",
+      "format": "uint32",
+      "minimum": 0,
+      "type": "integer"
+    },
+    "note": {
+      "description": "How `--sheet-mapping` affects the `Npc` schemas.",
+      "type": "string"
+    },
+    "schemas": {
+      "description": "Every schema, in name order.",
+      "items": {
+        "$ref": "#/$defs/SchemaIndexEntry"
+      },
+      "type": "array"
+    }
+  },
+  "required": [
+    "format_version",
+    "api_version",
+    "dialect",
+    "note",
+    "schemas"
+  ],
+  "title": "SchemaIndex",
+  "type": "object"
+}

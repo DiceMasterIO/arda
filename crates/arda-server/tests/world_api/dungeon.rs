@@ -15,6 +15,8 @@ async fn dungeon_json_is_deterministic_and_complete() {
     assert_eq!(v["layout"]["width"], 32);
     assert_eq!(v["layout"]["height"], 24);
     assert_eq!(v["rules"]["format_version"], 2);
+    // logic/16 §api-conventions: u64 seeds travel as decimal strings.
+    assert_eq!(v["params"]["seed"], "9");
     assert!(!v["rooms"].as_array().unwrap().is_empty());
     let exits: Vec<&str> = v["exits"]
         .as_array()

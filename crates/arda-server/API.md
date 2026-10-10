@@ -662,12 +662,18 @@ curl -s -o cell.png "$B/cell/530/810.png?ppsq=64"
 512 px lossless WebP tiles of the block image, `z = max_zoom` the full render (a block at
 128 px per square is 8192 px, `max_zoom = 4`). Outside the pyramid: 404 `not_found`.
 
-### `GET /v1/tactical/window?gx0=&gy0=&w=&h=[&ppsq=&demo_overlays=&demo_at=]` and `/window.png`
+### `GET /v1/tactical/window?gx0=&gy0=&w=&h=[&ppsq=&demo_overlays=&demo_at=]`, `/window.png` and `/window/tiles/{z}/{x}/{y}.webp?…`
 
 A window of `w × h` cells (1–3 each; 413 above) starting at cell `(gx0, gy0)`: the same body
-as a cell with `size` `[64·w, 64·h]`, or its PNG (`ppsq` default 32 for windows). A window
-equals the concatenation of its cells square for square, and its image equals theirs pixel
-for pixel. `demo_at` defaults to `(gx0, gy0)`.
+as a cell with `size` `[64·w, 64·h]`, its PNG, or 512 px lossless WebP tiles of that PNG's
+render (`ppsq` default 32 for windows on all three). A window equals the concatenation of its
+cells square for square, and its image equals theirs pixel for pixel. `demo_at` defaults to
+`(gx0, gy0)`.
+
+The body's `tiles` describes the pyramid `/window/tiles/{z}/{x}/{y}.webp` serves with the same
+query (window, `ppsq`, `grid`, `world_grade`, demo options); `z = max_zoom` is the full
+render. Outside the pyramid, or a tile not named `{y}.webp`: 404 `not_found`. The render
+limits apply as for `/window.png` (a 3 × 3 window at 128 px per square is refused).
 
 With `?gsx=&gsy=&w=&h=` instead, the window is given in world squares (logic/16): any
 `w × h` squares (1–192 each; 413 above) from square `(gsx, gsy)`, for example a 32 × 32
@@ -677,6 +683,7 @@ quarter-block battle map across a cell corner. `demo_at` defaults to the cell ho
 ```sh
 curl -s -o window.png "$B/window.png?gx0=529&gy0=809&w=3&h=3&ppsq=32"
 curl -s -o quarter.png "$B/window.png?gsx=33904&gsy=51824&w=32&h=32&ppsq=64"
+curl -s -o corner.webp "$B/window/tiles/3/7/3.webp?gx0=529&gy0=809&w=2&h=1&ppsq=32"
 ```
 
 ### `POST /v1/tactical/prefetch`
@@ -736,8 +743,10 @@ by a world cell `gx`/`gy`, whose seed is `arda_dungeon::site_seed(world seed, gx
 are the size in squares, each 16–160, default 48 × 36. The same query always returns the same
 bytes.
 
-The body is `{params, layout, rules, rooms, doors, exits}`:
+The body is `{params, layout, rules, rooms, doors, exits}` (TS type and schema `DungeonDto`):
 
+- `params`: `{seed, kind, width, height}`, the level's generation parameters; `seed` is a
+  decimal string, like every u64 on the wire (a JSON number in 0.8.1 and earlier).
 - `layout`: a `TacticalLayout` (`TacticalLayoutDto`), so `POST /render` and every layout tool
   take it as it is. Unexcavated rock is ground `bedrock` walled off from the floor; dungeons use
   the `stone` kit, caves the `cave` kit. Door edges carry `tags` `locked` or `secret`.
@@ -860,9 +869,9 @@ Rust types as the TypeScript bindings, so a game in any language can validate wh
 (goal 66). A schema is named after the TypeScript type: `Npc.json` and `import type { Npc }`
 describe the same JSON.
 
-- `GET /v1/schema`: the index, `{format_version: 1, api_version, dialect, note, schemas:
-  [{name, url, routes}]}`, where `routes` lists the routes (or the body parts, such as
-  `TacticalBlockDto.scene`) each schema describes.
+- `GET /v1/schema`: the index (TS type and schema `SchemaIndex`), `{format_version: 1,
+  api_version, dialect, note, schemas: [{name, url, routes}]}`, where `routes` lists the
+  routes (or the body parts, such as `TacticalBlockDto.scene`) each schema describes.
 - `GET /v1/schema/{Name}.json`: one schema, `Content-Type: application/schema+json`. An
   unknown name is **404**.
 
@@ -872,12 +881,14 @@ describe the same JSON.
 | `AreaCells`, `AreaRivers`, `AreaLakes` | the `/v1/area/{ax}/{ay}/…` JSON bodies |
 | `ApiError`, `NotYetError` | every error body; the tactical 501 body |
 | `TacticalLayouts`, `TacticalLayoutDto`, `TacticalLibraryDto` | the tactical listing, layouts (and the `POST /render` body) and the library |
-| `TacticalBlockDto`, `RulesSidecarDto`, `SceneDto` | `/v1/tactical/cell` and `/window`, their `rules` and `scene` |
+| `TacticalBlockDto`, `RulesSidecarDto`, `SceneDto` | `/v1/tactical/cell` and `/window`, their `rules` and `scene`; `SceneDto` also `/v1/tactical/dungeon/scene` |
 | `TacticalScene` | `/v1/tactical/cell/{gx}/{gy}/scene` |
+| `DungeonDto` | `/v1/tactical/dungeon` (its `layout` is a `TacticalLayoutDto`, its `rules` a `RulesSidecarDto`) |
 | `PrefetchRequest`, `PrefetchAccepted` | `POST /v1/tactical/prefetch` |
 | `Npc`, `Sheet`, `NpcPage` | `/v1/npc/{id}`, `/v1/npc/demo/{id}`; `Npc.sheet`; `/v1/npcs` and the building routes |
 | `Population`, `PopulationRequest`, `NpcDemo` | `POST /v1/npc/population` and its body; `/v1/npc/demo` |
 | `SettlementList`, `SettlementDetail`, `Settlement`, `SettlementSociety`, `TownPlan`, `SettlementNpcs` | the settlement routes |
+| `SchemaIndex` | `/v1/schema` itself |
 
 The files are committed in `bindings/schema/` and the server serves them byte for byte.
 `cargo test -p arda-server schema` fails when they are stale, and `ARDA_BLESS_BINDINGS=1`

@@ -40,6 +40,13 @@
       "url": "/v1/schema/CellSample.json"
     },
     {
+      "name": "DungeonDto",
+      "routes": [
+        "GET /v1/tactical/dungeon"
+      ],
+      "url": "/v1/schema/DungeonDto.json"
+    },
+    {
       "name": "Health",
       "routes": [
         "GET /v1/health"
@@ -115,17 +122,26 @@
     {
       "name": "RulesSidecarDto",
       "routes": [
-        "TacticalBlockDto.rules"
+        "TacticalBlockDto.rules",
+        "DungeonDto.rules"
       ],
       "url": "/v1/schema/RulesSidecarDto.json"
     },
     {
       "name": "SceneDto",
       "routes": [
+        "GET /v1/tactical/dungeon/scene",
         "TacticalBlockDto.scene",
         "TacticalScene.scene"
       ],
       "url": "/v1/schema/SceneDto.json"
+    },
+    {
+      "name": "SchemaIndex",
+      "routes": [
+        "GET /v1/schema"
+      ],
+      "url": "/v1/schema/SchemaIndex.json"
     },
     {
       "name": "Settlement",
@@ -182,7 +198,8 @@
       "name": "TacticalLayoutDto",
       "routes": [
         "GET /v1/tactical/layout/{name}",
-        "POST /v1/tactical/render (request)"
+        "POST /v1/tactical/render (request)",
+        "DungeonDto.layout"
       ],
       "url": "/v1/schema/TacticalLayoutDto.json"
     },

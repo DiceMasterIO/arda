@@ -57,6 +57,21 @@ fn generation_is_deterministic() {
     }
 }
 
+/// I5, I17: the seed is a decimal string on the wire (it does not fit a JS
+/// number); a plain number is still read.
+#[test]
+fn params_seed_is_a_decimal_string() {
+    let p = params(u64::MAX - 7, Kind::Cave, 32, 24);
+    let v = serde_json::to_value(p).unwrap();
+    assert_eq!(
+        v["seed"],
+        serde_json::Value::from((u64::MAX - 7).to_string())
+    );
+    assert_eq!(serde_json::from_value::<Params>(v).unwrap(), p);
+    let number = serde_json::json!({"seed": 9, "kind": "dungeon", "width": 16, "height": 16});
+    assert_eq!(serde_json::from_value::<Params>(number).unwrap().seed, 9);
+}
+
 #[test]
 fn layouts_check_against_the_placeholder_library() {
     each(|d| {

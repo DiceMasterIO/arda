@@ -86,7 +86,9 @@ impl Kind {
 /// Generation parameters.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
 pub struct Params {
-    /// Seed.
+    /// Seed. A decimal string on the wire, like every u64 (I5, I17); a
+    /// plain number is also read, for hand-written JSON.
+    #[serde(with = "arda_scene::serde_str")]
     pub seed: u64,
     /// Dungeon or cave.
     pub kind: Kind,

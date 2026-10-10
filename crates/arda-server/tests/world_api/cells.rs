@@ -97,6 +97,31 @@ async fn a_window_is_the_concatenation_of_its_cells() {
     }
 }
 
+/// The window's `tiles` describes a pyramid that is served: level 0 is the
+/// whole window render and the deepest level tiles it at full resolution.
+#[tokio::test]
+async fn a_window_serves_the_tile_pyramid_its_body_describes() {
+    let (gx, gy) = RIVER;
+    let q = format!("gx0={gx}&gy0={gy}&w=2&h=1&ppsq=32");
+    let body = get(&format!("/v1/tactical/window?{q}")).await.json();
+    let t = &body["tiles"];
+    assert_eq!(t["ppsq"], 32);
+    assert_eq!(t["image_width_px"], 128 * 32);
+    assert_eq!(t["image_height_px"], 64 * 32);
+    let z = t["max_zoom"].as_u64().unwrap();
+    let whole = get(&format!("/v1/tactical/window/tiles/0/0/0.webp?{q}")).await;
+    assert_eq!(whole.status, StatusCode::OK);
+    assert_eq!(header(&whole, "content-type"), "image/webp");
+    let deep = get(&format!("/v1/tactical/window/tiles/{z}/7/3.webp?{q}")).await;
+    assert_eq!(deep.status, StatusCode::OK, "{t}");
+    let outside = get(&format!("/v1/tactical/window/tiles/{z}/8/0.webp?{q}")).await;
+    assert_eq!(outside.status, StatusCode::NOT_FOUND);
+    let png = get(&format!("/v1/tactical/window/tiles/0/0/0.png?{q}")).await;
+    assert_eq!(png.status, StatusCode::NOT_FOUND);
+    let no_window = get("/v1/tactical/window/tiles/0/0/0.webp?gx0=1").await;
+    assert_eq!(no_window.error_code(), "bad_request");
+}
+
 /// logic/16 Invariant 5: the edge pixels of two independently rendered
 /// neighbouring cells equal the same pixels of the 2 × 1 window render.
 #[tokio::test]

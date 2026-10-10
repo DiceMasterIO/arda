@@ -82,7 +82,7 @@ pub fn parse_npc(text: &str) -> ServerResult<NpcKey> {
     }
 }
 
-/// Parses `/v1/buildings/{id}`: `"<s>.<b>"`, or a bare building id with
+/// Parses `/v1/buildings/{building}`: `"<s>.<b>"`, or a bare building id with
 /// the settlement given separately.
 ///
 /// # Errors

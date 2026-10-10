@@ -16,10 +16,15 @@ use crate::dto::{
 use crate::error::{ApiError, ApiErrorBody, NotYetError, ServerError, ServerResult};
 use crate::npc_dto as npc;
 use crate::npcs::dto::{NpcEntry, NpcPage};
+use crate::schema::{SchemaIndex, SchemaIndexEntry};
 use crate::tactical::dto::{
     AssetClassDto, AssetRefDto, EdgeAxisDto, LightSourceDto, PlacementDto, SquareDto,
     TacticalBlockDto, TacticalLayoutDto, TacticalLayoutSummary, TacticalLayouts, TacticalTilesDto,
     WallRoleDto, WallSegmentDto,
+};
+use crate::tactical::dungeon_dto::{
+    DungeonDoorDto, DungeonDto, DungeonExitDto, DungeonExitKindDto, DungeonKindDto,
+    DungeonParamsDto, DungeonRoomDto, RoomPurposeDto,
 };
 use crate::tactical::library_dto::{GroundKeyDto, LibraryAssetDto, TacticalLibraryDto, WallKitDto};
 use crate::tactical::prefetch::{PrefetchAccepted, PrefetchCell, PrefetchRequest, PrefetchStatus};
@@ -195,6 +200,16 @@ exported!(
     TokenKind,
     Token,
     TacticalScene,
+    DungeonKindDto,
+    DungeonParamsDto,
+    RoomPurposeDto,
+    DungeonRoomDto,
+    DungeonDoorDto,
+    DungeonExitKindDto,
+    DungeonExitDto,
+    DungeonDto,
+    SchemaIndexEntry,
+    SchemaIndex,
 );
 
 #[cfg(test)]

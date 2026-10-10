@@ -3,9 +3,11 @@
 //! - `GET /v1/tactical/cell/{gx}/{gy}[?ppsq&demo_overlays&demo_at]`: JSON;
 //! - `GET /v1/tactical/cell/{gx}/{gy}.png[?ppsq&grid&demo_overlays&demo_at]`;
 //! - `GET /v1/tactical/cell/{gx}/{gy}/tiles/{z}/{x}/{y}.webp[?…]`;
-//! - `GET /v1/tactical/window?gx0&gy0&w&h[&…]` (JSON) and
-//!   `GET /v1/tactical/window.png?…`, up to 3 × 3 cells, or by squares
-//!   with `?gsx&gsy&w&h` (for example a 32 × 32 quarter block);
+//! - `GET /v1/tactical/window?gx0&gy0&w&h[&…]` (JSON),
+//!   `GET /v1/tactical/window.png?…` and
+//!   `GET /v1/tactical/window/tiles/{z}/{x}/{y}.webp?…` (the pyramid the
+//!   JSON's `tiles` describes), up to 3 × 3 cells, or by squares with
+//!   `?gsx&gsy&w&h` (for example a 32 × 32 quarter block);
 //! - `GET /v1/tactical/library`: the catalogue summary.
 //!
 //! `world_grade=1` (opt-in, goal 49) pulls the images' ground and water
@@ -290,6 +292,47 @@ pub(super) async fn window(
         &detail,
         out,
         "application/json",
+        start,
+    ))
+}
+
+/// `GET /window/tiles/{z}/{x}/{y}.webp`: the pyramid that `/window`'s
+/// `tiles` describes, cut from the `/window.png` render (same key).
+pub(super) async fn window_tile(
+    State(state): Shared,
+    headers: HeaderMap,
+    path: Segments,
+    query: Params,
+) -> ServerResult<Response> {
+    let start = Instant::now();
+    let p = segments(path, 3)?;
+    let y_text = p[2]
+        .strip_suffix(".webp")
+        .ok_or_else(|| ServerError::NotFound("tactical tiles are served as {y}.webp".into()))?;
+    let zxy = (
+        parse::<u32>("z", &p[0])?,
+        parse::<u32>("x", &p[1])?,
+        parse::<u32>("y", y_text)?,
+    );
+    let q = params(query)?;
+    let o = opts(&q, &WINDOW_PPSQ, WINDOW_DEFAULT_PPSQ)?;
+    let req = window_request(&state, &q, &o)?;
+    let (_, world) = extent(&state);
+    let detail = format!(
+        "window {},{} {}x{} tile {}/{}/{} ppsq={}",
+        req.gsx0, req.gsy0, req.w, req.h, zxy.0, zxy.1, zxy.2, o.ppsq
+    );
+    let pg = (o.ppsq, o.grid, o.world_grade);
+    let out = blocking(state, move |s| {
+        s.tactical.world_tile_look(&req, world, pg, zxy)
+    })
+    .await?;
+    Ok(send(
+        &headers,
+        "window.tile",
+        &detail,
+        out,
+        "image/webp",
         start,
     ))
 }
