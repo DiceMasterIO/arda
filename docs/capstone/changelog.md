@@ -2,6 +2,14 @@
 generated_date: 2026-08-24
 ---
 
+## 2026-10-10 - open-items: open work only
+key: open-items/prune@0b02525
+
+- `open-items.md`: removed finished items OI-01, OI-07–OI-11, OI-13, OI-15, OI-17–OI-27, the milestone log, implemented-work table, verification receipts, delivery-order table, coverage table and historical inventories (1,247 → ~350 lines).
+- Kept: current state table, remaining scope, OI-02–06, 12, 14, 16, 28–31, OI-32–46 and scope boundaries.
+- OI-21, 22, 23, 26 and 27 removed as done on Arda's side; their remainders are OI-39, OI-42, OI-44 and OI-45 or belong to DiceMaster.
+- `00-index.md`: open-items row describes the open-only scope.
+
 ## 2026-10-10 - open-items: DiceMaster map changes
 key: open-items/dicemaster-map-changes@59edbb1
 
