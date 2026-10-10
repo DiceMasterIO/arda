@@ -2,6 +2,13 @@
 generated_date: 2026-08-24
 ---
 
+## 2026-10-10 - open-items: DiceMaster map changes
+key: open-items/dicemaster-map-changes@59edbb1
+
+- `open-items.md`: OI-44 (background bake route returning tiles, uncached), OI-45 (effect textures, damage decals and props), OI-46 (realm names over HTTP).
+- Decision: Arda's map is the same for every campaign; campaign changes are DiceMaster records merged over Arda's layers and drawn by DiceMaster.
+- Decision: lasting changes are baked once in the background and stored by the client; `POST /v1/tactical/render` is not used for per-campaign maps.
+
 ## 2026-10-10 - map: all
 key: map/all@022ce7cb5707
 

@@ -18,7 +18,7 @@ paths_covered:
 
 # Implementation status and open items
 
-Earlier absorbed feature records: `features/2026-09-23-terrain-corrections@2026-09-23`, `features/2026-09-07-area-water-terrain-realism@2026-09-08`, `features/2026-09-22-geographical-rendering-first-pass@2026-09-22`. The previous refresh was stamped `14a70b9144dd` (2026-09-25). Releases v0.2.0 through v0.8.1 shipped after that stamp (`CHANGELOG.md`). Each work-queue item below now carries an **Audit `022ce7cb5707`** line that records its state at this commit. Items OI-32 to OI-43 are new.
+Earlier absorbed feature records: `features/2026-09-23-terrain-corrections@2026-09-23`, `features/2026-09-07-area-water-terrain-realism@2026-09-08`, `features/2026-09-22-geographical-rendering-first-pass@2026-09-22`. The previous refresh was stamped `14a70b9144dd` (2026-09-25). Releases v0.2.0 through v0.8.1 shipped after that stamp (`CHANGELOG.md`). Each work-queue item below now carries an **Audit `022ce7cb5707`** line that records its state at this commit. Items OI-32 to OI-46 are new.
 
 ## Current status — accepted fine-terrain look delivered at 32K
 
@@ -342,7 +342,7 @@ rendering while human geography is being built.
 | G — playable delivery at scale | OI-24–OI-28 | Coverage, bounded loading, serving and a working DiceMaster scene within measured budgets. |
 | H — acceptance and distribution | OI-29–OI-30 | Reproducible quality reports, full CI and verified release artifacts. Checks also accompany every earlier milestone. |
 | I — expand content | OI-31 | More environments and building families meet the same acceptance bar. |
-| J — recorded 2026-10-10 | OI-32–OI-43 | Open items visible in the repo at `022ce7cb5707`. Each row in the table below states what exists and what does not. |
+| J — recorded 2026-10-10 | OI-32–OI-46 | Open items visible in the repo at `022ce7cb5707`. Each row in the table below states what exists and what does not. |
 
 ### OI-01 — Fix the Windows golden-text comparison
 
@@ -1026,6 +1026,9 @@ These items were added in the 2026-10-10 audit. Each records what exists and wha
 | OI-41 | Coast and wetland tuning | Biome signals use fixed thresholds: `MARSH_WETNESS = (0.8, 0.98)` on slopes under 4–12°, `SEA_LEVEL_M = (0.02, 0.6)` from height alone, and the treeline and snow constants (`crates/arda-refine/src/biome.rs:13-27`, `:40-52`). Ground weights are in `crates/arda-refine/src/prior.rs:140-178`. Fixture tests: `crates/arda-refine/tests/biome.rs`. The normative table states "All weights assumed, tunable" (`docs/capstone/logic/09-tactical-refinement.md:116`). Towns build over at most 1 ft of base water in their footprint (`CHANGELOG.md` 0.8.0, commit `a27b9e9`). | Calibration of marsh, pool or coast fractions against world statistics. The coastal signal does not read distance to the sea or `shore.bin`. |
 | OI-42 | Multi-world serving | One `--world <dir>` per process (`crates/arda-server/src/main.rs:1-2`, `:16-19`). | Multiple worlds per process, or a world id in any `/v1` route (`crates/arda-server/src/routes.rs:29-59`). Image cache-control assumes URLs that do not name the world (`crates/arda-server/src/routes.rs:139-143`). |
 | OI-43 | Sampled block archive still written | `SKELETON_BLOCK_STRIDE = 64` (`crates/arda-gen/src/orchestrator.rs:73-77`) and `blocks/<area>.tiles.zst` (`crates/arda-gen/src/orchestrator/final_writes.rs:144-165`), read by `World::block` (`crates/arda/src/world.rs:364-384`) and `arda export --block` (`crates/arda-cli/src/main.rs:110-113`). | A consumer in `arda-server` or the tactical pipeline. Served tactical maps come from `arda-blocks` (OI-24). |
+| OI-44 | Background bake of changed cells | `POST /v1/tactical/render` paints a posted layout with a world `origin` (`crates/arda-server/src/tactical/routes.rs:43`); it renders in the request lane, caches the result in the shared render cache and returns one image (`crates/arda-server/API.md` § `POST /v1/tactical/render`). | A bake route (`POST /v1/tactical/bake`) that runs in a background lane like prefetch, skips the shared caches, works as a job (id, then fetch) and returns the WebP tile set, for a client that stores the result itself. |
+| OI-45 | Effect and damage art | The asset library holds ground, wall, prop and light art (`assets/tactical/placeholder/catalog.json`; `tools/art-gen/prompts.json` tiers 0–5). | Transparent effect textures (frost, fire, scorch, acid, ash, web, grease, fog, water) and damage decals and props (charred floor, rubble, broken deck), listed by `GET /v1/tactical/library` (`crates/arda-server/src/tactical/routes.rs:54`). |
+| OI-46 | Realm names over HTTP | `society/realms.json` holds each realm's name, gloss, seat, culture and settlements (written by `arda settle`); settlement records carry `realm_id`. | A route serving realms (`GET /v1/realms`); no `/v1` route reads `realms.json` (`crates/arda-server/src/routes.rs:28-65`). |
 
 ### Scope boundaries and conditional extensions
 
