@@ -13,7 +13,7 @@ Code cites rules as `// logic/14 §<rule>`.
 
 ## Trigger & preconditions
 
-- Trigger: `arda-society generate --world <dir>` after `arda-settle` (a second post-pass), or the library call `society(world, seed)`.
+- Trigger: `arda society build --world <dir>` after `arda settle` (a second post-pass; `crates/arda-cli/src/main.rs:136`, see [21-society-build](21-society-build.md)), or the library call `society(world, seed)`.
 - Preconditions: `society/settlements.json`, `realms.json`, `roads.json` and `features.json` exist with `format_version` 1 (08 Outcomes). The world seed is the manifest's.
 
 ## Rules

@@ -32,7 +32,7 @@ Three independent version numbers, each carried in the bodies that depend on it:
 
 | Family | Field | Current | Bumps when |
 |---|---|---|---|
-| world cell contract | `contract_version` | 1 → **2** with this spec | a field's meaning, unit or presence changes |
+| world cell contract | `contract_version` | 1 → 2 with this spec, **3** with §api-cell-society contract 3 (`crates/arda-server/src/contract/mod.rs:31`) | a field's meaning, unit or presence changes |
 | tactical response | `tactical_format` | 1 | the `TacticalBlock` or `TacticalScene` envelope changes (the envelope carries the service-added `origin_gs` and `tokens`) |
 | scene | `scene.format_version` | 1 | the `arda-scene` schema changes (12) |
 | layout schema | `layout_schema` | 1 | `TacticalLayout` changes meaning (the planned optional `origin` field is additive and does not bump it) |

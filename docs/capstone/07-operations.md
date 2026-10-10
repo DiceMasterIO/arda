@@ -1,590 +1,186 @@
 ---
-generated_at_commit: 14a70b9144dd
-generated_date: 2026-09-23
-content_hash: e66e1bae74c8
-paths_covered: [":(top)Cargo.toml", ":(top)crates/*/Cargo.toml", ":(top)crates/*/src/**", ":(top)Dockerfile", ":(top).github/**", ":(top)rust-toolchain.toml", ":(top)deny.toml", ":(top)crates/*/examples/**"]
-absorbed_from: features/2026-09-07-area-water-terrain-realism@2026-09-08, features/2026-09-22-geographical-rendering-first-pass@2026-09-22, features/2026-09-23-terrain-corrections@2026-09-23
+generated_at_commit: 022ce7cb5707
+generated_date: 2026-10-10
+capstone_version: 7.0.1
+content_hash: aa5464971e03
+paths_covered:
+  - ":(top)Cargo.toml"
+  - ":(top)crates/*/Cargo.toml"
+  - ":(top)Dockerfile"
+  - ":(top).github/**"
+  - ":(top)rust-toolchain.toml"
+  - ":(top)CHANGELOG.md"
+  - ":(top).gitattributes"
+  - ":(top)crates/arda-cli/src/**"
+  - ":(top)crates/arda-server/src/**"
+  - ":(top)crates/arda-settle/src/main.rs"
+  - ":(top)crates/arda-town/src/main.rs"
+  - ":(top)crates/arda-town/src/plan/mod.rs"
+  - ":(top)crates/arda-refine/src/bin/**"
+  - ":(top)crates/arda-midzoom/src/bin/**"
+  - ":(top)crates/*/tests/**"
+  - ":(top)crates/*/examples/**"
+  - ":(top)tests/**"
+  - ":(top)apps/viewer/package.json"
+  - ":(top)apps/viewer/vite.config.ts"
+  - ":(top)apps/viewer/src/config.ts"
+  - ":(top)apps/viewer/src/api/client.ts"
+  - ":(top)tools/art-gen/generate.mjs"
+  - ":(top)tools/art-gen/test/**"
 ---
 
 # Operations
 
-> Evidence consolidated on September 25: the [study](features/2026-09-23-terrain-corrections/STUDY.md) and [experiment catalogue](features/2026-09-23-terrain-corrections/EXPERIMENTS.md) replace the raw terrain-corrections archive. Historical filenames below identify removed experiments; current evidence links lead to their retained summaries. Original/final worlds and the 32K output remain under `out/terrain-delivery/`.
-
-
 ## Processes
 
-| Process | Local command | Container command |
-|---|---|---|
-| Generate | `cargo run -p arda-cli --release -- generate --seed 42 --micro --out /tmp/arda-world` | `docker run --rm -v /host/worlds:/worlds arda-local generate --seed 42 --micro --out /worlds/w42` |
-| Preview | `cargo run -p arda-cli --release -- preview --seed 42 --micro --out /tmp/arda-preview` | Same image and volume; `preview --seed 42 --micro --out /worlds/preview` |
-| Export | `cargo run -p arda-cli --release -- export --world /tmp/arda-world --area 0,0 --format png --out /tmp/arda-export` | Same image; `export --world /worlds/w42 --overview --out /worlds/export` |
+Six Rust binaries plus the viewer dev server and the art tool. All Rust binaries run to completion except `arda-server`, which serves until Ctrl-C (`crates/arda-server/src/main.rs:86`-`crates/arda-server/src/main.rs:88`).
 
-Commands resolve to [main.rs:23](../../crates/arda-cli/src/main.rs:23)
-and run to completion. `generate` writes world data, including sampled tactical
-blocks, without rendering PNGs. `preview` generates a new world under its output
-directory and then renders an overview. `export` reads an existing world without
-rerunning terrain or water. Build the local image with
-`docker build -t arda-local .`; host-mounted destinations must be writable by the
-container's UID 10001. `serve` remains absent from the command enum.
-Source: [lib.rs:21](../../crates/arda/src/lib.rs:21),
-[Dockerfile:1](../../Dockerfile:1).
+| Process | Binary (manifest) | Local command | Container command | Depends on |
+|---|---|---|---|---|
+| World CLI | `arda` (`crates/arda-cli/Cargo.toml:9`) | `cargo run -p arda-cli --release -- generate --seed 42 --micro --out out/micro42` | `docker run --rm -v /host/worlds:/worlds arda-local generate --seed 42 --micro --out /worlds/w42` (`Dockerfile:9`-`Dockerfile:11`) | Filesystem only |
+| HTTP server | `arda-server` (`crates/arda-server/Cargo.toml:12`) | `cargo run -p arda-server --release -- --world out/micro42` | None: the image ships only `arda` (`Dockerfile:4`, `Dockerfile:8`) | A generated world directory; tactical library (default `assets/tactical/placeholder`, `crates/arda-server/src/tactical/mod.rs:50`), validated at startup |
+| Settlements | `arda-settle` (`crates/arda-settle/Cargo.toml:31`) | `cargo run -p arda-settle --release -- generate --world out/micro42` | None | A generated world |
+| Town planner | `arda-town` (`crates/arda-town/Cargo.toml:12`) | `cargo run -p arda-town -- info --site aldermere` | None | Built-in sample sites; tactical library for `block` |
+| Tactical refinement | `arda-refine` (`crates/arda-refine/Cargo.toml:9`) | `cargo run -p arda-refine --release -- survey --world out/micro42` | None | A generated world |
+| Mid-zoom relief | `arda-midzoom` (`crates/arda-midzoom/Cargo.toml:9`) | `cargo run -p arda-midzoom --release -- --world out/micro42 --z 4 --center 50000,100000 --out /tmp/mz.png` | None | A generated world; optional `society/` |
+| Viewer | Vite (`apps/viewer/package.json:9`) | `cd apps/viewer && npm ci && npm run dev` (port 5173, `apps/viewer/vite.config.ts:16`) | None | A running `arda-server`, default base `http://localhost:8787` (`apps/viewer/src/api/client.ts:52`) |
+| Art generation | `node tools/art-gen/generate.mjs` | `node tools/art-gen/generate.mjs --only "ground.grass.*" --limit 3 --dry-run` (`tools/art-gen/generate.mjs:5`) | None | A local Slopify for real runs (`tools/art-gen/generate.mjs:21`); output feeds `arda tactical import` |
+
+The world pipeline order is `arda generate` → `arda settle` (writes `<world>/society/`, `crates/arda-cli/src/main.rs:129`) → `arda society build` (writes `society.json`, `notables.json`, `crates/arda-cli/src/society.rs:17`-`crates/arda-cli/src/society.rs:20`). Process stdout carries a one-line banner and summaries; every binary prints errors as `<binary>: <error>` on stderr and exits non-zero (`crates/arda-server/src/main.rs:98`, `crates/arda-settle/src/main.rs:71`, `crates/arda-refine/src/bin/arda-refine.rs:79`).
+
+### `arda` subcommands and flags
+
+Defined in `crates/arda-cli/src/main.rs:34`.
+
+| Subcommand | Flag | Default | Site |
+|---|---|---|---|
+| `generate` | `--seed` | required | `crates/arda-cli/src/main.rs:39` |
+| | `--size WxH` km | `500x1000` | `crates/arda-cli/src/main.rs:41` |
+| | `--micro` | off (8-area MICRO continent) | `crates/arda-cli/src/main.rs:45` |
+| | `--out` | required | `crates/arda-cli/src/main.rs:48` |
+| | `--terrain legacy\|fine` | `legacy` | `crates/arda-cli/src/main.rs:51` |
+| | `--recipe 4..=8` | recipe 7 in fine mode; fine only | `crates/arda-cli/src/main.rs:57` |
+| | `--latitude S,N` | `35,55` | `crates/arda-cli/src/main.rs:61` |
+| | `--fine-ram-bytes` / `--fine-file-bytes` | 16 GiB / 4 GiB; rejected with `legacy` (`crates/arda-cli/src/generate.rs:76`) | `crates/arda-cli/src/main.rs:64`-`crates/arda-cli/src/main.rs:68` |
+| `preview` | `--seed`, `--size`, `--micro`, `--out` | as `generate`; writes `world/` and `overview.png` | `crates/arda-cli/src/main.rs:73` |
+| | `--px 1..=512` | absent; conflicts with `--quality`, `--style` | `crates/arda-cli/src/main.rs:84` |
+| | `--quality` | `8k` (512–32768 px or `1k`–`32k`) | `crates/arda-cli/src/main.rs:87` |
+| | `--style classic\|atlas\|atlas-oblique` | Classic | `crates/arda-cli/src/main.rs:91`, `crates/arda-cli/src/main.rs:157` |
+| `export` | `--world`, `--out` | required | `crates/arda-cli/src/main.rs:100`, `crates/arda-cli/src/main.rs:125` |
+| | `--area ax,ay` | `0,0` | `crates/arda-cli/src/main.rs:103` |
+| | `--format png\|json` | `png` | `crates/arda-cli/src/main.rs:106` |
+| | `--overview` | off | `crates/arda-cli/src/main.rs:109` |
+| | `--block ax,ay,cx,cy` | absent | `crates/arda-cli/src/main.rs:113` |
+| | `--detail` (4096² area PNG) | off; conflicts with overview/block/quality | `crates/arda-cli/src/main.rs:116` |
+| | `--quality`, `--style` | `8k`, Classic; `atlas-oblique` overview only (`crates/arda-cli/src/main.rs:200`) | `crates/arda-cli/src/main.rs:119`, `crates/arda-cli/src/main.rs:122` |
+| `settle` | `--world` | required | `crates/arda-cli/src/main.rs:132` |
+| `society build` | `--world` | required | `crates/arda-cli/src/society.rs:23` |
+| `tactical validate` | `<dir>` (library or `top:…:bottom` stack) | required | `crates/arda-cli/src/tactical.rs:16` |
+| `tactical import` | `<raw_dir>`, `--out`, `--manifest`, `--base` (`assets/tactical/placeholder`), `--no-base`, `--reference`, `--grade-strength`, `--contact-sheet` | as listed | `crates/arda-cli/src/tactical_import.rs:11` |
+| `tactical placeholders` | `--out`, `--seed` | `assets/tactical/placeholder`, 58 (`crates/arda-tactical/src/placeholders/mod.rs:31`) | `crates/arda-cli/src/tactical.rs:23` |
+| `tactical render` | `--layout` (built-in name, `all`, or JSON path), `--library`, `--ppsq`, `--out`, `--seed`, `--grid`, `--no-lighting`, `--no-grade` | layout required; `assets/tactical/placeholder`, 128, `out/tactical`, 1 | `crates/arda-cli/src/tactical.rs:32` |
+| `dungeon` | `--seed`, `--kind dungeon\|cave`, `--size WxH` (16–160), `--out`, `--rules`, `--meta`, `--scene`, `--render`, `--library`, `--ppsq`, `--grid` | 1, `dungeon`, `48x36`, `out/dungeon/layout.json`, …, `assets/tactical/placeholder`, 128 | `crates/arda-cli/src/dungeon.rs:19` |
+
+### `arda-server` flags
+
+Defined in `crates/arda-server/src/main.rs:16`; routes are nested under `/v1` (`crates/arda-server/src/routes.rs:61`).
+
+| Flag | Default | Site |
+|---|---|---|
+| `--world` | required | `crates/arda-server/src/main.rs:19` |
+| `--port` | 8787 | `crates/arda-server/src/main.rs:22` |
+| `--host` | `127.0.0.1` | `crates/arda-server/src/main.rs:25` |
+| `--area-cache-mib` | 1024 | `crates/arda-server/src/main.rs:28` |
+| `--fine-cache-mib` | 512 | `crates/arda-server/src/main.rs:31` |
+| `--max-overview-px` | 8192 | `crates/arda-server/src/main.rs:34` |
+| `--tile-base-px` | 4096 | `crates/arda-server/src/main.rs:37` |
+| `--library` | `assets/tactical/placeholder` | `crates/arda-server/src/main.rs:41` |
+| `--header-timeout-s` | 10 | `crates/arda-server/src/main.rs:44` |
+| `--max-connections` | 64 | `crates/arda-server/src/main.rs:47` |
+| `--prefetch-workers` | 2 (`crates/arda-server/src/tactical/prefetch.rs:37`); 0 disables | `crates/arda-server/src/main.rs:50` |
+| `--sheet-mapping` | absent; a bad file refuses startup | `crates/arda-server/src/main.rs:54` |
+
+### Other binaries
+
+| Binary | Subcommand / flags | Defaults | Site |
+|---|---|---|---|
+| `arda-settle` | `generate --world` | memory budget 16 GiB (`crates/arda-settle/src/grid.rs:15`) | `crates/arda-settle/src/main.rs:20` |
+| | `render --world --out [--quality] [--full-frame]` | quality 2048 | `crates/arda-settle/src/main.rs:26` |
+| `arda-town` | `render --site --out [--seed] [--px]` | seed 42, px 0 (auto ~1600 px) | `crates/arda-town/src/main.rs:23` |
+| | `block --site [--window x,y,w,h \| --focus NAME] [--size] --out [--library] [--seed] [--ppsq] [--grid] [--json]` | size 64, `assets/tactical/placeholder`, seed 42, ppsq 48 | `crates/arda-town/src/main.rs:38` |
+| | `info --site [--seed]`; `export --site --out [--seed]` | seed 42; sites `aldermere`, `thornby`, `highcrag`, `saltwick` | `crates/arda-town/src/main.rs:74`, `crates/arda-town/src/main.rs:83` |
+| `arda-refine` | `render --world --cell gx,gy [--window WxH] --out [--json] [--scale]` | window 1x1, scale 12 | `crates/arda-refine/src/bin/arda-refine.rs:22` |
+| | `stats --world --cell`; `survey --world` | none | `crates/arda-refine/src/bin/arda-refine.rs:43`, `crates/arda-refine/src/bin/arda-refine.rs:52` |
+| `arda-midzoom` | `--world --z --center x,y [--size] [--base-px] --out [--plain] [--tiles k]` | size 512, base 4096 | `crates/arda-midzoom/src/bin/arda-midzoom.rs:12` |
 
 ## Configuration
 
-Application configuration uses CLI arguments or `GenerateConfig`, with explicit
-library resource limits. There is no application-owned runtime environment
-configuration. Compile-time `CARGO_PKG_VERSION` labels the manifest and CLI;
-third-party runtime controls such as `RAYON_NUM_THREADS` are distinct from saved
-world configuration. Source:
-[main.rs:17](../../crates/arda-cli/src/main.rs:17),
-[orchestrator.rs:518](../../crates/arda-gen/src/orchestrator.rs:518).
+Runtime configuration is CLI flags only; no binary reads a config file from a fixed or implicit location (files such as `--sheet-mapping` or `--manifest` are passed explicitly). Compile-time `CARGO_PKG_VERSION` labels banners and manifests (`crates/arda-cli/src/main.rs:240`, `crates/arda-server/src/main.rs:81`). `GenerateConfig` validates size 64–4000 km per axis, latitude band, and density 1–200 people/km² (`crates/arda-core/src/config.rs:10`-`crates/arda-core/src/config.rs:13`, `crates/arda-core/src/config.rs:83`-`crates/arda-core/src/config.rs:100`). No variable matching `*_SECRET`, `*_TOKEN`, `*_PASSWORD` or `*_KEY` is read anywhere in the repository.
 
-| Name | Default | Consumer | Documentation |
+| Name | Default | Consuming code | Documented where |
 |---|---|---|---|
-| --seed | required | generate/preview | `crates/arda-cli/src/main.rs:23` |
-| --size | 500x1000 km | generate/preview | `crates/arda-cli/src/main.rs:23` |
-| --micro | false; selects 102×204 km MICRO, overriding --size | generate/preview | `crates/arda-cli/src/main.rs:23` |
-| latitude / density | 35–55°N / 15 people per km² | CLI construction; other values through library config | `crates/arda-core/src/config.rs:68` |
-| --quality | 8192 (8K); any integer 512–32768 pixels or integer k/K suffix, where 1K = 1024 | preview overview; export area/overview PNG | `crates/arda-cli/src/main.rs`, `crates/arda-render/src/quality.rs` |
-| --style | omitted = Classic; explicit `classic` or `atlas` | preview and saved area/overview PNGs, including area `--detail` | `crates/arda-cli/src/main.rs:55` |
-| --px | absent; legacy 1–512 pixels per area when supplied | preview overview; conflicts with --quality and explicit --style | `crates/arda-cli/src/main.rs` |
-| --area | 0,0 | export area, unless block/overview | `crates/arda-cli/src/main.rs:23` |
-| --format | png; choices png/json | export area/block | `crates/arda-cli/src/main.rs:85` |
-| --detail | false; 4096×4096 area PNG; Classic uses `_detail`, Atlas uses the standard filename | export; rejected with JSON, overview, block or --quality | `crates/arda-cli/src/main.rs` |
-| --overview | false | export saved world overview | `crates/arda-cli/src/main.rs:23` |
-| --block | absent; ax,ay,cx,cy | export one saved sampled land block | `crates/arda-cli/src/main.rs:23` |
-| --out / --world | required where applicable | command enum | `crates/arda-cli/src/main.rs:23` |
+| `ARDA_BLESS` | unset | Rewrites root golden fixtures instead of comparing (`tests/golden_world.rs:82`, `tests/golden_recipes.rs:102`) | Panic message in the same files |
+| `ARDA_BLESS_BINDINGS` | unset | Rewrites `bindings/ts/arda` and the served JSON Schemas (`crates/arda-server/src/bindings.rs:208`, `crates/arda-server/src/schema/tests.rs:7`) | `apps/viewer/README.md:77` |
+| `ARDA_BLESS_DUNGEON` | unset | Rewrites dungeon golden (`crates/arda-dungeon/tests/levels.rs:215`) | Panic message there |
+| `ARDA_TEST_WORLD`, `ARDA_TEST_WORLD_<seed>` | unset → tests build a fixture under `target/` | `crates/arda-blocks/tests/settlements.rs:35`, `crates/arda-people/tests/interiors.rs:39`, `crates/arda-settle/tests/micro.rs:25`, `crates/arda-settle/tests/realms_micro.rs:22` | None beyond code |
+| `ARDA_SERVER_TEST_WORLD` | unset → built fixture | `crates/arda-server/tests/world_api/support.rs:35`, `crates/arda-server/tests/world_api/schemas.rs:199` | None beyond code |
+| `ARDA_MIDZOOM_TEST_WORLD` | unset → built fixture | `crates/arda-midzoom/tests/world.rs:36` | None beyond code |
+| `ARDA_ZOOM_WORLD`, `ARDA_ZOOM_ARID_WORLD` | unset → built fixture | `tests/zoom_continuity.rs:164`, `tests/zoom_continuity.rs:235` | None beyond code |
+| `ARDA_WORLD` | required by that test | `crates/arda-people/tests/town_wfc.rs:12` | None beyond code |
+| `ARDA_REFINE_WORLD` | `../../out/micro42` | `crates/arda-refine/tests/real_world.rs:17` | None beyond code |
+| `ARDA_COAST_MEASUREMENT_OUT` | required by that test | `crates/arda-gen/tests/coast_measurement.rs:111` | None beyond code |
+| `ARDA_SOCIETY_TILES` | test default | `crates/arda-society/tests/scale.rs:82` | None beyond code |
+| `ARDA_TOWN_DEBUG` | unset | Town planner debug output (`crates/arda-town/src/plan/mod.rs:308`) | None beyond code |
+| `SINKS`, `LAKES`, `PLAN_ID` | unset | Diagnostic examples (`crates/arda-gen/examples/water_diag.rs:32`, `crates/arda/examples/water_metrics.rs:151`, `crates/arda-server/examples/tactical_timing.rs:35`) | None beyond code |
+| `VITE_ARDA_API` | `http://localhost:8787`, after `?api=` and localStorage (`apps/viewer/src/config.ts:10`-`apps/viewer/src/config.ts:19`) | Viewer API base | `apps/viewer/README.md:57` |
+| `SLOPIFY_URL` | `http://127.0.0.1:6969`; `--server` overrides | `tools/art-gen/generate.mjs:21` | `tools/art-gen/generate.mjs:108` |
+| `SLOPIFY_DIR` | `../slopify` | art-gen tests against Slopify's code (`tools/art-gen/test/art-gen.test.mjs:28`) | `tools/art-gen/README.md:249` |
 
-Area PNGs use the selected quality for both axes. Overview PNGs use it for the
-long edge and round the shorter edge to the nearest pixel from the saved area-grid
-aspect ratio. Preview also defaults to an 8192-pixel long edge; explicit `--px`
-selects the older per-area sizing. Explicit `--quality` is rejected with JSON or
-blocks before world loading/output creation; ordinary JSON exports without it
-retain their existing behavior. Explicit `--style` with JSON or a tactical block
-is rejected before world loading or output-directory creation. Preview `--px`
-conflicts with explicit `--style`; Atlas preview uses `--quality` or its default.
-Unknown style names fail CLI parsing. Source:
-[main.rs:55](../../crates/arda-cli/src/main.rs:55),
-[main.rs:123](../../crates/arda-cli/src/main.rs:123).
-
-For an existing world, append `--style atlas` to either
-`export --world /tmp/arda-world --overview --out /tmp/atlas-overview` or
-`export --world /tmp/arda-world --area 2,0 --quality 8k --out /tmp/atlas-area`.
-Use separate output directories to retain a Classic comparison: both styles
-use `overview.png` or `area_XX_YY.png` for quality exports. The retained
-[comparison panel](features/2026-09-22-geographical-rendering-first-pass/evidence/index.md)
-shows actual saved-world output; extra PNG pixels still interpolate the same
-100 m terrain and do not supply forests, roads or settlements.
-
-Valid sizes are 64–4000 km per axis; latitude lies within −80° to 80° with south
-strictly below north; density is 1–200 people/km². Loading revalidates the saved
-config, exported dimensions and derived modeled extent rather than trusting
-deserialized fields. The CLI has no config-file, memory-limit or serve-port flag.
-Source: [config.rs:83](../../crates/arda-core/src/config.rs:83),
-[world.rs:88](../../crates/arda/src/world.rs:88).
-
-## Generation boundaries and capacities
-
-Each exported area is 512² cells of 100 m. The existing area-count calculation
-uses integer 51 km units; shared water therefore models the union rectangle with
-each axis `max(requested_km × 10, exported_area_count × 512)`. Default 500×1000 km
-has 171 exported areas and 200 prepared tiles covering 5000×10000 fine cells;
-MICRO has eight areas covering 1024×2048 fine cells (102.4×204.8 km). Partial
-right/bottom hydrology-only tiles affect upstream flow and reentry but produce no
-extra final area. Climate sampling clamps at the available coarse rim when this
-union preserves an existing exported overshoot. Source:
-[prepared_domain.rs:29](../../crates/arda-gen/src/hydrology/prepared_domain.rs:29),
-[forcing_sample.rs:37](../../crates/arda-gen/src/hydrology/forcing_sample.rs:37).
-
-Generation evolves one complete modeled physical rectangle, persists immutable
-area/fringe slices, releases the dense surface, solves shared annual water once,
-indexes global features, then composes areas. Initial relief uses the radial
-continent mask and four aligned area-detail lattice spacings of 40/20/10/5 cells.
-Absolute-coordinate integer structural relief from 8 and 4 km lattice spacings
-is added to the initial physical bed where the range of coarse heights at eight
-roughly 5 km offsets exceeds 400 m, reaching full strength at 2,000 m. The
-160 shared evolution iterations carry uplift, fractional contributing area,
-creep and collapse across area cuts; implicit downstream-first incision uses
-updated receiver beds. Only the actual modeled outer rim remains fixed. Sources:
-[prepare.rs](../../crates/arda-gen/src/area/prepare.rs),
-[evolution.rs](../../crates/arda-gen/src/area/evolution.rs),
-[coast.rs](../../crates/arda-gen/src/continent/coast.rs),
-[area_detail.rs](../../crates/arda-gen/src/continent/area_detail.rs),
-[structural_relief.rs](../../crates/arda-gen/src/continent/structural_relief.rs).
-
-Fine marine connectivity is separate
-from a negative inland bed. Annual supply is `P`; annual Hamon evaporation `E` is
-the sum of twelve climatological months; land loss `A = min(P/2,E)`, runoff
-`R = P−A`, extra wet cost `D = E−A`. Partially supported shore bands use an explicit
-marginal evaporation account and integer-mm representative surfaces. These
-values describe a static annual-support model, not seasonal storage, elapsed
-filling, groundwater or snow inventories. Source:
-[annual_aggregation.rs:53](../../crates/arda-gen/src/hydrology/annual_aggregation.rs:53),
-[area generation](logic/02-area-generation.md).
-
-`arda::generate_with_limits` accepts `HydrologyLimits`; `generate` and the CLI use
-its defaults. Admission runs before output creation, and actual stages also
-enforce their admitted counts/work. Increasing a capacity changes admission,
-not the terrain or annual model. Source:
-[lib.rs:33](../../crates/arda/src/lib.rs:33),
-[generation_limits.rs](../../crates/arda-gen/src/orchestrator/generation_limits.rs),
-[types.rs:84](../../crates/arda-gen/src/hydrology/types.rs:84).
-
-| Default capacity | Value |
-|---|---:|
-| Closed physical terminal leaves | 100,000 |
-| Grouped annual bands | 6,000,000 |
-| Saved feature records | 4,000,000 |
-| Area-to-reach references, including halo and endpoint closure | 16,000,000 |
-| Outward lake-boundary edges | 4,000,000 |
-| Owned payload reservation | 16 GiB |
-| Simultaneous spatial / combined scratch | 256 GiB each |
-| Declared logical operations | 2^48 |
-| Declared I/O bytes / filesystem operations | 2^64 / 2^54 |
-
-Declared work includes shared terrain sampling and every bounded evolution pass,
-including the flood heaps' logarithmic comparisons. It counts bounded transitions
-and comparisons, not CPU instructions or seconds. Current default admission sums
-4,685,132,212,727 such units, below the unchanged 2^48 allowance; a caller limit
-that omits this terrain work is refused before output is created. The terrain
-work term is `N × (640 + 160 × (184 + 8×9 + 8×ceil(log2 N)))` for N modeled fine
-cells; the 640N initial allowance includes the structural sampler. The separate
-legacy tile-only erosion constant remains 40 iterations. Sources:
-[evolution.rs:98](../../crates/arda-gen/src/area/evolution.rs:98),
-[evolution.rs:117](../../crates/arda-gen/src/area/evolution.rs:117),
-[admission receipt](features/2026-09-23-terrain-corrections/EXPERIMENTS.md#integer-regional-relief-probe).
-
-The previous per-area pinned rim/taper produced grid-aligned troughs. Current
-shared evolution removes those internal boundary conditions. The accepted
-structural-relief and 160-step world improves branching in inspected views, while
-smooth summits and parallel grooves remain visible; it does not complete the
-reference-quality terrain goal. The earlier observations remain preserved in
-[open items](open-items.md) and the [visual verdict](features/2026-09-23-terrain-corrections/EXPERIMENTS.md#integer-regional-relief-probe).
-
-The RAM figure is an owned-payload reservation, not a process-RSS guarantee.
-Admission includes two dense `i32` terrain inputs and the shared kernel scratch:
-53 bytes per modeled fine cell plus container headers on the current 64-bit
-layout, conservatively added alongside coarse and water-stage reservations even
-though the dense surface is released before annual solving. MICRO and default
-500×1000 km requests fit the default 16 GiB RAM allowance. A valid 4000×4000 km
-request is now refused by default RAM admission before output creation; the
-library caller must provide explicitly larger limits to admit it. A focused
-admission test accepts it with 128 GiB, which is not a measured maximum-world
-runtime or successful-generation guarantee. Scratch caps do not include all final
-world files, and actual basin/band/feature counts can still exceed their caps.
-Exceeding a limit returns a
-typed error; it does not discard basins, change thresholds or choose different
-physics. Source:
-[types.rs:80](../../crates/arda-gen/src/hydrology/types.rs:80),
-[generation_limits.rs](../../crates/arda-gen/src/orchestrator/generation_limits.rs),
-[generation_limits_tests.rs](../../crates/arda-gen/src/orchestrator/generation_limits_tests.rs).
-
-## Publication, loading and export
-
-Generation accepts an absent or empty destination, creates its exclusive marker,
-writes layers and private scratch, and publishes the final manifest only after
-all required stages succeed. The final same-directory manifest rename is the
-last fallible publication operation. A failure leaves diagnostic partial output
-without a readable completed manifest; retry uses a fresh destination. There is
-no automatic checkpoint resume, in-place overwrite or power-loss durability
-guarantee. Source:
-[publication.rs:58](../../crates/arda-gen/src/orchestrator/publication.rs:58),
-[publication.rs:122](../../crates/arda-gen/src/orchestrator/publication.rs:122).
-
-Current saved format major is 4. Older incompatible worlds must be regenerated;
-there is no migration command. `World::load` reads/validates manifest metadata and
-creates empty caches, without eagerly loading all areas or global tables.
-`area()` caches the requested area; `read_area()` returns an uncached owned read.
-Reads validate exact cell-file length and bounded object length before allocation,
-then validate record coordinates and copied context against the loaded domain.
-Overview export propagates a failed area read. Source:
-[formats/mod.rs](../../crates/arda-core/src/formats/mod.rs),
-[world.rs:88](../../crates/arda/src/world.rs:88),
-[world.rs:203](../../crates/arda/src/world.rs:203),
-[lib.rs:144](../../crates/arda/src/lib.rs:144).
-
-Area and overview PNG export default to 8K (8192 pixels); `--quality 512`,
-`--quality 16k` and `--quality 32K` select other validated sizes. Area output is
-square; overview output preserves the area-grid aspect ratio. The 512-pixel area
-mode retains a faint mark for subpixel streams. Larger quality sizes and Classic legacy
-`--detail` (4096 pixels, `_detail` filename) show physical channel coverage alone.
-All use the same saved 100 m terrain. Saved global IDs, crossings and per-area
-context preserve shared topology; rendering does not recalculate river widths
-from local fragments. Invalid geometry or rendering-work caps return typed errors.
-Atlas changes PNG presentation only: earthy height and water-depth colors, fixed
-directional relief and pixel-center interpolation from saved cells. It reads
-the two nearest rows/columns and corners from existing in-world neighbors;
-missing or corrupt neighbors fail the export. Out-of-world edges use one-sided
-gradients. Atlas area and overview PNGs share saved lake-depth colours; area
-images retain physical channel geometry. World Atlas overview keeps the categorical
-lake footprint threshold but renders connected saved channels from complete 3×3
-neighbor object context. It draws Q20 strips, terminal footprints and junction hulls
-at display width `min(8 × saved_width_dm, 10_000 dm)` for older recipes or
-`min(3 × saved_width_dm, 4_000 dm)` with 13/16 opacity for recipe 4, clips to each source area,
-then projects to unequal output partitions and unions bounded pixel coverage.
-Only land pixels receive channel color; sea and lake ownership remains with their
-feature masks. The older Mid/Dark width-derived chamfer symbols remain in direct
-legacy Atlas overview APIs; Classic retains its right/down one-pixel Dark trunk
-extension (`crates/arda/src/export_quality.rs:125`,
-`crates/arda-render/src/overview/channel_overlay.rs:43`,
-`crates/arda-render/src/overview/channel_overlay.rs:287`).
-Classic remains the omitted-style behavior, including existing library entry
-points. The additive styled APIs are
-`export_area_with_quality_and_style` and
-`export_overview_with_quality_and_style`. `--detail --style atlas` writes the
-quality-path `area_XX_YY.png` at 4096 pixels; Classic `--detail` retains its
-legacy `_detail` name. Sources:
-[atlas.rs](../../crates/arda-render/src/atlas.rs),
-[atlas facade](../../crates/arda/src/atlas.rs),
-[export_quality.rs:27](../../crates/arda/src/export_quality.rs),
-[main.rs:290](../../crates/arda-cli/src/main.rs:290).
-Sources: [quality.rs](../../crates/arda-render/src/quality.rs),
-[channels.rs](../../crates/arda-render/src/channels.rs),
-[export_quality.rs](../../crates/arda/src/export_quality.rs).
-
-For Linear×Linear output, Atlas reconstructs displayed land/sea ownership from four class-directed signed heights using exact rational pixel centers and i128 bilinear weights. Land samples are at least +1 mm and sea samples at most −1 mm. Positive chooses land, negative sea, and exact zero retains saved ownership. Saved lakes, quads touching lakes, alternating land/sea checkerboards, exact saved-cell centers and guarded one-cell islands/straits retain saved ownership. Any Box axis also retains the existing aggregation/ownership rule. Area colour and channel clipping and both overview paths use this same classifier; an internal AtlasSea feature prevents connected channel overlay and legacy river-trunk widening over reconstructed sea. Classic remains unchanged (`crates/arda-render/src/atlas.rs:412`, `crates/arda-render/src/channels.rs:451`, `crates/arda-render/src/overview.rs:428`, `crates/arda-render/src/overview/streaming.rs:92`).
-
-Quality exports, including the default area/overview CLI paths, stream into an
-exclusive temporary sibling file and rename it to the final filename only after
-encoding and flushing succeed. A failed render/write preserves any previous
-completed PNG and attempts to remove its temporary file on ordinary error return.
-This does not promise cleanup after abrupt process termination or power-loss
-durability. Legacy `--detail`, block and JSON exports, and explicit preview `--px`,
-retain their completed-buffer writes; an I/O failure in those paths can leave a
-partial destination. Source:
-[export_quality.rs](../../crates/arda/src/export_quality.rs),
-[lib.rs](../../crates/arda/src/lib.rs).
-
-The streaming overview renderers `write_overview_png` and
-`write_atlas_overview_png_with_channels` use bounded bands and support square 32K
-output. The latter requires canonical saved-channel context from every existing
-adjacent area and refuses missing or conflicting records. Connected coverage has
-bounded candidates and work; a pixel that exceeds the ordinary 64-piece Q20
-union is subdivided to depth 6, with typed refusal when that or the 250-million-unit
-per-tile-row work limit is exhausted. Area streaming uses reusable rows and bounded
-channel geometry/candidate storage (`crates/arda-render/src/overview/channel_overlay.rs:16`,
-`crates/arda-render/src/channel_geometry.rs:380`,
-`crates/arda-render/src/channel_geometry.rs:439`). The buffered `OverviewRaster::new_exact` accepts at
-most 32,768 pixels per axis and retains its 134,217,728-pixel total limit; square
-16K and 32K images exceed that buffered budget. The regular buffered constructor's
-512-pixels-per-area and 64-million-pixel limits remain unchanged. Sources:
-[overview.rs](../../crates/arda-render/src/overview.rs),
-[streaming.rs](../../crates/arda-render/src/overview/streaming.rs),
-[carto.rs](../../crates/arda-render/src/carto.rs).
-
-Atlas area export retains a 514×514 derived palette/light/class/height grid and fixed
-516×516 height/class/lake-depth/wetness context. Neighbor area payloads are loaded
-one at a time while their two-cell strips or corners are copied. Saved wetness
-tints only Atlas land toward `[81,126,73]` with Q12 weight
-`wetness×2048/(wetness+12)` before rock and snow material blending. It is a
-saved drainage/slope display index, not a new soil-moisture simulation. The
-optional context sample measured 16 bytes until recipe-5 snow added saved
-temperature (logic/04 §atlas-formed snow); it is now 20 bytes, a fixed
-5.33 MB halo per area (`crates/arda-render/src/atlas.rs:39`,
-`crates/arda-render/src/atlas.rs:698`,
-`crates/arda-render/src/atlas/tests.rs:1118`). Atlas overview uses 256-row output bands plus at most 14 halo rows on each side. The world facade can reread target cells, terrain neighbors and object-only channel neighbors across bands; each connected `ChannelTile` holds bounded geometry and pixel references rather than a full image. The legacy direct Atlas API retains its reusable distance field (`crates/arda-render/src/overview/streaming.rs:100`, `crates/arda-render/src/overview/channel_overlay.rs:287`, `crates/arda/src/world.rs:245`).
-The current saved-width river presentation under commit `92689f8` produced two byte-identical 15,522×32,768 Atlas PNGs of 326,768,717 bytes in 80.7532 and 80.6843 s. All 523 saved world files (1,943,353,639 bytes) remained unchanged, and the selected Classic 2K export matched the prior exporter byte-for-byte. These are local measurements, not a universal runtime bound ([receipt](features/2026-09-23-terrain-corrections/EXPERIMENTS.md#natural-river-pass)).
-
-The preceding default seed-42 500×1000 km Atlas 32K overview under commit `a9ce4fe` was 15,522×32,768 pixels and 325,652,273 bytes. Two completed exports took 78.9093 and 79.3596 s and have the same SHA-256; all 523 saved world files stayed unchanged. This is a local render receipt, not an all-platform performance bound ([receipt](features/2026-09-23-terrain-corrections/EXPERIMENTS.md#readability-pass)).
-
-The following measured seed-42 200×300 km 32K exports precede the wetness change:
-
-| Atlas 32K PNG | Pixels | Elapsed runs | Peak child RSS runs |
-|---|---:|---:|---:|
-| Area (2,0) | 32768×32768 | 31.06 / 31.35 s | 44,312 / 43,956 KiB |
-| Overview | 19661×32768 | 29.57 / 29.81 s | 66,604 / 66,204 KiB |
-
-Each repeat pair has identical PNG bytes. RSS is Linux `wait4` child rusage,
-not an all-platform or concurrent export budget. The saved input's 55 file
-hashes remained unchanged. Sources:
-[area run 1](features/2026-09-22-geographical-rendering-first-pass/evidence/atlas-area-32k-run1.time.txt),
-[area run 2](features/2026-09-22-geographical-rendering-first-pass/evidence/atlas-area-32k-run2.time.txt),
-[overview run 1](features/2026-09-22-geographical-rendering-first-pass/evidence/atlas-overview-32k-run1.time.txt),
-[overview run 2](features/2026-09-22-geographical-rendering-first-pass/evidence/atlas-overview-32k-run2.time.txt),
-[image hashes](features/2026-09-22-geographical-rendering-first-pass/evidence/images.json).
-
-The earlier saved-world 16K exporter remains available as a workspace example:
-
-```sh
-cargo run -p arda --release --example export_world_16k -- worlds/w42 world-16k.png
-```
-
-It follows the manifest's area aspect ratio, rounds the shorter axis and uses
-16,384 pixels on the long edge. A 9×19 world renders at 7,761×16,384. It refuses
-an existing output and reads areas one at a time without generating terrain.
-The CLI now supports this size directly with `export --overview --quality 16k`.
-Source: [export_world_16k.rs](../../crates/arda/examples/export_world_16k.rs).
-
-Tactical generation currently samples land cells at stride 64 in both area axes;
-it does not materialize a block at every 100 m cell. Each current WFC block is
-64² squares with the 24-tile vocabulary. `--block 1,2,64,64` names a sampled
-coordinate, but availability still depends on its being land. The first block
-query loads/decompresses its containing area's archive; later queries reuse the
-cache. Per-block archive decompression is not implemented. Source:
-[orchestrator.rs:136](../../crates/arda-gen/src/orchestrator.rs:136),
-[world.rs:257](../../crates/arda/src/world.rs:257),
-[tiles.rs](../../crates/arda-core/src/tiles.rs).
+Third-party runtime controls such as `RAYON_NUM_THREADS` are read by `rayon`, not by repository code.
 
 ## Infrastructure
 
-`Dockerfile:1` builds with `rust:1-bookworm`, copies the release binary to `debian:bookworm-slim`, runs UID 10001, declares `/worlds`, and uses entrypoint `arda`. It declares no ports, healthcheck or compose services. Multi-architecture image publication and crates.io/GHCR release automation remain designed but absent; `.github/workflows/` contains CI only.
-
-### September 23 measurements
-
-The installed structural-relief/160-step seed-42 500×1000 km world completed in
-3,256.01 s (54 min 16 s), with 1,850,884 KiB peak child RSS. This is one local
-release generation, not a runtime guarantee. Its saved schema and area count
-remain 4 and 171. The 32K Atlas overview completed in 71.31 s with a
-byte-identical repeat; all 523 saved-world files remained unchanged by export.
-Sources: [generation receipt](features/2026-09-23-terrain-corrections/EXPERIMENTS.md#integer-regional-relief-probe),
-[render receipt](features/2026-09-23-terrain-corrections/EXPERIMENTS.md#integer-regional-relief-probe).
-
-The preceding 40-step seed-42 500×1000 km world completed in 1,640.71 s (27 min 21 s); seed-42 200×300 km took 183.29 s and seed-99 MICRO took 46.60 s. These are individual earlier local release runs, not runtime guarantees. That preceding world’s default 32K Atlas overview was 15,522×32,768, 129,037,747 bytes, and took 65.84 s; a byte-identical repeat took 65.65 s with 57,240 KiB peak RSS. All 523 saved files remain unchanged during the repeat export. A 1000×1000 km world has not been benchmarked here; the conversational 55–75 minute estimate is not measured evidence.
-
-Receipts and outputs: [evidence index](features/2026-09-23-terrain-corrections/STUDY.md). Existing output directories retain the original and corrected worlds separately. Source compatibility and visual acceptance are recorded in [current status](open-items.md).
+| Item | Facts | Site |
+|---|---|---|
+| Docker image | Two stages: `rust:1-bookworm` builds `cargo build --release -p arda-cli`; runtime `debian:bookworm-slim`, user `arda` UID 10001, `VOLUME /worlds`, `ENTRYPOINT ["arda"]`. No `EXPOSE`, no healthcheck, no server binary. Build with `docker build -t arda-local .`; mounted destinations must be writable by UID 10001. | `Dockerfile:1`-`Dockerfile:11` |
+| Compose | None in the repository | — |
+| Ports | `arda-server` binds `127.0.0.1:8787` by default (`crates/arda-server/src/main.rs:22`-`crates/arda-server/src/main.rs:25`); viewer dev server 5173 (`apps/viewer/vite.config.ts:16`); art-gen talks to Slopify on 6969 (`tools/art-gen/generate.mjs:21`) | as cited |
+| Server health | `GET /v1/health` (`crates/arda-server/src/routes.rs:30`) | — |
+| Server limits | Header-read timeout and connection cap in a custom hyper accept loop (`crates/arda-server/src/serve.rs:1`); CORS allows only local origins, methods GET/HEAD/POST/OPTIONS (`crates/arda-server/src/routes.rs:92`) | as cited |
+| Server caches | Byte-bounded LRUs (`crates/arda-server/src/cache.rs:1`): areas 1 GiB, derived 256 MiB, fine windows 512 MiB (`crates/arda-server/src/query.rs:36`-`crates/arda-server/src/query.rs:38`); overview PNGs/tiles 256 MiB each (`crates/arda-server/src/overview.rs:32`); relief tiles 128 MiB (`crates/arda-server/src/relief.rs:22`); tactical renders 768 MiB, pyramid 1 GiB, encoded 256 MiB (`crates/arda-server/src/tactical/mod.rs:80`-`crates/arda-server/src/tactical/mod.rs:82`). Only area and fine budgets have flags. All in-memory; nothing persisted. | as cited |
+| Test fixture cache | Shared worlds under `target/`, built in a sibling dir and renamed into place, stamped `.fixture-stamp` with a fingerprint of library sources, data, manifests and lockfile; stale stamps rebuild (`tests/support/fixture_dir.rs:1`-`tests/support/fixture_dir.rs:27`) | as cited |
+| Logs | No logging crate; `println!`/`eprintln!` only. Server: startup banner on stdout (`crates/arda-server/src/main.rs:79`); 5xx detail on stderr with redacted body (`crates/arda-server/src/error.rs:217`); per-request tactical line `arda-server tactical <route> <detail> cache=<hit\|miss> bytes=<n> <ms> ms` (`crates/arda-server/src/tactical/routes.rs:138`) | as cited |
+| CI | `.github/workflows/ci.yml`, on push and pull_request (`.github/workflows/ci.yml:2`): `test` matrix ubuntu/macos/windows, `cargo test --workspace --all-features --no-fail-fast` (`.github/workflows/ci.yml:9`-`.github/workflows/ci.yml:15`); `msrv` Rust 1.96.1 `cargo check --workspace --all-targets --all-features --locked` (`.github/workflows/ci.yml:22`-`.github/workflows/ci.yml:23`); `lint` fmt check and clippy `-D warnings` (`.github/workflows/ci.yml:32`-`.github/workflows/ci.yml:33`); `deny` cargo-deny-action v2 (`.github/workflows/ci.yml:39`). No viewer or art-gen job; no release or publish workflow. | as cited |
+| Line endings | `* text=auto eol=lf` so golden fixtures hash identically on Windows; `tools/art-gen/checklist.csv` kept `-text` | `.gitattributes` |
+| Build profiles | `[profile.test] opt-level = 2`; `[profile.release] codegen-units = 1` | `Cargo.toml:68`-`Cargo.toml:72` |
 
 ## Developer workflow
 
-The exact test/lint/MSRV/dependency commands and dated results are in
-[testing](06-testing.md).
-CI runs `cargo test --workspace --all-features` once per platform, including the
-workspace golden-world tests; the former second determinism invocation has been
-removed. It retains the three-platform matrix and Ubuntu Rust 1.96.1 for the
-dated latest-stable-minus-two target. Stable tooling includes rustfmt/Clippy;
-`cargo bench -p arda-gen` invokes the two declared benches. No database migration
-process or remote service is involved. Source:
-[ci.yml:18](../../.github/workflows/ci.yml:18),
-[rust-toolchain.toml](../../rust-toolchain.toml).
+| Task | Command | Source |
+|---|---|---|
+| Tests (as CI) | `cargo test --workspace --all-features --no-fail-fast` | `.github/workflows/ci.yml:15` |
+| MSRV check | `cargo +1.96.1 check --workspace --all-targets --all-features --locked` | `.github/workflows/ci.yml:22`-`.github/workflows/ci.yml:23` |
+| Format | `cargo fmt --all --check` | `.github/workflows/ci.yml:32` |
+| Lint | `cargo clippy --workspace --all-targets -- -D warnings` | `.github/workflows/ci.yml:33` |
+| Dependency policy | `cargo deny check` (policy `deny.toml`) | `.github/workflows/ci.yml:39` |
+| Benches | `cargo bench -p arda-gen` (`area_erosion`, `continent_stage`) | `crates/arda-gen/Cargo.toml` |
+| Golden re-bless | `ARDA_BLESS=1 cargo test --release --test golden_world --test golden_recipes` rewrites `tests/golden/micro-42*.txt` | `tests/golden_world.rs:82`, `tests/golden_recipes.rs:102` |
+| Bindings/schema re-bless | `ARDA_BLESS_BINDINGS=1 cargo test -p arda-server bindings` (schemas: same variable, `schema` tests) | `apps/viewer/README.md:77`, `crates/arda-server/src/schema/tests.rs:7` |
+| Dungeon re-bless | `ARDA_BLESS_DUNGEON=1 cargo test -p arda-dungeon` | `crates/arda-dungeon/tests/levels.rs:215` |
+| Viewer | `npm run typecheck`, `npm run lint`, `npm test`, `npm run build` in `apps/viewer` | `apps/viewer/package.json:8`-`apps/viewer/package.json:15` |
+| Art tool tests | `node --test tools/art-gen/test/` | `tools/art-gen/README.md:13` |
+| Table regeneration | `python3 tools/generate_water_forcing_tables.py <out.rs>`; `python3 tools/generate_spectral_tables.py` | `tools/generate_water_forcing_tables.py`, `tools/generate_spectral_tables.py:6` |
+| Migrations | None: no database. World format versioning is in the saved manifest (`format_version` in `tests/golden/micro-42.txt`) | — |
 
-At adopted source `4ea2271`, the cleaned proposal passed 674 non-golden
-workspace tests, formatting, strict all-package Clippy, Rust 1.96.1 and cached
-offline dependency policy. The root release golden suite then passed both the
-approved 34-file fingerprint and independent same-seed repeat. These are local
-checks, not a new remote or Windows CI run. The September 22 Windows golden-text
-LF/CRLF failure remains the last recorded remote Windows result. Exact commands,
-scopes and receipts are in [testing](06-testing.md) and the
-[adoption receipt](features/2026-09-23-terrain-corrections/EXPERIMENTS.md#integer-regional-relief-probe).
+### Release process
 
-Forcing tables are checked-in runtime data. The explicit maintenance command
-`python3 tools/generate_water_forcing_tables.py /tmp/arda-forcing-tables.rs`
-writes an offline candidate and prints its SHA-256; normal builds do not execute
-Python or download climate data. The generator records observed profile inputs
-and astronomical/daylength provenance; its procedural analogs are not a claim
-of global calibration. Source:
-[generate_water_forcing_tables.py:1](../../tools/generate_water_forcing_tables.py:1),
-[forcing_tables.rs:1](../../crates/arda-gen/src/hydrology/forcing_tables.rs:1).
+Observed from the `release: Arda v0.8.1` commit (`022ce7c`) and tags `v0.5.0`…`v0.8.1`:
 
-## Observed timings — 2026-09-08
+1. Add a `## <version> — <date>` section to `CHANGELOG.md` (`CHANGELOG.md:6`); the design ledger lives in `docs/capstone/changelog.md` and `docs/capstone/changelog.d/` (`CHANGELOG.md:3`-`CHANGELOG.md:4`).
+2. Bump `[workspace.package] version` and every path entry's `version` in `[workspace.dependencies]` (`Cargo.toml:6`, `Cargo.toml:12`-`Cargo.toml:32`), which updates `Cargo.lock`; bump `apps/viewer/package.json:4` and its lockfile; update the version in `crates/arda-server/API.md`.
+3. Re-bless `tests/golden/micro-42.txt` with `ARDA_BLESS=1`: the saved world manifest embeds `arda_version`, so `world.json`'s fingerprint changes with every version bump.
+4. Commit as `release: Arda v<version>` and tag `v<version>`. No workflow builds or publishes artifacts; crates are not published to crates.io and no image is pushed.
 
-These release measurements were taken locally on Linux under concurrent host
-load. They are exploratory observations, not service-level or maximum-world
-guarantees. Saved export timings include CLI startup/read/write; the tactical
-probe below separates in-process work.
+### Recorded measurements
 
-### Current regional-detail correction: candidate06
-
-The unprofiled five-world panel completed all 243 generation/export commands.
-World times include terrain, shared water, all published areas and sampled blocks;
-they exclude PNG rendering. The three default cases ran concurrently on this
-Linux/WSL host, so these are observed runs rather than isolated benchmark promises.
-
-| Operation | Observed wall time | Scope |
-|---|---:|---|
-| Complete default seed42 | 38 min 00 s | 500×1000 km, 171 areas |
-| Complete default seed7 | 43 min 50 s | Same dimensions |
-| Complete default seed436342 | 44 min 18 s | Same dimensions, reported world |
-| Complete MICRO panel worlds | 53.61–55.35 s | Eight areas each |
-| Initial independent MICRO42 | 45.99 s | Different concurrent host load |
-| Reported world 16K export | 3.576 s | Native saved-data renderer, 7,761×16,384 |
-| Four requested 4096² areas | 0.301–0.385 s each | Existing saved worlds, PNG only |
-
-These timings used the native renderer adapter from candidate05. Its exact-size
-capability now lives in the canonical renderer and the workspace example above;
-the migrated example reproduced the C05 PNG byte for byte in 3.718 s. The public
-CLI size/limit contract was unchanged at that measurement; the subsequent
-`--quality` change described above adds the current 8K default and 32K maximum.
-These measurements do not establish timings for that new path. The finer raster does not refine the
-underlying 100 m terrain. The current saved format and JSON schema are unchanged;
-old worlds still load and require regeneration to obtain the corrected terrain.
-Exact commands, times and output hashes:
-[C06 panel](features/2026-09-07-area-water-terrain-realism/verification/lake-district-correction/panel-and-seams-summary.json),
-[render receipt](features/2026-09-07-area-water-terrain-realism/verification/lake-district-correction/render-and-seams-receipt.json).
-
-### Previous terrain correction: candidate05
-
-All five frozen worlds and 243 generation/export commands completed. Generation
-writes saved terrain/water and sampled tactical blocks without PNGs. Default
-500×1000 km driver times are **36m52s / 43m07s / 47m26s** for seeds42/7/436342;
-GNU process wall records35m36s / 41m37s / 45m48s. Both clocks are preserved;
-the host discrepancy remains unexplained. Peak default RSS is about1.762GiB per
-process under up to three concurrent worlds. MICRO driver times are49.1–49.3s.
-
-Actual profile stages separate coarse generation, shared fine terrain, water,
-indexing and final area writing. Default shared terrain sampling/evolution takes
-17.34–23.30min and shared water takes16.98–21.44min under this load. Once shared
-state exists, mean area materialization including the current sampled WFC and
-writing is0.486–0.563s across land/sea areas; this is not independent area generation.
-
-Saved default PNG export adds0.947–1.084s for a world overview,14–129ms for a512
-area preview, or166–547ms for a4096 detail. Area JSON export takes122–196ms.
-These process observations include reads/encoding/writes with filesystem caches
-left intact. The panel does not time a full image export of every area/block,
-and browser/network performance is not inferred.
-
-The delivery also renders the saved world at4608×9728 through the existing public
-API, using512 pixels per area:2.134s and8.40MB. All523 saved-world files retain
-their hashes. The user excluded tactical images from final delivery. See [complete timing breakdown](features/2026-09-07-area-water-terrain-realism/reports/terrain-correction--timings-c05.md)
-and [current gallery](features/2026-09-07-area-water-terrain-realism/output/previous/terrain-correction--current-gallery-c05.md).
-
-The additional world-only 16K export is 7761×16384 (127,156,224 pixels),
-12,392,185 bytes, and took 3.670 s with 556,592 KiB peak RSS. It uses an isolated
-copy of the native Rust overview renderer with exact dimensions and a bounded
-134,217,728-pixel allocation. At the time, this did not extend the production API's
-64-million-pixel limit; the current buffered and streaming limits are described
-above. Saved 100 m cells are sampled directly and repeated where necessary;
-the palette, river thresholds and physical terrain resolution are unchanged.
-All 523 saved-world files and 157 production source files retain their hashes.
-The four area renders remain 4096². See the local [16K receipt](features/2026-09-07-area-water-terrain-realism/verification/terrain-correction/render-16k/receipt.json).
-
-### Previous terrain correction: candidate04
-
-The completed frozen panel contains three default worlds and two MICRO worlds,
-with 238 saved export commands and 38 selected areas. The default generations
-produce 171 areas plus sampled tactical blocks, without PNG rendering.
-
-| Current operation | Observed time | Scope |
-|---|---:|---|
-| Default seed 42 generation | 45 min 09 s | Driver elapsed; GNU child-process wall 43 min 52 s. |
-| Default seed 7 generation | 47 min 02 s | Driver elapsed; GNU child-process wall 45 min 41 s. |
-| Default seed 436342 generation | 49 min 43 s | Driver elapsed; GNU child-process wall 48 min 18 s. |
-| Saved default world overview | 0.928–1.117 s | Adds roughly one second after generation. |
-| Saved default area PNG 512 | 17–171 ms | Does not rerun terrain/water. |
-| Saved default area PNG 4096 | 183–451 ms | Same saved terrain at higher raster resolution. |
-| Saved default area JSON | 123–173 ms | CLI read, encode and write; browser/network costs excluded. |
-
-The three default worlds ran concurrently with other host work. Peak RSS is
-approximately 1.762 GiB per default process, versus historical candidate02's
-300–643 MiB. Driver and GNU timings differ; the cause has not been established,
-and both clocks are preserved in the evidence. Generation and memory cost
-increased with the whole-domain correction. This is not an isolated performance
-comparison, and no current per-stage profiler was enabled. The run does not
-measure an all-images export for every area and tactical block. See
-[full current comparison](features/2026-09-07-area-water-terrain-realism/reports/terrain-correction--candidate04-comparison.md).
-
-The three retained tactical timing controls have also been rerun against current
-candidate04 MICRO42 cells. Constraints plus the existing WFC took 6.72–9.23 ms;
-including PNG encoding took 9.36–12.46 ms, excluding shared loading and file writes.
-Saved PNG CLI export took 4.30–5.53 ms and JSON export 1.76–3.32 ms. All regenerated
-blocks and CLI exports matched the saved current data exactly. These measurements
-still concern the existing 24-tile system; future asset placement is outside this
-timing scope. Evidence:
-[current tactical timings](features/2026-09-07-area-water-terrain-realism/verification/terrain-correction/tactical-current/report.json).
-
-The corrected MICRO seed 42 completed generation in **63.50 s** without PNG
-rendering, with peak RSS **85,272 KiB** (about 83.3 MiB). Saved exports completed
-successfully: overview **0.06884 s**, area (1,1) 512 PNG **0.03759 s**, 4096 detail
-PNG **0.26460 s**, and JSON **0.12377 s**. These are one completed MICRO run, not
-default-world timings or evidence that natural-realism acceptance is closed.
-The full candidate04 run has completed; overall visual acceptance remains open.
-Sources:
-[generation measurement](features/2026-09-07-area-water-terrain-realism/verification/terrain-correction/micro42-c04-time.txt),
-[export measurements](features/2026-09-07-area-water-terrain-realism/verification/terrain-correction/micro42-c04-exports.json).
-
-### Historical pre-correction measurements: candidate02
-
-The following table and frozen-panel results precede shared terrain evolution,
-implicit incision, four-octave detail and the radial coast correction. They remain
-useful historical evidence, but do not establish current default-world timings.
-In particular, per-area erosion is no longer a production generation phase.
-
-| Operation | Observed wall time | Scope |
-|---|---:|---|
-| Complete MICRO generation | 61–67 s | Eight areas plus sampled tactical data and publication; no PNG rendering. |
-| Erosion of one prepared area | 1.8–3.75 s | Terrain erosion only; excludes shared hydrology and final composition. |
-| Complete default generation | 33 min 50 s–35 min 7 s | Three 500×1000 km seeds; 171 areas plus sampled blocks, no PNG. |
-| Default world overview | 0.98–1.10 s | Export after generation; not every area/tactical image. |
-| Default seed 42 shared replay | 21 min 23 s | 50 million prepared cells; excludes original preparation, final index, final areas/blocks and publication. |
-| Saved area PNG 512 | 10–130 ms | Existing-world export. |
-| Saved area PNG 4096 | 160–520 ms | Existing-world export at detailed scale. |
-| Saved area JSON | 110–630 ms | Existing-world export. |
-| Saved tactical PNG / JSON CLI | 4–5 ms / 2–3 ms | Reads existing generated block; does not run WFC. |
-
-For historical candidate02, all three independent default generations and the complete 238-export frozen panel passed their numerical/export checks. Their shared solves took 22 min 36 s–23 min 52 s, preparation 8 min 38 s–8 min 43 s, and peak process RSS 300–643 MiB. MICRO peaks were about 84 MiB. Those passes did not settle the subsequently reopened visual-realism issues. Full values and scope are in [performance evidence](features/2026-09-07-area-water-terrain-realism/reports/performance.md). Evidence:
-[implementation progress](features/2026-09-07-area-water-terrain-realism/history/implementation-progress.md),
-[candidate driver](features/2026-09-07-area-water-terrain-realism/verification/run_candidate.py),
-[shared replay](features/2026-09-07-area-water-terrain-realism/verification/shared-replay/validation.json).
-
-The historical three land-cell tactical probes at area (1,2), cells (64,64), (256,256) and
-(384,384), measured actual constraints plus current WFC at **5.93–6.95 ms**, PNG
-encoding at **2.08–2.23 ms**, and JSON serialization at **0.036–0.037 ms**.
-Generation plus PNG was 8.03–9.04 ms, excluding file writes and shared loading.
-World metadata load cost 0.027 ms, the one shared area load 10.99 ms, and the first
-saved-block archive query 0.671 ms; later archive queries were cached. All three
-regenerated blocks and their exports matched saved data. These figures concern
-the current 24-tile WFC, with no timing claim for future assets or full tactical
-coverage. Source:
-[tactical timing report](features/2026-09-07-area-water-terrain-realism/verification/tactical-timing/report.json).
-
-### Atlas lake-depth export measurement — 2026-09-23
-
-Renderer `0fc9666` exported the same saved default world at 15,522×32,768 in 69.34 s, with 76,904 KiB peak child RSS measured by Linux `getrusage`. The PNG is 152,810,414 bytes. This is one local release export, not a repeated timing guarantee or a new generation run. Exact command and SHA-256: [lake-depth 32K receipt](features/2026-09-23-terrain-corrections/EXPERIMENTS.md#atlas-lake-depth).
-
-
-### Saved-wetness Atlas export measurement — 2026-09-23
-
-The committed renderer produced two byte-identical 15,522 × 32,768 PNGs (327,031,502 bytes each) in 76.16 s and 76.05 s, at 66,516 and 66,284 KiB peak child RSS. All 523 saved world files (1,943,353,639 bytes) retain identical before/after hashes. The 970 × 2048 preview is downsampled from the completed 32K PNG, not a separate 2K export. Root inspected it; smooth principal ridges and repetitive fine gullies remain. Receipt: `features/2026-09-23-terrain-corrections/evidence/wetness-response-probe/production/full-world-32k/receipt.json`.
-
-The connected-channel world overview under `14a70b9144dd` produced repeated 15,522×32,768 PNGs in 93.19/92.62 s, with identical 329,746,127-byte outputs. The supported 512-pixel export also completes. The new union subdivides earlier in dense pixels instead of increasing resource limits. All523 saved files, selected Classic 2K and physical area 1725 outputs remain unchanged. [Integration receipt](features/2026-09-23-terrain-corrections/EXPERIMENTS.md#connected-river-integration).
-
-## Opt-in canonical fine-source qualification
-
-Recipe-4 valley centerlines use shared, smoothly displaced coarse drainage nodes, so long cardinal D8 runs bend without disconnecting confluences. Saved recipe-4 soil moisture uses the full centi-degree temperature instead of whole-degree evaporation steps; routing wetness remains saved but does not tint its ecology palette.
-
-The `generate` CLI defaults to the legacy source. `generate --terrain fine` now makes a recipe-3 macro/spectral candidate, forms valleys in its canonical file, and publishes the final field as recipe 4. It tries up to five deterministic candidates against the existing land/river gates with no legacy fallback. Fine mode admits separate source and world limits before creating private staging, accounts for the simultaneous raw and valley files, and cleans its owned staging on success or ordinary failure. `--fine-ram-bytes` and `--fine-file-bytes` override the source defaults of 16 GiB and 4 GiB; these options require fine mode. Diagnostic examples expose the phases separately. `generate_fine_source` accepts seed, attempt, width km, height km, RAM ceiling bytes, file ceiling bytes, a new terrain path and a new receipt path; its receipt identifies the raw recipe 3. `generate_fine_world` accepts seed, attempt, explicit source recipe version, width km, height km, an existing terrain file and a new world directory. Recipe must match the supplied file's producer; the height-file checksum does not bind seed/provenance. Occupied outputs are refused. Recipe-2 files remain readable and replayable through the explicit source path.
-
-Normal `export --style atlas` consumes a world's optional fine descriptor automatically. Missing/corrupt declared fine data fails; legacy worlds retain legacy Atlas. Separate export calls each verify the file once, while a single overview reuses its verified reader across bounded area windows. The original saved seed-42 world is retained unchanged; current corrective outputs reside under `out/`. See [current fine Atlas evidence](features/2026-09-23-terrain-corrections/EXPERIMENTS.md#fine-atlas-integration).
-
-Accepted fine terrain can be reproduced with:
-
-```sh
-arda generate --seed 42 --size 500x1000 --terrain fine --out output/fine42
-arda export --world output/fine42 --overview --quality 32k --style atlas --out output/fine42-render
-```
-
-The facade equivalent is `generate_from_fine_source(seed, config, out, FineDeliveryLimits::default())`. Source spectral work is bounded by geometry and the fixed candidate count; it is not charged to the world's hydrology work counter. The existing `generate` facade call and `preview` CLI remain legacy. Before recipe 4, the recipe-2 production command reproduced all 35 accepted MICRO files exactly; see [historical proof](features/2026-09-23-terrain-corrections/EXPERIMENTS.md#accepted-look-qualification).
-
-The historical recipe-2 seed-42 500×1000 km run measured source 406.630 s, world 1,223.970 s, verification 2.574 s and 32K export 193.293 s: 1,826.467 s combined (30m 26s), excluding later inspection and hashing. Its Atlas output was 15,522×32,768 and 259,955,341 bytes. The field covers the requested domain; the existing complete-area overview uses 9×19 exported areas (460.8×972.8 km), omitting partial fringe tiles. These are single local release observations, not recipe-4 timing estimates; full-size peak RSS was not captured. [Commands, hashes, admission and images](features/2026-09-23-terrain-corrections/EXPERIMENTS.md#accepted-look-qualification).
-
-The corrective recipe-4 seed-42 run on 2026-09-28 is saved at `out/terrain-v4-widebend-seed42-500x1000`, with 4K overview and area 03_10/05_04 previews in sibling output directories. It published 171 areas, 459‰ land and five rivers. Verification checked all 44,826,624 saved cell heights against the canonical field, decoded the global hydrology tables, and found exact annual source/sink closure at 178,821,753,530,000 L with zero outer-domain outflow. Area 03_10 has 1,958 lake cells (0.75%), versus 1,267 (0.48%) in the retained original and 90,525 (34.53%) in the rejected lowland-detail candidate. The complete world has 3,587,591 lake cells. Its 32K Atlas PNG is `out/terrain-v4-widebend-seed42-overview-32k/overview.png`, 15,522×32,768 pixels and 239,912,271 bytes, SHA-256 `d0203a12c302d3e024f4433137822efab74755cc9f02154dfc435148f7772253`; PNG chunk verification passed. The image retains many small highland lakes and remains a procedural atlas rather than the painted concept illustration.
-
-## Recipe-5 formation — 2026-09-29
-
-`arda generate --terrain fine` now produces recipe 5 (logic/02 §fine-formation).
-Diagnostics:
-
-| Command | Purpose |
-|---|---|
-| `cargo run -p arda-gen --release --example form_fine_terrain -- SEED W H OUT.bin` | Forms the fine field alone and dumps it as float metres for inspection |
-| `cargo run -p arda --release --example world_metrics -- WORLD` | Prints one JSON object of realism checks: lake count and small lakes, watercourse density, grid-straight river runs (≥ 3 km), bed pits, hypsometry, slope percentiles, and lowland (< 200 m) slope |
-
-Measurements (local release builds, this machine; not guarantees):
-
-- Seed-42 MICRO (102×204 km, 2620×5242 fine nodes): formation 25.1 s after the local depression fill (44.3 s before); the complete world, formation included, about 60 s. Gates pass on attempt 0.
-- Seed-42 500×1000 km, first full recipe-5 run (code before the coast, glacier, creep and local-fill changes): 2,925.8 s wall under heavy CPU contention (parallel test runs, builds and a second generation), **peak RSS 12,754 MiB**, 171 areas, 459‰ land, 3 named rivers. World size 3.1 GB. The 4K Atlas overview took 168.6 s single-threaded.
-- `world_metrics`, previous best recipe-4 world versus this recipe-5 world:
-  - lakes 20,890 → 174; ≤3-cell lakes 15,224 → 121 (MICRO with later fixes: 0);
-  - grid-straight river runs 265‰ → 0‰;
-  - bed pits 447 → 1;
-  - land slope p50 1.0° → 12.2°. Lowland creep was later tuned against the MICRO lowland metric (≈ 4° median below 200 m).
-- Atlas overview base pixels render in parallel across rows. Output is byte-identical to the serial render (MICRO 4K SHA-256 matched).
-
-Later full-size seed-42 recipe-5 runs, 2026-09-29, local and partly contended:
-
-| Run | Code | Wall | Peak RSS | Land | Notes |
-|---|---|---:|---:|---:|---|
-| 3 | `0173163` | 2,442 s | 13,042 MiB | 460‰ | 1 lake (inland sea), 0 pits |
-| 4 | `3af55ce` | 1,849 s | 13,000 MiB | 459‰ | 8 lakes, mean land rain 1,225 mm (orographic spikes) |
-| 5 | `c2fb1bf` | 1,734 s | 12,348 MiB | 452‰ | 14 lakes; rain 800 mm (calibrated); watercourse 31‰ |
-| 6 | uncommitted | 1,623 s | 12,738 MiB | 392‰ | rejected: plate stream shift and flat fixed basin; straight runs 413‰ |
-
-The 4K overview of a full world renders in about 60 s. A 16K area renders in 19 s since row-parallel area pixels.
+Dated timing receipts for terrain generation and Atlas export (2026-09-08 through 2026-09-29) are kept in `docs/capstone/features/2026-09-23-terrain-corrections/STUDY.md` and `EXPERIMENTS.md`, which are symlinks to a path outside the repository. They were not re-measured for this chapter and predate the crates added since v0.2.0.

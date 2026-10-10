@@ -1,66 +1,148 @@
 ---
-generated_at_commit: 14a70b9144dd
-generated_date: 2026-09-23
-content_hash: 2f829ba252a3
-paths_covered: [":(top)crates/**", ":(top)tests/**"]
-absorbed_from: features/2026-09-07-area-water-terrain-realism@2026-09-08, features/2026-09-23-terrain-corrections@2026-09-23
+generated_at_commit: 022ce7cb5707
+generated_date: 2026-10-10
+capstone_version: 7.0.1
+content_hash: 2d72f2c6f2cb
+paths_covered:
+  - ":(top)crates/*/src/**"
+  - ":(top)tests/**"
 ---
 
 # Glossary
 
 ## Concepts
 
-| Term | Meaning in Arda | Implementation |
+Terms are grouped by layer. Each row gives the meaning in this system and its definition site. Hydrology terms are the subset still needed to read the stored-world types; the full water model is in `02-models.md` and `logic/01`–`02` (not repeated here).
+
+### Scales and frames
+
+| Term | Meaning in Arda | Definition site |
 |---|---|---|
-| Connected Atlas overview channels | Saved ChannelEdge strips, terminal footprints and junction hulls rendered with fractional Q20 coverage. Overview display widths are 8× physical, capped 10,000 dm; source clipping preserves area-seam alignment. Physical area coverage is unchanged. | `crates/arda-render/src/overview/channel_overlay.rs:43`; `crates/arda-render/src/overview/channel_overlay.rs:168`; `crates/arda-render/src/channel_geometry.rs:492` |
-| World | Seed/config manifest, continent layers, shared hydrology tables, area layers and sampled block archives on disk. The manifest is the completion stamp. | `crates/arda-gen/src/orchestrator.rs:338`; `crates/arda-gen/src/orchestrator/publication.rs:126` |
-| Manifest-first load | Validates the manifest/configuration and creates empty area/block cache slots. Requested reads can subsequently fail on missing, corrupt or inaccessible layers. | `crates/arda/src/world.rs:88` |
-| Owned area read | read_area() returns one area without retaining it in the query cache, allowing bounded saved-export passes. Borrowed area() retains successfully requested areas. | `crates/arda/src/world.rs:187`; `crates/arda/src/world.rs:203` |
-| Continent | 4 km tectonics with exact Euclidean belt distances, resampled to 1 km relief with 25 hillslope-creep passes before climate/hydrology; shared 100 m evolution owns incision. | `crates/arda-gen/src/continent/mod.rs:118` |
-| Area / cell | 512² cells of 100 m, a 51.2 km square. Published preparation and final composition are sequential; shared water is solved between them. | `crates/arda-core/src/coords.rs:7`; `crates/arda-gen/src/orchestrator.rs:416` |
-| Block / square | 64² tile IDs; each square is 1,524 mm (five feet). Total 97.536 m is distinct from the nominal 100 m cell. The first block query decodes its complete area's archive. | `crates/arda-core/src/coords.rs:9`; `crates/arda/src/world.rs:257` |
-| TileId | u16 ID into the current 24-entry skeleton vocabulary; not a coordinate. | `crates/arda-core/src/tiles.rs:9` |
-| TileBundle | Coarse-derived pinned edge heights, entering rivers and 53² climate/routing/basin patches. The terrain-preparation path uses it; coarse entering loads are not the published fine-water authority. | `crates/arda-gen/src/continent/bundles.rs:104`; `crates/arda-gen/src/area/prepare.rs:14` |
-| EnteringRiver | Coarse upstream catchment, discharge and order floor retained for local diagnostic generation. Published generation computes flow from shared fine terrain and annual sources. | `crates/arda-gen/src/continent/bundles.rs:78`; `crates/arda-gen/src/orchestrator/shared_solve.rs:519` |
-| Modeled union / fringe | Each fine axis is max(requested kilometres × 10, exported areas × 512). Requested fringe is modeled even without a final area file; existing exported overshoot is preserved. The modeled rim, rather than each tile rim, is the exterior. | `crates/arda-gen/src/hydrology/prepared_domain.rs:40` |
-| PreparedTerrain | Canonical physical heights, annual rainfall and unlapsed temperature reference arrays. Shared water consumes completed private prepared files before final area composition. | `crates/arda-gen/src/hydrology/types.rs:31`; `crates/arda-gen/src/orchestrator.rs:416` |
-| Physical bed / routing surface | Bed is stored terrain. Erosion's temporary filled surface supports routing; epsilon-free physical spill heights determine depression protection. Published lake membership uses physical bed, not routing epsilon. | `crates/arda-gen/src/area/erosion.rs:87`; `crates/arda-gen/src/area/physical_spill.rs:1`; `crates/arda-gen/src/area/shared_compose.rs:79` |
-| Fractional hillslope drainage | Deterministic fixed-point multiple-flow accumulation used by the 160-step shared erosion kernel; published channel flow later follows the solved fine graph. | `crates/arda-gen/src/area/mfd.rs:1`; `crates/arda-gen/src/area/evolution.rs:20`; `crates/arda-gen/src/area/evolution.rs:225` |
-| Connected ocean | D8-connected cells at or below zero elevation touching the real modeled rim. An enclosed negative basin is not automatically sea. | `crates/arda-gen/src/hydrology/ocean.rs:108` |
-| Signed atmospheric altitude | Final nonmarine temperature uses signed physical height, including negative inland terrain; marine temperature uses zero atmospheric altitude. | `crates/arda-gen/src/area/temperature.rs:1`; `crates/arda-gen/src/area/shared_compose.rs:193` |
-| Basin identity | Stable physical hierarchy identity, based on canonical anchors with equal-height zero-capacity joins coalesced. It survives whether a representative lake is wet, dry or spilling. The coarse basin_surface patch remains a diagnostic helper. | `crates/arda-core/src/hydrology.rs:179`; `crates/arda-gen/src/hydrology/hierarchy.rs:1`; `crates/arda-gen/src/continent/hydrology.rs:20` |
-| Spill witness | Actual adjacent source/target cells and their physical sill, with resolved receiving ownership. to=None identifies a real outer-boundary export. | `crates/arda-core/src/hydrology.rs:168`; `crates/arda-gen/src/hydrology/witness_binding.rs:212` |
-| Potential spill / supported outflow | Physical exit geometry is retained even when no annual overflow occurs. A spilling lake names a canonical active witness; all actual carrying edges remain in the flow graph. | `crates/arda-core/src/hydrology.rs:221`; `crates/arda-gen/src/hydrology/annual_records.rs:51` |
-| Representative annual balance | Deterministic static annual support from climatological precipitation, effective land loss, upstream flow and summed monthly open-water evaporation. It is not a dated snapshot, seasonal minimum, spin-up or perennial-water prediction. | `crates/arda-gen/src/hydrology/annual_aggregation.rs:53`; `crates/arda-gen/src/hydrology/annual.rs:540`; `crates/arda-render/src/hydrology_json.rs:145` |
-| P / A / E / R / D | For one 100 m cell: P=rain_mm×10,000 L; E=sum(monthly evaporation_um)×10 L; A=min(P/2,E); runoff R=P−A; added wet-support cost D=E−A. Wet-cell evaporation replaces that cell's land loss. | `crates/arda-gen/src/hydrology/annual_aggregation.rs:53`; `crates/arda-gen/src/hydrology/annual.rs:568` |
-| Marginal evaporation | Separately accounted partial payment for an unsupported raster-height band. That band remains geometrically dry at its bed; the fine source applies its debit once at the original terminal. | `crates/arda-gen/src/hydrology/annual.rs:766`; `crates/arda-gen/src/orchestrator/annual_source.rs:327` |
-| Lake / positive-depth membership | One connected representative component with whole-mm surface and strict bed<surface membership. Local fragments share GlobalLake identity and level. The former ≥300-cell/≥4 m published lake filter was replaced on 2026-09-08. | `crates/arda-core/src/hydrology.rs:221`; `crates/arda-gen/src/area/shared_compose.rs:79` |
-| Litres / DischargeMilli | Litres is exact nonnegative u128 annual volume. DischargeMilli is u64 whole L/s, also thousandths of m³/s. Annual means divide by 31,536,000 seconds and round down; positive annual transport can have a zero mean. | `crates/arda-core/src/hydrology.rs:109`; `crates/arda-core/src/fixed.rs:78`; `crates/arda-core/src/hydrology.rs:233` |
-| Catchment / drainage | AnnualCatchment retains original terminal ownership and distinct contributing cells. Drainage metrics instead follow the final directed graph, including original zero-flow drainage edges and collapsed connected lakes. | `crates/arda-core/src/hydrology.rs:240`; `crates/arda-gen/src/hydrology/flow_metrics.rs:564` |
-| Signed fine flow | Annual net sources flow over the actual receiver forest plus accepted physical spill edges. Signs determine directed transport; internal same-lake transfers are omitted from visible geometry, and actual exterior totals reconcile with the annual ledger. | `crates/arda-gen/src/hydrology/fine_flow.rs:376`; `crates/arda-gen/src/orchestrator/shared_solve.rs:574` |
-| Strahler order | Final channel hierarchy: equal maximum incoming qualifying orders raise the rank. Connected lakes collapse before propagation; initiation is 40 L/s. Coarse entering-river floors are not the published metric authority. | `crates/arda-gen/src/hydrology/flow_metrics.rs:9`; `crates/arda-gen/src/hydrology/flow_metrics.rs:557` |
-| Global reach / RiverSegment | GlobalReach owns annual flow and downstream identity; RiverSegment is a tile-local fragment with its own u32 ID and stable global_reach_id. A public reach can span multiple cells. | `crates/arda-core/src/hydrology.rs:259`; `crates/arda-core/src/objects.rs:49` |
-| Point reach | Tagged ReachId with equal physical endpoints for a terminal that has no directed cell step. It adds no invented channel step or separate point table. | `crates/arda-core/src/hydrology.rs:79` |
-| JunctionId / divergence | Packed actual dry junction coordinate. A divergence references multiple real outgoing reaches; there is no synthetic reach or separate junction table. | `crates/arda-core/src/hydrology.rs:32`; `crates/arda-core/src/objects.rs:24`; `crates/arda-core/src/formats/area_objects_v4.rs:378` |
-| SharedCrossing | Canonical directed D8 water transfer across an area boundary, copied consistently into relevant areas. CrossingId orders its undirected endpoints by (x,y); terminal IDs use packed (y,x). This is separate from the planned society/road Crossing. | `crates/arda-core/src/hydrology.rs:141`; `crates/arda-core/src/hydrology.rs:281` |
-| Area hydrology context / halo | Bounded copies of global water authority and physical channel edges needed to interpret/rasterize an area, including neighboring envelopes touching it. External downstream identities do not trigger recursive loads. | `crates/arda-core/src/hydrology.rs:333`; `crates/arda-gen/src/hydrology/area_output.rs:155`; `crates/arda-core/src/formats/hydrology.rs:810` |
-| HAND | Height above a downstream channel chosen along final directed flow, with deterministic shortest-distance/anchor ties. Search stops at standing water/exterior. A channel has zero height; absent targets saturate the saved height-above-river value. | `crates/arda-gen/src/hydrology/flow_metrics.rs:489`; `crates/arda-gen/src/area/shared_compose.rs:193` |
-| Wetness | Saved integer drainage/slope display index, distinct from block-neighbor wet_fraction. Atlas uses it to tint land before rock/snow blending with Q12 weight `wet×2048/(wet+12)` toward `[81,126,73]`; it does not model soil moisture, vegetation or ecology. | `crates/arda-gen/src/area/fields.rs:1`; `crates/arda-gen/src/block/constraints.rs:17`; `crates/arda-render/src/atlas.rs:718` |
-| Edge taper | Legacy tile-only 32-cell smoothstep ramp at a pinned rim; shared evolution instead fixes only the real modeled outer rim. | `crates/arda-gen/src/area/erosion.rs:47`; `crates/arda-gen/src/area/evolution.rs:3` |
-| Physical width / channel footprint | One shared integer discharge-to-decimetre helper sets physical widths. Saved adjacent centerline strips, terminal footprints and junction joins determine raster coverage. | `crates/arda-core/src/hydrology.rs:117`; `crates/arda-render/src/channels.rs:87`; `crates/arda-render/src/channel_geometry.rs:1` |
-| Preview / Detail | Area Preview is 512² with faint subpixel stream marks; Detail is 4096² with physical coverage only. Both depict the same 100 m terrain and saved water decisions. | `crates/arda-render/src/channels.rs:12` |
-| Exact-size overview | A bounded arbitrary raster size over saved area cells; the 16K example follows manifest aspect ratio. It increases output pixels without generating finer terrain. | `crates/arda-render/src/overview.rs`; `crates/arda/examples/export_world_16k.rs` |
-| Regional detail amplitude | Four fine land octaves scale with the largest regional height difference among eight 1 km offset samples, capped at 90 m; absolute altitude does not amplify them. | `crates/arda-gen/src/continent/bundles.rs:45`; `crates/arda-gen/src/continent/bundles.rs:70` |
-| Structural relief | Initial-bed integer-noise addition at absolute 100 m coordinates, with 8 and 4 km lattice spacing (not wavelength). A Q16 gate uses the range of the coarse sample and eight roughly 5 km offsets: zero through 400 m, full from 2,000 m. Initial or coarse nonpositive samples remain unchanged; positive land can cross zero for later physical classification. | `crates/arda-gen/src/continent/structural_relief.rs:9`; `crates/arda-gen/src/continent/structural_relief.rs:22`; `crates/arda-gen/src/continent/structural_relief.rs:30`; `crates/arda-gen/src/continent/structural_relief.rs:52` |
-| Lake depth palette | Supplied physical bed/surface depth drives integer water shading. Atlas area and overview share the Atlas sea-depth ramp; Classic area keeps its previous blue ramp and Classic overview stays categorical. Missing surface context retains categorical fallback. This is cartographic colour, not calibrated optics or transparency. | `crates/arda-render/src/carto.rs:60`; `crates/arda-render/src/channels.rs:268` |
-| Shared evolution duration | The published whole-domain fine erosion runs 160 iterations. The tile-only diagnostic erosion still has its separate 40-iteration constant. | `crates/arda-gen/src/area/evolution.rs:20`; `crates/arda-gen/src/area/evolution.rs:194`; `crates/arda-gen/src/area/erosion.rs:24` |
-| Resource admission | Explicit RAM, simultaneous scratch, logical-work and I/O capacity checks precede generation writes. Later observed excess returns a typed error; limits never select a different water result. Payload admission is not a process-RSS measurement or maximum-world runtime claim. | `crates/arda-gen/src/hydrology/types.rs:84`; `crates/arda-gen/src/orchestrator/generation_limits.rs:145` |
-| Partial world / clean rerun | Failed or interrupted generation retains partial files without a completion manifest. A nonempty output is refused; successful publication removes runtime scratch and renames the manifest last. This is process-interruption completion, not power-loss durability. | `crates/arda-gen/src/orchestrator/publication.rs:42`; `crates/arda-gen/src/orchestrator/publication.rs:126` |
-| Relaxed block | Eight WFC attempts failed; first allowed tile (or ID 0) fills the block, flagged relaxed. Tactical rules are unchanged by the shared-water model. | `crates/arda-gen/src/block/wfc.rs:19` |
-| Subseed | BLAKE3 key over world seed plus tier/stage/coordinates/attempt, driving ChaCha8. | `crates/arda-core/src/rng.rs:84` |
-| format_version | Stored-world compatibility major, currently 4. Current loads require exact match; existing format-3 worlds are preserved and refused, with no migration. | `crates/arda-core/src/formats/mod.rs:17`; `crates/arda-core/src/formats/manifest.rs:75` |
-| model_revision / schema_version | Hydrology model 2 denotes representative annual semantics. JSON schema 2 carries those records and decimal-string global IDs/u128 amounts; it is independent of world-format and crate versions. | `crates/arda-core/src/formats/hydrology.rs:12`; `crates/arda-render/src/json.rs:15`; `crates/arda-render/src/hydrology_json.rs:145` |
-| Atlas land material | Saved wetness first tints the land palette; gradient magnitude then controls exposed rock, and altitude/slope control snow appearance. Integer presentation policy only, with no generated rock, forest, soil-moisture or snow state. | `crates/arda-render/src/atlas.rs:698`; `crates/arda-render/src/atlas.rs:718` |
-| Atlas shoreline | Integer bilinear saved-height sign reconstructs displayed land/sea boundaries at enlarged pixel centers, with saved-class guards for lakes, ambiguous diagonals and thin features. Box axes retain existing ownership; no saved membership changes. | `crates/arda-render/src/atlas.rs:412`; `crates/arda-render/src/overview.rs:239` |
-| Golden world | MICRO seed fixture with per-file fingerprints in root workspace tests; updating expected fingerprints requires explicit authorization. A source review does not substitute for this determinism gate. | `tests/golden_world.rs:69`; `standards.md` |
-| Trunk corridor / realm | Designed society/road constructs; no generation implementation yet. | `logic/01-continent-generation.md`; `logic/06-society-generation.md`; `crates/arda-gen/src/` |
+| Continent | The coarse 1 km world grid produced by plates, tectonics and upsampling before any area exists; one `Tier` of the core RNG key. | `crates/arda-gen/src/continent/mod.rs:119`, `crates/arda-core/src/rng.rs:19` |
+| Area (area tile) | A 512 × 512-cell tile, 51.2 km on a side; the unit of storage and of the legacy generation stages. Directory name `<ax>_<ay>`. | `crates/arda-core/src/coords.rs:7`, `crates/arda-core/src/coords.rs:17` |
+| Cell | One 100 m square of an area; the `Cell` record holds height, terrain, cover, climate, drainage, road, `built_by` and the rest of the stored per-cell facts. | `crates/arda-core/src/coords.rs:11`, `crates/arda-core/src/cell.rs:103` |
+| `CellKey` | A global (whole-world) signed cell coordinate used by the tactical crates; neighbourhoods may step past the world edge and sources clamp. | `crates/arda-refine/src/source.rs:15` |
+| Fine terrain / fine lattice | The canonical height field at 39.0625 m spacing, stored at `terrain/fine.bin`; every consumer samples it. Lattice node (0,0) sits at the centre of cell (0,0) (`FINE_FRAME_OFFSET_UM` = 50 m). | `crates/arda-gen/src/formation/mod.rs:73`, `crates/arda-core/src/formats/manifest.rs:43`, `crates/arda-core/src/terrain.rs:29` |
+| Legacy vs fine terrain | CLI `--terrain` choice: `legacy` (default) runs the original continent/area stages; `fine` forms the fine lattice with a recipe. | `crates/arda-cli/src/main.rs:51`, `crates/arda-cli/src/main.rs:165` |
+| Recipe | A versioned fine-formation rule set (`V5`–`V8`); the number is the manifest's `recipe_version`. New worlds use 7, the newest is 8. | `crates/arda-gen/src/formation/mod.rs:208`, `crates/arda-core/src/formats/manifest.rs:58`, `crates/arda-core/src/formats/manifest.rs:63` |
+| MICRO | The small fixed generation config (102 × 204 km, latitude 35–55°) used by tests and examples; "MICRO 42" is that config with seed 42. | `crates/arda-core/src/config.rs:63` |
+| Square (tactical) | One 5-ft square of the tactical layer: a 100 m cell is 64 × 64 squares, so a square is exactly 1.5625 m (a binary fraction, exact in floating point). | `crates/arda-refine/src/context.rs:36`, `crates/arda-blocks/src/pipeline.rs:15`, `crates/arda-ways/src/input.rs:10` |
+| Square (legacy block) | The legacy block stage's square, 1,524 mm (five feet); 64 of them make 97.536 m, distinct from the 100 m cell. | `crates/arda-core/src/coords.rs:9`, `crates/arda-core/src/coords.rs:13` |
+| Block (legacy) | A 64 × 64 tile-ID fill of one cell from the legacy WFC stage, stored in per-area `BlockArchive`s. After `MAX_ATTEMPTS` (8) failed attempts the block is filled with a fallback and flagged `relaxed`. | `crates/arda-core/src/formats/blocks.rs:24`, `crates/arda-core/src/formats/blocks.rs:67`, `crates/arda-gen/src/block/wfc.rs:15` |
+| Block (refined) | One cell refined to 64 × 64 squares by `arda-refine`; the unit `arda-blocks` caches. | `crates/arda-refine/src/block.rs:35` |
+| Window | A rectangle of global squares that a tactical crate renders at once; `arda-blocks` caps it at 256 squares a side. | `crates/arda-blocks/src/pipeline.rs:17`, `crates/arda-town/src/block/mod.rs:43`, `crates/arda-ways/src/plan/mod.rs:22` |
+| Tactical | The 5-ft battle-map layer: `TacticalLayout` plus its art library and rules data. "Tactical zoom" is the client view of these maps. | `crates/arda-tactical/src/lib.rs:1` |
+| Refine | Turning one world cell into a natural tactical block: contoured elevation, rivers and shores, border corners, WFC ground, Poisson scatter and a rules sidecar, from the seed and global coordinates only. | `crates/arda-refine/src/lib.rs:1`, `crates/arda-refine/src/lib.rs:67` |
+| Midzoom | On-demand ~10 m relief between the stored 39 m field and the tactical layer, grown only for tiles on screen; keeps every 39 m cell mean and every saved river and lake. | `crates/arda-midzoom/src/lib.rs:1`, `crates/arda-midzoom/src/lib.rs:58` |
+| Origin | A layout's world position of square (0,0), in world squares; the compositor hashes and samples noise at world coordinates so adjacent blocks join. | `crates/arda-tactical/src/layout.rs:37` |
+
+### World generation and storage
+
+| Term | Meaning in Arda | Definition site |
+|---|---|---|
+| World | A saved directory: manifest, continent layers, shared hydrology, area layers and block archives. The facade's `World` loads the manifest first and fills per-area caches lazily. | `crates/arda/src/world.rs:19`, `crates/arda-core/src/formats/manifest.rs:67` |
+| `format_version` | The stored-world major, currently 4; loaders refuse any other major. Separate versions exist per document (water layer, render JSON schema, sidecars, scene, server contract). | `crates/arda-core/src/formats/mod.rs:20`, `crates/arda-core/src/formats/water.rs:28`, `crates/arda-render/src/json.rs:15` |
+| `SeedKey` / subseed | The core stream key `(tier, stage, x, y, attempt)`; BLAKE3 over seed and key gives a ChaCha8 key. `arda_ids::subseed` is the product layers' named sub-generator seed. | `crates/arda-core/src/rng.rs:50`, `crates/arda-core/src/rng.rs:84`, `crates/arda-ids/src/hash.rs:98` |
+| Stable hash | `arda_ids::hash(seed, tag, args)`: the SplitMix64 chain every tactical rule uses for picks that two crates or two blocks must agree on; `tag` is FNV-1a of the rule name. | `crates/arda-ids/src/hash.rs:56`, `crates/arda-ids/src/hash.rs:68` |
+| `TileId` | A u16 index into a tile vocabulary, not a coordinate. The legacy block stage and `arda-refine` each have their own. | `crates/arda-core/src/tiles.rs:9`, `crates/arda-refine/src/tiles.rs:20` |
+| `TileBundle` / `EnteringRiver` | Coarse-derived per-area inputs (pinned edge heights, entering rivers, climate patches) for the legacy area path; not the authority for published fine water. | `crates/arda-gen/src/continent/bundles.rs:142`, `crates/arda-gen/src/continent/bundles.rs:116` |
+| `PreparedTerrain` | Canonical heights, rainfall and temperature arrays that shared water consumes before final area composition. | `crates/arda-gen/src/hydrology/types.rs:31` |
+| Shared evolution | The whole-domain fine erosion that runs 160 iterations before areas are composed. | `crates/arda-gen/src/area/evolution.rs:20` |
+| Resource admission | RAM, scratch, work and I/O capacity checks made before generation writes; exceeding a limit is a typed error, never a different result. | `crates/arda-gen/src/hydrology/types.rs:84` |
+| Wetness | Saved 0–255 standing-water tendency per cell; distinct from soil `moisture` and from `forest_density` (canopy closure). | `crates/arda-core/src/cell.rs:133`, `crates/arda-core/src/cell.rs:119`, `crates/arda-core/src/cell.rs:121` |
+| HAND | Height above the nearest downstream channel, stored per cell in decimetres. | `crates/arda-core/src/cell.rs:131` |
+| `built_by` | The settlement that built on a cell; 0 when none. Contract 3 serves it as a settlement id string. | `crates/arda-core/src/cell.rs:137` |
+| Golden world | The MICRO fixture whose per-file fingerprints are compared by `tests/golden_world.rs`; `ARDA_BLESS=1` rewrites them. | `tests/golden_world.rs:69`, `tests/golden_world.rs:82` |
+
+### Water
+
+| Term | Meaning in Arda | Definition site |
+|---|---|---|
+| `Litres` / `DischargeMilli` | Exact u128 annual volume, and u64 whole litres per second (thousandths of m³/s). | `crates/arda-core/src/hydrology.rs:109`, `crates/arda-core/src/fixed.rs:78` |
+| P / A / E / R / D cell budget | Per 100 m cell: precipitation, actual land loss, open-water evaporation, runoff and added wet-support cost, computed from rainfall and monthly evaporation. | `crates/arda-gen/src/hydrology/annual_aggregation.rs:40`, `crates/arda-gen/src/hydrology/annual_aggregation.rs:53` |
+| `GlobalLake` | One connected representative lake with whole-mm surface; local fragments share its identity and level. | `crates/arda-core/src/hydrology.rs:221` |
+| `GlobalReach` / `RiverSegment` | A reach owns annual flow and downstream identity; a segment is its tile-local fragment carrying `global_reach_id`. | `crates/arda-core/src/hydrology.rs:259`, `crates/arda-core/src/objects.rs:49` |
+| `ReachId` / point reach | Directed reach identity; bit 63 tags a point reach for a terminal with no directed step. | `crates/arda-core/src/hydrology.rs:28`, `crates/arda-core/src/hydrology.rs:82` |
+| `JunctionId` | A dry junction named by its packed global (y,x); no separate junction table. | `crates/arda-core/src/hydrology.rs:32` |
+| `BasinId` | Stable identity of a coalesced physical basin, independent of whether its lake is wet, dry or spilling. | `crates/arda-core/src/hydrology.rs:24` |
+| Spill connection | The actual adjacent source/target cells and sill of a basin's exit. | `crates/arda-core/src/hydrology.rs:168` |
+| `AnnualCatchment` | Terminal ownership and contributing cells of a catchment. | `crates/arda-core/src/hydrology.rs:240` |
+| `SharedCrossing` | A directed water transfer across an area boundary, copied into both areas. Unrelated to road crossings. | `crates/arda-core/src/hydrology.rs:281` |
+| Area hydrology context | Bounded copies of global water records an area needs to interpret and rasterize itself, including neighbours touching it. | `crates/arda-core/src/hydrology.rs:333` |
+| Channel width | One integer helper maps discharge to physical width in decimetres. | `crates/arda-core/src/hydrology.rs:117` |
+
+### Tactical maps and art
+
+| Term | Meaning in Arda | Definition site |
+|---|---|---|
+| `TacticalLayout` | A W × H battle map: row-major squares (ground key, elevation in feet), edge walls, placements, lights and an optional origin. The shared output of refine, fields, ways, town and dungeon. | `crates/arda-tactical/src/layout.rs:15`, `crates/arda-tactical/src/layout.rs:43` |
+| Catalogue / asset / library | The art manifest (`Catalog`) lists assets by class and layer; a `Library` is a catalogue plus its images. | `crates/arda-tactical/src/catalog.rs:15`, `crates/arda-tactical/src/catalog.rs:52`, `crates/arda-tactical/src/library.rs:18` |
+| Placeholder library | The code-generated library at 128 px per square that every imported library falls back to. | `crates/arda-tactical/src/placeholders/mod.rs:29`, `crates/arda-tactical/src/placeholders/mod.rs:238` |
+| Library stack | `top:…:bottom` list of libraries, leftmost wins; fallback is resolved per thing the compositor picks among, so styles never mix inside one pick. | `crates/arda-tactical/src/library_stack.rs:5` |
+| Take (`.altN`) | A variant of one asset, id suffixed `.alt<N>`; a placement draws one take hashed from seed and world position, and an explicit take id pins it. | `crates/arda-tactical/src/library.rs:267`, `crates/arda-tactical/src/layout.rs:141` |
+| ppsq | Pixels per square. Clients may request 64, 96 or 128 (default 128); the importer and placeholders use 128. | `crates/arda-server/src/tactical/mod.rs:46`, `crates/arda-art-import/src/lib.rs:60` |
+| Wall kit | A named family of wall pieces (`stone`, `timber`, `wattle`, …) a `WallSegment` draws with; run, door, window or gate by `WallRole`. | `crates/arda-tactical/src/layout.rs:80`, `crates/arda-tactical/src/catalog.rs:288` |
+| Partition | Edge tag for an interior wall inside one building; drawn with `<kit>_partition` art or the kit squeezed to 50 % thickness. Blocks like any wall. | `crates/arda-tactical/src/layout.rs:109`, `crates/arda-tactical/src/compose/mod.rs:105` |
+| Party wall | Edge tag for an outer wall two buildings share; drawn as an exterior wall. `arda-town` classifies every building edge as `Shell`, `Partition` or `Party`. | `crates/arda-tactical/src/layout.rs:112`, `crates/arda-town/src/block/mod.rs:151` |
+| World tint | Optional grade that pulls ground and water layers toward the world map's colour at their location before sprites are drawn, from a world-anchored lattice so shared pixels tint identically. | `crates/arda-tactical/src/compose/world_tint.rs:45` |
+| WFC | Generic wave-function collapse over a grid of `TileSet` bitsets with adjacency rules, up to 8 attempts; a dependency of `arda-refine` and `arda-town` (`arda-refine` also keeps its own corner-tile `Problem` in `src/wfc.rs`). | `crates/arda-wfc/src/solve.rs:51`, `crates/arda-wfc/src/set.rs:10`, `crates/arda-wfc/src/solve.rs:23` |
+| Overlays | The seam by which ways, fields and town layers are composed onto a refined window, in that order. `SocietyOverlays` reads world society data. | `crates/arda-blocks/src/overlays.rs:117`, `crates/arda-blocks/src/society/mod.rs:91` |
+| Reservation / `Owner` | Who claims a square, in rising precedence natural < verge < fields < croft < water < ways < town; verge and croft are soft claims of ways and town. | `crates/arda-blocks/src/overlays.rs:28` |
+| Made ground | Town footprint over at most 1 ft of standing water (quays, filled shore or marsh fringe); the town outranks water there. | `crates/arda-blocks/src/overlays.rs:21` |
+| Composed block | One `TacticalLayout` with world origin plus one rules sidecar, built from the same layout so image and rules agree. | `crates/arda-blocks/src/pipeline.rs:23` |
+| Rules sidecar | Per-square SRD rules beside a layout (format 2) plus edge rules for parapets, retaining walls, hedges and field walls; merged into the scene. | `crates/arda-scene/src/sidecar.rs:32`, `crates/arda-scene/src/sidecar.rs:37` |
+| Scene | Game-facing data for a layout: per-square movement, climb mask, cover, obscurement, elevation, walls with door state, lights, regions and spawn hints. Identity is seed plus library version. | `crates/arda-scene/src/types.rs:274`, `crates/arda-scene/src/types.rs:35`, `crates/arda-scene/src/types.rs:62` |
+| Token | An NPC placed on a tactical block: npc id, square, building, settlement and kind `worker` or `resident`. | `crates/arda-server/src/tactical/tokens.rs:26` |
+| Dungeon | An underground battle map: `Kind::Dungeon` (BSP rooms, MST corridors with loops, locked and secret doors) or `Kind::Cave` (cellular-automaton caverns); an ordinary layout plus sidecar. | `crates/arda-dungeon/src/lib.rs:197`, `crates/arda-dungeon/src/lib.rs:54`, `crates/arda-dungeon/src/lib.rs:227` |
+| Ways | Roads and crossings drawn at 5-ft scale onto a window: surfaces, verges, ditches, benches, switchbacks, bridges, fords, ferries, toll houses. | `crates/arda-ways/src/lib.rs:1`, `crates/arda-ways/src/lib.rs:101` |
+| Fields | Countryside land use at 5-ft scale: strips, enclosed fields, pasture, meadows, orchards, woodland, farmsteads, mills, mines. | `crates/arda-fields/src/lib.rs:1`, `crates/arda-fields/src/window.rs:59` |
+
+### Settlements and towns
+
+| Term | Meaning in Arda | Definition site |
+|---|---|---|
+| Settlement | One placed settlement in `society/settlements.json`: id, name, tier, population, functions, wealth, culture and more. | `crates/arda-settle/src/model.rs:87` |
+| Settlement tier | `Hamlet` (12–80 people), `Village` (a few hundred), `Town` (1,000–8,000), `City` (8,000+). Each consuming crate keeps a mirror enum. | `crates/arda-settle/src/model.rs:12`, `crates/arda-settle/src/model.rs:42` |
+| Realm | A polity of settlements in `society/realms.json`, with a generated name and English gloss. | `crates/arda-settle/src/realms.rs:38` |
+| Crossing / pass | A road crossing water (bridge, ford or ferry) or a mountain pass, as world objects in metres. | `crates/arda-settle/src/crossings.rs:32`, `crates/arda-settle/src/crossings.rs:56` |
+| `RoadClass` | Canonical road codes `none`, `track`, `road`, `highway`, `footpath`. | `crates/arda-ids/src/road.rs:13` |
+| `LandUse` | Canonical 100 m land-use classes (`built`, `field`, `pasture`, `orchard`, `woodland`, `mill`, `mine`, `meadow`, `fallow`, `farmstead`, …). | `crates/arda-ids/src/land_use.rs:15` |
+| `Biome` / culture | Closed settlement biome list shared through `arda-ids`; culture keys come from `arda-npc` content data and `arda-settle`'s `Culture`. | `crates/arda-ids/src/biome.rs:14`, `crates/arda-settle/src/culture.rs:18` |
+| `BuildingFunction` / craft | Snake-case building function keys (32); a workshop's craft travels beside it as `craft:<key>`. | `crates/arda-ids/src/function.rs:15`, `crates/arda-ids/src/function.rs:182` |
+| `TownSite` | The settlement record a town plan is drawn from. | `crates/arda-town/src/site.rs:79` |
+| `TownPlan` | A complete town: streets, bridges, square, plots, districts, wall, castle, buildings, `fabric`, plus non-serialized grid and per-building looks. | `crates/arda-town/src/plan/types.rs:293` |
+| Plot | A burgage or toft along a street frontage, with frontage, depth, district and inside-wall flag. | `crates/arda-town/src/plan/types.rs:138` |
+| District | Functional quarter of a town: market, residential, craft, waterfront, religious, castle, suburb, farmstead. | `crates/arda-town/src/plan/types.rs:116` |
+| Croft | Open ground inside the built-up footprint (paddock, orchard, kitchen garden, small green, work yard). In block composition it is a soft town claim that yields to water and roads. | `crates/arda-town/src/plan/grid.rs:57`, `crates/arda-blocks/src/overlays.rs:36` |
+| Ambitus | A one-square eaves-drip gap kept in the last column of some street-front row plots: 25 % in towns, 15 % in cities, none in villages, never on the market square or under a three-square frontage. | `crates/arda-town/src/plan/params.rs:29`, `crates/arda-town/src/plan/place.rs:110` |
+| Fabric | The settlement facts behind building materials: wealth, merchant, biome, forest and stone at hand, great fires and golden age from history. Layout-neutral. | `crates/arda-town/src/plan/types.rs:356` |
+| Look | One building's shell kit, partition kit and floor, drawn from the fabric table. | `crates/arda-town/src/block/kits.rs:292`, `crates/arda-town/src/block/kits.rs:337` |
+| Kit chain | Fallback order from a kit a library lacks to one it has (e.g. `log` → timber, `adobe` → stone). | `crates/arda-town/src/block/fallback.rs:66` |
+
+### People and society
+
+| Term | Meaning in Arda | Definition site |
+|---|---|---|
+| NPC / `NpcId` | An inhabitant with name, ancestry, age, home, job, personality, relationships and an SRD 5.1 sheet. Its id is `subseed(settlement, "npc-id", [building, index])`. | `crates/arda-npc/src/npc.rs:292`, `crates/arda-ids/src/ids.rs:116` |
+| Household / population | Residents grouped by home; a settlement's population is regenerated on demand from the seed. | `crates/arda-npc/src/population.rs:21`, `crates/arda-npc/src/population.rs:51` |
+| Sheet | An NPC's SRD 5.1 character sheet. | `crates/arda-npc/src/sheet/mod.rs:160` |
+| Notable | An NPC bound to a society role slot, stored in `society/notables.json`; commoners are not stored. | `crates/arda-npc/src/input.rs:133`, `crates/arda-people/src/files.rs:13` |
+| Rank | `SocialRank` from `Dependent` to `Noble`; set by job and tier and raised by any office held; bounds lifestyle. | `crates/arda-npc/src/npc.rs:124`, `crates/arda-npc/src/ranks.rs:17`, `crates/arda-npc/src/ranks.rs:28` |
+| Office / role | A notable slot the society layer fixes (`ruler`, `lord`, `reeve`, `captain`, …) with title, building, faction and stat block. Civic offices count toward a per-tier civic cap. | `crates/arda-society/src/roles.rs:27`, `crates/arda-npc/src/ranks.rs:40`, `crates/arda-npc/src/ranks.rs:52` |
+| Society | Output of `simulate_society`: realm politics, economy, factions, a simulated history whose outcome is the present, hooks and role slots. | `crates/arda-society/src/lib.rs:110`, `crates/arda-society/src/lib.rs:134` |
+| Event | One timeline entry of simulated history (founding, realm formed, accession, war, peace, flood, plague, fire, famine, mine collapse, abandonment, …). | `crates/arda-society/src/history/mod.rs:54` |
+| Hook | A short plot hook for the referee, per settlement or realm, at most 5. | `crates/arda-society/src/hooks/mod.rs:32` |
+| Faction | A group within one settlement (court, guilds, clergy, watch, criminals, …) with goals, a leader slot, a seat building and pairwise stances. | `crates/arda-society/src/politics/factions.rs:19` |
+| Gazetteer | Readable text rendering of a `Society`. | `crates/arda-society/src/gazetteer.rs:1` |
+| Language / preset / tongue | A naming language built from a seed and a culture `Preset`; a `Tongue` holds everything needed to rebuild a place's local language. | `crates/arda-names/src/language.rs:58`, `crates/arda-names/src/preset/mod.rs:156`, `crates/arda-names/src/tongue.rs:18` |
+| People world | `arda-people`'s view of a world's `society/` directory: plans, notables and populations by settlement. | `crates/arda-people/src/people.rs:43`, `crates/arda-people/src/people.rs:137` |
+
+### Service
+
+| Term | Meaning in Arda | Definition site |
+|---|---|---|
+| `contract_version` | Version of the per-cell query contract, currently 3 (adds `footpath`, string `built_by`, `land_use`, `realm_id`); clients reject unknown versions. | `crates/arda-server/src/contract/mod.rs:31` |
+| `CellSample` | The versioned per-cell record every consumer reads. | `crates/arda-server/src/contract/mod.rs:179` |
+| API version | Route prefix `v1`. | `crates/arda-server/src/dto.rs:12` |
+| Error code | Stable machine code in every error body (`bad_request`, `out_of_range`, `not_found`, `no_block`, `payload_too_large`, `invalid_layout`, `resource_limit`, `not_implemented`, `internal`, …). | `crates/arda-server/src/error.rs:91` |
+| Prefetch | Background refinement of a cell's neighbour rings (radius ≤ 2) queued by `POST /v1/tactical/prefetch`. | `crates/arda-server/src/tactical/prefetch.rs:44`, `crates/arda-server/src/tactical/prefetch.rs:105` |

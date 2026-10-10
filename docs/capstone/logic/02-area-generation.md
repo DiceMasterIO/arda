@@ -1010,7 +1010,7 @@ grass. These fields are persisted in the existing cell format. Fine recipes
 Legacy generation skipped this pass until 2026-10-07, which left every legacy
 land cell with zero moisture and canopy, grass cover and no tactical trees in
 temperate, wet climates; the pass reads only saved climate, relief and drainage,
-so it is terrain-source independent (changelog.d/2026-10-07-legacy-ecology.md). Recipe 5 keeps this pass for
+so it is terrain-source independent (changelog.md, 2026-10-07 legacy ecology entry). Recipe 5 keeps this pass for
 moisture and wetness, but its Atlas land colour no longer uses the per-cell canopy
 classes (logic/04 §atlas-formed). Source:
 [fine_materials.rs](../../../crates/arda-gen/src/orchestrator/fine_materials.rs).

@@ -2,6 +2,1305 @@
 generated_date: 2026-08-24
 ---
 
+## 2026-10-10 - map: all
+key: map/all@022ce7cb5707
+
+- `01-architecture.md`: regenerated (covered paths changed); all 23 crates in tiers 0–7, 37 server routes, viewer and art-gen.
+- `02-models.md`: regenerated (covered paths changed); 624 entities across every crate, server DTOs and persistence formats.
+- `03-conventions.md`: regenerated (covered paths changed); determinism/hashing schemes, rule citations, data files, fixtures.
+- `04-data-flow.md`: regenerated (covered paths changed); full pipeline generate → settle → society build → server request flows; persisted vs computed table.
+- `05-dependencies.md`: regenerated (covered paths changed); records `ab_glyph`, `crc32fast`, `flate2`, `schemars`, the axum server stack and viewer npm deps; `tiny_http` recorded as never installed.
+- `06-testing.md`: regenerated (covered paths changed); per-crate test inventory, fixtures, ignored release gates, bindings checks.
+- `07-operations.md`: regenerated (covered paths changed); six binaries, viewer, art-gen, env vars, CI, release.
+- `08-glossary.md`: regenerated (covered paths changed); ~110 terms.
+- `09-interfaces.md`: created (newly applicable topic: arda-server publishes an HTTP API consumed by DiceMaster); 40 http rows and 2 schema rows, no `to`/`from`.
+- `open-items.md`: refreshed in place (covered paths changed); OI-01..31 audited at 022ce7cb5707, OI-32..43 added.
+- `logic/07-preview.md`: regenerated (covered paths changed).
+- `logic/17-midzoom-relief.md`: rewritten to the scenario template (template drift).
+- `logic/18-dungeons-and-caves.md`, `logic/19-art-import.md`, `logic/20-art-generation.md`, `logic/21-society-build.md`, `logic/22-developer-inspection.md`: created (logic coverage gap).
+- `logic/README.md`: index rows for 17–22.
+- `logic/14-society-history.md`: trigger names `arda society build` (was the non-existent `arda-society generate`).
+- `logic/16-service-api.md`: `contract_version` row records contract 3.
+- `uiux/01-direction.md`, `uiux/02-system.md`, `uiux/screens/01-world.md` … `05-editor.md`: created (design coverage; `apps/viewer` is a frontend).
+- `contract-dicemaster.md` (local only, gitignored): created; Arda ↔ DiceMaster semantics, statuses (implemented/planned/open), route map from DiceMaster's assumed paths.
+- Interfaces: quarry is installed but not initialised in this repo (`quarry docs index` fails); edges left without `to`/`from`.
+- Skipped as current: `logic/03`, `logic/06`, `standards.md`, `implementation.md`, `mockup-artifact.md`, `mockup/*`.
+- Left unfolded: `changelog.d/2026-09-25-terrain-study-consolidation.md` (untracked, not this run's).
+- Index refreshed.
+
+## 2026-10-09 - Terraced houses read as separate houses: party walls, materials from history, ambitus gaps
+- `crates/arda-tactical`: new edge tags `partition` and `party` (`layout::TAG_PARTITION`, `TAG_PARTY`, `WallSegment::is_partition`). The compositor draws a `partition` edge with the library's `<kit>_partition` piece when it has one, else the kit's own piece squeezed to half thickness (`compose::PARTITION_PCT`); a vertex where a partition meets an outer or party wall takes its joint from the outer arms only, so the shell runs on unbroken; all-partition vertices get a thin joint. `party` walls draw as outer walls. Rules are unchanged: every wall blocks. `Rgba::inset` added.
+- `crates/arda-town` blocks: an edge on a footprint boundary is a building's shell; one that two buildings claim is tagged `party`; an edge inside one footprint is tagged `partition` (`block::WallClass`, `block::on_boundary`). logic/10 §party-walls.
+- `crates/arda-town` materials: `block::kits` is now a data table driven by the settlement (logic/10 §building-materials): culture and biome give the vernacular (timber, wattle, log in sylvan woodland and the boreal forest, adobe on the steppe and in the warm south, rubble and stone in the uplands); district rank plus wealth, tier and building stone at hand, a golden age (core) and great fires (inside the wall) pick stone, a stone/vernacular mix, the middling or the poor vernacular; a house's standing relative to its own settlement moves it one step. Rich merchant towns and cities (wealth ≥ 220, market or port) are stone throughout, with rubble for low-standing houses. New kits used: `log`, `adobe`, `drystone` for rubble houses (`fallback::kit_chain` maps `log` → timber and `adobe` → stone for libraries without them). Floors follow material and wealth, and homes sharing a wall take different floors where the palette allows (greedy in id order). `TownPlan` gains `fabric` (serialised; the plan schema changes) and a cached `looks`.
+- `crates/arda-people`: `World::plan` reads great fires and the prosperity history from `society.json` into the plan's fabric (`town::read_history`), after planning, so the layout and society's buildings are unchanged.
+- `crates/arda-town` plans: a deterministic share of street-front row plots keeps a one-square ambitus (eaves-drip gap) in its last column: 25 % in towns, 15 % in cities, none on the market square (`Params::ambitus`, hashed from the plot's first front square; the random stream, front line and depth are untouched, so only those houses lose one column).
+- `tools/art-gen`: tier-5 prompt entries for `timber_partition`, `wattle_partition` and `adobe_partition` (57 images with alts; not generated).
+- Why: in towns and cities houses are terraced rows sharing party walls; every house used the same kit, partitions looked exactly like party walls and floors gave no cue, so a row read as one big building with many rooms.
+- After (MICRO 42): Eayeyil (city, 254, port and market) is stone throughout; Dilrou (heartland town, 183) has a stone market and temple close, mixed craft and waterfront, timber residential streets, wattle suburbs; Vefleth (sylvan town) builds logs; Fetarmedhe (southern, two great fires) builds stone; Tudeeyude (poor sylvan forest village) builds wattle with log houses for the better off. Renders change wherever a town or village shows: wall kits, floors, thin partitions, and about a quarter of town row houses one square narrower.
+- Tests: `arda-tactical` (joint selection with tagged partitions, partition thickness, dedicated partition art), `arda-town` (`block::kits` rules, `tests/blocks.rs` party/partition classification, `tests/plan.rs` ambitus share), `arda-blocks/tests/settlements.rs` (tags agree with the scene's building ids on seed 42, fires read from society, rich merchant towns all stone, others split). Schema `TownPlan` re-blessed. Docs: logic/10 §town-footprints, §town-walls, new §party-walls and §building-materials, §town-interiors, invariants 10–12; logic/11 §vocabulary, §walls-assembly, invariant 3.
+
+## 2026-10-09 - Notable ranks by tier and office; one civic figure per hamlet
+- `crates/arda-npc/data/content/occupations.json`: jobs carry `rank_by_tier`. Workshop, inn and boathouse owners are tradesfolk in hamlets and villages and masters in towns and cities; tavern and shrine keepers, headmen, elders and reeves are tradesfolk; a village lord of the manor is gentry, a lord mayor gentry. New `offices` table ranks society offices (`elder` and `reeve` 2, `commons_voice`, `fisher_head`, `forester`, `miner_captain` 1, `lord` 4–5, `ruler` 5, …), marks the civic ones and lists the tier officials each covers. New `rank_lifestyles` keeps a working NPC's wealth inside its rank's lifestyle band.
+- `crates/arda-npc`: rank = job rank in the tier raised to the held office's rank (`ranks` module, public). Society slots now bind before officials are appointed; an office stands in for the official it covers (no second "Reeve" beside "Reeve of X"), officials and promotions stop at the tier's `civic_cap` (hamlet 1, village 3, town 8, city 16), office holders are never demoted, and the hamlet promotion list keeps the head's own land job (`land`). "Master …" titles are kept only at master rank (a village "Smith").
+- `crates/arda-society`: no `harbourmaster` office in hamlets; the hamlet commons faction is led by the elder (`leader_hamlet`); an office without a building of its kind sits in a dwelling instead of the first building (a "Chief Woodward" was bound to the harbourmaster or a stallholder). `society.json` changes accordingly (hamlet factions and roles, fallback role buildings).
+- `crates/arda-people`: `compute` returns a build without writing it (`build` = `compute` + write).
+- Why: on MICRO 42, 70 % of the 3,362 notables were `master` (every workplace owner and official was rank 3), 30 % were government, every hamlet had 3–4 civic figures (society elder and voice plus a promoted headman and elder), and office holders kept their job's rank, so "Elder of X" who farmed was a labourer while a plain "Reeve" was a master.
+- After (MICRO 42, 2,533 notables): tradesfolk 53 %, master 25 %, labourer 17 %, gentry 4 %, noble 1 %; government 7 %; every hamlet has exactly one civic figure; hamlet notables are 93 % land, water and woodland folk.
+- Tests: `arda-npc/tests/ranks.rs` (job/office → rank, lifestyle band, "Master" titles, hamlet civic cap, office covers official), `arda-people/tests/notable_mix.rs` (MICRO distributions and the rank invariant). Docs: logic/13 §npc-jobs, §npc-notables, new §npc-ranks; logic/14 §soc-offices.
+
+## 2026-10-07 - Towns build over the shallow shore fringe
+- `crates/arda-blocks/src/overlays.rs`: in its own footprint the town layer (buildings and crofts) may claim base squares holding at most 1 ft of standing water (`MADE_GROUND_FT`), as quays and made ground. Deeper water and the town plan's own water stay water. Fields and ways still never take water.
+- Why: the biome pass lets the sea reach into sea-level coast cells. In a port at sea level (MICRO 42, Dilrou 309,1096) that 1-ft fringe covered 42% of the town's open ground, because a layer could only take a wet base square by drawing water itself. Refine cannot avoid this, since world cells carry no settlement data until `arda settle`.
+
+## 2026-10-07 - Tactical biomes: marsh, coast, alpine, crags and steppe from the cell fields; no texture checker
+- **Problem:** on MICRO seed 42 (cover is `grass` on 99.7 % of land) every refined cell looked like the same meadow: a wetland (wetness 1.0) was grass and a stream, a coast cell (0 m, sea next door) was grass with no beach or sea, a snowbound peak (3,150 m) was snow strewn with flowers and bushes, a 35° mountainside was a flat scree sheet, and steppe (400 mm at 12.8 °C) was lush green. AI ground textures showed a blocky checker where variants met.
+- **Biome signals (arda-refine `biome.rs`):** marshy, arid, coastal, alpine and craggy, each from one cell's wetness, rainfall against warmth, height, temperature and slope (logic/09 §ground-field). They drive the ground prior, marsh pools, the standing-water shoreline (sea-level land is half sea) and the scatter (logic/09 §scatter): reeds, sedge and marsh flowers; driftwood, dune grass, tide pools and sea rocks; no plants on snow, krummholz, alpine flowers and lichen rock; dry grass, tussocks and sagebrush. Craggy cells are terraced into 7 m strata (logic/09 §elevation), so mountains show benches, cliff bands and outcrops.
+- **Forests:** a forest cell at density 0.84 (legacy MICRO 42, cell 462,765, after the ecology pass) drew about 200 trees spaced like parkland, 13 % crown cover. Trees now stand on a 1.6-square lattice with overlapping crowns, so crown cover tracks the forest density (0.80 there; 0.52 at density 0.45 with copses), with undergrowth in the gaps. Aridity ramps from 0.75 to 0.35 of the water need so temperate 570 mm forest country is not read as steppe.
+- **Compositor (arda-tactical):** natural texture variants are flattened to one tone (no checker), one variant per 3 × 3 cells; an optional `Square.dryness` (refined layouts carry aridity) tints turf toward dry grass, seam-exact (logic/11 §ground-blend). `bindings/` gain `SquareDto.dryness`.
+- **Crisp parcel edges:** farmland, stubble and fallow borders (against headlands, hedges, grass) are drawn as clean lines (12 % warp, `w¹²` sharpening) instead of half-square blobs; natural borders stay organic (logic/11 §ground-blend).
+- **Placeholder library:** 13 new vegetation ids with existing looks; existing assets unchanged.
+- **Compatibility:** built-in layouts carry no dryness, but every placeholder render changes slightly through the flattened variants (intended; mean per-channel difference 2–10 levels). Refined blocks change wherever the new signals are non-zero. No golden fingerprints changed.
+- **Renders:** before/after sheet of seven MICRO 42 cells and two legacy MICRO 42 woods (forest 462,765; woodland 470,645) at 64 px per square (wetland 344,680; coast 56,1592; peak 632,1328; mountain 680,1400; steppe pasture 848,1328; steppe river 872,1184; wet river 80,1280).
+
+## 2026-10-07 - Legacy terrain gets ground ecology: forests on the default world
+- **Symptom:** in MICRO seed 42 generated with the CLI default (`--terrain legacy`), the cell contract reported `cover = "grass"` on 99.8% of land, marsh on the rest, and `forest_density = 0` and `moisture = 0` on every land cell. Settlements classified as steppe/wetland and tactical maps never placed trees.
+- **Not the climate:** the same world is temperate and wet. Land rainfall median 853 mm (58.6% above 600 mm), temperature median 10.7 °C; 49.8% of land is both above 5 °C and above 600 mm. MICRO seeds 1, 7, 99 and 2024 matched it: rainfall medians 583–1,278 mm, 34–52% of land temperate and above 600 mm, and still zero canopy and moisture everywhere. The fine path on the same seeds is forested (fine 42: 67% forest cover, mean density 0.66).
+- **Cause:** the ground-material pass (`arda-gen/src/orchestrator/fine_materials.rs`, logic/02 §Ground material) ran only for fine recipe ≥ 4. Legacy composition sets grass or marsh and leaves the ecology fields at their zero defaults, which logic/02 described as "richer ecology deferred". The pass reads only saved temperature, rainfall, slope, aspect and drainage, all of which legacy cells already carry, so nothing tied it to the terrain source.
+- **Fix:** run the pass for legacy terrain too. Fine recipes 1–3 still replay their published bytes. Fine recipes 4–8 are unchanged: `tests/golden_recipes.rs` stays byte-identical.
+- **Result (legacy MICRO, before → after):** forest cover 0% → 61% (seed 42), 56% (1), 58% (7), 41% (99), 53% (2024). Mean forest density 0 → 0.55–0.64. Where land is above 5 °C and above 600 mm, 64–82% of it is forest. Climate fields are byte-identical; only moisture, wetness, canopy and cover change.
+- **Golden:** `tests/golden/micro-42.txt` re-blessed on purpose. The six land-bearing `areas/*/cells.bin` change because of the new ecology fields. The two all-sea areas, blocks, continent and hydrology are unchanged. `world.json` changes only because the fixture still carried the v0.6.0 `arda_version`: the v0.7.0 release did not re-bless it.
+- **Tactical:** in the new seed-42 world, cell (462, 765) has 9.9 °C, 673 mm, forest density 0.84 and cover forest. It renders 198 trees (birch, oak, elm) with ferns, logs and stumps through `arda-server --library out/art-gen/lib`.
+
+## 2026-10-07 - Dungeons and caves: arda-dungeon, `arda dungeon`, `/v1/tactical/dungeon`
+- **Gap:** Arda made towns, fields and roads but no underground maps.
+- **New crate `arda-dungeon`:** deterministic levels as ordinary `TacticalLayout`s plus a format-2 rules sidecar and a description (rooms with purposes, doors with `locked`/`secret`, exits). `dungeon`: BSP rooms, MST corridors plus loops, doors where corridors enter rooms, purposes (entrance, crypt, barracks, storage, shrine, prison with locked cells, treasure behind locked doors, hall) with dressing, stairs up and down, torch sconces and braziers. `cave`: 4-5 cellular-automaton caverns with every pocket tunnelled to the main cave, a mouth on the map edge, pools (wade and swim) and a stream, scree, moss, stalagmites, rocks, rubble, glowing mushrooms and a descent. Rock is impassable and opaque through the sidecar; a connectivity guard keeps every walkable square reachable. `site_seed` gives a stable seed per world cell. README: `crates/arda-dungeon/README.md`.
+- **Schema:** `WallSegment` gains optional free `tags` (`locked`, `secret`; omitted when empty, older layouts unchanged). A `secret` door is drawn as a plain run; arda-scene reports it as `kind: secret`, and scene walls gain `locked` (omitted when false). Server DTOs, JSON schemas and TS bindings follow.
+- **Access:** `arda dungeon --seed N --kind dungeon|cave --size WxH --out layout.json [--rules --meta --scene --render --library --ppsq --grid]`; `GET /v1/tactical/dungeon?seed=|gx=&gy=&kind=&w=&h=` (layout, rules, rooms, doors, exits), `/dungeon.png` and `/dungeon/scene` (`crates/arda-server/API.md`).
+- **Vocabulary and art:** placeholder art (242 assets, was 217) for new `ground.cave_floor`, `ground.bedrock`, wall kit `cave`, `prop.stairs_down`, `prop.torch_sconce`, `veg.stalagmite`, and for `prop.tomb`, `prop.coffin`, `prop.bone_pile`, `prop.skeleton`, `prop.cage`, `prop.gaol_cot`, `prop.rubble_pile`, `prop.chest_treasure`, `prop.stairs` (already in the AI library). They carry only free tags no town or field tag query uses, so no query picks them; the one visible effect elsewhere is that town blocks resolved against the placeholder library alone now draw `prop.stairs` instead of its ladder fallback. Every existing test passes unchanged. Prompt pack tier 4 (34 images, not generated): the two ground keys, the `cave` kit and three takes each of the three new props.
+- **Tests:** determinism, every walkable square reachable with doors opened, no floating doors, exits present, sane scene rules (rock impassable and heavy, closed doors solid, locked and secret doors, wade, swim, difficult), refused sizes, pinned renders, and the three server routes.
+- **Follow-ups:** choosing world sites for entrances (crypt entrances near settlements, cave mouths on steep slopes); mixed kinds (mines, ruins); light pools that respect walls in the compositor.
+
+## 2026-10-02 - Plains: measured flat; recipe 8 adds discharge-scaled floodplains (goal 5)
+- **Question:** goal 5 was 🟡 because the lowland (land below 200 m) slope median was 4–5° and rose from 4.6° to 5.2° on seed 42 after the bands fix. Real plains are well under 2°.
+- **Measured first** (`plains_metrics`, recipe 7, 100 m area cells): the 4–5° figure is MICRO seed 42, where 88% of land and 60% of lowland lie in Hammond "mountain" windows (over 300 m of relief within ~10 km). There, 98% of land below 200 m has at least 50 m of relief within 2.1 km: hill country near the sea, not plain. Genuine plains (under 50 m of relief) are flat on every seed: median 0.2–1.0° on MICRO 42/3/5/7. On the full-size seed-42 world, land below 200 m has a median slope of 0.95°, plains cover 34% of the land at 0.54° (interfluves 0.75°, valley floors 0.09°), Hammond plains 16% at 0.36°, and 57% of lowland valley sides are terrace treads.
+- **What was wrong:** floodplains did not scale with discharge. On full-size seed 42, rivers in plain settings had floors (ground within 2 m of the river) with median widths of 705 m at 2–20 km², 500 m at 20–100 km², 423 m at 100–1,000 km² and 705 m above 1,000 km².
+- **Recipe 8 (opt-in, `--recipe 8`):** alluvial valley floors before the terraces (logic/02 §fine-formation plains). Half-width `60 m × A^0.4`; built where the bankfull specific stream power is low (Nanson & Croke), the channel under 3% and belt relief under 800 m; floor at the channel plus 0.4‰ (aggradation below, lateral planation above) up to a `4 D` bluff; no floor in confined valleys (openness under 35%) or narrower than 100 m a side. Interfluves are not smoothed: they are already flat.
+- **Result, full-size seed 42 (recipe 7 → 8):** plain-river floor medians 705 → 705, 500 → 564, 423 → 600 and 705 → 987 m (now growing with discharge from 20 km² up); all-river floor medians 200 → 282 m below 1,000 km². Lowland 0.95° → 0.92°, plains 0.54° → 0.53°, low hill country 2.87° → 2.82° (unchanged character). Pits 0 → 0, lakes ≤ 3 cells 0 → 0, straight runs 2‰ → 1‰, lakes 356 → 394 (oxbow 110 → 137, karst 216 → 227, all explained). MICRO seeds: hill country unchanged, 0 pits, 0 speckle lakes.
+- **Compatibility:** recipes 5, 6 and 7 are byte-identical (`tests/golden_recipes.rs`); recipe 8 is pinned from its first release (`tests/golden/micro-42-recipe8.txt`). The default stays 7.
+- **Renders:** `out/v6-plains/` (overview crops at 100% and mid-zoom relief, recipe 7 against 8).
+
+## 2026-10-02 - v0.6 integration: plains, worked land and field systems on one branch
+- **What:** `integrate/v0.6` merges feat/v6-plains, then feat/v6-field-patterns (which contains feat/v6-midzoom-landuse), onto main's 0.5.0 (`c63a4b1`), with no conflicts. The default recipe stays 7; recipe 8 is opt-in.
+- **Wedge-shaped fields (logic/17 §land-fields):** a cut other than a road may not meet its piece's boundary at under 38°, nor run within 12 squares of a boundary edge at such an angle. The check reads the clipped outline, the block outline and the true lines of the cuts above. The last-resort cuts obey it too, and a piece no cut can split stays one field. On MICRO 42, corners under 35° away from roads and rivers drop from 98 to 4 over six 4 km squares.
+- **Verification:** `arda-fields/tests/partition.rs` `no_field_corner_is_a_wedge` (five synthetic scenarios, every corner 35° or more away from roads and rivers; it fails without the rule); the full gate and the server smoke test (integration-status §v0.6). Renders in `out/v6-int/`.
+- **Skipped:** hedges and field walls drawn along the true diagonal instead of square-edge staircases. The reason is in integration-status §v0.6.
+
+## 2026-10-02 - Mid-zoom relief: worked land and readable plains (goals 5, 39, 41, 49)
+- **What:** at 15–30 m/px the full-size world's plains rendered as featureless green blotches; relief tiles drew no land use, roads or settlements, although the society data and the tactical layers had them.
+- **Land (logic/17 §land):** relief tiles of a world with `society/` draw field parcels with hedgerows and drystone walls, pasture, arable, orchards and woodland, roads and lanes at their class widths, and settlements' buildings and streets, from the tactical layers' own geometry: the arda-fields partition, the arda-ways centrelines and the arda-town plan grids. Detail follows the pixel (tone from afar; strips, furrows, orchard rows, crowns, lit roof pitches and shadows close up).
+- **Low relief (logic/17 §low-relief):** on low ground, topographic position against the ~200 m mean tints valley floors and interfluves, and the slope light is amplified as local relief shrinks below 6 m, so terraces and bluffs read; nothing is added to the heights.
+- **Defaults:** worlds without `society/` render byte-identically; the tactical world grade is unchanged. `arda-blocks` shares its land-use raster and roads; `arda-fields` samples its tensor field in parallel (same values).
+- **Verification:** `tests/zoom_land.rs` in the zoom-continuity gate (MICRO 42, z9 against composed blocks: road IoU 1.0 over 1,342 squares, building IoU 1.0 over 1,793, all 1,148 walls between fields on relief hedge lines; land tiles pixel-exact); `arda-midzoom/tests/land.rs` (synthetic: fields one-to-one with parcels, road IoU 1.0). Renders in `out/v6-mzland/`.
+
+## 2026-10-02 - Historical field patterns (goals 39, 43, 49)
+- **What:** the field partition was a jittered lattice of sites under a contour-stretched metric; from above (2–15 m/px) its parcels read as Voronoi cells of one size, a board-game look.
+- **Field systems (logic/17 §land-fields):** `arda_fields::partition` is now a fixed global hierarchy: brick-laid land blocks with drifting vertices, recursively split along roads, across long axes square to the longest side, along contours, at jittered and slightly kinked lines (old enclosure) or on a surveyed bearing (planned enclosure), until each piece is the size its ground asks for. Closes by the houses grow into larger, more varied fields further out; villages keep furlongs of strips with headlands; floodplains are meadow and poor grazing is open common (`FieldKind::Common`).
+- **Contracts kept:** `kind_of`, crops, hedges, walls, gates (every enclosed field gated), farmsteads and the sidecar rules are unchanged; the relief tiles read the same partition (`Partition::locate_edge` gives the exact distance to a field's edge and the field across it), so field walls stay on relief hedge lines.
+- **Inputs:** `FieldInputs` gains `rivers`; `LandUseMap` is `Sync`; arda-blocks reads fields' surroundings and settlements over the partition's reach (`FIELDS_MARGIN_M` 3.8 km) and shares `field_roads`, `fields_rivers`, `FIELDS_CULTURE` and `FIELDS_WEALTH` with the relief tiles.
+- **Verification:** `arda-fields/tests/partition.rs` (determinism and exact seams; shape on synthetic country: four-sided fields 5–7 % → 89–90 %, T-junction share 0.22–0.50 → 0.98–0.99, median elongation 1.38–1.53 → 1.51–1.70, p90 1.99–2.30 → 2.8–3.8; enclosed field size 0.47 ± 0.28 ha by the hamlet against 0.78 ± 0.40 ha further out, where the old partition was flat at 1.05 ± 0.29); e2e village (cold block 340 ms, quarter window 99 ms); 1,082 walls between fields all on relief hedge lines. Renders in `out/v6-fields/`.
+
+## 2026-10-01 - Zoom continuity: one water geometry, soft snow (goal 49)
+- **What:** at the relief z9 to tactical hand-off rivers and shores sat in different places (cell 465,1166 about 40 m off; at 519,1377 the relief drew a sea inlet over most of the cell, the tactical map only a corner). Relief tiles drew rivers along the overview's centrelines and lakes and coasts from the stored field; the tactical blocks build their own channels and shores.
+- **Source of truth:** the tactical layer's water (logic/09 §linear-features), which towns, ways and crossings already use. `arda_refine::region::WaterRegion` gathers the cells, channel edges and fine lattice a block reads for any window (`Ctx::gather_region`) and answers shores (`terrain::standing_water`, now one shared function), channels and pools at any global square position. Relief tiles (`arda-midzoom` `water.rs`) sample it at pixel centres; widths ease from the overview's ×4 symbol at 25 m/px to the true banks at ≤ 6.25 m/px. Depth tints keep the stored field where it holds water. Logic/17 §water, §rivers, §render.
+- **I1:** both layers now reach the fine lattice through refine's single conversion (`FINE_ORIGIN_SQ`); relief no longer classifies water in its own frame.
+- **Snow (logic/11 §snow-cover):** snow near a border is a cover over the ground beneath: widely warped, kernel-softened weight broken by rotated noise inside the band, a speckled dusting ahead of the patch, grey-blue thin cover; seams stay pixel-exact.
+- **Verification:** `region_water_matches_the_refined_blocks` (synthetic rivers, lake, sea, marsh: square for square); `tests/zoom_continuity.rs` (release gate, MICRO 42: IoU 1.0 over 5,102 water squares in 11 cells); snow seam and feathering tests; overview bytes and tactical layouts unchanged. Renders in `out/v4-geo/{before,after}/`.
+
+## 2026-10-01 - v0.5 integration: hardening, schemas and art import on one branch
+- **What:** `integrate/v0.5` merges fix/v4-hardening, feat/v4-schemas and feat/v4-art-import onto `integrate/v0.4` (`c28e2bf`, recipe 7 the default). The JSON Schemas and TypeScript bindings are regenerated for cell contract 3, so `CellSample`, `PointSample` and `AreaCells` describe `land_use`, `realm_id` and the `footpath` road.
+- **Art import (goal 60):** the new crate `arda-art-import` and `arda tactical import` turn raw AI-generated images into a valid tactical library (cut-out, shadow stripping, fit, tileable textures, colour grade, catalogue with inherited metadata and provenance, report and contact sheet). `Library::load_stack` reads `top:…:bottom` library stacks with per-slot fallback; the CLI, the server, `arda-town block` and the arda-scene `debug` and arda-ways `crossings` examples accept them.
+- **Footprint cap and stacks:** import manifests refuse footprints over 16 squares a side before fitting, and a stack refuses to rescale a lower layer's asset past 2,048 px a side (a top layer with a large `pixels_per_square`).
+- **Verification:** the server's schema tests validate real responses on a recipe-7 fixture (the shared fixture is reused only when its recipe is the default), including a village cell's contract-3 fields alone and in its area; the shared test-fixture builder takes a lock, closing a race where a late builder moved a complete fixture aside.
+
+## 2026-10-01 - JSON Schemas, typed scenes and the sheet mapping (goals 66, 69; A12)
+- **What:** every public body now has a draft 2020-12 JSON Schema generated by `schemars` from the same Rust types as the TypeScript bindings, committed in `bindings/schema/` and served at `GET /v1/schema` and `/v1/schema/{Name}.json` (logic/16 §api-schema). Settlement, society and town-plan schemas come from the domain types through a new optional `schema` feature in arda-ids, arda-names, arda-settle, arda-society and arda-town; serialized output is unchanged.
+- **A12:** the scene is typed end to end. `SceneDto` mirrors `arda_scene::Scene` (run-length `Runs<T>` grids, `[x, y]` squares, string seed), `TacticalScene`, `Token` and `TokenKind` type the scene route, and `TacticalBlockDto.scene` is `SceneDto | null` instead of `unknown`. The viewer reads scenes through the generated types and shows each square's movement, cover, obscurement and climb.
+- **Goal 69:** `--sheet-mapping game.json` reshapes every served NPC into a game's own schema with a declarative file (pointers, nesting, constants, templates, enum tables, unit scaling, case and format conversions, drops), checked and dry-run at startup (logic/16 §api-sheet-mapping). Examples: `identity.json` and `5e-srd-monster.json` (the open 5e SRD JSON monster layout).
+- **Verification:** schema staleness and determinism tests; scene mirror round trips; `tests/world_api/schemas.rs` validates every route's real MICRO seed-42 response with the `jsonschema` crate; mapping unit tests (identity, an inverse round trip, the SRD mapping over about 80 probe NPCs, refusals) and `tests/world_api/mapping.rs` (mapped routes, byte-identical unmapped routes, refused startup).
+
+## 2026-10-01 - feat: opt-in oblique overview and tactical world grade
+key: feat/2026-10-01-v4-look-options
+
+- **Oblique overview (goal 24, opt-in).** `arda export --overview --style atlas-oblique`, `GET /v1/overview.png?style=atlas-oblique` and `GET /v1/tiles/overview/{z}/{x}/{y}.webp?oblique=1`: the finished Atlas rows are warped north by 0.5 × a smooth 400 m surface (sea and lakes at 0, so coasts never move; south flanks stretch, north flanks compress, Catmull-Rom across rows), plus aerial perspective (≤ 6 % in deep valleys, ≤ 4 % on low ground), valley occlusion (≤ 9 %), crest lift and sky fill. Streams with a bounded row window. Recipe-5+ Atlas only.
+- **Tactical world grade (goal 49, opt-in).** `?world_grade=1` on world cell/window images and tiles: ground and water are pulled toward the formed relief colour at their world position (12.5 m world-anchored lattice, `arda_midzoom::world_lattice`), relative to a 7 × 7-square regional texture mean so detail survives; streets and floors take a quarter, farmland half. Seam invariant holds.
+- **Viewer:** World view toggles `oblique` (hides relief levels while on) and `world grade` (carried into "Open tactical map here"); Cell view toggles `world grade` and `world hand-off` (relief at the switch-over zoom, a cross-fade and the tactical map side by side).
+- Defaults are byte-identical: the recipe-5/6 4K Atlas goldens pass; `world_grade=0`/`oblique=0` equal the plain requests. Comparisons: `out/v4-look/`.
+
+## 2026-10-01 - v0.4 hardening: cell contract 3 and the open review items
+- **Cell contract 3 (adapter A11, logic/16 §api-cell-society):** with a `society/` directory, `/v1/cell`, `/v1/point` and `/v1/area/.../cells` read `road` from the new `society/roads.bin` (gaining `footpath`), `built_by` from the `landuse.bin` owners (now a settlement id string), and the new `land_use` and `realm_id` from `landuse.bin` and `realms.bin`. `ARDACOLS` layout 2 adds the `land_use` and `realm_id` columns. `arda settle` writes `roads.bin` (logic/08 output table). Worlds without `society/` keep the stored `road` and `built_by`; re-run `arda settle` to get `roads.bin` for an existing world.
+- **`arda_refine::Source::pan` is required:** a wrapping source must forward the playa query or fail to compile.
+- **Server:** error bodies shorten absolute paths to the file name; overview qualities are a short ladder (512 doubling to the limit); images revalidate by `ETag` with `Cache-Control: no-cache` instead of `public, max-age=3600`; tactical PNG encodes and pyramid builds run one at a time and are admitted; an empty world no longer underflows the out-of-range message.
+- **Society** indexes its history, traffic and relations (8,000 settlements: 1.0 s, was 5.1 s; output byte-identical). **Settle** encodes every file before writing, and its rank-size fit uses a platform-independent logarithm (`stats.json` moves in the last digit).
+- **Ways:** the layout's lakes and sea are never paved; crossings are planned wherever their synthetic channel reaches; a straightened way is reindexed at once; only roads that can shape a window are planned (byte-identical); ids are u64. **Fields:** mines move off roads; open fields can be `complete`; land-use rasters are bounded; furrows run across window edges. **Scene:** secret doors are no spawn entrances, cleared canopies stay lightly obscured, `derive` checks its inputs, and the grid rules are attributed as house rules. **Names:** roots are never blocked or repeated. **NPC:** weighted draws over huge totals and resistance de-duplication are fixed. **Tactical:** catalogue footprints are capped at 16 squares a side. **Viewer:** late responses of aborted requests are ignored.
+
+## 2026-10-01 - fix: v0.3 integration follow-ups
+key: fix/2026-10-01-v0.3-integration
+
+- The five v0.3 branches (recipe 6, realms, API, tactical, town WFC) are merged on `integrate/v0.3` (integration-status §v0.3 integration).
+- **Varied interiors feed the town WFC.** A home's partition, household trade, beds, fire and clutter pools (goal 64) become its WFC programme, keyed by the interior salt; the rule programmes stay the relaxed fill and the `TownFill::Rules` strategy. Seed-42 city: 1,665 distinct WFC home interiors of 1,673, no adjacent pair alike.
+- **Ordered furniture stands in rows** (logic/10 §town-wfc): pews either side of a clear central aisle, dormitory beds and library bookshelves along the long walls, warehouse racks and market-hall tables in free-standing rows, laid out by rule before the WFC fills around them.
+- **v0.2.0 worlds** (recipe 5 recorded, recipe-6 terrain) load as recipe 6 when `terrain/shore.bin` is present (logic/02 §fine-formation recipes).
+- **Relaxed town fills reach the tactical meta:** cell and window `meta.relaxed` and `meta.review_squares` count the town WFC's relaxed interiors and chunks.
+- **`prop.drain` is art-free:** placed by the WFC, kept out of layouts until a library draws it.
+- **Fix:** the parallel PNG encoder could lose a strip's sync flush and serve a corrupt PNG (a 2048 × 2432 px window on MICRO seed 42); strips now end on their flush marker.
+- MICRO seed 42 relaxed WFC fills: 43 of 44,819 (0.10 %). Renders: `out/v3-integrate/{before,after}/`.
+
+## 2026-10-01 - Open country at tactical scale (goals 19, 20, 43)
+- **What:** open ground was flat meadow with blotchy heath, gravel and dirt. Two causes: the fields overlay claimed every field site without a land use and painted it with heath/scrub noise, and the refiner's own ground prior was dominated by patch noise while its scatter was even.
+- **Fields:** sites with no land use stay natural (`arda-fields` `window.rs`, `fringe.rs`).
+- **Ecology (`arda-refine` `ecology.rs`):** species from temperature corrected for aspect (±1.8 °C), growth to the tree line, wetness from hollows and water, and landform: conifers on cold and shaded ground, broadleaves low, willow and alder by water, stunted and dead trees at the tree line, juniper on cold open ground; low plants by shade, wetness and sun.
+- **Landform (`shape.rs`, `prior.rs`):** a curvature index and a talus index from the refined surface. Ridges carry rock and heath, hollows meadow, moss and marsh; snow lies in shaded hollows on north slopes in cold country. Patch noise halved.
+- **Structure (`density.rs`):** groves cut from a slow noise field at the forest-density quantile (copses in open land, glades in forest), stream tree lines, grove rims with young trees and undergrowth, rock outcrops on steep knolls, boulder fields on talus, clumped loose rocks, crevice plants, logs and stumps, drifts of flowers, tall grass, heather and ferns.
+- **Trails (`trails.rs`):** game trails and footpaths decided per cell edge from the two cells (water, settlement and pass bonuses), routed inside each cell by the cheapest path to its hub (the river node, a ford), continuous across blocks; ground key `trail`.
+- **Art:** placeholders for `trail`, `veg.tree_alder`, `veg.tree_stunted`, `veg.juniper`, `veg.rock_outcrop` (library 207 → 213 assets).
+- **Verification:** unit and integration tests for species versus altitude, aspect and water, snow on north faces, feature-count bounds, scatter and trail agreement across seams, trail continuity across block edges, determinism. Renders before and after in `out/v4-country/`.
+
+## 2026-10-01 - feat: recipe 7, arid terminal and salt lakes
+key: feat/2026-10-01-arid-basins
+
+- **Recipe 7 is the default** (approved by the maintainer on 2026-10-01; `FINE_TERRAIN_RECIPE_VERSION` 7). `--recipe 6` reproduces v0.2–v0.3 worlds byte for byte (`tests/golden_recipes.rs`); recipe 7 is pinned from its first release.
+- **Climate in formation** (logic/02 §fine-formation climate runoff): the continent's annual balance, `R = P − min(P/2, E)` and `D = E − min(P/2, E)` with Hamon `E`, weights contributing area by `R / 500 mm` for channel initiation, incision and channel sizing (network, oxbows, delta distributaries).
+- **Subtropical highs** (logic/01 §Q6): recipe-7 rainfall is scaled by the Hadley belt, 30% between 15° and 26°, full poleward of 38°. `arda generate --latitude SOUTH,NORTH` sets the band (default 35,55).
+- **Arid basins** (logic/02 §world-water arid basins, goal 12): an audited tectonic basin whose catchment runoff is below 90% of the evaporation its depression would sustain at the spill is terminal. Formation fills its floor into a playa (three times the equilibrium lake), and the shared annual solve finds the terminal lake at equilibrium on it. Ledger closure with evaporation is tested on arid and humid bowls (goal 21).
+- **water.bin layout 2** (recipe 7): lake origin `arid_terminal`, a saline flag, and playa runs (salt crust, mudflat). Recipe 6 still writes layout 1.
+- **Atlas** (logic/04 §atlas-formed arid basins): saline lakes in lighter turquoise, salt pans as white crust with pale mudflat margins; dry land below sea level inside the continent is land.
+- **Tactical** (logic/09): playa squares take the new ground keys `salt_crust` and `mudflat` (difficult), with no scatter; generated placeholder art for both (211 assets), fallback chains in arda-fields, arda-ways and arda-town; `docs/goal-prompts/vocabulary.md`.
+- MICRO seed 74 at 15–35°: a 482 km² terminal saline lake on 697 km² of dry pan (land rain 382 mm); recipe 6 at the same band fills the basin into a 1,278 km² fresh lake. Renders: `out/v4-arid/`.
+
+## 2026-09-30 - feat: world rivers and lakes (goals 8-13)
+key: feat/2026-09-30-world-water
+
+- New `formation::water` stage (logic/02 §world-water) on the drained recipe-5 lattice:
+  - **Braids:** braided belts above the Leopold–Wolman slope, where bed load is plentiful (piedmont or proglacial) and the valley opens.
+  - **Meanders:** Kinoshita meanders on alluvial floors below that slope, with sinuosity rising as slope falls, planed meander belts and oxbow cutoff crescents.
+  - **Karst:** poljes on a documented carbonate proxy, with an inlet and a downstream spill; dolines are recorded but not carved.
+  - **Deltas:** these now build. The old rule's 2,000 km² threshold excluded every MICRO river, and its fan sat inside the drowned ria head. The new deltas are sediment-volume lobes after the shore rework; steep coasts keep their rias.
+- `arda_core::water`: bankfull depth `0.3 m × Q^0.4` beside width `4 m × Q^0.5`, the braiding threshold, and stored forms. The optional `areas/<ax>_<ay>/water.bin` holds, per river segment, the pattern, bankfull width and depth, belt, sinuosity and slope. Per lake it holds the origin and terminal (saline) state. It also lists deltas and dolines. Load it with `Area::water()`.
+- Atlas overviews draw braided threads, and they drop the synthetic meander where the saved courses already meander.
+- New `water_metrics` and `water_diag` examples.
+- MICRO results, before → after (the `water_metrics` and `world_metrics` examples):
+  - **Hydraulic geometry**, all seeds: width exponent 0.511 and depth exponent 0.412 against discharge. Depth never falls downstream at any confluence (21,123 on seed 42).
+  - **Sinuosity** of rivers ≥ 1 m³/s:
+    - below 0.3‰ slope: seed 42 1.17 → 1.19, seed 3 1.12 → 1.25, seed 5 1.14 → 1.49;
+    - 0.3-1‰: seed 42 1.15 → 1.23, seed 3 1.08 → 1.27, seed 5 1.09 → 1.29.
+  - **Lakes:**
+    - seed 3: 11 → 17 (6 karst; 15 with an inlet, 17 with an outlet);
+    - seed 5: 0 → 2 oxbow lakes;
+    - seed 42: 0 → 0 (V-valleys only).
+    - No lake of three cells or fewer anywhere.
+  - **Deltas:** 0 → 1 (seed 42) and 0 → 3 (seeds 3 and 5).
+  - **Other checks:** straight-run share 14 → 12‰ (seed 42), bed pits 0, water-ledger residual 0 L. Seed-42 generation takes 52 → 55 s.
+
+## 2026-09-30 - integrate: world physics (bands, coast, water, atlas) on variant Q
+key: integrate/2026-09-30-world
+
+- Merged, in order, `fix/uneroded-bands`, `feat/world-coast`, `feat/world-water` and `feat/atlas-polish` onto `wip/variant-q`. Not signed off: the look awaits the maintainer.
+- **Stage order** (`formation::form_world`, logic/02): margins, bathymetry, arc cones and the basin audit on the macro surface; belt-relief level masks (read after the arcs, so cones count as high relief); formation; coast (infill, terraces, shelf prism, shore rework, littoral, canyons); water (deltas, channels, basins); drainage guarantees; the shore survey last.
+- **One delta rule:** §world-water's river-led, volume-limited lobe. `coast::deltas` is removed. The coast rule's two contributions carry over: distributary islands (from 1,000 km², a fork into two tidal channels) and its 160/255 coast limit (for rivers of 2,000 km² and more, rising from 100/255 at 1,000 km²). The shore census reads the water deltas, so delta islands keep their cause. Lobes that would reach within 3 km of the domain rim are refused by the radius bisection.
+- **Published layers:** the orchestrator writes both `terrain/shore.bin` and `areas/*/water.bin`. The Atlas paints stored shores and follows the data meanders with the tapered B-spline centrelines.
+- **Fixes found while verifying:**
+  - canyons followed D8 paths as straight trenches across the shelf prism; they now follow a continuous, wandering heading for up to 50 km and fade out;
+  - the shelf-profile distance is Euclidean, not a chamfer;
+  - arc cones retreat only 30 m in the littoral pass. Before, cliff retreat planed every full-size arc summit to 40–80 m below sea level.
+- **MICRO results** (seeds 42, 3, 5 and 7):
+  - pits 0, lakes of 3 cells or fewer 0, straight runs 0–3‰, ledger residual 0;
+  - belt crest/flank roughness 0.47–0.55, and 1.37 on seed 3, which has no divide band;
+  - beaches: more in bays than on headlands on every seed;
+  - deltas 1/8/3/1.
+- **Full size** (seed 42, 500×1000 km): 46 min and 13.1 GiB peak. Open items are listed in the report: oxbow fragments of 3 cells or fewer, straight channels on large delta plains, and submerged arcs before the cone fix.
+- The Classic render is byte-identical (legacy seed 42 MICRO overview and area 1,1).
+
+## 2026-09-30 - fix: world physics that only showed at full size
+key: integrate/2026-09-30-world-full-size
+
+Found by the seed-42 full-size run (500 × 1000 km) and reproduced on a 250 × 500 km world, which runs in 10 minutes. Not signed off: the look awaits the maintainer.
+
+- **Deep closed basins** (logic/02 §fine-formation basins). Only rim-connected water below the −120 m lowstand is fixed ocean. An enclosed macro depression deeper than that used to be fixed as sea floor and then lifted 150–200 m by the final fills. That produced the 60 km "delta plain" at 63 m, dead flat, with straight channels and chains of tiny oxbows. It now forms as land, and on seed 42 it floods as a long sound.
+- **Fill flats** (§fine-formation flats). Flats are regraded as cost-weighted geodesics, at 1–5 mm per step from rotated noise, so rivers wander and converge across them instead of following grid geodesics.
+- **Deltas** (§world-water deltas).
+  - The lobe's reach varies with bearing, giving about five sub-lobes, so the front has no noise holes.
+  - The plain is concave.
+  - A tree of distributaries bifurcates up to three times. The channels bend 28–36° at eleven widths and wander at fan scale.
+  - Levees stand 1.4–0.4 m above interdistributary basins.
+  - The tidal reach is cut to −1.5 m, so the distal plain splits into delta islands by open water. Sheltered delta shores are marsh.
+- **Oxbows** (§world-water oxbows). Each crescent is protected whole and carved with a flat bottom.
+  - A loop survives only if it is one 8-connected 100 m lake of at least eight samples that holds at least 0.3 m of water before it spills.
+  - At most one loop per two wavelengths.
+- **Beaches** (§shore classes). A low headland keeps a beach only on a built sand body or within 1.5 km of a mouth of 20 km². The survey's sea is 8-connected, as in the hydrology.
+- **Sampled drainage** (§sampled drainage). The sea is 8-connected, so a lagoon joined across a diagonal inlet is no longer filled into a 100 m grid texture (seed-5 MICRO). Pockets are levelled whole, and the fine fill and sampled pass always run twice.
+- **Terrace risers** (§terraces). Risers are read at a noise-shifted height, so they scallop instead of drawing straight lines along planar valley sides (seed-3 MICRO).
+- **Channel initiation** (§hillslopes).
+  - Maturity scales the initiation threshold 1–2× (it was 1–4×).
+  - Low relief raises it up to 24×, cubically.
+  - Strong relief lowers it to 0.35×.
+  - Slopes over 22° divide it by (S/0.4)².
+- **Arc volcanoes** (§margins). A straight subaerial cone reaches the shore at 0.35 R. The concave cone from a 1–4 km floor stood above sea only within 0.4 km of its summit, so every full-size arc ended under water, even after the littoral fix.
+- **Memory.** The finest level no longer allocates a zero `u64` area vector (2.6 GB at full size) for roughening.
+- **world_metrics** reads lake origins from `water.bin`: 540 → 0 unexplained lakes at full size. It reports barrier and delta islands apart from bays and headlands, and gives class breakdowns.
+
+## 2026-09-30 - feat: recipe-5 coasts, islands, seafloor and plains
+key: feat/2026-09-30-world-coast
+
+- Tectonic margin context: the recipe-5 plate drift is replayed without uplift to mark collision, arc, island-arc and rift proximity (logic/02 §fine-formation margins).
+- Bathymetry (goal 18):
+  - shelf width follows tectonic margin activity as well as coastal relief;
+  - passive shelves now shallow toward the profile (a sediment prism);
+  - submarine canyons are cut down the slope off rivers of 150 km² or more (§bathymetry, §canyons).
+- Islands (goal 17):
+  - volcanic arc cones on deep ocean along the final-step subduction axes;
+  - barrier islands and spits on low, sandy, exposed coasts;
+  - delta distributaries that split fans into islands; deltas now start at 500 km²;
+  - drowned-ridge continental islands, as before.
+- Coasts (goals 15 and 16): rock- and convexity-driven headland retreat into cliffs over wave-cut platforms, bay-head berms, and stored shore classes: sand, shingle, cliff, rocky, marsh, tidal flat and estuary (§littoral, §shore classes).
+- Plains (goal 5): lowland valley sides get a terrace staircase and bluffs, and interfluves are compressed (§terraces).
+- Basin audit (goal 6): every closed macro basin and plateau gets a tectonic cause (rift, foreland, arc, orogenic, rift shoulder); unexplained basins are filled before formation (§basin audit).
+- New optional world layer `terrain/shore.bin` (`arda_core::ShoreLayer`): shore classes on the 100 m grid, an island census with causes, and audited landforms, including glacial troughs. It is published with the fine terrain and read by `World::shore`. The Atlas paints shores from it (logic/04 §atlas-formed shore).
+- Earlier recipes, Classic output and the manifest are unchanged. Recipe-5 terrain changes; it has no golden hash.
+- `world_metrics` gains `coast`, `landforms` and `plains` objects.
+
+## 2026-09-30 - fix: uneroded straight crest bands in recipe-5 formation
+key: fix/2026-09-30-uneroded-bands
+
+- Level masks read **belt relief** (logic/02 §fine-formation masks): the highest macro relief within a 12 km disc, softened. Local standard deviation dips along every broad crest, so the seed-42 MICRO main divide (~70% of the width) was classed as low hills, with up to 7× the channel-initiation area, and stayed a smooth band ~4 km wide. Crest/flank roughness 0.24 → 0.56.
+- Macro heights are sampled Catmull-Rom clamped to the enclosing nodes (logic/02 §fine-formation macro warp). The cubic undershoot beside the east-coast cliff had become a straight line of fixed sea: a long, straight trench and ridge at ~97% of the width.
+- Seed-42 MICRO metrics: straight runs 14‰ → 0‰; pits, lakes and speckle lakes stay 0.
+- Tests: seed-42 divide dissection regression; belt relief crest; bounded cliff sampling.
+
+## 2026-09-30 - feat: town fabric by WFC (goal 44)
+key: feat/2026-09-30-town-wfc
+
+- New crate `arda-wfc`: a generic deterministic WFC (tile sets, symmetric adjacency per direction and edge kind, integer weights, anchors, limits, a global check, local repair, at most 8 subseeded attempts). `arda-refine` now takes its hashing and work lists from it; its block output is byte-identical.
+- `arda-town` fills the town fabric inside the plan by WFC (logic/10 §town-wfc) behind `TownFill` (WFC default, rule programmes kept):
+  - interiors: rectangular rooms by position-class tiles, zones by a programme search, then doorways, open circulation and typed furniture per function, every square reachable from the doors;
+  - shell windows and curtain arrow loops as kit pieces chosen by edge constraints;
+  - streets (clear carriageway, kerbs, drains, clutter), the market square (paved edge, goods at pitches), fronts, yards, gardens, churchyards, greens, crofts, per global 32-square chunk with seam-safe borders.
+- Relaxed fills are listed in `TownBlock.relaxed` (goal 47). MICRO seed 42, every plan: 45 of 47,247 problems relaxed (0.10 %; checked by the e2e release gate); a city block costs about 10-30 ms more (about 90 ms in all).
+- Vocabulary: 306 tiles; one new prop id, `prop.drain`.
+- Before/after renders of an inn, smithy, temple, market square and city block: `out/v3-wfc/`.
+
+## 2026-09-30 - perf/feat: cold tactical images under half a second, varied furnishing (goals 50, 64)
+key: feat/2026-09-30-v3-tactical
+
+- **Goal 50, cold tactical images.** Release, MICRO seed 42, 64 px per square, 32 threads:
+  - a cold block PNG, before → after: city centre 2.0 s → ~0.34 s; village centre, on a freshly opened server, 0.93 s → ~0.42 s; a block next to one already served ~0.52 s → ~0.28 s;
+  - a quarter-block window (32 × 32 squares), 0.20 s → ~0.10 s;
+  - output is unchanged pixel for pixel wherever the furnishing did not change (checked against v0.2.0 on road, field and river cells, a 2 × 2 window and a WebP tile); the seam tests still pass.
+- Where the time went and what changed:
+  - **Compositor** (render 340 → ~200 ms for a 76 × 76-square apron block): sprites are stamped in parallel bands of rows, each replaying every sprite in draw order (byte-identical); the drop-shadow sweep runs per diagonal in parallel; ground textures are scaled once per ppsq and cached in the `Library`; `render_region` paints, shades and grades only the block's own pixels while heights, sprites, shadows and blurs still cover the apron.
+  - **PNG encode** (90 → ~35 ms): strips of 64 rows are filtered and deflated in parallel and joined into one zlib stream; opaque maps are written as RGB.
+  - **Composition** (neighbour block 85 → ~47 ms): the ways, fields and town layers run at once and are composed in the fixed order; arda-fields samples terrain and assigns field sites in parallel.
+  - **Town plans** (city plan 1.2 s → ~0.24 s): arda-town samples its plan grid, measures river crossings, finds the nearest channel and wobbles the croft footprint in parallel; plans near a window are drawn at once.
+  - **Startup**: the server scales textures for every ppsq and draws the town and city plans (about 0.5 s on MICRO), so no request waits for them.
+- `GET /v1/tactical/window[.png]?gsx=&gsy=&w=&h=` takes a window in squares (logic/16), for example a quarter block.
+- New example `tactical_timing` (arda-server) prints the stages of a cold block, a quarter window and a neighbour. `tests/e2e_village.rs` (release gate) holds a cold block under 500 ms and a quarter window under 250 ms, best of three fresh servers (measured: 333 ms and 88 ms for the village Ylkin at cell 570,702).
+- **Goal 64, furnishing without repetition.** Homes are furnished by wealth, size, storeys and the building's own stream: a town house picks one of five partitions (open hall, back chambers, side chamber, front workroom, cross passage) and sometimes a household trade (weaver, cooper, carpenter, fisher, scribe, chandler) that brings its own pieces; hearth or fire pit, table and seats, beds with chests, storage and clutter (barrels, sacks, crates, rugs, chests, woodpiles by the fire) stand on randomly chosen walls, corners and spots. Cottages, farmhouses (byre side, gate and stock vary) and manors vary too. Each building's interior has a salt chosen once per plan so that no two adjacent buildings share an interior; the choice depends only on the plan, so seams are unaffected.
+- Yards and crofts: a home's yard draws 0–6 props from a pool by function and wealth along its back and sides, one or two squares out; each croft parcel has its own density and a secondary use (hay in a meadow, tools in a kitchen garden, favoured stacks in a work yard).
+- Diversity on the seed-42 city (Ofylyel, 1,868 homes), before → after: 400 → 1,868 distinct interiors, 91.6 % → 0 % of homes sharing an interior with another, 20 → 0 adjacent pairs alike (`crates/arda-people/tests/interiors.rs`; threshold 5 %).
+
+## 2026-09-30 - integrate: phase E and release 0.2.0
+key: integrate/2026-09-30-release-0.2.0
+
+- `integrate/world` (variant Q, bands, coasts, water, atlas polish, full-size fixes) merged into `integrate/product`; the one conflict (`arda-render` `atlas/fine.rs`) kept midzoom's `land_inputs`/`sea_colour` helpers and moved the stored shore painting into them, so relief tiles shade coasts like the overview.
+- Relief tiles take the overview's river geometry (main-stem relaxation, B-spline centreline, tapered sources) and the atlas-polish palette; `arda::area_atlas_terrain` takes the shore layer, which `ReliefWorld` reads once (logic/17 §render, §rivers).
+- `out/micro42` regenerated on variant Q: 629 settlements, 648 roads, 3 realms; 91,966 people and 3,384 stored notables. The e2e village is now Ylkin (id 24, 524 people, cell 570,702).
+- Re-baselined: only the two `world_api` river cells (recipe-5 fixture). The Classic golden world is byte-identical except `world.json`'s `arda_version`.
+- Version 0.2.0 for the workspace, its path dependencies and the viewer; release notes in `CHANGELOG.md`.
+
+## 2026-09-30 - fix: restore recipe compatibility with recipe 6
+key: fix/2026-09-30-recipe-6
+
+- v0.2.0 changed recipe-5 output in place (variant Q, the bands fix, coasts, water). Recipe 6 is now the default and is exactly v0.2.0's behaviour; recipe 5 again replays v0.1 (commit 7f32695) byte for byte (logic/02 §fine-formation recipes).
+- Every v0.2 formation rule is gated on recipe 6: margins, arcs and basin audit, Euclidean bathymetry and shelf fill, clamped macro sampling and ocean mask, belt-relief masks, maturity and relief scaling, roughness, the 0.2 km² channel area, one seam pass, coast stages, water forms, the eight-connected sampled drainage. Recipe 5 keeps the v0.1 bathymetry, deltas and drainage. `terrain/shore.bin` and `areas/*/water.bin` are written only for recipe 6.
+- Rendering follows the manifest recipe (logic/04 §atlas-formed recipes): recipe-5 worlds keep the v0.1 formed shader, lake stops, straight river strips, minimum widths and river colours.
+- `arda generate --terrain fine --recipe <4|5|6>` (default 6), `arda::generate_from_fine_recipe`, `FineRecipe::FormationV5`; `FINE_TERRAIN_RECIPE_VERSION` is 6.
+- Proof, MICRO seed 42: recipe 5 matches a 7f32695 build on every terrain, area, block, continent and hydrology file and on the Atlas 4K overview, area Atlas and Classic exports; recipe 6 matches v0.2.0 main on all of them. Only `world.json` differs (`arda_version`; recipe 6 records 6). Pinned by `tests/golden_recipes.rs`; the Classic golden world is unchanged.
+- `formation/mod.rs` split into `macro_view`, `levels`, `surface`, `finish` (recipe 6) and `recipe5`.
+
+## 2026-09-30 - feat: spread realm seats and primate capitals (goals 35, 38)
+key: feat/2026-09-30-realm-seats
+
+- New `seats.rs` and `market.rs` (logic/08 §realm-seats). The realm count follows people (24,000 a realm), habitable land (600 km² a realm) and towns (3 a realm). Seats are picked among the larger half of the towns by a size-weighted farthest-point pick over a terrain-aware market lattice. Each seat then moves within its own market area while that balances the areas' shares of people and land. A market area under 16,000 people has no core, so the land holds one realm fewer.
+- New `primacy.rs`: within each realm the towns follow rank-size with the seat first. The seat grows into a primate city of at least 8,000 people, and the other towns rise by the fourth root of its growth. The extra people come from the realm's villages and hamlets. This runs before land use, so fields and roads serve the final populations. The city cap never demotes a seat.
+- `stats.json` has a new `realm` block: cities per realm, seat spacing against the hexagonal lattice spacing, people-weighted distance to a seat, and realm land and people shares.
+- New test `tests/realms_micro.rs`, run on seed 42 by default and on seeds 3 and 7 with `--ignored`. `tests/micro.rs` now checks that society history ends at the present partition and seats.
+- MICRO results, before → after:
+  - **Cities per realm:**
+    - seed 42: [1, 0, 0] → [1, 1, 1];
+    - seed 3: [1, 0, 0, 0] → [1, 1, 1, 1];
+    - seed 7: [1, 1, 0, 0, 0] → [1, 1, 1, 1, 1].
+  - **Nearest-seat distance, min / mean km:** seed 42 21.5 / 25.0 → 48.2 / 50.1; seed 3 42.8 / 45.9 → 42.8 / 45.9 (the same seats); seed 7 23.1 / 25.4 → 25.6 / 28.1.
+  - **People-weighted p90 distance to a seat, km:** seed 42 54.4 → 32.4; seed 3 26.5 → 26.0; seed 7 57.5 → 42.2.
+  - **Largest land share / largest-to-smallest ratio:** seed 42 0.75 / 5.98 → 0.45 / 2.26; seed 3 0.38 / 3.32 → 0.38 / 3.38; seed 7 0.42 / 7.94 → 0.36 / 3.79.
+  - **Largest-to-smallest people ratio:** seed 42 2.35 → 2.06; seed 3 1.32 → 1.31; seed 7 3.18 → 1.90.
+  - **Rank-size slope (R²):** seed 42 −1.00 (1.00) → −1.01 (0.85); seed 3 −1.00 → −0.98 (0.84); seed 7 −1.00 → −0.87 (0.83).
+  - The urban share rises from 30 % to 37–42 %, because the city floor is fixed at 8,000 on worlds of 90,000–195,000 people.
+
+## 2026-09-30 - feat: on-demand mid-zoom relief (arda-midzoom, /v1/tiles/relief)
+key: feat/2026-09-30-midzoom-relief
+
+- New crate `arda-midzoom` (logic/17): refines the stored 39.0625 m field to 9.765625 m on demand, for the tiles on screen only — sharpened spline base, drainage-aligned branching gullies and rock ribs scaled by roughness, slope, relief and cover, 39 m means restored, no new pits, stored rivers and lakes unchanged. Deterministic integer maths; tiles join pixel-exactly.
+- `arda-render`: `AtlasTerrain::relief_colour`, `river_vertex_um` and `formed_river_rgb`; `arda::area_atlas_terrain`. Overview output is byte-identical.
+- `arda-server`: `GET /v1/tiles/relief/{z}/{x}/{y}.webp` for eight levels past the overview's native zoom; `tiles.relief_max_zoom` in `/v1/world`.
+- Viewer: World view switches to relief tiles past native zoom, shows m/px, and offers "Open tactical map here" at ≤ 2 m/px.
+
+## 2026-09-30 - feat: people queries, WebP overview tiles and tactical prefetch (goals 51, 57, 67, 68)
+key: feat/2026-09-30-api-people-prefetch-webp
+
+- **Commoners are addressable (goal 51).** `GET /v1/npc/{id}` accepts the reference `<settlement>.<building>.<index>` (logic/13 §npc-id) for anyone, commoners included, regenerated from the world seed, the settlement, the home building and the resident index. The u64 id still resolves stored notables, and resolves a commoner with `?settlement=`. A notable resolves to its stored copy by either name.
+- **People are queryable (goal 57).** `GET /v1/npcs?settlement=&building=&job=&realm=&notable=&limit=&cursor=` returns `NpcPage` pages (at most 200 people and 16 settlement skeletons a page, cursor-resumed, in settlement then skeleton order). `GET /v1/buildings/{settlement}.{building}/residents` and `/workers` list a building's people. `arda-npc` gains lazy skeleton access (`Generator::resident`, `residents_of`, `npc_at`), so a page expands only the people it returns and nothing is materialised world-wide (goal 56).
+- **WebP overview tiles (goal 68).** `/v1/tiles/overview/{z}/{x}/{y}.webp` serves the overview pyramid as lossless WebP with the PNG tile's pixels; `.png` stays. The viewer's world map uses WebP.
+- **Prefetch (goal 67).** `POST /v1/tactical/prefetch {gx, gy, radius ≤ 2, ppsq}` answers 202 and queues the rings around the cell (bounded at 64, deduplicated). `--prefetch-workers` threads (default 2) warm each cell's block and JSON body and, where the caches have room beside the open cell, its image pyramid. Renders now run in a request lane and a prefetch lane, so warming never holds a request back, and a key never renders twice at once; admission counts the second lane's transient render. The render cache key is confirmed to carry the world seed, the cell's world-square origin and the catalogue `library_version`.
+- **Viewer.** The Cell tab prefetches the open block's 8 neighbours and has edge arrows that open the seamless neighbour.
+- New ts-rs bindings: `NpcPage`, `NpcEntry`, `PrefetchRequest`, `PrefetchAccepted`, `PrefetchCell`, `PrefetchStatus`.
+
+## 2026-09-29 - feat: recipe-5 stream-power terrain formation and formed Atlas shading
+key: feat/2026-09-29-recipe5-formation
+
+- New `arda-gen::formation` stage (logic/02 §fine-formation): six-level integer stream-power formation from the macro surface to the canonical 39.0625 m field.
+  - **Erosion:** warped upsampling between levels; stochastic slope-weighted receivers; relative uplift against a spatially varying talus cap (rock strength); coarse-level diffusion plus lowland soil creep; soft-edged alluvial floodplains.
+  - **Coasts:** glacial-lowstand drowned coasts with estuarine infill, river-mouth deltas and wave-reworked shores.
+  - **Basins and lakes:** tectonic basins preserved as closed depressions; glacial trough lakes and fjords.
+  - **Drainage guarantees:** a final fine-lattice fill plus a 100 m sampled-drainage pass; local depression fills between exact steps.
+- `--terrain fine` now produces recipe 5. Recipe 4 remains reproducible via `generate_world_with_fine_recipe(.., FineRecipe::Valleys)`. `FINE_TERRAIN_RECIPE_VERSION` is 5.
+- Atlas (logic/04 §atlas-formed), recipe ≥ 5 only:
+  - four-baseline relief light with soft warm shadows and a palette matched to measured reference colours;
+  - landform-driven materials, beaches and shore rock;
+  - snow from saved temperature lapsed to fine height;
+  - fine-contour anti-aliased coasts and lakes, and an 8-stop depth sea palette;
+  - thalweg-snapped river vertices in area and overview renders, and a recipe-5 overview river symbol;
+  - parallel overview base sampling, byte-identical to serial.
+
+  Recipes 2–4 and Classic are unchanged, apart from a 20-byte Atlas halo sample that now carries saved temperature.
+- New diagnostics: the `world_metrics` example (lakes, straight-run river share, pits, hypsometry, slopes) and the `form_fine_terrain` example.
+- Seed-42 measurements:
+  - MICRO formation 25 s; complete world about 55 s; lakes 1,055 → 0 artefact lakes.
+  - 500×1000 km worlds complete within **12.8 GB peak RSS** (under the 16 GiB ceiling).
+  - Against the previous best recipe-4 world: grid-straight river runs 265‰ → 0‰, bed pits 447 → 1.
+- Tests: formation determinism (repeat and single-thread); no fine or sampled pits; local fill; admission refusal; ria infill; basin closure; glacial basins; order and area conservation; integer sqrt, Catmull-Rom and blur; formed shader light, snow, sea, shore and lake colours.
+
+## 2026-09-25 - Preferred source: macro-geography composition
+Added shared integer local-relief gating and checked signed composition. The working diagnostic reproduces inland/coastal fields exactly across fresh processes and against an independent integer oracle. Actual Arda comparisons place rugged relief within an existing mountain belt while retaining quiet lowlands; local coastal geometry remains connected to the crop boundary. Eighteen targeted tests and workspace checks pass.
+
+Normal world generation remains unchanged. Whole-world admission, seed/coverage, fine persistence and drainage/evolved-height authority require integration before final 32K delivery. Original world preserved. Evidence: `features/2026-09-23-terrain-corrections/evidence/spectral-macro-composition/`.
+
+## 2026-09-25 - First complete world using canonical fine terrain
+Added whole-domain source admission and streaming composition; registered 1 km and 100 m samplers; an opt-in complete-world generator consuming the same finalized file; optional manifest recipe metadata and an explicitly budgeted validated loader. Legacy worlds remain compatible and normal generation retains its existing path.
+
+Seed-42 102×204 km attempt 0 generated eight areas with climate and shared drainage. All five 64 km candidates failed the existing river gate. The unchanged 160-step evolution was rejected after an exact comparison recreated smooth faces and repeated incision. Fine-resolution production Atlas export, a broad flat region in the first complete-world render, multi-world validation and full 32K delivery remain open. See `features/2026-09-23-terrain-corrections/evidence/fine-world-integration/` and `spectral-evolution-handoff/`.
+
+## 2026-09-25 - Fine terrain storage and full world seed identity
+Added bounded streaming fine-height persistence with versioned geometry, metadata/payload checksums and canonical integer queries. Both source-composition cases reopen and reproduce their four Arda renders byte-for-byte. Added the existing full 64-bit world seed/attempt RNG path for spectral generation while retaining the native 32-bit reference/calibration path. Core and focused generation checks pass.
+
+Normal world admission, terrain authority, climate/drainage, manifest/export integration and final 32K delivery remain open. Evidence: `features/2026-09-23-terrain-corrections/evidence/fine-terrain-persistence/` and `world-spectral-seed/`.
+
+## 2026-09-25 - Fine terrain in Atlas and source-boundary correction
+- **What**: normal Atlas exports consume optional saved canonical fine terrain with bounded windows and global physical sampling.
+- **Source**: one fixed smooth local-range gain removes the old 400 m dead zone; an existing-rim-derived taper keeps outer source edges ocean. Source recipe 2 is explicit provenance; recipe 1 remains loadable.
+- **Verification**: 250 core/render/facade tests, 15 focused gen checks, all-target workspace Clippy, formatting and diff checks pass; corrected source and 35 complete small-world files replay exactly, saved heights match, and annual water closes.
+- **Preservation**: all 523 original-world files and exact file set unchanged.
+- **Visual finding**: fine detail survives normal exports; broad uniform lowland and sharp relief/material front persist. Exact replay attributes the source plateau to the inherited tectonic subsidence clamp; saved wetness saturates there.
+- **Open**: reference-quality appearance, default source adoption, multiple worlds, full-size runtime/resource qualification and final seed-42 32K delivery. No completion marker.
+- **References**: current status, architecture, models, testing, export scenario and feature plan updated; evidence in fine-atlas-integration, source-lowland-boundary and macro-stage-attribution.
+- **Next defect isolated**: saved wetness computes a different expression from its documented log-ratio index, with a demonstrated ordering reversal; no wetness or tectonic variant was implemented.
+
+## 2026-09-25 - Accepted fine terrain: production access and full 32K delivery
+- **What**: preserve the user-approved recipe-2 terrain appearance and deliver a complete seed-42 500×1000 km world with normal Atlas exports.
+- **Production**: `generate --terrain fine` and `generate_from_fine_source` orchestrate admitted source/world phases, five deterministic candidate gates and private staging. Legacy remains the default; the production MICRO command reproduces all 35 accepted files exactly.
+- **Full output**: 15,522×32,768 PNG, 259,955,341 bytes, SHA-256 `b350076951b0148fa10a09be902ac909f94d001bf1f0c553317b782dc906a583`; actual overview and mountain close-up inspected.
+- **Timing**: source 406.630 s, world 1,223.970 s, verification 2.574 s, render 193.293 s; sum 1,826.467 s (30m 26s). Single local release run; full peak RSS was not measured.
+- **Verification**: all 44,826,624 exported heights and 500,000 continent heights equal the canonical field; receiving topology and saved tables validate; annual sources/sinks both 159,795,615,670,000 L. Additional small seeds 43/44 pass. Existing exact repeats, seam tests and scoped suites remain preserved.
+- **Preservation**: all 523 original-world files, exact file set and 1,943,353,639 bytes unchanged.
+- **Review**: final independent GPT-6 Sol delivery review finds no blocker; documented minor edge is an error returned for private-stage cleanup failure after successful world publication. No such error occurred in the recorded runs.
+- **Limits**: broad uniform plains, straight river runs, dense small highland lakes, 100 m categorical water boundaries and rectangular rim segments remain. User acceptance ends further visual experiments; exact reference-image parity is not claimed. Complete-area export retains its existing partial-fringe omission.
+- **Reference refresh**: current status, architecture, testing, operations, index and final feature checklist record the delivered state. Reproducible commands, checksums, runtimes, inspection images and audit are retained in `features/2026-09-23-terrain-corrections/evidence/accepted-look-qualification/`.
+
+## 2026-09-24 - Exact native-mesh raster transfer diagnostic
+- Verified all original pinned TIN faces and conditional builder edge insertion; the sole complete-mesh graph difference is an omitted fixed-hull edge, with no interior differences. Independently checked barycentric sample heights and retained original natural-neighbor field/image parity.
+- On unchanged evolved heights and 100 m center locations, triangle-linear interpolation reduces central geometric sampled basin capacity4.180306→2.015581 km³ and maximum depth180.269→139.916 m. Native capacity0.020302 km³ / maximum6.399 m remains much smaller. These are not canonical annual-water results.
+- A valid native minimax outlet route reaches183.79183 m maximum, but its contiguous pixel chain samples heights up to367.885 m. Actual Atlas changes local faceting without resolving dense ridge walls; no production adoption. Full reference-quality landforms remain open.
+- Evidence: `features/2026-09-23-terrain-corrections/evidence/triangle-linear-transfer-control/`.
+
+## 2026-09-24 - TIN temporal refinement control
+A source-only synthetic TIN comparison held the dense cosine-fold source, n=1 λ=0 erosion, lowest-pass routing, uniform material and D=0.011 m²/year diffusion fixed for 5 Myr, comparing 100 × 50 kyr against 400 × 12.5 kyr. The coarse arm replays 12 retained diffusion fields and the actual Atlas exactly; independent source, bed, hull and geometric-basin checks pass. The refined field differs materially (native median absolute 16.87 m, p95 245.47 m) while actual Atlas still shows repeated rounded mountain bands. Native and raster geometric basin capacities both rise. This establishes timestep sensitivity, not convergence or reference-quality terrain. No production code changed or result adopted. Evidence: [time-control assessment](../features/2026-09-23-terrain-corrections/evidence/tin-time-refinement-control/root-assessment.md).
+
+## 2026-09-24 - Threshold-operator causal control
+- **What:** the isolated dense-source operator ablation completed before the preceding status-only turn, which made no implementation progress. The current continuation revalidated and retained that result before selecting a separate n=2 diagnostic.
+- **Frozen scope:** same 148,992-site TIN, fold uplift, initial heights, lowest-pass routing, static area-weighted K and talus angle, and 100 × 50 kyr evolution. Only the extra erosion term above the talus threshold is removed; stream-power erosion remains.
+- **Verification:** the slope-limited baseline matches prior uniform-material retained fields and actual Atlas exactly. Local lambda-zero regression, focused tests, release-smoke repeat, all-node identities, 100 step ledgers, and per-arm material metadata pass. Both arms complete in 9.779 seconds. Native/raster geometry and source/image hashes are retained under features/2026-09-23-terrain-corrections/evidence/slope-operator-control/.
+- **Measured effect:** central native area within 1° of the 41.4874° threshold falls from 52.33% to 2.94%; above 1 km it falls from 71.86% to 3.38%. Native central geometric capacity rises from 0.1122 to 0.1288 km³, and 100 m raster capacity from 1.0675 to 4.3973 km³.
+- **Actual visual decision:** Atlas shows more irregular crags, but much steeper terrain and narrow valleys. Reject production adoption. Geometric capacities are not canonical annual-water volumes; no water or full-world run was made.
+- **Next bounded question:** a separate n=1 versus n=2 stream-power slope-exponent pair with fixed K, lambda=0, source and routing has since completed and is recorded in its own changelog/evidence. This was not a coefficient/angle search or a proposed final hillslope model.
+- **Status:** production stays at 14a70b9; reference-quality landforms remain open. The active plan and latest open-items paragraph now reflect this result.
+
+## 2026-09-24 - Terrain research before further variants
+- Recorded the user's request to stop repeated local repairs and compare complete published approaches first.
+- Audited previous experiments against the methods they cited; several were partial or modified pipelines, so their failures do not reject the full methods.
+- Compared structural generation and multiscale amplification. The inspected multiscale code omits the paper's peak restoration and breaching stages; another unchanged preset run would not be a complete reproduction.
+- Updated current status and plan with these gaps and the completed independent audit of the failed homotopy path.
+- No new terrain generation, renderer change or production adoption. The reference appearance remains unmet.
+
+## terrain-corrections/terrain-model-reassessment@2026-09-24
+
+- Record user rejection of the latest experimental mountains as folded paper and stop the source-variant sequence; the remaining-7-km removal is not selected.
+- Re-inspect existing same-renderer measured/generated and pre/post-production-erosion images. The renderer can express richer natural structure; production erosion damages it. The different experimental TIN's causal defect remains unresolved.
+- Correct the stale status that the coarse-only comparison remains to be run. Require visual terrain-form acceptance before full-world adoption; numerical checks alone are insufficient.
+- No new simulation, production change or saved-world replacement. Evidence: features/2026-09-23-terrain-corrections/evidence/terrain-model-reassessment/README.md. The reference target remains unmet.
+
+## 2026-09-24 - tangent-trust-flow
+- Replayed retained late flow proposals exactly and attributed almost all rejected-step model error to one interior cell's water-depth collapse and drag response. Independent baseline residual maps show distributed remaining error.
+- Implemented and reviewed full log-depth/velocity tangent trust geometry with exact-water trial retraction. Three synthetic tests, branch checks and independent local replay pass.
+- Fresh original-initial measured run reaches 60 accepted steps in 88 trials/119.17 s. Momentum scaled L2 is 90.90, 140× below the prior metric at the same step budget, but still fails the unchanged convergence target.
+- Independently checked 61 saved states and all trial decisions, water conservation, final residuals and old-solver water agreement. No terrain update, new rendered mountain result, production adoption or original-world change.
+- A single old momentum-map check still requires up to 20.43 m/s local velocity change; 452 cells miss its stability threshold. This localizes the next investigation to interior pockets despite the improved global residual.
+
+## terrain-corrections/synthetic-source-controls@2026-09-24
+
+- **What:** completed isolated synthetic source and fixed-lighting comparisons toward the reference-quality terrain goal; no production source changed.
+- **Lighting:** a fixed 30° NW light improves sharp measured/detail faces but strengthens repeated gullies in the adopted world. Exact baseline PNG parity passes; adoption held.
+- **Prior sources:** a read-only audit found no earlier synthetic candidate rejected solely for depressions; each also had visible morphology defects.
+- **Synthetic control:** pinned fastlem generated a 76.8 km square with 30,000 interior sites and default uniform parameters. All five numerical outputs repeat exactly; literal heights reach 8.644 km and central median slope is 57.7°. Actual Atlas shows excessively steep, snow-dominated terrain; no adoption.
+- **Slope control:** one 30° receiver-edge cap leaves sites and all other parameters unchanged. All numerical outputs repeat exactly. The central maximum falls to 5.572 km, but Atlas shows smooth uniform faces and repeated ridges. No adoption.
+- **Audit:** the uniform cap is mathematically equivalent to local capped slope accumulation, but not under arbitrary heterogeneous parameters. Its 3 km² drainage-area crossover and 443 m average site spacing do not reproduce the cited three-regime hillslope model.
+- **Verification scope:** root independently checked raw fields, integer conversion, repeat hashes and actual images. Neither candidate ran Arda canonical water or whole-world validation. Library convergence is unknown for these two controls.
+- **Status:** production remains at `14a70b9`; reference-quality landforms remain open. The finer three-regime source is also complete and rejected for adoption after actual rendering.
+- **Records:** `features/2026-09-23-terrain-corrections/evidence/{sharp-terrain-lighting,saleve-source-control,saleve-hillslope-control}/`, `synthetic-source-rejection-audit.md`, and `saleve-hillslope-model-audit.md`; current status and active plan refreshed.
+- **Finer source:** separate continuous hillslope/colluvial/river geometry on 2,365,440 sites. The first run stopped before terrain on a strict boundary-count check; root traced 152 dropped sites to one-ulp fixed-axis interpolation overshoots. A minimal constant-axis repair restores all nodes and retains exact original small-control output.
+- **Bounded result:** repaired run ends nonconverged at the soft runtime budget after 614 iterations, with maximum last height change 96.775 m. Root independently verifies all node-height recurrences and contributing-area ledgers. Atlas displays distributed branching hills but repeated wedge faces, narrow valleys and insufficient major landform variety. No production adoption or full-run repeat.
+- **Further records:** `features/2026-09-23-terrain-corrections/evidence/saleve-three-regime/` retains frozen design, source/patch, independent preflight review, failed attempt, raw fields, actual images and root checks. No new fixed-integer or whole-world water claim follows from this float prototype.
+
+## terrain-corrections/strict-fold-water-validation@2026-09-24
+
+- **What:** completed the retained strict fold source’s first paired canonical local-water solve and actual lake-aware Atlas comparison. No production source or saved-world changes.
+- **Harness:** minimally adapts the prior private harness so both arms use a common control-derived collar outside their exact 768² patches. Unlike the earlier exemplar, input rims differ; the candidate has an explicit interface step up to 67.241 m. Shared water code, one common climate realization, default limits and source heights remain unchanged.
+- **Verification:** final independent review and retained hashes pass. Root decodes prepared height/rain/temperature, routing bed, solved lake fields, report arrays and annual ledgers. Both arms have identical raw forcing and exactly balanced 11,347,791,030,000-litre annual sources/sinks. The older exemplar’s lower land/lake ledger is explained by rainfall on its sea cells; raw climate forcing is byte-identical.
+- **Result:** the single paired solve finishes in 47.93 s. Central candidate lake coverage is 7.5813% (19,874 cells), maximum depth 454.872 m and geometric water volume 10.58829343 km³, versus 2.3006%, 105.959 m and 0.95463054 km³ control. Candidate has fewer but larger central lakes: 1,518 touching IDs versus 2,313.
+- **Boundary limits:** all central physical owners are inside the patch and central lake IDs have no collar cells. Nevertheless full-domain collar-touching lake outlet witnesses number 234 candidate versus 7 control. This is not full-world or boundary-independent validation.
+- **Visual verdict:** actual unchanged Atlas preserves the improved rocky ridges but reveals scattered lake fragments and flooded inter-ridge hollows, with parallel bands/benches still apparent. Dry render controls match prior terrain-only outputs pixel-for-pixel. The exact prototype is not adopted; numerical water balance does not establish reference-quality terrain.
+- **Next:** retain the useful source direction and attribute native-mesh versus raster depression capacity before choosing a corrective mechanism. No rainfall tuning, further source-coefficient sweep or full-world rerun follows this result.
+- **Evidence:** `features/2026-09-23-terrain-corrections/evidence/fold-strict-water-validation/` includes reviewed source/binary, raw canonical outputs, extraction/check scripts, matched renders and archive hashes. Status and active plan are refreshed. Full mounds/hills/rocks/cliffs/mountains objective remains open.
+
+### Completed native/raster attribution
+
+An exact original-graph minimax flood finds no central native depression capacity in the smooth control. The strict candidate already has 263 central minima, 6.1516% of central Voronoi area below spill, 10.1808 km³ of capacity and maximum depth 451.676 m. Root validates every node’s spill level with an independent ascending-height connectivity algorithm. Native-site and raster area measures/outlet positions differ; no exact decomposition is claimed. The evidence separates intrinsic candidate basins from additional grid-conversion sinks. Both native valley formation and drainage-preserving raster transfer remain required; changing interpolation alone is insufficient. No further source or water run was performed.
+
+## terrain-corrections/stratified-source-diagnostic@2026-09-24
+
+- **What:** completed a controlled depth-dependent rock-layer source experiment toward the reference-quality terrain goal; no production source changes.
+- **Contrast:** identical 148,992-node geometry, uplift, initial materials, outlets and 5 Myr duration; control freezes each node’s initial material, candidate changes material as erosion exposes prescribed folded layers. This differs from earlier static erodibility noise and homogeneous cover tests.
+- **Method:** scratch float TIN source uses explicit uplift splitting and exact local erosion between material/talus events. It is a simplified graphical model, not the cited paper’s complete tectonic simulation, calibrated geology or the fixed-integer production generator.
+- **Preflight:** corrected cancellation in event timing and added the missing integrated crossing gate; three independent high-precision oracles, five focused tests, no-crossing byte parity and a forced 128-node crossing case pass. Independent review found no blocking defect at frozen source9d5f23a3.
+- **Verification:** both main arms complete100steps. Root checks all node bed identities, duration, material labels, local contributing-area balances and local-site-area-weighted volume ledgers; all26 main artifact hashes and6 frozen preflight hashes pass. Removed material is exported by assumption; no sediment transport is claimed.
+- **Observed change:** candidate crosses86,431 contacts;53,779 nodes change active material. Crop slope>40° coverage rises6.79%→9.77%, median slope falls16.82°→12.95°. Eleven final uphill receiver edges remain, up to8.60m; no canonical water acceptance follows.
+- **Visual verdict:** actual unchanged Atlas shows broader faces and sharper stepped slopes but retains broad smooth crests and repeated radial/parallel gullies. Reject adoption; no follow-up parameter sweep or full-world generation.
+- **Records:** current status and local active plan refreshed; source, frozen design, numerical arrays, actual renders, independent reviews and root assessment retained under `features/2026-09-23-terrain-corrections/evidence/stratified-source-probe/`. The complete reference-quality objective remains open.
+
+## terrain-corrections/spatial-refinement-control@2026-09-24
+
+- **What:** completed one same-source actual mesh comparison,148,992→592,896 sites, toward the natural terrain-reference goal; no production adoption.
+- **Controls:** exact saved continuous fold segments, same uplift formula/K/talus/lambda0/n1/D and400×12.5 kyr. Fine initial heights sample the saved coarse TIN, already height-gained once; recomputed clipped Voronoi weights pass graph and independent cotangent checks. Source quadrature differs+0.0927%; the unstructured meshes are not nested.
+- **Repair:** first fine attempt stops at a scalar asymptotic zero-slope roundoff event. A narrow analytic-limit branch passes the captured regression,21 tests and independent80-digit oracle. Failed and repaired sources/binaries remain separate; no general tolerance change.
+- **Replay:** repaired original-mesh run exactly reproduces24 producer-compared deterministic files and400 physics rows; root independently checks17 selected files and400 rows.
+- **Fine result:**400 steps complete in186.76 s. Final source/bed errors≤2.48e−10 m; fixed hull exact; all ledger checks and independent final diffusion residual1.548e−7 m pass.
+- **Visual result:** matched actual Atlas and native crops add sharp local cuts but worsen steep cellular ridge bands and do not supply broad connected valleys or distinct mountain masses. Reject adoption; no further resolution sweep.
+- **Geometry:** central raster median slope38.694°→52.657°; native geometric basin capacity0.020302→0.474240 km³ and raster4.180306→11.337142 km³. More sampled summits do not prove fidelity. Basin geometry is not canonical annual water.
+- **Scope:** original/wider physical presentations use identical cameras/render settings within each pair; coarse PNG parity and zero displayed-interior halo checks pass. No production, saved-world, convergence or full-reference completion claim.
+- **Records:** active plan and current status refreshed; reproducible source/commands/receipts and root assessment retained in `features/2026-09-23-terrain-corrections/evidence/spatial-refinement-control/`.
+- **Follow-through:** a read-only physical-area census locates steepening mainly below0.1 km² contributing area; previous gate experiments used other models. Its final-height slopes follow pre-final-step routes, so attribution remains descriptive. No threshold or further evolution selected.
+
+## terrain-corrections/spatial-direction-control@2026-09-24
+
+- **What:** compare original versus spatially rotated compression directions with identical primal-MST/complementary-dual construction, fine TIN, integrated uplift and colluvial evolution law.
+- **Checks:** 23 scratch-runner tests and independent source/graph review pass. The new external-source input path exactly replays retained deterministic terrain files and all400 physical ledger rows before the two new400-step runs. Independent source, bed, fixed-hull, ledger and final diffusion checks pass for both.
+- **Actual result:** matched2048 Atlas, fixed60-degree projection and native crop show varied ridge directions but persistent repeated cliff benches and smooth faces. Global peak2329.55→2320.45m; ≥150m prominent summits88→88. Neither arm is a production replacement or reference completion.
+- **Next evidence:** only1.20%/0.31% of normalized uplift mass changes between7/24km blocks; the broad belt remains dominant. Mountain-mass allocation and face shaping remain unresolved, rather than calling for another angle/seed sweep.
+- **Scope:** isolated synthetic float experiment. No production code, saved-world or canonical-water change. Full reference goal remains active.
+- **Evidence:** features/2026-09-23-terrain-corrections/evidence/spatial-direction-source-control/, including frozen source, source/binary/input hashes, exact replay, actual renders and independent metrics.
+
+## 2026-09-24 - simultaneous-flow-preflight
+- Reviewed nonlinear soil-transport applicability and prior measured finite-cover failures; no new hillside law selected without a supported mechanism.
+- Derived exact positive-flow one-cell and nodal two-cell controls; the previous relaxed iteration is stable there, so lagged depth alone does not explain the measured failure.
+- Implemented an isolated full coupled water/momentum Newton fixture with five passing tests, including mixed interior flow reversals and failure checkpoint retention.
+- Ran one unchanged measured 128×128 fixed-bed case. Line search fails at iteration 23 after 24.48 s, reducing the scaled residual only 2.815%; no qualified flow or terrain result.
+- Independently reproduced final residuals and checked frozen sources/inputs and global accounting. No production change, original-world modification or new visual acceptance. Periodic actual-render updates remain a required part of progress reporting.
+
+## 2026-09-24 - Rock-surface light-detail control
+- **What:** close one isolated opt-in renderer comparison on identical saved terrain/water. Two deterministic smooth world-coordinate fields at nominal 400/800 m scales perturb only the land light normal, tapered by the original rock weight; palette, terrain, water, sun and existing constructors remain unchanged.
+- **Source verification:** final isolated atlas.rs SHA-256 4cd42bc6a40f0214871c58bcf482098788cb59bfa01dc9e5dac66ad71a4f5790. An integer vector-cap boundary bug was corrected using squared magnitude and ceil square root. Thirty Atlas tests, strict renderer-library Clippy and independent source review pass. The detail-off neutral 2048-pixel control and detail-on repeat are byte-identical to their baselines.
+- **Saved-world verification:** final saved-area runner SHA-256 682ad000c5a7f3b0d81b91b7cda0a1027baa5893cc0fa95b6d9aab7fb969b134. Its four area (5,4) 512/2048 detail-on/off PNG hashes reproduce the earlier source snapshot exactly. At 512 pixels, about 14.8% of saved-area output pixels change by at most two RGB levels; all 26,237 lake pixels are exact. This area has no sea pixels, so saved-crop sea immunity is not claimed.
+- **Actual visual decision:** synthetic and saved-world/native crop inspection finds the fixed effect too subtle to establish convincing rock faces or better landforms. Reject production adoption. Display-normal detail cannot alter real cliffs, silhouettes, broad ridge bands, valley widths or basins. Smooth cubic fields contain harmonics; no band-limited or alias-free guarantee is claimed.
+- **Scope:** one fixed setting only, with no amplitude sweep, full-world adoption, new source geometry or saved-world mutation. Evidence, binary/source snapshots, PNGs and hashes are retained under features/2026-09-23-terrain-corrections/evidence/rock-surface-detail-control/. Production stays at 14a70b9 and the reference-quality objective remains open.
+
+## terrain-corrections/rock-albedo-control@2026-09-24
+
+- **What:** completed one isolated exposed-rock colour comparison on saved production area (5,4), using a world-coordinate200 m cubic field, seed42, bounded±16 RGB levels and4×4 pixel-footprint quadrature. Physical terrain, normal/light, masks and water geometry stay fixed.
+- **Implementation:** opt-in scratch Atlas exposure mask and colour-before-light sampler; existing saved-area channel path supplies actual pixel coordinates. A reviewed preliminary river-alpha suppression branch was removed so partial water coverage retains its original blend over detailed ground. No production source change.
+- **Checks:**114 renderer tests, strict Clippy, independent code review,79 exact-rational field/footprint cases and enabled halo/interior RGB at512/2048 pass. Old/off PNGs and repeated candidates match exactly. Root confirms all523 saved-world files and26,237/419,792 saved lake pixels remain unchanged. The selected area has no sea; sea behavior has fixture coverage only.
+- **Visual result:** actual native and fitted comparisons add neutral mottling, leaving smooth mountain faces, repeated incisions and broad soft crests. Reject this fixed material setting for adoption; no claim that all texture methods fail. The reference-quality objective remains open.
+- **Evidence:** `features/2026-09-23-terrain-corrections/evidence/rock-albedo-control/root-assessment.md`, frozen source/binary, render receipts and root comparison metrics. No new full-world export or generator adoption.
+
+## terrain-corrections/ridge-tree-preflight@2026-09-24
+
+- **What:** graph-only source connectivity preflight on the retained dense7/3/1 km Poisson/Delaunay sites, faces and alignment energies. Selected-first Kruskal constructs full primal ridge trees; omitted edges form complementary dual trees with the outer face explicit.
+- **Checks:** independent Prim selects exactly the same edges. All-face incidence, triangle nondegeneracy, primal/dual connectivity and zero cycle ranks pass. The three primal trees contain193/870/6863 edges; complementary duals contain375/1723/13703 edges.
+- **Result:** exact-coordinate overlay still shows long near-parallel strands. The result does not establish varied mountain hierarchy, source-field validity or terrain appearance. No fine uplift field, terrain evolution, saved-world change or production adoption; the full reference objective remains open.
+- **Evidence:** `features/2026-09-23-terrain-corrections/evidence/ridge-tree-source-control/`, including retained source, graph plots, receipts and independent root checks. Future source work must distinguish orientation/mass hierarchy from connectivity alone.
+
+## 2026-09-24 - reduced-trust-flow
+- Implemented and reviewed an isolated exact-water dogleg solver for the unchanged fixed-bed transport equations, including the full implicit depth response and true adjoint.
+- Four small-field tests and independent first-step replay pass. Oversized trials are rejected before state mutation; the first accepted bounded step reduces squared momentum error by about 46%.
+- The measured run takes 60 accepted steps in 94 trials/90.67 s, then fails its declared cap. Momentum error decreases 301-fold within the run but remains far above tolerance; late steps cycle between accepted small moves and rejected larger ones.
+- Independently verified 61 saved states and all trial decisions, positive water balance, final residual field and agreement with the old water solver. No flow acceptance, terrain evolution, production change or new visual improvement.
+
+## 2026-09-24 - Quadratic stream-power slope control
+- **What:** close one predeclared n=1 versus n=2 stream-power slope-exponent pair after revalidating the previously completed threshold-operator control. The preceding status-only turn itself made no implementation progress.
+- **Frozen scope:** identical dense fold uplift, 148,992-site TIN, lowest-pass routing, initial bed, static uniform K/talus, lambda=0 and 100 × 50 kyr schedule. The candidate changes only slope exponent 1→2; the same K makes rates equal at the declared dimensionless slope S=1. No exponent, K or angle search.
+- **Verification:** six routing-library and 12 runner/scalar tests, exact repeated release smoke, analytic local n=2 checks and an independent source review pass. Both full arms complete in 12.129 seconds. The n=1 fields and Atlas image exactly replay the prior stream-power-only control. Root verifies all-node site/area/uplift/bed identities, material metadata and each step volume ledger.
+- **Measured effect:** central raster slope p90/p99 falls 61.736°/71.986°→40.978°/52.413°. Native central geometric depression area rises 0.0677%→15.0366% and capacity 0.128764→47.499096 km³; raster capacity rises 4.397320→46.633620 km³. The candidate has 776 central native local minima.
+- **Actual visual decision:** unchanged Atlas shows moderated extreme cliffs but smoother continuous ridge bands, reduced irregular crags and still-narrow valleys. Reject production adoption. Geometric capacity is not a canonical annual-water volume; no water or full-world run was made.
+- **Retention and scope:** frozen source/patch, executable, full raw fields, step ledgers, actual renders, checks, archives and hashes are retained under features/2026-09-23-terrain-corrections/evidence/quadratic-slope-control/. The model still lacks hillslope transport and is not a calibrated generator. No further exponent/coefficient sweep follows. Production remains 14a70b9 and the reference-quality landform objective remains open.
+
+## 2026-09-24 - Heightfield projection and zero-background uplift controls
+- Completed an isolated true-depth 90°/60° presentation of retained 100 m terrain at physical 1× relief. Both 90° images match their neutral Atlas inputs pixel-for-pixel; independent analytic, depth and replay checks pass. The predeclared 1280² interiors have no clamped halo texture. The 60° view reveals raised faces but emphasizes repeated long walls and smooth platforms, so it is held from production.
+- Completed one equal-total-uplift zero-background source pair on the same 148,992-node model for 100 × 50 kyr. All 12 baseline fields and the Atlas image replay exactly; independent source, bed and hull checks pass. The candidate worsens repeated high walls and raises central native geometric basin capacity from 0.305058 to 64.420222 km³ and raster capacity from 1.398812 to 80.854159 km³. Reject production adoption. No canonical water result is inferred.
+- Both are isolated diagnostics. Production terrain and renderer remain unchanged; reference-quality mountains, cliffs, hills, rocks and mounds remain open. Evidence: `features/2026-09-23-terrain-corrections/evidence/heightfield-projection-control/` and `features/2026-09-23-terrain-corrections/evidence/zero-background-uplift-control/`.
+
+## 2026-09-24 - Process-switch timing diagnostic
+- Reconstructed common-bed rates and domains on retained terrain; tested tiny perturbations do not support widespread floating-point-noise classification chatter.
+- Implemented one paired macro with fixed drainage, geometry and coefficients; isolated domain refresh frequency. All50 release tests pass; frozen original-step replay and paired first-substep fields are exact.
+- Independently verified all28 substep domains, operators, bed/volume identities and final diffusion. Resolved one borderline seed mismatch by matching coordinate arithmetic in the independent verifier, without tolerance relaxation or raw output edits.
+- Central mean loss rises20.989→25.433m with domain refresh; actual Atlas retains similar broad forms. Frequent switching and temporal convergence remain unresolved; no production adoption or reference-quality claim.
+- Updated status and active-plan evidence. Original world and production code remain unchanged; procedural realism, mountain grandeur and final world-scale validation remain open.
+
+## 2026-09-24 - process-interface-control
+- Separated common-bed hillside potential and masked channel replacement at three saved states; independently checked all native edge rates, mask partitions, shape-rate integrals and prior rate means.
+- Added a local analytic stencil showing a finite erosion-rate switch across a tiny above-roundoff crease change, without claiming widespread measured noise sensitivity.
+- Selected one bounded maximum-process morphology intervention: less instantaneous sharpening competes with greater detachment. Scratch implementation and 56 tests pass review; original benchmark replays exactly and the new benchmark passes independent equation, hull, material and diffusion checks.
+- Completed all 40 matched measured-input steps in 251.48 s; independently verified retained operators, fixed hull, cumulative material identities and all macro budgets. Actual unchanged Atlas shows fewer repeated incisions but broad smooth lobes and reduced mountain mass (central peak 2246 m versus binary 2652 m). Reject this candidate for production and mountain-grandeur acceptance. Production and saved world remain unchanged.
+
+## 2026-09-24 - Preferred procedural source qualification
+- Reproduced the user-preferred procedural input and two additional fixed seeds in fresh processes, then rendered all three with unchanged Arda Atlas.
+- Verified that independent resolution changes move the terrain; a canonical world field is needed for consistent zoom and region queries.
+- Measured and rendered loss of fine detail through 100 m storage; retained fine elevation remains required for the preferred close view.
+- Audited production terrain, climate, river and publication handoffs; recorded unresolved basin/coast semantics without adopting an erosion or filling recipe.
+- Preserved all 523 saved-world files and closed particle/hydraulic evidence. No production source change or final 32K delivery claim.
+
+## 2026-09-24 - Prefer procedural input; preview stronger relief
+Record the user's preference for the procedural input over the corrected particle erosion result, and their request for more daunting mountains. Preserve that source as the next visual baseline. Render one controlled comparison with 50% greater vertical relief, identical horizontal scale and unchanged Arda renderer. Both original millimetre render inputs reconstruct byte-exactly; source bytes are preserved. Taller render also changes height-driven snow coverage. Comparison awaits user judgement; no production adoption or full-world completion claim.
+
+## 2026-09-24 - Preferred terrain: preserve physical scale in larger domains
+Added a fixed-reference calibration and signed relief filter alongside the native-compatible integer source. Five 20/40/80 km cases repeat exactly and match the independent oracle within 1 mm. Actual Arda renders retain rugged detail that per-domain normalization flattened. Thirteen focused tests, Clippy and workspace checks pass. Original saved world and earlier evidence remain unchanged.
+
+Normal world generation is not switched over. Macro/coast composition, drainage, fine persistence, full-world validation and final 32K delivery remain open. See `features/2026-09-23-terrain-corrections/evidence/physical-spectral-scale/README.md`.
+
+## 2026-09-24 - Physical-scale renderer diagnostic
+- Measured oversteep native geometry in the height-gained probe: above2 km median slope68.483°,89.10% of area steeper than45°. Along-crest uplift already varies substantially, so no generic crest modulation follows.
+- Added a scratch-only explicit-spacing Atlas constructor. Default100 m image is byte-identical; the one483.4857455 m interpretation recalculates both slope material and light with unchanged heights/palette/sun.109 renderer tests and independent review pass.
+- Actual nadir/60° comparisons look less wall-like at the wider physical extent, but mountain faces remain soft and reference quality is not reached. Correct physical camera scaling, prior projection parity, nadir image identity and unclamped shown interiors are verified.
+- Full source crop51.2→247.545 km is a physical reinterpretation, not the same geography, new resolution or an evolution run. Production and saved world remain unchanged. Evidence: `features/2026-09-23-terrain-corrections/evidence/physical-scale-render-control/`.
+
+## 2026-09-24 - Hydraulic-reference and corrected particle diagnostic
+- Verified the unchanged hydraulic demo creates negative sediment inventory at its first exchange, before slippage; stopped before a full landscape run.
+- Reviewed Erodr and its cited thesis, demonstrated the downhill velocity-sign inconsistency and disclosed shared-bed races and lifetime sediment discard.
+- Built an isolated serial velocity correction with native coefficients and explicit seed; retained raw output and separate boundary/lifetime sediment ledgers.
+- Passed flat/slope preflights and fresh-process equality for a fixed procedural 512² input, then rendered actual matched Arda before/after full and central detail views.
+- Root and independent visual review reject smoothing of inherited mounds and repeated directional cuts as the requested rugged mountain result. No coefficient, lifetime or source sweep and no production adoption.
+- Updated current status and plan; preserved the preferred completed baseline and original saved world. The terrain and final 32K goal remain open.
+
+## 2026-09-24 - Native mesh smooth-normal comparison
+- Completed a scratch-only vertex-normal lighting comparison on the original frozen native TIN, with identical heights, material, camera and occlusion.
+- Independently verified all rendered vertex gradients and signed normal numerators; prior sampled/flat-face output bytes and halo masks replay exactly.
+- Vertex normals remove flat-face triangles but soften terrain and leave dense branching landforms unchanged. Reject production adoption; the reference-quality terrain goal remains open.
+- Production code and saved-world fields remain unchanged. Evidence: `features/2026-09-23-terrain-corrections/evidence/native-smooth-light-control/root-assessment.md`.
+
+## 2026-09-24 - Native-face lighting comparison
+- Completed a scratch-only comparison using identical native geometry, unlit material, physical scale and cameras; only sampled versus flat-face light changes.
+- Independently verified all 296,446 face gradients and exact production light values, full nadir baseline reconstruction, image encodings and unclamped displayed interiors.
+- Actual native-face lighting looks sharply triangulated across hills and mountains and does not resolve narrow valleys. Reject production adoption; the reference-quality landform goal remains open.
+- Production code, saved world and full-world outputs remain unchanged. Evidence: `features/2026-09-23-terrain-corrections/evidence/native-face-light-control/root-assessment.md`.
+
+## terrain-corrections/mountain-mass-control@2026-09-24
+
+- **What:** one equal-total source-strength comparison using the existing24km field on the frozen rotated ridge graph; same592,896-site mesh, initial bed, physical law and400-step schedule.
+- **Checks:** independent all-node field/formula/budget/hull and final input hashes pass. All160 prior artifacts remain exact, permitting control reuse. The new run passes independent source duration, bed identity, fixed hull, all400 ledgers and final diffusion checks.
+- **Actual result:** stronger mountain-group versus low-hill contrast, but taller repeated cliff benches and smooth faces. Central native area above2km0.421→70.91km²; raster slopep9956.62→69.60degrees and geometric basin capacity1.972→2.781km³.
+- **Decision:** retain mass-allocation evidence, do not adopt this exact candidate. No production or saved-world change; no canonical-water or complete-reference claim.
+- **Evidence:** features/2026-09-23-terrain-corrections/evidence/mountain-mass-source-control/, including matched Atlas/projection and two native windows, source/binary/input receipts, independent checks and assessment.
+
+## terrain-corrections/mountain-grandeur@2026-09-24
+
+- Record the user's requirement that mountains communicate grandeur: visibly taller peaks, substantial mass, deep valleys and a hierarchy through lower ridges and foothills.
+- Require actual delivered-view evidence; numeric height, snow colour or taller folded walls alone cannot establish acceptance.
+- Add features/2026-09-23-terrain-corrections/terrain-acceptance.md and an unchecked plan criterion; the full goal remains unmet.
+
+## 2026-09-24 - Measured-input corrected-TIN diagnostic
+Completed the isolated zero-uplift measured-terrain survival control with transfer verification, five snapshots, numerical checks, actual Atlas comparisons and independent Sol review. Repeated cuts and smooth steep faces develop without procedural uplift forcing. The process census motivates revisiting hillslope/channel treatment; it selects no new source or parameter variant. Production and the original saved world are unchanged. Mountain grandeur and full reference fidelity remain unmet. See features/2026-09-23-terrain-corrections/evidence/measured-tin-survival/root-assessment.md.
+
+## 2026-09-24 - Matched material-resistance experiment
+The prior corrected-scale output had appealing mountain relief but repetitive incision. A source audit and fixed-window saved-field comparison weakened coarse sampling as the main broad-shape cause. Feature-primitive research did not establish an automatic procedural replacement. The amplification paper supplied a specific, separately testable erosion-resistance mechanism.
+
+Implemented one isolated 1024-stage comparison: original coefficient, a uniform resistance matched to initial total removal, and a fixed procedural spatial resistance. Retained kernels, source terrain and render settings are unchanged. All cases completed and original reference E/T/D outputs replay exactly. Independent material-map replay, frozen inputs, finite fields and rim checks pass. Actual Arda images show a modest interruption of grooves relative to the matched uniform case; broad folded faces remain. The user-liked full 2048 baseline is preserved.
+
+Completed one unchanged 2048 continuation of both resistance arms, with the saved material field bilinearly transferred and no tuning sweep. Frozen-file, finite/rim and reference-render checks pass; all 523 original world files retain their hashes. Actual final images retain a modest interruption of grooves and mountain mass, but broad folded faces remain. A separate fixed 100 m storage test shows that much of the fine gully detail would be lost in the current saved terrain representation. No production code or original saved-world data changed. Reference-quality geometry, integration, seams, drainage, multiple seeds, runtime and final full 32K remain open.
+
+Evidence: [material control](../features/2026-09-23-terrain-corrections/evidence/material-incision-control/README.md), [formation review](../features/2026-09-23-terrain-corrections/evidence/formation-structure-review/formation-construction-audit.md).
+
+Final decision after independent review: the subtle complete-stage difference does not justify selecting this frozen resistance field. Close the candidate without a tuning sweep and retain the user's earlier baseline.
+
+## 2026-09-24 - Material-band attribution and controlled terrain comparisons
+- **What:** investigate repeated cliff bands in the improved dense lowest-pass terrain; the full reference-quality objective remains open.
+- **Association check:** true 250 m contact crossings contain 63.72% of steep central TIN edges, while a fixed 125 m shifted contour contains 69.86%. Contact phase includes final height, so this association does not demonstrate a specific contact effect.
+- **Frozen-initial control:** one selector change invokes the existing static material law. Both arms use identical dense uplift and lowest-pass routing. The pair completes in 13.235 s with exact layered baseline field/Atlas parity, zero static contacts, unchanged active IDs and passing ledgers. Actual Atlas worsens into broad smooth cliff walls; reject adoption.
+- **Uniform control:** one static material uses initial non-outlet Voronoi-area-weighted K/talus means and unchanged lambda. It matches initial coefficient means, not nonlinear erosion or time-integrated exposure. Distinct ID2 and per-arm initial IDs prevent confusing uniform rock with hard/weak layers.
+- **Verification:** existing six routing and nine scalar/runner tests pass. Repeated smoke fields match exactly. The uniform main pair completes in 12.853 s; root confirms mean formulas, baseline parity, zero contacts, constant active IDs, area/height/volume identities and unchanged Atlas baseline.
+- **Uniform visual outcome:** repeated ridge walls and smooth faces persist despite one central native minimum and 0.06465% geometric fill area. Reject adoption. Fresh original-graph slopes place 52.33% of central area and 71.86% above 1 km within 1° of the 41.4874° talus threshold. This supports investigating slope saturation, not claiming its sole causality.
+- **Decision:** close further material, angle, layer-thickness and coefficient sweeps. Keep layered lowest-pass terrain as the research baseline; investigate slope and ridge/valley geometry without repeating prior uniform slope-cap controls.
+- **Scope:** production remains `14a70b9`; no original-world changes, full-world generation or new canonical water solve. Source archives, binaries, raw fields, actual renders, checks and hashes are retained under `features/2026-09-23-terrain-corrections/evidence/{material-band-attribution,fixed-material-source,uniform-material-source}`.
+- **Reference refreshed:** `open-items.md` and the active feature plan record completed controls and visual rejection.
+
+## 2026-09-24 - Lowest-pass terrain-routing diagnosis and controlled comparisons
+- **What:** isolated source experiments identify and correct overly high basin reconnections; reference-quality terrain remains unfinished.
+- **Diagnosis:** old routes exceed true minimum pass for 24,466 central strict-source sites (977.026 km²), median positive excess 317.622 m and maximum 1908.449 m. The only raw-versus-model mesh difference connects fixed hull outlets and changes no spill level.
+- **Approach:** deterministic basin-pass spanning tree with original receiver-path reversal, immutable bed during routing, unchanged strict downhill ties and erosion law. This is a declared integrated-drainage landscape-evolution approximation, not annual physical flux.
+- **Verification:** six small routing fixtures, nine runner tests, repeated smoke and independent all 148,992 node minimax/local-edge/root/acyclic checks pass. Both 100-step paired runs reproduce retained old source fields and Atlas PNGs exactly; root area/material/height ledgers pass.
+- **Strict source:** native central geometric fill 6.1516% → 0.3184%, minima 263 → 14; raster fill 7.5813% → 2.7061%. Paired runtime 15.984 s.
+- **Dense source:** unchanged previous source rechecked because the same routing defect affected it; native central fill 9.6284% → 0.3810%, minima 371 → 27; raster fill 11.0409% → 2.7287%. Paired runtime 15.840 s.
+- **Visual outcome:** valleys connect more coherently, but repeated cliff/bench bands and narrow incisions remain. Neither source is adopted or meets the reference. Material-contact attribution and drainage-preserving raster transfer remain open.
+- **Scope:** production remains at `14a70b9`; no saved-world changes, source coefficient sweeps, full-world regeneration or new canonical-water solve. Source, binaries, raw fields, actual Atlas images, scripts, reviews and hashes retained under `features/2026-09-23-terrain-corrections/evidence/{native-basin-route-audit,lowest-pass-source,lowest-pass-dense-source}`.
+- **Reference refreshed:** `open-items.md`; active feature plan records completed checks and visual limits.
+
+## 2026-09-24 - Linear fold-profile source control
+Completed one isolated 100-step comparison replacing the dense source’s cosine top-to-bottom profile with a linear distance profile at the same area-weighted uplift. The baseline exactly replays retained n=1 plus diffusion fields; source, bed and solver checks pass. Native and raster geometric basin capacity fall, but actual Atlas and fixed projection still show broad rounded faces and repeated mountain bands. Hold production adoption; retain the cosine baseline. Evidence: [linear-fold-profile-control](../features/2026-09-23-terrain-corrections/evidence/linear-fold-profile-control/root-assessment.md).
+
+## 2026-09-24 - Bank-only substep sensitivity
+- Compared one versus eight bank-only passes inside the unchanged400 main erosion steps; lateral law and source remain exact. Independent review and31 tests pass.
+- Replayed all18 prior deterministic one-pass files and400 physical/bank ledger rows exactly; all3200 candidate substep aggregates and field budgets pass.
+- Smaller bank steps reduce unused virtual attack but increase expiry, remove15.4% less bed and give mixed interpolation-derived valley widths. Geometric basin capacity increases; actual render retains repetitive ridges and soft faces.
+- Withhold adoption; no coupled convergence or reference-quality claim. Production and saved world unchanged. Evidence: `features/2026-09-23-terrain-corrections/evidence/lateral-substep-control/root-assessment.md`.
+
+## 2026-09-24 - Lateral bank erosion control
+- Implemented one isolated undercutting–slump comparison using the retained native source and fixed published Kl/Kv ratio. Common-neighbor bank selection preserves a downstream connection at collapse; actual bed export is separate from virtual attack capacity.
+- Exact baseline replay,29 focused/inherited tests and independent400-step bed checks pass. Native and sampled geometric basin capacities decline; fixed interpolation-derived near-channel width proxies increase.
+- Actual rendered candidate opens some valley corridors but retains repeated ridge walls and soft mountain faces. Substantial summits survive with changed heights. Retain partial mechanism evidence; withhold production adoption.
+- One-collapse-per-step treatment discards25.70% of virtual attack and reaches8.30 attack/threshold. Event-time sensitivity, resolved valley widths, whole-network valley length, full-world integration and reference fidelity remain unproved.
+- Production and saved world remain unchanged. Evidence: `features/2026-09-23-terrain-corrections/evidence/lateral-bank-control/root-assessment.md`.
+
+## 2026-09-24 - Deterministic preferred terrain source
+- Ported the selected procedural source into repository-owned MT19937 phase generation, Q60 cosine tables and integer Fourier filtering; added reproducible Decimal table generation and an executable diagnostic consumer.
+- Matched native square sources across three seeds and through 1024² within 1 mm, with byte-identical repeated Rust outputs and actual Arda render comparisons.
+- Checked a declared rectangular physical-frequency extension, explicit resource admission and invalid input handling; passed nine targeted tests, generation all-target Clippy and workspace formatting/compilation.
+- Normal world integration, physical-domain/coast composition, 64-bit world-seed mapping, fine-field persistence, drainage and final 32K delivery remain open. The saved original world is preserved.
+
+## 2026-09-24 - Conservative hillslope diffusion control
+- **What:** close one isolated native-TIN hillslope redistribution comparison while keeping the dense fold source, lowest-pass routing and n=1 lambda-zero stream-power erosion fixed. Candidate adds implicit signed finite-volume diffusion at D=0.011 m²/year after each stream-power update, with original hull heights fixed.
+- **Preparation:** exact clipped Voronoi face conductances are retained and independently checked against graph membership and linear/cotangent cases. The solver uses positive symmetric edge weights, site-area masses, explicit boundary exchange and bounded PCG; six module and 18 runner tests pass.
+- **Numerical correction:** the first full candidate stopped after step 1 when the true local equation residual reached 1.03378×10⁻⁶ m, just above its 1×10⁻⁶ m gate. It is retained as a failed numerical attempt, not a terrain result. Joint global/local PCG stopping with a 0.5×10⁻⁶ m margin then completed the pair without changing physical coefficients, conductance, timestep, iteration cap or final acceptance gate.
+- **Verified run:** the corrected pair completes 100 steps/5 Myr in 14.588 seconds. The baseline replays nine raw fields and the actual Atlas PNG exactly. Root independently verifies all 100 volume ledgers, last-step matrix residual and routing-area recursion. Maximum per-step mass closure error is 0.07690 m³; cumulative signed diffusion storage −11,795,581,628.06932 m³ plus boundary export 11,795,581,629.193224 m³ leaves 1.12390 m³ numerical closure, within the declared gate. Last true nodal equation residual is 2.516×10⁻⁷ m.
+- **Morphology:** central raster median/p99 slope falls 38.324°/71.986°→28.652°/63.583°. Raster geometric depression area/capacity falls 3.9093%/4.39732 km³→2.0351%/1.39881 km³, while native area/capacity rises 0.0677%/0.128764 km³→0.4128%/0.305058 km³ and native minima 1→109.
+- **Actual visual decision:** Atlas shows rounder foothills, but smooth repeated mountain bands/walls and narrow incisions persist. Reject production adoption; retain the solver as diagnostic infrastructure only. Bed spill measures are not canonical annual lake water, and the single-surface model lacks separate sediment cover and physical channel–hillslope coupling. No D, exponent or source-coefficient sweep follows.
+- **Retention/status:** source, patch, conductance weights, binary, corrected raw fields and ledgers, actual renders, failed-attempt receipt, independent reviews, archives and hashes are under features/2026-09-23-terrain-corrections/evidence/hillslope-diffusion-control/. Production remains 14a70b9 and the reference-quality terrain objective remains open.
+
+## 2026-09-24 - hillside-shape-control
+- Verified exact constant-speed hillside solutions and decreasing cone/bowl errors from the frozen kernel on three regular mesh spacings; independently checked raw fields and boundary reach.
+- Evaluated measured-raster disk minima with explicit interpolation bounds and independent all-cell offset reductions; rendered unchanged Atlas.
+- Completed a reviewed 40-step pure-hillside isolation on the actual irregular TIN in 188.62 s, preserving geometry, Ch, timestep and hull. Independent saved-endpoint/material checks and exact initial raster transfer pass.
+- Actual Atlas confirms broad smooth mountain faces without channels or diffusion. Coupling adds 319.8 m average lowering, mostly through changed hillside response; it remains a combined channel/diffusion intervention.
+- No production adoption or grandeur acceptance. Original saved world remains untouched; replacement mechanisms must address this demonstrated shape behavior and account for previous failed finite-cover/diffusion controls.
+
+## 2026-09-24 - Hierarchy and multiscale diagnostic rejected
+- Completed one frozen procedural hierarchy, multiscale erosion, height-restoration and drainage-repair diagnostic. No measured terrain was used.
+- Independent checks confirm 70 restored raster controls and strict downhill paths after millimetre export. The successful export preserves the failed attempt's pre-export terrain exactly.
+- Actual Arda stage renders fail the appearance gate: smooth rolled faces remain and breaching adds trenches. The last breach cuts up to 89.78 m.
+- Retained coarse-interpolation and per-stage comparisons locate detail loss before the last fine-resolution erosion pass. The completed source audit identifies a physical-scale mismatch. A frozen one-step cone/pit test confirms it: central thermal transfer is about 41 times larger (corrected after verifying the author’s radius-based box constructor) at this experiment’s starting spacing. This does not establish a visual fix.
+- Updated current status and plan. No production adoption or new full-world 32K result; the reference goal remains open.
+
+Evidence: `features/2026-09-23-terrain-corrections/evidence/hierarchical-multiscale-pipeline/README.md`.
+
+## terrain-corrections/fold-skeleton-source@2026-09-24
+
+- **What:** completed one frozen multiscale ridge-forming uplift comparison through actual Atlas. This is an isolated source experiment; production and saved worlds remain unchanged.
+- **Control:** identical 148,992-node mesh, initial heights, material contacts, erosion law, boundaries and 5 Myr duration. Spatial fold allocation at nominal 7/3/1 km scales is compared with a smooth source having equal total area-weighted uplift.
+- **Preflight:** source geometry, scalar oracles, all-node rate formulas, exact rebuilt sites/areas, retained source/binary hashes, and unchanged material smoke are verified. Final independent runner review clears the exact selected source. The literal selected-edge rule creates dense polygonal networks; that limitation is declared before running.
+- **Run:** both arms finish 100 steps in 17.08 seconds combined. Root all-node bed identities, material ids, contributing areas and ledgers pass. Complete fields and actual Atlas outputs are retained with hashes.
+- **Visual result:** meaningful improvement from broad smooth principal crests and comb gullies to irregular broken ridges and rocky faces. Central conditional saddle-defined summits with at least 150 m prominence increase from 33 to 105; median slope stays near 23.8°. Counts do not establish visual acceptance.
+- **Remaining defect:** cellular hollows and angular benches. A fresh exact TIN audit finds 587 candidate local minima versus zero control; a declared-boundary raster flood finds central geometric spill-fill coverage of 11.04% versus 2.18%, with maxima of 509.11 m versus 104.36 m. These describe geometric capacity, not available water or canonical lakes.
+- **Decision:** retain the fold-source direction as real visual progress, withhold adoption of this dense variant, and diagnose ridge-graph connectivity. No equilibrium, fixed-integer determinism, Arda hydrology compatibility or full-world/reference completion is claimed.
+- **Evidence:** `features/2026-09-23-terrain-corrections/evidence/fold-skeleton-source/`, especially `root-assessment.md`, `atlas-pair.jpg`, `root-field-check.json`, `root-shape-check.json`, `sink-audit.md`, and the frozen manifests. Current status and active plan are updated; the full objective remains open.
+
+### Stricter edge-selection follow-up
+
+The read-only source-graph audit reproduces frozen geometry and identifies 5,888 independent cycles at 1 km. Requiring lower energy than all four dual chords leaves 146 cycles. This explicitly alternative interpretation is tested in isolation, not presented as a publication correction. The reviewed implementation changes one predicate, preserving the runner and original mesh/base-uplift bytes. Independent geometry/field checks and all 34 preflight hashes pass.
+
+The strict pair finishes 100 steps / 5 Myr in 11.51 seconds. Unchanged Atlas retains irregular rocky ridges with a more open pattern, but parallel bands, benches and hollows persist. Central saddle-defined peaks at least 150 m rise from 29 to 113 relative to its own smooth control. Geometric spill-fill coverage is 7.5813% versus 2.3006%, maximum depth 454.872 m versus 105.959 m. Its total uplift differs from the dense experiment, so direct cross-variant differences are contextual rather than a pure selection-rule effect.
+
+Retain the improved source direction, hold production adoption, and stop graph-rule/parameter sweeps. Canonical drainage/water compatibility and lake-aware appearance remain unverified. Full-world integration and the full reference-quality objective remain open. Evidence is under `features/2026-09-23-terrain-corrections/evidence/fold-strict-source/`; current status and active plan include both outcomes.
+
+## 2026-09-24 - Localized broad-face diagnosis
+Mapped independently marked face boxes and cliff polylines to existing mesh constraints using the actual Atlas sample-center transform. Most marked lines track original ridges more closely than rivers; this is localization, not proof of a defective ridge model.
+
+An exact original-mesh replay recovered pre-smoothed refined river heights omitted from earlier diagnostic metadata. The source uses these for initial Poisson interpolation while fixing river vertices to smoothed heights. The algebraic discrepancy has a crop median 0.488 m and exceeds 100 m at only 4 of 6,548 interior samples. It is not selected as the main broad-fold fix; corrected smoothing summaries remain close to previous values. No modified terrain, production code, or saved-world write occurred.
+
+The user prefers the rugged preserved baseline over the smoother recipe. Status and plan now preserve that preference and distinguish the completed diagnostic from appearance acceptance. [Evidence](../features/2026-09-23-terrain-corrections/evidence/fold-control-localization/README.md).
+
+## 2026-09-24 - flow-stagnation-witness
+- Traced the retained measured Newton failure to one interior upwind donor reversal just below the smallest permitted trial; before crossing, the accurately solved Newton direction descends as predicted.
+- Validated both limiting face derivatives independently. Both one-sided Newton directions depart into the opposite side, so no simple donor flip or average is adopted.
+- Independently projected saved velocities to exact positive water balance and checked the reduced coupled derivative. The single full velocity trial is extreme and fails its gate; no reduced trajectory follows.
+- Production and original world remain unchanged. No new terrain render or mountain-grandeur acceptance is claimed; current-status and feature-plan documentation record the specific numerical limitation.
+
+## 2026-09-24 - Flow pockets and a nonlinear velocity-error control
+Diagnosed opposing cell velocities that nearly cancel at shared faces, along with strongly unequal common/antisymmetric water and momentum sensitivity. Implemented an isolated implicit nonlinear-map objective with unchanged physical equations and depth-aware trust geometry; three small tests, measured derivative/local-step checks and independent review pass.
+
+The fresh 128×128 control stops at 60 accepted steps/83 trials in 178.61 s without convergence. Maximum velocity-map error improves from the prior endpoint's 20.43 to 1.407 m/s, but raw scaled momentum error worsens from 90.90 to 1924.12 and errors become more widespread. All 61 saved states and 83 decisions independently reconcile. No terrain update, new render, production change or appearance acceptance.
+
+Updated current status and feature plan. [Evidence](../features/2026-09-23-terrain-corrections/evidence/flow-pocket-diagnosis/root-assessment.md) retains the failed run, limitations and the next connection to an actual terrain test. The full reference-quality objective remains open.
+
+## 2026-09-24 - Flow plateau and analytical-start preflight
+Verified the terminal branch-aware experiment: 50 accepted steps, 53 trials,
+345.02 seconds, stopped at its declared double plateau. Temporary face
+constraints release, but both physical acceptance gates still fail. Retained
+linear and pocket diagnostics distinguish this from a permanently frozen face
+or a single closed-basin explanation.
+
+Derived and evaluated an explicit zero-transport equilibrium and continuation
+tangent for a proposed numerical path to the unchanged full equations. The
+start agrees with the original initial velocity to roundoff. Three synthetic
+fixtures verify the isolated transport-fraction grid, including exact original
+residual/Jacobian parity at the target. A strict relative
+tangent-precision probe exposes cancellation; backward error and the existing
+linear-defect criterion pass. No positive-parameter step, path, erosion or new
+render has run. The reference-quality terrain goal remains open.
+
+All 523 original-world files and prior frozen experiment manifests verify
+unchanged; production has no diff. Updated current status and the feature plan.
+[Terminal evidence](../features/2026-09-23-terrain-corrections/evidence/flow-branch-aware/root-assessment.md),
+[analytical preflight](../features/2026-09-23-terrain-corrections/evidence/flow-homotopy-preflight/root-assessment.md).
+
+## 2026-09-24 - Analytical-start first flow step
+- The first predeclared positive-transport step converges in three Newton corrections/2.61 seconds at lambda3.29776421748822e-5.
+- Independent face/local-law checks verify all four retained states, the exact predictor, accepted steps and scaled water accounting. Final scaled residual2.054e-12 passes the unchanged1.28e-8 intermediate target.
+- Implemented the exact continuation tangent; three small-field tests pass. Implemented and reviewed the bounded path to full transport; nine path/tangent tests pass. The declared run has finished unsuccessfully.
+- No physical endpoint, terrain evolution, new render or production adoption is claimed. Updated current status and feature plan.
+
+- The bounded continuation failed at its per-root retry cap after78accepted stages/93attempts/398.37seconds, at transport fraction0.012977557. The completed independent audit verifies all93attempts and422retained Newton states. Full flow and terrain remain unqualified; the branch is closed.
+
+## 2026-09-24 - Flow continuation and switching-face diagnosis
+Completed and independently verified the bounded dogleg continuation: 500
+additional accepted steps, 614 trials, 1463.77 seconds, still unqualified.
+A tested projected-CG step improves a matched local comparison, but its bounded
+60-step control also fails convergence after stalling at a reversing upwind
+face. All retained fields and decisions in both runs verify independently.
+
+Fixed-state directional checks show that the collapsed radius is not proof of
+stationarity. A single local face-tangent comparison prevents that reversal but
+still fails actual acceptance while another face switches. No erosion, new
+terrain render or production adoption follows. Updated current status and the
+feature plan to replace the stale running checkpoint with terminal evidence.
+
+[Continuation result](../features/2026-09-23-terrain-corrections/evidence/flow-map-continuation/root-assessment.md)
+and [Krylov result and limits](../features/2026-09-23-terrain-corrections/evidence/flow-krylov-control/root-assessment.md).
+
+## 2026-09-24 - facet-shape-attribution
+- Added a read-only original-TIN shape decomposition at four retained measured-input snapshots, with plane, V-valley, orientation and linearity oracles.
+- Independently reproduced height/gradient/jump identities, corrected positive-decile selection, weighted contributions and flattening projections. Hillside and channel effects interact; accounting does not establish a causal replacement.
+- Inspected actual Atlas with component maps, a fixed cross-section and registered mesh-crease markers. No new evolved terrain, production adoption or mountain-grandeur acceptance.
+- Corrected stale current-status statements about the procedural-only requirement and the adaptive transport branch's ten accepted updates before failure. Full terrain goal remains open.
+
+## 2026-09-24 - Facet-retreat diagnostic
+- Implemented and tested an isolated two-process harness: geometric channel creases and feasible two-dimensional hillslope retreat, with matched 28-substep control and exact old-mode replay.
+- Completed both 40-step measured-input runs. Independent retained-operator, mask, boundary, diffusion and all-macro budget checks pass; 48 offline release tests pass.
+- Inspected actual unchanged-Atlas images and signed changes. Candidate suppresses repeated cuts but smooths and lowers ridges more; central peak 2652 m versus control 2814 m, from 3844 m initially.
+- Recorded severe process-domain turnover: median 329352 of 592896 sites change channel eligibility per macro step after the first. Correct mask implementation does not establish a physically stable domain rule.
+- Rejected production adoption, updated current status and completed this bounded plan item. Natural mountain form, visible grandeur, procedural validation and final full-world acceptance remain open. Production and the original saved world are unchanged.
+
+## 2026-09-24 - Evolved height and diffusion-ratio control
+- Completed one isolated paired evolution with scaled initial terrain/uplift, fixed anchor K and 400×12.5 kyr. Only hillslope D differs. Exact source/hull/material checks and independent bed/matrix checks pass.
+- The baseline reproduces the prior height-matched source through evolution to maximum native difference 7.584e−6 m, with identical final pre-update receivers. Stronger D restores broad repeated walls; actual Atlas, native crops and fixed 60-degree presentation reject adoption.
+- Native geometric basin capacity rises 0.020302→0.248723 km³; raster capacity falls 4.180306→1.753432 km³. The large transfer discrepancy remains unresolved; these are not canonical water results.
+- Production and the saved world remain unchanged. Reference-quality mounds, hills, rocky faces, cliffs and mountains remain open. Evidence: `features/2026-09-23-terrain-corrections/evidence/height-scale-diffusion-control/`.
+
+## 2026-09-24 - Temporal refinement of process switching
+- Traced two direct crease-feedback oscillators and one propagated-label oscillator on saved terrain; reconstructed their finite contrast changes from neighboring erosion, distinct from roundoff ambiguity.
+- Implemented isolated28/56/112 refreshed-substep schedules with unchanged physical laws, routing, geometry and total duration.52 release tests pass;214 physical files replay exactly at28 steps.
+- Independently verified every mask/operator/budget across196 substeps and all final diffusion solves. Average height differences decrease under refinement, while worst local differences remain nonmonotone.
+- Bounded outlier audit links the largest local discrepancy to neighboring process-switch timing; only0.00569% of central area exceeds10m between56 and112 steps. This does not establish uniform convergence.
+- Inspected actual matched Atlas, native crops and diagnostic plots. No meaningful mountain-form or grandeur improvement is accepted; no production adoption or new world generation.
+- Updated current status and active-plan evidence. The physical formation question, procedural visual acceptance and final world-scale validation remain open.
+
+## 2026-09-24 - Dendry native source qualification
+- Tested one exact released third-teaser fixture after auditing its branching and local terrain-primitive construction; no measured terrain or parameter search.
+- Mechanically extracted the original constructor and compiled unchanged core sources, retaining the released bool-valued control-range behavior. Independent adapter review passes.
+- Generated two byte-identical 1024² double fields in 9.33/9.41 seconds and rendered fixed full/detail views through unchanged Arda Atlas.
+- Independent visual review rejects repeated wedge-shaped masses and broad smooth faces as the final rugged mountain appearance. No added erosion, tuning or production adoption.
+- Audited native slopes and perimeter-only spill; qualified the absence of ocean/outlet semantics. Fixed grid-boundary differences shrink with coordinate separation and reveal no material finite jump in that screen.
+- Updated current status and the active plan. Preserved the preferred rugged baseline and original saved world; the complete terrain and 32K delivery goal remains open.
+
+## terrain-corrections/coupled-incision-control@2026-09-24
+
+- **Defect:** old uplift-then-exponential incision gives a timestep-dependent fixed-route equilibrium. Implement an isolated opt-in receiver-first backward-Euler correction with unchanged source, mesh, material, diffusion and timestep.
+- **Checks:**32 offline scratch tests reported,7 independent exact-rational scalar cases, separate Sol review, exact old-mode400-step replay, and one completed candidate with saved-field source/bed/hull/ledger/final-diffusion checks. Actual control renders reproduce the prior files exactly.
+- **Result:** native geometric depressions shrink substantially, but actual Atlas retains taller folded faces and repeated gullies. Peak4856→7672m. Retain the numerical correction for research; reject this terrain's production appearance adoption.
+- **Scope:** no production code or original saved-world change, no new source/parameter sweep and no full-world completion claim. Evidence: features/2026-09-23-terrain-corrections/evidence/coupled-incision-control/. Full reference objective remains open.
+
+## 2026-09-24 - Complete contour method qualification
+Completed a fixed source-audited Figure 2 contour→erosion→thermal→deposition sequence through 1024, using original author GPU classes in an isolated headless executable. A small preflight diagnosed and declared an invalid thermal coordinate upload; its correction changes the noise origin compared with literal execution of the broken release. The source checkout and production code remain unchanged.
+
+Two fresh processes completed in about 17.3 seconds, with exact retained terrain replay, byte-identical pre-erosion controls, finite fields, bilinear handoffs and range restoration verified. Actual Arda comparisons show substantially better branching valleys and rougher faces. Root and independent review still reject production adoption because of the central cliff/shelf ring, remaining repeated gullies and coastal cuts. This is evidence for the complete method's effect, not a finished world or a parameter-sweep invitation.
+
+The original saved world retains all 523 hashes. Preserve the corrected-scale render that the user liked. Status and feature-plan completion markers now distinguish numerical qualification from unmet appearance/integration acceptance.
+
+Evidence: [result and actual images](../features/2026-09-23-terrain-corrections/evidence/iso-contour-complete-pipeline/README.md).
+
+## 2026-09-24 - Contour construction qualification
+Built a headless adapter for a pinned, non-DEM author example from the 2026 iso-contour terrain paper. Source review corrected missing GUI height normalization and exterior fade before execution. An initial sampler abort was traced to signed-overflow optimization in the author RNG; an isolated `-fwrapv` build preserves the intended sequence, with full 100,000-value parity against the unoptimized probe.
+
+Two fresh-process terrain runs complete in about 2.217 seconds each and reproduce graph, contour, mask and height data byte-for-byte. A separate explicit-mask Atlas runner passes original all-land PNG parity and renders fixed whole/central views. Root and independent visual review find broad polygonal terraces and a central mound, failing the declared broad mountain-form gate. Close this fixture without an amplification or parameter sweep; preserve the user's previous baseline.
+
+No production code or original saved-world data changed. The reference-quality goal remains open. [Evidence and actual images](../features/2026-09-23-terrain-corrections/evidence/iso-contour-author-control/README.md).
+
+## 2026-09-24 - Same-source complete erosion transfer
+Applied the qualified complete author erosion/thermal/deposition recipe to the exact preserved 20 km mountain input through 2048, in a separate experimental driver. Two fresh runs complete in about 41 seconds with exact retained-field replay; input, handoffs, final range, frozen artifacts and unchanged original-world hashes pass verification. Matched actual Arda images reproduce the old source and baseline renders exactly.
+
+The new result substantially reduces parallel comb gullies while retaining the mountain mass. Root and independent review keep this as a stronger processing candidate, but broad sheet-like faces and long cliff edges remain below final appearance acceptance. The comparison changes a whole processing recipe, not one isolated coefficient; coordinate origin, API correction and range restoration are disclosed. No production integration or original-world write occurred.
+
+[Result and images](../features/2026-09-23-terrain-corrections/evidence/complete-erosion-transfer/README.md).
+
+
+Subsequent user feedback supersedes the candidate ranking above: the preserved baseline looks “really cool,” while the new recipe looks “a bit like plastic.” Root withdraws the stronger-candidate selection and keeps the rugged baseline as the preferred visual direction. Numerical repeatability and fewer grooves do not justify replacing an appearance the user prefers. Neither image is a final world delivery.
+
+## terrain-corrections/colluvial-domain-control@2026-09-24
+
+- **What:** completed one isolated, paired low-area celerity test on the frozen592,896-site synthetic fine TIN. Below1 km² drainage area only, the candidate uses continuous `K√A0(A/A0)^0.24`; above that anchor, the original `K√A` law is unchanged. This transfers Steer2021 colluvial-valley geometry without its critical-hillslope branch, incision threshold or calibrated mass-wasting physics.
+- **Controls:** same saved source, initial bed, mesh, hull, K, talus/lambda0, D, lowest-pass routing and400×12.5 kyr. Candidate changes only the local erosion coefficient while retaining actual drainage areas in routing and mass budgets. The frozen source passes22 tests including one-ulp anchor and independent closed-form scalar checks.
+- **Replay and independent checks:** both arms finish400 steps under the retained guards; the baseline matches the prior fine run byte-for-byte in24 common deterministic files and400 physical ledger rows. Independent all-node source/bed/fixed-hull and final diffusion-matrix checks pass. [Independent paired result](../features/2026-09-23-terrain-corrections/evidence/colluvial-domain-control/independent-post-run.md).
+- **Terrain result:** independent matched render shows some broader, greener connected valleys and fewer repetitive dark crags, but regular ridge benches and sharply reduced mountain mass remain. Central area above2 km drops154.27→1.108 km² and native ≥150 m summits1,052→93. Raster median slope falls52.66°→25.54°, and geometric raster basin capacity11.34→2.169 km³. These are geometry checks, not canonical annual-water results.
+- **Decision:** partial valley improvement only; no production adoption, coefficient sweep, or full-reference completion claim. The original saved world remains unchanged. Root inspected the matched original-spacing Atlas and wider-spacing native crop and confirms the partial improvement and remaining repeated ridge benches; see the retained root assessment.
+
+## 2026-09-24 - Coastal surface interpolation comparison
+- Compared fixed geometric cubic against linear interpolation on the retained coastal constrained mesh, with the same anchors, coast blend,100m crop and actual neutral Arda renderer.
+- Linear output matches the retained initial field byte-for-byte. Independent checks preserve connectivity and anchor heights; all frozen inputs verify.
+- Actual Atlas reduces literal facets but leaves rounded mountain masses. Central depression area grows17.75→60.81km²; local height overshoot reaches97.09m. Reject adoption and skip erosion of this candidate.
+- Original523-file world remains unchanged. Updated current status and feature plan; reference-quality terrain is not complete.
+
+## terrain-corrections/coarse-source-control@2026-09-24
+
+- **What:** remove persistent 3 km and 1 km source terms on the exact mountain-mass control, compensating total uplift with a derived scalar. Fine mesh, broad mass envelope, 7 km source, physical law and renderer stay fixed.
+- **Checks:** all-site extended-precision formula/budget/hull checks and source identity fixtures pass; completed control artifacts and rendering are byte-exact. One 400-step run passes saved-field source/bed/hull/ledger/final-diffusion checks. Root completes work inline after Sol agents reach their usage limit.
+- **Actual result:** large cliff bands persist, with longer and smoother faces. High-terrain area and slope distributions remain similar; basin measures are mixed. No production adoption or reference-completion claim.
+- **Next evidence:** remaining 7 km forcing supplies 19.1093% of integrated uplift; no further source field or run is included here.
+- **Evidence:** features/2026-09-23-terrain-corrections/evidence/coarse-source-control/. Production and original saved world are unchanged; the full reference target remains open.
+
+## 2026-09-24 - Channel-domain and slope preflight
+- Implemented an isolated full-TIN channel classifier and verified its outputs independently; actual inclined planes disprove its use as an erosion-domain rule.
+- Added a facet-geometry alternative preflight that passes both planes, with remaining channel-initiation and endpoint limitations recorded.
+- Implemented a standalone feasible downhill facet-gradient kernel with geometric stability guards; local tests and185 independent directional-oracle cases pass.
+- Inspected fixed-input cast shadows, corrected a missing upstream crop halo and rejected this pass as a mountain-grandiosity solution.
+- Updated current status and active-plan evidence. No production or saved-world changes; reference-quality terrain and final32K validation remain open.
+
+## 2026-09-24 - Closed-cell minimum transfer diagnostic
+- Implemented one exact triangle-square clipping transfer on hash-bound original native heights/faces; six fixtures, independent source review, independent262-cell intersection values and exact replay pass.
+- Full sampled maximum geometric hollow depth falls139.916→3.546 m, below original native6.398876 m plus1 mm. Central capacity falls2.015581→0.00672595 km³; the former worst sampled hollow drains. This isolates narrow-outlet sampling loss, not canonical annual-water behavior or preservation of individual basins.
+- Height semantics change substantially: full-grid median lowering30.281 m, central median61.04 m, maximum435.498 m; highest sampled peak falls261.299 m. Exact cell minima can erase true basin separations and volume. Actual Atlas retains dense walls and narrow valleys; reject a drop-in physical terrain replacement.
+- Production and the saved world remain unchanged; full reference-quality landforms stay open. Evidence: `features/2026-09-23-terrain-corrections/evidence/cell-minimum-transfer-control/`.
+
+## 2026-09-24 - Canonical fine terrain sampling
+- Added immutable `TerrainField` and typed absolute `TerrainPoint` to arda-core, with validated coverage and integer bilinear interpolation retaining fine millimetre heights.
+- Added a raw-input diagnostic consumer and verified exact shared-point consistency across nested resolutions, overlapping regions and repeated processes on three procedural sources.
+- Preserved the preferred actual Arda appearance: all three full views remain pixel-identical, while close-view height differences stay within 1 mm.
+- Passed 100 core tests, all-target core Clippy, workspace formatting and workspace compilation; independent review found no blocking defect.
+- World source generation, fine-field persistence, production rendering, drainage and final 32K delivery remain incomplete. No saved-world migration or rewrite.
+
+## 2026-09-24 - Direction-consistent flow proposal
+Implemented an isolated derivative-only donor selector and temporary
+face-tangent constraints to address the measured flow-reversal cycle. Physical
+residuals remain unchanged and constraints are reselected for each proposal.
+Nine candidate tests pass, including signed donor limits, release and exact
+ordinary-CG parity where branch handling is unnecessary.
+
+The bounded local check reproduces the prior rejected candidate exactly, then
+accepts a smaller step through the existing trust-radius update. Independent
+replay passes. Map error decreases slightly while raw momentum increases
+slightly; neither terminal flow gate passes. A separately bounded continuation
+completed from the exact accepted state and next radius, stopping at its
+fifty-step double plateau after 53 trials/345.02 seconds. Independent checks
+cover all 51 states and 53 decisions. The reversing-face constraint releases,
+but raw momentum and map gates still fail.
+
+No terrain update, new render or production adoption is claimed. Current status
+and the feature plan record the remaining validation.
+[Evidence](../features/2026-09-23-terrain-corrections/evidence/flow-branch-aware/CONTROL-DESIGN.md).
+
+## 2026-09-24 - Corrected author extent and direct mesh control
+The author constructor Box2(center,10000) means radius10km and width20km. Earlier audit prose incorrectly used width10km. Correct initial sample spacing is78.431m; the coarse64km diagnostic is6.425times coarser, with41.283times the thermal transfer per neighbor. The original39m analytic fixture remains preserved and must not be labelled the author scale.
+
+A new20km control samples the retained procedural mesh directly around its highest-prominence peak. It preserves original heights and faces, then applies the unchanged four preset triples at256/512/1024/2048. Finite stages and rendered appearance are assessed separately. Original world and production code are unchanged.
+
+The run completed all four levels in1016.185seconds of stage time and failed the visual gate. Actual overview/detail comparisons retain folded faces and comb-like gullies. No postprocessing or integration followed. Bounded released-shader comparisons check CPU arithmetic without establishing visual acceptance or long-run parity.
+
+Research identifies a published optional hardness control absent from the released shader. A fixed read-only orientation check finds the incision marks mostly follow broad source slopes and show no strong excess of grid-axis alignment over existing detail. No hardness-noise variation or further terrain run was selected.
+
+## 2026-09-24 - Historical channel-slope anchor K diagnostic
+- Ran one isolated 400-step/5 Myr dense-fold TIN pair, changing only uniform stream-power K from the initial hard/weak mean 5.251946814e−7/year to 5.555555556e−6/year. The candidate derives from the historical 1 km²/9% channel-slope anchor at an explicitly hypothetical constant 0.5 mm/year uplift; it is not an observed terrain calibration or coefficient sweep.
+- All 13 deterministic baseline outputs and 400 physical ledger rows match the retained time-refined control exactly. Both arms pass source, bed, fixed-hull, material and duration checks. Actual unchanged Atlas loses the distinctive rocky mountain range while making hills gentler; maximum height falls 4,345.801→898.848 m.
+- A single post-evolution height-matched display check (factor 4.834857455317221 from the two native maxima) shows more irregular small crests, but still steep repeated walls, terraces and unresolved broad valleys. It is not a physical evolution or water result.
+- Reject this fixed K as a full production replacement. Native geometric basin capacity falls 0.911870→0.004199 km³ while coverage rises; raster capacity falls 1.653344→0.864616 km³ while coverage rises. These are not canonical annual-water results. No production source, saved world or renderer changed, and the full landform-reference goal remains open. Evidence: `features/2026-09-23-terrain-corrections/evidence/anchor-k-control/`.
+
+## 2026-09-23 — Operator isolation and transport replacement prototype
+
+key: map/transport-replacement-diagnostic@14a70b9144ddd
+
+- Replay the measured-terrain control exactly and test each single-operator removal; retain numerical and actual Atlas evidence. None resolves the coupled visual defects.
+- Investigate a distinct momentum/transport model from primary2026 research, separating its equations from the current public implementations.
+- Implement a dependency-free CPU characteristic solver and independently verify36 scalar constant-flow/decay cases, all conservation ledgers and exact repeatability. Five focused tests cover rectangular cells and stagnation. Independently reviewed analytic cell-average expectations yield0.0352% pooled relativeL2 at256samples/cell; subsequent component checks are recorded below; nonlinear terrain coupling remains open. Transport-only checks do not constitute terrain or rendering acceptance.
+- Refresh current status and local plan. Production source, saved worlds and completion markers remain unchanged.
+- Extend the independent solver to signed, spatially varying fields and affine flow: 52 oracle cases pass, with 0.0487% pooled relative L2 at 256 samples/cell and exact replay of all 36 frozen scalar cases.
+- Verify explicit face-inlet flux and an SI channel component chain with conserved erosion/deposition/export, a serialized bed update, zero-erosion control and frozen signed momentum. Independent review is dry within this scope; nonlinear feedback and terrain appearance remain unfinished.
+- Add a separately tested bilinear face inlet and close the water/velocity loop on a fixed-bed SI channel. Both predeclared grids converge against an independent conservative-law ODE; fine-grid maximum velocity/depth errors are 0.04277%/0.05967%, water flux is exact and a complete field/history repeat is byte-identical. Bed evolution and actual terrain appearance remain open.
+- Complete ten annual changing-bed channel steps with conservative sediment feedback, zero-erosion control and exact bed/history repeat. Independent review is dry, with fixed-face response explicitly separated from terrain morphology.
+- Freeze and render actual 128² terrain inputs. The first measured-terrain water solve exceeds the declared 300-second limit before any bed update; retain the failure and investigate accounted numerical termination separately from physical parameters.
+- Diagnose and fix exact-zero-time cell-face ownership in an isolated research solver, retaining explicit bounded-tail accounting. Twelve focused tests and all88prior-field/ledger regressions pass; both128²initial terrain-water solves now complete without numerical/cap loss. Natural-terrain feedback remains a separate experiment.
+- Test one frozen crest-segment source under matched coarse forcing. Added summits survive, but the actual Atlas comparison retains the unwanted repeated gullies; reject adoption despite improved summit topology.
+- Execute the full first2Dcoupling trial: generated flow converges but its initial bed step fails the fixed5m limit; measured control fails runtime preflight. Retain all per-iteration evidence and unchanged beds; independent review verifies373 generated-arm hashes. Numerical timestep/cost and the original appearance goal remain open.
+- Verify a separate conservative finite-volume transport method and run rate-selected terrain timesteps. Generated accepts 10 bed updates over 2,722.6 years, then fails flow convergence; measured flow diverges before any bed update. Independent review checks 4,170 solve-file hashes. Actual Atlas comparison shows no useful interior morphology change (core p90 0.169 m); reject production adoption and retain the failed evidence.
+- Test implicit quadratic drag with independent local/channel/face-flux checks. The momentum equation converges internally, but the measured coupled hydro iteration still fails at its 100-iteration cap. Reject adoption and close this bounded numerical experiment without another terrain run.
+
+## 2026-09-23 — Refresh terrain and render references
+key: map/all@757b2ab
+
+- **Trigger:** covered terrain/render source changed; implemented behavior and current verification replaced stale active claims. Historical candidate results remain dated.
+- **Architecture:** `01-architecture.md` records Euclidean belts, coarse creep/fine incision, height-backed Atlas shore reconstruction and bounded context.
+- **Models:** `02-models.md` adds AtlasTerrain heights and internal AtlasSea semantics; persisted schema remains unchanged.
+- **Conventions:** `03-conventions.md` refreshes whole-crates lexical counts and current integer algorithms.
+- **Data flow:** `04-data-flow.md` records the four fixed Atlas arrays (2,641,960 bytes), shared shoreline decision and corrected terrain stages.
+- **Testing:** `06-testing.md` records correction controls, combined broad/focused/golden gates, two dry review rounds and actual-world evidence with explicit limits.
+- **Operations:** `07-operations.md` records shoreline behavior, updated scratch shape and measured generation/32K costs.
+- **Glossary:** `08-glossary.md` distinguishes coarse creep from fine incision and defines Atlas shore reconstruction.
+- **Logic:** `logic/01-continent-generation.md`, `logic/02-area-generation.md`, `logic/04-export.md` and `logic/07-preview.md` absorb the corrected source behavior without rewriting historical designs.
+- **Status/index:** `open-items.md` and `00-index.md` distinguish verified implementation from remaining landscape-naturalness acceptance; no completion marker is invented.
+- **Dependencies:** `05-dependencies.md` reconciles the workspace Apache-2.0 license and deduplicated CI golden invocation; installed dependencies and lockfile are unchanged.
+- **Absent:** no frontend or cross-repository interface became applicable.
+
+## 2026-09-23 — Terrain and Atlas shoreline correction verification
+key: fix/2026-09-23-terrain-corrections@757b2ab
+
+- **Implemented:** exact Euclidean tectonic belts with fractional Q10 distance; preserved negative ocean-rim depth; 25 coarse hillslope-creep passes with incision left to shared 100 m evolution; guarded Atlas land/sea contours shared by colour, channel clipping and overview paths. Classic and stored formats remain compatible.
+- **Integration:** persisted MICRO fields/rivers are tied to accepted attempt 2; actual convergent plates verify uplift beyond the immediate diffusion ring. Golden comparison and independent repeat generation pass after the authorized physical baseline update (32 changed fingerprints, two unchanged, no files added/removed).
+- **Checks:** broad non-golden run 659 passed/8 ignored; final targeted tectonic/continent tests 18/5 passed; strict golden/repeat two passed; format, strict workspace Clippy, Rust 1.96.1 and cached dependency policy pass. Four existing dependency-policy warnings remain. No fresh remote or Windows CI pass is claimed.
+- **Review:** round 1 raised three test suggestions, two accepted/fixed and one refuted; fresh rounds 2 and 3 found zero new actionable defects across contract, quality and verification lenses.
+- **Actual outputs:** fixed seed42 small/default and MICRO99 worlds close annual budgets. The default has 118 lakes, 799,834 reaches and 2,123 crossings; audited crossing fields match canonical reaches. The 15,522×32,768 PNG repeats byte-identically in 65.65 s at 57,240 KiB peak RSS, with 523 saved-world files unchanged.
+- **Visual boundary:** removing coarse incision reduces measured straight cuts; shared shores round land/sea steps. Broad smooth mountains, parallel valleys and the large physically supported default basin remain. No renderer texture, lake deletion, seed reroll or arbitrary terrain clipping hides them. The overall reference-quality objective remains open.
+- **Retained evidence:** local ignored `features/2026-09-23-terrain-corrections/` contains plan/review state, world directories, commands, water audits and actual 8K/32K images; original worlds remain immutable baselines.
+
+## 2026-09-23 — Approved structural relief integration and reference refresh
+
+key: map/all@4ea2271cd809
+
+- Source `4ea2271` installs the explicitly approved eight-file terrain/test change: globally sampled 8/4 km structural relief, 160 shared evolution steps, 640N initial logical work and reviewed deterministic fixture. Legacy tile evolution stays 40 steps; saved formats and the 53N terrain memory reservation remain unchanged.
+- Verify exact installed source hashes against the independently reviewed proposal. Both root release golden tests pass (strict fingerprint and independent repeated generation; 192.10 s), with formatting and whitespace checks passing. The fixture changes 23 of 34 fingerprints with no added or removed paths. Retain the earlier 674-test, two-review and complete-world evidence without claiming a new broad root/remote CI run.
+- Refresh `01-architecture.md`: structural initial bed, cached/direct sampling and shared duration.
+- Refresh `02-models.md`: initial physical surface, absence of new saved fields and unchanged memory reservation.
+- Refresh `04-data-flow.md`: structural stage, sign/coast behavior and 160 shared iterations. Correct an older halo-memory figure to the tested 16-byte optional sample layout (4,260,096 bytes for 516² samples).
+- Refresh `06-testing.md`: physical gate/cache controls, full-world annual/seam checks, reviewed fixture, exact root integration and repeated 32K export evidence.
+- Refresh `07-operations.md`: measured default logical work 4,685,132,212,727; separate current 54 min 16 s generation / 71.31 s export from prior 40-step measurements.
+- Refresh `08-glossary.md`: structural relief, shared/legacy evolution separation and legacy-only edge taper.
+- Absorb installed behavior into `logic/02-area-generation.md`: integer structural field, gate offsets/thresholds, permitted shallow-land crossings, direct/outside sampling and resource formula.
+- Refresh `open-items.md` and `00-index.md`: explicit approval blocker resolved, source adoption complete, prior work retained, broader visual target open. Existing module map and absent frontend/interfaces remain unchanged.
+- Retain the exact highland gate diagnosis and rejected isolated 10 km radius experiment. Weaker summit modulation is measured, but widening alone retains broad regular crests and adds ring-shaped forms and physical basins; no further generator change is adopted.
+- Preserve all historical worlds and the user's unrelated deleted plan. Documentation remains unstaged in the continuing implementation run; no full-feature implemented marker, push or PR is made.
+
+## 2026-09-23 — Natural Atlas river presentation
+
+key: map/natural-rivers@92689f8a8142
+
+- Source `92689f8` replaces hard Mid/Dark overview strokes with bounded saved-width variation, fractional bank coverage and a muted edge-to-core water-colour profile. Source routes, physical widths and water ownership remain unchanged; display shading is not measured channel depth. Maximum 14-row halos keep 256-row streaming bounded.
+- Reject the width/palette-only intermediate candidate after native-pixel inspection: it still resembles an opaque strip. Accept the final water-profile treatment as a partial improvement in actual small, fitted 32K and native-pixel comparisons. Mountains and reference-quality acceptance remain open.
+- Correct the zero-width synthetic discharge fallback to saturate at maximum display size when physical width exceeds u32; preserve Classic bytes.
+- Verify103 renderer and 12 public export tests, strict renderer Clippy,formatting and diff checking. Two fresh final independent Sol reviews are dry.
+- Verify two identical 15,522×32,768 outputs (326,768,717bytes; 80.75/80.68s), unchanged 523 saved files and byte-identicalClassic 2K. Exact commands,source hashes and render hashes remain in local evidence/natural-river-pass.
+- Refresh rendering architecture, models, flow, operations, testing, export behavior, current status and index. Preserve prior implemented work; no whole-feature completion marker, push or PR.
+
+## terrain-corrections/mountain-source-validation@2026-09-23
+
+- Completed the single hillslope incision-area diagnostic: exact control replay and material balances pass; regular side-gullies remain. Rejected for adoption.
+- Completed the narrow faceted-crest source diagnostic: added summits render as a regular row of pyramids. Rejected for adoption.
+- Checked terrain-cast shadows on the sharper measured-detail prototype with analytic controls: only12 of262,144 central cells are occluded within the inspected northwest radius at the existing Atlas light. No shadow renderer selected.
+- Corrected the measured-detail filter description: sigma800m is not a1km wavelength cutoff; the ideal high-pass half-amplitude wavelength is4.27km. Input/output terrain bytes are unchanged.
+- Completed paired canonical basin and annual-water validation of the unchanged source prototype with explicit local boundaries and common climate forcing. Both annual ledgers close exactly; candidate central wet area is4.04%. Actual lake-aware Atlas rendering preserves dry-control pixels exactly. The candidate remains visually incomplete and is not adopted; full-world validity is not claimed.
+- Updated the active feature checklist and current status; production remains at14a70b9 and the reference-quality goal stays open.
+
+## 2026-09-23 — Measured terrain shape and erosion controls
+
+key: map/measured-terrain-control@14a70b9144ddd
+
+- Compare public measured Alpine heights with the generated crop through unchanged Atlas at100m with neutral metadata and real halos. Retain attribution and independent byte-identical resampling verification.
+- Quantify63 saddle-defined prominent measured summits versus none generated; distinguish source geometry from renderer presentation.
+- Apply unchanged160-step erosion with zero uplift as a declared control. Record exact rim, positive heights, hashes and actual visual loss of craggy detail with repeated grooves. Source structure and evolution both remain unresolved.
+- Reject both frozen finite-cover controls on the measured input after actual four-way Atlas inspection: peak retention improves but repeated exaggerated gullies remain.
+- Refresh current status and local plan; no production code, saved-world, fixture or completion-marker changes.
+
+## 2026-09-23 — Landform source diagnostics
+
+key: map/landform-source-diagnostics@92689f8a8142
+
+- Reproduce the current continent stages and all 500,000 saved 1 km heights in an isolated collision-source control. Reject the single warp-Jacobian concentration variant: principal crest widths remain 7/23 km, with one summit above the declared 150 m prominence threshold. No fine run or production adoption follows.
+- Audit saved lowland/highland samples independently. Structural relief is provably disabled at at least 54.2% of sampled coastal 1 km nodes and 28.8% of mixed-river nodes. These bounds describe the sampled nodes, not full map areas. Fine relief also vanishes on locally flat regional input.
+- Record separate hill and cliff limitations: steep-face relaxation has no bedrock/resistance distinction, and the rock material can only display slopes already present. Neutral hillshade and actual Atlas views are both required for visual acceptance.
+- Inspect the authors' MIT peak/saddle terrain reconstruction source at `c85d6ca393339f04e09097d6cc151c896763d271`. Record its omitted erosion stage, floating-point geometry and dense reconstruction matrices as constraints on direct reuse. No external implementation is installed in Arda.
+- Update current status and the active correction plan. Preserve all installed terrain/river improvements and immutable saved worlds. The full reference-quality objective remains open.
+- Reject a second controlled source-envelope trial with separated anchors and reduced inter-anchor uplift. It does not meet the predeclared multiple-summit gate; no fine/full-world run or production change follows. Source weighting does not implement the paper's explicit dual ridge/river construction.
+- Verify the independent summit-prominence diagnostic against 2,000 random fields and eight targeted cases. The actual saved 100 m highland crop also retains one interior summit over the declared 150 m threshold; finite-crop prominence remains conditional on missing outside paths.
+
+## 2026-09-23 — Threshold-incision landform diagnostic
+
+key: map/incision-threshold-diagnostic@14a70b9144ddd
+
+- Test one predeclared slope-and-area incision threshold,900 mm per model step, in the isolated finite-cover/bedrock experiment. Retain source/input/binary hashes and exact zero-threshold height/rock/cover/ledger replay.
+- Verify224 independent rational scalar cases and all160 per-step material budgets. Preserve physical receiver selection, material transfers and fixed cells.
+- Inspect actual Atlas outputs on the frozen graph and on the accepted structural-relief initial field, using neutral identical metadata and real height halos. Separate the material-only control from the threshold change.
+- Reject adoption: cover retention improves but broad smooth surfaces and repetitive steep channel clusters remain; accepted-source summit topology remains one broad crest. No threshold retuning, production terrain change, saved-world change or fixture update follows.
+- Update current status and the local feature plan. Retain both successful numerical checks and failed visual acceptance; the full landform objective remains open.
+
+## 2026-09-23 — Connected Atlas overview rivers
+
+key: map/connected-atlas-rivers@14a70b9144dd
+
+- Integrate saved channel strips and junction hulls into Atlas world-overview exports as `14a70b9144dd`. Complete 3×3 saved context, source clipping and exact rectangular output spans keep geometry connected across publication boundaries.
+- Use 8× physical display widths capped 10,000 dm only in the new overview path. Preserve physical area coverage, Classic, direct legacy Atlas APIs and saved formats.
+- Fix dense low-quality union work with a 64-piece subdivision trigger, maximum depth 6 and unchanged 250M work budget; omit no channels. Retain failed then passing 512 export evidence.
+- Verify 108 renderer/12 public export tests, formatting, strict scoped Clippy, analytic rectangle and dense GEOS fixtures, plus two independent final dry reviews.
+- Repeat full 32K output byte-for-byte in 93.19/92.62 s. Preserve all 523 saved files and selected Classic/physical-area controls.
+- Refresh architecture, models, data-flow, testing, operations, export behavior, index and current status. Root accepts a partial river-geometry improvement; D8 angles, faint fitted tributaries and mountain morphology remain open.
+
+## 2026-09-23 — Whole-region coastal ridge reconstruction diagnostic
+
+key: map/coastal-ridge-diagnostic@92689f8a8142
+
+- Reject the prior fixed-crop outlet fit after independent verification: source/saddle caps and retained high support exits conflict by up to1,299.989m. No outlet-fit raster was produced.
+- Recover the saved27-peak topology and millimetre raster with sparse river adjacency, removing quadratic matrices from the isolated author-code adaptation. Floating mesh coordinates differ by at most7.11e−15km; production code is unchanged.
+- Measure the actual seed-42 mainland and distinguish exterior ocean from internal nonpositive pockets. Use complete500×1000km coarse support for one new926-peak procedural reconstruction with83 coastal graph terminals.
+- Complete the sparse full-domain mesh in14.855s at1,404,820KiB peak RSS. Preserve original nonpositive bed and other-island heights in the1km output; verify zero uphill graph edges. Do not infer raster drainage or annual water validity from graph checks.
+- Run the already byte-controlled unchanged160-step erosion kernel on the new100m highland crop. Retain29 conditional prominent interior summits and reduce the prior graph-insertion's severe crop depressions to a5.529m maximum residual depth. These are prototype comparisons, not production acceptance or a lake quota.
+- Inspect actual neutral hillshades and record persistent smooth shoulders, repeated gullies, slope bands and unverified lowland/cliff quality. Keep the full natural-atlas objective open and production source/worlds unchanged.
+- Refresh current status and the continuing local plan with completed failed/successful diagnostics. Preserve the user's existing unrelated plan deletion.
+- Render both evolved highland fields through the current Atlas renderer with real height halos and identical neutral cell metadata. Record visible segmented peaks/passes, remaining straight terraces and repeated side gullies; do not present the diagnostic as a generated physical world.
+- Reproduce the steep-face audit:677 initial coastal-graph cells above40° become zero after160 steps. Trace the blanket creep/talus rule and record a bounded finite-cover/bedrock hypothesis, with conservation and inherited-mesh-artifact gates; no variant or production material state is installed.
+
+## 2026-09-23 — Material and constrained-mesh diagnostics
+
+key: map/bedrock-and-mesh-diagnostics@92689f8a8142
+
+- Complete one frozen-input finite-cover/bedrock experiment, eight focused tests, exact standard control replay and independent 160-step material-budget reconciliation. Reject adoption after actual Atlas inspection: new steep faces amplify terrace/gully repetition and 93.6146% of central cells lose their cover.
+- Correct the earlier prototype description: the original meshing call did not enforce prescribed segments. Independently reproduce ignored and incompatible constraint cases; preserve prior evidence.
+- Enable constrained meshing, use interpolated vertex heights, preserve subdivided constraint vertices and remove perturbation-induced graph crossings. Repeat the full reconstruction identically; all 48,622 segment interpolation checks pass.
+- Evolve the corrected crop with the unchanged 160-step kernel (25.848776 s). Retain 30 conditional prominent summits, with 9.45 km² depressed central terrain and 6.480 m maximum spill depth. Inspect actual neutral-metadata Atlas output; reject adoption because smooth shoulders, terraces and repeated gullies remain.
+- Update the local plan and current status. Production source, deterministic fixture and saved worlds remain unchanged. Full landform and natural-river acceptance remain open.
+- Diagnose the remaining broad shelf: prototype valley and free-fill heights lower the northern shoulder hundreds of metres. Erosion removes exact mesh faceting but leaves 468 km² of connected low-slope terrain. Correct the scope claim: interior mainland macro heights are not preserved. Record a bounded graph-profile feasibility check before further rasterization.
+- Complete the graph minimax feasibility diagnostic: exact minimum maximum bed deviation is 2,018.222 m. Root independently checks 157,948 path inequalities and every returned profile bound; graph orientation and saddle constraints force the discrepancy. Reject further height-formula-only variants on this graph; no raster or erosion follows.
+- Complete instrumentation-only replay of the rejected material diagnostic with exact output and ledger hashes. Quantify broad low-area incision while distinguishing rock cutting from direct cover removal; retain the causal and unit limitations. No channel-initiation threshold or new terrain variant is selected.
+
+## 2026-09-23 — Saved-wetness Atlas material and reference refresh
+
+key: map/all@3f95fcca59a2
+
+- Source `3f95fcc` uses saved drainage/slope wetness to tint Atlas land with Q12 weight `wetness×2048/(wetness+12)` toward RGB `[81,126,73]`, before existing rock/snow blending. Target and eight-neighbor halo samples carry the existing byte; the optional sample remains 16 bytes. Geometry, saved worlds, Classic and public options remain unchanged.
+- Verify 98 renderer library tests, 12 public area-export tests, the final focused mixed-axis test, formatting and strict renderer Clippy. Two fresh independent GPT-6 Sol review rounds find no actionable defect; retain exact source hashes and commands in the local component receipt. These are scoped checks, not a new full-generation or remote CI run.
+- Accept matched actual-world material comparisons as a partial improvement. Retain the invalid initial old-world comparison separately; adoption uses the corrected structural-relief world. No ecological cover or soil-moisture producer is claimed.
+- Refresh `01-architecture.md`, `02-models.md`, `04-data-flow.md`, `07-operations.md` and `08-glossary.md` for saved-field flow, integer material ordering, fixed context size and display semantics.
+- Refresh `06-testing.md` for exact tint, zero-wetness compatibility, cardinal/diagonal context, water isolation and mixed-axis buffered/streamed coverage. Absorb the shared area/overview behavior into `logic/04-export.md`.
+- Refresh `open-items.md` and `00-index.md` to distinguish committed improvements from the open reference-quality objective. A replayed coarse-field diagnostic identifies persistent collision-source uplift as a contributor to smooth crests; its bounded convergence-magnitude prototype is rejected and is not a production feature. A subsequent adapted released multiscale-erosion preset is likewise rejected on the fixed crop; retain its source provenance, numerical controls and limitations without a production claim.
+- Leave documentation unstaged during the continuing implementation run; no broad feature completion marker, push or PR is made.
+- Verify actual repeated 15,522 × 32,768 output: 327,031,502 bytes, 76.16/76.05 s and 66,516/66,284 KiB child RSS. Both PNGs match exactly, all 523 world files remain unchanged, and root inspects the downsampled completed-map preview.
+
+## 2026-09-23 - authorization: terrain and shoreline corrections
+key: scope/2026-09-23-atlas-terrain-corrections@approved
+
+- The user explicitly answered “yes include” to extending the Atlas continuation to terrain-generator and shoreline-geometry corrections. The former scope blocker is resolved; GPT-6 Sol execution continues.
+- The first-pass restrictions on generation and categorical display ownership are superseded for the authorized corrections. Existing saved worlds remain immutable comparison baselines; storage/API compatibility, deterministic simulation, water authority, annual accounting, shared boundaries and bounded resources remain requirements.
+- Implementation sequence: Euclidean tectonic belt distance; preservation of existing seafloor at the forced-ocean rim; evidence-backed erosion routing correction; consistent shoreline/mouth geometry; regenerated comparison worlds, physical tests, justified fingerprints and visual acceptance.
+- No completed-feature or final visual acceptance claim is made by this authorization record.
+
+## 2026-09-23 — Atlas overview river readability
+
+key: map/render-readability@a9ce4fefd566
+
+- Source `a9ce4fe` corrects Atlas overview river visibility at large export sizes using centered scale-dependent Mid/Dark symbols and a clearer blue palette. A bounded 3/4 chamfer field protects sea/lake/style ownership and shares buffered/streamed behavior; Classic retains its previous right/down symbol. Physical channel widths and saved worlds are unchanged.
+- Verify 101 renderer and 12 public area-export tests, strict renderer Clippy, formatting and whitespace checks. Two fresh GPT-6 Sol reviews are dry; retain independent chamfer and band-seam controls. These are scoped checks, not new full-generation or remote CI claims.
+- Verify repeated 15,522 × 32,768 exports: 325,652,273 bytes, 78.91/79.36 seconds, identical SHA-256. All 523 saved world files remain unchanged and the Classic 2K control is byte-identical. Inspect the actual fitted 32K preview and accept improved river readability.
+- Reject the bounded mountain presentation probes: broad lighting adds little and 3× normal exaggeration with lower sun overemphasizes grooves. Retain their saved-height provenance and offline relighting limitations; install no mountain change.
+- Refresh affected rendering models, architecture, flow, operations, testing and export behavior; update current status and index. Preserve earlier implemented work and the open mountain/reference-quality objective. No full-feature completion marker, push or PR.
+
+## 2026-09-23 — Atlas land material readability
+
+key: feat/atlas-land-materials@3c06909
+
+- Added slope-derived exposed-rock colour, continuous rock-altitude blending, slope-weighted snow appearance and stronger bounded integer relief to Atlas land. Shared saved-world sampling, Classic, water ownership, formats and fixed rendering buffers remain unchanged.
+- Verified 89 renderer tests, 56 facade/CLI tests, formatting and strict workspace Clippy. Two fresh independent review rounds found no actionable defects. A 32K export of the same default seed-42 world completed in 66.92 s; actual overview and matched regional renders were inspected.
+- Refreshed architecture, models, data flow, tests, glossary, export behavior, map legend and current status. Coverage stamps reflect the committed renderer source; unchanged conventions/operations retain their existing contracts.
+- The wider visual objective remains open: clearer materials do not resolve broad smooth mountains, parallel drainage, the large regional basin or missing ecological layers. Controlled terrain experiments remain isolated evidence, not production generator changes or completed visual acceptance.
+
+## 2026-09-23 — Atlas lake depth across map scales
+
+key: feat/atlas-lake-depth@0fc9666
+
+- Added validated saved-surface-minus-bed lake colour to Atlas area and overview maps using the shared Atlas water-depth ramp. Membership, river precedence, world data, Classic output and existing constructor fallbacks are preserved; lake-aware constructors are additive.
+- Kept context bounded: each halo sample is 16 bytes on the verified target, with a transient 2 MiB lake-depth lookup per area/neighbor. No output-sized depth buffer or new saved field is introduced.
+- Verified 94 renderer tests, 12 facade area-export tests, 14 CLI tests, scoped strict Clippy, formatting and two independent dry code reviews. Added corner and buffered/streamed mixed-axis coverage after review. Actual matched clean-baseline images were inspected; Classic lake-margin output is byte-identical. Current 32K output completed in 69.34 s at 76,904 KiB peak child RSS.
+- Refreshed architecture, models, data flow, tests, operations, glossary, export/preview behavior, map legend and current status. No full workspace or remote CI run is claimed for this rendering continuation.
+- Full visual acceptance remains open. Controlled terrain experiments are isolated evidence; ordinary broad relief plus longer evolution shows a partial branching improvement on one crop but has no accepted production integration yet.
+
+## 2026-09-23 — Structural candidate verification and resource documentation
+
+key: docs/structural-candidate-progress@2026-09-23
+
+- Update current status with isolated small42/MICRO99 terrain comparisons, named saved-water audits, 674 passing non-golden tests, two dry component reviews and all-file repeat equivalence. Default generation and golden verification subsequently completed as recorded below; source adoption and reference-quality acceptance remain pending.
+- Record the changed lake floors/outlets and limits of that interpretation. Climate tint, cast-shadow diagnosis and doubled structural amplitude did not establish another useful production change.
+- Correct current-production default logical work from 1,881,932,212,727 to 1,894,732,212,727. The old value omitted the earlier 256N regional-detail sampling increase. Derive this from the directly measured isolated candidate admission and its exact additional terrain work; all other admission source is unchanged.
+- Update open-items.md and 07-operations.md. This adopts no candidate code and changes no resource limit, memory reservation, saved world or completed prior feature.
+- Record passing independent release repeat, Rust 1.96.1, cached offline dependency policy and all-package Clippy. Keep the reviewed 23/34-file fingerprint change pending explicit adoption authorization; the stored fixture is unchanged.
+- Retain the controlled single-flow accumulation rejection: verified control bytes and mass flow, but worse straight channels and terraces in actual terrain images. No production routing change.
+- Record the inspected 1,600-step duration control: exact earlier checkpoints, substantial broad-relief change, but unsuitable angular morphology. No duration increase beyond the isolated 160-step candidate.
+- Record completed default candidate generation (54 min 16 s), exact annual balance, 12,356 wet seam pairs and inspected actual overview/area panels. Production adoption and fingerprint update await explicit authorization after automatic approval review rejected source mutation; no candidate source is represented as installed.
+- Verify the candidate full 32K overview and recovered repeat: byte-identical 15,522 × 32,768 PNGs, 71.31/71.40 s, all 523 saved world files unchanged. Preserve pending adoption and the open visual target.
+
+## 2026-09-22 - plan: 2026-09-22-geographical-rendering-first-pass
+key: plan/2026-09-22-geographical-rendering-first-pass@Q5
+
+- `features/2026-09-22-geographical-rendering-first-pass/plan.md`: amend Tasks1–3 for exact per-pixel interpolation, eight-neighbor context and unchanged water masks.
+- `features/2026-09-22-geographical-rendering-first-pass/plan-review.md`: record resolved API, test-fixture, owner-weight and independent Classic-baseline findings.
+- User accepted interpolation as an addition to the concrete first-pass plan; proceed on the recorded codex branch with source-only task commits.
+- Use GPT-6 Sol for subsequent agents as newly requested.
+
+## 2026-09-22 - map: Atlas rendering reference refresh
+key: map/all@342d03e55120-atlas-rendering
+
+- Trigger: source changed across the renderer, facade and CLI; source stamp `342d03e55120`.
+- `01-architecture.md`: styled export entry points, renderer/facade ownership, sequential neighbor reads and bounded sampling/streaming.
+- `02-models.md`: in-memory MapStyle, AtlasNeighbor, AtlasHalo and AtlasTerrain, exact sampling and validation; persisted schemas remain unchanged.
+- `04-data-flow.md`: style refusal, halo derivation, per-pixel interpolation, publication and failure paths.
+- `06-testing.md`: focused tests, current Linux gates, independent Classic baseline and real-map evidence; preserves historical records.
+- `07-operations.md`: CLI selection and legacy compatibility, actual 32K timings/RSS and bounded neighboring context.
+- `logic/04-export.md`: absorbs style branches, eight-neighbor loading, class filtering, water authority and publication.
+- `logic/07-preview.md`: absorbs Atlas preview and explicit-style conflicts with legacy `--px`.
+- `mockup/03-export.md`: current user-visible choices, filenames and errors.
+- `mockup/04-crate-api.md`: additive implemented styled APIs alongside explicitly retained future design.
+- `logic/README.md`, `mockup/README.md`, `00-index.md`: companion/index descriptions reflect the delivered first pass.
+- `open-items.md`, `implementation.md`, `README.md`, `../tactical-map-roadmap.md`: preserve delivered generation work and earlier queue; mark only the Atlas slice delivered, with ecology/human/tactical scope still open.
+- `../map-legend.md`: separates Classic legend from Atlas relief/depth interpretation; neither elevation palette implies forest or simulated snow.
+- Divergences: Atlas `--detail` intentionally uses the streamed 4096 standard filename; Classic retains the legacy `_detail` filename. The concept is a visual direction, not exact generated detail.
+- Unchanged source topics and retained generation scenarios were left untouched; no frontend/UI chapter or cross-repository contract was introduced. This is a targeted reference refresh, not a claim that every unrelated reference stamp is current.
+- Verification: source-citation spot checks, 147 resolved local links, 40 previously documented absent historical feature links, no unexpected missing links and a clean whitespace check; a separate Sol documentation review found three stale detail-filename descriptions, corrected before completion.
+
+## 2026-09-22 - implement: geographical rendering first pass
+key: implement/2026-09-22-geographical-rendering-first-pass@Q5
+
+- What: add selectable natural shaded Atlas world/area PNGs for users of saved Arda worlds, retaining Classic as the default.
+- Approach: derive fixed integer palette/light/class grids from saved heights and two-cell eight-neighbor context; class-filter and interpolate palette/light separately at output-pixel centers; reuse physical water validation, rows/bands and temporary-file publication.
+- Rejected: resolution-only output adds no geographical information.
+- Rejected: palette-only refresh does not supply the selected relief direction.
+- Rejected: illustrated-fantasy direction was not selected.
+- Rejected: generated artwork as final map cannot guarantee agreement with saved geography.
+- Rejected: stored slope/aspect alone lacks complete boundary gradients.
+- Rejected: fading shade at area borders risks artificial grid bands.
+- Out of scope: terrain/erosion/coast/basin generation changes and saved codecs/golden hashes.
+- Out of scope: forest/soil-moisture producers, farms, settlements, extents, roads, buildings and society.
+- Out of scope: tactical vocabulary/WFC changes, assets, interiors, gameplay and browser/VTT delivery.
+- Out of scope: seasonal water, exact invented concept detail, unrelated Windows line-ending repair and changing the default style.
+- Task 1: deterministic Atlas halo, terrain derivation and exact sampler; commit `4dbebd149f6b`.
+- Task 2: area/overview integration, water authority and bounded streaming; commit `f851ecac3aed`.
+- Task 3: MapStyle and bounded style-aware facade exports; commit `238e7550ae21`.
+- Task 4: CLI style selection, early refusals, preview compatibility and detail routing; commit `342d03e55120`.
+- Task 5: retained real-map panel, native crops, independent Classic comparisons, repeat 32K exports, protected-path checks and reference absorption.
+- Diff: `crates/arda-render/src/atlas.rs`, `atlas/tests.rs`, `carto.rs`, `channels.rs`, `channels/tests.rs`, `lib.rs`, `overview.rs`, `overview/streaming.rs`.
+- Diff: `crates/arda/src/atlas.rs`, `export_quality.rs`, `lib.rs`, `crates/arda/tests/area_exports.rs`.
+- Diff: `crates/arda-cli/src/main.rs`, `crates/arda-cli/tests/cli.rs`.
+- Chapters refreshed: `01-architecture.md` gains Atlas composition and entry points.
+- Chapters refreshed: `02-models.md` gains in-memory display/context records and validation.
+- Chapters refreshed: `04-data-flow.md` gains per-output-pixel sampling and failure/publication flow.
+- Chapters refreshed: `06-testing.md` gains dated tests, actual output and evidence boundaries.
+- Chapters refreshed: `07-operations.md` gains style options, compatibility and observed resource cost.
+- Scenarios absorbed: `logic/04-export.md` gains style/load/water/sampling/publication rules.
+- Scenarios absorbed: `logic/07-preview.md` gains Atlas selection and explicit-style/legacy-pixel refusal.
+- Surfaces absorbed: `mockup/03-export.md` gains current choices/errors; `mockup/04-crate-api.md` gains additive actual APIs without replacing future designs.
+- Index/status: `00-index.md`, folder indexes, `open-items.md`, `implementation.md`, `README.md`, map legend and tactical roadmap reflect this delivered slice and preserve the larger queue.
+- Verification: 648 workspace tests passed, 8 ignored, across 21 suites on Linux; formatting, strict Clippy, Rust 1.96.1 and dependency policy passed. Existing Windows LF/CRLF CI failure remains historical/open.
+- Evidence: one retained base-generated seed-42 200×300 km world, matched 8K overview/five-area pairs, 512 Atlas area, repeated 32K area/overview, native relief/water/edge/corner/band crops and exact hashes.
+- Compatibility: three independent pre-change executable comparisons preserve Classic PNG bytes; all 55 saved files and five selected JSON exports remain identical.
+- Resources: repeated 32768² area PNGs took 31.06/31.35 s, peak 44312/43956 KiB; repeated 19661×32768 overviews took 29.57/29.81 s, peak 66604/66204 KiB, measured by Linux child wait4 rusage. Both image pairs were byte-identical; these are host observations.
+- Visual verdict: clearer relief, earthy palette and smooth within-cell transitions accepted; saved 100 m shoreline steps and existing straight/parallel drainage forms remain. The broader multi-seed/terrain-realism and inhabited-map milestones stay open.
+- Review loop: two consecutive full dry rounds, three fresh GPT-6 Sol lenses per round; zero findings confirmed/fixed/refuted, no source changes between rounds. Separate documentation review corrections were verified before wrap.
+- Retention: local ignored `features/2026-09-22-geographical-rendering-first-pass/` keeps the spec, approved plan, review ledger, acceptance report and generated evidence. No push, PR, merge or release performed.
+
+## 2026-09-22 - groom: 2026-09-22-geographical-rendering-first-pass
+key: groom/2026-09-22-geographical-rendering-first-pass@Q5
+
+- `features/2026-09-22-geographical-rendering-first-pass/spec.md`: add per-output-pixel palette and lighting interpolation with separate class-filtered sampling.
+- Read two-cell edge/corner context from eight saved neighbors; preserve physical water masks, Classic behavior and bounded row/band rendering.
+- Use bilinear pixel-center weights on enlarged axes and existing source footprints on reduced axes, including mixed scaling.
+- Interpolation improves presentation only; the saved geographical source remains 100 m.
+
+## 2026-09-22 - progress: Atlas visual fidelity
+key: progress/2026-09-22-atlas-visual-fidelity@9a16883
+
+- User objective remains active: finish the whole rendering feature until it meets the selected atlas reference; the completed first pass does not establish final visual acceptance.
+- `crates/arda-render/src/atlas.rs`: clearer elevation colours and a piecewise saved-depth sea ramp replace the compressed linear sea palette; lighting, masks, Classic and APIs remain unchanged.
+- `crates/arda-render/src/atlas/tests.rs`: verifies depth interpolation/joins/extremes and updates literal RGB records; preserves the adjacent-row corner regression oracle with a locally shifted planar fixture.
+- Source increment: `9a16883`, 80 renderer tests passed, formatting and strict renderer Clippy passed; an independent Sol reviewer found no actionable issue.
+- Real evidence: four isolated actual-CLI variants separate palette from lighting; production area/overview match the palette-only prototype, Classic matches its pre-Atlas hash, and all 55 input files remain unchanged.
+- Rejected for production: stronger display exaggeration/lighting, because it accentuates the saved straight gullies without supplying reference-quality terrain.
+- Diagnosis: the visible outer ocean strip matches the generator's two-coarse-cell forced ocean rim at approximately -1,050 m; the cause of straight terrestrial incision remains unproven.
+- A fixed default seed-42 500×1000 km world generation was started to broaden evidence; no seed reroll, terrain code change or completed-world claim.
+- `features/2026-09-22-atlas-visual-fidelity/goal-audit.md`: records requirement-by-requirement incompleteness, evidence and next actions; local probes, commands, sources, hashes and receipts are retained.
+- Broader goal remains incomplete: coast/terrain fidelity, distracting boundary patterns, representative-world acceptance and user visual acceptance still require work. No implement-completion marker is written.
+
+## 2026-09-22 - progress: Atlas terrain and shoreline diagnosis
+key: progress/2026-09-22-atlas-visual-fidelity@terrain-stage-diagnosis
+
+- `open-items.md`: updates OI-03 and OI-04 from direct saved-data comparisons; both remain open.
+- Seed 42, 200×300 km: regenerated continent attempt 0 matches all 60,000 saved regional heights. Aligned valleys in area (2,0) are present before area evolution; final evolution deepens them. A second scratch probe captures the pre-erosion field and localizes appearance to the 25 continent-erosion iterations; 11 consecutive northward receivers explain one reproduced straight incision segment.
+- The ocean contour diagnostic changes 4,894 of 1,048,576 pixels in a 6.4 km crop. It demonstrates smoother inferred geometry and the change to categorical land/water ownership; it is not a production implementation or topology guarantee.
+- A diagnostic inventory measures every area in the retained world and selects representative altitude, slope, lake, river and mixed-coast views by recorded rules. Land count and maximum height are cross-checked against the independent JSON export for area (2,0).
+- Production source and saved generation remain unchanged in this diagnostic increment. The broader visual objective remains active; no completion marker is written.
+
+## 2026-09-22 - status: Atlas visual goal blocked on scope
+key: status/2026-09-22-atlas-visual-fidelity@scope-block
+
+- The requested visual goal remains unmet. The previous turn completed the larger-world gallery and diagnostics; it was progress, not a stalled or failed generation attempt.
+- The unanswered scope decision has persisted through three consecutive goal turns. The approved first-pass R2/R6/G1 preserves terrain ownership and generation rules; the proposed corrections change those contracts.
+- Generation and gallery jobs have completed successfully. The worktree was clean, all independent verification was complete, and no fresh user answer was present when revalidated. No generation restart or repeated test run was needed.
+- The goal tool now reports `blocked`. This records a need for the user's scope decision, not completion, rejection of implemented work, or a request to pause.
+- `open-items.md`: reflects the blocked continuation while preserving the completed first pass, committed palette refinement, test results, real galleries and unresolved visual findings.
+
+## 2026-09-22 - progress: Atlas prototype results and workspace verification
+key: progress/2026-09-22-atlas-visual-fidelity@probe-results
+
+- Production palette source `9a16883`: `rtk cargo test --workspace --offline` passes 649 tests, 8 ignored across 21 suites; command wrapper elapsed 395.39 seconds. Production source remains unchanged by these experiments.
+- Scratch ocean contour renderer: actual 2K/8K exports of saved area (2,1), matching coordinates and channel clipping; 81 scratch renderer tests pass. The 8K crop changes 3,292 of 1,048,576 pixels. Zero-height source samples force categorical fallback on 6,144 pixels under mixed quads. No production geometry or topology acceptance is claimed.
+- Scratch continent routing experiment: identical pre-erosion field and unchanged erosion constants, but multiple-flow accumulation alone reduces measured local valley relief from 83.0 m to 16.2 m. Rejected as a correction because it loses the required valley shape.
+- `open-items.md`: records the production verification, confirmed erosion-stage source of aligned gullies, rejected alternative, shoreline limitations and pending scope decision.
+- Fixed seed-42 500×1000 km generation remains live; a separate follower waits for its terminal receipt, then inventories all areas and exports representative 8K Atlas views. It never restarts generation. Completion and visual inspection remain pending.
+- The broader objective remains active. No implementation-completion marker is written.
+
+## 2026-09-22 - progress: default-world Atlas inspection
+key: progress/2026-09-22-atlas-visual-fidelity@default-world-evidence
+
+- Existing seed-42 configured 500×1000 km generation completed once: 171 areas, exit 0, 1,510.31 seconds, peak RSS 1,848,684 KiB. No restart, reroll or generator modification.
+- Retained world: 523 files, 1,913,421,396 bytes. All 171 area cell hashes match the pre-render inventory after gallery export. This is not a before/after claim for every other file.
+- Production renderer source `9a16883`: real 3880×8192 overview and six 8192×8192 area views. Selection uses altitude, slope, lake/river cell counts and balanced coastline; a mixed lake-margin view supplements the retained all-lake maximum.
+- World maximum 3,801.251 m establishes coverage of palette ranges missing from the earlier small fixture. Independent Sol inspection and root inspection find repeated grooves, stepped shores, thin rivers and a large angular interior lake. No final visual acceptance is claimed.
+- The alpine image contains no channel at 255; broad pale relief is not evidence of RGB clipping. Across internal default-world coast edges, 9,679 of 45,792 touch a zero-height sea sample; inter-area edges are excluded from this diagnostic.
+- A second scratch shoreline prototype uses categorical land/sea samples and rounds corners without zero-height fallback. Its small-world 8K crop changes 920 pixels; broad steps remain. Production source is unchanged by either shore prototype.
+- A globally saturated deep-water palette was tested against fresh production renders and rejected: it reduces rim contrast but leaves straight terraces and loses deep-water colour variation. The current palette remains unchanged.
+- `open-items.md`: records the completed default-world gallery and updates OI-02, OI-05 and OI-12; terrain/shoreline scope remains a pending user decision. The broader visual objective remains incomplete.
+
 ## 2026-09-22 - groom: geographical rendering first pass
 key: groom/2026-09-22-geographical-rendering-first-pass@Q4
 

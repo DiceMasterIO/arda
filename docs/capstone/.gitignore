@@ -23,3 +23,6 @@ uiux/assets/references/
 
 # User-requested local diagnosis; kept outside Git
 /generation-issues.md
+
+# Arda <-> DiceMaster contract; kept outside Git
+/contract-dicemaster.md

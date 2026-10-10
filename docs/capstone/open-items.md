@@ -1,7 +1,8 @@
 ---
-generated_date: 2026-09-25
-generated_at_commit: 14a70b9144dd
-content_hash: 56d24d54ae68
+generated_at_commit: 022ce7cb5707
+generated_date: 2026-10-10
+capstone_version: 7.0.1
+content_hash: 31550c2b7bec
 paths_covered:
   - ":(top)crates/**"
   - ":(top)tests/**"
@@ -9,15 +10,31 @@ paths_covered:
   - ":(top)Cargo.toml"
   - ":(top)Dockerfile"
   - ":(top)rust-toolchain.toml"
-absorbed_from:
-  - features/2026-09-23-terrain-corrections@2026-09-23
-  - features/2026-09-07-area-water-terrain-realism@2026-09-08
-  - features/2026-09-22-geographical-rendering-first-pass@2026-09-22
+  - ":(top).gitattributes"
+  - ":(top)tools/art-gen/**"
+  - ":(top)apps/viewer/**"
+  - ":(top)assets/tactical/**"
 ---
 
 # Implementation status and open items
 
+Earlier absorbed feature records: `features/2026-09-23-terrain-corrections@2026-09-23`, `features/2026-09-07-area-water-terrain-realism@2026-09-08`, `features/2026-09-22-geographical-rendering-first-pass@2026-09-22`. The previous refresh was stamped `14a70b9144dd` (2026-09-25). Releases v0.2.0 through v0.8.1 shipped after that stamp (`CHANGELOG.md`). Each work-queue item below now carries an **Audit `022ce7cb5707`** line that records its state at this commit. Items OI-32 to OI-43 are new.
+
 ## Current status — accepted fine-terrain look delivered at 32K
+
+**Product state at `022ce7cb5707` (v0.8.1, 2026-10-09).** Arda is now a world generator plus human geography, society, tactical maps, an HTTP server and a browser viewer. Since the previous stamp the workspace has grown from five crates to 23 (`crates/`).
+
+| Layer | Implemented at `022ce7cb5707` |
+|---|---|
+| Ground ecology | `fine_materials::apply` (`crates/arda-gen/src/orchestrator/fine_materials.rs:13`) writes `moisture` (:56), `forest_density` (:80) and `cover` (:82-99). It runs for legacy terrain and for fine recipe ≥ 4 (`crates/arda-gen/src/orchestrator.rs:350-351`, commit `e06fcf3`). |
+| Settlements, land use, roads, realms, names | `arda_settle::pipeline::run` (`crates/arda-settle/src/pipeline.rs:53`) runs these stages in order: placement (:57), seats and primacy (:64-71), land use (:78), roads (:80), crossings and passes (:81-82), realms (:83), names (:93). It writes `settlements.json`, `roads.json`, `realms.json`, `names.json`, `landuse.bin`, `realms.bin` and `roads.bin` under `society/` (`crates/arda-settle/src/lib.rs:72-131`). |
+| Society and NPCs | `arda society build` writes `society.json` and `notables.json` (`crates/arda-people/src/files.rs:15-17`). Commoners are regenerated on demand (`crates/arda-people/src/people.rs:3`). |
+| Town plans | `TownPlan` (`crates/arda-town/src/plan/types.rs:293`) holds streets, bridges, plots, districts, wall, castle, buildings and `fabric` (:343). |
+| Tactical maps | Any land cell is refined on demand into 64×64 squares (`crates/arda-blocks/src/pipeline.rs:15`, `crates/arda-server/src/tactical/refine_blocks.rs:93-146`) and composited from a tactical art library. Each map has a rules sidecar (`crates/arda-scene/src/sidecar.rs:37`). |
+| Dungeons and caves | `arda_dungeon::generate`, with `Kind::Dungeon` and `Kind::Cave` (`crates/arda-dungeon/src/lib.rs:54-59`). |
+| Serving | `arda-server` serves one world under `/v1` (`crates/arda-server/src/main.rs:1-19`, `crates/arda-server/src/routes.rs:29-59`, `crates/arda-server/src/tactical/routes.rs:37-59`). |
+| Viewer | `apps/viewer` (React, Leaflet, Vite) has the views world, area, tactical, cell and editor (`apps/viewer/src/App.tsx:12`). |
+| Art pipeline | `tools/art-gen` holds a 1,516-asset prompt pack in tiers 0–5 (`tools/art-gen/prompts.json` `tiers.counts`: 225/415/467/318/34/57) and a Slopify driver (`tools/art-gen/generate.mjs`). `arda tactical import` turns its output into a library (`crates/arda-art-import/`). |
 
 
 **Saved fine terrain is now connected to normal Atlas exports for opt-in worlds.** Area and overview rendering use bounded fine windows, physical slopes and source coordinates shared across area seams; legacy worlds keep their existing path. Recipe 2 removes the hard lowland gain cutoff and preserves the forced-ocean rim. A corrected seed-42 102×204 km world generated in 22.6 s source + 26.7 s world time and repeats exactly across all 35 files. All saved heights match the canonical field, the annual water ledger closes, and all 523 original-world files remain unchanged. Current checks passed 250 core/render/facade tests plus 15 focused generation tests, all-target workspace Clippy and formatting. [Actual fine exports and verification](features/2026-09-23-terrain-corrections/evidence/fine-atlas-integration/README.md).
@@ -211,30 +228,35 @@ The latest mountain presentation probes are rejected: broader-scale light adds l
 | Regional detail correction | Fine-relief amplitude follows surrounding regional height differences instead of absolute altitude. C06 is installed, not pending terrain work. `crates/arda-gen/src/area/prepare.rs:48`, `crates/arda-gen/src/continent/bundles.rs:46`; commit `ed4875d`. |
 | Shared annual hydrology | Fine drainage topology, physical basin hierarchy, rainfall/runoff/evaporation support, lake surfaces, annual transfers/accounting, connected reaches and cross-area records. Final areas consume shared results. `crates/arda-gen/src/orchestrator/shared_solve.rs:382`, `crates/arda-gen/src/hydrology/annual.rs:135`, `crates/arda-gen/src/orchestrator.rs:422`. |
 | Produced area fields | Height, terrain, slope/aspect, temperature, rainfall, drainage, discharge, channel order/width, height above river and wetness have producers; they are not all defaults. `crates/arda-gen/src/area/shared_compose.rs:165`. |
-| Basic ground cover | The canonical composer emits Bare on non-land, Marsh on qualifying floodplain and Grass otherwise. Full biome/forest vegetation is a separate unfinished layer. `crates/arda-gen/src/area/shared_compose.rs:175`. |
+| Basic ground cover | The canonical composer emits Bare on non-land, Marsh on qualifying floodplain and Grass otherwise. `crates/arda-gen/src/area/shared_compose.rs:175`. **Audit `022ce7cb5707`:** a ground-ecology pass then rewrites cover for legacy terrain and fine recipe ≥ 4, using the `Cover` values Bare, Grass, Scrub, Forest, Marsh, Rock and Ice (`crates/arda-core/src/cell.rs:37-53`, `crates/arda-gen/src/orchestrator/fine_materials.rs:82-104`). Fine recipes 1–3 keep grass/marsh only (`crates/arda-gen/src/orchestrator.rs:346-351`). |
 | Saved world data | Format-4 publication stores real continent overview/climate/drainage, area cells/objects, global water records and sampled blocks; the completion manifest is published last. `crates/arda-gen/src/orchestrator.rs:450`, `crates/arda-gen/src/orchestrator.rs:480`, `crates/arda-core/src/formats/`. |
 | Resource admission | Resource limits are checked before output creation and applied through preparation, solve and publication. `crates/arda-gen/src/orchestrator.rs:338`. |
 | Lazy loading | Manifest-first loading, requested area/archive caches and owned area reads for exports exist. Whole-world eager loading is no longer the implementation. `crates/arda/src/world.rs:93`, `crates/arda/src/world.rs:192`, `crates/arda/src/world.rs:208`. |
 | Cartographic PNG exports | Area/world maps render saved terrain and physical water geometry. Configurable quality defaults to 8K and accepts 512–32768 pixels; quality exports stream rows/bands through temporary-file publication. Higher image resolution does not regenerate terrain. `crates/arda-render/src/quality.rs:11`, `crates/arda-render/src/overview/streaming.rs:30`, `crates/arda/src/export_quality.rs:20`; commit `c577528`. |
 | Atlas rendering first pass | Natural elevation palette, saved-wetness land tint, slope-derived rock/snow appearance, neighbor-aware relief shading, sea/lake-depth colour and per-output-pixel palette/light interpolation; Classic remains the default. Bounded 512–32K exports preserve saved 100 m data; guarded integer height contours refine displayed sea/land shores while lake ownership remains categorical. `crates/arda-render/src/atlas.rs:164`, `crates/arda/src/lib.rs:28`, `crates/arda/src/export_quality.rs:35`. |
 | JSON and developer surfaces | Versioned area/block JSON, reusable Rust facade, CLI `generate`/`preview`/`export`, and Docker build definition exist. `crates/arda-render/src/json.rs`, `crates/arda/src/lib.rs`, `crates/arda-cli/src/main.rs`, `Dockerfile`. |
-| Tactical prototype | Seeded 64×64 blocks, 24 tile kinds, bounded WFC attempts, relaxed-fill markers, compressed persistence and symbolic PNG/JSON export exist. Coverage is still sampled. `crates/arda-gen/src/block/`, `crates/arda-gen/src/orchestrator.rs:300`, `crates/arda-render/src/symbolic.rs`. |
+| Tactical prototype | Seeded 64×64 blocks, 24 tile kinds, bounded WFC attempts, relaxed-fill markers, compressed persistence and symbolic PNG/JSON export exist. `crates/arda-gen/src/block/`, `crates/arda-render/src/symbolic.rs`. **Audit `022ce7cb5707`:** this sampled archive is still written on `SKELETON_BLOCK_STRIDE = 64` (`crates/arda-gen/src/orchestrator.rs:73-77`, `crates/arda-gen/src/orchestrator/final_writes.rs:144-165`) and read by `World::block` (`crates/arda/src/world.rs:364-384`) and `arda export --block` (`crates/arda-cli/src/main.rs:110-113`). The server does not read it. Playable tactical maps come from the on-demand pipeline listed below. |
+| On-demand tactical maps | `arda-blocks` `Pipeline` refines any window of world squares (`crates/arda-blocks/src/lib.rs:4-5`) at 64 squares per 100 m cell (`crates/arda-blocks/src/pipeline.rs:15`). It keeps a count-bounded LRU of refined cells (`crates/arda-blocks/src/pipeline.rs:36-60`). Layers: arda-refine terrain and biome, arda-fields land and compounds, arda-ways roads and crossings, arda-town settlements. `crates/arda-server/src/tactical/refine_blocks.rs:93-146`. |
+| Settlements and society | `arda settle` and `arda society build` (`crates/arda-cli/src/main.rs:129`, `:136`). Settlement tiers Hamlet/Village/Town/City (`crates/arda-settle/src/model.rs:12-21`), crossings Bridge/Ford/Ferry (`crates/arda-settle/src/crossings.rs:21-27`), passes (`:203`), realms by multi-source Dijkstra with river and ridge tolls (`crates/arda-settle/src/realms.rs:98`). |
+| HTTP server and viewer | `arda-server` (axum) routes are in `crates/arda-server/src/routes.rs:29-59` and `crates/arda-server/src/tactical/routes.rs:37-59`. It has byte-bounded LRU caches (`crates/arda-server/src/cache.rs:15-60`), strong ETags (`crates/arda-server/src/routes.rs:149-175`), prefetch (`crates/arda-server/src/tactical/prefetch.rs:30-39`), one-at-a-time PNG encoding (`crates/arda-server/src/tactical/raw.rs:34-37`), loopback CORS (`crates/arda-server/src/routes.rs:67-104`) and JSON Schemas (`bindings/schema/`, `crates/arda-server/src/routes.rs:54-55`). The viewer is `apps/viewer/src/App.tsx:12`. |
+| Dungeons and caves | `crates/arda-dungeon/src/lib.rs:1-21`. `arda dungeon` (`crates/arda-cli/src/main.rs:147`) and `/v1/tactical/dungeon`, `/dungeon.png`, `/dungeon/scene` (`crates/arda-server/src/tactical/routes.rs:56-58`). |
 | Verification infrastructure | Physical/annual/boundary/resource/codec/render tests and a pinned golden world exist. CI defines Linux/macOS/Windows tests, MSRV, formatting, Clippy and dependency checks. Latest run status is recorded separately below. `crates/*/tests/`, `tests/golden_world.rs`, `.github/workflows/ci.yml`. |
 
 ### Remaining implementation and scope boundaries
 
 | Area | Current boundary |
 |---|---|
-| Rich vegetation and soil moisture | `Cell.moisture` and `forest_density` lack production assignments. Current Bare/Grass/Marsh cover does not implement the planned ecological vegetation system. `crates/arda-core/src/cell.rs`, `crates/arda-gen/src/area/shared_compose.rs:217`. |
-| Human geography and society | Settlement/road/building/name/realm/NPC generation remains deferred. `road` and `built_by` default; manifest settlement and named-river counts are zero. `crates/arda-gen/src/area/shared_compose.rs:217`, `crates/arda-gen/src/orchestrator.rs:527`; retained design `logic/06-society-generation.md`. |
-| Richer world and area presentation | Classic and the Atlas relief/palette first pass are implemented. Rich ecological cover, settlement outlines, main roads, building outlines and local paths remain work. Detailed steps: OI-12/OI-14 below. |
-| Complete tactical scenes | Preliminary constraints/WFC do not supply coherent furnished buildings, continuous site layouts, detailed assets or movement/collision data. Blocks use a 64-cell sampling stride; accessing one decompresses its area's block archive. `crates/arda-gen/src/block/constraints.rs`, `crates/arda-gen/src/block/wfc.rs`, `crates/arda-gen/src/orchestrator.rs:300`, `crates/arda/src/world.rs:274`. |
-| Serving and browser integration | No `serve` subcommand or browser app is implemented. Full area JSON has no demonstrated browser parse/loading budget. `crates/arda-cli/src/main.rs`, `crates/arda-render/src/json.rs`, `07-operations.md`. |
-| Full statistical calibration | Existing physical, drainage, boundary and determinism checks do not complete the proposed combined Horton/Hack/rank-size/sinuosity/farmland suite. `06-testing.md`, retained step 12 in `implementation.md`. |
+| Rich vegetation and soil moisture | 2026-09-25 record: `Cell.moisture` and `forest_density` had no production assignments. **Audit `022ce7cb5707`: done.** `crates/arda-gen/src/orchestrator/fine_materials.rs:56`, `:80`, called at `crates/arda-gen/src/orchestrator.rs:351`. On MICRO seeds 1, 7, 42, 99 and 2024, forest cover goes from 0% to 41–61% (`CHANGELOG.md` 0.8.0). The ecology does not run on fine recipes 1–3. |
+| Human geography and society | 2026-09-25 record: deferred. **Audit `022ce7cb5707`: implemented as society sidecars.** These live in `society/` (`crates/arda-settle/src/lib.rs:55-131`, `crates/arda-people/src/files.rs:15-17`), not in format-4 `Cell` fields. `Cell.road` and `Cell.built_by` (`crates/arda-core/src/cell.rs:135-137`) are still written by the generator. The server's cell contract 3 overrides them from `society/roads.bin` and `landuse.bin` when `society/` exists (`crates/arda-server/src/contract/mod.rs:31`, `crates/arda-server/src/contract/convert.rs:169-183`). |
+| Richer world and area presentation | Classic and the Atlas relief/palette first pass are implemented. **Audit `022ce7cb5707`:** relief tiles draw land use, parcels, hedgerows, roads and settlement plans by metres per pixel (`crates/arda-midzoom/src/land/mod.rs:1-18`), served through `crates/arda-server/src/relief.rs:58-80`. Settlement symbols, roads, realm borders and labels exist only in the offline `arda-settle render` PNG (`crates/arda-settle/src/render/mod.rs:1-12`, `:196-245`). `arda-render` overview and Atlas exports draw no settlements or roads. |
+| Complete tactical scenes | 2026-09-25 record: preliminary WFC only, on a 64-cell stride. **Audit `022ce7cb5707`:** on-demand refined maps with town plans, furnished interiors from the `arda-wfc` solver (`crates/arda-wfc/src/solve.rs:1-15`), a layered art compositor and rules sidecars with walls, doors and vision blockers (`crates/arda-scene/src/lib.rs:5`, `crates/arda-scene/src/los.rs:194`). Multi-storey buildings: not represented in `TacticalLayout` or the scene. The sampled stride archive is still generated (see Implemented work). |
+| Serving and browser integration | 2026-09-25 record: no server or browser app. **Audit `022ce7cb5707`: implemented** as `arda-server` and `apps/viewer`. The server serves one world per process (`crates/arda-server/src/main.rs:16-19`), and the Dockerfile builds only the `arda` CLI (`Dockerfile:1-11`). |
+| Full statistical calibration | Existing physical, drainage, boundary and determinism checks do not complete the proposed combined Horton/Hack/rank-size/sinuosity/farmland suite. `06-testing.md`, retained step 12 in `implementation.md`. **Audit `022ce7cb5707`:** still not complete. Additions since 2026-09-25: the `plains_metrics` example (`crates/arda/examples/plains_metrics.rs`), settlement and realm statistics in `stats.json` (`crates/arda-settle/src/lib.rs:131`), and wall-clock release gates marked `#[ignore]` (for example `tests/e2e_village.rs:296`, `crates/arda-refine/tests/perf.rs:30`). |
 | Static model scope | Annual water is implemented. Seasons, snow storage, groundwater and dynamic floods are outside the current model; their absence does not make annual hydrology pending. Terrain samples remain 100 m apart. `crates/arda-gen/src/hydrology/annual.rs:135`, `crates/arda-core/src/coords.rs:10`. |
 
 ### Verification and visual acceptance
 
+- **CI configuration at `022ce7cb5707`:** the test job runs on `ubuntu-latest`, `macos-latest` and `windows-latest` with `cargo test --workspace --all-features --no-fail-fast` (`.github/workflows/ci.yml:9`, `:15`). Other jobs: MSRV `1.96.1` (`:22-23`), fmt and `clippy -D warnings` (`:32-33`), and `cargo-deny` (`:39`). `.github/workflows/` contains only `ci.yml`. `CHANGELOG.md` 0.8.0 records CI green on all three platforms. No run URL is recorded in this file for that result.
 - **Latest full-map export (`14a70b9144dd`):** Two 15,522×32,768 connected-channel PNGs match exactly (329,746,127 bytes; 93.19/92.62 s). The 512-pixel export completes; Classic2K and physical area1725 controls remain byte-identical, and all523 saved files remain unchanged. Root inspected actual native/fitted output and accepts a partial river-geometry improvement; landform and natural-river acceptance remain open. [Receipt](features/2026-09-23-terrain-corrections/evidence/connected-river-integration/production-integration.json).
 - **Previous full-map export (`92689f8`):** Two 15,522×32,768 PNGs match exactly (326,768,717bytes; 80.75/80.68s). All523 saved files remain unchanged. Root inspected the actual fitted and native-pixel comparisons: variable widths, softer banks and shaded water improve integration with the terrain. Mountain forms remain unchanged. [Receipt](features/2026-09-23-terrain-corrections/evidence/natural-river-pass/surface-receipt.json).
 - **Previous river-readability export (`a9ce4fe`):** Two 15,522 × 32,768 PNGs are byte-identical (325,652,273 bytes; SHA-256 `a60ed031cf7d7d95c18e1cf2e520b85161c7d5ea6f1ba7b1bceee86f3fea591d`). Runtime is 78.91/79.36 s. All 523 saved files (1,943,353,639 bytes) are unchanged. Root inspected the preview downsampled from 32K and accepted the river visibility improvement; mountains are unchanged. [Receipt](features/2026-09-23-terrain-corrections/evidence/readability-pass/render-receipt.json).
@@ -320,10 +342,13 @@ rendering while human geography is being built.
 | G — playable delivery at scale | OI-24–OI-28 | Coverage, bounded loading, serving and a working DiceMaster scene within measured budgets. |
 | H — acceptance and distribution | OI-29–OI-30 | Reproducible quality reports, full CI and verified release artifacts. Checks also accompany every earlier milestone. |
 | I — expand content | OI-31 | More environments and building families meet the same acceptance bar. |
+| J — recorded 2026-10-10 | OI-32–OI-43 | Open items visible in the repo at `022ce7cb5707`. Each row in the table below states what exists and what does not. |
 
 ### OI-01 — Fix the Windows golden-text comparison
 
-**Status:** open, diagnosed. **Depends on:** none. **Targets:**
+**Audit `022ce7cb5707`: closed by checkout policy.** `.gitattributes:4` (`* text=auto eol=lf`, commit `3c8833c`) checks golden fixtures out with LF on every platform. `tests/golden_world.rs:88-95` still compares `trim()`med text without line-ending normalisation. No LF/CRLF comparison fixture exists. `CHANGELOG.md` 0.8.0 records CI green on Linux, macOS and Windows, and the golden `world.json` fingerprint was re-blessed for the version string only (commit `db52c58`).
+
+**Status (2026-09-25 record):** open, diagnosed. **Depends on:** none. **Targets:**
 `tests/golden_world.rs`, `tests/golden/micro-42.txt`, `.github/workflows/ci.yml`.
 The exact-HEAD Windows failure concerns CRLF versus LF; all 34 logged hashes
 match after normalization. This does not justify regenerating the golden.
@@ -339,7 +364,9 @@ fresh CI run passes every configured job. The approved hashes remain unchanged.
 
 ### OI-02 — Restore a reproducible visual and measurement baseline
 
-**Status:** integrated baseline retained and measured: seed42 at 200×300 and 500×1000 km, plus MICRO99 holdout. The same six default-world coordinates are exported at 8K, and the full 32K default map repeats identically without modifying saved data. Broader natural-landscape acceptance remains open. **Depends on:** current generator; OI-01 only for Windows text comparison.
+**Audit `022ce7cb5707`:** unchanged as a record. The default `arda generate` terrain is `Terrain::Legacy` (`crates/arda-cli/src/main.rs:51`). `--terrain fine` uses stream-power formation with recipe 7 by default and recipes 4–8 selectable (`crates/arda-cli/src/main.rs:49-58`). Recipes 5, 6 and 7 are golden-pinned (`tests/golden_recipes.rs`). No gallery that covers recipes 7/8 is recorded in this file.
+
+**Status (2026-09-25 record):** integrated baseline retained and measured: seed42 at 200×300 and 500×1000 km, plus MICRO99 holdout. The same six default-world coordinates are exported at 8K, and the full 32K default map repeats identically without modifying saved data. Broader natural-landscape acceptance remains open. **Depends on:** current generator; OI-01 only for Windows text comparison.
 
 1. Attempt to locate the original feature evidence through its recorded paths. If unavailable, retain its ledger citations and generate a newly dated baseline; never label recreated images as original evidence.
 2. Freeze a manageable panel including default seeds 42 and 436342, MICRO controls and additional representative climates/landforms. Record configuration, source revision and generator version.
@@ -353,7 +380,9 @@ measurements, and every historical visual finding has a current disposition.
 
 ### OI-03 — Diagnose and correct reproduced parallel drainage/ravines
 
-**Status:** corrected in part September 23. Controlled full-world removal of coarse 1 km incision reduces the measured straight-cut trough from 203.8 to 83.1 m and long horizontal runs from seven to two; the production stage retains 25 creep passes and existing shared 100 m incision. Broad parallel valleys remain in the default highland gallery. **Depends on:** OI-02. **Targets:** `crates/arda-gen/src/continent/erode.rs`, `crates/arda-gen/src/area/evolution.rs`.
+**Audit `022ce7cb5707`:** the fine path's formation code was replaced after this record by stream-power formation (`crates/arda-gen/src/formation/`, including `incision.rs`, `drainage.rs` and `glacial.rs`). No disposition of the parallel-ravine finding against recipes 5–8 is recorded. Legacy terrain keeps the path described here.
+
+**Status (2026-09-25 record):** corrected in part September 23. Controlled full-world removal of coarse 1 km incision reduces the measured straight-cut trough from 203.8 to 83.1 m and long horizontal runs from seven to two; the production stage retains 25 creep passes and existing shared 100 m incision. Broad parallel valleys remain in the default highland gallery. **Depends on:** OI-02. **Targets:** `crates/arda-gen/src/continent/erode.rs`, `crates/arda-gen/src/area/evolution.rs`.
 
 1. Trace a reproduced regular pattern back to the first stage that introduces it. Measure valley convergence, drainage orientation and incision along the same slopes before and after evolution.
 2. Recheck current interpolation: `coarse_height` already calls the bounded, affine-preserving sampler. The older smoothstep-bilinear diagnosis is historical; the separate 4 km→1 km sampler still uses bilinear interpolation.
@@ -369,7 +398,9 @@ cannot reproduce it, close as not reproduced with evidence instead of changing c
 
 ### OI-04 — Diagnose and improve angular shorelines
 
-**Status:** shared Atlas sea/land reconstruction implemented and verified September 23, including zero-height, thin-island/strait, ambiguous-diagonal, halo, mouth and streaming cases. Lakes and Box/mixed-axis views retain saved ownership; their quantization remains explicit. The 32K default export passes repeatability and unchanged-world checks. **Depends on:** OI-02. **Targets:** `crates/arda-render/src/atlas.rs`, `channels.rs`, `overview.rs`, `overview/streaming.rs`.
+**Audit `022ce7cb5707`:** shorelines for recipe ≥ 5 are now formed in `crates/arda-gen/src/formation/shore/`, `coast.rs`, `coastal.rs` and `littoral.rs`. Close-zoom relief and tactical maps share one water geometry, `WaterRegion` (`CHANGELOG.md` 0.4.0). No disposition of the angular-shoreline finding at world scale is recorded beyond this item.
+
+**Status (2026-09-25 record):** shared Atlas sea/land reconstruction implemented and verified September 23, including zero-height, thin-island/strait, ambiguous-diagonal, halo, mouth and streaming cases. Lakes and Box/mixed-axis views retain saved ownership; their quantization remains explicit. The 32K default export passes repeatability and unchanged-world checks. **Depends on:** OI-02. **Targets:** `crates/arda-render/src/atlas.rs`, `channels.rs`, `overview.rs`, `overview/streaming.rs`.
 
 1. Inspect world and area views of the same coast/lake boundary against the saved wet cells and physical surfaces. Identify coarse terrain angles, 100 m stair steps and rasterization artifacts separately.
 2. Decide which scale needs additional physical geometry and which needs better presentation. Larger PNGs alone cannot resolve either missing physical samples or poor edge styling.
@@ -383,7 +414,9 @@ target, topology remains correct, and any retained physical limit is explicit.
 
 ### OI-05 — Diagnose and correct reproduced rectangular regional basins
 
-**Status:** traced September 23 to a real regional depression. The fine lake spans 30,709.15 km² at 1,177.501 m; the independently measured coarse basin spills at 1,173.357 m. Euclidean tectonic distance removes square belt geometry but does not remove this basin. No local lake-accounting or render-polygon defect was demonstrated. Regional terrain calibration remains open. **Depends on:** OI-02.
+**Audit `022ce7cb5707`:** recipe 7 adds arid terminal basins with saline lakes and salt pans (`crates/arda-gen/src/formation/arid.rs`), and basin handling for recipe ≥ 5 is in `crates/arda-gen/src/formation/basins.rs`. No re-measurement of the seed-42 rectangular basin is recorded.
+
+**Status (2026-09-25 record):** traced September 23 to a real regional depression. The fine lake spans 30,709.15 km² at 1,177.501 m; the independently measured coarse basin spills at 1,173.357 m. Euclidean tectonic distance removes square belt geometry but does not remove this basin. No local lake-accounting or render-polygon defect was demonstrated. Regional terrain calibration remains open. **Depends on:** OI-02.
 
 1. Trace each reproduced rectangular waterbody through final wet membership, basin geometry, fine terrain and coarse relief. Separate the shape of a valid filled basin from incorrect water support.
 2. Check whether its sides follow real input relief, coarse interpolation, the modeled outer boundary or an internal publication boundary. Internal area boundaries must not behave as physical dams.
@@ -397,7 +430,13 @@ valid large lakes survive, and no cross-area water or annual-budget regression a
 
 ### OI-06 — Resolve coordinates and define shared layout/scene contracts
 
-**Status:** design and implementation open. **Depends on:** none for contract
+**Audit `022ce7cb5707`: partly done.**
+- **Mapping:** a 100 m cell is 64 × 64 squares (`crates/arda-core/src/coords.rs:9-11`). Working code uses 100/64 = 1.5625 m per square (`crates/arda-fields/src/geom.rs:13-15`, `crates/arda-blocks/src/pipeline.rs:15`, `crates/arda-midzoom/src/water.rs:16`). `SQUARE_SIZE_MM = 1524` remains declared (`crates/arda-core/src/coords.rs:13`).
+- **Ids:** settlement ids are strings in contract 3 (`built_by`, `crates/arda-server/src/contract/mod.rs:236`).
+- **Layout and scene contracts:** `TacticalLayout` with `WallSegment.tags` (`crates/arda-tactical/src/layout.rs:80-112`), `RulesSidecar` (`crates/arda-scene/src/sidecar.rs:37`), and `SceneDto` and other public bodies as JSON Schemas (`bindings/schema/`).
+- **Not represented:** multi-storey surfaces. Each `Square` has one `elevation_ft` (`crates/arda-tactical/src/layout.rs:43-58`). A bridge is a `Floor`-layer prop (`crates/arda-tactical/src/catalog.rs:258-271`) plus a sidecar `deck` flag (`crates/arda-scene/src/sidecar.rs:120-123`). Deck height travels only as `ext.deck_elevation_ft` (`crates/arda-ways/src/sidecar.rs:91-96`).
+
+**Status (2026-09-25 record):** design and implementation open. **Depends on:** none for contract
 work. **Targets:** `crates/arda-core/src/{coords.rs,objects.rs,tiles.rs}` and
 `crates/arda-core/src/formats/`; shared layout/scene types are **proposed**.
 
@@ -414,7 +453,9 @@ without drift, and one feature can be referenced consistently at every scale.
 
 ### OI-07 — Stage generation around shared geography and independent map outputs
 
-**Status:** open. **Depends on:** OI-06; implement producer hooks alongside
+**Audit `022ce7cb5707`: implemented as post-generation sidecars.** `arda settle` reads a stored world and writes `society/` (`crates/arda-settle/src/lib.rs:1-7`, `:55-131`). `arda society build` adds society and notables (`crates/arda-people/src/files.rs:15-17`). Tactical detail is composed on request (`crates/arda-server/src/tactical/refine_blocks.rs:93-146`). World/area exports need no tactical files. `write_area` still writes the sampled block archive (`crates/arda-gen/src/orchestrator/final_writes.rs:144-165`). Layout revisions and versioned invalidation of `society/`: not implemented.
+
+**Status (2026-09-25 record):** open. **Depends on:** OI-06; implement producer hooks alongside
 OI-08–OI-20. **Targets:** `crates/arda-gen/src/orchestrator.rs`,
 `crates/arda-gen/src/continent/bundles.rs`, public generation/loading interfaces.
 Current `write_area` also generates sampled blocks; the new dependencies need
@@ -433,7 +474,14 @@ read the same finalized shared plan, and partial output is never advertised as c
 
 ### OI-08 — Produce ecological moisture, forest density and richer vegetation
 
-**Status:** open beyond implemented Bare/Grass/Marsh cover. **Depends on:** saved
+**Audit `022ce7cb5707`: done for the cell fields.**
+- `fine_materials::apply` (`crates/arda-gen/src/orchestrator/fine_materials.rs:13`) writes wetness (:37), a water-balance `moisture` (:56-58), `forest_density` (:80) and cover (:82-104).
+- It runs on legacy terrain and fine recipe ≥ 4 (`crates/arda-gen/src/orchestrator.rs:350-351`, commit `e06fcf3`).
+- Tactical biome signals (marshy, arid, snowy, alpine, craggy, coastal) are derived per cell in `crates/arda-refine/src/biome.rs`.
+- Species by altitude, aspect, wetness and tree line: `CHANGELOG.md` 0.4.0.
+- A separate pre-clearing forest-potential field: not stored.
+
+**Status (2026-09-25 record):** open beyond implemented Bare/Grass/Marsh cover. **Depends on:** saved
 physical/climate fields; OI-06/OI-23 for schema changes. **Targets:**
 `crates/arda-gen/src/area/{shared_compose.rs,temperature.rs}`,
 `crates/arda-core/src/cell.rs`; ecology/vegetation modules are **proposed**.
@@ -451,7 +499,13 @@ forms coherent, reproducible distributions supported by the generated climate.
 
 ### OI-09 — Generate settlement placement, population and geographic names
 
-**Status:** open. **Depends on:** OI-06–OI-08. **Targets:** existing configuration,
+**Audit `022ce7cb5707`: done.**
+- Placement by carrying capacity: `crates/arda-settle/src/place.rs:178`. Population splits are at :31-32; towns come by rank-size (:66) and `central::place_towns` (`crates/arda-settle/src/central.rs:96`).
+- Tiers: `crates/arda-settle/src/model.rs:12-21`, with `CITY_MIN` 8000 and `TOWN_MIN` 1000 at :41-43.
+- Names: settlements, rivers/streams, peaks, passes, realms and regions are named (`crates/arda-settle/src/naming.rs:167-340`). Lakes, forests, bays, seas and mountain ranges are not named (OI-34).
+- Persistence: `settlements.json` and `names.json` (`crates/arda-settle/src/lib.rs:72`, `:107`).
+
+**Status (2026-09-25 record):** open. **Depends on:** OI-06–OI-08. **Targets:** existing configuration,
 objects, bundles and orchestration; `continent/people.rs`, `continent/naming.rs`
 and an area settlement producer are **proposed** under `crates/arda-gen/src/`.
 
@@ -468,7 +522,12 @@ spacing are valid across boundaries, and stable IDs/names survive save/load.
 
 ### OI-10 — Allocate built-up land, fields and pasture
 
-**Status:** open. **Depends on:** OI-08/OI-09 and shared schemas. **Targets:**
+**Audit `022ce7cb5707`: done at 100 m and at 5-ft scale.**
+- 100 m: `landuse::allocate` (`crates/arda-settle/src/landuse.rs:131`) allocates built-up, fields at 0.8 ha/person with fallow, pasture, woodland, mills and mines. Codes are `arda_ids::LandUse` (`crates/arda-ids/src/land_use.rs:15-41`), stored in `landuse.bin` with an owner per cell (`crates/arda-settle/src/lib.rs:119-120`).
+- 5-ft: field systems are split from a global hierarchy of land blocks (`crates/arda-fields/src/partition/`, `CHANGELOG.md` 0.6.0).
+- Exposure: `land_use` is served in contract 3 (`crates/arda-server/src/contract/mod.rs:238`).
+
+**Status (2026-09-25 record):** open. **Depends on:** OI-08/OI-09 and shared schemas. **Targets:**
 `crates/arda-core/src/{cell.rs,objects.rs}`, area composition;
 a land-use producer is **proposed**.
 
@@ -485,7 +544,13 @@ measurable and consistent across world/area views and population changes.
 
 ### OI-11 — Generate regional roads, crossings and passes
 
-**Status:** open; `Cell.road` currently defaults. **Depends on:** OI-06–OI-10.
+**Audit `022ce7cb5707`: done.**
+- Roads: `roads::build` (`crates/arda-settle/src/roads.rs:191`) builds trunk roads between hubs (`crates/arda-settle/src/trunk.rs:36`), village roads, hamlet tracks and footpaths, routed by A* over a cost surface (`crates/arda-settle/src/route.rs:71`).
+- Crossings: Bridge/Ford/Ferry, classified by channel width and context (`crates/arda-settle/src/crossings.rs:83-174`).
+- Passes: `crates/arda-settle/src/crossings.rs:203`.
+- Rasters and detail: `roads.bin` (`crates/arda-settle/src/output.rs:327-340`). 5-ft detail and crossing plans are in `crates/arda-ways/src/lib.rs:1-10` and `crates/arda-ways/src/plan/crossing.rs:80`.
+
+**Status (2026-09-25 record):** open; `Cell.road` currently defaults. **Depends on:** OI-06–OI-10.
 **Targets:** objects, bundles and orchestration; regional corridor planning and
 `crates/arda-gen/src/area/roads.rs` are **proposed**.
 
@@ -502,9 +567,15 @@ crossings, with consistent geometry and stable identities across areas.
 
 ### OI-12 — Substantially improve world-map geographical rendering
 
+**Audit `022ce7cb5707`:**
+- `arda-render` overview and Atlas exports draw no settlements, roads or land use.
+- Relief tiles served by `arda-server` draw land use, parcels, roads and settlement plans by pixel size (`crates/arda-midzoom/src/land/mod.rs:1-18`).
+- The offline `arda-settle render` draws land use, realm tints and borders, roads by class, settlement/mine/pass/peak symbols and labels over the Atlas overview (`crates/arda-settle/src/render/mod.rs:196-245`). The `arda` CLI and the server do not expose this render.
+- Opt-in oblique overview: `--style atlas-oblique` (`crates/arda-render/src/overview/oblique.rs`).
+
 **September 23 continuation verified:** the authorized terrain and shoreline corrections are committed through `757b2ab`, with final integration tests, approved physical golden update, local lint/MSRV/dependency gates and two independent dry review rounds. Actual integrated small/default worlds and MICRO99 retain exact annual budgets; the full 32K default render repeats byte-identically. Current docs describe the corrected behavior. The first-pass renderer is working; broad mountain forms, large generated basins and repetitive drainage remain terrain-naturalness work, so the overall reference-quality objective has not been declared achieved. Local evidence: `features/2026-09-23-terrain-corrections/evidence/README.md`.
 
-**Status:** first geographical rendering pass delivered September 22 at `342d03e55120`: earthy elevation palette, neighbor-aware shading, sea-depth colours and class-filtered per-output-pixel palette/light interpolation. The broader milestone remains open for ecological/human layers and multi-seed acceptance.
+**Status (2026-09-25 record):** first geographical rendering pass delivered September 22 at `342d03e55120`: earthy elevation palette, neighbor-aware shading, sea-depth colours and class-filtered per-output-pixel palette/light interpolation. The broader milestone remains open for ecological/human layers and multi-seed acceptance.
 **Depends on:** existing physical data to start; OI-08–OI-11 for ecological/human
 inputs; OI-13 to finalize published settlement extents; OI-02 for comparison. **Targets:**
 `crates/arda-render/src/{channels.rs,overview.rs,overview/streaming.rs}`,
@@ -525,7 +596,9 @@ is demonstrably more than a larger image or extra road lines.
 
 ### OI-13 — Generate shared local streets, parcels and building footprints
 
-**Status:** open. **Depends on:** OI-06–OI-11. **Targets:** shared objects and
+**Audit `022ce7cb5707`: done.** `TownPlan` (`crates/arda-town/src/plan/types.rs:293`) carries streets, bridges, square, plots, districts, wall, castle and buildings, and is built per settlement by `arda society build`. Plans are served at `/v1/settlements/{id}/plan` (`crates/arda-server/src/routes.rs:52`). Cross-area canonical ownership: plans are keyed by settlement id, one plan per settlement.
+
+**Status (2026-09-25 record):** open. **Depends on:** OI-06–OI-11. **Targets:** shared objects and
 staging; site-layout modules are **proposed** in `crates/arda-gen/src/`.
 
 1. Convert settlement population, function, land allocation, terrain and regional approaches into a feasible local building/street program.
@@ -541,7 +614,9 @@ inputs, with one shared identity/geometry for every building and route.
 
 ### OI-14 — Render useful area maps with buildings and local routes
 
-**Status:** open overlays and viewing support. **Depends on:** OI-13 and relevant
+**Audit `022ce7cb5707`: done on relief tiles, not on area PNG exports.** Relief tiles draw buildings and streets from the plans at ≤ 20 m per pixel (`crates/arda-midzoom/src/land/mod.rs:9-16`, `crates/arda-midzoom/src/land/town.rs:148`). `crates/arda-render/src/carto.rs` area exports draw no buildings or local roads. Building geometry is exposed through the town-plan JSON, not through area JSON.
+
+**Status (2026-09-25 record):** open overlays and viewing support. **Depends on:** OI-13 and relevant
 OI-12 terrain styling. **Targets:** `crates/arda-render/src/{carto.rs,json.rs}`,
 quality exports and public area queries; view-window/crop support is **proposed**.
 
@@ -557,7 +632,13 @@ view scale and exactly match the shared plan later consumed by tactical generati
 
 ### OI-15 — Bind realms and society to the shared geography
 
-**Status:** open. **Depends on:** OI-09–OI-11/OI-13 and versioned schemas.
+**Audit `022ce7cb5707`: done.**
+- Realms: seats (`crates/arda-settle/src/seats.rs:109`), primate capitals (`crates/arda-settle/src/primacy.rs:114`) and borders by multi-source Dijkstra with river and ridge tolls (`crates/arda-settle/src/realms.rs:30`, `:98`).
+- Society: building references (`crates/arda-society/src/buildings.rs:15`) and generated history (`crates/arda-society/data/history.json`, embedded at `crates/arda-society/src/tables.rs:315`).
+- People: notables stored in `notables.json` (`crates/arda-people/src/files.rs:19-30`), commoners regenerated from (seed, settlement, building, index) (`crates/arda-server/src/npcs/mod.rs:1-15`), and jobs bound to workplace slots (`crates/arda-npc/src/plan/jobs.rs:54-56`).
+- Thin history templates: OI-35.
+
+**Status (2026-09-25 record):** open. **Depends on:** OI-09–OI-11/OI-13 and versioned schemas.
 **Targets:** retained [society design](logic/06-society-generation.md);
 `crates/arda-gen/src/society/` and Realm/Building/NPC codecs are **proposed**.
 
@@ -574,7 +655,13 @@ geometry is shared with maps, and inhabitants reconstruct deterministically.
 
 ### OI-16 — Refine tactical terrain, banks and stacked movement surfaces
 
-**Status:** open beyond tile-family selection. **Depends on:** OI-06/OI-13;
+**Audit `022ce7cb5707`: done for single-level terrain.**
+- `arda-refine` refines a cell's saved fields into ground, water, banks, terraces and cliff bands, trails and scatter (`crates/arda-refine/src/terrain.rs`, `rivers.rs`, `trails.rs`, `biome.rs`).
+- `arda-ways` lays roads, bridges, fords and switchbacks (`crates/arda-ways/src/plan/crossing.rs:80`, `crates/arda-ways/src/plan/switchback.rs:27`).
+- Bridge decks are `Floor`-layer props with a sidecar `deck` flag (`crates/arda-scene/src/sidecar.rs:120-123`). A deck square is walked, not waded (`crates/arda-scene/src/squares.rs:219-232`). Stacked walkable surfaces: not represented, because a square has one `elevation_ft` (`crates/arda-tactical/src/layout.rs:43-58`).
+- Coast/wetland behaviour: OI-41.
+
+**Status (2026-09-25 record):** open beyond tile-family selection. **Depends on:** OI-06/OI-13;
 uses existing physical water/terrain. **Targets:** block input constraints and
 **proposed** local terrain/surface producers under `crates/arda-gen/src/block/`.
 
@@ -590,7 +677,9 @@ scenes join, and supported vertical/crossing cases have explicit geometry.
 
 ### OI-17 — Generate interiors within the published building shells
 
-**Status:** open. **Depends on:** OI-13/OI-16 and scene contracts.
+**Audit `022ce7cb5707`: done.** Interiors are partitioned in `crates/arda-town/src/block/interior/` (for example the inn's common room and kitchen, `trade.rs:45-67`) and filled by WFC programmes (`crates/arda-town/src/block/wfc/programme.rs`). Wall edges inside one building are tagged `partition`, and edges between neighbours `party` (`crates/arda-tactical/src/layout.rs:109-112`). Upper floors: not represented. A building is generated once per town plan.
+
+**Status (2026-09-25 record):** open. **Depends on:** OI-13/OI-16 and scene contracts.
 **Targets:** **proposed** building/interior producers and the shared building record.
 
 1. Consume each building's footprint, purpose, required entrances and access anchors. Define building-family rules for houses, farms, inns, warehouses and other initial supported functions.
@@ -605,7 +694,9 @@ to local roads, intended rooms are accessible and chunk boundaries lose no struc
 
 ### OI-18 — Replace permissive tactical WFC with meaningful constrained assembly
 
-**Status:** prototype exists; full constraints/propagation open. **Depends on:**
+**Audit `022ce7cb5707`: done as a generic solver.** `arda-wfc` provides per-cell `TileSet` domains, edge-kind adjacency `Rules`, anchors, limits, most-constrained-first selection and arc-consistency propagation after every choice (`crates/arda-wfc/src/lib.rs:1-10`, `crates/arda-wfc/src/solve.rs:1-15`). Towns use it for interiors, streets and yards. `arda-refine` shares its hashing and frontier (`crates/arda-refine/src/wfc.rs`). The old `crates/arda-gen/src/block/wfc.rs` remains for the sampled archive.
+
+**Status (2026-09-25 record):** prototype exists; full constraints/propagation open. **Depends on:**
 OI-06/OI-13 and the relevant OI-16/OI-17 input masks. **Targets:**
 `crates/arda-core/src/tiles.rs`, `crates/arda-gen/src/block/{constraints.rs,wfc.rs}`.
 
@@ -622,7 +713,9 @@ shared plan, with demonstrated propagation and bounded deterministic execution.
 
 ### OI-19 — Make contradictions, retries and fallback meaningful
 
-**Status:** open; existing eight-attempt/first-tile fallback is insufficient for
+**Audit `022ce7cb5707`: done in the solver contract.** A contradiction or a failed global check (reachability, required rooms) abandons the attempt. Attempts are subseeded by `(seed, key, attempt)`, with at most 8 by default (`crates/arda-wfc/src/solve.rs:12-22`). After the last attempt the caller applies a deterministic relaxed fill and marks it (`crates/arda-wfc/src/solve.rs:84`). Fallbacks are reported in block metadata, at a relaxed-fill rate of about 0.1% (`CHANGELOG.md` 0.3.0).
+
+**Status (2026-09-25 record):** open; existing eight-attempt/first-tile fallback is insufficient for
 future structural content. **Depends on:** OI-18 and mandatory layout constraints.
 **Targets:** `crates/arda-gen/src/block/wfc.rs`, error/completion metadata and exports.
 
@@ -638,7 +731,9 @@ published playable fallback still satisfies mandatory geometry/access requiremen
 
 ### OI-20 — Add semantic attributes, POIs and purposeful furnishings
 
-**Status:** open; current tile definitions are ID/name/group only.
+**Audit `022ce7cb5707`: done.** The tactical catalog carries per-asset layers, footprints and lights (`crates/arda-tactical/src/catalog.rs:248-271`). The rules sidecar has per-square and per-edge rules (`crates/arda-scene/src/sidecar.rs:37-56`). The scene index computes line of sight and visible squares (`crates/arda-scene/src/los.rs:194`). Pews, beds, shelves, racks and hall tables are laid out in rows, and yards are dressed for their building's trade (`CHANGELOG.md` 0.3.0, 0.8.0). Combat cover values: `crates/arda-ids/src/cover.rs:12`.
+
+**Status (2026-09-25 record):** open; current tile definitions are ID/name/group only.
 **Depends on:** OI-16/OI-17, contracts and relevant OI-18 assembly.
 **Targets:** `crates/arda-core/src/tiles.rs`, scene object formats,
 `crates/arda-render/src/json.rs`; furnishing/POI producers are **proposed**.
@@ -655,7 +750,13 @@ have usable semantics, and cosmetic variation leaves gameplay geometry unchanged
 
 ### OI-21 — Prove the camera, asset kit and illustrated target early
 
-**Status:** open; run in parallel from milestone A. **Depends on:** an initial
+**Audit `022ce7cb5707`: done inside Arda.**
+- Art library: `tools/art-gen` drives a local Slopify instance over a 1,516-asset prompt pack with an image reviewer (`tools/art-gen/README.md:3`, `:126`).
+- Import: `arda tactical import` builds a library from raw images (`crates/arda-art-import/`).
+- Placeholders: the placeholder library has 255 assets (`assets/tactical/placeholder/catalog.json`).
+- DiceMaster: Arda serves one world per process, and its endpoint paths differ from DiceMaster's assumed contract. No integrated DiceMaster scene is recorded.
+
+**Status (2026-09-25 record):** open; run in parallel from milestone A. **Depends on:** an initial
 OI-06 scene fixture, without waiting for full procedural generation.
 **Targets:** DiceMaster's visual specification and asset pipeline; any Arda
 asset-export contract is coordinated through OI-23. This is cross-repository
@@ -674,7 +775,14 @@ the reference's visual richness and still communicates playable geometry.
 
 ### OI-22 — Render generated tactical scenes with layered illustration
 
-**Status:** open; `symbolic.rs` remains a useful diagnostic renderer.
+**Audit `022ce7cb5707`: done as an offline/served PNG compositor.**
+- Layers: Ground, Water, Floor, Prop, Wall and Canopy (`crates/arda-tactical/src/catalog.rs:258-271`).
+- Variants: `.altN` takes hashed per world position, and one take per floor structure (`crates/arda-tactical/src/compose/variants.rs:274`).
+- Lighting: shadows, ambient occlusion and light pools (`crates/arda-tactical/src/compose/lighting.rs`).
+- Partitions: drawn thin, using `<kit>_partition` art when present (`tools/art-gen/plan.md:160`).
+- Light pools ignore walls (OI-39).
+
+**Status (2026-09-25 record):** open; `symbolic.rs` remains a useful diagnostic renderer.
 **Depends on:** OI-16–OI-21 and OI-23 contracts. **Targets:** DiceMaster's future
 scene renderer and optional asset-backed offline export; `tileset.rs`-style
 rendering is **proposed**, not delivered code.
@@ -691,7 +799,13 @@ and display the same geometry used by simulation, with no baked-in token/grid st
 
 ### OI-23 — Version and persist shared layouts, scenes and complete exports
 
-**Status:** format-4 and current JSON implemented; new payloads open.
+**Audit `022ce7cb5707`:**
+- `society/` files are versioned per writer (`crates/arda-settle/src/output.rs`).
+- The cell contract is `CONTRACT_VERSION = 3` (`crates/arda-server/src/contract/mod.rs:31`), and the `ARDACOLS` layout is 2 (`crates/arda-server/src/columnar.rs`).
+- Every public body has a committed draft 2020-12 JSON Schema (31 files in `bindings/schema/`), served at `/v1/schema` (`crates/arda-server/src/routes.rs:54-55`).
+- Tactical layouts and scenes are computed per request, not persisted. Campaign overlays: not part of Arda.
+
+**Status (2026-09-25 record):** format-4 and current JSON implemented; new payloads open.
 **Depends on:** OI-06; evolves alongside each producer, not only after rendering.
 **Targets:** `crates/arda-core/src/{formats/,rng.rs}`, `crates/arda/src/world.rs`,
 `crates/arda-render/src/json.rs` and facade exports.
@@ -711,7 +825,12 @@ silently alter published geometry or saved campaign interpretation.
 
 ### OI-24 — Replace sampled tactical coverage with an explicit delivery strategy
 
-**Status:** open; current materialization uses a 64-cell stride and land-only
+**Audit `022ce7cb5707`: decided as on-demand generation.**
+- Any land cell's 64×64 squares are refined and composited on request (`crates/arda-server/src/tactical/block.rs:49-58`, `crates/arda-server/src/tactical/refine_blocks.rs:93-146`). Open-sea cells return `NoBlock` (`refine_blocks.rs:101-108`).
+- Windows across cells are served at `/v1/tactical/window` (`crates/arda-server/src/tactical/routes.rs:52-53`).
+- The 64-cell-stride archive is still generated and is unused by the server (`crates/arda-gen/src/orchestrator.rs:73-77`).
+
+**Status (2026-09-25 record):** open; current materialization uses a 64-cell stride and land-only
 sampling. **Depends on:** representative detailed scenes and OI-23 measurements.
 **Targets:** `crates/arda-gen/src/orchestrator.rs`, generation/query contracts.
 
@@ -727,7 +846,12 @@ playable content, with declared generation cost and no accidental stride-sized h
 
 ### OI-25 — Bound per-scene I/O, decoding and caches
 
-**Status:** lazy world/area loading exists; whole-area block decoding and retained
+**Audit `022ce7cb5707`: done in the server.**
+- Byte-bounded LRUs for areas, fine windows, renders, pyramids, encoded images, overview and relief (`crates/arda-server/src/cache.rs:15-60`, `crates/arda-server/src/query.rs:36-38`, `crates/arda-server/src/tactical/mod.rs:80-82`), plus a count-bounded refined-cell LRU (`crates/arda-blocks/src/pipeline.rs:36-60`).
+- Admission against a memory ceiling (`crates/arda-server/src/lib.rs:101-134`).
+- `World` in the `arda` facade still keeps `OnceLock` caches for the block archive (`crates/arda/src/world.rs:364-384`).
+
+**Status (2026-09-25 record):** lazy world/area loading exists; whole-area block decoding and retained
 caches remain limits. **Depends on:** OI-23/OI-24 strategy. **Targets:**
 `crates/arda-core/src/formats/blocks.rs`, `crates/arda/src/world.rs`, consumer caches.
 
@@ -743,7 +867,12 @@ stays within recorded budgets and missing/corrupt content produces useful errors
 
 ### OI-26 — Implement read-only serving and the real DiceMaster transport
 
-**Status:** open; CLI `generate`/`preview`/`export` and Rust queries already exist.
+**Audit `022ce7cb5707`: done for one world.**
+- `arda-server --world <dir>` serves read-only under `/v1` (`crates/arda-server/src/main.rs:1-54`).
+- Strong ETags and 304 handling (`crates/arda-server/src/routes.rs:149-175`), loopback-only CORS (`:67-104`) and sheet mappings (`crates/arda-server/src/main.rs:51-54`).
+- Not covered: multi-world serving (OI-42), and the Dockerfile runs the `arda` CLI, not the server (`Dockerfile:4`, `:11`). DiceMaster's loaders target an assumed contract with different paths.
+
+**Status (2026-09-25 record):** open; CLI `generate`/`preview`/`export` and Rust queries already exist.
 **Depends on:** OI-23/OI-25 and the chosen OI-24 behavior. **Targets:**
 `crates/arda-cli/src/main.rs`, facade/load/export code; a server module is
 **proposed**. [Serve design](mockup/06-serve.md) contains assumed endpoint names.
@@ -761,7 +890,9 @@ caching is correct, and serving does not rewrite immutable world files.
 
 ### OI-27 — Integrate gameplay geometry, fog and campaign changes
 
-**Status:** integration open in DiceMaster. **Depends on:** OI-16–OI-23/OI-26.
+**Audit `022ce7cb5707`:** Arda supplies walls with door state (`locked`, secret tags), vision blockers, lights and LOS queries (`crates/arda-scene/src/lib.rs:5`, `crates/arda-scene/src/los.rs:194`). Integration in DiceMaster is not recorded.
+
+**Status (2026-09-25 record):** integration open in DiceMaster. **Depends on:** OI-16–OI-23/OI-26.
 **Targets:** shared scene contract and DiceMaster's client/server spatial systems;
 the sibling architecture is a design reference, not proof of implementation.
 
@@ -777,7 +908,17 @@ and exploration/campaign state survives revisits and boundary transitions.
 
 ### OI-28 — Measure and meet generation, transport and rendering budgets
 
-**Status:** admission/streamed exports implemented; full-content and interactive
+**Audit `022ce7cb5707`:** these wall-clock gates are `#[ignore]` release gates and are excluded from CI's `cargo test`:
+- a cold block PNG in under 500 ms and a cold quarter window in under 250 ms (`tests/e2e_village.rs:258-296`)
+- a refined block in under 250 ms and a quarter block in under 100 ms (`crates/arda-refine/tests/perf.rs:30-54`)
+- a 64×64 map at 128 ppsq in under 2 s (`crates/arda-tactical/tests/timing.rs:12-33`)
+- a cached tactical PNG in under 5 ms (`crates/arda-server/tests/world_api/tactical_images.rs:122-135`)
+- a warm relief tile in under 150 ms (`crates/arda-midzoom/tests/world.rs:166-183`)
+- a 20k-person city in under 1 s (`crates/arda-npc/tests/performance.rs:45-63`)
+
+Browser frame-time and INP budgets are not measured in the repo.
+
+**Status (2026-09-25 record):** admission/streamed exports implemented; full-content and interactive
 budgets unproven. **Depends on:** representative output from each producer;
 measure throughout, then close after OI-24–OI-27. **Targets:** generation resource
 accounting, export/loading benchmarks and DiceMaster instrumentation.
@@ -795,7 +936,15 @@ workloads/devices without losing streaming, bounded memory or playable geometry.
 
 ### OI-29 — Complete statistical calibration and cross-scale acceptance
 
-**Status:** physical/accounting/boundary/determinism tests exist; combined
+**Audit `022ce7cb5707`:**
+- Golden pins: recipes 5, 6 and 7 (`tests/golden_recipes.rs`).
+- Zoom continuity and land checks: `tests/zoom_continuity.rs`, `tests/zoom_land.rs` (ignored; they need generated worlds).
+- Settlement and realm statistics: `crates/arda-settle/src/stats.rs`.
+- Plains diagnostics: `crates/arda/examples/plains_metrics.rs`.
+
+The combined Horton/Hack/rank-size/road-ratio suite with acceptance tolerances does not exist.
+
+**Status (2026-09-25 record):** physical/accounting/boundary/determinism tests exist; combined
 calibration and new-content acceptance remain open. **Depends on:** each metric's
 producer; starts with OI-02 and grows with milestones. **Targets:**
 `crates/arda-gen/tests/continent_measures.rs`, existing tests, **proposed**
@@ -816,7 +965,13 @@ scale's target without unsupported claims from numerical tests alone.
 
 ### OI-30 — Finish CLI, packaging and release acceptance
 
-**Status:** facade/CLI/Docker definition and CI delivered; release automation
+**Audit `022ce7cb5707`:**
+- Releases v0.2.0–v0.8.1 were cut as version-bump commits (`CHANGELOG.md`).
+- `.github/workflows/` contains only `ci.yml`. No release workflow, binary publication or image publication exists.
+- The Dockerfile builds and runs only `arda-cli` as uid 10001 (`Dockerfile:1-11`).
+- CLI subcommands: `generate`, `preview`, `export`, `settle`, `society build`, `tactical validate|import|placeholders|render` and `dungeon` (`crates/arda-cli/src/main.rs:36-147`).
+
+**Status (2026-09-25 record):** facade/CLI/Docker definition and CI delivered; release automation
 and full-content acceptance open. **Depends on:** OI-01 and the capabilities
 included in the release. **Targets:** current facade/CLI/Dockerfile,
 `.github/workflows/`; release automation is **proposed**.
@@ -833,7 +988,13 @@ documented workflow, distribution status is accurate, and all release gates pass
 
 ### OI-31 — Expand environments and building families after the first complete site
 
-**Status:** later content expansion. **Depends on:** a generated, playable
+**Audit `022ce7cb5707`: partly done.**
+- Environments: forest, woodland, wetland, coast, steppe, alpine and peak biomes (`crates/arda-refine/src/biome.rs`).
+- Settlements: farms, hamlets, villages, towns and cities with district-based materials (`CHANGELOG.md` 0.8.1).
+- Underground: dungeons and caves (`crates/arda-dungeon/src/lib.rs:54-59`).
+- Not present: mines, ruins and multi-level sites as tactical kinds (OI-37). Dungeons are not placed in the world (OI-36).
+
+**Status (2026-09-25 record):** later content expansion. **Depends on:** a generated, playable
 reference-quality site and OI-29 acceptance machinery. **Targets:** generator
 templates/rules, semantic vocabulary and DiceMaster's asset catalog.
 
@@ -846,6 +1007,25 @@ templates/rules, semantic vocabulary and DiceMaster's asset catalog.
 
 **Done when:** each advertised family has reproducible generated examples,
 complete semantics/assets and the same geometry, visual and performance acceptance.
+
+### Open items recorded at `022ce7cb5707` (2026-10-10)
+
+These items were added in the 2026-10-10 audit. Each records what exists and what does not at `022ce7cb5707`.
+
+| ID | Item | Exists | Does not exist |
+|---|---|---|---|
+| OI-32 | Tier-5 partition-kit art | 57 tier-5 prompt entries, 19 each for `timber_partition`, `wattle_partition` and `adobe_partition`, all with `status: "new"` (`tools/art-gen/expansion.mjs:259-310`, `tools/art-gen/prompts.json` `tiers.counts["5"] = 57`, commit `9eca60d`). The compositor looks up `<kit>_partition` pieces and otherwise draws the kit's own piece at `PARTITION_PCT = 50` thickness (`crates/arda-tactical/src/compose/mod.rs:92-136`, `:490-509`). `arda-town` partition kits map to exactly these names (`crates/arda-town/src/block/kits.rs:251-258`). | Generated images: no `*partition*` file exists in `assets/` or anywhere else in the repo. The `tiers.about` text in `prompts.json` describes tiers 0–4 only. |
+| OI-33 | Kitchen-garden assets | Kitchen gardens as layout: croft `Use::Kitchen` (`crates/arda-town/src/plan/croft.rs:27-38`) on `farmland` ground (`crates/arda-town/src/block/ground.rs:196`), WFC `Class::Kitchen` dressed with `ground`, `prop.bucket` and `prop.wheelbarrow` (`crates/arda-town/src/block/wfc/outdoor_vocab.rs:41-42`, `:192`), and the farmstead's fenced farmland plot (`crates/arda-fields/src/compounds/farmstead.rs:128-131`). | Any garden, vegetable-bed or herb-bed asset in `assets/tactical/placeholder/catalog.json` (255 assets), `tools/art-gen/prompts.json` or `tools/art-gen/expansion.mjs`. Kitchen gardens draw `ground.farmland.*` furrows. |
+| OI-34 | Gazetteer / map-label layer | `arda-names` generates names for `PlaceKind` values including Lake, Forest, Marsh, Bay, Island, Cape and Vale (`crates/arda-names/src/types.rs:12-57`). World naming names settlements, rivers/streams, single peaks, passes, realms and regions (`crates/arda-settle/src/naming.rs:51-57`, `:167-340`). The offline `arda-settle render` PNG places realm, settlement, river and peak labels (`crates/arda-settle/src/render/text.rs:69-71`, `crates/arda-settle/src/render/labels.rs:1-8`). `crates/arda-society/src/gazetteer.rs` writes a plain-text report. | Named lakes, forests, bays, seas, islands, capes, marshes or mountain ranges: no code outside `arda-names` uses those kinds. `arda-names` has no data lists (no `data/` directory). Labels in `arda-render` exports, `arda-midzoom` relief tiles, any `arda-server` route or `apps/viewer`. |
+| OI-35 | Thin history templates | `crates/arda-society/data/history.json`, embedded at `crates/arda-society/src/tables.rs:315`. Titles: 10 kinds, 18 templates. Events: 27 kinds, 41 templates. Lore: 15 kinds, 37 templates. Ruin kinds: hamlet 4, village 4. | More than 3 templates for any event kind. Kinds with one event template: `dynasty_founding`, `dynasty_usurpation`, `dynasty_succession`, `dynasty_conquest`, `dynasty_election` and all nine `abandon_*`. Titles `border_shift` and `plague` have one. |
+| OI-36 | Dungeon world placement | `site_seed(world_seed, gx, gy, salt)` (`crates/arda-dungeon/src/lib.rs:235-245`) seeds a level from any world cell through `GET /v1/tactical/dungeon?gx=&gy=` (`crates/arda-server/src/tactical/dungeon.rs:1-9`, `:40-57`). | Placement of dungeon or cave entrances in the world: no settlement, world object or society record references a dungeon. `crates/arda-dungeon/README.md:118-123` records entrance placement as a follow-up. `Params` holds only `seed`, `kind`, `width` and `height` (`crates/arda-dungeon/src/lib.rs:86-97`). |
+| OI-37 | Mine and ruin dungeon kinds | `Kind::Dungeon` and `Kind::Cave` (`crates/arda-dungeon/src/lib.rs:54-59`). Mines exist as land use and settlement function (`crates/arda-settle/src/landuse.rs:42-43`, `crates/arda-town/src/function.rs:70`). Ruins exist as history text (`crates/arda-society/data/history.json` `ruin_kinds`, `crates/arda-society/src/gazetteer.rs:313`). | A mine or ruin tactical layout kind. `Kind::parse` accepts only `dungeon` and `cave` (`crates/arda-dungeon/src/lib.rs:61-74`). Multi-level maps: one level per map (`crates/arda-dungeon/README.md:127-128`). |
+| OI-38 | Stepped cave walls | Cave walls are unit `WallSegment`s on every rock/floor square edge (`crates/arda-dungeon/src/grid.rs:110-140`, called at `crates/arda-dungeon/src/cave.rs:377`). The layout edge model has only `Horizontal` and `Vertical` axes (`crates/arda-tactical/src/layout.rs:69-74`). | Diagonal or curved wall geometry. Cave outlines are axis-aligned steps (`crates/arda-dungeon/README.md:129`). |
+| OI-39 | Torchlight through walls | Light pools are discs of radius `radius_ft × ppsq / 5` with quadratic fall-off (`crates/arda-tactical/src/compose/mod.rs:472-480`, `crates/arda-tactical/src/compose/lighting.rs:365-400`). Scene walls carry `blocks_light`, and `arda-scene` computes exact line of sight (`crates/arda-scene/src/los.rs:194`). | Wall occlusion of light in the composited PNG: `add_pools` tests only distance (`crates/arda-tactical/src/compose/lighting.rs:388-397`), so torchlight shows on rock beyond walls (`crates/arda-dungeon/README.md:130-131`). No Rust or viewer code computes a lit area from `blocks_light`. |
+| OI-40 | Generate-one-NPC endpoint | `POST /v1/npc/population` builds a whole population from `{world_seed, settlement, buildings}` (`crates/arda-server/src/routes.rs:40-43`, `crates/arda-server/src/npc.rs:23-30`). `GET /v1/npc/demo/{id}` returns one inhabitant of the fixed demo town (`crates/arda-server/src/routes.rs:395-402`). `GET /v1/npc/{id}` resolves an existing notable or a commoner reference `<settlement>.<building>.<index>` (`crates/arda-server/src/npcs/mod.rs:1-15`). | An endpoint that generates a single NPC from caller parameters (job, tier, culture or similar) without a settlement and building list. |
+| OI-41 | Coast and wetland tuning | Biome signals use fixed thresholds: `MARSH_WETNESS = (0.8, 0.98)` on slopes under 4–12°, `SEA_LEVEL_M = (0.02, 0.6)` from height alone, and the treeline and snow constants (`crates/arda-refine/src/biome.rs:13-27`, `:40-52`). Ground weights are in `crates/arda-refine/src/prior.rs:140-178`. Fixture tests: `crates/arda-refine/tests/biome.rs`. The normative table states "All weights assumed, tunable" (`docs/capstone/logic/09-tactical-refinement.md:116`). Towns build over at most 1 ft of base water in their footprint (`CHANGELOG.md` 0.8.0, commit `a27b9e9`). | Calibration of marsh, pool or coast fractions against world statistics. The coastal signal does not read distance to the sea or `shore.bin`. |
+| OI-42 | Multi-world serving | One `--world <dir>` per process (`crates/arda-server/src/main.rs:1-2`, `:16-19`). | Multiple worlds per process, or a world id in any `/v1` route (`crates/arda-server/src/routes.rs:29-59`). Image cache-control assumes URLs that do not name the world (`crates/arda-server/src/routes.rs:139-143`). |
+| OI-43 | Sampled block archive still written | `SKELETON_BLOCK_STRIDE = 64` (`crates/arda-gen/src/orchestrator.rs:73-77`) and `blocks/<area>.tiles.zst` (`crates/arda-gen/src/orchestrator/final_writes.rs:144-165`), read by `World::block` (`crates/arda/src/world.rs:364-384`) and `arda export --block` (`crates/arda-cli/src/main.rs:110-113`). | A consumer in `arda-server` or the tactical pipeline. Served tactical maps come from `arda-blocks` (OI-24). |
 
 ### Scope boundaries and conditional extensions
 

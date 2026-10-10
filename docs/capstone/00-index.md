@@ -1,20 +1,36 @@
 # Arda — reference index
 
-> Evidence consolidated on September 25: the [study](features/2026-09-23-terrain-corrections/STUDY.md) and [experiment catalogue](features/2026-09-23-terrain-corrections/EXPERIMENTS.md) replace the raw terrain-corrections archive. Historical filenames below identify removed experiments; current evidence links lead to their retained summaries. Original/final worlds and the 32K output remain under `out/terrain-delivery/`.
-
-
-Deterministic offline tabletop world generation in a Rust 2021 Cargo workspace: continent → 512² 100 m area cells → sampled 64² five-foot tactical blocks. CLI, reusable library and local Docker image; Apache-2.0. Topic chapters describe current code; retained product designs, standards and diagnosis reports are separate companions.
+Deterministic offline tabletop world generator in a Rust 2021 Cargo workspace (23 crates): continent → 100 m world cells → settlements, roads, realms, society and NPCs → on-demand 64 × 64 five-foot tactical maps, dungeons and mid-zoom relief, served read-only over HTTP by `arda-server` (axum) and browsed with a React/Vite/Leaflet viewer. Tactical art comes from an AI art pipeline (`tools/art-gen`) imported into a validated asset library. Apache-2.0; first consumer is the DiceMaster VTT.
 
 ## Module map
 
-| Module | Purpose | Entry points (repository-relative) |
+| Module | Purpose | Entry points |
 |---|---|---|
-| arda-core | Domain types, coordinates, canonical fine-field sampling, keyed RNG, manifest and layer codecs | `crates/arda-core/src/lib.rs` |
-| arda-gen | Canonical terrain preparation, shared annual water, immutable area/block composition and disk batch | `crates/arda-gen/src/lib.rs`, `crates/arda-gen/src/orchestrator.rs` |
-| arda-render | Classic/Atlas area and overview PNG, block PNG and versioned JSON | `crates/arda-render/src/lib.rs` |
-| arda | Public generation, lazy load/query and saved-layer export facade | `crates/arda/src/lib.rs`, `crates/arda/src/world.rs` |
-| arda-cli | Generate, Preview and Export process dispatch | `crates/arda-cli/src/main.rs` |
-| workspace tests | Cross-platform golden-world host package | `Cargo.toml:56`, `tests/golden_world.rs` |
+| arda-core | Shared types, keyed PRNG, the only world byte codec | `crates/arda-core/src/lib.rs:1` |
+| arda-ids | Shared ids, canonical enums, stable hash for product layers | `crates/arda-ids/src/lib.rs:1` |
+| arda-names | Deterministic phonotactic naming languages | `crates/arda-names/src/lib.rs:47` |
+| arda-society | Realm politics, economy, factions, history, campaign hooks | `crates/arda-society/src/lib.rs:134` |
+| arda-tactical | Asset catalogue, validator, placeholders, `TacticalLayout`, compositor | `crates/arda-tactical/src/lib.rs:26` |
+| arda-wfc | Generic deterministic wave-function collapse | `crates/arda-wfc/src/lib.rs:22` |
+| arda-gen | Continent, area, block, formation and hydrology generation | `crates/arda-gen/src/lib.rs:21` |
+| arda-render | PNG/JSON export of stored worlds | `crates/arda-render/src/lib.rs:1` |
+| arda-npc | NPC populations with jobs, personalities, ranks, SRD 5.1 sheets | `crates/arda-npc/src/lib.rs:215` |
+| arda-scene | SRD movement/sight/cover/light scene from a `TacticalLayout` | `crates/arda-scene/src/lib.rs:51` |
+| arda | Public world facade: generate, `World` load/query, exports | `crates/arda/src/lib.rs:44`, `crates/arda/src/world.rs:34` |
+| arda-art-import | Raw AI images to a valid tactical asset library | `crates/arda-art-import/src/lib.rs:97` |
+| arda-dungeon | Dungeon and cave battle maps | `crates/arda-dungeon/src/lib.rs:227` |
+| arda-fields | 5-ft land use around settlements | `crates/arda-fields/src/lib.rs:43` |
+| arda-ways | 5-ft roads, verges, bridges, fords, ferries, toll houses | `crates/arda-ways/src/lib.rs:101` |
+| arda-town | Town street/plot plans and 5-ft building blocks; `arda-town` binary | `crates/arda-town/src/plan/mod.rs:60`, `crates/arda-town/src/main.rs:260` |
+| arda-refine | 100 m world cell → 64 × 64 five-foot squares; `arda-refine` binary | `crates/arda-refine/src/block.rs:167`, `crates/arda-refine/src/bin/arda-refine.rs:75` |
+| arda-settle | Settlements, roads, realms, names into `<world>/society/`; `arda-settle` binary | `crates/arda-settle/src/lib.rs:160`, `crates/arda-settle/src/main.rs:42` |
+| arda-people | Town plans on world terrain, `society.json`, `notables.json` | `crates/arda-people/src/build.rs:45` |
+| arda-blocks | World-derived tactical blocks: refine plus ways/fields/town overlays | `crates/arda-blocks/src/pipeline.rs:165` |
+| arda-midzoom | On-demand ~10 m relief refinement and tiles; `arda-midzoom` binary | `crates/arda-midzoom/src/lib.rs:58`, `crates/arda-midzoom/src/bin/arda-midzoom.rs:41` |
+| arda-cli | The `arda` binary: generate, preview, export, settle, society, tactical, dungeon | `crates/arda-cli/src/main.rs:360` |
+| arda-server | Versioned world-query contract and HTTP service under `/v1` | `crates/arda-server/src/main.rs:94`, `crates/arda-server/src/routes.rs:28` |
+| apps/viewer | React/Vite/Leaflet developer viewer for the arda-server API | `apps/viewer/src/main.tsx:9`, `apps/viewer/src/App.tsx:22` |
+| tools/art-gen | Node driver generating tactical art through Slopify, writing `import.toml` | `tools/art-gen/generate.mjs:607`, `tools/art-gen/build-prompts.mjs:1` |
 
 ## Topics
 
@@ -28,44 +44,46 @@ Deterministic offline tabletop world generation in a Rust 2021 Cargo workspace: 
 | testing | [06-testing.md](06-testing.md) |
 | operations | [07-operations.md](07-operations.md) |
 | glossary | [08-glossary.md](08-glossary.md) |
-| interfaces | Not yet merged: the HTTP service contract is specified in [16-service-api](logic/16-service-api.md) and built on feat/world-server and feat/server-tactical; see the [integration plan](integration-plan.md). |
+| interfaces | [09-interfaces.md](09-interfaces.md) |
 | logic | [Scenario index](logic/README.md) |
-| logic | [01-continent-generation](logic/01-continent-generation.md) — current behavior and retained history |
-| logic | [02-area-generation](logic/02-area-generation.md) — current behavior and retained history |
-| logic | [03-block-generation](logic/03-block-generation.md) — retained design and dated history |
-| logic | [04-export](logic/04-export.md) — current behavior and retained history |
-| logic | [05-load-query](logic/05-load-query.md) — current behavior and retained history |
-| logic | [06-society-generation](logic/06-society-generation.md) — retained design and dated history |
-| logic | [07-preview](logic/07-preview.md) — observed CLI scenario |
-| logic | [08-settlements-roads-realms](logic/08-settlements-roads-realms.md) — normative product design (goals 34–39, 41) |
-| logic | [09-tactical-refinement](logic/09-tactical-refinement.md) — normative product design (goals 42–43, 46–50) |
-| logic | [10-town-layout](logic/10-town-layout.md) — normative product design (goals 36, 44–45, 55–56) |
-| logic | [11-tactical-art-compositor](logic/11-tactical-art-compositor.md) — normative product design (goals 49, 58–64) |
-| logic | [12-scene-data](logic/12-scene-data.md) — normative product design (goals 48, 57, 65, 67, 69) |
-| logic | [13-npc-population](logic/13-npc-population.md) — normative product design (goals 51–57, 69) |
-| logic | [14-society-history](logic/14-society-history.md) — normative product design (goals 36, 38, 40, 53, 56) |
-| logic | [15-naming](logic/15-naming.md) — normative product design (goals 40, 41, 53) |
-| logic | [16-service-api](logic/16-service-api.md) — normative product design (goals 41, 57, 65–70) |
+| logic | [01-continent-generation](logic/01-continent-generation.md) |
+| logic | [02-area-generation](logic/02-area-generation.md) |
+| logic | [03-block-generation](logic/03-block-generation.md) |
+| logic | [04-export](logic/04-export.md) |
+| logic | [05-load-query](logic/05-load-query.md) |
+| logic | [06-society-generation](logic/06-society-generation.md) |
+| logic | [07-preview](logic/07-preview.md) |
+| logic | [08-settlements-roads-realms](logic/08-settlements-roads-realms.md) |
+| logic | [09-tactical-refinement](logic/09-tactical-refinement.md) |
+| logic | [10-town-layout](logic/10-town-layout.md) |
+| logic | [11-tactical-art-compositor](logic/11-tactical-art-compositor.md) |
+| logic | [12-scene-data](logic/12-scene-data.md) |
+| logic | [13-npc-population](logic/13-npc-population.md) |
+| logic | [14-society-history](logic/14-society-history.md) |
+| logic | [15-naming](logic/15-naming.md) |
+| logic | [16-service-api](logic/16-service-api.md) |
+| logic | [17-midzoom-relief](logic/17-midzoom-relief.md) |
+| logic | [18-dungeons-and-caves](logic/18-dungeons-and-caves.md) |
+| logic | [19-art-import](logic/19-art-import.md) |
+| logic | [20-art-generation](logic/20-art-generation.md) |
+| logic | [21-society-build](logic/21-society-build.md) |
+| logic | [22-developer-inspection](logic/22-developer-inspection.md) |
 
 ## Companion docs
 
-Current terrain milestone: opt-in recipe-2 source and Atlas delivery completed, including the seed-42 full 32K output; see [status](open-items.md) and [rendered evidence](features/2026-09-23-terrain-corrections/EXPERIMENTS.md#accepted-look-qualification).
-
 | File | What it is |
 |---|---|
-| `generation-issues.md` (optional, local only) | User-requested diagnosis, ignored by Git; available only in checkouts where it was created. |
-| [standards.md](standards.md) | Normative coding rules, migrated from code-prefs.md. |
-| [integration-plan.md](integration-plan.md) | Merge order, expected conflicts, cross-crate adapters and the end-to-end acceptance test for the parallel product branches; lists the inconsistencies found between their goal prompts. |
-| [implementation.md](implementation.md) | Retained build plan with source-audited completion/partial-completion states; old skeleton ceilings are reconciled with installed code. |
-| [open-items.md](open-items.md) | Source-audited status plus a detailed work queue with dependencies, implementation steps and completion gates; covers every earlier open item and the world/area/tactical-map requirements, preserving historical evidence. |
+| `contract-dicemaster.md` (local only) | Arda ↔ DiceMaster contract; ignored by Git. |
+| [open-items.md](open-items.md) | Source-audited status and work queue (OI-01 … OI-43). |
+| [standards.md](standards.md) | Normative coding rules. |
+| [integration-plan.md](integration-plan.md) | Merge order, adapters and end-to-end acceptance test for the product branches. |
+| [integration-status.md](integration-status.md) | Integration record for the product branches. |
+| [implementation.md](implementation.md) | Retained build plan with completion states. |
 | [mockup-artifact.md](mockup-artifact.md) | User-provided generator logic artifact. |
 | [mockup/README.md](mockup/README.md) | Retained product brief, surface inventory and assumptions. |
-| [mockup/01-generate.md](mockup/01-generate.md) | Retained generate surface design. |
-| [mockup/02-world-layout.md](mockup/02-world-layout.md) | Retained world-layout surface design. |
-| [mockup/03-export.md](mockup/03-export.md) | Current PNG/JSON export surface and deferred tactical asset design. |
-| [mockup/04-crate-api.md](mockup/04-crate-api.md) | Retained crate-api surface design plus the implemented styled export API. |
-| [mockup/05-docker.md](mockup/05-docker.md) | Retained docker surface design. |
-| [mockup/06-serve.md](mockup/06-serve.md) | Retained serve surface design. |
-| uiux | Absent: no frontend; CLI/API and exported PNGs do not constitute application views. |
-| `features/` (local only) | Active specifications, plans and retained evidence. The geographical-rendering first pass is implemented; the September 23 terrain/shoreline corrections, material/lake-depth rendering, structural relief and saved-wetness tint are integrated through `14a70b9144dd`, including connected overview channel geometry, tapered display widths and fractional bank coverage, with actual small/default worlds, MICRO99, reviewed deterministic baselines and repeated 32K output. `2026-09-23-terrain-corrections` tracks the remaining broad visual objective, opt-in canonical fine-source worlds, bounded fine Atlas exports, recipe-2 ocean-rim/lowland-gain correction and the exact plateau/wetness attribution. Mountain grandeur, believable lowland rendering, multiple-world qualification and the new full 32K delivery remain open. Earlier absent local galleries do not undo their committed implementation and durable ledger. |
-| [changelog.md](changelog.md) | Append-only durable run ledger; historical names/keys retained. |
+| [mockup/01-generate.md](mockup/01-generate.md) … [06-serve.md](mockup/06-serve.md) | Retained surface designs (generate, world layout, export, crate API, docker, serve). |
+| [uiux/01-direction.md](uiux/01-direction.md) | The viewer's observed design direction. |
+| [uiux/02-system.md](uiux/02-system.md) | The viewer's visual system as implemented. |
+| [uiux/screens/](uiux/screens/01-world.md) | Viewer surfaces: [world](uiux/screens/01-world.md), [area](uiux/screens/02-area.md), [tactical](uiux/screens/03-tactical.md), [cell](uiux/screens/04-cell.md), [editor](uiux/screens/05-editor.md). |
+| [changelog.md](changelog.md) | Append-only run ledger. |
+| `features/` (local only) | Specifications, plans and retained evidence; ignored by Git. |
