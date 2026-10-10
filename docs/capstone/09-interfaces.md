@@ -28,13 +28,13 @@ edges:
     - { kind: http, name: "GET /v1/npc/demo/{npc_id}", site: crates/arda-server/src/routes.rs, schema: Npc }
     - { kind: http, name: "GET /v1/npc/{npc_id}", site: crates/arda-server/src/npcs/mod.rs, schema: Npc }
     - { kind: http, name: "GET /v1/npcs", site: crates/arda-server/src/npcs/mod.rs, schema: NpcPage }
-    - { kind: http, name: "GET /v1/buildings/{id}/residents", site: crates/arda-server/src/npcs/mod.rs, schema: NpcPage }
-    - { kind: http, name: "GET /v1/buildings/{id}/workers", site: crates/arda-server/src/npcs/mod.rs, schema: NpcPage }
+    - { kind: http, name: "GET /v1/buildings/{building}/residents", site: crates/arda-server/src/npcs/mod.rs, schema: NpcPage }
+    - { kind: http, name: "GET /v1/buildings/{building}/workers", site: crates/arda-server/src/npcs/mod.rs, schema: NpcPage }
     - { kind: http, name: "GET /v1/settlements", site: crates/arda-server/src/people.rs, schema: SettlementList }
     - { kind: http, name: "GET /v1/settlements/{id}", site: crates/arda-server/src/people.rs }
     - { kind: http, name: "GET /v1/settlements/{id}/plan", site: crates/arda-server/src/people.rs }
     - { kind: http, name: "GET /v1/settlements/{id}/npcs", site: crates/arda-server/src/people.rs, schema: SettlementNpcs }
-    - { kind: http, name: "GET /v1/schema", site: crates/arda-server/src/schema/routes.rs }
+    - { kind: http, name: "GET /v1/schema", site: crates/arda-server/src/schema/routes.rs, schema: SchemaIndex }
     - { kind: http, name: "GET /v1/schema/{Name}.json", site: crates/arda-server/src/schema/routes.rs }
     - { kind: http, name: "GET /v1/tactical/layouts", site: crates/arda-server/src/tactical/routes.rs }
     - { kind: http, name: "GET /v1/tactical/layout/{name}", site: crates/arda-server/src/tactical/routes.rs }
@@ -47,11 +47,12 @@ edges:
     - { kind: http, name: "GET /v1/tactical/cell/{gx}/{gy}/tiles/{z}/{x}/{y}.webp", site: crates/arda-server/src/tactical/world_routes.rs }
     - { kind: http, name: "GET /v1/tactical/window", site: crates/arda-server/src/tactical/world_routes.rs, schema: TacticalBlockDto }
     - { kind: http, name: "GET /v1/tactical/window.png", site: crates/arda-server/src/tactical/world_routes.rs }
+    - { kind: http, name: "GET /v1/tactical/window/tiles/{z}/{x}/{y}.webp", site: crates/arda-server/src/tactical/world_routes.rs }
     - { kind: http, name: "GET /v1/tactical/library", site: crates/arda-server/src/tactical/world_routes.rs }
     - { kind: http, name: "POST /v1/tactical/prefetch", site: crates/arda-server/src/tactical/routes.rs, schema: PrefetchAccepted }
-    - { kind: http, name: "GET /v1/tactical/dungeon", site: crates/arda-server/src/tactical/dungeon.rs }
+    - { kind: http, name: "GET /v1/tactical/dungeon", site: crates/arda-server/src/tactical/dungeon.rs, schema: DungeonDto }
     - { kind: http, name: "GET /v1/tactical/dungeon.png", site: crates/arda-server/src/tactical/dungeon.rs }
-    - { kind: http, name: "GET /v1/tactical/dungeon/scene", site: crates/arda-server/src/tactical/dungeon.rs }
+    - { kind: http, name: "GET /v1/tactical/dungeon/scene", site: crates/arda-server/src/tactical/dungeon.rs, schema: SceneDto }
     - { kind: schema, name: bindings/ts/arda, site: crates/arda-server/src/bindings.rs }
     - { kind: schema, name: bindings/schema, site: crates/arda-server/src/schema/mod.rs }
   consumes: []
@@ -81,8 +82,8 @@ The only cross-repo surface is `arda-server`'s HTTP API under `/v1` (consumed by
 | http | GET /v1/npc/demo/{npc_id} | - | `crates/arda-server/src/routes.rs` |
 | http | GET /v1/npc/{npc_id} | - | `crates/arda-server/src/npcs/mod.rs` |
 | http | GET /v1/npcs | - | `crates/arda-server/src/npcs/mod.rs` |
-| http | GET /v1/buildings/{id}/residents | - | `crates/arda-server/src/npcs/mod.rs` |
-| http | GET /v1/buildings/{id}/workers | - | `crates/arda-server/src/npcs/mod.rs` |
+| http | GET /v1/buildings/{building}/residents | - | `crates/arda-server/src/npcs/mod.rs` |
+| http | GET /v1/buildings/{building}/workers | - | `crates/arda-server/src/npcs/mod.rs` |
 | http | GET /v1/settlements | - | `crates/arda-server/src/people.rs` |
 | http | GET /v1/settlements/{id} | - | `crates/arda-server/src/people.rs` |
 | http | GET /v1/settlements/{id}/plan | - | `crates/arda-server/src/people.rs` |
@@ -100,6 +101,7 @@ The only cross-repo surface is `arda-server`'s HTTP API under `/v1` (consumed by
 | http | GET /v1/tactical/cell/{gx}/{gy}/tiles/{z}/{x}/{y}.webp | - | `crates/arda-server/src/tactical/world_routes.rs` |
 | http | GET /v1/tactical/window | - | `crates/arda-server/src/tactical/world_routes.rs` |
 | http | GET /v1/tactical/window.png | - | `crates/arda-server/src/tactical/world_routes.rs` |
+| http | GET /v1/tactical/window/tiles/{z}/{x}/{y}.webp | - | `crates/arda-server/src/tactical/world_routes.rs` |
 | http | GET /v1/tactical/library | - | `crates/arda-server/src/tactical/world_routes.rs` |
 | http | POST /v1/tactical/prefetch | - | `crates/arda-server/src/tactical/routes.rs` |
 | http | GET /v1/tactical/dungeon | - | `crates/arda-server/src/tactical/dungeon.rs` |
@@ -254,11 +256,11 @@ Model: NpcPage
 
 Query: `settlement`, `building`, `job`, `realm`, `notable`, `limit`, `cursor` (`crates/arda-server/src/npcs/mod.rs:71-116`).
 
-### GET /v1/buildings/{id}/residents
+### GET /v1/buildings/{building}/residents
 
 Model: NpcPage
 
-### GET /v1/buildings/{id}/workers
+### GET /v1/buildings/{building}/workers
 
 Model: NpcPage
 
@@ -308,7 +310,9 @@ Model: SettlementNpcs
 
 ### GET /v1/schema
 
-Response `application/json`, the committed `bindings/schema/index.json` (`crates/arda-server/src/schema/routes.rs:33-39`, body built at `crates/arda-server/src/schema/mod.rs:143-161`).
+Model: SchemaIndex
+
+Response `application/json`, the committed `bindings/schema/index.json` (`crates/arda-server/src/schema/routes.rs:33-39`); type `SchemaIndex` with `SchemaIndexEntry` items (`crates/arda-server/src/schema/mod.rs`, `index()` builds it).
 
 | Field | Type | Required | Notes |
 |---|---|---|---|
@@ -316,7 +320,7 @@ Response `application/json`, the committed `bindings/schema/index.json` (`crates
 | api_version | String | yes | `"v1"` |
 | dialect | String | yes | JSON Schema draft 2020-12 |
 | note | String | yes | sheet-mapping caveat |
-| schemas | array of `{ name, url, routes }` | yes | one per catalog entry |
+| schemas | Vec<SchemaIndexEntry> `{ name, url, routes }` | yes | one per catalog entry, `SchemaIndex` itself included |
 
 ### GET /v1/schema/{Name}.json
 
@@ -419,7 +423,7 @@ Response `image/webp` (`crates/arda-server/src/tactical/world_routes.rs:188-227`
 
 Model: TacticalBlockDto
 
-Query: `gx0,gy0,w,h` in cells (`w`, `h` 1..=3) or `gsx,gsy,w,h` in squares (1..=192); `ppsq` default 32 (`crates/arda-server/src/tactical/world_routes.rs:37-39`, `crates/arda-server/src/tactical/world_routes.rs:229-296`).
+Query: `gx0,gy0,w,h` in cells (`w`, `h` 1..=3) or `gsx,gsy,w,h` in squares (1..=192); `ppsq` default 32 (`crates/arda-server/src/tactical/world_routes.rs:37-39`, `window_request`, `window`). `tiles` describes the pyramid served by `GET /v1/tactical/window/tiles/{z}/{x}/{y}.webp` with the same query.
 
 ### GET /v1/tactical/window.png
 
@@ -433,6 +437,10 @@ Response `image/png` (`crates/arda-server/src/tactical/world_routes.rs:298-326`)
 | ppsq | u32 | no | default 32 |
 | grid | 0 or 1 | no | |
 | world_grade | 0 or 1 | no | |
+
+### GET /v1/tactical/window/tiles/{z}/{x}/{y}.webp
+
+Response `image/webp`: 512 px lossless tiles cut from the `/window.png` render of the same query, `z = max_zoom` the full render; 404 outside the pyramid (`window_tile` in `crates/arda-server/src/tactical/world_routes.rs`). Query as `GET /v1/tactical/window.png`.
 
 ### GET /v1/tactical/library
 
@@ -455,16 +463,18 @@ Request body `PrefetchRequest` (`crates/arda-server/src/tactical/prefetch.rs:44`
 
 ### GET /v1/tactical/dungeon
 
-Type `arda_dungeon::Dungeon` (`crates/arda-dungeon/src/lib.rs:197`); level chosen by `?seed=` or `?gx=&gy=`, `kind` = `dungeon`|`cave`, `w`/`h` default 48 × 36 (`crates/arda-server/src/tactical/dungeon.rs:32-89`).
+Model: DungeonDto
+
+The handler serialises `arda_dungeon::Dungeon` (`crates/arda-dungeon/src/lib.rs`), described by the mirror `DungeonDto` (`crates/arda-server/src/tactical/dungeon_dto.rs`); level chosen by `?seed=` or `?gx=&gy=`, `kind` = `dungeon`|`cave`, `w`/`h` default 48 × 36 (`crates/arda-server/src/tactical/dungeon.rs:32-89`). `params.seed` is a decimal string (`arda_scene::serde_str`).
 
 | Field | Type | Required |
 |---|---|---|
-| params | Params | yes |
-| layout | TacticalLayout | yes |
-| rules | RulesSidecar | yes |
-| rooms | Vec<Room> | yes |
-| doors | Vec<Door> | yes |
-| exits | Vec<Exit> | yes |
+| params | DungeonParamsDto `{ seed: String, kind, width, height }` | yes |
+| layout | TacticalLayoutDto | yes |
+| rules | RulesSidecarDto | yes |
+| rooms | Vec<DungeonRoomDto> | yes |
+| doors | Vec<DungeonDoorDto> | yes |
+| exits | Vec<DungeonExitDto> | yes |
 
 ### GET /v1/tactical/dungeon.png
 
@@ -480,6 +490,8 @@ Response `image/png` (`crates/arda-server/src/tactical/dungeon.rs:110-160`).
 | grid | 0 or 1 | no | |
 
 ### GET /v1/tactical/dungeon/scene
+
+Model: SceneDto
 
 An `arda_scene::Scene`, described by `SceneDto` (`crates/arda-server/src/tactical/scene_dto.rs:227`); same level parameters as `/dungeon` (`crates/arda-server/src/tactical/dungeon.rs:91-107`).
 
@@ -522,7 +534,7 @@ JSON Schema (draft 2020-12) files, one `<Name>.json` per body plus `index.json`,
 
 | Field | Type | Required | Notes |
 |---|---|---|---|
-| `<Name>.json` | JSON Schema document | yes | one per `catalog!` entry, 30 entries (`crates/arda-server/src/schema/mod.rs:98-132`) |
+| `<Name>.json` | JSON Schema document | yes | one per `catalog!` entry, 32 entries (`crates/arda-server/src/schema/mod.rs:98-132`) |
 | index.json | object | yes | see `GET /v1/schema` |
 
 ## Consumes

@@ -158,8 +158,8 @@ Payload field tables live in `09-interfaces.md`; each row cites its section ther
 | GET | `/v1/npc/demo/{npc_id}` | `crates/arda-server/src/routes.rs:395` | path → one NPC; `09-interfaces.md § GET /v1/npc/demo/{npc_id}` |
 | GET | `/v1/npc/{npc_id}` | `crates/arda-server/src/npcs/mod.rs:217` | path → stored NPC; `09-interfaces.md § GET /v1/npc/{npc_id}` |
 | GET | `/v1/npcs` | `crates/arda-server/src/npcs/mod.rs:127` | query → `NpcPage`; `09-interfaces.md § GET /v1/npcs` |
-| GET | `/v1/buildings/{id}/residents` | `crates/arda-server/src/npcs/mod.rs:155` | path → NPC list; `09-interfaces.md § GET /v1/buildings/{id}/residents` |
-| GET | `/v1/buildings/{id}/workers` | `crates/arda-server/src/npcs/mod.rs:164` | path → NPC list; `09-interfaces.md § GET /v1/buildings/{id}/workers` |
+| GET | `/v1/buildings/{building}/residents` | `crates/arda-server/src/npcs/mod.rs:155` | path → NPC list; `09-interfaces.md § GET /v1/buildings/{building}/residents` |
+| GET | `/v1/buildings/{building}/workers` | `crates/arda-server/src/npcs/mod.rs:164` | path → NPC list; `09-interfaces.md § GET /v1/buildings/{building}/workers` |
 | GET | `/v1/settlements` | `crates/arda-server/src/people.rs:51` | query → settlement list; `09-interfaces.md § GET /v1/settlements` |
 | GET | `/v1/settlements/{id}` | `crates/arda-server/src/people.rs:72` | path → settlement; `09-interfaces.md § GET /v1/settlements/{id}` |
 | GET | `/v1/settlements/{id}/plan` | `crates/arda-server/src/people.rs:89` | path → town plan; `09-interfaces.md § GET /v1/settlements/{id}/plan` |

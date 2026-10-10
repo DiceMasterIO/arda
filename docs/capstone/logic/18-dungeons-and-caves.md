@@ -7,6 +7,7 @@ paths_covered:
   - ":(top)crates/arda-dungeon/**"
   - ":(top)crates/arda-cli/src/dungeon.rs"
   - ":(top)crates/arda-server/src/tactical/dungeon.rs"
+  - ":(top)crates/arda-server/src/tactical/dungeon_dto.rs"
   - ":(top)crates/arda-server/src/tactical/mod.rs"
   - ":(top)crates/arda-server/src/tactical/routes.rs"
   - ":(top)crates/arda-server/src/tactical/world_routes.rs"
@@ -143,7 +144,7 @@ The sidecar has `format_version` `SIDECAR_FORMAT_VERSION` (2), the map size, one
 
 ### §dgn-serve
 
-- `/dungeon`: the whole `Dungeon` (`params`, `layout`, `rules`, `rooms`, `doors`, `exits`) as JSON with `Cache-Control: no-cache`; no `ETag` and no cache lookup (`crates/arda-server/src/tactical/dungeon.rs:78-88`, `crates/arda-server/src/tactical/routes.rs:30-32`). `params.seed` is serialised as a JSON number (plain `u64` field, `crates/arda-dungeon/src/lib.rs:88-90`), unlike the decimal-string convention of 16 §api-conventions.
+- `/dungeon`: the whole `Dungeon` (`params`, `layout`, `rules`, `rooms`, `doors`, `exits`) as JSON with `Cache-Control: no-cache`; no `ETag` and no cache lookup (`crates/arda-server/src/tactical/dungeon.rs:78-88`, `crates/arda-server/src/tactical/routes.rs:30-32`). `params.seed` is serialised as a decimal string and read from a string or a number (`#[serde(with = "arda_scene::serde_str")]` on `Params::seed`, `crates/arda-dungeon/src/lib.rs`), per 16 §api-conventions; the CLI's `--meta` file carries the same `params`. The body is described by the wire mirror `DungeonDto` (TS binding and JSON Schema `DungeonDto`, `crates/arda-server/src/tactical/dungeon_dto.rs`), whose test round-trips dungeons and caves through it; the schema catalogue lists `/dungeon` under `DungeonDto` and `/dungeon/scene` under `SceneDto` (`crates/arda-server/src/schema/mod.rs`).
 - `/dungeon/scene`: `arda_scene::build_scene(layout, served library, world seed, Some(rules))` as JSON, with no `Cache-Control` header and no `ETag` (`crates/arda-server/src/tactical/dungeon.rs:91-107`).
 - `/dungeon.png`: `ppsq` in `PPSQ_OPTIONS` = {64, 96, 128}, default 128; `grid` `0`/absent or `1` (`crates/arda-server/src/tactical/dungeon.rs:117-137`, `crates/arda-server/src/tactical/mod.rs:46-48`). The layout passes `admit` (≤ `max_squares` = 204 × 204; render ≤ `max_render_px` = 96 Mi px; `admit_work`; `TacticalLayout::check` against the library) (`crates/arda-server/src/tactical/mod.rs:296-315`, `:75-79`), is keyed by `RenderKey {world_seed, anchor = layout name, BLAKE3(layout JSON), ppsq, grid, library_version}` (`:337-357`) and rendered or served from the PNG cache (`:363-380`). The response carries `ETag`, `Cache-Control: no-cache`, `X-Arda-Cache` and `Server-Timing`, and answers `304` to a matching `If-None-Match` (`crates/arda-server/src/tactical/routes.rs:142-178`).
 - At the defaults a 160 × 160 level exceeds `max_render_px` at every allowed `ppsq` (160² × 64² = 104,857,600 > 100,663,296), so its PNG is refused with `413` (`crates/arda-server/src/tactical/mod.rs:304-310`).

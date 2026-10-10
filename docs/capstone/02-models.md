@@ -643,6 +643,16 @@ Storage values: `HTTP JSON; ts-rs bindings/ts/arda/<Name>.ts` means the type is 
 | SceneDto | `crates/arda-server/src/tactical/scene_dto.rs:227` | HTTP JSON; ts-rs `bindings/ts/arda/SceneDto.ts` | `arda-scene` `Scene` format 1: everything the game needs to run a map. |
 | TokenKind | `crates/arda-server/src/tactical/tokens.rs:16` | HTTP JSON; ts-rs `bindings/ts/arda/TokenKind.ts` | Why a token stands where it does. |
 | Token | `crates/arda-server/src/tactical/tokens.rs:26` | HTTP JSON; ts-rs `bindings/ts/arda/Token.ts` | One token on the scene. |
+| DungeonDto | `crates/arda-server/src/tactical/dungeon_dto.rs:19` | HTTP JSON; ts-rs `bindings/ts/arda/DungeonDto.ts` | `GET /v1/tactical/dungeon`: mirror of `arda_dungeon::Dungeon`. |
+| DungeonParamsDto | `crates/arda-server/src/tactical/dungeon_dto.rs:37` | HTTP JSON; ts-rs `bindings/ts/arda/DungeonParamsDto.ts` | Mirror of `arda_dungeon::Params`, `seed` a decimal string. |
+| DungeonKindDto | `crates/arda-server/src/tactical/dungeon_dto.rs:51` | HTTP JSON; ts-rs `bindings/ts/arda/DungeonKindDto.ts` | Dungeon or cave. |
+| RoomPurposeDto | `crates/arda-server/src/tactical/dungeon_dto.rs:61` | HTTP JSON; ts-rs `bindings/ts/arda/RoomPurposeDto.ts` | The purpose of a dungeon room. |
+| DungeonRoomDto | `crates/arda-server/src/tactical/dungeon_dto.rs:85` | HTTP JSON; ts-rs `bindings/ts/arda/DungeonRoomDto.ts` | A room: its purpose and its floor rectangle in squares. |
+| DungeonDoorDto | `crates/arda-server/src/tactical/dungeon_dto.rs:103` | HTTP JSON; ts-rs `bindings/ts/arda/DungeonDoorDto.ts` | A door on a square edge, in layout edge terms. |
+| DungeonExitKindDto | `crates/arda-server/src/tactical/dungeon_dto.rs:119` | HTTP JSON; ts-rs `bindings/ts/arda/DungeonExitKindDto.ts` | A way in or out of the level. |
+| DungeonExitDto | `crates/arda-server/src/tactical/dungeon_dto.rs:131` | HTTP JSON; ts-rs `bindings/ts/arda/DungeonExitDto.ts` | An exit: its kind and the floor square a token arrives on. |
+| SchemaIndex | `crates/arda-server/src/schema/mod.rs:153` | HTTP JSON; ts-rs `bindings/ts/arda/SchemaIndex.ts` | `GET /v1/schema`: the catalogue of published schemas (`index.json`). |
+| SchemaIndexEntry | `crates/arda-server/src/schema/mod.rs:169` | HTTP JSON; ts-rs `bindings/ts/arda/SchemaIndexEntry.ts` | One schema in `SchemaIndex`: name, URL and routes. |
 
 ## Fields and types
 
@@ -5068,7 +5078,7 @@ Required `no` marks an `Option` field, a serde default, a field omitted when emp
 
 | Field | Type | Required | Notes |
 |---|---|---|---|
-| seed | `u64` | yes | Seed. |
+| seed | `u64` | yes | Seed; a decimal string on the wire (`arda_scene::serde_str`), a number also read. |
 | kind | `Kind` | yes | Dungeon or cave. |
 | width | `u32` | yes | Width in squares. |
 | height | `u32` | yes | Height in squares. |
@@ -6517,6 +6527,91 @@ Required `no` marks an `Option` field, a serde default, a field omitted when emp
 | settlement_id | `String` | yes | Its settlement, a decimal string. |
 | kind | `TokenKind` | yes | `worker` (at its workplace) or `resident` (at home). |
 
+### DungeonDto
+
+| Field | Type | Required | Notes |
+|---|---|---|---|
+| params | `DungeonParamsDto` | yes | The parameters it was made from. |
+| layout | `TacticalLayoutDto` | yes | The battle map; `POST /render` takes it as it is. |
+| rules | `RulesSidecarDto` | yes | Per-square rules: rock impassable and opaque, scree difficult. |
+| rooms | `DungeonRoomDto[]` | yes | Rooms (one `cavern` spanning the map for caves). |
+| doors | `DungeonDoorDto[]` | yes | Every door, including locked and secret ones. |
+| exits | `DungeonExitDto[]` | yes | Stairs and mouths. |
+
+### DungeonParamsDto
+
+| Field | Type | Required | Notes |
+|---|---|---|---|
+| seed | `String` | yes | Seed, a decimal string. |
+| kind | `DungeonKindDto` | yes | Dungeon or cave. |
+| width | `u32` | yes | Width in squares (16–160). |
+| height | `u32` | yes | Height in squares (16–160). |
+
+### DungeonKindDto
+
+| Field | Type | Required | Notes |
+|---|---|---|---|
+| value | enum | yes | accepted: dungeon, cave |
+
+### RoomPurposeDto
+
+| Field | Type | Required | Notes |
+|---|---|---|---|
+| value | enum | yes | accepted: entrance, crypt, barracks, storage, shrine, prison, treasure, hall, cavern |
+
+### DungeonRoomDto
+
+| Field | Type | Required | Notes |
+|---|---|---|---|
+| id | `u32` | yes | Index in `rooms`. |
+| purpose | `RoomPurposeDto` | yes | What it is for. |
+| x | `u32` | yes | Left column. |
+| y | `u32` | yes | Top row. |
+| w | `u32` | yes | Width in squares. |
+| h | `u32` | yes | Height in squares. |
+
+### DungeonDoorDto
+
+| Field | Type | Required | Notes |
+|---|---|---|---|
+| x | `u32` | yes | Square column. |
+| y | `u32` | yes | Square row. |
+| axis | `EdgeAxisDto` | yes | Which edge. |
+| locked | `bool` | yes | Needs a key or a check. |
+| secret | `bool` | yes | Looks like wall until found. |
+
+### DungeonExitKindDto
+
+| Field | Type | Required | Notes |
+|---|---|---|---|
+| value | enum | yes | accepted: stairs_up, stairs_down, mouth |
+
+### DungeonExitDto
+
+| Field | Type | Required | Notes |
+|---|---|---|---|
+| kind | `DungeonExitKindDto` | yes | Kind. |
+| x | `u32` | yes | Column. |
+| y | `u32` | yes | Row. |
+
+### SchemaIndex
+
+| Field | Type | Required | Notes |
+|---|---|---|---|
+| format_version | `u32` | yes | Version of this body (`INDEX_FORMAT` = 1). |
+| api_version | `String` | yes | The API version (`v1`). |
+| dialect | `String` | yes | The JSON Schema dialect every file declares (draft 2020-12). |
+| note | `String` | yes | How `--sheet-mapping` affects the `Npc` schemas. |
+| schemas | `SchemaIndexEntry[]` | yes | Every schema, in name order. |
+
+### SchemaIndexEntry
+
+| Field | Type | Required | Notes |
+|---|---|---|---|
+| name | `String` | yes | File stem and TypeScript type name. |
+| url | `String` | yes | Where it is served: `/v1/schema/{name}.json`. |
+| routes | `String[]` | yes | The routes (or body parts, such as `TacticalBlockDto.scene`) it describes. |
+
 
 ## Relationships
 
@@ -6566,7 +6661,7 @@ The society's `NpcRole` becomes an `arda-npc` `NotableSlot` in `arda_people::slo
 
 ### Wire DTOs (arda-server)
 
-`TacticalBlockDto` composes `TacticalLayoutDto`, optional `RulesSidecarDto`, a scene value described by `SceneDto` and `TacticalTilesDto` (`crates/arda-server/src/tactical/dto.rs:60`). `NpcPage` owns `NpcEntry[]`, each wrapping an `Npc` (`crates/arda-server/src/npcs/dto.rs:32`). `SettlementList.settlements[]` and `SettlementDetail.record` are `arda-settle` `Settlement`; `SettlementDetail.society` is `SettlementSociety`; `SettlementNpcs.npcs[]` is `Npc` (`crates/arda-server/src/schema/bodies.rs:11`). `ApiError` wraps `ApiErrorBody`; `NotYetError` adds `planned_source` (`crates/arda-server/src/error.rs:72`, `crates/arda-server/src/error.rs:88`). `PrefetchAccepted.cells[]` are `PrefetchCell`s with a `PrefetchStatus` (`crates/arda-server/src/tactical/prefetch.rs:78`).
+`TacticalBlockDto` composes `TacticalLayoutDto`, optional `RulesSidecarDto`, a scene value described by `SceneDto` and `TacticalTilesDto` (`crates/arda-server/src/tactical/dto.rs:60`). `NpcPage` owns `NpcEntry[]`, each wrapping an `Npc` (`crates/arda-server/src/npcs/dto.rs:32`). `SettlementList.settlements[]` and `SettlementDetail.record` are `arda-settle` `Settlement`; `SettlementDetail.society` is `SettlementSociety`; `SettlementNpcs.npcs[]` is `Npc` (`crates/arda-server/src/schema/bodies.rs:11`). `ApiError` wraps `ApiErrorBody`; `NotYetError` adds `planned_source` (`crates/arda-server/src/error.rs:72`, `crates/arda-server/src/error.rs:88`). `PrefetchAccepted.cells[]` are `PrefetchCell`s with a `PrefetchStatus` (`crates/arda-server/src/tactical/prefetch.rs:78`). `DungeonDto` mirrors `arda_dungeon::Dungeon` with `TacticalLayoutDto` and `RulesSidecarDto` parts (`crates/arda-server/src/tactical/dungeon_dto.rs:19`). `SchemaIndex` owns `SchemaIndexEntry[]` and is built by `index()` (`crates/arda-server/src/schema/mod.rs:153`).
 
 ## Boundaries
 
@@ -6584,6 +6679,7 @@ The society's `NpcRole` becomes an `arda-npc` `NotableSlot` in `arda_people::slo
 | `arda-npc` domain JSON ↔ `npc_dto` mirrors | handlers serialise domain types | ts-rs / schemars | mirror rule `crates/arda-server/src/npc_dto/mod.rs:1`; page wire form `crates/arda-server/src/npcs/dto.rs:1` |
 | `arda-tactical` `TacticalLayout` ↔ `TacticalLayoutDto` | handlers | ts-rs / schemars | `crates/arda-server/src/tactical/dto.rs:1` |
 | `arda-scene` `Scene` ↔ `SceneDto`; `RulesSidecar` ↔ `RulesSidecarDto` | handlers | ts-rs / schemars | `crates/arda-server/src/tactical/scene_dto.rs:1`, `crates/arda-server/src/tactical/rules_dto.rs:1` |
+| `arda-dungeon` `Dungeon` ↔ `DungeonDto` | handlers | ts-rs / schemars | `crates/arda-server/src/tactical/dungeon_dto.rs:1` |
 | Arda NPC JSON → mapped sheet JSON | `--sheet-mapping` `MappingFile` | HTTP clients | `SheetMapping::reshape` `crates/arda-server/src/sheet_map/mod.rs:224` |
 | Rust DTOs → TypeScript | ts-rs | `apps/viewer` | `crates/arda-server/src/bindings.rs:81` |
 | Rust DTOs → JSON Schema draft 2020-12 | schemars | `GET /v1/schema` | `crates/arda-server/src/schema/mod.rs:98` |

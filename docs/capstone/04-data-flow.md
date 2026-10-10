@@ -177,7 +177,7 @@ The pipeline has two halves. Three offline CLI batches write files under one wor
 3. Settlement routes read `files`, `society` and `World::plan` (`crates/arda-server/src/people.rs:51`, `crates/arda-server/src/people.rs:89`).
    - `/settlements/{id}/npcs` returns stored notables only (`crates/arda-server/src/people.rs:106`).
    - `/v1/npc/{id}` resolves a stored notable by id first. Otherwise it rebuilds the settlement's `Generator` from profile, buildings (plan or mix) and slots, and expands one commoner (`crates/arda-server/src/npcs/mod.rs:177`, `crates/arda-server/src/npcs/page.rs:87`).
-   - `/v1/npcs` and `/buildings/{id}/residents|workers` page through regenerated rosters (`crates/arda-server/src/npcs/page.rs:134`).
+   - `/v1/npcs` and `/buildings/{building}/residents|workers` page through regenerated rosters (`crates/arda-server/src/npcs/page.rs:134`).
    - NPC bodies pass through the optional sheet mapping (`crates/arda-server/src/lib.rs:248`).
 
 ### 9. Dungeons
