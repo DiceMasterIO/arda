@@ -14,6 +14,7 @@ import { fileURLToPath } from "node:url";
 import { setTimeout as sleep } from "node:timers/promises";
 import { parseArgs } from "node:util";
 import { globMatcher, rawStem } from "./lib.mjs";
+import { guard, postProject, priceOf, reconcileIntents, spendPlan, UnreadableListError } from "./safety.mjs";
 
 const here = dirname(fileURLToPath(import.meta.url));
 
@@ -46,13 +47,6 @@ export const imageProviders = ["openai-image", "google-image", "fal", "replicate
 // Slopify's admission limits (`edge/http/planning.ts`, `slices/admission/rules.ts`).
 const batchMax = 50;
 const valueMax = 200;
-
-// Known per-image prices from Slopify's models.yaml (2026-09-26). Everything else is unknown
-// there too; --price-per-image fills the gap.
-const knownPrices = {
-  "google-image/gemini-3.1-flash-image": 0.101,
-  "codex-image/*": 0,
-};
 
 // What the image reviewer fails an asset for, kept as the Library review prompt
 // reviewPromptName (created like the image templates). Slopify sends it the image and the brief it was
@@ -91,6 +85,10 @@ Generation
                         default ${defaults.parallel}. 0 sends Slopify batches instead, which run one at a time
   --batch-size N        assets per Slopify batch (with --parallel 0), at most ${batchMax}; default ${defaults.batchSize}
   --price-per-image USD for the estimate when Slopify's catalogue has no price
+  --max-images N        hard ceiling on images submitted this run (counts re-sent and re-posted ones);
+                        stops with exit 3 when the next one would exceed it
+  --max-spend USD       ceiling on images x price x (1 + reviewer remakes); refuses to start (exit 2)
+                        when the worst case is over it. Default: $ART_GEN_MAX_SPEND if set
 
 Review (on by default: a failed image is made again)
   --no-review           turn the image reviewer off
@@ -112,7 +110,8 @@ Slopify
 
 Safety
   --dry-run             print the batch payloads as JSON on stdout; contacts nothing
-  --yes                 actually submit (costs money on your provider keys)
+  --yes                 actually submit (costs money on your provider keys); with a price unknown to
+                        Slopify it needs --max-images or --price-per-image
   --prompts FILE        default tools/art-gen/prompts.json
 `;
 
@@ -127,7 +126,16 @@ function reviewMode(mode) {
   return mode;
 }
 
-export function parseOptions(argv) {
+function maxSpend(flag, env) {
+  const raw = flag ?? (env.ART_GEN_MAX_SPEND === "" ? undefined : env.ART_GEN_MAX_SPEND);
+  if (raw === undefined) return undefined;
+  const n = Number(raw);
+  if (!Number.isFinite(n) || n < 0)
+    throw new UsageError(`${flag === undefined ? "ART_GEN_MAX_SPEND" : "--max-spend"} must be a number of dollars, 0 or more; got "${raw}"`);
+  return n;
+}
+
+export function parseOptions(argv, env = process.env) {
   const { values } = parseArgs({
     args: argv,
     options: {
@@ -151,6 +159,8 @@ export function parseOptions(argv) {
       "batch-size": { type: "string", default: String(defaults.batchSize) },
       parallel: { type: "string", default: String(defaults.parallel) },
       "price-per-image": { type: "string" },
+      "max-images": { type: "string" },
+      "max-spend": { type: "string" },
       out: { type: "string", default: defaults.out },
       licence: { type: "string", default: defaults.licence },
       server: { type: "string", default: defaults.server },
@@ -200,6 +210,8 @@ export function parseOptions(argv) {
     batchSize: Math.floor(number("batch-size", 1, batchMax)),
     parallel: Math.floor(number("parallel", 0, 20)),
     pricePerImage: values["price-per-image"] === undefined ? undefined : number("price-per-image", 0),
+    maxImages: values["max-images"] === undefined ? undefined : Math.floor(number("max-images", 0)),
+    maxSpend: maxSpend(values["max-spend"], env),
     out: resolve(values.out),
     licence: values.licence,
     server: values.server.replace(/\/+$/, ""),
@@ -345,8 +357,7 @@ export function checkValues(assets) {
 }
 
 export function estimate(count, options) {
-  const exact = knownPrices[`${options.provider}/${options.model}`] ?? knownPrices[`${options.provider}/*`];
-  const each = options.pricePerImage ?? exact;
+  const each = priceOf(options);
   return each === undefined
     ? { count, each: undefined, total: undefined }
     : { count, each, total: Math.round(each * count * 100) / 100 };
@@ -443,7 +454,10 @@ function client(server, delays = readRetryDelays) {
         break;
       } catch (error) {
         if (method !== "GET" || attempt >= delays.length)
-          throw new SlopifyError(`cannot reach Slopify at ${server} (${error.cause?.code ?? error.message}). Is it running?`);
+          throw Object.assign(
+            new SlopifyError(`cannot reach Slopify at ${server} (${error.cause?.code ?? error.message}). Is it running?`),
+            { network: true },
+          );
         await new Promise((done) => setTimeout(done, delays[attempt] * 1000));
       }
     }
@@ -605,6 +619,16 @@ async function collect(api, out, state, ids, options, log, pack, feed = async ()
 // ---------------------------------------------------------------------------------------------
 
 export async function main(argv, io = { out: process.stdout, err: process.stderr }) {
+  try {
+    return await run(argv, io);
+  } catch (error) {
+    if (!(error instanceof UnreadableListError)) throw error;
+    io.err.write(`ERROR: ${error.message}\nStopped; the state file keeps the unanswered POST, and nothing was posted twice.\n`);
+    return 1;
+  }
+}
+
+async function run(argv, io) {
   const log = (line) => io.err.write(`${line}\n`);
   const options = parseOptions(argv);
   if (options.help) {
@@ -635,14 +659,17 @@ export async function main(argv, io = { out: process.stdout, err: process.stderr
   }
   // Submitted earlier and still running or done but not yet downloaded: wait for those
   // rather than paying for them again; --overwrite means make them again regardless.
-  const inFlight = options.dryRun || options.overwrite
+  let inFlight = options.dryRun || options.overwrite
     ? []
     : assets.filter((a) => state.assets[a.id]?.projectId && !["failed", "downloaded"].includes(state.assets[a.id].status));
   // A batch sent but never confirmed (the connection dropped, or the script stopped): it is
   // sent again with its own requestId, which Slopify answers with the queue it already made.
   const unconfirmed = Object.entries(state.batches).filter(([, b]) => !b.confirmed);
   const recovering = new Set(unconfirmed.flatMap(([, b]) => b.ids));
-  const toSubmit = assets.filter((a) => !inFlight.includes(a) && !recovering.has(a.id));
+  // A POST an earlier run started but never saw answered: whether Slopify created the project is
+  // checked against its project list (once --yes is given) before the asset is posted again.
+  const held = options.dryRun ? [] : assets.filter((a) => state.assets[a.id]?.status === "posting");
+  const toSubmit = assets.filter((a) => !inFlight.includes(a) && !recovering.has(a.id) && !held.includes(a));
   const limited = options.limit === undefined ? toSubmit : toSubmit.slice(0, options.limit);
 
   const problems = checkValues(limited);
@@ -650,8 +677,9 @@ export async function main(argv, io = { out: process.stdout, err: process.stderr
     log(problems.join("\n"));
     return 1;
   }
-  const batches = planBatches(limited, options.batchSize);
+  let batches = planBatches(limited, options.batchSize);
   const cost = estimate(limited.length, options);
+  const plan = spendPlan(limited, options);
   const byClass = {};
   const byTier = {};
   for (const a of limited) {
@@ -665,6 +693,8 @@ export async function main(argv, io = { out: process.stdout, err: process.stderr
       .join(", ") || "nothing"}; tier ${Object.entries(byTier)
       .map(([t, n]) => `${t}: ${n}`)
       .join(", ") || "none"})${inFlight.length ? `; ${inFlight.length} submitted earlier will be collected` : ""}${
+      held.length ? `; ${held.length} with an unanswered earlier POST will be checked against Slopify's project list first` : ""
+    }${
       recovering.size ? `; ${recovering.size} in ${unconfirmed.length} unconfirmed earlier batch(es) will be re-sent with their original requestId` : ""
     }`,
   );
@@ -673,6 +703,18 @@ export async function main(argv, io = { out: process.stdout, err: process.stderr
       ? `Estimated cost: unknown. Slopify's catalogue has no fixed price for ${options.model}; pass --price-per-image to estimate.`
       : `Estimated cost: ${limited.length} × $${cost.each} = $${cost.total} (provider list price; check your account)`,
   );
+  if (plan.each !== undefined && plan.images > 0)
+    log(
+      `Worst case: ${plan.worstCaseImages} image${plan.worstCaseImages === 1 ? "" : "s"} × $${plan.each} = $${plan.worstCaseCost}` +
+        `${options.maxImages !== undefined ? ` (capped at --max-images ${options.maxImages})` : ""}` +
+        `${options.review?.mode === "redo" && options.review.retries > 0 ? `, counting up to ${options.review.retries} reviewer remake(s) per image` : ""}` +
+        `${options.maxSpend !== undefined ? `; --max-spend $${options.maxSpend}` : ""}`,
+    );
+  if (plan.refusal !== undefined) {
+    log(`REFUSED: ${plan.refusal}`);
+    log(options.dryRun ? "Dry run: nothing was sent." : "Nothing was sent.");
+    return 2;
+  }
   for (const batch of batches) log(`  batch: ${batch.length} × ${batch[0].template} ${batch[0].format} (${batch[0].id} …)`);
 
   if (options.dryRun) {
@@ -705,6 +747,20 @@ export async function main(argv, io = { out: process.stdout, err: process.stderr
     log(`runs go to channel "${found.name}"`);
   }
   mkdirSync(options.out, { recursive: true });
+  if (held.length > 0) {
+    let settled;
+    try {
+      settled = await reconcileIntents(api, state, () => writeState(options.out, state), log);
+    } catch (error) {
+      if (!(error instanceof UnreadableListError)) throw error;
+      log(`ERROR: ${error.message}`);
+      return 1;
+    }
+    const byId = new Map(held.map((a) => [a.id, a]));
+    inFlight = [...inFlight, ...settled.adopted.map((id) => byId.get(id))];
+    limited.push(...settled.released.map((id) => byId.get(id)));
+    batches = planBatches(limited, options.batchSize);
+  }
   if (limited.length > 0 || unconfirmed.length > 0) {
     await checkModel(api, options, log);
     await ensureTemplates(
@@ -727,6 +783,13 @@ export async function main(argv, io = { out: process.stdout, err: process.stderr
       mkdirSync(aside, { recursive: true });
       renameSync(old, join(aside, `${basename(old)}.${Date.now()}`));
     }
+
+  const spent = guard(options, plan.each);
+  let capped = false;
+  const stopForCap = (what) => {
+    capped = true;
+    log(`STOPPED: ${spent.reason()}; ${what}. Collecting what was already submitted; run again with --resume to continue.`);
+  };
 
   if (options.parallel > 0 && unconfirmed.length === 0) {
     const waiting = [...limited];
@@ -753,25 +816,37 @@ export async function main(argv, io = { out: process.stdout, err: process.stderr
     writeState(options.out, state);
     const feed = async (pending) => {
       while (pending.size < options.parallel && waiting.length > 0) {
+        if (!spent.take(1)) {
+          stopForCap(`${waiting.length} not started`);
+          waiting.length = 0;
+          break;
+        }
         const asset = waiting.shift();
         const body = projectBody(asset, options, { referenceId });
-        const reply = await api.post("/api/projects", body);
-        const projectId = reply.project?.id;
-        if (projectId === undefined || reply.project.title !== asset.id)
-          throw new SlopifyError(`project for ${asset.id} came back as ${JSON.stringify(reply.project ?? reply).slice(0, 200)}`);
-        if (options.channelId && reply.project.channelId !== undefined && reply.project.channelId !== options.channelId)
-          throw new SlopifyError(`project for ${asset.id} landed in channel ${reply.project.channelId}, not "${options.channel}"; stopping.`);
-        state.assets[asset.id] = {
-          projectId,
+        const record = {
           template: asset.template,
           provider: body.images.provider,
           model: body.images.model,
           prompt: asset.prompt,
           footprint: asset.footprint,
           structured: asset.structured === true,
-          status: "submitted",
-          at: new Date().toISOString(),
         };
+        const { project } = await postProject({
+          api,
+          state,
+          save: () => writeState(options.out, state),
+          asset,
+          body,
+          record,
+          now: () => new Date().toISOString(),
+          log,
+        });
+        const projectId = project?.id;
+        if (projectId === undefined || project.title !== asset.id)
+          throw new SlopifyError(`project for ${asset.id} came back as ${JSON.stringify(project).slice(0, 200)}`);
+        if (options.channelId && project.channelId !== undefined && project.channelId !== options.channelId)
+          throw new SlopifyError(`project for ${asset.id} landed in channel ${project.channelId}, not "${options.channel}"; stopping.`);
+        state.assets[asset.id] = { projectId, ...record, status: "submitted", at: new Date().toISOString() };
         writeState(options.out, state);
         pending.add(asset.id);
         log(`started ${asset.id} (${waiting.length} not started yet)`);
@@ -782,15 +857,33 @@ export async function main(argv, io = { out: process.stdout, err: process.stderr
     const failed = Object.entries(state.assets).filter(([, r]) => r.status === "failed");
     log(`import.toml written to ${join(options.out, "import.toml")}`);
     if (failed.length) log(`${failed.length} failed; run again with --resume to retry them.`);
-    return complete && failed.length === 0 ? 0 : 1;
+    return capped ? 3 : complete && failed.length === 0 ? 0 : 1;
   }
 
   const submitted = [];
   const sends = [
-    ...unconfirmed.map(([, b]) => ({ body: b.body, batch: b.ids.map((id) => ({ id, ...pack.assets[id] })) })),
-    ...batches.map((batch) => ({ body: batchBody(batch, options, { referenceId }), batch })),
+    ...unconfirmed.map(([, b]) => ({ body: b.body, batch: b.ids.map((id) => ({ id, ...pack.assets[id] })), resend: true })),
+    ...batches.map((batch) => ({ batch, resend: false })),
   ];
-  for (const { body, batch } of sends) {
+  for (let { body, batch, resend } of sends) {
+    // A new batch is cut down to what the cap still allows; a batch sent before is all or nothing.
+    let cut = false;
+    if (!resend && batch.length > spent.left) {
+      cut = true;
+      batch = batch.slice(0, Math.max(0, spent.left));
+      if (batch.length === 0) {
+        stopForCap("no further batch sent");
+        break;
+      }
+    }
+    if (resend && !spent.take(batch.length)) {
+      stopForCap(`unconfirmed batch of ${batch.length} not re-sent`);
+      break;
+    }
+    if (!resend) {
+      spent.take(batch.length);
+      body = batchBody(batch, options, { referenceId });
+    }
     // Saved before sending: Slopify treats a repeated requestId as the same batch, so a retry
     // after a dropped connection never queues it twice.
     state.batches[body.requestId] = { at: new Date().toISOString(), ids: batch.map((a) => a.id), body, confirmed: false };
@@ -826,6 +919,10 @@ export async function main(argv, io = { out: process.stdout, err: process.stderr
     state.batches[body.requestId].confirmed = true;
     writeState(options.out, state);
     log(`queued ${batch.length} × ${batch[0].template} (${body.requestId})`);
+    if (cut) {
+      stopForCap("rest of the batch not sent");
+      break;
+    }
   }
 
   // Slopify names each project after the item's title, which is the asset id: check the
@@ -841,7 +938,7 @@ export async function main(argv, io = { out: process.stdout, err: process.stderr
   const failed = Object.entries(state.assets).filter(([, r]) => r.status === "failed");
   log(`import.toml written to ${join(options.out, "import.toml")}`);
   if (failed.length) log(`${failed.length} failed; run again with --resume to retry them.`);
-  return complete && failed.length === 0 ? 0 : 1;
+  return capped ? 3 : complete && failed.length === 0 ? 0 : 1;
 }
 
 const invoked = process.argv[1] !== undefined && resolve(process.argv[1]) === fileURLToPath(import.meta.url);
