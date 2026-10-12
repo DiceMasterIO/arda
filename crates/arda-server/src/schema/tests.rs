@@ -57,6 +57,12 @@ fn every_schema_name_is_a_typescript_binding() {
         "SettlementList",
         "SettlementDetail",
         "SettlementNpcs",
+        "Realm",
+        "RealmList",
+        "RealmDetail",
+        "RealmSociety",
+        "Relation",
+        "Event",
     ];
     for e in catalog().unwrap() {
         assert!(

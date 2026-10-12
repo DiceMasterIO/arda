@@ -13,6 +13,7 @@ mod mapping;
 mod npc;
 mod people;
 mod prefetch;
+mod realms;
 mod relief;
 mod schemas;
 mod society_cells;

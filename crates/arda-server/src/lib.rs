@@ -23,6 +23,7 @@ pub mod npcs;
 pub mod overview;
 pub mod people;
 pub mod query;
+pub mod realms;
 pub mod relief;
 pub mod routes;
 pub mod schema;

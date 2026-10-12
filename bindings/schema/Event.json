@@ -1,0 +1,358 @@
+{
+  "$defs": {
+    "EntityRef": {
+      "description": "A reference to one entity of the input world or of the society.",
+      "oneOf": [
+        {
+          "description": "An input settlement.",
+          "properties": {
+            "id": {
+              "description": "Settlement id.",
+              "type": "string"
+            },
+            "kind": {
+              "const": "settlement",
+              "type": "string"
+            }
+          },
+          "required": [
+            "kind",
+            "id"
+          ],
+          "type": "object"
+        },
+        {
+          "description": "An input realm.",
+          "properties": {
+            "id": {
+              "description": "Realm id.",
+              "type": "string"
+            },
+            "kind": {
+              "const": "realm",
+              "type": "string"
+            }
+          },
+          "required": [
+            "kind",
+            "id"
+          ],
+          "type": "object"
+        },
+        {
+          "description": "An input road.",
+          "properties": {
+            "id": {
+              "description": "Road id.",
+              "type": "string"
+            },
+            "kind": {
+              "const": "road",
+              "type": "string"
+            }
+          },
+          "required": [
+            "kind",
+            "id"
+          ],
+          "type": "object"
+        },
+        {
+          "description": "A building of a settlement.",
+          "properties": {
+            "id": {
+              "description": "Building id within the settlement.",
+              "type": "string"
+            },
+            "kind": {
+              "const": "building",
+              "type": "string"
+            },
+            "settlement": {
+              "description": "Settlement id.",
+              "type": "string"
+            }
+          },
+          "required": [
+            "kind",
+            "settlement",
+            "id"
+          ],
+          "type": "object"
+        },
+        {
+          "description": "A faction.",
+          "properties": {
+            "id": {
+              "description": "Faction id.",
+              "type": "string"
+            },
+            "kind": {
+              "const": "faction",
+              "type": "string"
+            }
+          },
+          "required": [
+            "kind",
+            "id"
+          ],
+          "type": "object"
+        },
+        {
+          "description": "A notable NPC slot.",
+          "properties": {
+            "id": {
+              "description": "Role id.",
+              "type": "string"
+            },
+            "kind": {
+              "const": "role",
+              "type": "string"
+            }
+          },
+          "required": [
+            "kind",
+            "id"
+          ],
+          "type": "object"
+        },
+        {
+          "description": "A ruin of an abandoned settlement.",
+          "properties": {
+            "id": {
+              "description": "Ruin id.",
+              "format": "uint32",
+              "minimum": 0,
+              "type": "integer"
+            },
+            "kind": {
+              "const": "ruin",
+              "type": "string"
+            }
+          },
+          "required": [
+            "kind",
+            "id"
+          ],
+          "type": "object"
+        },
+        {
+          "description": "A timeline event.",
+          "properties": {
+            "id": {
+              "description": "Event id.",
+              "format": "uint32",
+              "minimum": 0,
+              "type": "integer"
+            },
+            "kind": {
+              "const": "event",
+              "type": "string"
+            }
+          },
+          "required": [
+            "kind",
+            "id"
+          ],
+          "type": "object"
+        },
+        {
+          "description": "A ruling house.",
+          "properties": {
+            "id": {
+              "description": "Dynasty id.",
+              "type": "string"
+            },
+            "kind": {
+              "const": "dynasty",
+              "type": "string"
+            }
+          },
+          "required": [
+            "kind",
+            "id"
+          ],
+          "type": "object"
+        },
+        {
+          "description": "A trade good.",
+          "properties": {
+            "key": {
+              "description": "Good key.",
+              "type": "string"
+            },
+            "kind": {
+              "const": "good",
+              "type": "string"
+            }
+          },
+          "required": [
+            "kind",
+            "key"
+          ],
+          "type": "object"
+        }
+      ]
+    },
+    "EventKind": {
+      "description": "What happened.",
+      "oneOf": [
+        {
+          "const": "founding",
+          "description": "A settlement is founded.",
+          "type": "string"
+        },
+        {
+          "const": "realm_formed",
+          "description": "A realm is formed around its seat.",
+          "type": "string"
+        },
+        {
+          "const": "dynasty_founded",
+          "description": "A new ruling house takes power.",
+          "type": "string"
+        },
+        {
+          "const": "accession",
+          "description": "A ruler takes the throne.",
+          "type": "string"
+        },
+        {
+          "const": "war",
+          "description": "A war begins.",
+          "type": "string"
+        },
+        {
+          "const": "peace",
+          "description": "A war ends in a peace.",
+          "type": "string"
+        },
+        {
+          "const": "border_shift",
+          "description": "A settlement passes from one realm to another.",
+          "type": "string"
+        },
+        {
+          "const": "flood",
+          "description": "A river flood.",
+          "type": "string"
+        },
+        {
+          "const": "plague",
+          "description": "An epidemic.",
+          "type": "string"
+        },
+        {
+          "const": "fire",
+          "description": "A town fire.",
+          "type": "string"
+        },
+        {
+          "const": "famine",
+          "description": "A failed harvest.",
+          "type": "string"
+        },
+        {
+          "const": "mine_collapse",
+          "description": "A mine disaster.",
+          "type": "string"
+        },
+        {
+          "const": "abandonment",
+          "description": "A settlement is abandoned and becomes a ruin.",
+          "type": "string"
+        }
+      ]
+    }
+  },
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "description": "One timeline entry.",
+  "properties": {
+    "cause": {
+      "description": "Event that caused this one.",
+      "format": "uint32",
+      "minimum": 0,
+      "type": [
+        "integer",
+        "null"
+      ]
+    },
+    "end_year": {
+      "description": "Year it ended, for lasting events; `None` if instantaneous or ongoing.",
+      "format": "int32",
+      "type": [
+        "integer",
+        "null"
+      ]
+    },
+    "id": {
+      "description": "Stable id, in timeline order.",
+      "format": "uint32",
+      "minimum": 0,
+      "type": "integer"
+    },
+    "kind": {
+      "$ref": "#/$defs/EventKind",
+      "description": "Kind."
+    },
+    "ongoing": {
+      "description": "Whether it is still going on at present.",
+      "type": "boolean"
+    },
+    "realms": {
+      "description": "Realms involved.",
+      "items": {
+        "type": "string"
+      },
+      "type": "array"
+    },
+    "refs": {
+      "description": "Further references.",
+      "items": {
+        "$ref": "#/$defs/EntityRef"
+      },
+      "type": "array"
+    },
+    "settlements": {
+      "description": "Settlements involved.",
+      "items": {
+        "type": "string"
+      },
+      "type": "array"
+    },
+    "severity": {
+      "description": "1 (minor) to 3 (catastrophic).",
+      "format": "uint8",
+      "maximum": 255,
+      "minimum": 0,
+      "type": "integer"
+    },
+    "text": {
+      "description": "One or two sentences of original text.",
+      "type": "string"
+    },
+    "title": {
+      "description": "Short title.",
+      "type": "string"
+    },
+    "year": {
+      "description": "Year it began.",
+      "format": "int32",
+      "type": "integer"
+    }
+  },
+  "required": [
+    "id",
+    "year",
+    "ongoing",
+    "kind",
+    "title",
+    "text",
+    "settlements",
+    "realms",
+    "refs",
+    "severity"
+  ],
+  "title": "Event",
+  "type": "object"
+}

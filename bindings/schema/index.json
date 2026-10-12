@@ -47,6 +47,13 @@
       "url": "/v1/schema/DungeonDto.json"
     },
     {
+      "name": "Event",
+      "routes": [
+        "RealmDetail.events[]"
+      ],
+      "url": "/v1/schema/Event.json"
+    },
+    {
       "name": "Health",
       "routes": [
         "GET /v1/health"
@@ -118,6 +125,41 @@
         "POST /v1/tactical/prefetch (request)"
       ],
       "url": "/v1/schema/PrefetchRequest.json"
+    },
+    {
+      "name": "Realm",
+      "routes": [
+        "RealmDetail.record"
+      ],
+      "url": "/v1/schema/Realm.json"
+    },
+    {
+      "name": "RealmDetail",
+      "routes": [
+        "GET /v1/realms/{id}"
+      ],
+      "url": "/v1/schema/RealmDetail.json"
+    },
+    {
+      "name": "RealmList",
+      "routes": [
+        "GET /v1/realms"
+      ],
+      "url": "/v1/schema/RealmList.json"
+    },
+    {
+      "name": "RealmSociety",
+      "routes": [
+        "RealmDetail.politics"
+      ],
+      "url": "/v1/schema/RealmSociety.json"
+    },
+    {
+      "name": "Relation",
+      "routes": [
+        "RealmDetail.relations[]"
+      ],
+      "url": "/v1/schema/Relation.json"
     },
     {
       "name": "RulesSidecarDto",

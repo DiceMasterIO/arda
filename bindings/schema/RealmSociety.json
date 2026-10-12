@@ -1,0 +1,454 @@
+{
+  "$defs": {
+    "EntityRef": {
+      "description": "A reference to one entity of the input world or of the society.",
+      "oneOf": [
+        {
+          "description": "An input settlement.",
+          "properties": {
+            "id": {
+              "description": "Settlement id.",
+              "type": "string"
+            },
+            "kind": {
+              "const": "settlement",
+              "type": "string"
+            }
+          },
+          "required": [
+            "kind",
+            "id"
+          ],
+          "type": "object"
+        },
+        {
+          "description": "An input realm.",
+          "properties": {
+            "id": {
+              "description": "Realm id.",
+              "type": "string"
+            },
+            "kind": {
+              "const": "realm",
+              "type": "string"
+            }
+          },
+          "required": [
+            "kind",
+            "id"
+          ],
+          "type": "object"
+        },
+        {
+          "description": "An input road.",
+          "properties": {
+            "id": {
+              "description": "Road id.",
+              "type": "string"
+            },
+            "kind": {
+              "const": "road",
+              "type": "string"
+            }
+          },
+          "required": [
+            "kind",
+            "id"
+          ],
+          "type": "object"
+        },
+        {
+          "description": "A building of a settlement.",
+          "properties": {
+            "id": {
+              "description": "Building id within the settlement.",
+              "type": "string"
+            },
+            "kind": {
+              "const": "building",
+              "type": "string"
+            },
+            "settlement": {
+              "description": "Settlement id.",
+              "type": "string"
+            }
+          },
+          "required": [
+            "kind",
+            "settlement",
+            "id"
+          ],
+          "type": "object"
+        },
+        {
+          "description": "A faction.",
+          "properties": {
+            "id": {
+              "description": "Faction id.",
+              "type": "string"
+            },
+            "kind": {
+              "const": "faction",
+              "type": "string"
+            }
+          },
+          "required": [
+            "kind",
+            "id"
+          ],
+          "type": "object"
+        },
+        {
+          "description": "A notable NPC slot.",
+          "properties": {
+            "id": {
+              "description": "Role id.",
+              "type": "string"
+            },
+            "kind": {
+              "const": "role",
+              "type": "string"
+            }
+          },
+          "required": [
+            "kind",
+            "id"
+          ],
+          "type": "object"
+        },
+        {
+          "description": "A ruin of an abandoned settlement.",
+          "properties": {
+            "id": {
+              "description": "Ruin id.",
+              "format": "uint32",
+              "minimum": 0,
+              "type": "integer"
+            },
+            "kind": {
+              "const": "ruin",
+              "type": "string"
+            }
+          },
+          "required": [
+            "kind",
+            "id"
+          ],
+          "type": "object"
+        },
+        {
+          "description": "A timeline event.",
+          "properties": {
+            "id": {
+              "description": "Event id.",
+              "format": "uint32",
+              "minimum": 0,
+              "type": "integer"
+            },
+            "kind": {
+              "const": "event",
+              "type": "string"
+            }
+          },
+          "required": [
+            "kind",
+            "id"
+          ],
+          "type": "object"
+        },
+        {
+          "description": "A ruling house.",
+          "properties": {
+            "id": {
+              "description": "Dynasty id.",
+              "type": "string"
+            },
+            "kind": {
+              "const": "dynasty",
+              "type": "string"
+            }
+          },
+          "required": [
+            "kind",
+            "id"
+          ],
+          "type": "object"
+        },
+        {
+          "description": "A trade good.",
+          "properties": {
+            "key": {
+              "description": "Good key.",
+              "type": "string"
+            },
+            "kind": {
+              "const": "good",
+              "type": "string"
+            }
+          },
+          "required": [
+            "kind",
+            "key"
+          ],
+          "type": "object"
+        }
+      ]
+    },
+    "Hook": {
+      "description": "One plot hook.",
+      "properties": {
+        "id": {
+          "description": "Stable id (`h<settlement>.<kind>` or `hr<realm>.<kind>`).",
+          "type": "string"
+        },
+        "kind": {
+          "description": "Kind key.",
+          "type": "string"
+        },
+        "refs": {
+          "description": "Entities involved.",
+          "items": {
+            "$ref": "#/$defs/EntityRef"
+          },
+          "type": "array"
+        },
+        "tension": {
+          "description": "How hot the tension is, 0–100.",
+          "format": "uint8",
+          "maximum": 255,
+          "minimum": 0,
+          "type": "integer"
+        },
+        "text": {
+          "description": "Two or three sentences for the referee.",
+          "type": "string"
+        },
+        "title": {
+          "description": "Title.",
+          "type": "string"
+        }
+      },
+      "required": [
+        "id",
+        "kind",
+        "title",
+        "text",
+        "tension",
+        "refs"
+      ],
+      "type": "object"
+    },
+    "Ruler": {
+      "description": "The present ruler of a realm.",
+      "properties": {
+        "dynasty": {
+          "description": "Ruling house id.",
+          "type": "string"
+        },
+        "female": {
+          "description": "Female ruler.",
+          "type": "boolean"
+        },
+        "given": {
+          "description": "Given name.",
+          "type": "string"
+        },
+        "house": {
+          "description": "House name.",
+          "type": "string"
+        },
+        "regnal": {
+          "description": "Regnal style.",
+          "type": "string"
+        },
+        "role": {
+          "description": "NPC slot at the seat.",
+          "type": "string"
+        },
+        "since": {
+          "description": "Reigning since.",
+          "format": "int32",
+          "type": "integer"
+        },
+        "title": {
+          "description": "Title.",
+          "type": "string"
+        }
+      },
+      "required": [
+        "role",
+        "given",
+        "regnal",
+        "title",
+        "female",
+        "dynasty",
+        "house",
+        "since"
+      ],
+      "type": "object"
+    },
+    "Vassal": {
+      "description": "A vassal lord.",
+      "properties": {
+        "claimant": {
+          "description": "Whether the house once held the throne and could claim it again.",
+          "type": "boolean"
+        },
+        "female": {
+          "description": "Female lord.",
+          "type": "boolean"
+        },
+        "given": {
+          "description": "Suggested given name.",
+          "type": "string"
+        },
+        "grievances": {
+          "description": "Grievances against the crown.",
+          "items": {
+            "type": "string"
+          },
+          "type": "array"
+        },
+        "house": {
+          "description": "House name.",
+          "type": "string"
+        },
+        "loyalty": {
+          "description": "Loyalty to the ruler, 0–100.",
+          "format": "uint8",
+          "maximum": 255,
+          "minimum": 0,
+          "type": "integer"
+        },
+        "role": {
+          "description": "NPC slot of the lord.",
+          "type": "string"
+        },
+        "settlement": {
+          "description": "Settlement held.",
+          "type": "string"
+        },
+        "title": {
+          "description": "Title.",
+          "type": "string"
+        }
+      },
+      "required": [
+        "settlement",
+        "role",
+        "title",
+        "given",
+        "female",
+        "house",
+        "loyalty",
+        "grievances",
+        "claimant"
+      ],
+      "type": "object"
+    }
+  },
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "description": "A realm today with its region-level plot hooks.",
+  "properties": {
+    "culture": {
+      "description": "Culture of the seat.",
+      "type": "string"
+    },
+    "founded": {
+      "description": "Year formed.",
+      "format": "int32",
+      "type": "integer"
+    },
+    "government": {
+      "description": "Government key.",
+      "type": "string"
+    },
+    "government_label": {
+      "description": "Readable government.",
+      "type": "string"
+    },
+    "hooks": {
+      "description": "3–5 plot hooks.",
+      "items": {
+        "$ref": "#/$defs/Hook"
+      },
+      "type": "array"
+    },
+    "id": {
+      "description": "Realm id.",
+      "type": "string"
+    },
+    "levy_sp": {
+      "description": "Yearly levy on the realm's trade, silver pieces.",
+      "format": "uint64",
+      "minimum": 0,
+      "type": "integer"
+    },
+    "members": {
+      "description": "Member settlements.",
+      "items": {
+        "type": "string"
+      },
+      "type": "array"
+    },
+    "name": {
+      "description": "Realm name.",
+      "type": "string"
+    },
+    "population": {
+      "description": "Total population.",
+      "format": "uint64",
+      "minimum": 0,
+      "type": "integer"
+    },
+    "rank": {
+      "description": "`kingdom`, `duchy` or `county`.",
+      "type": "string"
+    },
+    "ruler": {
+      "$ref": "#/$defs/Ruler",
+      "description": "Present ruler."
+    },
+    "seat": {
+      "description": "Seat settlement.",
+      "type": "string"
+    },
+    "style": {
+      "description": "Formal style, e.g. \"the Duchy of Veld\".",
+      "type": "string"
+    },
+    "tax_pct": {
+      "description": "Levy on trade, percent.",
+      "format": "uint32",
+      "minimum": 0,
+      "type": "integer"
+    },
+    "vassals": {
+      "description": "Vassal lords.",
+      "items": {
+        "$ref": "#/$defs/Vassal"
+      },
+      "type": "array"
+    }
+  },
+  "required": [
+    "id",
+    "name",
+    "style",
+    "government",
+    "government_label",
+    "rank",
+    "seat",
+    "founded",
+    "members",
+    "population",
+    "culture",
+    "tax_pct",
+    "levy_sp",
+    "ruler",
+    "vassals",
+    "hooks"
+  ],
+  "title": "RealmSociety",
+  "type": "object"
+}

@@ -1,0 +1,898 @@
+{
+  "$defs": {
+    "EntityRef": {
+      "description": "A reference to one entity of the input world or of the society.",
+      "oneOf": [
+        {
+          "description": "An input settlement.",
+          "properties": {
+            "id": {
+              "description": "Settlement id.",
+              "type": "string"
+            },
+            "kind": {
+              "const": "settlement",
+              "type": "string"
+            }
+          },
+          "required": [
+            "kind",
+            "id"
+          ],
+          "type": "object"
+        },
+        {
+          "description": "An input realm.",
+          "properties": {
+            "id": {
+              "description": "Realm id.",
+              "type": "string"
+            },
+            "kind": {
+              "const": "realm",
+              "type": "string"
+            }
+          },
+          "required": [
+            "kind",
+            "id"
+          ],
+          "type": "object"
+        },
+        {
+          "description": "An input road.",
+          "properties": {
+            "id": {
+              "description": "Road id.",
+              "type": "string"
+            },
+            "kind": {
+              "const": "road",
+              "type": "string"
+            }
+          },
+          "required": [
+            "kind",
+            "id"
+          ],
+          "type": "object"
+        },
+        {
+          "description": "A building of a settlement.",
+          "properties": {
+            "id": {
+              "description": "Building id within the settlement.",
+              "type": "string"
+            },
+            "kind": {
+              "const": "building",
+              "type": "string"
+            },
+            "settlement": {
+              "description": "Settlement id.",
+              "type": "string"
+            }
+          },
+          "required": [
+            "kind",
+            "settlement",
+            "id"
+          ],
+          "type": "object"
+        },
+        {
+          "description": "A faction.",
+          "properties": {
+            "id": {
+              "description": "Faction id.",
+              "type": "string"
+            },
+            "kind": {
+              "const": "faction",
+              "type": "string"
+            }
+          },
+          "required": [
+            "kind",
+            "id"
+          ],
+          "type": "object"
+        },
+        {
+          "description": "A notable NPC slot.",
+          "properties": {
+            "id": {
+              "description": "Role id.",
+              "type": "string"
+            },
+            "kind": {
+              "const": "role",
+              "type": "string"
+            }
+          },
+          "required": [
+            "kind",
+            "id"
+          ],
+          "type": "object"
+        },
+        {
+          "description": "A ruin of an abandoned settlement.",
+          "properties": {
+            "id": {
+              "description": "Ruin id.",
+              "format": "uint32",
+              "minimum": 0,
+              "type": "integer"
+            },
+            "kind": {
+              "const": "ruin",
+              "type": "string"
+            }
+          },
+          "required": [
+            "kind",
+            "id"
+          ],
+          "type": "object"
+        },
+        {
+          "description": "A timeline event.",
+          "properties": {
+            "id": {
+              "description": "Event id.",
+              "format": "uint32",
+              "minimum": 0,
+              "type": "integer"
+            },
+            "kind": {
+              "const": "event",
+              "type": "string"
+            }
+          },
+          "required": [
+            "kind",
+            "id"
+          ],
+          "type": "object"
+        },
+        {
+          "description": "A ruling house.",
+          "properties": {
+            "id": {
+              "description": "Dynasty id.",
+              "type": "string"
+            },
+            "kind": {
+              "const": "dynasty",
+              "type": "string"
+            }
+          },
+          "required": [
+            "kind",
+            "id"
+          ],
+          "type": "object"
+        },
+        {
+          "description": "A trade good.",
+          "properties": {
+            "key": {
+              "description": "Good key.",
+              "type": "string"
+            },
+            "kind": {
+              "const": "good",
+              "type": "string"
+            }
+          },
+          "required": [
+            "kind",
+            "key"
+          ],
+          "type": "object"
+        }
+      ]
+    },
+    "Event": {
+      "description": "One timeline entry.",
+      "properties": {
+        "cause": {
+          "description": "Event that caused this one.",
+          "format": "uint32",
+          "minimum": 0,
+          "type": [
+            "integer",
+            "null"
+          ]
+        },
+        "end_year": {
+          "description": "Year it ended, for lasting events; `None` if instantaneous or ongoing.",
+          "format": "int32",
+          "type": [
+            "integer",
+            "null"
+          ]
+        },
+        "id": {
+          "description": "Stable id, in timeline order.",
+          "format": "uint32",
+          "minimum": 0,
+          "type": "integer"
+        },
+        "kind": {
+          "$ref": "#/$defs/EventKind",
+          "description": "Kind."
+        },
+        "ongoing": {
+          "description": "Whether it is still going on at present.",
+          "type": "boolean"
+        },
+        "realms": {
+          "description": "Realms involved.",
+          "items": {
+            "type": "string"
+          },
+          "type": "array"
+        },
+        "refs": {
+          "description": "Further references.",
+          "items": {
+            "$ref": "#/$defs/EntityRef"
+          },
+          "type": "array"
+        },
+        "settlements": {
+          "description": "Settlements involved.",
+          "items": {
+            "type": "string"
+          },
+          "type": "array"
+        },
+        "severity": {
+          "description": "1 (minor) to 3 (catastrophic).",
+          "format": "uint8",
+          "maximum": 255,
+          "minimum": 0,
+          "type": "integer"
+        },
+        "text": {
+          "description": "One or two sentences of original text.",
+          "type": "string"
+        },
+        "title": {
+          "description": "Short title.",
+          "type": "string"
+        },
+        "year": {
+          "description": "Year it began.",
+          "format": "int32",
+          "type": "integer"
+        }
+      },
+      "required": [
+        "id",
+        "year",
+        "ongoing",
+        "kind",
+        "title",
+        "text",
+        "settlements",
+        "realms",
+        "refs",
+        "severity"
+      ],
+      "type": "object"
+    },
+    "EventKind": {
+      "description": "What happened.",
+      "oneOf": [
+        {
+          "const": "founding",
+          "description": "A settlement is founded.",
+          "type": "string"
+        },
+        {
+          "const": "realm_formed",
+          "description": "A realm is formed around its seat.",
+          "type": "string"
+        },
+        {
+          "const": "dynasty_founded",
+          "description": "A new ruling house takes power.",
+          "type": "string"
+        },
+        {
+          "const": "accession",
+          "description": "A ruler takes the throne.",
+          "type": "string"
+        },
+        {
+          "const": "war",
+          "description": "A war begins.",
+          "type": "string"
+        },
+        {
+          "const": "peace",
+          "description": "A war ends in a peace.",
+          "type": "string"
+        },
+        {
+          "const": "border_shift",
+          "description": "A settlement passes from one realm to another.",
+          "type": "string"
+        },
+        {
+          "const": "flood",
+          "description": "A river flood.",
+          "type": "string"
+        },
+        {
+          "const": "plague",
+          "description": "An epidemic.",
+          "type": "string"
+        },
+        {
+          "const": "fire",
+          "description": "A town fire.",
+          "type": "string"
+        },
+        {
+          "const": "famine",
+          "description": "A failed harvest.",
+          "type": "string"
+        },
+        {
+          "const": "mine_collapse",
+          "description": "A mine disaster.",
+          "type": "string"
+        },
+        {
+          "const": "abandonment",
+          "description": "A settlement is abandoned and becomes a ruin.",
+          "type": "string"
+        }
+      ]
+    },
+    "Hook": {
+      "description": "One plot hook.",
+      "properties": {
+        "id": {
+          "description": "Stable id (`h<settlement>.<kind>` or `hr<realm>.<kind>`).",
+          "type": "string"
+        },
+        "kind": {
+          "description": "Kind key.",
+          "type": "string"
+        },
+        "refs": {
+          "description": "Entities involved.",
+          "items": {
+            "$ref": "#/$defs/EntityRef"
+          },
+          "type": "array"
+        },
+        "tension": {
+          "description": "How hot the tension is, 0–100.",
+          "format": "uint8",
+          "maximum": 255,
+          "minimum": 0,
+          "type": "integer"
+        },
+        "text": {
+          "description": "Two or three sentences for the referee.",
+          "type": "string"
+        },
+        "title": {
+          "description": "Title.",
+          "type": "string"
+        }
+      },
+      "required": [
+        "id",
+        "kind",
+        "title",
+        "text",
+        "tension",
+        "refs"
+      ],
+      "type": "object"
+    },
+    "Realm": {
+      "description": "One realm, as written to `society/realms.json`.",
+      "properties": {
+        "borders": {
+          "description": "Land borders as polylines of `[x_m, y_m]` cell corners.",
+          "items": {
+            "items": {
+              "items": {
+                "format": "int64",
+                "type": "integer"
+              },
+              "maxItems": 2,
+              "minItems": 2,
+              "type": "array"
+            },
+            "type": "array"
+          },
+          "type": "array"
+        },
+        "culture": {
+          "description": "Culture of the seat.",
+          "type": "string"
+        },
+        "id": {
+          "description": "1-based id.",
+          "type": "string"
+        },
+        "land_cells": {
+          "description": "Land cells (hectares).",
+          "format": "uint64",
+          "minimum": 0,
+          "type": "integer"
+        },
+        "name": {
+          "description": "Name, filled by the naming stage.",
+          "type": "string"
+        },
+        "name_gloss": {
+          "description": "English gloss of the name (\"Oakmark\").",
+          "type": "string"
+        },
+        "neighbours": {
+          "description": "Realms sharing a land border.",
+          "items": {
+            "type": "string"
+          },
+          "type": "array"
+        },
+        "population": {
+          "description": "Total population of members.",
+          "format": "uint64",
+          "minimum": 0,
+          "type": "integer"
+        },
+        "seat": {
+          "description": "Seat settlement id.",
+          "type": "string"
+        },
+        "settlements": {
+          "description": "Member settlement ids.",
+          "items": {
+            "type": "string"
+          },
+          "type": "array"
+        }
+      },
+      "required": [
+        "id",
+        "name",
+        "name_gloss",
+        "seat",
+        "culture",
+        "settlements",
+        "population",
+        "land_cells",
+        "neighbours",
+        "borders"
+      ],
+      "type": "object"
+    },
+    "RealmSociety": {
+      "description": "A realm today with its region-level plot hooks.",
+      "properties": {
+        "culture": {
+          "description": "Culture of the seat.",
+          "type": "string"
+        },
+        "founded": {
+          "description": "Year formed.",
+          "format": "int32",
+          "type": "integer"
+        },
+        "government": {
+          "description": "Government key.",
+          "type": "string"
+        },
+        "government_label": {
+          "description": "Readable government.",
+          "type": "string"
+        },
+        "hooks": {
+          "description": "3–5 plot hooks.",
+          "items": {
+            "$ref": "#/$defs/Hook"
+          },
+          "type": "array"
+        },
+        "id": {
+          "description": "Realm id.",
+          "type": "string"
+        },
+        "levy_sp": {
+          "description": "Yearly levy on the realm's trade, silver pieces.",
+          "format": "uint64",
+          "minimum": 0,
+          "type": "integer"
+        },
+        "members": {
+          "description": "Member settlements.",
+          "items": {
+            "type": "string"
+          },
+          "type": "array"
+        },
+        "name": {
+          "description": "Realm name.",
+          "type": "string"
+        },
+        "population": {
+          "description": "Total population.",
+          "format": "uint64",
+          "minimum": 0,
+          "type": "integer"
+        },
+        "rank": {
+          "description": "`kingdom`, `duchy` or `county`.",
+          "type": "string"
+        },
+        "ruler": {
+          "$ref": "#/$defs/Ruler",
+          "description": "Present ruler."
+        },
+        "seat": {
+          "description": "Seat settlement.",
+          "type": "string"
+        },
+        "style": {
+          "description": "Formal style, e.g. \"the Duchy of Veld\".",
+          "type": "string"
+        },
+        "tax_pct": {
+          "description": "Levy on trade, percent.",
+          "format": "uint32",
+          "minimum": 0,
+          "type": "integer"
+        },
+        "vassals": {
+          "description": "Vassal lords.",
+          "items": {
+            "$ref": "#/$defs/Vassal"
+          },
+          "type": "array"
+        }
+      },
+      "required": [
+        "id",
+        "name",
+        "style",
+        "government",
+        "government_label",
+        "rank",
+        "seat",
+        "founded",
+        "members",
+        "population",
+        "culture",
+        "tax_pct",
+        "levy_sp",
+        "ruler",
+        "vassals",
+        "hooks"
+      ],
+      "type": "object"
+    },
+    "Reign": {
+      "description": "One reign.",
+      "properties": {
+        "dynasty_id": {
+          "description": "Ruling house.",
+          "type": "string"
+        },
+        "end": {
+          "description": "How the reign ended (`died`, `fell`, `deposed`, `plague`, `abdicated`, `heirless`).",
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "female": {
+          "description": "Female ruler.",
+          "type": "boolean"
+        },
+        "from": {
+          "description": "First year.",
+          "format": "int32",
+          "type": "integer"
+        },
+        "given": {
+          "description": "Given name.",
+          "type": "string"
+        },
+        "realm_id": {
+          "description": "Realm ruled.",
+          "type": "string"
+        },
+        "regnal": {
+          "description": "Regnal style, e.g. \"Oswin II the Patient\".",
+          "type": "string"
+        },
+        "title": {
+          "description": "Title held.",
+          "type": "string"
+        },
+        "to": {
+          "description": "Last year; `None` if reigning now.",
+          "format": "int32",
+          "type": [
+            "integer",
+            "null"
+          ]
+        }
+      },
+      "required": [
+        "realm_id",
+        "dynasty_id",
+        "given",
+        "regnal",
+        "female",
+        "title",
+        "from"
+      ],
+      "type": "object"
+    },
+    "Relation": {
+      "description": "Relation between realms `a < b`.",
+      "properties": {
+        "a": {
+          "description": "Lower realm id.",
+          "type": "string"
+        },
+        "b": {
+          "description": "Higher realm id.",
+          "type": "string"
+        },
+        "border_roads": {
+          "description": "Roads crossing their shared border.",
+          "items": {
+            "type": "string"
+          },
+          "type": "array"
+        },
+        "marriage": {
+          "description": "Whether their houses are joined by marriage.",
+          "type": "boolean"
+        },
+        "reasons": {
+          "description": "Why they stand as they do.",
+          "items": {
+            "type": "string"
+          },
+          "type": "array"
+        },
+        "score": {
+          "description": "Underlying score (positive friendly).",
+          "format": "int32",
+          "type": "integer"
+        },
+        "stance": {
+          "$ref": "#/$defs/Stance",
+          "description": "Stance."
+        },
+        "trade_sp": {
+          "description": "Yearly trade between them, silver pieces.",
+          "format": "uint64",
+          "minimum": 0,
+          "type": "integer"
+        },
+        "wars": {
+          "description": "War event ids between them.",
+          "items": {
+            "format": "uint32",
+            "minimum": 0,
+            "type": "integer"
+          },
+          "type": "array"
+        }
+      },
+      "required": [
+        "a",
+        "b",
+        "stance",
+        "score",
+        "border_roads",
+        "trade_sp",
+        "wars",
+        "marriage",
+        "reasons"
+      ],
+      "type": "object"
+    },
+    "Ruler": {
+      "description": "The present ruler of a realm.",
+      "properties": {
+        "dynasty": {
+          "description": "Ruling house id.",
+          "type": "string"
+        },
+        "female": {
+          "description": "Female ruler.",
+          "type": "boolean"
+        },
+        "given": {
+          "description": "Given name.",
+          "type": "string"
+        },
+        "house": {
+          "description": "House name.",
+          "type": "string"
+        },
+        "regnal": {
+          "description": "Regnal style.",
+          "type": "string"
+        },
+        "role": {
+          "description": "NPC slot at the seat.",
+          "type": "string"
+        },
+        "since": {
+          "description": "Reigning since.",
+          "format": "int32",
+          "type": "integer"
+        },
+        "title": {
+          "description": "Title.",
+          "type": "string"
+        }
+      },
+      "required": [
+        "role",
+        "given",
+        "regnal",
+        "title",
+        "female",
+        "dynasty",
+        "house",
+        "since"
+      ],
+      "type": "object"
+    },
+    "Stance": {
+      "description": "How two realms stand.",
+      "oneOf": [
+        {
+          "const": "alliance",
+          "description": "Sworn allies.",
+          "type": "string"
+        },
+        {
+          "const": "trade_pact",
+          "description": "A treaty of trade.",
+          "type": "string"
+        },
+        {
+          "const": "neutral",
+          "description": "No particular ties.",
+          "type": "string"
+        },
+        {
+          "const": "rivalry",
+          "description": "Hostile but at peace.",
+          "type": "string"
+        },
+        {
+          "const": "war",
+          "description": "At war now.",
+          "type": "string"
+        }
+      ]
+    },
+    "Vassal": {
+      "description": "A vassal lord.",
+      "properties": {
+        "claimant": {
+          "description": "Whether the house once held the throne and could claim it again.",
+          "type": "boolean"
+        },
+        "female": {
+          "description": "Female lord.",
+          "type": "boolean"
+        },
+        "given": {
+          "description": "Suggested given name.",
+          "type": "string"
+        },
+        "grievances": {
+          "description": "Grievances against the crown.",
+          "items": {
+            "type": "string"
+          },
+          "type": "array"
+        },
+        "house": {
+          "description": "House name.",
+          "type": "string"
+        },
+        "loyalty": {
+          "description": "Loyalty to the ruler, 0–100.",
+          "format": "uint8",
+          "maximum": 255,
+          "minimum": 0,
+          "type": "integer"
+        },
+        "role": {
+          "description": "NPC slot of the lord.",
+          "type": "string"
+        },
+        "settlement": {
+          "description": "Settlement held.",
+          "type": "string"
+        },
+        "title": {
+          "description": "Title.",
+          "type": "string"
+        }
+      },
+      "required": [
+        "settlement",
+        "role",
+        "title",
+        "given",
+        "female",
+        "house",
+        "loyalty",
+        "grievances",
+        "claimant"
+      ],
+      "type": "object"
+    }
+  },
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "description": "`GET /v1/realms/{id}`.",
+  "properties": {
+    "events": {
+      "description": "History events that list this realm.",
+      "items": {
+        "$ref": "#/$defs/Event"
+      },
+      "type": "array"
+    },
+    "politics": {
+      "anyOf": [
+        {
+          "$ref": "#/$defs/RealmSociety"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "description": "The realm today with its hooks, or `null` before `arda society build`."
+    },
+    "record": {
+      "$ref": "#/$defs/Realm",
+      "description": "The `realms.json` record, with borders."
+    },
+    "reigns": {
+      "description": "Reigns of this realm, oldest first.",
+      "items": {
+        "$ref": "#/$defs/Reign"
+      },
+      "type": "array"
+    },
+    "relations": {
+      "description": "Relations involving this realm.",
+      "items": {
+        "$ref": "#/$defs/Relation"
+      },
+      "type": "array"
+    }
+  },
+  "required": [
+    "record",
+    "relations",
+    "events",
+    "reigns"
+  ],
+  "title": "RealmDetail",
+  "type": "object"
+}

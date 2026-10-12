@@ -13,7 +13,10 @@
 mod bodies;
 pub mod routes;
 
-pub use bodies::{SettlementDetail, SettlementList, SettlementNpcs};
+pub use bodies::{
+    RealmDetail, RealmList, RealmRuler, RealmSummary, SettlementDetail, SettlementList,
+    SettlementNpcs,
+};
 
 use crate::error::{ServerError, ServerResult};
 use schemars::JsonSchema;
@@ -134,6 +137,12 @@ catalog! {
     "SettlementSociety" => arda_society::SettlementSociety, ["SettlementDetail.society"];
     "TownPlan" => arda_town::TownPlan, ["GET /v1/settlements/{id}/plan"];
     "SettlementNpcs" => SettlementNpcs, ["GET /v1/settlements/{id}/npcs"];
+    "Realm" => arda_settle::realms::Realm, ["RealmDetail.record"];
+    "RealmList" => RealmList, ["GET /v1/realms"];
+    "RealmDetail" => RealmDetail, ["GET /v1/realms/{id}"];
+    "RealmSociety" => arda_society::RealmSociety, ["RealmDetail.politics"];
+    "Relation" => arda_society::politics::relations::Relation, ["RealmDetail.relations[]"];
+    "Event" => arda_society::history::Event, ["RealmDetail.events[]"];
     "SchemaIndex" => SchemaIndex, ["GET /v1/schema"];
 }
 

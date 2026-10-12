@@ -158,6 +158,17 @@ async fn village() -> Value {
 }
 
 #[tokio::test]
+async fn realm_bodies_validate() {
+    let list = checked("RealmList", "/v1/realms").await;
+    let realms = list["realms"].as_array().unwrap();
+    assert!(!realms.is_empty());
+    for r in realms {
+        let id = r["id"].as_str().unwrap();
+        checked("RealmDetail", &format!("/v1/realms/{id}")).await;
+    }
+}
+
+#[tokio::test]
 async fn settlement_people_and_scene_bodies_validate() {
     let v = village().await;
     let id = v["id"].as_str().unwrap();

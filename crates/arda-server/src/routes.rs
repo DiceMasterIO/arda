@@ -54,6 +54,8 @@ pub fn router(state: Arc<AppState>) -> Router {
         .route("/settlements/{id}", get(crate::people::one))
         .route("/settlements/{id}/plan", get(crate::people::plan))
         .route("/settlements/{id}/npcs", get(crate::people::npcs))
+        .route("/realms", get(crate::realms::list))
+        .route("/realms/{id}", get(crate::realms::one))
         .route("/schema", get(crate::schema::routes::index))
         .route("/schema/{name}", get(crate::schema::routes::one))
         .nest(

@@ -1,0 +1,82 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "description": "One realm, as written to `society/realms.json`.",
+  "properties": {
+    "borders": {
+      "description": "Land borders as polylines of `[x_m, y_m]` cell corners.",
+      "items": {
+        "items": {
+          "items": {
+            "format": "int64",
+            "type": "integer"
+          },
+          "maxItems": 2,
+          "minItems": 2,
+          "type": "array"
+        },
+        "type": "array"
+      },
+      "type": "array"
+    },
+    "culture": {
+      "description": "Culture of the seat.",
+      "type": "string"
+    },
+    "id": {
+      "description": "1-based id.",
+      "type": "string"
+    },
+    "land_cells": {
+      "description": "Land cells (hectares).",
+      "format": "uint64",
+      "minimum": 0,
+      "type": "integer"
+    },
+    "name": {
+      "description": "Name, filled by the naming stage.",
+      "type": "string"
+    },
+    "name_gloss": {
+      "description": "English gloss of the name (\"Oakmark\").",
+      "type": "string"
+    },
+    "neighbours": {
+      "description": "Realms sharing a land border.",
+      "items": {
+        "type": "string"
+      },
+      "type": "array"
+    },
+    "population": {
+      "description": "Total population of members.",
+      "format": "uint64",
+      "minimum": 0,
+      "type": "integer"
+    },
+    "seat": {
+      "description": "Seat settlement id.",
+      "type": "string"
+    },
+    "settlements": {
+      "description": "Member settlement ids.",
+      "items": {
+        "type": "string"
+      },
+      "type": "array"
+    }
+  },
+  "required": [
+    "id",
+    "name",
+    "name_gloss",
+    "seat",
+    "culture",
+    "settlements",
+    "population",
+    "land_cells",
+    "neighbours",
+    "borders"
+  ],
+  "title": "Realm",
+  "type": "object"
+}
