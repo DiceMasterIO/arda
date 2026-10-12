@@ -95,6 +95,9 @@ pub(crate) struct Plan<'a> {
     pub ids: Vec<NpcId>,
     /// `(id, person)` sorted by id, for lookups.
     pub by_id: Vec<(NpcId, usize)>,
+    /// The only land job, when set (`generate_one`, logic/13
+    /// §npc-generate-one); `None` for every real settlement.
+    pub land_job: Option<&'static str>,
 }
 
 impl<'a> Plan<'a> {
@@ -104,6 +107,18 @@ impl<'a> Plan<'a> {
         settlement: &'a SettlementProfile,
         input: &'a [BuildingSpec],
         notables: &'a [NotableSlot],
+    ) -> Result<Self, NpcError> {
+        Self::build_with(seed, settlement, input, notables, None)
+    }
+
+    /// Builds the skeleton; with `land_job`, everyone who takes a land
+    /// job takes that one (the synthetic settlement of `generate_one`).
+    pub(crate) fn build_with(
+        seed: u64,
+        settlement: &'a SettlementProfile,
+        input: &'a [BuildingSpec],
+        notables: &'a [NotableSlot],
+        land_job: Option<&'static str>,
     ) -> Result<Self, NpcError> {
         let data = Data::get()?;
         let mut buildings: Vec<&BuildingSpec> = input.iter().collect();
@@ -167,6 +182,7 @@ impl<'a> Plan<'a> {
             crafts: Vec::new(),
             ids: Vec::new(),
             by_id: Vec::new(),
+            land_job,
         };
         plan.crafts = (0..plan.buildings.len()).map(|b| plan.craft(b)).collect();
         let occupancy = plan.occupancy()?;

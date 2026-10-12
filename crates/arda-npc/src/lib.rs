@@ -19,6 +19,7 @@ pub mod error;
 pub mod input;
 mod names;
 pub mod npc;
+pub mod one;
 mod personality;
 mod plan;
 pub mod population;
@@ -39,6 +40,7 @@ pub use npc::{
     HouseholdId, Ideal, Job, JobCategory, Lifestyle, Name, Npc, NpcId, Personality, RelationKind,
     Relationship, Sex, SocialRank,
 };
+pub use one::{generate_one, OneRequest};
 pub use population::{Household, HouseholdRelation, Population, RosterEntry};
 pub use sheet::Sheet;
 pub use skeleton::Resident;

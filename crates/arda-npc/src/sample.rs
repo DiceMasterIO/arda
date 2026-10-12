@@ -8,7 +8,7 @@ use crate::input::{
 use crate::rng::{Rng, SeedKey};
 
 /// Resident capacity of each building function in the samples.
-fn capacity(function: F) -> u16 {
+pub(crate) fn capacity(function: F) -> u16 {
     match function {
         F::House => 6,
         F::Farmhouse => 7,

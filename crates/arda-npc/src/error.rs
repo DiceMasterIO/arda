@@ -36,4 +36,23 @@ pub enum NpcError {
     /// The id does not name an inhabitant of this settlement.
     #[error("no inhabitant {0:?} in this settlement")]
     UnknownNpc(NpcId),
+    /// A request names a key the bundled tables do not have
+    /// (`generate_one`: a job, office, ancestry or culture).
+    #[error("unknown {what} {key:?}; valid: {valid}")]
+    UnknownKey {
+        /// What kind of key: `job`, `office`, `ancestry` or `culture`.
+        what: &'static str,
+        /// The key as given.
+        key: String,
+        /// The valid keys, comma-separated.
+        valid: String,
+    },
+    /// A request asks for something its own inputs rule out, such as a
+    /// rank the job does not have in the tier (`generate_one`).
+    #[error("{0}")]
+    Unreachable(String),
+    /// Every bounded attempt produced nobody who matches every filter
+    /// (`generate_one`).
+    #[error("{0}")]
+    Unsatisfiable(String),
 }

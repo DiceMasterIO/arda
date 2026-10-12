@@ -194,6 +194,9 @@ impl Plan<'_> {
     /// Land-job weights for this settlement: base plus function bonuses,
     /// scaled by the tier's rural or urban factor.
     fn land_weights(&self) -> Vec<(&'static str, u32)> {
+        if let Some(job) = self.land_job {
+            return vec![(job, 1)];
+        }
         let water = self.settlement.coastal
             || self.settlement.riverine
             || self.settlement.has(SettlementFunction::Fishing)
