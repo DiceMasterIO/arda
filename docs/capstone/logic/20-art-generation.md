@@ -86,18 +86,20 @@ The money guards implemented, in execution order inside `main` (`generate.mjs:60
 1. `--help` prints usage and returns 0 before anything else (`generate.mjs:610-613`).
 2. Licence refusal (§gen-licence) returns 2 (`generate.mjs:614-618`).
 3. Value check (§gen-keywords) returns 1.
-4. A summary is always printed to stderr: server, provider/model, image count, batch count, per-class and per-tier counts, in-flight and unconfirmed counts, and the estimate (§gen-estimate), plus one line per planned batch (`generate.mjs:661-676`).
-5. `--dry-run`: prints `{templates, payloads}` JSON to stdout, each payload a `POST /api/projects/batch` body with the fixed `requestId` `00000000-0000-4000-8000-000000000000`, logs `Dry run: nothing was sent.` and returns 0 (`generate.mjs:678-689`). It never reads the state file (`generate.mjs:623`) and never constructs the HTTP client. It does read `prompts.json`, stat `--out` for existing images (`generate.mjs:625`) and stat `--reference` (`generate.mjs:619-620`). Asserted with `fetch` replaced by a function that throws (`art-gen.test.mjs:298-343`).
-6. Without `--yes`: logs `Nothing sent. Re-run with --yes to submit (this spends money on your provider key).` and returns 0 (`generate.mjs:690-693`). Asserted: zero requests reach a fake server (`tools/art-gen/test/mock-slopify.test.mjs:162-174`).
-7. With `--yes` the run proceeds with no further confirmation.
+4. The spend plan (`spendPlan` in `tools/art-gen/safety.mjs`, §gen-estimate) is computed and its refusals applied, before any HTTP client exists and also under `--dry-run`: `--max-spend` below the worst case, `--max-spend` with an unknown price, or `--yes` with an unknown price and neither `--max-images` nor `--price-per-image` print `REFUSED: …` and return 2 (a dry run still prints the plan and sends nothing). Asserted: zero requests reach the fake server (`tools/art-gen/test/safety.test.mjs`).
+5. A summary is always printed to stderr: server, provider/model, image count, batch count, per-class and per-tier counts, in-flight and unconfirmed counts, and the estimate (§gen-estimate), plus one line per planned batch (`generate.mjs:661-676`).
+6. `--dry-run`: prints `{templates, payloads}` JSON to stdout, each payload a `POST /api/projects/batch` body with the fixed `requestId` `00000000-0000-4000-8000-000000000000`, logs `Dry run: nothing was sent.` and returns 0 (`generate.mjs:678-689`). It never reads the state file (`generate.mjs:623`) and never constructs the HTTP client. It does read `prompts.json`, stat `--out` for existing images (`generate.mjs:625`) and stat `--reference` (`generate.mjs:619-620`). Asserted with `fetch` replaced by a function that throws (`art-gen.test.mjs:298-343`).
+7. Without `--yes`: logs `Nothing sent. Re-run with --yes to submit (this spends money on your provider key).` and returns 0 (`generate.mjs:690-693`). Asserted: zero requests reach a fake server (`tools/art-gen/test/mock-slopify.test.mjs:162-174`).
+8. With `--yes` the run proceeds. Every billable submission in this run (new project, re-sent batch, re-posted `failed` asset, re-posted cancelled batch item) first takes from a counter (`guard` in `safety.mjs`) whose cap is the smaller of `--max-images` and `floor(--max-spend / (price × (1 + remakes)))`. When the next submission would exceed it, the run logs `STOPPED: <cap> reached …`, stops submitting, still collects what was already submitted, writes state and `import.toml`, and returns 3. In batch mode the last new batch is cut to the room left; a batch sent before is all or nothing.
 
-Not implemented: an interactive prompt, a spending cap or budget flag, a maximum image count per run, a refusal when the estimate is unknown, and any check of the provider account balance (no such code in `tools/art-gen/`).
+Not implemented: an interactive prompt, a spend ledger across runs (the caps are per run), and any check of the provider account balance. Reviewer remakes happen inside Slopify and cannot be counted at run time; `--max-spend` bounds them only through the worst case in §gen-estimate.
 
 ### §gen-estimate
 
-- `estimate(count, options)` (`generate.mjs:347-353`): per-image price is `--price-per-image` if given, else `knownPrices["<provider>/<model>"]`, else `knownPrices["<provider>/*"]`; `total = round(each × count × 100) / 100` (round half up to cents via `Math.round`).
-- `knownPrices` (`generate.mjs:52-55`): `google-image/gemini-3.1-flash-image` 0.101, `codex-image/*` 0. Every other pair, including the default `openai-image/gpt-image-2` (`generate.mjs:22-23`), prints `Estimated cost: unknown … pass --price-per-image to estimate.` (`generate.mjs:671-675`).
-- `count` is `limited.length` only (`generate.mjs:654`). Not counted: assets collected from earlier runs, unconfirmed batches re-sent (§gen-batch), pending batch items cancelled and re-posted in parallel mode (§gen-parallel), reviewer remakes (up to `--review-retries` per image, §gen-review), and the reviewer model's own cost.
+- `estimate(count, options)` (`generate.mjs`): per-image price is `--price-per-image` if given, else `knownPrices["<provider>/<model>"]`, else `knownPrices["<provider>/*"]` (`priceOf`, `safety.mjs`); `total = round(each × count × 100) / 100` (round half up to cents via `Math.round`).
+- `spendPlan(assets, options)` (`safety.mjs`) returns `{images, worstCaseImages, each, worstCaseCost, refusal?}`. `worstCaseImages = min(images, --max-images) × (1 + remakes)` where `remakes` is `--review-retries` when the reviewer is on in `redo` mode and 0 with `--no-review` or `--review-mode flag`. `--max-spend` defaults to `$ART_GEN_MAX_SPEND`. The summary prints `Worst case: N images × $each = $total`. Codex (`each` 0) never trips the money cap but obeys `--max-images`.
+- `knownPrices` (`safety.mjs`): `google-image/gemini-3.1-flash-image` 0.101, `codex-image/*` 0. Every other pair, including the default `openai-image/gpt-image-2`, prints `Estimated cost: unknown … pass --price-per-image to estimate.`; with `--yes` that is a refusal (exit 2) unless `--max-images` or `--price-per-image` is given, and with `--max-spend` it is a refusal unless `--price-per-image` is given.
+- `count` is `limited.length` only. The estimate does not count assets collected from earlier runs, unconfirmed batches re-sent (§gen-batch), pending batch items cancelled and re-posted in parallel mode (§gen-parallel) or the reviewer model's own cost; the run-time counter (§gen-guard 8) does count the re-sent and re-posted submissions, and the worst case counts reviewer remakes (§gen-review).
 - `--price-per-image` accepts any number ≥ 0 (`generate.mjs:202`).
 
 ### §gen-licence
@@ -133,7 +135,9 @@ Model and prompt checks run only when there are new or unconfirmed items (`gener
 
 ### §gen-parallel
 
-- Default `--parallel 5`, range 0–20 (`generate.mjs:34, 201`). With `parallel > 0` and no unconfirmed batches (`generate.mjs:731`), each asset is posted as its own project with `POST /api/projects` and `projectBody` = the batch draft with `title` and `values` of that asset (`generate.mjs:333-336, 758`); the body carries no `requestId` or idempotency key.
+- Default `--parallel 5`, range 0–20 (`generate.mjs:34, 201`). With `parallel > 0` and no unconfirmed batches (`generate.mjs:731`), each asset is posted as its own project with `POST /api/projects` and `projectBody` = the batch draft with `title` and `values` of that asset (`generate.mjs:333-336, 758`); the body carries no `requestId` or idempotency key, so the script keeps its own record (below).
+- Record before send: `postProject` (`safety.mjs`) writes `state.assets[id] = {…, status: "posting", at}` before each POST and replaces it with `submitted` once the reply names the project. On a network error it does not throw: it reads `GET /api/projects` (retried by the client) and adopts the newest project titled `id` with `createdAt ≥ at − 5 s` (logged `ADOPTED`); if the list shows none, the POST never arrived and it posts once more (a second drop is checked the same way, then the error propagates). If the list cannot be read the run stops with exit 1 and the intent stays `posting`. An HTTP refusal restores the previous record and rethrows.
+- At the start of every run with `--yes`, assets left `posting` are reconciled the same way before anything is submitted: adopted into the collect set, or released for submission when the list proves no project exists; an unreadable list returns 1 and posts nothing. Asserted: `safety.test.mjs` (drop after create, drop before create, leftover intent adopted, leftover intent released, list unreadable).
 - `feed` keeps `pending.size < parallel` (`generate.mjs:754-779`). Each reply must carry a project whose `title` is the asset id (`:760-761`) and, when it reports a `channelId`, the chosen channel (`:762-763`); the asset is recorded `submitted` and the state written after the reply (`:764-775`). Asserted: 5 single posts, 0 batch posts, at most 2 running with `--parallel 2` (`mock-slopify.test.mjs:141-160`).
 - In-flight assets from an earlier run that came from a batch (`requestId` set) and are still `pending` are cancelled (`POST /api/projects/<id>/cancel` with `baseRevisionId` and a fresh `idempotencyKey`), marked `failed` with `moved out of the batch queue`, and appended to the work list (`generate.mjs:736-750`); all others are only collected.
 - `--dry-run` always prints batch payloads, whatever `--parallel` is (`generate.mjs:679-683`), and the summary line counts batches in both modes (`:663`).
@@ -145,7 +149,7 @@ On by default (`generate.mjs:189-197`): `draft.reviews = {provider, model, think
 ### §gen-state
 
 - `<out>/.art-gen-state.json` = `{assets: {id: record}, batches: {requestId: {at, ids, body, confirmed}}}` (`generate.mjs:529-535`). Written atomically via `<path>.tmp` + rename (`generate.mjs:536-541`), after every submit, every finished poll, and every batch confirmation.
-- Asset record: `projectId, requestId?, template, provider, model, prompt, footprint, structured, status, at` (`generate.mjs:764-774, 812-823`), plus `file`, or `error` on failure (`:567-569, 583-589`).
+- Asset record: `projectId, requestId?, template, provider, model, prompt, footprint, structured, status, at` (`status: "posting"` with `at` and no `projectId` is a POST intent not yet answered, §gen-parallel) (`generate.mjs:764-774, 812-823`), plus `file`, or `error` on failure (`:567-569, 583-589`).
 - Existing images in `--out`: without `--resume` or `--overwrite` (and not a dry run) the run stops with exit 1 before contacting Slopify (`generate.mjs:629-635`; asserted, zero new requests, `mock-slopify.test.mjs:125-128`). `--resume` takes precedence when both flags are given (`generate.mjs:626`).
 - In-flight: assets with a `projectId` whose status is neither `failed` nor `downloaded` are not re-submitted; they are collected (`generate.mjs:636-640`). `--overwrite` and `--dry-run` disable this (`:638`).
 - `--overwrite` moves each existing image to `<out>-replaced/<file>.<Date.now()>` before submitting (`generate.mjs:722-729`).
@@ -183,8 +187,9 @@ HTTP client (`generate.mjs:433-470`):
 | Code | When |
 |---|---|
 | 0 | help; dry run; no `--yes`; all collected with no `failed` record (`generate.mjs:612, 688, 692, 785, 844`) |
-| 1 | value problems; existing files without `--resume`/`--overwrite`; timeout; any record in the whole state with `status: "failed"` (`generate.mjs:651, 634, 782-785, 841-844`); any thrown `UsageError`, `SlopifyError` or other error (`generate.mjs:854-857`) |
-| 2 | licence refusal (`generate.mjs:617`) |
+| 1 | value problems; the project list unreadable while an uncertain POST is being reconciled; existing files without `--resume`/`--overwrite`; timeout; any record in the whole state with `status: "failed"` (`generate.mjs:651, 634, 782-785, 841-844`); any thrown `UsageError`, `SlopifyError` or other error (`generate.mjs:854-857`) |
+| 2 | licence refusal (`generate.mjs:617`); spend refusal: `--max-spend` below the worst case or uncheckable, or `--yes` with an unknown price and no `--max-images`/`--price-per-image` (§gen-guard 4) |
+| 3 | cap reached: `--max-images` or `--max-spend` stopped the submissions; state and `import.toml` were written and already-submitted projects collected (§gen-guard 8). Takes precedence over 1 |
 
 Thrown errors print the message, prefixed `error: ` unless `UsageError`/`SlopifyError`, plus `Run with --help for usage.` for `UsageError` (`generate.mjs:855-856`). `process.exitCode` is set rather than `process.exit()` so a large dry-run payload finishes flushing (`generate.mjs:849`).
 
@@ -198,9 +203,9 @@ Thrown errors print the message, prefixed `error: ` unless `UsageError`/`Slopify
 2. `--help` → usage. Licence check (§gen-licence). `--reference` must exist (`:619-620`).
 3. Load pack; read state unless dry run; select (§gen-select); stop on existing files (§gen-state).
 4. Split into in-flight, unconfirmed-batch, and to-submit sets; apply `--limit` (`:636-646`).
-5. Check values; plan batches; estimate; print summary (§gen-guard 3–4).
+5. Check values; plan batches; estimate and spend plan; print summary and worst case; refuse over-cap or unpriced `--yes` with exit 2 (§gen-guard 3–5).
 6. Dry run → payload JSON, exit 0. No `--yes` → exit 0.
-7. Preflight (§gen-preflight); move old files aside under `--overwrite`.
+7. Preflight (§gen-preflight); reconcile leftover `posting` intents (§gen-parallel); move old files aside under `--overwrite`.
 8. Parallel mode (§gen-parallel) or batch mode (§gen-batch).
 9. Collect (§gen-collect), rewriting `import.toml` per download; write final `import.toml`; report failures; exit (§gen-exit).
 
@@ -224,7 +229,7 @@ Thrown errors print the message, prefixed `error: ` unless `UsageError`/`Slopify
 | Library prompt text differs | stops unless `--update-templates` (`generate.mjs:483-487`) |
 | Provider has no key | stops before submitting (`generate.mjs:506-507`) |
 | Batch POST connection dropped | retried up to 3 attempts with the same `requestId`; state already holds the unconfirmed batch, so a later run re-sends it (`generate.mjs:796-807, 643`) |
-| Single-project POST connection dropped (parallel mode) | not retried; `SlopifyError` ends the run; no state record exists for that asset (`generate.mjs:758, 764`), and the POST carries no idempotency key, so a project Slopify created is not known to the next run, which posts the asset again |
+| Single-project POST connection dropped (parallel mode) | the intent record `posting` was written first; the project list is read and a project created meanwhile is adopted (no second POST); if none exists the POST is retried once; if the list cannot be read the run exits 1 without posting. A later run reconciles a leftover `posting` record the same way (§gen-parallel) |
 | Queue length differs from items | `SlopifyError` after the batch is in state as unconfirmed (`generate.mjs:808-810`) |
 | Project title or channel mismatch | `SlopifyError`, run stops (`generate.mjs:760-763, 833-837`) |
 | Image generation fails | record `failed` with reason; exit 1; the next run submits it again (failed is not in-flight, `generate.mjs:640`) |
@@ -256,7 +261,7 @@ Batch record: `confirmed: false` on write before POST → `true` after a matchin
 ## Invariants
 
 1. Nothing is sent to Slopify without `--yes`, and `--dry-run` constructs no HTTP client (`generate.mjs:678-695`; asserted, `mock-slopify.test.mjs:162-174`, `art-gen.test.mjs:298-343`).
-2. A batch is recorded before it is sent, and re-sent only with its original `requestId` (`generate.mjs:796-797, 789-791`). Single-project posts have no equivalent record-before-send (§gen-parallel).
+2. A batch is recorded before it is sent, and re-sent only with its original `requestId` (`generate.mjs:796-797, 789-791`). A single-project post is recorded as a `posting` intent before it is sent and is never repeated unless Slopify's project list proves no project was created (§gen-parallel).
 3. Every batch has one template and one format and at most 50 items (`generate.mjs:267-279, 200`).
 4. Every keyword value in `prompts.json` is one trimmed line of 1–200 characters and every template slot is filled; `prompt` equals the rendered template (`build-prompts.mjs:859-869`; asserted, `art-gen.test.mjs:49-62`).
 5. `prompts.json` is byte-identical to a fresh build (`build-prompts.mjs:1221-1227`; asserted, `art-gen.test.mjs:45-47`).
@@ -280,7 +285,7 @@ Batch record: `confirmed: false` on write before POST → `true` after a matchin
 | `<out>-replaced/<file>.<ms>` | `generate.mjs` under `--overwrite` (`generate.mjs:726-728`) | previous takes |
 | stderr log | both | progress lines; `FAILED <id>: <reason>`, `WARNING`, `REFUSED:` |
 
-- D5 money: every submitted project is billed by the provider behind Slopify to the key configured there (`tools/art-gen/README.md:17` states intent; the code's only acknowledgements are the `--yes` gate text `generate.mjs:691` and usage `:115`). The script records no amount spent. Who absorbs failed or rejected images, reviewer remakes, cancelled pending items, and a duplicate single-project post after a dropped connection: the provider account; no compensating action exists in `tools/art-gen/`.
+- D5 money: every submitted project is billed by the provider behind Slopify to the key configured there (`tools/art-gen/README.md:17` states intent; the code's only acknowledgements are the `--yes` gate text `generate.mjs:691` and usage `:115`). The script records no amount spent, but refuses a run whose worst case exceeds `--max-spend` and stops at `--max-images` (§gen-guard). Who absorbs failed or rejected images, reviewer remakes, and cancelled pending items: the provider account; no compensating action exists in `tools/art-gen/`. A duplicate single-project post after a dropped connection is closed by the intent record, except when Slopify lists the project under another title.
 - D7 time: `at` stamps are `new Date().toISOString()` (UTC instant, `generate.mjs:773, 822`); the poll interval and timeout use `Date.now()` and `setTimeout` (`generate.mjs:556, 596, 600`). No expiry of state or batch records.
 - D11 termination: success ends with `import.toml written to …` (`generate.mjs:783, 842`); failure leaves state resumable; abandonment leaves Slopify projects running and state as of the last write.
 - D12 visibility: the full prompt text, keyword values and reference image leave the machine via Slopify to the chosen image provider and, with review on, to the reviewer CLI agent (`generate.mjs:304-313`). Nothing is redacted.

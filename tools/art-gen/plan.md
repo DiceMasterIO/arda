@@ -69,6 +69,8 @@ The script stops waiting after `--timeout` minutes, which defaults to 6 hours. T
 
 ## Commands
 
+**Spend caps.** Before the first `--yes` run set a number: `export ART_GEN_MAX_SPEND=<usd>` (or pass `--max-spend`), and add `--max-images N` for the default `openai-image/gpt-image-2`, which has no list price (without one of `--max-images` or `--price-per-image`, `--yes` is refused with exit 2). The summary prints the worst case including reviewer remakes; a run that reaches a cap exits 3 with state saved, and `--resume` continues it. A dropped connection never causes a second charge for the same asset: see "Spending safety" in the README.
+
 Every command below runs from the repository root, with Slopify up and the Codex provider signed in. Runs go to the default Slopify channel, `DiceMaster Assets`. Every step uses the same settings, so set them once as an alias (the first line is for fish, the second for bash):
 
 ```sh

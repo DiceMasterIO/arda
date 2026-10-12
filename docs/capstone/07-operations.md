@@ -134,6 +134,7 @@ Runtime configuration is CLI flags only; no binary reads a config file from a fi
 | `SINKS`, `LAKES`, `PLAN_ID` | unset | Diagnostic examples (`crates/arda-gen/examples/water_diag.rs:32`, `crates/arda/examples/water_metrics.rs:151`, `crates/arda-server/examples/tactical_timing.rs:35`) | None beyond code |
 | `VITE_ARDA_API` | `http://localhost:8787`, after `?api=` and localStorage (`apps/viewer/src/config.ts:10`-`apps/viewer/src/config.ts:19`) | Viewer API base | `apps/viewer/README.md:57` |
 | `SLOPIFY_URL` | `http://127.0.0.1:6969`; `--server` overrides | `tools/art-gen/generate.mjs:21` | `tools/art-gen/generate.mjs:108` |
+| `ART_GEN_MAX_SPEND` | unset; default for `--max-spend` (USD, worst case incl. reviewer remakes); `--max-images N` caps images per run | `tools/art-gen/generate.mjs` (`maxSpend`), `tools/art-gen/safety.mjs` | `tools/art-gen/README.md` (Spending safety) |
 | `SLOPIFY_DIR` | `../slopify` | art-gen tests against Slopify's code (`tools/art-gen/test/art-gen.test.mjs:28`) | `tools/art-gen/README.md:249` |
 
 Third-party runtime controls such as `RAYON_NUM_THREADS` are read by `rayon`, not by repository code.

@@ -166,6 +166,9 @@ The leftmost library wins, and the placeholder fills every slot the AI library l
 --reference FILE      a style reference, sent as Slopify's establishing image
 --batch-size N        at most 50 (Slopify's limit), default 50
 --price-per-image USD for the estimate when Slopify's catalogue has no price
+--max-images N        hard ceiling on images submitted this run; stops with exit 3
+--max-spend USD       ceiling on images x price x (1 + reviewer remakes); refuses (exit 2) over it;
+                      default $ART_GEN_MAX_SPEND
 --out DIR             default out/art-gen/raw
 --licence SPDX        [library] licence in import.toml, default LicenseRef-AI-generated
 --server URL          default http://127.0.0.1:6969 or SLOPIFY_URL
@@ -173,8 +176,18 @@ The leftmost library wins, and the placeholder fills every slot the AI library l
 --poll SECONDS        default 10
 --timeout MINUTES     default 360
 --dry-run             print the payloads, contact nothing
---yes                 actually submit
+--yes                 actually submit (needs --max-images or --price-per-image when the price is unknown)
 ```
+
+Exit codes: 0 done; 1 a failure, a timeout or an unreadable project list; 2 refused (licence, spend cap, or `--yes` with an unknown price and no cap); 3 a cap was reached (state and `import.toml` are written).
+
+### Spending safety
+
+- **Worst case first.** The summary prints `Worst case: N images × $price`, counting up to `--review-retries` reviewer remakes per image (none with `--no-review` or `--review-mode flag`). `--max-spend USD` refuses to start (exit 2, also with `--dry-run`, before any request) when that worst case is over it. Set it once with `export ART_GEN_MAX_SPEND=5` or a shell alias.
+- **Unknown price.** `openai-image/gpt-image-2` has no list price in Slopify. With `--yes` the script refuses unless you pass `--max-images N` or `--price-per-image USD`; `--max-spend` always needs `--price-per-image` for such a model. The `codex-image` provider counts as $0, so the money cap never stops it, but `--max-images` does.
+- **Stops during a run.** Every submission (new project, re-sent batch, re-posted failure) counts against the cap. When the next one would pass `--max-images` or the image budget `--max-spend` allows, the run stops submitting, collects what was already submitted, writes `import.toml` and exits 3. Run again with `--resume` and a fresh cap to continue.
+- **No double billing on a dropped connection.** In the default parallel mode each asset is recorded as `posting` in `.art-gen-state.json` before its POST. If the reply is lost, the script reads Slopify's project list and adopts the project it finds instead of posting again; it posts once more only when the list shows none, and exits 1 without posting when the list cannot be read. A run that was killed mid-POST is reconciled the same way at the next start.
+- **Not covered.** Reviewer remakes and any retries inside Slopify happen on its side. They are bounded by `--review-retries` in the worst case, not counted live, so the actual bill can exceed `images × price` by up to that factor and no more.
 
 The script prints a count and cost estimate before it does anything. Slopify's model list gives a fixed per-image price only for some models. Google's `gemini-3.1-flash-image` is listed at about $0.10 per 2K image. OpenAI's `gpt-image-*` models are billed by tokens and have no list price, so pass `--price-per-image` for a figure. The Codex CLI provider (`codex-image`) runs on your local Codex sign-in and plan rather than an API key, so Slopify counts it as $0.
 
