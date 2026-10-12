@@ -46,6 +46,8 @@ for row in "${PANEL[@]}"; do
   want "$@" || continue
   W="$OUT/$CUR"
   gen_s=0
+  # keep the generation time recorded when the world was first made
+  [ -f "$OUT/records/$CUR.json" ] && gen_s=$(jq .seconds.generate "$OUT/records/$CUR.json")
   if [ ! -f "$W/world.json" ]; then
     t0=$SECONDS; gen "$CUR" "$seed" "$size" "$recipe" "$extra" "$W"; gen_s=$((SECONDS - t0))
   fi
