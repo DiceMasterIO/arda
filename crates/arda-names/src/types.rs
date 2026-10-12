@@ -43,6 +43,8 @@ pub enum PlaceKind {
     Marsh,
     /// A mountain pass.
     Pass,
+    /// A sea or gulf.
+    Sea,
     /// A bay.
     Bay,
     /// An island.
@@ -79,6 +81,7 @@ impl PlaceKind {
             "forest" | "wood" => K::Forest,
             "marsh" | "fen" => K::Marsh,
             "pass" => K::Pass,
+            "sea" | "gulf" => K::Sea,
             "bay" => K::Bay,
             "island" => K::Island,
             "cape" | "headland" => K::Cape,

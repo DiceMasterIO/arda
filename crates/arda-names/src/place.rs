@@ -260,7 +260,7 @@ fn kind_pool(k: K) -> &'static [M] {
         K::Town | K::City => CITY,
         K::Fort => FORT,
         K::Abbey => HOLY,
-        K::Port | K::Bay | K::Cape | K::Island => COAST,
+        K::Port | K::Sea | K::Bay | K::Cape | K::Island => COAST,
         K::Mine => ORE,
         K::Mountain | K::Hill | K::Pass | K::Vale => HIGH,
         K::Forest => FOREST,
@@ -287,6 +287,7 @@ fn kind_head(k: K) -> M {
         K::Forest => M::Wood,
         K::Marsh => M::Marsh,
         K::Pass => M::Pass,
+        K::Sea => M::Sea,
         K::Bay => M::Bay,
         K::Island => M::Island,
         K::Cape => M::Cape,
@@ -345,7 +346,8 @@ fn choose_modifier(
     rng: &mut Rng,
     salt: u64,
 ) -> Modifier {
-    let forced = salt >= FOUNDER_SALT && spec.kind.is_settlement();
+    let eponymous = matches!(spec.kind, K::Bay | K::Cape | K::Island | K::Lake | K::Marsh);
+    let forced = salt >= FOUNDER_SALT && (spec.kind.is_settlement() || eponymous);
     if !forced && !spec.features.is_empty() && rng.chance(850) {
         let n = spec.features.len().min(2);
         if let Some(&m) = spec.features.get(rng.below(n)) {
@@ -353,7 +355,8 @@ fn choose_modifier(
         }
     }
     let generic = matches!(head, M::Farm | M::Town | M::Village);
-    if forced || (generic && spec.kind.is_settlement() && rng.chance(250)) {
+    let named_after = eponymous && rng.chance(300);
+    if forced || named_after || (generic && spec.kind.is_settlement() && rng.chance(250)) {
         let (parts, gloss) = founder(lang, rng);
         return Modifier::Proper(parts, gloss);
     }

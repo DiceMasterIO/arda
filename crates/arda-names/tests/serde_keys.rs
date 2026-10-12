@@ -14,6 +14,7 @@ fn json<T: serde::Serialize>(v: &T) -> String {
 #[test]
 fn enums_serialise_as_snake_case_keys() {
     assert_eq!(json(&PlaceKind::Village), "\"village\"");
+    assert_eq!(json(&PlaceKind::Sea), "\"sea\"");
     assert_eq!(json(&Sex::Female), "\"female\"");
     assert_eq!(json(&FamilyStyle::Patronymic), "\"patronymic\"");
     for p in Preset::ALL {

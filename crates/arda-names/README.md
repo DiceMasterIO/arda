@@ -93,5 +93,6 @@ The simple generators in `arda-settle` and `arda-npc` can switch over like this:
 
 - **Culture.** Use `Preset::from_key(culture.key())` for the culture and `Preset::from_key(ancestry)` for non-human NPCs.
 - **Settlements.** Build the tags with `SiteTag::from_keys(site.tags.iter().map(String::as_str))` and the kind with `PlaceKind::from_key(tier)`. Name settlements through one `NameScope` per realm or per world, in id order.
+- **Seas and landforms.** `PlaceKind::Sea` (keys `sea`, `gulf`) heads with the lexicon's sea word; bays, capes, islands, lakes, forests, marshes, ranges and vales use their own heads with the coast, water, wood, fen or high-ground modifier pools. `arda-settle` names the world's large features with these kinds (`society/gazetteer.json`).
 - **Rivers.** Use `PlaceKind::River` for major rivers and `PlaceKind::Stream` for small ones. Build every culture's language with the same `substrate_seed`, so that a river keeps related names across borders.
 - **NPCs.** Pass the NPC id as `FamilyCtx::id`. For households, pass the head's family `Name` as `family`, so that members share it. Pass the job as `trade`, using `Meaning::from_key("blacksmith")`.
