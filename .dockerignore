@@ -1,0 +1,13 @@
+# Keep the build context small: none of this is needed to build the image.
+target/
+out/
+.git/
+.github/
+**/node_modules
+apps/viewer/dist
+docs/
+.serena/
+.playwright-mcp/
+.claude/
+assets/reference/
+JOURNAL*.md
