@@ -210,6 +210,7 @@ fn shore_classes(g: &Grid, shore: Option<&ShoreLayer>) -> J {
 
 fn basin_section(g: &Grid, shore: Option<&ShoreLayer>) -> (J, bool, bool, J) {
     let ls = basins::lakes(g, basins::MIN_CELLS);
+    let mid = basins::lakes(g, 500);
     let rect = ls.iter().any(basins::LakeReport::rectangular);
     let dams = ls.iter().any(basins::LakeReport::on_area_lines);
     let mut landforms = Vec::new();
@@ -242,6 +243,17 @@ fn basin_section(g: &Grid, shore: Option<&ShoreLayer>) -> (J, bool, bool, J) {
         .map_or(J::A(vec![]), |l| J::A(vec![J::u(l.cx), J::u(l.cy)]));
     let j = J::obj()
         .with("lakes_over_500km2", J::u(ls.len()))
+        .with("lakes_over_5km2", J::u(mid.len()))
+        .with(
+            "largest_lakes_over_5km2",
+            J::A(
+                mid.iter()
+                    .take(5)
+                    .enumerate()
+                    .map(|(i, l)| l.json(i + 1))
+                    .collect(),
+            ),
+        )
         .with(
             "rectangular_lakes",
             J::u(ls.iter().filter(|l| l.rectangular()).count()),

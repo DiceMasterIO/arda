@@ -157,7 +157,7 @@ cells of 100 m; its final water cannot be generated independently from a tile
 bundle. This section is the current behavior. Earlier prescriptions and dated
 observations below remain historical/deferred, and do not override these Steps
 or Invariants. Golden and physical-water checks for the installed correction
-are recorded in [testing](../06-testing.md); reference-quality visual acceptance remains open.
+are recorded in [testing](../06-testing.md); reference-quality visual acceptance remains open. The three old visual findings were re-measured on recipes 7 and 8 on 2026-10-13 (`crates/arda/examples/terrain_findings`; see `changelog.d/2026-10-13-terrain-recheck.md`): parallel-ravine lattices, angular coasts and rectangular regional basins are absent, with the 100 m raster stair as the stated limit; near-straight 10 km river reaches that lean to the axes remain a measured, unexplained signal (OI-03).
 
 ## Trigger & preconditions
 

@@ -51,79 +51,17 @@ Only open work is listed. Items finished by v0.8.1 (OI-01, OI-07–OI-11, OI-13,
 
 Each item keeps its 2026-09-22 plan and its audit at `022ce7cb5707`; the audit line says what is done and what remains. A dependency on a removed item means that item is done.
 
-### OI-02 — Restore a reproducible visual and measurement baseline
+### OI-03 — Decide whether near-straight river reaches follow the grid axes
 
-**Audit `022ce7cb5707`:** unchanged as a record. The default `arda generate` terrain is `Terrain::Legacy` (`crates/arda-cli/src/main.rs:51`). `--terrain fine` uses stream-power formation with recipe 7 by default and recipes 4–8 selectable (`crates/arda-cli/src/main.rs:49-58`). Recipes 5, 6 and 7 are golden-pinned (`tests/golden_recipes.rs`). No gallery that covers recipes 7/8 is recorded in this file.
+**Re-check 2026-10-13 (recipes 7 and 8, 11-world panel; tool `crates/arda/examples/terrain_findings`, script `run.sh` beside it, evidence in the local `features/2026-10-terrain-recheck/`).** Closed by that evidence: OI-02 (baseline delivered), OI-04 (angular shorelines absent: 5 km axis+45 chord ratio 0.90 to 1.10 against a 1.4 threshold, rotated control agrees; the residual limit is the 100 m raster, whose stairs show in plain area exports), OI-05 (rectangular basins absent: the seed-42 500×1000 km world has no lake above 14 km², the old 30,709 km² lake is gone, and no panel world has a lake of 500 km² or more). Parallel ravines are not reproduced as a lattice (highland-window peak-to-background ratio at most 13.7 against a flag at 20), as exact runs (longest 76 cells, none reaches 20 km) or as a grid-bound descent field (axis+45 ratio 1.00 to 1.01 on the whole 500×1000 km world and its 17° rotated crop). One signal stays unexplained: of 100-step (10 km) river probes, 2.3% stay within 600 m of a straight chord and those lean toward the axes and 45° diagonals (excess 1.2 to 1.7 over the world's own direction mix in the 200×300 and 500×1000 km worlds; at the strict 300 m tolerance only 21 of 63,043 probes in the default world qualify, 2.8× excess). Tectonic belt edges, bay-spacing regularity and a routing control are not measured.
 
-**Local server image (2026-10-12):** the `Dockerfile` now builds `arda` and `arda-server`
-(non-root 10001, `/v1/health` healthcheck, SIGTERM shutdown, `tools/docker-smoke.sh`), delivering
-the local-image part of step 4. Publication is task 02's. Maintainer decision D1: the published
-GHCR image carries the placeholder library only; the AI-generated library stays an opt-in local
-build (`--build-context artlib=…`) and is never required. Open: the `commercial_licence` validator
-rule (logic/11) is not implemented (`validate.rs` only checks a non-empty licence), so
-`LicenseRef-AI-generated` is not gated.
+**Depends on:** nothing. **Targets:** `crates/arda-gen/src/formation/{flow.rs,flats.rs,drainage.rs}` (D8 routing of flats is the suspected source; `logic/02` §fine-formation notes flat regrading to avoid axis and 45° lines).
 
-**Status (2026-09-25 record):** integrated baseline retained and measured: seed42 at 200×300 and 500×1000 km, plus MICRO99 holdout. The same six default-world coordinates are exported at 8K, and the full 32K default map repeats identically without modifying saved data. Broader natural-landscape acceptance remains open. **Depends on:** current generator; OI-01 only for Windows text comparison.
+1. Build the missing control: extract channels on the rotated 100 m heights with a depression-filling router (or measure the same terrain on a rotated flow grid) and run the same probes. If the excess follows the rotation it is terrain; if it stays on the grid it is the router.
+2. If grid-bound, change the earliest responsible stage under a new recipe version (recipes 5 to 8 are golden-pinned), compare matched views over the frozen panel and a holdout, and keep annual accounting, basin hierarchy and determinism.
+3. If terrain, record it as natural alignment and close.
 
-1. Attempt to locate the original feature evidence through its recorded paths. If unavailable, retain its ledger citations and generate a newly dated baseline; never label recreated images as original evidence.
-2. Freeze a manageable panel including default seeds 42 and 436342, MICRO controls and additional representative climates/landforms. Record configuration, source revision and generator version.
-3. Save world/area views at declared, matched physical scales and selected JSON/geometry measurements. Preserve enough input data to rerender without regenerating the world.
-4. Mark each old finding—parallel ravines, angular shores, rectangular basins—as reproduced, absent or inconclusive. Distinguish 100 m quantization, image presentation and underlying terrain shape.
-5. Capture intermediate stages only where diagnosis needs them: coarse heights, initialized/evolved fine relief, drainage/basins, wet membership and final rendered output. Keep diagnostic tools outside production paths unless they earn a supported interface.
-6. Store commands, locations, timings and hashes with the results. Separate deterministic numerical assertions from visual review notes; record missing evidence explicitly.
-
-**Done when:** another developer can reproduce the current gallery and its
-measurements, and every historical visual finding has a current disposition.
-
-### OI-03 — Diagnose and correct reproduced parallel drainage/ravines
-
-**Audit `022ce7cb5707`:** the fine path's formation code was replaced after this record by stream-power formation (`crates/arda-gen/src/formation/`, including `incision.rs`, `drainage.rs` and `glacial.rs`). No disposition of the parallel-ravine finding against recipes 5–8 is recorded. Legacy terrain keeps the path described here.
-
-**Status (2026-09-25 record):** corrected in part September 23. Controlled full-world removal of coarse 1 km incision reduces the measured straight-cut trough from 203.8 to 83.1 m and long horizontal runs from seven to two; the production stage retains 25 creep passes and existing shared 100 m incision. Broad parallel valleys remain in the default highland gallery. **Depends on:** OI-02. **Targets:** `crates/arda-gen/src/continent/erode.rs`, `crates/arda-gen/src/area/evolution.rs`.
-
-1. Trace a reproduced regular pattern back to the first stage that introduces it. Measure valley convergence, drainage orientation and incision along the same slopes before and after evolution.
-2. Recheck current interpolation: `coarse_height` already calls the bounded, affine-preserving sampler. The older smoothstep-bilinear diagnosis is historical; the separate 4 km→1 km sampler still uses bilinear interpolation.
-3. Compare controlled planes, rotated slopes, ridges, converging valleys and real catchments to separate natural parallel drainage from repeated lattice artifacts.
-4. Change the demonstrated source—relief construction, interpolation, convergence or erosion behavior—using controlled alternatives. Do not prescribe a noise replacement merely because the old inventory named one.
-5. Preserve C06's regional-relief amplitude, genuine bowls, shared-domain continuity, annual accounting and deterministic resource bounds. Reject improvements that introduce speckled coasts or artificial pond fields.
-6. Compare the same views across the frozen panel and holdout seeds. Record mechanism, visual improvement, numerical effects and any unresolved cases.
-
-**Done when:** the reproduced defect improves at the relevant scale without
-regressing physical/visual controls. No arbitrary diagonal-flow percentage,
-river-count quota or noise-only metric substitutes for that evidence. If OI-02
-cannot reproduce it, close as not reproduced with evidence instead of changing code.
-
-### OI-04 — Diagnose and improve angular shorelines
-
-**Audit `022ce7cb5707`:** shorelines for recipe ≥ 5 are now formed in `crates/arda-gen/src/formation/shore/`, `coast.rs`, `coastal.rs` and `littoral.rs`. Close-zoom relief and tactical maps share one water geometry, `WaterRegion` (`CHANGELOG.md` 0.4.0). No disposition of the angular-shoreline finding at world scale is recorded beyond this item.
-
-**Status (2026-09-25 record):** shared Atlas sea/land reconstruction implemented and verified September 23, including zero-height, thin-island/strait, ambiguous-diagonal, halo, mouth and streaming cases. Lakes and Box/mixed-axis views retain saved ownership; their quantization remains explicit. The 32K default export passes repeatability and unchanged-world checks. **Depends on:** OI-02. **Targets:** `crates/arda-render/src/atlas.rs`, `channels.rs`, `overview.rs`, `overview/streaming.rs`.
-
-1. Inspect world and area views of the same coast/lake boundary against the saved wet cells and physical surfaces. Identify coarse terrain angles, 100 m stair steps and rasterization artifacts separately.
-2. Decide which scale needs additional physical geometry and which needs better presentation. Larger PNGs alone cannot resolve either missing physical samples or poor edge styling.
-3. For generation defects, correct the earliest responsible terrain/water stage and rerun relevant physical controls. For display artifacts, derive a consistent contour/coverage treatment from the authoritative geometry.
-4. Preserve islands, narrow channels, mouth connections, lake identity and supported water levels. Never smooth a visible shoreline across a playable crossing while leaving collision/water elsewhere.
-5. Test coastlines, small ponds, large lakes, mouths and area/band seams at several export qualities. Keep streaming and buffered rendering consistent.
-6. Record the remaining quantization limit and any finer geometry proposed for tactical shorelines; do not describe cosmetic smoothing as a higher-resolution world simulation.
-
-**Done when:** current shoreline evidence meets the declared world/area visual
-target, topology remains correct, and any retained physical limit is explicit.
-
-### OI-05 — Diagnose and correct reproduced rectangular regional basins
-
-**Audit `022ce7cb5707`:** recipe 7 adds arid terminal basins with saline lakes and salt pans (`crates/arda-gen/src/formation/arid.rs`), and basin handling for recipe ≥ 5 is in `crates/arda-gen/src/formation/basins.rs`. No re-measurement of the seed-42 rectangular basin is recorded.
-
-**Status (2026-09-25 record):** traced September 23 to a real regional depression. The fine lake spans 30,709.15 km² at 1,177.501 m; the independently measured coarse basin spills at 1,173.357 m. Euclidean tectonic distance removes square belt geometry but does not remove this basin. No local lake-accounting or render-polygon defect was demonstrated. Regional terrain calibration remains open. **Depends on:** OI-02.
-
-1. Trace each reproduced rectangular waterbody through final wet membership, basin geometry, fine terrain and coarse relief. Separate the shape of a valid filled basin from incorrect water support.
-2. Check whether its sides follow real input relief, coarse interpolation, the modeled outer boundary or an internal publication boundary. Internal area boundaries must not behave as physical dams.
-3. Correct the demonstrated stage. Do not clip or delete a lake merely because it is large or rectangular, and do not reinstate obsolete 100-cell/2 m thresholds.
-4. Preserve real flat-bottomed bowls, connected basin hierarchy, positive-depth storage, exact annual balances, downstream transfers and global feature identities.
-5. Compare default seed 42 and the wider panel, including seed436342's corrected lake district and crossing/corner basins. Measure shape and physical support separately.
-6. Publish matched before/after evidence and residual resolution limits. If the finding is absent, record that disposition without speculative solver changes.
-
-**Done when:** each reproduced artificial basin shape has an evidenced fix,
-valid large lakes survive, and no cross-area water or annual-budget regression appears.
+**Done when:** the excess is attributed to router or terrain with a control, and either fixed under a new recipe or closed with the evidence. No diagonal-flow quota or river-count target substitutes for it.
 
 ### OI-06 — Resolve coordinates and define shared layout/scene contracts
 
@@ -156,17 +94,17 @@ without drift, and one feature can be referenced consistently at every scale.
 - The offline `arda-settle render` draws land use, realm tints and borders, roads by class, settlement/mine/pass/peak symbols and labels over the Atlas overview (`crates/arda-settle/src/render/mod.rs:196-245`). The `arda` CLI and the server do not expose this render.
 - Opt-in oblique overview: `--style atlas-oblique` (`crates/arda-render/src/overview/oblique.rs`).
 
-**September 23 continuation verified:** the authorized terrain and shoreline corrections are committed through `757b2ab`, with final integration tests, approved physical golden update, local lint/MSRV/dependency gates and two independent dry review rounds. Actual integrated small/default worlds and MICRO99 retain exact annual budgets; the full 32K default render repeats byte-identically. Current docs describe the corrected behavior. The first-pass renderer is working; broad mountain forms, large generated basins and repetitive drainage remain terrain-naturalness work, so the overall reference-quality objective has not been declared achieved. Local evidence: `features/2026-09-23-terrain-corrections/evidence/README.md`.
+**September 23 continuation verified:** the authorized terrain and shoreline corrections are committed through `757b2ab`, with final integration tests, approved physical golden update, local lint/MSRV/dependency gates and two independent dry review rounds. Actual integrated small/default worlds and MICRO99 retain exact annual budgets; the full 32K default render repeats byte-identically. Current docs describe the corrected behavior. The first-pass renderer is working; broad mountain forms and near-straight river reaches (OI-03) remain terrain-naturalness work; the 2026-10-13 re-check found no large rectangular basin on recipes 7 and 8, so the overall reference-quality objective has not been declared achieved. Local evidence: `features/2026-09-23-terrain-corrections/evidence/README.md`.
 
 **Status (2026-09-25 record):** first geographical rendering pass delivered September 22 at `342d03e55120`: earthy elevation palette, neighbor-aware shading, sea-depth colours and class-filtered per-output-pixel palette/light interpolation. The broader milestone remains open for ecological/human layers and multi-seed acceptance.
 **Depends on:** existing physical data to start; OI-08–OI-11 for ecological/human
-inputs; OI-13 to finalize published settlement extents; OI-02 for comparison. **Targets:**
+inputs; OI-13 to finalize published settlement extents; the closed OI-02 panel (`terrain_findings/run.sh`) for comparison. **Targets:**
 `crates/arda-render/src/{channels.rs,overview.rs,overview/streaming.rs}`,
 `crates/arda/src/export_quality.rs`; `crates/arda-render/src/atlas.rs` and `crates/arda/src/atlas.rs` now implement the relief/style context. Ecological/human overlays remain proposed.
 
 1. Establish a separate world-scale reference, normal viewing size and comparison panel. The close-up tactical illustration alone does not define acceptable continent cartography.
 2. **Delivered first pass:** consistent relief shading and natural elevation colours, using two-cell context from eight neighbors and explicit outer-world edges. Palette and lighting interpolate separately at each output pixel; water classes remain authoritative.
-3. Improve coast/lake/river hierarchy, edge coverage and readability while preserving physical locations and water extents. Keep confirmed geometry corrections in OI-03–OI-05 separate from shading work.
+3. Improve coast/lake/river hierarchy, edge coverage and readability while preserving physical locations and water extents. Keep confirmed geometry corrections (OI-03) separate from shading work.
 4. Add forest, farmland and built-up appearance from real generated records as producers arrive. Define scale-dependent detail and contrast so geography remains readable under human overlays.
 5. Render city/town/village extents and main roads from the shared geometry. Preserve physical extent; specify subpixel symbols/minimum strokes as presentation rules rather than enlarging the saved settlement.
 6. Pass human/ecological object geometry into world rendering when its producers exist. Classic overview callbacks supply `AreaCells`; Atlas callbacks supply `(AreaCells, AtlasTerrain)`. Neither supplies settlement/building/road object geometry.
@@ -257,7 +195,7 @@ The combined Horton/Hack/rank-size/road-ratio suite with acceptance tolerances d
 
 **Status (2026-09-25 record):** physical/accounting/boundary/determinism tests exist; combined
 calibration and new-content acceptance remain open. **Depends on:** each metric's
-producer; starts with OI-02 and grows with milestones. **Targets:**
+producer; starts from the OI-02 panel (`crates/arda/examples/terrain_findings/run.sh`) and grows with milestones. **Targets:**
 `crates/arda-gen/tests/continent_measures.rs`, existing tests, **proposed**
 saved-world calibration/report suites, `docs/capstone/06-testing.md`.
 
@@ -281,6 +219,14 @@ scale's target without unsupported claims from numerical tests alone.
 - `.github/workflows/` contains only `ci.yml`. No release workflow, binary publication or image publication exists.
 - The Dockerfile builds and runs only `arda-cli` as uid 10001 (`Dockerfile:1-11`).
 - CLI subcommands: `generate`, `preview`, `export`, `settle`, `society build`, `tactical validate|import|placeholders|render` and `dungeon` (`crates/arda-cli/src/main.rs:36-147`).
+
+**Local server image (2026-10-12):** the `Dockerfile` now builds `arda` and `arda-server`
+(non-root 10001, `/v1/health` healthcheck, SIGTERM shutdown, `tools/docker-smoke.sh`), delivering
+the local-image part of step 4. Publication is task 02's. Maintainer decision D1: the published
+GHCR image carries the placeholder library only; the AI-generated library stays an opt-in local
+build (`--build-context artlib=…`) and is never required. Open: the `commercial_licence` validator
+rule (logic/11) is not implemented (`validate.rs` only checks a non-empty licence), so
+`LicenseRef-AI-generated` is not gated.
 
 **Status (2026-09-25 record):** facade/CLI/Docker definition and CI delivered; release automation
 and full-content acceptance open. **Depends on:** OI-01 and the capabilities
@@ -347,7 +293,7 @@ They must not make delivered annual hydrology or loading appear unimplemented.
 | Boundary | Current disposition | Steps if the scope is activated |
 |---|---|---|
 | Seasons, snow storage, groundwater, dynamic floods | Outside the representative static annual model. | Specify the process/time step and required inputs; extend water/energy stores and exchanges; add versioned state/output; verify conservation and equilibrium/transient fixtures; expose the resulting seasonal gameplay/render meaning. Do not fold this into OI-08's ecological moisture by accident. |
-| Finer world physical raster | Current shared terrain is 100 m; subcell object geometry and local tactical refinement are separately required. | Establish a reproduced need that OI-04/OI-16 cannot meet; measure finer-domain cost; choose multiresolution/global policy; redefine terrain/water boundaries and formats; validate conservation, seams and resource admission. Higher PNG quality is not this feature. |
+| Finer world physical raster | Current shared terrain is 100 m; subcell object geometry and local tactical refinement are separately required. | Establish a reproduced need that OI-16 and the closed OI-04 re-check (100 m stairs only in plain area views) cannot meet; measure finer-domain cost; choose multiresolution/global policy; redefine terrain/water boundaries and formats; validate conservation, seams and resource admission. Higher PNG quality is not this feature. |
 | Region-file import/front door | Retained optional design, not required for generated worlds. | Specify supported source schema/units; validate and map inputs to canonical world/layout records; define deterministic conflict/error handling; test the same exports and geometry invariants as native generation. |
 | Mutable in-process game API | Arda's generated base is immutable; campaign mutations belong to DiceMaster. | First specify ownership and transaction/persistence semantics; build an overlay keyed to stable IDs/layout revisions; validate replay/concurrency/version conflicts. Do not replace the existing read-only query API just to store door state. |
 | General checkpoint/resume and parallel world preparation | Current physical preparation/composition is sequential; no broad resumability promise is made here. OI-24 still must define interruption behavior for its chosen coverage strategy. | Profile actual need; identify deterministic checkpoints/partition boundaries; version and validate partial state; test interrupted/resumed equivalence and bounded resources before advertising support. |
