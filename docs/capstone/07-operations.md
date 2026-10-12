@@ -168,7 +168,8 @@ Third-party runtime controls such as `RAYON_NUM_THREADS` are read by `rayon`, no
 | Golden re-bless | `ARDA_BLESS=1 cargo test --release --test golden_world --test golden_recipes` rewrites `tests/golden/micro-42*.txt` | `tests/golden_world.rs:82`, `tests/golden_recipes.rs:102` |
 | Bindings/schema re-bless | `ARDA_BLESS_BINDINGS=1 cargo test -p arda-server bindings` (schemas: same variable, `schema` tests) | `apps/viewer/README.md:77`, `crates/arda-server/src/schema/tests.rs:7` |
 | Dungeon re-bless | `ARDA_BLESS_DUNGEON=1 cargo test -p arda-dungeon` | `crates/arda-dungeon/tests/levels.rs:215` |
-| Viewer | `npm run typecheck`, `npm run lint`, `npm test`, `npm run build` in `apps/viewer` | `apps/viewer/package.json:8`-`apps/viewer/package.json:15` |
+| Viewer | `npm run typecheck`, `npm run lint`, `npm test`, `npm run build` in `apps/viewer` | `apps/viewer/package.json` |
+| Viewer licence policy | `npm run licences` in `apps/viewer` (policy `apps/viewer/licence-policy.json`) | `apps/viewer/scripts/check-licences.mjs` |
 | Art tool tests | `node --test tools/art-gen/test/` | `tools/art-gen/README.md:13` |
 | Table regeneration | `python3 tools/generate_water_forcing_tables.py <out.rs>`; `python3 tools/generate_spectral_tables.py` | `tools/generate_water_forcing_tables.py`, `tools/generate_spectral_tables.py:6` |
 | Migrations | None: no database. World format versioning is in the saved manifest (`format_version` in `tests/golden/micro-42.txt`) | — |

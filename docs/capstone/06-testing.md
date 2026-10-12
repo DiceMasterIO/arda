@@ -102,7 +102,7 @@ identically on Windows runners (`.gitattributes:4`).
 ### CI matrix
 
 The single workflow `.github/workflows/ci.yml` runs on `push` and `pull_request`
-(`ci.yml:2`) with four jobs:
+(`ci.yml:2`) with five jobs:
 
 | Job | Runner | Toolchain | Runs |
 |---|---|---|---|
@@ -110,9 +110,9 @@ The single workflow `.github/workflows/ci.yml` runs on `push` and `pull_request`
 | `msrv` | `ubuntu-latest` | `1.96.1` (`ci.yml:22`) | locked all-target check, no tests |
 | `lint` | `ubuntu-latest` | stable + rustfmt, clippy | fmt, clippy `-D warnings` |
 | `deny` | `ubuntu-latest` | action-provided | licences, bans, advisories, sources (`deny.toml`) |
+| `viewer` | `ubuntu-latest`, working directory `apps/viewer` | Node 26 (`actions/setup-node`, SHA-pinned) | `npm ci`, `npm run licences`, `typecheck`, `lint`, `npm test` (Vitest plus `node --test scripts/`), `build` |
 
-Not run by CI: `#[ignore]` tests (no `--ignored` step), Criterion benches, the
-viewer's Vitest suite and typecheck/lint, and the art-gen `node --test` suite.
+Not run by CI: `#[ignore]` tests (no `--ignored` step), Criterion benches, and the art-gen `node --test` suite.
 There is no other workflow file under `.github/workflows/`.
 
 ### Golden world test

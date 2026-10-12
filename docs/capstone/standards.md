@@ -19,7 +19,7 @@ capstone_version: 6.4
 
 - Determinism-critical code — erosion, hydrology, WFC, PRNG usage, noise — is hand-rolled or vendored under repo control. Never delegate sim arithmetic to a third-party crate.
 - Commodity is adopted: zstd, PNG, serde, CLI parsing, rayon-class parallelism.
-- Vetting bar per new dependency: permissive license (MIT/Apache-compatible), maintained > 1 year, no platform-variant arithmetic.
+- Vetting bar per new dependency: permissive license (MIT/Apache-compatible), maintained > 1 year, no platform-variant arithmetic. npm packages are held to `apps/viewer/licence-policy.json` (`npm run licences`).
 - Whole-tree soft cap ~40 crates; justify any growth past it.
 
 ## Paradigm

@@ -105,7 +105,7 @@ These selection reasons come from the August 2026 stack decisions and are not re
 
 | Setting | Value |
 |---|---|
-| Allowed licenses | MIT, MIT-0, Apache-2.0, Apache-2.0 WITH LLVM-exception, CC0-1.0, Unicode-3.0, BSD-3-Clause, Zlib (`deny.toml:4`) |
+| Allowed licenses | MIT, MIT-0, Apache-2.0, Apache-2.0 WITH LLVM-exception, CC0-1.0, Unicode-3.0, BSD-3-Clause, BSD-2-Clause, ISC, Zlib (`deny.toml`); BSD-2-Clause and ISC were added to match the npm runtime list, no crate needs them today |
 | Confidence threshold | 0.9 (`deny.toml:5`) |
 | Duplicate versions | `warn` (`deny.toml:8`) |
 | Yanked crates | `deny` (`deny.toml:11`) |
@@ -136,7 +136,22 @@ Private package `arda-viewer` 0.8.1, Apache-2.0, ES modules (`apps/viewer/packag
 | `@types/react` | ^19.3.0 | 19.3.0 | MIT | Types |
 | `@types/react-dom` | ^19.3.0 | 19.3.0 | MIT | Types |
 
-The viewer imports the `ts-rs` bindings from `bindings/ts/arda` through the `@arda` alias (`apps/viewer/vite.config.ts:7`). `deny.toml` covers Rust only; no license policy is applied to npm packages (BSD-2-Clause `leaflet` is outside the Rust allow-list).
+The viewer imports the `ts-rs` bindings from `bindings/ts/arda` through the `@arda` alias (`apps/viewer/vite.config.ts:7`). `deny.toml` covers Rust only; npm packages are covered by the policy below.
+
+### npm license policy (`apps/viewer`)
+
+Policy file `apps/viewer/licence-policy.json`; checker `apps/viewer/scripts/check-licences.mjs` (Node standard library only, run as `npm run licences`, and by the CI `viewer` job). It reads `package-lock.json`, so no install is needed, and classifies each package as runtime (no `dev`/`devOptional` flag) or build-time (flagged).
+
+| Scope | Allowed licenses |
+|---|---|
+| Runtime (bundled into `dist/`) | MIT, ISC, BSD-2-Clause, BSD-3-Clause, Apache-2.0, 0BSD, Zlib, MIT-0, CC0-1.0 |
+| Build-time only | the runtime list plus MPL-2.0 (unmodified tool), CC-BY-4.0 (data, not shipped), BlueOak-1.0.0, Python-2.0 |
+
+- Everything else fails: GPL, LGPL, AGPL, SSPL, BUSL, `UNLICENSED`, missing and unknown licenses.
+- SPDX `OR` passes if any branch is allowed; `AND` needs every part allowed; `X WITH Y` must be listed whole.
+- Per-package exceptions go in the `exceptions` array of the policy file, each with a `package` and a non-empty `reason`; the list is empty today.
+- On the current lockfile (204 packages, 4 runtime) there are no violations. Build-time MPL-2.0 (`lightningcss` and its platform packages, via Vite), CC-BY-4.0 (`caniuse-lite`) and BlueOak-1.0.0 (`minimatch`) pass only because they are dev-only.
+- Notices: `apps/viewer/scripts/licence-notices.mjs`, a Vite plugin in `vite.config.ts`, writes `THIRD_PARTY_LICENSES.txt` into `dist/` with the licence text of every runtime package (Leaflet's BSD-2-Clause notice, React, React DOM, Scheduler), read from `node_modules/<pkg>/LICENSE*`. The build fails if a runtime package has no licence file. Any later release that ships `dist/` (for example in the Docker image) must ship this file with it.
 
 ### Art pipeline (`tools/art-gen`)
 
