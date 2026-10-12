@@ -63,8 +63,9 @@ fn a_saturated_cell_is_marsh_with_reeds() {
     assert!(a
         .iter()
         .any(|id| matches!(*id, "veg.sedge" | "veg.marsh_flowers")));
-    // A damp but unsaturated meadow stays grassland.
-    let damp = world(|_, _, c| c.wetness = 150);
+    // A damp but unsaturated meadow stays grassland (marsh now starts at a
+    // wetness of 0.5 after the calibration of logic/09, so 0.43 is damp).
+    let damp = world(|_, _, c| c.wetness = 110);
     let d = refine(&damp, MID).unwrap();
     assert!(share(&d, &["marsh", "reed_bed"]) < 0.1);
 }

@@ -132,6 +132,36 @@ fn radius(ctx: &Ctx, x: f64, y: f64, h: u64, spread: f64) -> Option<f64> {
     (draw < p + 0.25 + 0.35 * wet && hollow(ctx, x, y)).then_some(r)
 }
 
+/// The pool sites that hold water inside `cell`: position `(x, y)` in
+/// global squares and the radius, for the survey tools.
+#[must_use]
+pub fn sites_in_cell(ctx: &Ctx, cell: crate::source::CellKey) -> Vec<(f64, f64, f64)> {
+    #[allow(clippy::cast_possible_truncation)] // lattice indices are small
+    let (i0, i1) = (
+        (cell.x as f64 * 64.0 / SPACING).floor() as i64,
+        ((cell.x as f64 + 1.0) * 64.0 / SPACING).ceil() as i64,
+    );
+    #[allow(clippy::cast_possible_truncation)]
+    let (j0, j1) = (
+        (cell.y as f64 * 64.0 / SPACING).floor() as i64,
+        ((cell.y as f64 + 1.0) * 64.0 / SPACING).ceil() as i64,
+    );
+    let mut out = Vec::new();
+    for j in j0..=j1 {
+        for i in i0..=i1 {
+            let (x, y, h) = site(ctx, i, j);
+            if Ctx::cell_of(x, y) != cell {
+                continue;
+            }
+            let stretch = 1.0 + unit(mix(h ^ 0x9007));
+            if let Some(r) = radius(ctx, x, y, h, (1.0 + WARP) * stretch.sqrt()) {
+                out.push((x, y, r));
+            }
+        }
+    }
+    out
+}
+
 /// Pool indicator at global square position `(u, v)`: positive inside a
 /// pool, by how many squares.
 #[must_use]

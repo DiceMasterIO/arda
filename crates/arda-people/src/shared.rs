@@ -58,6 +58,14 @@ impl Source for SharedSource {
     fn pan(&self, at: CellKey) -> Result<Option<arda_core::water::PanKind>, RefineError> {
         self.0.pan(at)
     }
+
+    fn shore(&self, at: CellKey) -> Result<arda_core::ShoreClass, RefineError> {
+        self.0.shore(at)
+    }
+
+    fn has_shore(&self) -> bool {
+        self.0.has_shore()
+    }
 }
 
 #[cfg(test)]

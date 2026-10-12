@@ -48,6 +48,15 @@ enum Cmd {
         #[arg(long)]
         cell: String,
     },
+    /// Print coast and wetland statistics of a world as JSON.
+    Coastwet {
+        /// World directory.
+        #[arg(long)]
+        world: PathBuf,
+        /// Sample one cell in every N columns and rows (coast cells: one in N).
+        #[arg(long, default_value_t = 16)]
+        stride: i64,
+    },
     /// List candidate cells by type.
     Survey {
         /// World directory.
@@ -183,6 +192,12 @@ fn run() -> Result<(), Box<dyn std::error::Error>> {
             println!("hollow -1..1 by 0.2: {hist:?}; talus squares {talus}");
             println!("{:?}", src.cell(CellKey::new(gx, gy))?);
             println!("tiles {}", arda_refine::tiles::TILE_COUNT);
+        }
+        Cmd::Coastwet { world, stride } => {
+            let world = arda::World::load(&world)?;
+            let src = WorldSource::new(&world)?;
+            let report = arda_refine::coastwet::measure(&src, stride)?;
+            println!("{}", serde_json::to_string_pretty(&report)?);
         }
         Cmd::Survey { world } => {
             let world = arda::World::load(&world)?;

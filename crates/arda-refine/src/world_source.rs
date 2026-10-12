@@ -7,7 +7,7 @@
 use crate::error::RefineError;
 use crate::source::{CellKey, Edge, LakeInfo, Source};
 use arda::{Cell, World};
-use arda_core::{TerrainFileReader, TerrainPoint, AREA_CELLS};
+use arda_core::{ShoreClass, ShoreLayer, TerrainFileReader, TerrainPoint, AREA_CELLS};
 use std::collections::{BTreeMap, HashMap};
 use std::fs::File;
 use std::sync::{Arc, Mutex};
@@ -51,6 +51,7 @@ pub struct WorldSource<'w> {
     high: i64,
     index: Mutex<BTreeMap<(i32, i32), Arc<AreaIndex>>>,
     fine: Mutex<Option<Fine>>,
+    shore: Option<ShoreLayer>,
 }
 
 impl std::fmt::Debug for WorldSource<'_> {
@@ -91,12 +92,14 @@ impl<'w> WorldSource<'w> {
             reader,
             cache: HashMap::new(),
         });
+        let shore = w.shore()?;
         Ok(Self {
             world,
             wide,
             high,
             index: Mutex::new(BTreeMap::new()),
             fine: Mutex::new(fine),
+            shore,
         })
     }
 
@@ -197,6 +200,20 @@ impl Source for WorldSource<'_> {
     fn pan(&self, at: CellKey) -> Result<Option<arda_core::water::PanKind>, RefineError> {
         let (ax, ay, _, _) = self.split(at)?;
         Ok(self.area_index(ax, ay)?.pans.get(&self.clamp(at)).copied())
+    }
+
+    fn shore(&self, at: CellKey) -> Result<ShoreClass, RefineError> {
+        let c = self.clamp(at);
+        Ok(
+            match (&self.shore, u32::try_from(c.x), u32::try_from(c.y)) {
+                (Some(layer), Ok(x), Ok(y)) => layer.class_at(x, y),
+                _ => ShoreClass::None,
+            },
+        )
+    }
+
+    fn has_shore(&self) -> bool {
+        self.shore.is_some()
     }
 
     fn edges_touching(&self, at: CellKey) -> Result<Vec<Edge>, RefineError> {

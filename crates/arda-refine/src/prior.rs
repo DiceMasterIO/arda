@@ -19,9 +19,31 @@ pub const SHARPNESS: f64 = 5.5;
 /// ground lies (hollows wetter, knolls rockier), not noise blobs.
 const PATCH: f64 = 1.0;
 
+/// Ground weights the shoreline ([`crate::biome::shoreline`]) adds at full
+/// strength, calibrated with `arda-refine coastwet` (logic/09 §biome signals).
+struct ShoreWeights {
+    sand: f64,
+    gravel: f64,
+    mud: f64,
+    marsh: f64,
+    reed: f64,
+    rock: f64,
+    scree: f64,
+}
+
+const SHORE: ShoreWeights = ShoreWeights {
+    sand: 1.0,
+    gravel: 0.8,
+    mud: 0.5,
+    marsh: 0.8,
+    reed: 0.3,
+    rock: 0.5,
+    scree: 0.1,
+};
+
 /// Base weights for one cell.
 #[must_use]
-pub fn cell_weights(c: &Cell) -> Weights {
+pub fn cell_weights(c: &Cell, coast: crate::biome::Coast) -> Weights {
     use Class::*;
     let mut w = [0.0; COUNT];
     let fd = f64::from(c.forest_density) / 255.0;
@@ -111,7 +133,7 @@ pub fn cell_weights(c: &Cell) -> Weights {
         set(Marsh, 0.5 * soggy);
         set(Mud, 0.2 * soggy);
         set(ReedBed, 0.2 * soggy);
-        biome_weights(c, open, &mut w);
+        biome_weights(c, coast, open, &mut w);
     }
     let snow = smoothstep(1.5, -2.5, temp);
     for k in [
@@ -137,23 +159,29 @@ pub fn cell_weights(c: &Cell) -> Weights {
 /// country trades meadow and moss for bare earth and scrub; sea-level land
 /// is beach; above the tree line and on crags rock, scree and moss take
 /// over from turf.
-fn biome_weights(c: &Cell, open: f64, w: &mut Weights) {
-    use crate::biome::{alpine, arid, coastal, craggy, marshy};
+fn biome_weights(c: &Cell, coast: crate::biome::Coast, open: f64, w: &mut Weights) {
+    use crate::biome::{alpine, arid, craggy, marshy, shoreline};
     use Class::*;
     let bog = if c.cover == Cover::Marsh {
         0.0
     } else {
         marshy(c)
     };
-    let (dry, coast, alp, crag) = (arid(c), coastal(c), alpine(c), craggy(c));
+    let sh = shoreline(c, coast);
+    let (dry, coast, alp, crag) = (arid(c), sh.strip, alpine(c), craggy(c));
     let mut add = |k: Class, v: f64| w[k.index()] += v;
     add(Marsh, 1.4 * bog * open);
     add(ReedBed, 1.0 * bog * open);
     add(Mud, 0.5 * bog);
     add(Dirt, 0.45 * dry);
     add(Scrub, 0.12 * dry);
-    add(Sand, 0.06 * dry * dry + 0.45 * coast);
-    add(Gravel, 0.04 * dry + 0.15 * coast);
+    add(Sand, 0.06 * dry * dry + SHORE.sand * sh.sand);
+    add(Gravel, 0.04 * dry + SHORE.gravel * sh.shingle);
+    add(Mud, SHORE.mud * sh.mud);
+    add(Marsh, SHORE.marsh * sh.mud);
+    add(ReedBed, SHORE.reed * sh.mud);
+    add(Rock, SHORE.rock * sh.rock);
+    add(Scree, SHORE.scree * sh.rock);
     add(Rock, 0.35 * alp + 0.2 * crag);
     add(Scree, 0.3 * alp + 0.3 * crag);
     add(Moss, 0.2 * alp * (1.0 - dry));
@@ -163,7 +191,7 @@ fn biome_weights(c: &Cell, open: f64, w: &mut Weights) {
         Grass,
         (1.0 - 0.8 * bog)
             * (1.0 - 0.3 * dry)
-            * (1.0 - 0.5 * coast)
+            * (1.0 - sh.turf)
             * (1.0 - 0.4 * alp)
             * (1.0 - 0.5 * crag),
     );
@@ -172,9 +200,11 @@ fn biome_weights(c: &Cell, open: f64, w: &mut Weights) {
         (1.0 - 0.6 * bog) * (1.0 - 0.85 * dry) * (1.0 - 0.7 * coast) * (1.0 - 0.5 * alp),
     );
     scale(Moss, 1.0 - 0.9 * dry);
-    scale(ForestFloor, 1.0 - 0.9 * alp);
-    scale(LeafLitter, 1.0 - 0.9 * alp);
-    scale(Scrub, 1.0 - 0.7 * alp);
+    // Sand, shingle and salt marsh are open ground: woods stop at the beach.
+    let open_shore = 1.0 - 0.8 * sh.open;
+    scale(ForestFloor, (1.0 - 0.9 * alp) * open_shore);
+    scale(LeafLitter, (1.0 - 0.9 * alp) * open_shore);
+    scale(Scrub, (1.0 - 0.7 * alp) * (1.0 - 0.5 * sh.open));
 }
 
 /// Precomputed cell weights for a block's neighbourhood.
@@ -192,7 +222,7 @@ impl Prior {
         for dy in -r..=r {
             for dx in -r..=r {
                 let k = ctx.cell.offset(dx, dy);
-                cells.push((k, cell_weights(ctx.cell_at(k))));
+                cells.push((k, cell_weights(ctx.cell_at(k), ctx.coast_at(k))));
             }
         }
         Self { cells }
@@ -331,4 +361,53 @@ fn split(t: f64) -> (i64, f64) {
     #[allow(clippy::cast_possible_truncation)]
     let i = f as i64;
     (i, t - f)
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::biome::Coast;
+    use arda::{Cover, TerrainKind};
+    use arda_core::{HeightMm, ShoreClass, TempCentiC};
+
+    fn plain() -> Cell {
+        Cell {
+            terrain: TerrainKind::Land,
+            cover: Cover::Grass,
+            height: HeightMm::new(1),
+            temperature: TempCentiC::new(1000),
+            wetness: 40,
+            height_above_river_dm: 60,
+            ..Cell::default()
+        }
+    }
+
+    #[test]
+    fn a_world_without_a_shore_layer_gives_sea_level_land_the_old_beach() {
+        let w = cell_weights(&plain(), Coast::default());
+        assert!((w[Class::Sand.index()] - 0.45).abs() < 1e-9);
+        assert!((w[Class::Gravel.index()] - 0.15).abs() < 1e-9);
+    }
+
+    #[test]
+    fn beach_cliff_and_salt_marsh_take_their_own_ground() {
+        let at = |class| {
+            cell_weights(
+                &plain(),
+                Coast {
+                    dist: 1,
+                    shore: class,
+                    layer: true,
+                },
+            )
+        };
+        let sand = at(ShoreClass::SandBeach);
+        assert!(sand[Class::Sand.index()] > sand[Class::Grass.index()]);
+        let cliff = at(ShoreClass::Cliff);
+        assert!(cliff[Class::Sand.index()] < 1e-9 && cliff[Class::Rock.index()] > 0.4);
+        let marsh = at(ShoreClass::Marsh);
+        assert!(marsh[Class::Mud.index()] > 0.4 && marsh[Class::Marsh.index()] > 0.4);
+        let shingle = at(ShoreClass::ShingleBeach);
+        assert!(shingle[Class::Gravel.index()] > shingle[Class::Sand.index()]);
+    }
 }

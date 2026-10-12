@@ -7,6 +7,7 @@
 use crate::error::RefineError;
 use arda::{Cell, TerrainKind};
 use arda_core::water::PanKind;
+use arda_core::ShoreClass;
 use std::collections::BTreeMap;
 
 /// A global 100 m cell coordinate. Signed so neighbourhoods may step past
@@ -111,12 +112,29 @@ pub trait Source {
     ///     fn fine_mm(&self, kx: i64, ky: i64) -> Result<Option<i32>, RefineError> {
     ///         self.0.fine_mm(kx, ky)
     ///     }
+    ///     fn shore(&self, at: CellKey) -> Result<arda_core::ShoreClass, RefineError> {
+    ///         self.0.shore(at)
+    ///     }
+    ///     fn has_shore(&self) -> bool { self.0.has_shore() }
     /// }
     /// ```
     ///
     /// # Errors
     /// A layer failed to load.
     fn pan(&self, at: CellKey) -> Result<Option<PanKind>, RefineError>;
+
+    /// The saved shore class of `at` (`terrain/shore.bin`, recipe 5 and
+    /// later); [`ShoreClass::None`] for a cell off the shore and for a world
+    /// without the layer. Use [`Source::has_shore`] to tell the two apart.
+    ///
+    /// Required, with no default, for the same reason as [`Source::pan`].
+    ///
+    /// # Errors
+    /// A layer failed to load.
+    fn shore(&self, at: CellKey) -> Result<ShoreClass, RefineError>;
+
+    /// Whether the world carries a shore layer at all.
+    fn has_shore(&self) -> bool;
 
     /// Clamps a key into the world.
     fn clamp(&self, at: CellKey) -> CellKey {
@@ -136,6 +154,7 @@ pub struct GridSource {
     edges: BTreeMap<CellKey, Vec<Edge>>,
     fine: Option<(i64, i64, Vec<i32>)>,
     pans: BTreeMap<CellKey, PanKind>,
+    shores: Option<BTreeMap<CellKey, ShoreClass>>,
 }
 
 impl GridSource {
@@ -153,6 +172,7 @@ impl GridSource {
             edges: BTreeMap::new(),
             fine: None,
             pans: BTreeMap::new(),
+            shores: None,
         }
     }
 
@@ -201,6 +221,14 @@ impl GridSource {
         self.pans.insert(at, kind);
     }
 
+    /// Gives the world a shore layer and marks one cell's class. The first
+    /// call turns the layer on; cells never marked read [`ShoreClass::None`].
+    pub fn set_shore(&mut self, at: CellKey, class: ShoreClass) {
+        self.shores
+            .get_or_insert_with(BTreeMap::new)
+            .insert(at, class);
+    }
+
     /// Installs a fine terrain lattice of `w × h` samples.
     pub fn set_fine(&mut self, w: u32, h: u32, samples: Vec<i32>) {
         self.fine = Some((i64::from(w), i64::from(h), samples));
@@ -226,6 +254,18 @@ impl Source for GridSource {
 
     fn pan(&self, at: CellKey) -> Result<Option<PanKind>, RefineError> {
         Ok(self.pans.get(&self.clamp(at)).copied())
+    }
+
+    fn shore(&self, at: CellKey) -> Result<ShoreClass, RefineError> {
+        Ok(self
+            .shores
+            .as_ref()
+            .and_then(|m| m.get(&self.clamp(at)).copied())
+            .unwrap_or_default())
+    }
+
+    fn has_shore(&self) -> bool {
+        self.shores.is_some()
     }
 
     fn edges_touching(&self, at: CellKey) -> Result<Vec<Edge>, RefineError> {
@@ -275,6 +315,12 @@ mod tests {
         }
         fn pan(&self, at: CellKey) -> Result<Option<PanKind>, RefineError> {
             self.0.pan(at)
+        }
+        fn shore(&self, at: CellKey) -> Result<ShoreClass, RefineError> {
+            self.0.shore(at)
+        }
+        fn has_shore(&self) -> bool {
+            self.0.has_shore()
         }
     }
 

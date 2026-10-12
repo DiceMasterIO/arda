@@ -23,6 +23,7 @@ pub mod biome;
 pub mod block;
 pub mod borders;
 pub mod classes;
+pub mod coastwet;
 pub mod context;
 pub mod density;
 pub mod ecology;

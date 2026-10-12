@@ -47,6 +47,7 @@ pub struct Ctx {
     cells: Vec<Cell>,
     lakes: Vec<Option<LakeInfo>>,
     pans: Vec<Option<arda_core::water::PanKind>>,
+    coasts: Vec<crate::biome::Coast>,
     /// Channel edges touching cells within [`EDGE_R`], sorted, unique.
     pub edges: Vec<Edge>,
     fine: Option<(i64, i64, i64, Vec<f64>)>,
@@ -150,12 +151,34 @@ impl Ctx {
         let mut cells = Vec::with_capacity(count);
         let mut lakes = Vec::with_capacity(count);
         let mut pans = Vec::with_capacity(count);
+        let mut coasts = Vec::with_capacity(count);
+        // The sea distance of a gathered cell reads the cells around it, so
+        // read a margin of `COAST_REACH` cells once and answer from that.
+        // The facts stay a pure function of the cell's position.
+        let m = crate::biome::COAST_REACH;
+        let pw = w + 2 * m;
+        let ph = h + 2 * m;
+        let has_shore = src.has_shore();
+        let mut around = Vec::with_capacity(usize::try_from(pw * ph).unwrap_or(0));
+        for dy in -m..h + m {
+            for dx in -m..w + m {
+                let k = src.clamp(nw.offset(dx, dy));
+                around.push((src.cell(k)?.terrain, src.shore(k)?));
+            }
+        }
         for dy in 0..h {
             for dx in 0..w {
                 let k = src.clamp(nw.offset(dx, dy));
                 cells.push(src.cell(k)?);
                 lakes.push(src.lake(k)?);
                 pans.push(src.pan(k)?);
+                coasts.push(crate::biome::coast_facts(
+                    |ox, oy| {
+                        let i = usize::try_from((dy + m + oy) * pw + dx + m + ox).unwrap_or(0);
+                        around.get(i).copied().unwrap_or_default()
+                    },
+                    has_shore,
+                ));
             }
         }
         edges.sort();
@@ -184,6 +207,7 @@ impl Ctx {
             cells,
             lakes,
             pans,
+            coasts,
             edges,
             fine: have.then_some((kx0, ky0, fw, fine)),
         })
@@ -200,6 +224,13 @@ impl Ctx {
     #[must_use]
     pub fn cell_at(&self, c: CellKey) -> &Cell {
         &self.cells[self.slot(c).min(self.cells.len() - 1)]
+    }
+
+    /// The coast facts (sea distance, shore class) of the gathered cell at
+    /// global `c`.
+    #[must_use]
+    pub fn coast_at(&self, c: CellKey) -> crate::biome::Coast {
+        self.coasts.get(self.slot(c)).copied().unwrap_or_default()
     }
 
     /// The lake at global `c`, if any.
