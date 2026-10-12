@@ -65,7 +65,7 @@ Per-square `cover` is the strongest of the sidecar's cover and the cover of asse
 
 ### §scene-lights
 
-Free layout lights first, then emissive assets in placement order. Each has `bright_ft` (the catalogue `radius_ft`) and `dim_ft = 2 × bright_ft` (SRD 5.1: candle 5/10, torch 20/40, lamp 15/45 is the exception, hooded lantern 30/60). Assets must therefore carry the SRD bright radius; a lamp-type asset may set its own dim radius once the catalogue grows a `dim_ft` field (not in format 1). Lights block by walls with `blocks_light`.
+Free layout lights first, then emissive assets in placement order. Each has `bright_ft` (the catalogue `radius_ft`) and `dim_ft = 2 × bright_ft` (SRD 5.1: candle 5/10, torch 20/40, lamp 15/45 is the exception, hooded lantern 30/60). Assets must therefore carry the SRD bright radius; a lamp-type asset may set its own dim radius once the catalogue grows a `dim_ft` field (not in format 1). Lights block by walls with `blocks_light`, the same rule the compositor uses to stop light pools at walls (`WallSegment::blocks_light`, logic/11 §lighting).
 
 ### §scene-regions
 

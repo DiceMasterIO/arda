@@ -127,5 +127,3 @@ is a follow-up.
 - One level per map; stairs mark the links to other levels, which the
   caller generates with its own seeds.
 - Walls follow square edges, so cave walls are stepped rather than curved.
-- The compositor's light pools ignore walls, so torchlight glows over the
-  surrounding rock in the image (the scene's lights are exact).
