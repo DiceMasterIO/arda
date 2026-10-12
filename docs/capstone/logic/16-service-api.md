@@ -65,7 +65,8 @@ Added by this spec (goals 57, 65, 67, 70):
 | `GET /v1/settlements/{id}/buildings` | `[TownBuilding]` with their `BuildingSpec` | 10 |
 | `GET /v1/settlements/{id}/npcs[?building=&job=&notable=&cursor=]` | `NpcPage` (`Npc` records; commoners generated on demand) | 13 |
 | `GET /v1/npc/{npc_id}` | `Npc` with its sheet | 13 |
-| `GET /v1/realms`, `GET /v1/realms/{id}` | `Realm` (+ relations, offices, events) | 08, 14 |
+| `GET /v1/realms` | `RealmList` (implemented): `{format_version, realms: [RealmSummary]}`, the `realms.json` records without `borders` plus `style`, `rank`, `government_label`, `ruler` when `society.json` exists | 08, 14 |
+| `GET /v1/realms/{id}` | `RealmDetail` (implemented): `{record (with borders), politics, relations, events, reigns}`; 404 unknown id, 400 non-numeric | 08, 14 |
 | `GET /v1/roads[?bbox=]` | roads, crossings and passes clipped to the box | 08 |
 | `GET /v1/tiles/overlay/{z}/{x}/{y}.png` | 256 px transparent overlay tiles: tier symbols, road classes, realm borders, labels, aligned with the overview pyramid | 08 overlay, goal 41 |
 | `GET /v1/tactical/prefetch?gx=&gy=&radius=1` | `202` with the queued cells | §api-prefetch |

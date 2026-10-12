@@ -34,6 +34,8 @@ edges:
     - { kind: http, name: "GET /v1/settlements/{id}", site: crates/arda-server/src/people.rs }
     - { kind: http, name: "GET /v1/settlements/{id}/plan", site: crates/arda-server/src/people.rs }
     - { kind: http, name: "GET /v1/settlements/{id}/npcs", site: crates/arda-server/src/people.rs, schema: SettlementNpcs }
+    - { kind: http, name: "GET /v1/realms", site: crates/arda-server/src/realms.rs, schema: RealmList }
+    - { kind: http, name: "GET /v1/realms/{id}", site: crates/arda-server/src/realms.rs, schema: RealmDetail }
     - { kind: http, name: "GET /v1/schema", site: crates/arda-server/src/schema/routes.rs, schema: SchemaIndex }
     - { kind: http, name: "GET /v1/schema/{Name}.json", site: crates/arda-server/src/schema/routes.rs }
     - { kind: http, name: "GET /v1/tactical/layouts", site: crates/arda-server/src/tactical/routes.rs }
@@ -88,6 +90,8 @@ The only cross-repo surface is `arda-server`'s HTTP API under `/v1` (consumed by
 | http | GET /v1/settlements/{id} | - | `crates/arda-server/src/people.rs` |
 | http | GET /v1/settlements/{id}/plan | - | `crates/arda-server/src/people.rs` |
 | http | GET /v1/settlements/{id}/npcs | - | `crates/arda-server/src/people.rs` |
+| http | GET /v1/realms | - | `crates/arda-server/src/realms.rs` |
+| http | GET /v1/realms/{id} | - | `crates/arda-server/src/realms.rs` |
 | http | GET /v1/schema | - | `crates/arda-server/src/schema/routes.rs` |
 | http | GET /v1/schema/{Name}.json | - | `crates/arda-server/src/schema/routes.rs` |
 | http | GET /v1/tactical/layouts | - | `crates/arda-server/src/tactical/routes.rs` |
@@ -307,6 +311,26 @@ Type `arda_town::TownPlan` (`crates/arda-town/src/plan/types.rs:293`), serialise
 ### GET /v1/settlements/{id}/npcs
 
 Model: SettlementNpcs
+
+### GET /v1/realms
+
+Model: RealmList
+
+Typed `RealmList { format_version: 1, realms: RealmSummary[] }` in id order, at most `MAX_LISTED` entries (`crates/arda-server/src/realms.rs`). Summaries omit `borders`; `style`, `rank`, `government_label` and `ruler` are absent when `society.json` does not exist. 404 `not_found` without `society/`.
+
+### GET /v1/realms/{id}
+
+Model: RealmDetail
+
+| Field | Type | Required | Notes |
+|---|---|---|---|
+| record | arda_settle::realms::Realm | yes | with `borders` |
+| politics | Option<arda_society::RealmSociety> | no | `null` before `arda society build` |
+| relations | Vec<arda_society::politics::relations::Relation> | yes | those involving the id |
+| events | Vec<arda_society::history::Event> | yes | those listing the id in `realms` |
+| reigns | Vec<arda_society::history::Reign> | yes | of this realm |
+
+404 `not_found` for an unknown id, 400 `bad_request` for a non-numeric one.
 
 ### GET /v1/schema
 

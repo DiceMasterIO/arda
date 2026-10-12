@@ -589,6 +589,10 @@ Storage values: `HTTP JSON; ts-rs bindings/ts/arda/<Name>.ts` means the type is 
 | SettlementList | `crates/arda-server/src/schema/bodies.rs:11` | HTTP JSON (schemars only) | `GET /v1/settlements[?tier=&realm=]`. |
 | SettlementDetail | `crates/arda-server/src/schema/bodies.rs:20` | HTTP JSON (schemars only) | `GET /v1/settlements/{id}`. |
 | SettlementNpcs | `crates/arda-server/src/schema/bodies.rs:29` | HTTP JSON (schemars only) | `GET /v1/settlements/{id}/npcs`: the stored notables. |
+| RealmRuler | `crates/arda-server/src/schema/bodies.rs` | HTTP JSON | Name and title of a realm's ruler. |
+| RealmSummary | `crates/arda-server/src/schema/bodies.rs` | HTTP JSON | One entry of `GET /v1/realms`. |
+| RealmList | `crates/arda-server/src/schema/bodies.rs` | HTTP JSON (schemars only) | `GET /v1/realms`. |
+| RealmDetail | `crates/arda-server/src/schema/bodies.rs` | HTTP JSON (schemars only) | `GET /v1/realms/{id}`. |
 | MappingFile | `crates/arda-server/src/sheet_map/spec.rs:16` | `--sheet-mapping` JSON file | A whole mapping file. |
 | Base | `crates/arda-server/src/sheet_map/spec.rs:43` | `--sheet-mapping` JSON file | The starting output. |
 | Rule | `crates/arda-server/src/sheet_map/spec.rs:54` | `--sheet-mapping` JSON file | One rule: write one output location. |
@@ -6030,6 +6034,34 @@ Required `no` marks an `Option` field, a serde default, a field omitted when emp
 |---|---|---|---|
 | settlement_id | `String` | yes | The settlement, a decimal string. |
 | npcs | `Npc[]` | yes | Its stored notables with their sheets. |
+
+### RealmList
+
+| Field | Type | Required | Notes |
+|---|---|---|---|
+| format_version | `u32` | yes | Version of this body (1). |
+| realms | `RealmSummary[]` | yes | Realms in id order, without borders. |
+
+### RealmSummary
+
+| Field | Type | Required | Notes |
+|---|---|---|---|
+| id, seat | `String` | yes | Decimal strings. |
+| name, name_gloss, culture | `String` | yes | |
+| settlements, neighbours | `String[]` | yes | Decimal ids. |
+| population, land_cells | `u64` | yes | |
+| style, rank, government_label | `Option<String>` | no | Absent before `arda society build`. |
+| ruler | `Option<RealmRuler>` | no | `{name, title}`; absent before `arda society build`. |
+
+### RealmDetail
+
+| Field | Type | Required | Notes |
+|---|---|---|---|
+| record | `arda_settle::realms::Realm` | yes | With borders. |
+| politics | `Option<arda_society::RealmSociety>` | no | `null` before `arda society build`. |
+| relations | `Relation[]` | yes | Those involving the realm. |
+| events | `Event[]` | yes | History events listing the realm. |
+| reigns | `Reign[]` | yes | The realm's reigns. |
 
 ### MappingFile
 

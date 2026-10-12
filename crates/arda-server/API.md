@@ -360,8 +360,8 @@ curl -o relief.webp http://127.0.0.1:8787/v1/tiles/relief/7/55/95.webp
 Served when the world has a `society/` directory (`arda settle --world`, then
 `arda society build --world`); otherwise every route here is 404 `not_found`. Ids are
 decimal strings (I5). Bodies are the domain types' JSON. Their JSON Schemas are
-`SettlementList`, `SettlementDetail` (with `Settlement` and `SettlementSociety`), `TownPlan` and
-`SettlementNpcs` (see [JSON Schemas](#json-schemas)); TypeScript types exist for `Npc` only,
+`SettlementList`, `SettlementDetail` (with `Settlement` and `SettlementSociety`), `TownPlan`,
+`SettlementNpcs`, `RealmList` and `RealmDetail` (see [JSON Schemas](#json-schemas)); TypeScript types exist for `Npc` only,
 the rest are described by the schemas.
 
 - `GET /v1/settlements[?tier=&realm=]`: `{format_version, settlements: [record…]}`, the
@@ -378,6 +378,28 @@ the rest are described by the schemas.
 ```sh
 curl -s "http://localhost:8787/v1/settlements?tier=village" | jq '.settlements | length'
 curl -s http://localhost:8787/v1/settlements/118/npcs | jq '.npcs[].job.title'
+```
+
+### Realms
+
+- `GET /v1/realms`: `{format_version: 1, realms: [RealmSummary…]}` in id order. A summary is the
+  `society/realms.json` record without `borders` (`id`, `name`, `name_gloss`, `seat`, `culture`,
+  `settlements`, `population`, `land_cells`, `neighbours`) plus, once `arda society build` has run,
+  `style`, `rank`, `government_label` and `ruler` (`{name, title}`). Without `society.json` those four
+  keys are absent.
+- `GET /v1/realms/{id}`: `{record, politics, relations, events, reigns}`. `record` is the
+  `realms.json` record with `borders` (polylines of `[x_m, y_m]`); `politics` is the realm today
+  (style, government, ruler, vassals, levy, hooks) or null before `arda society build`;
+  `relations` are the relations that involve the realm, `events` the history events that list it
+  and `reigns` its rulers, oldest first. An unknown id is **404** `not_found`, a non-numeric one
+  **400** `bad_request`.
+
+Ids are decimal strings and the `?realm=` filter of `/v1/settlements` and `/v1/npcs` takes these
+ids. A world without `society/` answers 404 `not_found`.
+
+```sh
+curl -s http://localhost:8787/v1/realms | jq '.realms[] | {id, name, name_gloss, seat}'
+curl -s http://localhost:8787/v1/realms/1 | jq '.politics.style, (.relations|length)'
 ```
 
 ### People
@@ -888,6 +910,7 @@ describe the same JSON.
 | `Npc`, `Sheet`, `NpcPage` | `/v1/npc/{id}`, `/v1/npc/demo/{id}`; `Npc.sheet`; `/v1/npcs` and the building routes |
 | `Population`, `PopulationRequest`, `NpcDemo` | `POST /v1/npc/population` and its body; `/v1/npc/demo` |
 | `SettlementList`, `SettlementDetail`, `Settlement`, `SettlementSociety`, `TownPlan`, `SettlementNpcs` | the settlement routes |
+| `RealmList`, `RealmDetail`, `Realm`, `RealmSociety`, `Relation`, `Event` | `/v1/realms` and `/v1/realms/{id}`; the realm record, its politics, relations and history events |
 | `SchemaIndex` | `/v1/schema` itself |
 
 The files are committed in `bindings/schema/` and the server serves them byte for byte.
