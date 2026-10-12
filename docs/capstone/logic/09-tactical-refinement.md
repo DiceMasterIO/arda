@@ -105,15 +105,32 @@ Landform modifies the blend (`prior.rs` `landform`): knolls and ridges gain rock
 
 | Signal | From | Ground |
 |---|---|---|
-| marshy | cover marsh, or wetness smoothstep 0.8 → 0.98 on ground under 4–12° | `marsh` +1.4, `reed_bed` +1.0, `mud` +0.5; grass ×(1 − 0.8 m); also marsh pools (`pools.rs`) |
+| marshy | cover marsh, or wetness smoothstep 0.5 → 0.7 (`MARSH_WETNESS`), both times the flatness fade `1 − smoothstep(4°, 12°)`: no marsh above 12° | `marsh` +1.4, `reed_bed` +1.0, `mud` +0.5; grass ×(1 − 0.8 m); also marsh pools (`pools.rs`) |
 | arid | rainfall ÷ (300 mm + 45 mm/°C above 0), smoothstep 0.75 → 0.35; 0 when the world has no rainfall layer | `dirt` +0.45, `scrub` +0.12; meadow ×(1 − 0.85 a), moss ×(1 − 0.9 a), grass ×(1 − 0.3 a); per-square `dryness` for the compositor's dry-grass tint |
-| coastal | land height smoothstep 0.02 → 0.6 m (sea-level land) | `sand` +0.45, `gravel` +0.15; the cell counts `-1 + coastal` in the standing-water indicator, so the shoreline runs through coast cells and the sea reaches in across a beach |
+| coastal (shoreline) | with a shore layer: nearest-sea distance (Chebyshev cells, 4-cell reach) and the saved `ShoreClass` of the shore the cell lies behind, `biome::shoreline`; without one, land height smoothstep 0.02 → 0.6 m (the old rule, weights unchanged). Sand beach: strip 3 cells on firm ground (height under 10–25 m, slope under 10–22°), 4 at most; shingle beach, salt marsh 2; rocky shore and cliff 2 and never sand | sand beach `sand` +1.0 (`gravel` +0.16), shingle `gravel` +0.8 (`sand` +0.3), salt marsh `mud` +0.5, `marsh` +0.8, `reed_bed` +0.3, rock and cliff `rock` +0.5, `scree` +0.1; turf ×(1 − 0.8 strip), woods ×(1 − 0.8) on open ground; the cell still counts `-1 + coastal` (height rule only) in the standing-water indicator, so the shoreline geometry does not move |
 | alpine | temperature smoothstep 3.5 → -1 °C (the tree line) | `rock` +0.35, `scree` +0.3, `moss`, `heath`; turf and forest floor fade |
 | craggy | cell slope smoothstep 18° → 34° | `rock` +0.2, `scree` +0.3, grass halved; strata (§elevation) |
 
 Per square, steep ground breaks out as rock (`+0.9 · smoothstep(26°, 44°)`) and cliff (`0.9 · smoothstep(32°, 44°)`).
 
-All weights assumed, tunable; ground keys are the canonical ones in `docs/goal-prompts/vocabulary.md` (untracked; copied into 11-tactical-art-compositor §vocabulary).
+Calibrated against `arda-refine coastwet` at revision `91610f4` (§biome-calibration); weights not listed there stay assumed, tunable. Ground keys are the canonical ones in `docs/goal-prompts/vocabulary.md` (untracked; copied into 11-tactical-art-compositor §vocabulary).
+
+**Biome calibration** (§biome-calibration; goal 18, OI-41). `arda-refine coastwet --world <dir> [--stride N]` prints deterministic JSON from a fixed stride over cells (stride 4 is about 40 000 land cells and a few seconds per world in release; coast cells are sampled by a keyed hash, one in N): per climate group (`all`, `cold` under 5 °C, `cool` 5–11 °C, `warm`, `temperate_lowland` = 5–18 °C and under 300 m) the share of land cells with `marshy`, `coastal` (strip), `arid` and `alpine` above 0.5, a wetness ladder, the strongest and the mean prior ground, and pools (sites per km² of wet cells, share of probed squares in a pool inside wet cells and outside marsh cells); and, per saved shore class, the coast strip width (cells walked inland while the strip stays above 0.5 and the class does not change) with the share whose strongest ground is sand. Worlds: `generate --seed 42 --micro --terrain fine` (recipe 7; `world.json` SHA-256 `d750f494…`, `shore.bin` `0391d45c…`) and the same with `--latitude 15,35` (`shore.bin` `3eacc164…`), both 1024 × 2048 cells.
+
+| Measure | Target (source) | Before, micro42 | After, micro42 | Before, lat 15–35 | After, lat 15–35 |
+|---|---|---|---|---|---|
+| marshy share, temperate lowland | 3–8 % (global wetlands are roughly 5–8 % of land; assumed for lowland) | 1.87 % | 4.46 % | n/a (no temperate land) | n/a |
+| marshy share, all land | informational | 0.74 % | 2.09 % | 0.78 % | 2.95 % |
+| pool area outside marsh cells | under 1 % of squares (assumed) | 0.004 % | 0.004 % | 0.005 % | 0.006 % |
+| pool area inside wet cells | 2–8 % (assumed, from the lattice design) | 3.9 % | 4.3 % | 3.0 % | 4.4 % |
+| coast strip width, sand beach | 2–4 cells (assumed) | 0.33 | 2.03 | 0.67 | 2.76 |
+| coast strip width, cliff | at most 2 cells (assumed) | 0.01 | 1.56 (87 % within 2) | 0.01 | 1.51 (89 % within 2) |
+| strongest ground on sand-beach cells is sand | most of the cells | 0 % | 89 % | 0 % | 92 % |
+| strongest ground on cliff cells is sand | none | 0 % | 0 % | 0 % | 0 % |
+| sand beach share of sea-touching land cells | about a third of open coast (assumed) | 4.7 % | 4.7 % (generation) | 6.4 % | 6.4 % (generation) |
+| cliff / rocky shore / salt marsh share | informational | 59 / 33 / 3.7 % | unchanged | 68 / 23 / 3.3 % | unchanged |
+
+What moved: marsh counts from wetness 0.6 (the lowland's wetness is 6.7 % at 0.5, 4.3 % at 0.6, 3.0 % at 0.7 and 1.2 % at 0.9, so the old 0.8–0.98 band left only 1.9 % marshy); the old coastal signal reached 0.08 % of land, a single sea-level strip, so sand beaches had no depth and the strongest ground on them was grass or forest floor. Sea-level land far from the sea (a 0.2 m coastal plain or fen, five cells and more inland) no longer counts as beach in a world with a shore layer. Pool qualification (`wet_cell`, `room`) is unchanged: outside marsh cells pools already cover 0.004–0.012 % of squares, and raising the floodplain wetness test from 0.45 to 0.5 moved the wet cells 409 → 406 (0.7 %), so it was left alone. Cover marsh is unchanged in the world; only its slope fade is new. The sand-beach share of the coast and the 59–68 % of cliffs come from shore formation (`formation/shore.rs`, recipe 7) and are not changed here: they are reported as a recipe-9 candidate (OI-41). `tests/coastwet_world.rs` pins the ranges above on `out/micro42` (skipped with a printed reason when absent); `tests/coastwet.rs` checks the tool on the synthetic world.
 
 **Arid basins** (recipe 7, logic/02 §world-water arid basins). A free land square whose stored playa cell (`water.bin` pan runs) is salt crust or mudflat takes the ground key `salt_crust` or `mudflat` instead of its WFC class; saline lake squares stay water. The cell is looked up after a smooth jitter of up to 20 squares (two-octave noise, 48-square wavelength) of the square's position, so crust and mudflat edges wander instead of following the 100 m grid, and neighbouring blocks agree. Natural scatter (trees, bushes, rocks) is removed from playa squares. `mudflat` is difficult terrain (soft clay); `salt_crust` is not.
 
