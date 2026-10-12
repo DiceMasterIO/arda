@@ -4,7 +4,8 @@
 use crate::PeopleError;
 use arda_npc::Npc;
 use arda_settle::model::Settlement;
-use arda_settle::output::{RoadsFile, SettlementsFile};
+use arda_settle::output::{RealmsFile, RoadsFile, SettlementsFile};
+use arda_settle::realms::Realm;
 use serde::{Deserialize, Serialize};
 use std::collections::BTreeMap;
 use std::path::{Path, PathBuf};
@@ -53,6 +54,8 @@ pub struct SocietyFiles {
     pub records: Vec<serde_json::Value>,
     /// `roads.json`.
     pub roads: RoadsFile,
+    /// `realms.json`; `None` when the file is absent.
+    pub realms: Option<RealmsFile>,
     /// Record index by settlement id.
     pub index: BTreeMap<u64, usize>,
 }
@@ -97,6 +100,12 @@ impl SocietyFiles {
             .cloned()
             .ok_or_else(|| PeopleError::format(&spath, "no settlements array"))?;
         let roads: RoadsFile = read(&dir.join("roads.json"))?;
+        let rpath = dir.join("realms.json");
+        let realms = if rpath.is_file() {
+            Some(read::<RealmsFile>(&rpath)?)
+        } else {
+            None
+        };
         let index = settlements
             .settlements
             .iter()
@@ -108,6 +117,7 @@ impl SocietyFiles {
             settlements,
             records,
             roads,
+            realms,
             index,
         })
     }
@@ -125,5 +135,61 @@ impl SocietyFiles {
             (Some(s), Some(r)) => Ok((s, r)),
             _ => Err(PeopleError::UnknownSettlement(id)),
         }
+    }
+}
+
+impl SocietyFiles {
+    /// The realm with `id`, when `realms.json` was read and lists it.
+    #[must_use]
+    pub fn realm(&self, id: u64) -> Option<&Realm> {
+        self.realms.as_ref()?.realms.iter().find(|r| r.id == id)
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    #![allow(clippy::unwrap_used, clippy::expect_used)]
+    use super::*;
+
+    fn dir(tag: &str) -> PathBuf {
+        let d =
+            std::env::temp_dir().join(format!("arda-people-files-{tag}-{}", std::process::id()));
+        std::fs::create_dir_all(&d).unwrap();
+        std::fs::write(
+            d.join("settlements.json"),
+            r#"{"format_version":1,"seed":"42","width_cells":1,"height_cells":1,"settlements":[]}"#,
+        )
+        .unwrap();
+        std::fs::write(
+            d.join("roads.json"),
+            r#"{"format_version":1,"roads":[],"crossings":[],"passes":[]}"#,
+        )
+        .unwrap();
+        d
+    }
+
+    #[test]
+    fn missing_realms_file_is_none() {
+        let d = dir("none");
+        let f = SocietyFiles::read(&d).unwrap();
+        assert!(f.realms.is_none());
+        assert!(f.realm(1).is_none());
+        std::fs::remove_dir_all(&d).unwrap();
+    }
+
+    #[test]
+    fn realms_file_is_read_and_looked_up() {
+        let d = dir("some");
+        std::fs::write(
+            d.join("realms.json"),
+            r#"{"format_version":1,"realms":[{"id":"2","name":"Stonemark","name_gloss":"Stonemark","seat":"7","culture":"c","settlements":["7"],"population":10,"land_cells":5,"neighbours":[],"borders":[]}]}"#,
+        )
+        .unwrap();
+        let f = SocietyFiles::read(&d).unwrap();
+        assert_eq!(f.realm(2).map(|r| r.name.as_str()), Some("Stonemark"));
+        assert!(f.realm(1).is_none());
+        std::fs::write(d.join("realms.json"), "{").unwrap();
+        assert!(SocietyFiles::read(&d).is_err());
+        std::fs::remove_dir_all(&d).unwrap();
     }
 }
