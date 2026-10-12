@@ -137,14 +137,14 @@ fn open_ground_keeps_the_plain_disc() {
         mask: None,
     };
     assert!(build(&walls, &far, P).is_none());
-    // A lit map without walls is untouched; the hash was taken from the pre-occlusion compositor (PNG-identical).
+    // A lit map without walls is untouched; the hash was taken from the pre-occlusion compositor (PNG-identical); re-pinned for library 0.2.0 (the version is part of the render seed).
     let mut open = room(None);
     open.walls.clear();
     let a = render(&open, &lib, 3, &opts()).unwrap();
     assert_eq!(blake3::hash(&a.data).to_hex().as_str(), GOLDEN_OPEN);
 }
 
-const GOLDEN_OPEN: &str = "749817b02ccc5b728d850ebc25b0a343d48a2b007538f6ea9e5a50723237c775";
+const GOLDEN_OPEN: &str = "e04284ee89fe1ca55b48b67f0e4b9190134a6e9298fafd4d9232e173fff09a14";
 
 #[test]
 fn occluded_renders_are_deterministic() {

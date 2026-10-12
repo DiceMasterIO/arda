@@ -3,7 +3,8 @@
 //! or `function:smithy` use to find furniture.
 
 use super::props::{
-    civic, dungeon as dg, farm, fire, furniture as fur, river, storage as st, work, yard,
+    civic, damage as dm, dungeon as dg, farm, fire, furniture as fur, river, storage as st, work,
+    yard,
 };
 use super::relief::Relief;
 use super::{base, PPSQ};
@@ -81,7 +82,7 @@ use Cover::{Half, None as Open, ThreeQuarters as Most};
 
 /// Every placeholder prop.
 #[rustfmt::skip]
-pub const PROPS: [PropSpec; 67] = [
+pub const PROPS: [PropSpec; 70] = [
     p("prop.barrel", (1, 1), st::barrel, 4, Half, &["warehouse", "dock", "inn", "tavern", "brewery", "market", "boathouse", "market_hall", "mine"], &["container"]),
     p("prop.crate", (1, 1), st::crate_box, 3, Half, STORES, &["container"]),
     p("prop.sacks", (1, 1), st::sacks, 2, Half, &["warehouse", "farm", "market", "mill", "bakery", "barn", "stall", "market_hall"], &["container"]),
@@ -151,6 +152,10 @@ pub const PROPS: [PropSpec; 67] = [
     p("prop.stairs", (1, 2), dg::stairs, 0, Open, &[], &["dungeon", "stairs", "stairs_up"]),
     p("prop.stairs_down", (1, 2), dg::stairs_down, 0, Open, &[], &["dungeon", "stairs", "stairs_down"]),
     p("prop.torch_sconce", (1, 1), dg::torch_sconce, 0, Open, &[], &["dungeon", "wall_light"]),
+    // Damage props (1.0 task 05). Free tags only, so dressing never picks them.
+    p("prop.rubble_heap", (2, 2), dm::rubble_heap, 2, Half, &[], &["damage", "rubble"]),
+    p("prop.broken_deck", (1, 2), dm::broken_deck, 0, Open, &[], &["damage", "floor"]),
+    p("prop.charred_floor", (2, 2), dm::charred_floor, 0, Open, &[], &["damage", "floor"]),
 ];
 
 /// Lights by prop id: radius in feet and colour.
@@ -207,7 +212,11 @@ pub fn prop_asset(spec: &PropSpec, seed: u64) -> (Asset, Rgba) {
             a.placement.on_water = true;
             a.blocks_movement = false;
         }
-        "prop.rug_small" => a.layer = Layer::Floor,
+        "prop.rug_small" | "prop.charred_floor" => a.layer = Layer::Floor,
+        "prop.broken_deck" => {
+            a.layer = Layer::Floor;
+            a.rotations = vec![0, 90];
+        }
         "prop.stairs" | "prop.stairs_down" => {
             // Steps are climbed: difficult terrain, as in the AI library.
             a.difficult_terrain = true;

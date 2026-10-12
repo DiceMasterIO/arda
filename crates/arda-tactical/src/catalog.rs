@@ -149,6 +149,11 @@ pub enum AssetClass {
     Vegetation,
     /// Tileable water texture.
     Water,
+    /// Transparent effect art (frost, fire, scorch marks, fog) that a
+    /// consumer draws over tiles. Layouts never place it and the compositor
+    /// never draws it; it is listed and served through the tactical API.
+    /// Tagged `effect:texture` (tileable) or `effect:decal` (single patch).
+    Effect,
     /// Any class this version does not know; rejected by the validator.
     #[serde(other)]
     Unknown,
@@ -160,7 +165,18 @@ impl AssetClass {
     pub fn is_texture(self) -> bool {
         matches!(self, Self::Ground | Self::Water)
     }
+
+    /// Effect art: transparent, drawn by the consumer, never by the compositor.
+    #[must_use]
+    pub fn is_effect(self) -> bool {
+        self == Self::Effect
+    }
 }
+
+/// Free tag of a tileable effect texture.
+pub const EFFECT_TEXTURE_TAG: &str = "effect:texture";
+/// Free tag of a single-patch effect decal.
+pub const EFFECT_DECAL_TAG: &str = "effect:decal";
 
 /// Footprint in squares.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
@@ -400,6 +416,19 @@ mod tests {
     fn unknown_fields_are_rejected() {
         let json = MINIMAL.replace("\"layer\"", "\"colour\": 1, \"layer\"");
         assert!(parse(&json).is_err());
+    }
+
+    #[test]
+    fn effect_asset_round_trips() {
+        let json = MINIMAL
+            .replace("\"class\": \"prop\"", "\"class\": \"effect\"")
+            .replace("prop.barrel", "effect.frost.0");
+        let mut cat = parse(&json).unwrap();
+        assert_eq!(cat.assets[0].class, AssetClass::Effect);
+        assert!(cat.assets[0].class.is_effect() && !cat.assets[0].class.is_texture());
+        cat.assets[0].tags.free = vec![EFFECT_TEXTURE_TAG.into()];
+        cat.assets[0].tileable = true;
+        assert_eq!(parse(&to_json(&cat).unwrap()).unwrap(), cat);
     }
 
     #[test]

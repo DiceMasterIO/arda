@@ -75,13 +75,24 @@ enum Slot {
     Id(String),
     Ground(String),
     Wall(String, WallRole),
+    /// An effect set: every numbered variant of `effect.<name>`.
+    Effect(String),
 }
 
 fn slot(a: &Asset) -> Slot {
     match (&a.ground, &a.wall) {
         (Some(key), _) if a.class.is_texture() => Slot::Ground(key.clone()),
         (_, Some(w)) if a.class == AssetClass::Wall => Slot::Wall(w.kit.clone(), w.role),
+        _ if a.class.is_effect() => Slot::Effect(effect_name(&a.id).to_string()),
         _ => Slot::Id(family_base(&a.id).to_string()),
+    }
+}
+
+/// `effect.frost` for `effect.frost.2`: the id without its variant number.
+fn effect_name(id: &str) -> &str {
+    match id.rsplit_once('.') {
+        Some((name, n)) if !n.is_empty() && n.bytes().all(|b| b.is_ascii_digit()) => name,
+        _ => id,
     }
 }
 
@@ -329,6 +340,46 @@ mod tests {
         assert_eq!(
             merged.catalog.assets.len(),
             base.catalog.assets.len() - base.textures("grass").len() + 1
+        );
+    }
+
+    #[test]
+    fn top_layer_effects_replace_the_whole_set() {
+        let base = Library::load(&placeholder_dir()).unwrap();
+        let mut top_cat = base.catalog.clone();
+        top_cat.library = "imported".into();
+        top_cat.library_version = "1".into();
+        top_cat
+            .assets
+            .retain(|a| a.id == "effect.frost.0" || a.id == "effect.frost.1");
+        for a in &mut top_cat.assets {
+            a.provenance = "test import".into();
+        }
+        let images = top_cat
+            .assets
+            .iter()
+            .map(|a| (a.id.clone(), base.image(&a.id).unwrap().clone()))
+            .collect();
+        let top = Library::from_parts(top_cat, images).unwrap();
+        let merged = Library::layered(&[top, base.clone()]).unwrap();
+        let frost: Vec<_> = merged
+            .catalog
+            .assets
+            .iter()
+            .filter(|a| a.id.starts_with("effect.frost."))
+            .map(|a| (a.id.as_str(), a.provenance.as_str()))
+            .collect();
+        // The imported set wins; the placeholder's third variant is shadowed.
+        assert_eq!(
+            frost,
+            [
+                ("effect.frost.0", "test import"),
+                ("effect.frost.1", "test import")
+            ]
+        );
+        assert!(
+            merged.asset("effect.fire.0").is_some(),
+            "other effects fall back"
         );
     }
 

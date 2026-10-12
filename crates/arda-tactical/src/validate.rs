@@ -3,7 +3,10 @@
 //! Every rule reports the asset it concerns and its own [`Rule`] name, so a
 //! failing library produces an actionable list rather than the first error.
 
-use crate::catalog::{AssetClass, Catalog, TagVocabulary, Tags, WallRole, FORMAT_VERSION};
+use crate::catalog::{
+    AssetClass, Catalog, TagVocabulary, Tags, WallRole, EFFECT_DECAL_TAG, EFFECT_TEXTURE_TAG,
+    FORMAT_VERSION,
+};
 use crate::raster::Rgba;
 use std::collections::{BTreeMap, BTreeSet};
 use std::fmt;
@@ -41,6 +44,8 @@ pub enum Rule {
     TextureAlpha,
     /// Opposite edges of a tileable texture do not match.
     TileSeam,
+    /// An effect is fully opaque or fully empty.
+    EffectAlpha,
 }
 
 impl Rule {
@@ -63,6 +68,7 @@ impl Rule {
             Self::AlphaFringe => "alpha_fringe",
             Self::TextureAlpha => "texture_alpha",
             Self::TileSeam => "tile_seam",
+            Self::EffectAlpha => "effect_alpha",
         }
     }
 }
@@ -156,7 +162,7 @@ pub fn validate(catalog: &Catalog, images: &Images, t: &Thresholds) -> Vec<Issue
             push(
                 &a.id,
                 Rule::UnknownClass,
-                "class must be ground, wall, prop, vegetation or water".into(),
+                "class must be ground, wall, prop, vegetation, water or effect".into(),
             );
         }
         for msg in unknown_tags(&a.tags, &catalog.vocabulary) {
@@ -189,6 +195,25 @@ pub fn validate(catalog: &Catalog, images: &Images, t: &Thresholds) -> Vec<Issue
                 Rule::ClassFields,
                 "ground and water textures need a `ground` key".into(),
             );
+        }
+        if a.class.is_effect() {
+            let tex = a.tags.free.iter().any(|t| t == EFFECT_TEXTURE_TAG);
+            let decal = a.tags.free.iter().any(|t| t == EFFECT_DECAL_TAG);
+            if tex == decal {
+                push(
+                    &a.id,
+                    Rule::ClassFields,
+                    format!(
+                        "effects need exactly one free tag, `{EFFECT_TEXTURE_TAG}` or `{EFFECT_DECAL_TAG}`"
+                    ),
+                );
+            } else if tex != a.tileable {
+                push(
+                    &a.id,
+                    Rule::ClassFields,
+                    "effect textures must be tileable and decals must not be".into(),
+                );
+            }
         }
         match (&a.wall, a.class) {
             (Some(w), AssetClass::Wall) => {
@@ -288,6 +313,10 @@ fn image_rules(
         return;
     }
     let alphas = || img.data.as_chunks::<4>().0.iter().map(|p| p[3]);
+    if a.class.is_effect() {
+        effect_rules(a, img, t, push);
+        return;
+    }
     if a.class.is_texture() {
         if alphas().any(|v| v < 255) {
             push(
@@ -332,10 +361,63 @@ fn rgb_diff(a: [u8; 4], b: [u8; 4]) -> u32 {
     (0..3).map(|c| u32::from(a[c].abs_diff(b[c]))).sum()
 }
 
+/// Difference of two pixels weighted by opacity, plus the alpha difference:
+/// invisible colour under a transparent pixel is not a seam.
+fn premul_diff(a: [u8; 4], b: [u8; 4]) -> u32 {
+    let pm = |p: [u8; 4], c: usize| u32::from(p[c]) * u32::from(p[3]) / 255;
+    (0..3).map(|c| pm(a, c).abs_diff(pm(b, c))).sum::<u32>() + u32::from(a[3].abs_diff(b[3]))
+}
+
+/// Effects may be semi-transparent but never fully empty or fully opaque;
+/// tileable ones must wrap.
+fn effect_rules(
+    a: &crate::catalog::Asset,
+    img: &Rgba,
+    t: &Thresholds,
+    push: &mut impl FnMut(&str, Rule, String),
+) {
+    let alphas = img.data.as_chunks::<4>().0.iter().map(|p| p[3]);
+    let (mut any_visible, mut any_clear) = (false, false);
+    for v in alphas {
+        any_visible |= v > 0;
+        any_clear |= v < 255;
+    }
+    if !any_visible {
+        push(
+            &a.id,
+            Rule::EffectAlpha,
+            "effect is fully transparent".into(),
+        );
+        return;
+    }
+    if !any_clear {
+        push(
+            &a.id,
+            Rule::EffectAlpha,
+            "effects need transparency; this one is fully opaque".into(),
+        );
+        return;
+    }
+    if a.tileable {
+        let ratio = seam_ratio_with(img, premul_diff);
+        if ratio > t.max_seam_ratio {
+            let msg = format!(
+                "seam/interior difference ratio {ratio:.2} exceeds {:.2}",
+                t.max_seam_ratio
+            );
+            push(&a.id, Rule::TileSeam, msg);
+        }
+    }
+}
+
 /// Mean RGB difference across the wrap seams divided by the mean difference
 /// between interior neighbours. A seamless texture scores about 1.
 #[must_use]
 pub fn seam_ratio(img: &Rgba) -> f32 {
+    seam_ratio_with(img, rgb_diff)
+}
+
+fn seam_ratio_with(img: &Rgba, diff: fn([u8; 4], [u8; 4]) -> u32) -> f32 {
     let (w, h) = (img.width, img.height);
     if w < 2 || h < 2 {
         return 0.0;
@@ -344,8 +426,8 @@ pub fn seam_ratio(img: &Rgba) -> f32 {
     for y in 0..h {
         for x in 0..w {
             let p = img.get(x, y);
-            let right = u64::from(rgb_diff(p, img.get((x + 1) % w, y)));
-            let down = u64::from(rgb_diff(p, img.get(x, (y + 1) % h)));
+            let right = u64::from(diff(p, img.get((x + 1) % w, y)));
+            let down = u64::from(diff(p, img.get(x, (y + 1) % h)));
             if x + 1 == w {
                 (seam, seam_n) = (seam + right, seam_n + 1);
             } else {

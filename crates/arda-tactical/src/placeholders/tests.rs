@@ -42,3 +42,52 @@ fn committed_library_matches_the_generator() {
         assert_eq!(lib.image(id), Some(img), "{id} differs from the generator");
     }
 }
+
+#[test]
+fn effect_and_damage_art_is_in_the_library() {
+    let (catalog, images) = generate(DEFAULT_SEED);
+    for name in effects::TEXTURES.iter().chain(&effects::DECALS) {
+        for v in 0..effects::VARIANTS {
+            let id = format!("effect.{name}.{v}");
+            let a = catalog.assets.iter().find(|a| a.id == id);
+            assert!(a.is_some_and(|a| a.class == AssetClass::Effect), "{id}");
+            assert!(images.contains_key(&id), "{id} image");
+        }
+    }
+    for id in ["prop.rubble_heap", "prop.broken_deck", "prop.charred_floor"] {
+        let a = catalog.assets.iter().find(|a| a.id == id);
+        assert!(
+            a.is_some_and(|a| a.tags.free.iter().any(|t| t == "damage")),
+            "{id}"
+        );
+    }
+}
+
+/// Effects are never drawn by the compositor: with the effect and damage
+/// props removed (version held), every built-in layout renders byte for byte.
+#[test]
+fn compositor_ignores_effect_art() {
+    use crate::{layouts, render, RenderOptions};
+    let (catalog, images) = generate(DEFAULT_SEED);
+    let full = Library::from_parts(catalog.clone(), images.clone()).unwrap();
+    let mut cat = catalog;
+    cat.assets
+        .retain(|a| a.class != AssetClass::Effect && !a.tags.free.iter().any(|t| t == "damage"));
+    let bare = Library::from_parts(cat, images).unwrap();
+    let opts = RenderOptions {
+        ppsq: 32,
+        grid: true,
+        lighting: true,
+    };
+    for name in ["riverside", "stone_warehouse", "forest_glade", "marsh"] {
+        let Some(layout) = layouts::by_name(name) else {
+            panic!("no layout {name}");
+        };
+        let a = render(&layout, &full, 5, &opts);
+        let b = render(&layout, &bare, 5, &opts);
+        match (a, b) {
+            (Ok(a), Ok(b)) => assert_eq!(a.data, b.data, "{name}"),
+            (a, b) => panic!("{name}: {:?} {:?}", a.err(), b.err()),
+        }
+    }
+}

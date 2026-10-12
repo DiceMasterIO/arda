@@ -319,3 +319,80 @@ fn footprints_beyond_the_sprite_cap_are_an_image_size_issue() {
     assert_only(&issues, "prop.barrel", Rule::ImageSize);
     assert!(issues[0].to_string().contains("limit"), "{}", issues[0]);
 }
+
+fn effect_asset(id: &str, tag: &str, tileable: bool) -> Asset {
+    let mut a = asset(id, AssetClass::Effect, Layer::Floor);
+    a.tags.free = vec![tag.into()];
+    a.tileable = tileable;
+    a.blocks_movement = false;
+    a.cover = crate::catalog::Cover::None;
+    a
+}
+
+/// A soft, seamless 1-square cloud: alpha varies, wraps cleanly.
+fn cloud() -> Rgba {
+    let mut img = Rgba::new(PPSQ, PPSQ);
+    for y in 0..PPSQ {
+        for x in 0..PPSQ {
+            let v = fbm(5, x as f32 / 8.0, y as f32 / 8.0, 2, Some(2));
+            img.set(x, y, [200, 220, 255, (40.0 + v * 150.0) as u8]);
+        }
+    }
+    img
+}
+
+fn with_effects() -> (Catalog, Images) {
+    let (mut c, mut i) = good();
+    for (id, tag, tile) in [
+        ("effect.frost.0", "effect:texture", true),
+        ("effect.scorch_mark.0", "effect:decal", false),
+    ] {
+        c.assets.push(effect_asset(id, tag, tile));
+        i.insert(id.into(), Ok(if tile { cloud() } else { disc() }));
+    }
+    (c, i)
+}
+
+#[test]
+fn semi_transparent_effects_pass() {
+    let (c, i) = with_effects();
+    assert_eq!(run(&c, &i), vec![]);
+}
+
+#[test]
+fn rule_effect_alpha_rejects_opaque_and_empty() {
+    let (c, mut i) = with_effects();
+    i.insert(
+        "effect.frost.0".into(),
+        Ok(Rgba::filled(PPSQ, PPSQ, [9, 9, 9, 255])),
+    );
+    assert_only(&run(&c, &i), "effect.frost.0", Rule::EffectAlpha);
+    i.insert("effect.frost.0".into(), Ok(Rgba::new(PPSQ, PPSQ)));
+    assert_only(&run(&c, &i), "effect.frost.0", Rule::EffectAlpha);
+}
+
+#[test]
+fn rule_effect_texture_must_tile() {
+    let (c, mut i) = with_effects();
+    let mut img = cloud();
+    for y in 0..PPSQ {
+        img.set(PPSQ - 1, y, [255, 0, 0, 255]);
+    }
+    i.insert("effect.frost.0".into(), Ok(img));
+    assert_only(&run(&c, &i), "effect.frost.0", Rule::TileSeam);
+}
+
+#[test]
+fn rule_effect_kind_tag() {
+    let (mut c, i) = with_effects();
+    let n = c
+        .assets
+        .iter()
+        .position(|a| a.id == "effect.frost.0")
+        .unwrap();
+    c.assets[n].tags.free.clear();
+    assert_only(&run(&c, &i), "effect.frost.0", Rule::ClassFields);
+    c.assets[n].tags.free = vec!["effect:texture".into()];
+    c.assets[n].tileable = false;
+    assert_only(&run(&c, &i), "effect.frost.0", Rule::ClassFields);
+}
