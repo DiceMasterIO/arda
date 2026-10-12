@@ -4,7 +4,7 @@
       "description": "The present ruler of a realm in a [`RealmSummary`].",
       "properties": {
         "name": {
-          "description": "Given name and regnal number (when the reign has one).",
+          "description": "Regnal name (\"Aldric the Wise\"), else the given name.",
           "type": "string"
         },
         "title": {

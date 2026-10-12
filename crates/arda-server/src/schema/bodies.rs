@@ -37,7 +37,7 @@ pub struct SettlementNpcs {
 /// The present ruler of a realm in a [`RealmSummary`].
 #[derive(Debug, Clone, Serialize, JsonSchema)]
 pub struct RealmRuler {
-    /// Given name and regnal number (when the reign has one).
+    /// Regnal name ("Aldric the Wise"), else the given name.
     pub name: String,
     /// Title ("Duke", "Queen").
     pub title: String,

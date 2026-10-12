@@ -28,10 +28,11 @@ fn ids(v: &[u64]) -> Vec<String> {
 }
 
 fn ruler_name(given: &str, regnal: &str) -> String {
+    // `regnal` already carries the given name and epithet or number.
     if regnal.is_empty() {
         given.to_owned()
     } else {
-        format!("{given} {regnal}")
+        regnal.to_owned()
     }
 }
 
