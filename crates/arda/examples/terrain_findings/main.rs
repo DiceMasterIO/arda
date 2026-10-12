@@ -65,6 +65,23 @@ fn drainage_section(g: &Grid) -> (J, bool, J) {
         .filter(|r| r.cells >= drainage::LONG_RUN_CELLS)
         .count();
     let reproduced = sp.lattice() || long > 0 || grid_bound;
+    let mut land_z: Vec<i32> =
+        g.z.iter()
+            .zip(&g.kind)
+            .filter(|(_, &k)| k == LAND)
+            .map(|(&z, _)| z)
+            .collect();
+    land_z.sort_unstable();
+    let pz = |p: usize| {
+        J::F(
+            f64::from(
+                land_z
+                    .get(land_z.len().saturating_sub(1) * p / 100)
+                    .copied()
+                    .unwrap_or(0),
+            ) / 1000.0,
+        )
+    };
     let worst = rs.iter().max_by(|a, b| {
         a.cells
             .cmp(&b.cells)
@@ -89,6 +106,10 @@ fn drainage_section(g: &Grid) -> (J, bool, J) {
         .with("reach_chords_1km", hist_json(&reach))
         .with("straight_runs", drainage::runs_json(&rs))
         .with("valley_spectrum", sp.json())
+        .with(
+            "land_height_m_p50_p90_p99_max",
+            J::A(vec![pz(50), pz(90), pz(99), pz(100)]),
+        )
         .with("reproduced", J::B(reproduced));
     (j, reproduced, worst_j)
 }

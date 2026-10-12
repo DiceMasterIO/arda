@@ -15,6 +15,8 @@ pub const WIN: usize = 256;
 /// A window is "regular" when its strongest bin is this many times the
 /// azimuthal mean power at the same wavenumber (pure noise gives about 6-10).
 pub const PEAK_RATIO_FLAG: f64 = 20.0;
+/// Minimum relief (highest minus lowest) of a survey window, millimetres.
+pub const MIN_RELIEF_MM: i32 = 250_000;
 /// Straight channel runs at least this long (cells) are reported as long.
 pub const LONG_RUN_CELLS: usize = 200;
 
@@ -291,13 +293,15 @@ pub fn window_peak(z: &[f64]) -> (f64, f64, f64) {
     best
 }
 
-/// Surveys up to 96 evenly chosen mountain windows (all land, mean height
-/// at least 800 m, relief at least 300 m).
+/// Surveys up to 96 evenly chosen highland windows (all land, relief at
+/// least 250 m). The first rule also asked for a mean height of 800 m, but
+/// the tallest land of the panel is 845 m, so no window ever qualified; the
+/// rule was relaxed before any peak ratio had been computed on a real world.
 pub fn spectrum(g: &Grid) -> Spectrum {
     let mut cands = Vec::new();
     for wy in 0..g.h / WIN {
         for wx in 0..g.w / WIN {
-            let (mut lo, mut hi, mut sum, mut all) = (i32::MAX, i32::MIN, 0.0, true);
+            let (mut lo, mut hi, mut all) = (i32::MAX, i32::MIN, true);
             'scan: for y in 0..WIN {
                 for x in 0..WIN {
                     let i = (wy * WIN + y) * g.w + wx * WIN + x;
@@ -307,10 +311,9 @@ pub fn spectrum(g: &Grid) -> Spectrum {
                     }
                     lo = lo.min(g.z[i]);
                     hi = hi.max(g.z[i]);
-                    sum += f64::from(g.z[i]);
                 }
             }
-            if all && sum / (WIN * WIN) as f64 >= 800_000.0 && hi - lo >= 300_000 {
+            if all && hi - lo >= MIN_RELIEF_MM {
                 cands.push((wx, wy));
             }
         }
