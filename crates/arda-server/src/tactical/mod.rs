@@ -21,6 +21,7 @@ pub mod library_dto;
 pub mod prefetch;
 pub mod pyramid;
 mod raw;
+pub mod splice;
 pub mod refine_blocks;
 pub mod routes;
 pub mod rules_dto;
