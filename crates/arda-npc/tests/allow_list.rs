@@ -271,6 +271,18 @@ fn no_known_non_srd_name_appears_in_data_or_sheets() {
             quoted_strings(&serde_json::to_value(&npc).unwrap(), &mut strings);
         }
     }
+    for office in common::content("occupations.json")["offices"]
+        .as_object()
+        .unwrap()
+        .keys()
+    {
+        let request = arda_npc::OneRequest {
+            office: Some(office.clone()),
+            ..arda_npc::OneRequest::default()
+        };
+        let npc = arda_npc::generate_one(1, &request).unwrap();
+        quoted_strings(&serde_json::to_value(&npc).unwrap(), &mut strings);
+    }
     for s in &strings {
         assert!(
             !NOT_SRD.contains(&s.as_str()),
