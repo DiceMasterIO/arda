@@ -65,10 +65,11 @@ talks to it directly. Views can be deep-linked: `#/world`, `#/area?ax=1&ay=2`, `
 | Script | What it does |
 |---|---|
 | `npm run dev` | Vite dev server |
-| `npm run build` | Typecheck, then production build into `dist/` |
+| `npm run build` | Typecheck, then production build into `dist/`, including `THIRD_PARTY_LICENSES.txt` |
 | `npm run typecheck` | `tsc -b --noEmit` (strict) |
 | `npm run lint` | ESLint (typescript-eslint strict, type-checked) |
-| `npm test` | Vitest unit tests (API client, ARDACOLS parser, coordinates, formatting) |
+| `npm test` | Vitest unit tests (API client, ARDACOLS parser, coordinates, formatting), then `node --test scripts/` for the licence checker |
+| `npm run licences` | Check `package-lock.json` against `licence-policy.json` (runtime vs build-time allow-lists) |
 
 ## Using Arda from TypeScript
 

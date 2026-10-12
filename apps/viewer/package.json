@@ -11,7 +11,8 @@
     "preview": "vite preview",
     "typecheck": "tsc -b --noEmit",
     "lint": "eslint .",
-    "test": "vitest run"
+    "test": "vitest run && node --test scripts/",
+    "licences": "node scripts/check-licences.mjs"
   },
   "dependencies": {
     "leaflet": "^1.9.4",

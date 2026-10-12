@@ -1,6 +1,7 @@
 import { fileURLToPath } from "node:url";
 import react from "@vitejs/plugin-react";
 import { defineConfig } from "vitest/config";
+import licenceNotices from "./scripts/licence-notices.mjs";
 
 // The generated ts-rs bindings live at the workspace root and are imported
 // through the `@arda` alias. They are never copied into this app.
@@ -8,7 +9,7 @@ const bindings = fileURLToPath(new URL("../../bindings/ts/arda", import.meta.url
 const repoRoot = fileURLToPath(new URL("../..", import.meta.url));
 
 export default defineConfig({
-  plugins: [react()],
+  plugins: [react(), licenceNotices()],
   resolve: {
     alias: [{ find: /^@arda(\/.*)?$/, replacement: `${bindings}$1` }],
   },

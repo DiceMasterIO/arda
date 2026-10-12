@@ -1,7 +1,9 @@
 [licenses]
+# ISC and BSD-2-Clause are permissive and match the viewer npm runtime policy
+# (apps/viewer/licence-policy.json) for one repo-wide rule; no crate needs them yet.
 # MIT-0 (borrow-or-share) and Zlib (foldhash) come in only through the dev-only
 # jsonschema validator; both are permissive and allow commercial use.
-allow = ["MIT", "MIT-0", "Apache-2.0", "Apache-2.0 WITH LLVM-exception", "CC0-1.0", "Unicode-3.0", "BSD-3-Clause", "Zlib"]
+allow = ["MIT", "MIT-0", "Apache-2.0", "Apache-2.0 WITH LLVM-exception", "CC0-1.0", "Unicode-3.0", "BSD-3-Clause", "BSD-2-Clause", "ISC", "Zlib"]
 confidence-threshold = 0.9
 
 [bans]
