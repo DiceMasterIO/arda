@@ -100,6 +100,105 @@ pub fn reach_hist(g: &Grid) -> [u64; 24] {
     h
 }
 
+/// Downstream steps of a straight-reach probe (10 km).
+pub const PROBE_STEPS: usize = 100;
+/// Largest sideways deviation from the chord, in cells, for a probe to count
+/// as straight (300 m over 10 km). Added after the first atlas review showed
+/// near-straight river segments that exact cell runs cannot see.
+pub const PROBE_DEV_CELLS: f64 = 3.0;
+/// Combined axis+45 degree ratio of straight probes that flags a grid bias.
+pub const PROBE_RATIO_FLAG: f64 = 1.4;
+/// Straight probes needed before the ratio is trusted.
+pub const PROBE_MIN: u64 = 50;
+
+/// Follows the steepest channel neighbour; returns the end point and the
+/// largest deviation (cells) of the path from the start-end chord.
+fn follow(g: &Grid, x0: isize, y0: isize, steps: usize) -> Option<(isize, isize, f64)> {
+    let (w, hh) = (g.w as isize, g.h as isize);
+    let mut path = Vec::with_capacity(steps);
+    let (mut x, mut y) = (x0, y0);
+    for _ in 0..steps {
+        let here = g.z[(y * w + x) as usize];
+        let mut best: Option<(i32, isize, isize)> = None;
+        for (dx, dy) in N8 {
+            let (nx, ny) = (x + dx, y + dy);
+            if nx < 0 || ny < 0 || nx >= w || ny >= hh {
+                continue;
+            }
+            let j = (ny * w + nx) as usize;
+            if channel(g, j) && g.z[j] < here && best.is_none_or(|b| g.z[j] < b.0) {
+                best = Some((g.z[j], nx, ny));
+            }
+        }
+        let (_, nx, ny) = best?;
+        (x, y) = (nx, ny);
+        path.push((x, y));
+    }
+    let (cx, cy) = ((x - x0) as f64, (y - y0) as f64);
+    let len = cx.hypot(cy).max(1.0);
+    let dev = path
+        .iter()
+        .map(|&(px, py)| (((px - x0) as f64) * cy - ((py - y0) as f64) * cx).abs() / len)
+        .fold(0.0, f64::max);
+    Some((x, y, dev))
+}
+
+/// Straight 10 km river probes (steepest-channel chains of 100 steps).
+pub fn straight_probes(g: &Grid, tol: f64) -> Probes {
+    let mut hist = [0_u64; 24];
+    let mut all = [0_u64; 24];
+    let (mut tested, mut straight) = (0_u64, 0_u64);
+    let mut at = None;
+    for y in 0..g.h {
+        for x in (y * 3 % 7..g.w).step_by(7) {
+            if !channel(g, y * g.w + x) {
+                continue;
+            }
+            let Some((ex, ey, dev)) = follow(g, x as isize, y as isize, PROBE_STEPS) else {
+                continue;
+            };
+            tested += 1;
+            let deg = ((ey - y as isize) as f64)
+                .atan2((ex - x as isize) as f64)
+                .to_degrees();
+            all[bin24(deg)] += 1;
+            if dev <= tol {
+                straight += 1;
+                at.get_or_insert((x, y));
+                let deg = ((ey - y as isize) as f64)
+                    .atan2((ex - x as isize) as f64)
+                    .to_degrees();
+                hist[bin24(deg)] += 1;
+            }
+        }
+    }
+    Probes {
+        tested,
+        straight,
+        hist,
+        all,
+        at,
+    }
+}
+
+/// Result of [`straight_probes`]: all probes and the straight ones, with
+/// the directed 24-bin chord histograms of both.
+pub struct Probes {
+    pub tested: u64,
+    pub straight: u64,
+    pub hist: [u64; 24],
+    pub all: [u64; 24],
+    pub at: Option<(usize, usize)>,
+}
+
+impl Probes {
+    /// Axis+45 ratio of the straight probes divided by that of all probes
+    /// (the world's own direction anisotropy is the control).
+    pub fn excess(&self) -> f64 {
+        crate::grid::shares(&self.hist).ratio / crate::grid::shares(&self.all).ratio.max(1e-9)
+    }
+}
+
 /// One maximal straight run of channel cells.
 pub struct Run {
     pub cells: usize,

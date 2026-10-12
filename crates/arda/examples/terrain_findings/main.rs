@@ -45,6 +45,24 @@ fn hist_json(h: &[u64; 24]) -> J {
         .with("ratio_vs_uniform", J::F(s.ratio))
 }
 
+fn probes_json(p: &drainage::Probes, flag: bool, loose: &drainage::Probes) -> J {
+    let part = |q: &drainage::Probes| {
+        J::obj()
+            .with("tested", J::I(q.tested as i64))
+            .with("straight", J::I(q.straight as i64))
+            .with(
+                "straight_share",
+                J::F(q.straight as f64 / q.tested.max(1) as f64),
+            )
+            .with("straight_directions", hist_json(&q.hist))
+            .with("all_probe_directions", hist_json(&q.all))
+            .with("axis_diag_excess_straight_over_all", J::F(q.excess()))
+    };
+    part(p)
+        .with("grid_biased", J::B(flag))
+        .with("loose_6_cell_tolerance", part(loose))
+}
+
 fn crop_size(g: &Grid) -> usize {
     (g.w.min(g.h) * 7 / 10).min(4096)
 }
@@ -64,7 +82,12 @@ fn drainage_section(g: &Grid) -> (J, bool, J) {
         .iter()
         .filter(|r| r.cells >= drainage::LONG_RUN_CELLS)
         .count();
-    let reproduced = sp.lattice() || long > 0 || grid_bound;
+    let pr = drainage::straight_probes(g, drainage::PROBE_DEV_CELLS);
+    let pr6 = drainage::straight_probes(g, 2.0 * drainage::PROBE_DEV_CELLS);
+    let sat = pr.at;
+    let probe_flag =
+        pr.straight >= drainage::PROBE_MIN && pr.excess() >= drainage::PROBE_RATIO_FLAG;
+    let reproduced = sp.lattice() || long > 0 || grid_bound || probe_flag;
     let mut land_z: Vec<i32> =
         g.z.iter()
             .zip(&g.kind)
@@ -97,6 +120,10 @@ fn drainage_section(g: &Grid) -> (J, bool, J) {
         .with(
             "longest_run_xy",
             worst.map_or(J::A(vec![]), |r| J::A(vec![J::u(r.x), J::u(r.y)])),
+        )
+        .with(
+            "straight_probe_xy",
+            sat.map_or(J::A(vec![]), |(x, y)| J::A(vec![J::u(x), J::u(y)])),
         );
     let j = J::obj()
         .with("descent_all_land", hist_json(&full))
@@ -105,6 +132,7 @@ fn drainage_section(g: &Grid) -> (J, bool, J) {
         .with("descent_grid_bound", J::B(grid_bound))
         .with("reach_chords_1km", hist_json(&reach))
         .with("straight_runs", drainage::runs_json(&rs))
+        .with("straight_10km_probes", probes_json(&pr, probe_flag, &pr6))
         .with("valley_spectrum", sp.json())
         .with(
             "land_height_m_p50_p90_p99_max",

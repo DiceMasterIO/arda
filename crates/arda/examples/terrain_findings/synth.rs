@@ -78,6 +78,38 @@ fn descent_directions_follow_the_grid_only_for_axis_slopes() {
     assert!(shares(&descent_hist(&noise)).ratio < 1.2);
 }
 
+fn river(len: usize, f: impl Fn(usize) -> f64) -> Grid {
+    let mut g = Grid::flat(len + 20, 300);
+    for x in 0..len {
+        let y = (150.0 + f(x)).round() as usize;
+        g.order[y * g.w + x] = 3;
+        g.z[y * g.w + x] = 100_000 - x as i32 * 10;
+        // keep the chain 8-connected when the line steps rows
+        if x > 0 {
+            let py = (150.0 + f(x - 1)).round() as usize;
+            if py != y {
+                g.order[py * g.w + x] = 3;
+                g.z[py * g.w + x] = 100_000 - x as i32 * 10 + 5;
+            }
+        }
+    }
+    g
+}
+
+#[test]
+fn near_straight_rivers_are_found_and_meanders_are_not() {
+    let line = crate::drainage::straight_probes(&river(1500, |_| 0.0), 3.0);
+    assert!(line.straight > 50 && shares(&line.hist).ratio > 1.4);
+    let wavy = river(1500, |x| 15.0 * (x as f64 / 20.0).sin());
+    let m = crate::drainage::straight_probes(&wavy, 3.0);
+    assert!(
+        m.tested > 50 && m.straight == 0,
+        "meander straight {}/{}",
+        m.straight,
+        m.tested
+    );
+}
+
 #[test]
 fn straight_channel_runs_are_counted() {
     let mut g = Grid::flat(400, 50);
