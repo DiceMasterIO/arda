@@ -14,3 +14,8 @@ thiserror.workspace = true
 
 [lints]
 workspace = true
+
+[[example]]
+name = "terrain_findings"
+path = "examples/terrain_findings/main.rs"
+test = true
