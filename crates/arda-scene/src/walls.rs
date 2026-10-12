@@ -56,7 +56,8 @@ fn attrs(lib: &Library, seg: &WallSegment) -> Attrs {
         open: None,
         blocks_sight: sight,
         blocks_movement: movement,
-        blocks_light: sight,
+        // One rule for scene and picture: `WallSegment::blocks_light`.
+        blocks_light: seg.blocks_light(lib),
         cover,
         kit: seg.kit.clone(),
         locked: false,

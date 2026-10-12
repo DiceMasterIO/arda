@@ -10,6 +10,7 @@
 pub mod field;
 pub mod grade;
 pub mod ground;
+pub mod light_los;
 pub mod lighting;
 pub mod sample;
 mod shadows;
@@ -416,6 +417,7 @@ fn render_clip(
             .iter()
             .map(|l| pool(l.x, l.y, l.radius_ft, l.colour, ppsq)),
     );
+    light_los::attach(&mut pools, layout, lib, ppsq, area);
     let mut img = cv.img;
     if opts.lighting {
         lighting::apply_clipped(
@@ -476,6 +478,9 @@ fn pool(x: f32, y: f32, radius_ft: u16, colour: [u8; 3], ppsq: u32) -> Pool {
         y: (y * s).round() as i64,
         r: i64::from(radius_ft) * i64::from(ppsq) / 5,
         colour,
+        at: (x, y),
+        radius_ft,
+        mask: None,
     }
 }
 
@@ -591,6 +596,8 @@ fn draw_grid(img: &mut Rgba, ppsq: u32) {
 mod tests;
 #[cfg(test)]
 mod tests_biome;
+#[cfg(test)]
+mod tests_light;
 #[cfg(test)]
 mod tests_look;
 #[cfg(test)]

@@ -88,6 +88,12 @@ pub struct Pool {
     pub r: i64,
     /// RGB colour.
     pub colour: [u8; 3],
+    /// Centre in layout squares.
+    pub at: (f32, f32),
+    /// Bright radius in feet.
+    pub radius_ft: u16,
+    /// What the light reaches past walls; `None` is the plain disc.
+    pub mask: Option<super::light_los::LightMask>,
 }
 
 /// Height below the sun line (1/256 ft) at which a shadow is fully dark.
@@ -397,6 +403,10 @@ fn add_pool_row(row: &mut [u8], y: i64, p: &Pool, (sx0, sx1): (i64, i64)) {
         // Quadratic fall-off, peak 30 % towards the light colour ("screen").
         let f = u64::try_from((r2 - d2) * 77 / r2).unwrap_or(0);
         let f = f * f / 77;
+        let f = match &p.mask {
+            Some(m) => f * u64::from(m.weight(x, y)) / 255,
+            None => f,
+        };
         let i = usize::try_from(x).unwrap_or(0) * 4;
         for c in 0..3 {
             let v = u64::from(row[i + c]);
