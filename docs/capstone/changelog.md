@@ -2,6 +2,58 @@
 generated_date: 2026-08-24
 ---
 
+## 2026-10-12 - Coast and wetland calibration
+- **Request**: calibrate marsh, pools, beaches and the sea-level strip of tactical ground against measured world statistics (1.0 task 18, OI-41, OI-16).
+- **Tool**: `arda-refine coastwet --world <dir> [--stride N]` prints deterministic JSON: signal shares by climate group, prior ground shares, pools per km2 of wet cells, and coast strip width per saved shore class. Baseline and retuned numbers for MICRO seed 42 and the same seed at latitudes 15-35 are in `logic/09-tactical-refinement.md` §biome-calibration.
+- **Signals**: marsh wetness band 0.8-0.98 is now 0.5-0.7 (lowland marshy share 1.9 % to 4.5 %), and marsh cover obeys the 12 degree slope limit. In a world with `terrain/shore.bin` the coast signal reads the distance to the sea (4-cell reach) and the saved shore class: sand beaches are 3 cells deep over firm ground (89-92 % sand on beach cells, was 0 %), shingle and salt marsh 2 cells with their own ground, cliffs and rocky shores bare rock and no sand. Worlds without the layer keep the old height rule and weights.
+- **Source**: `Source::shore` and `Source::has_shore` are new required methods; `GridSource::set_shore` builds fixtures.
+- **Fixtures**: `tests/biome.rs` damp-meadow wetness 150 became 110 (150 is now partly marsh by design); the synthetic world's river row (wetness 200) now reads as marshy.
+- **Not changed**: shore formation and cover marsh (recipe-gated). The sand beach share of the coast (5-6 % against about a third) is a recipe-9 candidate, recorded in OI-41. No golden changed.
+
+## 2026-10-12 - Light pools stop at walls
+- **Request**: OI-39, torchlight and lamp glow shone through walls onto rock and neighbouring rooms in the composited PNG.
+- **Change**: `crates/arda-tactical/src/compose/light_los.rs` computes a per-pool visibility mask in layout coordinates (8 samples per square, integer segment-versus-edge test, scene vertex rule, two blurs) and `add_pool_row` scales the pool by it. Pools that reach no blocking edge are byte-identical to before.
+- **Shared rule**: `WallSegment::blocks_light(lib)` is used by the compositor and by `arda-scene`; windows pass light, closed doors, gates and secret doors block. Walls only; props and canopies do not occlude.
+- **Render identity**: lit maps with walls near lights render differently; no cache key changed (server caches are in memory).
+- **Docs**: logic/11 §lighting; OI-39 removed; the torchlight limit removed from `crates/arda-dungeon/README.md`.
+- **Tests**: `compose/tests_light.rs` (wall, window, door and gate, light on an edge, open-ground golden, determinism, clip invariance) and `crates/arda-scene/tests/light_parity.rs`.
+
+## 2026-10-12 - Richer world history
+- **Request**: give generated history more templates per event kind, named events with backstories and causal chains (1.0 task 16, OI-35).
+- **Templates**: every event kind has at least 4 text templates and every titled kind at least 3; lore families have at least 4; 12 war-name patterns, 18 plague names, 7 ruin kinds per tier. A linter in `Tables::check` refuses unknown slots, empty families and unused keys.
+- **Events**: new optional `name`, `backstory` and `cause_kind` fields on `Event` (additive, `format_version` unchanged). Plagues, wars, famines, severe floods and fires and dynasty changes are named uniquely; plagues, famines, floods, fires, mine collapses and wars say where they came from.
+- **Causes**: planned famines and plagues move to just after a flood, war or famine of their realm (flood or war -> famine -> plague -> abandonment); borders and present realms are unchanged. Settlement stories, region hooks and ruin lore use the names and backstories.
+- **Bytes**: output differs from before in event text, titles and the new fields, and in the years of famines and plagues that were moved into a chain.
+
+## 2026-10-12 - arda-server container image
+- **Docker**: the `Dockerfile` builds `arda` and `arda-server` from a pinned `rust:1.98.1-bookworm` with `RUSTUP_TOOLCHAIN` set and BuildKit cache mounts, into a digest-pinned `debian:bookworm-slim` as user/group 10001. It adds `EXPOSE 8787`, a `HEALTHCHECK`, OCI labels, `WORKDIR /opt/arda` and a `.dockerignore` (the build context drops from several GB to a few MB). Entry `arda-entrypoint` (`tools/docker-entrypoint.sh`) serves `/worlds/world` on `0.0.0.0:8787`; `--entrypoint arda` runs the CLI.
+- **Library variants**: the placeholder library ships always; the AI library enters only through the optional BuildKit context `artlib` and is stacked over the placeholder. Maintainer decision D1: the published image is the placeholder variant only.
+- **arda-server**: SIGTERM now shuts the server down like Ctrl-C (Unix); new `--probe` flag backed by a std-only `probe` module for the healthcheck.
+- **Tooling**: `tools/docker-smoke.sh` builds either variant and checks health, world, library, a tactical PNG, uid 10001, the CLI entry and a sub-3 s `docker stop`.
+- **Docs**: README Docker section (the stale `arda serve` line is gone), 07-operations Processes, flags and Infrastructure rows, API.md, OI-30.
+- **Why**: nobody could deploy the HTTP service from the image, and `docker stop` hung ten seconds on SIGTERM.
+- **Tests**: probe unit tests (200, non-200, refused, silent close); `tests/serve.rs` shutdown-future test; the smoke script for both variants.
+- **Open**: the `commercial_licence` validator rule from logic/11 is not implemented, so `LicenseRef-AI-generated` is not gated.
+
+## 2026-10-12 - GET /v1/realms
+- **arda-settle**: `realms::Realm` derives `JsonSchema` under the `schema` feature (id fields as strings).
+- **arda-society**: schema derives on `RealmState`, `RealmSociety`, `Ruler`, `Vassal`, `Relation`, `Stance`, `Event`, `EventKind` and `Reign`; attribute lines only.
+- **arda-people**: `SocietyFiles.realms: Option<RealmsFile>` (`None` when `realms.json` is absent) and `SocietyFiles::realm(id)`.
+- **arda-server**: `GET /v1/realms` (summaries without borders, plus style, rank, government and ruler when `society.json` exists) and `GET /v1/realms/{id}` (record with borders, politics, relations, events, reigns), in `crates/arda-server/src/realms.rs`; schemas `Realm`, `RealmList`, `RealmDetail`, `RealmSociety`, `Relation`, `Event`.
+- **Docs**: `API.md` Realms subsection, logic/16 routes, 09-interfaces, 02-models; OI-46 closed.
+
+**Why**: DiceMaster saw only bare `realm_id` strings and could not label settlements or show who rules a realm.
+
+**Tests**: `tests/world_api/realms.rs` (list vs `realms.json`, politics vs realms, detail of every realm, 404 and 400, identical bytes, no-society 404), `realm_bodies_validate` in `schemas.rs`, `arda-people` files unit tests.
+
+## 2026-10-12 - Viewer npm licence policy, CI job and bundle notices
+- **Viewer**: `apps/viewer/licence-policy.json` (runtime and build-only allow-lists, reasoned exceptions), `scripts/check-licences.mjs` (stdlib only, reads the lockfile, deterministic sorted output) and `npm run licences`. The Vite plugin `scripts/licence-notices.mjs` writes `THIRD_PARTY_LICENSES.txt` into `dist/` with Leaflet's BSD-2-Clause notice and the MIT texts for React, React DOM and Scheduler; the build fails if a runtime package has no licence file. `npm test` now also runs `node --test scripts/`.
+- **CI**: new `viewer` job in `.github/workflows/ci.yml` (Node 26, SHA-pinned `actions/setup-node`): `npm ci`, licences, typecheck, lint, test, build. `actionlint` clean.
+- **deny.toml**: BSD-2-Clause and ISC added to the Rust allow-list so one rule covers the repo (maintainer decision D7); no crate uses them today.
+- **Docs**: 05-dependencies "npm license policy", standards vetting bar, 06-testing CI matrix, 07-operations developer workflow, viewer README scripts.
+- **Why**: `deny.toml` covered Rust only and the viewer's BSD-2-Clause dependency requires its notice in redistributed bundles; Arda ships in a commercial product.
+- **Tests**: six `node --test` cases on fixture lockfiles (runtime GPL fails, dev MPL passes, runtime MPL fails, missing licence fails, `OR`/`AND`, exception, sorting); real `npm ci`, `licences`, `typecheck`, `lint`, `test` (86 Vitest) and `build` green. `cargo deny` was not run (not installed).
+
 ## 2026-10-12 - Art generation spend caps and no double billing
 - **Caps**: `tools/art-gen/generate.mjs` takes `--max-images N` and `--max-spend USD` (default `$ART_GEN_MAX_SPEND`). A run whose worst case (images x price x (1 + reviewer remakes)) exceeds `--max-spend` is refused with exit 2 before any request, also under `--dry-run`. `--yes` with an unknown price needs `--max-images` or `--price-per-image`. The summary prints the worst case.
 - **Run-time guard**: every submission (new project, re-sent batch, re-posted failed or cancelled item) counts; the run stops cleanly at the cap with state and `import.toml` written and exit 3.
