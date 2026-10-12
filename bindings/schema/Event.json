@@ -268,12 +268,26 @@
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "description": "One timeline entry.",
   "properties": {
+    "backstory": {
+      "description": "One or two sentences on the origin and cause, distinct from `text`.",
+      "type": [
+        "string",
+        "null"
+      ]
+    },
     "cause": {
       "description": "Event that caused this one.",
       "format": "uint32",
       "minimum": 0,
       "type": [
         "integer",
+        "null"
+      ]
+    },
+    "cause_kind": {
+      "description": "Why it happened, one of [`CAUSE_KINDS`].",
+      "type": [
+        "string",
         "null"
       ]
     },
@@ -294,6 +308,13 @@
     "kind": {
       "$ref": "#/$defs/EventKind",
       "description": "Kind."
+    },
+    "name": {
+      "description": "Proper name of a major event (\"The Grey Cough\"); unique in the world.",
+      "type": [
+        "string",
+        "null"
+      ]
     },
     "ongoing": {
       "description": "Whether it is still going on at present.",
