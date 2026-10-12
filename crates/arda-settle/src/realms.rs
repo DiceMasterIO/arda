@@ -34,10 +34,12 @@ const RIDGE_TOLL: u64 = 600;
 const MAX_CITIES: usize = 2;
 
 /// One realm, as written to `society/realms.json`.
+#[cfg_attr(feature = "schema", derive(schemars::JsonSchema))]
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct Realm {
     /// 1-based id.
     #[serde(with = "crate::ids::string")]
+    #[cfg_attr(feature = "schema", schemars(with = "String"))]
     pub id: u64,
     /// Name, filled by the naming stage.
     pub name: String,
@@ -45,11 +47,13 @@ pub struct Realm {
     pub name_gloss: String,
     /// Seat settlement id.
     #[serde(with = "crate::ids::string")]
+    #[cfg_attr(feature = "schema", schemars(with = "String"))]
     pub seat: u64,
     /// Culture of the seat.
     pub culture: String,
     /// Member settlement ids.
     #[serde(with = "crate::ids::vec_string")]
+    #[cfg_attr(feature = "schema", schemars(with = "Vec<String>"))]
     pub settlements: Vec<u64>,
     /// Total population of members.
     pub population: u64,
@@ -57,6 +61,7 @@ pub struct Realm {
     pub land_cells: u64,
     /// Realms sharing a land border.
     #[serde(with = "crate::ids::vec_string")]
+    #[cfg_attr(feature = "schema", schemars(with = "Vec<String>"))]
     pub neighbours: Vec<u64>,
     /// Land borders as polylines of `[x_m, y_m]` cell corners.
     pub borders: Vec<Vec<[i64; 2]>>,

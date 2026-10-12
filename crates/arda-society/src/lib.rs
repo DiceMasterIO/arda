@@ -96,6 +96,7 @@ pub struct SettlementSociety {
 }
 
 /// A realm today with its region-level plot hooks.
+#[cfg_attr(feature = "schema", derive(schemars::JsonSchema))]
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct RealmSociety {
     /// State.

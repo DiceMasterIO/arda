@@ -18,6 +18,7 @@ use crate::refs::EntityRef;
 use serde::{Deserialize, Serialize};
 
 /// What happened.
+#[cfg_attr(feature = "schema", derive(schemars::JsonSchema))]
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize, Deserialize)]
 #[serde(rename_all = "snake_case")]
 pub enum EventKind {
@@ -50,6 +51,7 @@ pub enum EventKind {
 }
 
 /// One timeline entry.
+#[cfg_attr(feature = "schema", derive(schemars::JsonSchema))]
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct Event {
     /// Stable id, in timeline order.
@@ -68,9 +70,11 @@ pub struct Event {
     pub text: String,
     /// Settlements involved.
     #[serde(with = "crate::ids::vec")]
+    #[cfg_attr(feature = "schema", schemars(with = "Vec<String>"))]
     pub settlements: Vec<u64>,
     /// Realms involved.
     #[serde(with = "crate::ids::vec")]
+    #[cfg_attr(feature = "schema", schemars(with = "Vec<String>"))]
     pub realms: Vec<u64>,
     /// Further references.
     pub refs: Vec<EntityRef>,
@@ -99,10 +103,12 @@ pub struct Dynasty {
 }
 
 /// One reign.
+#[cfg_attr(feature = "schema", derive(schemars::JsonSchema))]
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct Reign {
     /// Realm ruled.
     #[serde(with = "crate::ids::str")]
+    #[cfg_attr(feature = "schema", schemars(with = "String"))]
     pub realm_id: u64,
     /// Ruling house.
     pub dynasty_id: String,

@@ -11,6 +11,7 @@ use crate::text::{count, Slots};
 use serde::{Deserialize, Serialize};
 
 /// How two realms stand.
+#[cfg_attr(feature = "schema", derive(schemars::JsonSchema))]
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Serialize, Deserialize)]
 #[serde(rename_all = "snake_case")]
 pub enum Stance {
@@ -41,13 +42,16 @@ impl Stance {
 }
 
 /// Relation between realms `a < b`.
+#[cfg_attr(feature = "schema", derive(schemars::JsonSchema))]
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct Relation {
     /// Lower realm id.
     #[serde(with = "crate::ids::str")]
+    #[cfg_attr(feature = "schema", schemars(with = "String"))]
     pub a: u64,
     /// Higher realm id.
     #[serde(with = "crate::ids::str")]
+    #[cfg_attr(feature = "schema", schemars(with = "String"))]
     pub b: u64,
     /// Stance.
     pub stance: Stance,
@@ -55,6 +59,7 @@ pub struct Relation {
     pub score: i32,
     /// Roads crossing their shared border.
     #[serde(with = "crate::ids::vec")]
+    #[cfg_attr(feature = "schema", schemars(with = "Vec<String>"))]
     pub border_roads: Vec<u64>,
     /// Yearly trade between them, silver pieces.
     pub trade_sp: u64,

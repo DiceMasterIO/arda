@@ -16,6 +16,7 @@ use serde::{Deserialize, Serialize};
 pub const RECENT_CONQUEST: i32 = 100;
 
 /// The present ruler of a realm.
+#[cfg_attr(feature = "schema", derive(schemars::JsonSchema))]
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct Ruler {
     /// NPC slot at the seat.
@@ -37,10 +38,12 @@ pub struct Ruler {
 }
 
 /// A vassal lord.
+#[cfg_attr(feature = "schema", derive(schemars::JsonSchema))]
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct Vassal {
     /// Settlement held.
     #[serde(with = "crate::ids::str")]
+    #[cfg_attr(feature = "schema", schemars(with = "String"))]
     pub settlement: u64,
     /// NPC slot of the lord.
     pub role: String,
@@ -61,10 +64,12 @@ pub struct Vassal {
 }
 
 /// One realm today.
+#[cfg_attr(feature = "schema", derive(schemars::JsonSchema))]
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct RealmState {
     /// Realm id.
     #[serde(with = "crate::ids::str")]
+    #[cfg_attr(feature = "schema", schemars(with = "String"))]
     pub id: u64,
     /// Realm name.
     pub name: String,
@@ -78,11 +83,13 @@ pub struct RealmState {
     pub rank: String,
     /// Seat settlement.
     #[serde(with = "crate::ids::str")]
+    #[cfg_attr(feature = "schema", schemars(with = "String"))]
     pub seat: u64,
     /// Year formed.
     pub founded: i32,
     /// Member settlements.
     #[serde(with = "crate::ids::vec")]
+    #[cfg_attr(feature = "schema", schemars(with = "Vec<String>"))]
     pub members: Vec<u64>,
     /// Total population.
     pub population: u64,
