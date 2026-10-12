@@ -55,6 +55,14 @@ Each item keeps its 2026-09-22 plan and its audit at `022ce7cb5707`; the audit l
 
 **Audit `022ce7cb5707`:** unchanged as a record. The default `arda generate` terrain is `Terrain::Legacy` (`crates/arda-cli/src/main.rs:51`). `--terrain fine` uses stream-power formation with recipe 7 by default and recipes 4–8 selectable (`crates/arda-cli/src/main.rs:49-58`). Recipes 5, 6 and 7 are golden-pinned (`tests/golden_recipes.rs`). No gallery that covers recipes 7/8 is recorded in this file.
 
+**Local server image (2026-10-12):** the `Dockerfile` now builds `arda` and `arda-server`
+(non-root 10001, `/v1/health` healthcheck, SIGTERM shutdown, `tools/docker-smoke.sh`), delivering
+the local-image part of step 4. Publication is task 02's. Maintainer decision D1: the published
+GHCR image carries the placeholder library only; the AI-generated library stays an opt-in local
+build (`--build-context artlib=…`) and is never required. Open: the `commercial_licence` validator
+rule (logic/11) is not implemented (`validate.rs` only checks a non-empty licence), so
+`LicenseRef-AI-generated` is not gated.
+
 **Status (2026-09-25 record):** integrated baseline retained and measured: seed42 at 200×300 and 500×1000 km, plus MICRO99 holdout. The same six default-world coordinates are exported at 8K, and the full 32K default map repeats identically without modifying saved data. Broader natural-landscape acceptance remains open. **Depends on:** current generator; OI-01 only for Windows text comparison.
 
 1. Attempt to locate the original feature evidence through its recorded paths. If unavailable, retain its ledger citations and generate a newly dated baseline; never label recreated images as original evidence.

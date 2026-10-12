@@ -309,15 +309,16 @@ cargo doc --workspace --no-deps --open
 ## Docker and server use
 
 Arda can generate and export worlds on a server using the same CLI or
-Rust API. The Docker image packages that CLI. Build it locally, then
-mount a writable world directory:
+Rust API. The Docker image packages that CLI (`arda`) and the HTTP server
+(`arda-server`). To run the CLI, build locally, then mount a writable world
+directory and select the CLI entry:
 
 ```sh
 docker build -t arda-local .
-docker run --rm -v /absolute/path/to/worlds:/worlds arda-local \
+docker run --rm -v /absolute/path/to/worlds:/worlds --entrypoint arda arda-local \
   generate --seed 42 --micro --out /worlds/w42
 
-docker run --rm -v /absolute/path/to/worlds:/worlds arda-local \
+docker run --rm -v /absolute/path/to/worlds:/worlds --entrypoint arda arda-local \
   export --world /worlds/w42 --area 1,1 --format json --out /worlds/exports/w42
 ```
 
@@ -325,11 +326,40 @@ The container runs as UID 10001; the mounted directory must be writable by
 that user. Native `.bin` layers, block archives, and exported files remain
 on the mounted volume after the container exits.
 
-A backend can load the saved world through the Rust API or deliver the
-exported files through its own HTTP service. Arda's built-in read-only
-HTTP server (`arda serve`) is [planned](docs/capstone/mockup/06-serve.md);
-the current binary implements `generate`, `preview`, and `export` only.
-The container does not currently start an HTTP listener.
+The CLI is also the entry for one-off jobs (`--entrypoint arda`, above); the HTTP server is
+`arda-server`.
+
+### Serving a world
+
+The same image runs `arda-server`, the read-only HTTP service, as its default entry. Mount a
+generated world read-only; the server never writes to it:
+
+```sh
+docker build -t arda:local .
+docker run --rm -p 8787:8787 -v /absolute/path/to/worlds/w42:/worlds/world:ro arda:local
+curl http://127.0.0.1:8787/v1/health
+```
+
+With no arguments the entry serves `/worlds/world` on `0.0.0.0:8787`. Pass `arda-server` flags
+to override that (they replace the defaults, so give `--world` and `--host 0.0.0.0` yourself), or
+set `ARDA_LIBRARY` / `ARDA_WORLD`. The image has a `HEALTHCHECK` (`arda-server --probe`), exposes
+8787, stops on SIGTERM, and runs the CLI with `--entrypoint arda`:
+
+```sh
+docker run --rm --entrypoint arda arda:local --version
+```
+
+Two variants build from one `Dockerfile`:
+
+- **Default (placeholder library only).** `docker build -t arda:local .` This is the variant to
+  publish: the committed placeholder tactical library is Apache-2.0.
+- **With the AI art library (local only).** The generated library is not in git and its assets
+  are AI-generated (`LicenseRef-AI-generated`), so the public image does not include it. Build it
+  yourself with a named build context: `docker build -t arda:local-ai --build-context
+  artlib=/abs/path/to/out/art-gen/lib .` It is stacked over the placeholder. Omitting `artlib`
+  never breaks the build.
+
+`tools/docker-smoke.sh <world> [--ai <lib>]` builds and checks either variant end to end.
 
 ---
 

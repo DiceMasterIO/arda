@@ -10,6 +10,15 @@ cargo build --release -p arda-server
 target/release/arda-server --world out/micro42 --port 8787 --library assets/tactical/placeholder
 ```
 
+The server stops cleanly on Ctrl-C (SIGINT) and, on Unix, SIGTERM, so `docker stop` returns at once.
+
+Docker (read-only world, non-root; see the repository README):
+
+```sh
+docker build -t arda:local .
+docker run --rm -p 8787:8787 -v /abs/world:/worlds/world:ro arda:local
+```
+
 | Flag | Default | Meaning |
 |---|---|---|
 | `--world <dir>` | required | World directory (holds `world.json`) |
@@ -21,6 +30,7 @@ target/release/arda-server --world out/micro42 --port 8787 --library assets/tact
 | `--tile-base-px` | `4096` | Tile-pyramid base edge; `256 · 2^max_zoom`, at least 512 |
 | `--library <dir>` | `assets/tactical/placeholder` | Tactical asset library (holds `catalog.json`), relative to the working directory. It is loaded once and validated with the arda-tactical loader; any validation issue stops startup |
 | `--prefetch-workers` | `2` | Background threads warming prefetched tactical cells (at most 8; `0` disables prefetch). Each worker is admitted against the 16 GiB ceiling as one more transient render |
+| `--probe` | off | Health probe for container healthchecks: `GET /v1/health` on loopback at `--port`; exit 0 on `200`, 1 otherwise. Serves nothing and needs no `--world` |
 | `--sheet-mapping <file>` | none | Sheet mapping that reshapes every served NPC into a game's schema (see [Sheet mapping](#sheet-mapping)). Checked at startup; a bad file stops the server |
 
 ## Conventions

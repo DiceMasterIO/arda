@@ -33,12 +33,12 @@ paths_covered:
 
 ## Processes
 
-Six Rust binaries plus the viewer dev server and the art tool. All Rust binaries run to completion except `arda-server`, which serves until Ctrl-C (`crates/arda-server/src/main.rs:86`-`crates/arda-server/src/main.rs:88`).
+Six Rust binaries plus the viewer dev server and the art tool. All Rust binaries run to completion except `arda-server`, which serves until Ctrl-C or, on Unix, SIGTERM (`shutdown_signal` in `crates/arda-server/src/main.rs`).
 
 | Process | Binary (manifest) | Local command | Container command | Depends on |
 |---|---|---|---|---|
-| World CLI | `arda` (`crates/arda-cli/Cargo.toml:9`) | `cargo run -p arda-cli --release -- generate --seed 42 --micro --out out/micro42` | `docker run --rm -v /host/worlds:/worlds arda-local generate --seed 42 --micro --out /worlds/w42` (`Dockerfile:9`-`Dockerfile:11`) | Filesystem only |
-| HTTP server | `arda-server` (`crates/arda-server/Cargo.toml:12`) | `cargo run -p arda-server --release -- --world out/micro42` | None: the image ships only `arda` (`Dockerfile:4`, `Dockerfile:8`) | A generated world directory; tactical library (default `assets/tactical/placeholder`, `crates/arda-server/src/tactical/mod.rs:50`), validated at startup |
+| World CLI | `arda` (`crates/arda-cli/Cargo.toml:9`) | `cargo run -p arda-cli --release -- generate --seed 42 --micro --out out/micro42` | `docker run --rm -v /host/worlds:/worlds --entrypoint arda arda-local generate --seed 42 --micro --out /worlds/w42` (`Dockerfile`) | Filesystem only |
+| HTTP server | `arda-server` (`crates/arda-server/Cargo.toml:12`) | `cargo run -p arda-server --release -- --world out/micro42` | `docker run --rm -v /host/worlds/w42:/worlds/world:ro -p 8787:8787 arda-local` (default entry `tools/docker-entrypoint.sh`: `--host 0.0.0.0 --port 8787`, world `/worlds/world`) | A generated world directory; tactical library (default `assets/tactical/placeholder`, `crates/arda-server/src/tactical/mod.rs:50`), validated at startup |
 | Settlements | `arda-settle` (`crates/arda-settle/Cargo.toml:31`) | `cargo run -p arda-settle --release -- generate --world out/micro42` | None | A generated world |
 | Town planner | `arda-town` (`crates/arda-town/Cargo.toml:12`) | `cargo run -p arda-town -- info --site aldermere` | None | Built-in sample sites; tactical library for `block` |
 | Tactical refinement | `arda-refine` (`crates/arda-refine/Cargo.toml:9`) | `cargo run -p arda-refine --release -- survey --world out/micro42` | None | A generated world |
@@ -99,6 +99,7 @@ Defined in `crates/arda-server/src/main.rs:16`; routes are nested under `/v1` (`
 | `--max-connections` | 64 | `crates/arda-server/src/main.rs:47` |
 | `--prefetch-workers` | 2 (`crates/arda-server/src/tactical/prefetch.rs:37`); 0 disables | `crates/arda-server/src/main.rs:50` |
 | `--sheet-mapping` | absent; a bad file refuses startup | `crates/arda-server/src/main.rs:54` |
+| `--probe` | off; `GET /v1/health` on loopback at `--port`, exit 0 on 200, 1 otherwise, serves nothing and needs no `--world` (the image `HEALTHCHECK`) | `crates/arda-server/src/probe.rs` |
 
 ### Other binaries
 
@@ -143,7 +144,7 @@ Third-party runtime controls such as `RAYON_NUM_THREADS` are read by `rayon`, no
 
 | Item | Facts | Site |
 |---|---|---|
-| Docker image | Two stages: `rust:1-bookworm` builds `cargo build --release -p arda-cli`; runtime `debian:bookworm-slim`, user `arda` UID 10001, `VOLUME /worlds`, `ENTRYPOINT ["arda"]`. No `EXPOSE`, no healthcheck, no server binary. Build with `docker build -t arda-local .`; mounted destinations must be writable by UID 10001. | `Dockerfile:1`-`Dockerfile:11` |
+| Docker image | Multi-stage `Dockerfile`: `rust:1.98.1-bookworm` with `RUSTUP_TOOLCHAIN=1.98.1` builds `cargo build --release --locked -p arda-cli -p arda-server` (BuildKit cache mounts); runtime `debian:bookworm-slim` pinned by digest, user and group `arda` 10001, both binaries in `/usr/local/bin`, `WORKDIR /opt/arda`, `EXPOSE 8787`, `VOLUME /worlds`, `HEALTHCHECK arda-server --probe`, OCI labels (`VERSION`, `REVISION` build args). Entry `arda-entrypoint` (`tools/docker-entrypoint.sh`): no arguments serves `/worlds/world` on `0.0.0.0:8787`; arguments go to `arda-server` verbatim; `--entrypoint arda` runs the CLI. Two variants: default ships the placeholder library only (`/opt/arda/library/placeholder`); `--build-context artlib=<dir>` adds the AI library at `/opt/arda/library/ai`, stacked over the placeholder. Maintainer decision D1: the published GHCR image is the placeholder variant only; the AI library stays an opt-in local build. Mount worlds `:ro` for serving; CLI use needs a directory writable by UID 10001. Checked by `tools/docker-smoke.sh`. | `Dockerfile`, `.dockerignore`, `tools/docker-entrypoint.sh`, `tools/docker-smoke.sh` |
 | Compose | None in the repository | — |
 | Ports | `arda-server` binds `127.0.0.1:8787` by default (`crates/arda-server/src/main.rs:22`-`crates/arda-server/src/main.rs:25`); viewer dev server 5173 (`apps/viewer/vite.config.ts:16`); art-gen talks to Slopify on 6969 (`tools/art-gen/generate.mjs:21`) | as cited |
 | Server health | `GET /v1/health` (`crates/arda-server/src/routes.rs:30`) | — |
