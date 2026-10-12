@@ -3,7 +3,7 @@
 //! collapse) when one fits its lifetime, otherwise by a local cause.
 
 use super::founding::Founding;
-use super::{event, EventKind, Ruin, Timeline};
+use super::{event, stories, EventKind, Ruin, Timeline};
 use crate::ctx::Ctx;
 use crate::input::Tier;
 use crate::names;
@@ -123,22 +123,52 @@ pub fn ruins(ctx: &Ctx<'_>, f: &Founding, tl: &mut Timeline) -> Vec<Ruin> {
         let slots = Slots::new()
             .with("ruin", name.clone())
             .with("kind", kind.clone())
-            .with("settlement", s.name.clone());
+            .with("settlement", s.name.clone())
+            .with("year", abandoned.to_string())
+            .with("realm", realm_name(ctx, s.realm_id));
         let t = &ctx.t.history;
         let key = format!("abandon_{cause}");
-        let text = pick_fill(
-            t.events.get(&key).map_or(&[][..], Vec::as_slice),
-            &mut rng,
-            &slots,
-        );
-        let mut e = event(
-            EventKind::Abandonment,
-            abandoned,
-            format!("{name} is abandoned"),
-            text,
-        );
+        let list = |m: &std::collections::BTreeMap<String, Vec<String>>| {
+            m.get(&key).map_or(&[][..], Vec::as_slice).to_vec()
+        };
+        let title = pick_fill(&list(&t.titles), &mut rng, &slots);
+        let text = pick_fill(&list(&t.events), &mut rng, &slots);
+        let mut e = event(EventKind::Abandonment, abandoned, title, text);
         e.refs.push(EntityRef::Ruin { id });
         e.realms.push(s.realm_id);
+        let cause_ev = cause_event.and_then(|c| tl.get(c)).cloned();
+        // A border shift is told as the war behind it.
+        let story_ev = match &cause_ev {
+            Some(c) if c.kind == EventKind::BorderShift => c
+                .cause
+                .and_then(|w| tl.get(w))
+                .cloned()
+                .or(cause_ev.clone()),
+            other => other.clone(),
+        };
+        let sl = slots
+            .with(
+                "event",
+                story_ev
+                    .as_ref()
+                    .map_or(String::new(), crate::text::event_phrase),
+            )
+            .with(
+                "event_year",
+                story_ev
+                    .as_ref()
+                    .map_or(String::new(), |c| c.year.to_string()),
+            );
+        if cause_ev.is_some() {
+            stories::tell(
+                ctx,
+                &mut e,
+                &format!("ruin_{cause}"),
+                story_ev.as_ref(),
+                &sl,
+                &mut rng,
+            );
+        }
         e.cause = cause_event;
         let ev = tl.push(e);
         out.push(Ruin {
@@ -159,4 +189,9 @@ pub fn ruins(ctx: &Ctx<'_>, f: &Founding, tl: &mut Timeline) -> Vec<Ruin> {
         });
     }
     out
+}
+
+fn realm_name(ctx: &Ctx<'_>, id: u64) -> String {
+    ctx.realm_ix(id)
+        .map_or_else(String::new, |r| ctx.realms[r].name.clone())
 }

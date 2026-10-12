@@ -167,6 +167,9 @@ pub fn render(society: &Society, world: &WorldSettlements) -> String {
                 &mut o,
                 &format!("  {:>4}{span:<6} {}. {}", e.year, e.title, e.text),
             );
+            if let Some(b) = &e.backstory {
+                push(&mut o, &format!("{:>14}{b}", ""));
+            }
         }
     }
     push(&mut o, "");

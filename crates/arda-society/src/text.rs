@@ -90,15 +90,23 @@ pub fn pick_fill(options: &[String], rng: &mut Stream, slots: &Slots) -> String 
         .map_or_else(String::new, |t| slots.fill(t))
 }
 
-/// A mid-sentence phrase for an event: "the Grey Cough", "the flood of 212".
+/// "The Grey Cough" → "the Grey Cough" for use inside a sentence.
+#[must_use]
+pub fn lower_the(name: &str) -> String {
+    name.strip_prefix("The ")
+        .map_or_else(|| name.to_string(), |r| format!("the {r}"))
+}
+
+/// A mid-sentence phrase for an event: its own name when it has one ("the
+/// Grey Cough"), otherwise "the flood of 212" and the like.
 #[must_use]
 pub fn event_phrase(e: &crate::history::Event) -> String {
     use crate::history::EventKind;
+    if let Some(n) = &e.name {
+        return lower_the(n);
+    }
     match e.kind {
-        EventKind::Plague => e
-            .title
-            .strip_prefix("The ")
-            .map_or_else(|| e.title.clone(), |r| format!("the {r}")),
+        EventKind::Plague => lower_the(&e.title),
         EventKind::Flood => format!("the flood of {}", e.year),
         EventKind::Fire => format!("the great fire of {}", e.year),
         EventKind::Famine => format!("the hungry years of {}", e.year),

@@ -1,12 +1,12 @@
-//! Disasters: floods on low river sites, plague spreading along roads from
-//! ports and cities, town fires, famines and mine collapses. Each one only
-//! touches settlements that already exist in its year.
+//! Disasters: floods on low river sites, town fires and mine collapses; the
+//! plagues and famines that chain off other events live in [`super::chains`].
+//! Each one only touches settlements that already exist in its year.
 
 use super::founding::Founding;
-use super::{event, Event, EventKind, Timeline};
+use super::{event, stories, Event, EventKind, Timeline};
 use crate::ctx::Ctx;
 use crate::input::Function;
-use crate::num::{i32_of, i64_of, u64_of};
+use crate::num::i32_of;
 use crate::rng::Stream;
 use crate::tables::HistoryTable;
 use crate::text::{join_and, pick_fill, Slots};
@@ -22,15 +22,15 @@ const LOW_TAGS: [&str; 7] = [
     "river",
 ];
 
-fn list<'a>(t: &'a HistoryTable, key: &str) -> &'a [String] {
+pub(super) fn list<'a>(t: &'a HistoryTable, key: &str) -> &'a [String] {
     t.events.get(key).map_or(&[][..], Vec::as_slice)
 }
 
-fn titles<'a>(t: &'a HistoryTable, key: &str) -> &'a [String] {
+pub(super) fn titles<'a>(t: &'a HistoryTable, key: &str) -> &'a [String] {
     t.titles.get(key).map_or(&[][..], Vec::as_slice)
 }
 
-fn names(ctx: &Ctx<'_>, nodes: &[usize]) -> String {
+pub(super) fn names(ctx: &Ctx<'_>, nodes: &[usize]) -> String {
     let mut v: Vec<String> = nodes
         .iter()
         .take(3)
@@ -42,7 +42,7 @@ fn names(ctx: &Ctx<'_>, nodes: &[usize]) -> String {
     join_and(&v)
 }
 
-fn make(
+pub(super) fn make(
     ctx: &Ctx<'_>,
     kind: EventKind,
     key: &str,
@@ -55,6 +55,16 @@ fn make(
     let mut slots = slots.clone().with("year", year.to_string());
     if !slots.has("places") {
         slots.set("places", names(ctx, nodes));
+    }
+    let home = nodes.first().map_or(0, |&i| ctx.s(i).realm_id);
+    if !slots.has("realm") {
+        let r = ctx
+            .realm_ix(home)
+            .map_or(String::new(), |r| ctx.realms[r].name.clone());
+        slots.set("realm", r);
+    }
+    if !slots.has("river") {
+        slots.set("river", stories::river(ctx, home));
     }
     let mut e = event(
         kind,
@@ -73,9 +83,9 @@ fn make(
 /// Pushes every disaster event.
 pub fn disasters(ctx: &Ctx<'_>, f: &Founding, formed: &[i32], tl: &mut Timeline) {
     floods(ctx, f, tl);
-    plagues(ctx, f, tl);
     local(ctx, f, tl);
-    famines(ctx, f, formed, tl);
+    super::chains::famines(ctx, f, formed, tl);
+    super::chains::plagues(ctx, f, tl);
 }
 
 fn floods(ctx: &Ctx<'_>, f: &Founding, tl: &mut Timeline) {
@@ -111,67 +121,21 @@ fn floods(ctx: &Ctx<'_>, f: &Founding, tl: &mut Timeline) {
             let slots = Slots::new().with("settlement", s.name.clone());
             let mut e = make(ctx, EventKind::Flood, "flood", year, &hit, &slots, &mut rng);
             e.severity = u8::try_from(1 + rng.below(3)).unwrap_or(1);
+            let kind = if s.coastal && rng.chance(500) {
+                "storm_surge"
+            } else if rng.chance(500) {
+                "snowmelt"
+            } else {
+                "river_spate"
+            };
+            e.cause_kind = Some(kind.to_string());
+            let sl = slots_of(ctx, &e, &slots);
+            if e.severity >= 3 {
+                stories::name_event(ctx, tl, &mut e, "flood", &sl, &mut rng);
+            }
+            stories::tell(ctx, &mut e, &format!("flood_{kind}"), None, &sl, &mut rng);
             tl.push(e);
         }
-    }
-}
-
-fn plagues(ctx: &Ctx<'_>, f: &Founding, tl: &mut Timeline) {
-    let t = &ctx.t.history;
-    let count = 1 + ctx.present / 140;
-    for k in 0..count {
-        let mut rng = Stream::new(ctx.seed, "plague", u64_of(i64::from(k)), 0);
-        let year = i32_of(rng.range(50, i64::from(ctx.present - 15)));
-        let hubs: Vec<usize> = (0..ctx.n())
-            .filter(|&i| {
-                let s = ctx.s(i);
-                f.year[i] <= year && (s.has(Function::Port) || s.tier.is_urban())
-            })
-            .collect();
-        let total: u64 = hubs.iter().map(|&i| u64::from(ctx.s(i).population)).sum();
-        let mut pick = rng.below(total.max(1));
-        let Some(origin) = hubs.iter().copied().find(|&i| {
-            let p = u64::from(ctx.s(i).population);
-            if pick < p {
-                true
-            } else {
-                pick -= p;
-                false
-            }
-        }) else {
-            continue;
-        };
-        let reach = ctx.graph.reach(origin, 200_000);
-        let mut hit: Vec<(u64, usize)> = reach
-            .dist
-            .iter()
-            .filter(|&(&j, &d)| {
-                let km = i64_of(d / 1000);
-                f.year[j] <= year && (j == origin || rng.chance(u64_of(760 - km * 5)))
-            })
-            .map(|(&j, &d)| (d, j))
-            .collect();
-        hit.sort_unstable();
-        let nodes: Vec<usize> = hit.iter().map(|h| h.1).collect();
-        let others: Vec<usize> = nodes.iter().copied().filter(|&j| j != origin).collect();
-        let span = i32_of(i64_of(hit.last().map_or(0, |h| h.0) / 35_000));
-        let name = rng.pick(&t.plague_names).cloned().unwrap_or_default();
-        let slots = Slots::new()
-            .with("plague", name)
-            .with("settlement", ctx.s(origin).name.clone());
-        let slots = slots.with("places", names(ctx, &others));
-        let mut e = make(
-            ctx,
-            EventKind::Plague,
-            "plague",
-            year,
-            &nodes,
-            &slots,
-            &mut rng,
-        );
-        e.end_year = Some(year + span.max(1));
-        e.severity = if nodes.len() > 6 { 3 } else { 2 };
-        tl.push(e);
     }
 }
 
@@ -188,6 +152,17 @@ fn local(ctx: &Ctx<'_>, f: &Founding, tl: &mut Timeline) {
                 if year < ctx.present && rng.chance(170) {
                     let mut e = make(ctx, EventKind::Fire, "fire", year, &[i], &slots, &mut rng);
                     e.severity = u8::try_from(1 + rng.below(2)).unwrap_or(1);
+                    let kind = if rng.chance(500) {
+                        "lamp_fire"
+                    } else {
+                        "bad_timber"
+                    };
+                    e.cause_kind = Some(kind.to_string());
+                    let sl = slots_of(ctx, &e, &slots);
+                    if e.severity >= 2 {
+                        stories::name_event(ctx, tl, &mut e, "fire", &sl, &mut rng);
+                    }
+                    stories::tell(ctx, &mut e, &format!("fire_{kind}"), None, &sl, &mut rng);
                     tl.push(e);
                 }
             }
@@ -206,49 +181,46 @@ fn local(ctx: &Ctx<'_>, f: &Founding, tl: &mut Timeline) {
                     &mut rng,
                 );
                 e.severity = 2;
+                let kind = if rng.chance(500) {
+                    "bad_timber"
+                } else {
+                    "flooded_gallery"
+                };
+                e.cause_kind = Some(kind.to_string());
+                let sl = slots_of(ctx, &e, &slots);
+                stories::tell(
+                    ctx,
+                    &mut e,
+                    &format!("mine_collapse_{kind}"),
+                    None,
+                    &sl,
+                    &mut rng,
+                );
                 tl.push(e);
             }
         }
     }
 }
 
-fn famines(ctx: &Ctx<'_>, f: &Founding, formed: &[i32], tl: &mut Timeline) {
-    for (ri, r) in ctx.realms.iter().enumerate() {
-        let mut rng = Stream::new(ctx.seed, "famine", r.id, 0);
-        let mut c = formed[ri] + 10;
-        while c < ctx.present {
-            let year = c + i32_of(rng.range(0, 119));
-            c += 120;
-            if year >= ctx.present || !rng.chance(380) {
-                continue;
-            }
-            let nodes: Vec<usize> = r
-                .members
-                .iter()
-                .copied()
-                .filter(|&i| {
-                    f.year[i] <= year
-                        && (ctx.s(i).has(Function::Farming) || ctx.s(i).has(Function::Pastoral))
-                })
-                .collect();
-            if nodes.is_empty() {
-                continue;
-            }
-            let slots = Slots::new()
-                .with("realm", r.name.clone())
-                .with("settlement", ctx.s(r.seat).name.clone());
-            let mut e = make(
-                ctx,
-                EventKind::Famine,
-                "famine",
-                year,
-                &nodes,
-                &slots,
-                &mut rng,
-            );
-            e.severity = if rng.chance(300) { 2 } else { 1 };
-            e.realms = vec![r.id];
-            tl.push(e);
-        }
-    }
+/// The slots of a disaster event as `make` filled them, for its backstory
+/// and name: settlement, places, year, realm and river.
+pub(super) fn slots_of(ctx: &Ctx<'_>, e: &Event, base: &Slots) -> Slots {
+    let home = e
+        .settlements
+        .first()
+        .and_then(|&id| ctx.node(id))
+        .map_or(0, |i| ctx.s(i).realm_id);
+    let realm = ctx
+        .realm_ix(home)
+        .map_or(String::new(), |r| ctx.realms[r].name.clone());
+    let places: Vec<usize> = e
+        .settlements
+        .iter()
+        .filter_map(|&id| ctx.node(id))
+        .collect();
+    base.clone()
+        .with("year", e.year.to_string())
+        .with("realm", realm)
+        .with("river", stories::river(ctx, home))
+        .with("places", names(ctx, &places))
 }

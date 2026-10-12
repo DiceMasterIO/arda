@@ -18,6 +18,7 @@ pub mod buildings;
 pub mod ctx;
 pub mod economy;
 pub mod error;
+pub mod families;
 pub mod gazetteer;
 pub mod graph;
 pub mod history;

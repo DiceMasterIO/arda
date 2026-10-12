@@ -74,3 +74,9 @@ pub fn given(t: &NameTable, culture: &str, female: bool, rng: &mut Stream) -> St
 pub fn place(t: &NameTable, culture: &str, rng: &mut Stream) -> String {
     build(t, culture, rng, |c| &c.place)
 }
+
+/// A river name.
+#[must_use]
+pub fn river(t: &NameTable, culture: &str, rng: &mut Stream) -> String {
+    build(t, culture, rng, |c| &c.river)
+}

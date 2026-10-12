@@ -210,10 +210,18 @@ pub struct HistoryTable {
     pub era_abbrev: String,
     /// Event titles per event kind.
     pub titles: BTreeMap<String, Vec<String>>,
-    /// Event text per event kind.
+    /// Event text per event kind (loaded from `history_text.json`).
+    #[serde(default)]
     pub events: BTreeMap<String, Vec<String>>,
-    /// History-hook text per hook kind.
+    /// History-hook text per hook kind (loaded from `history_text.json`).
+    #[serde(default)]
     pub lore: BTreeMap<String, Vec<String>>,
+    /// Origin and cause text per `<kind>_<cause_kind>` family (loaded from
+    /// `history_backstory.json`).
+    #[serde(default)]
+    pub backstory: BTreeMap<String, Vec<String>>,
+    /// Names of major events, per family (see [`crate::families::NAMES`]).
+    pub event_names: BTreeMap<String, Vec<String>>,
     /// War name patterns.
     pub war_names: Vec<String>,
     /// Plague names.
@@ -266,6 +274,9 @@ pub struct CultureNames {
     pub house: Vec<String>,
     /// Place-name endings.
     pub place: Vec<String>,
+    /// River-name endings.
+    #[serde(default)]
+    pub river: Vec<String>,
 }
 
 /// `names.json`.
@@ -296,6 +307,28 @@ pub struct Tables {
     pub names: NameTable,
 }
 
+/// Event and lore templates, split out of `history.json` for size.
+#[derive(Deserialize)]
+struct HistoryText {
+    events: BTreeMap<String, Vec<String>>,
+    lore: BTreeMap<String, Vec<String>>,
+}
+
+fn load_history() -> Result<HistoryTable, SocietyError> {
+    let mut h: HistoryTable = parse("history.json", include_str!("../data/history.json"))?;
+    let text: HistoryText = parse(
+        "history_text.json",
+        include_str!("../data/history_text.json"),
+    )?;
+    h.events = text.events;
+    h.lore = text.lore;
+    h.backstory = parse(
+        "history_backstory.json",
+        include_str!("../data/history_backstory.json"),
+    )?;
+    Ok(h)
+}
+
 fn parse<T: DeserializeOwned>(table: &'static str, text: &str) -> Result<T, SocietyError> {
     serde_json::from_str(text).map_err(|source| SocietyError::Table { table, source })
 }
@@ -312,7 +345,7 @@ impl Tables {
             politics: parse("politics.json", include_str!("../data/politics.json"))?,
             factions: parse("factions.json", include_str!("../data/factions.json"))?,
             roles: parse("roles.json", include_str!("../data/roles.json"))?,
-            history: parse("history.json", include_str!("../data/history.json"))?,
+            history: load_history()?,
             hooks: parse("hooks.json", include_str!("../data/hooks.json"))?,
             names: parse("names.json", include_str!("../data/names.json"))?,
         };
@@ -350,6 +383,9 @@ impl Tables {
         }
         if !self.names.cultures.contains_key(&self.names.default) {
             return bad("names.json", "default culture missing".to_string());
+        }
+        if let Err(detail) = crate::families::lint(&self.history) {
+            return bad("history.json", detail);
         }
         if !self.politics.governments.contains_key("monarchy") {
             return bad("politics.json", "missing government monarchy".to_string());

@@ -1,0 +1,162 @@
+{
+ "plague_foul_wells": [
+  "Physicians in {settlement} traced {name} to wells fouled when {cause} left the lower town standing in standing water.",
+  "{name} began in {settlement} in {year}, where drinking water had been tainted ever since {cause}.",
+  "It was the water, most agreed: after {cause}, the cisterns at {settlement} went bad, and {name} came out of them."
+ ],
+ "plague_ship_borne": [
+  "{name} came ashore at {settlement} in {year} on a trading vessel whose crew had died on the way.",
+  "A bale of cloth unloaded at the docks of {settlement} is blamed for {name}, which then travelled the roads towards {places}.",
+  "Traders brought {name} to {settlement}, and it rode their carts as far as {places}."
+ ],
+ "plague_famine_weakened": [
+  "Years of hunger after {cause} had left the folk of {settlement} too weak to fight off {name}, which took hold in {year}.",
+  "{name} spread fastest among the starved: {cause} had stripped {realm} of its strength just before.",
+  "When {name} reached {settlement}, the people were still lean from {cause}, and it killed them in droves."
+ ],
+ "plague_war_camp": [
+  "{name} broke out in a camp of soldiers during {cause}, and the army carried it home to {settlement}.",
+  "Crowded barracks and foul latrines during {cause} gave {name} its start; by {year} it was loose in {settlement}.",
+  "The levies called up for {cause} brought {name} back with them, and it went from {settlement} to {places}."
+ ],
+ "plague_crowded_lanes": [
+  "{name} took hold in the crowded lanes of {settlement} in {year}, where sick and healthy shared the same air.",
+  "A winter of closed shutters in {settlement} gave {name} room to spread from house to house before it reached {places}.",
+  "No single cause was ever named for {name}, though the poorest quarter of {settlement} suffered first."
+ ],
+ "famine_river_spate": [
+  "The silt left by {cause} ruined the next sowing, and the hungry years of {realm} followed.",
+  "After {cause} the {river} fields would not drain, and {realm} went without a harvest.",
+  "{cause} washed away the seed, and the winter that came after was the worst in memory."
+ ],
+ "famine_war_levy": [
+  "Men taken for {cause} could not bring in the harvest, and {name} followed.",
+  "Foragers from {cause} stripped the barns of {realm}, and the next spring there was nothing to sow.",
+  "{name} was made by the soldiers of {cause}, who took the stores and trampled the fields."
+ ],
+ "famine_rain_failure": [
+  "The rains failed in {year}, and by midsummer the {river} ran thin across the fields of {realm}.",
+  "A dry spring and a scorched summer left the barns of {realm} half full; {name} began that year.",
+  "Three years of poor rain wore down the grain stores of {realm}, and {name} was the result."
+ ],
+ "famine_blight": [
+  "Blight crept through the grain in {year}, and what was cut mouldered in the stack.",
+  "A grey mould turned the harvest of {realm} to dust in {year}, and nobody had seed to spare.",
+  "No one could say where the blight came from in {year}, but it left {realm} short of bread for years."
+ ],
+ "flood_river_spate": [
+  "Heavy rain upstream pushed the {river} over its banks in {year}, and {settlement} was caught asleep.",
+  "The {river} rose a fathom in a night in {year}, and {settlement} had no time to carry its goods up the hill.",
+  "A bank of the {river} gave way in {year} above {settlement}, and the water had nowhere else to go."
+ ],
+ "flood_snowmelt": [
+  "A warm wind in {year} melted the winter snow in a week, and the {river} filled faster than any dyke could be raised.",
+  "Late snows and a sudden thaw sent the {river} through {settlement} in {year}.",
+  "The deep drifts in the hills melted at once, and the {river} carried the whole winter down on {settlement}."
+ ],
+ "flood_storm_surge": [
+  "A storm drove the sea up the {river} in {year}, and the tide met the flood at {settlement}.",
+  "Wind and a spring tide held back the {river} in {year}, and the water had to go somewhere.",
+  "The sea came in over the dunes in {year} and the {river} could not drain at {settlement}."
+ ],
+ "fire_lamp_fire": [
+  "A lamp knocked over in a stable started the fire at {settlement} in {year}, and a high wind did the rest.",
+  "The blaze began with a forgotten lamp in a chandler's loft; by morning {settlement} was ash.",
+  "A tallow lamp, a pile of straw and a quarrel nobody remembers set {settlement} alight in {year}."
+ ],
+ "fire_bad_timber": [
+  "Houses of green timber and tarred thatch burned like tinder at {settlement} in {year}, and the council later banned both.",
+  "Rows of cheap timber houses leaning on each other turned the fire at {settlement} in {year} into a disaster.",
+  "Dry summer beams and shared walls at {settlement} meant that one spark in {year} was enough."
+ ],
+ "mine_collapse_bad_timber": [
+  "The pit props at {settlement} had not been replaced in years, and in {year} the roof gave way without warning.",
+  "Cheap, rotting timber held up the galleries of {settlement} until it did not, in {year}.",
+  "The mine owners at {settlement} skimped on props, and the miners paid for it in {year}."
+ ],
+ "mine_collapse_flooded_gallery": [
+  "Water pooled in the old workings at {settlement} for a season, and in {year} it burst through into the working face.",
+  "A spring broke into the deep gallery at {settlement} in {year}, and the pumps could not keep pace.",
+  "Rains soaked the hill above the {settlement} mines, and in {year} the lowest gallery filled in an hour."
+ ],
+ "war_toll_quarrel": [
+  "It began as an argument over tolls at {place}, and by {year} both {realm_a} and {realm_b} had armies in the field.",
+  "{realm_a} raised the toll on {place} bridge, {realm_b} refused to pay, and {name} was the result.",
+  "Merchants complained of bribes and double charges at {place} until {realm_a} and {realm_b} chose swords over ledgers."
+ ],
+ "war_border_claim": [
+  "The two realms had never agreed where their border ran near {place}, and in {year} a boundary stone was moved.",
+  "{realm_b} claimed the fields around {place} by old right, {realm_a} by new, and in {year} the argument became {name}.",
+  "A disputed charter for the land at {place} came out in {year}, and {realm_a} and {realm_b} chose battle over a court."
+ ],
+ "border_shift": [
+  "{winner} claimed {settlement} as the price of {war}, and {loser} was in no position to refuse.",
+  "After {war}, the people of {settlement} found their new lords had little interest in their old customs.",
+  "{settlement} was one of the spoils of {war}, and changed hands in {year} without a single arrow."
+ ],
+ "dynasty_usurpation": [
+  "The ruling line of {realm} had few friends by {year}, and House {house} had the swords.",
+  "House {house} promised a better rule than {old_house}; it took the throne first, and made the promises afterwards.",
+  "Those who served {old_house} were given a choice that night in {year}, and most chose to live."
+ ],
+ "dynasty_succession": [
+  "{old_house} died out in {year}, and the lords of {realm} looked for the nearest kin they could find.",
+  "With no heir of {old_house} to be had, {realm} chose House {house}, who were distant cousins at best.",
+  "{old_house} left no children, and the councillors of {realm} gave the crown to House {house} to avoid a war."
+ ],
+ "dynasty_conquest": [
+  "{war} ended with {old_house} defeated, and the victors put House {house} on the throne of {realm}.",
+  "After {war}, the conquerors did not simply take tribute; they installed House {house} over {realm}.",
+  "House {house} came to the rule of {realm} as the price of {war}, and found the welcome cold."
+ ],
+ "dynasty_election": [
+  "The custom of {realm} is to choose its rulers, and in {year} the electors passed over {old_house} for House {house}.",
+  "{old_house} ruled until {year}, when the assembly of {realm} gave the office to House {house}.",
+  "In {year} a vote at {settlement} ended the rule of {old_house}, and House {house} has held {realm} since."
+ ],
+ "ruin_plague": [
+  "{event} emptied {ruin}, and the {kind} was abandoned in {year}.",
+  "Survivors of {event} refused to remain at {ruin}, and the {kind} was left to the weeds in {year}.",
+  "The sickness of {event} reached {ruin}; by {year} the {kind} was empty."
+ ],
+ "ruin_flood": [
+  "{event} left {ruin} a swamp, and the {kind} was abandoned in {year}.",
+  "After {event} the people of {ruin} rebuilt nothing; the {kind} was empty by {year}.",
+  "{ruin} lay in the path of {event}, and the {kind} was given up in {year}."
+ ],
+ "ruin_war": [
+  "{event} passed through {ruin}, and the {kind} was abandoned in {year}.",
+  "The soldiers of {event} burned {ruin}, and the {kind} was never resettled after {year}.",
+  "{ruin} lay on a campaign road of {event}, and by {year} the {kind} was empty."
+ ],
+ "ruin_famine": [
+  "{event} starved {ruin}; the {kind} was left in {year}.",
+  "Folk of {ruin} walked away from {event}, and the {kind} was abandoned in {year}.",
+  "By {year}, {event} had emptied the {kind} of {ruin}."
+ ],
+ "ruin_fire": [
+  "{event} burned {ruin} to the ground, and the {kind} was abandoned in {year}.",
+  "{event} took {ruin}; the {kind} was not rebuilt after {year}.",
+  "The {kind} of {ruin} was emptied by {event} in {year}."
+ ],
+ "ruin_mine_collapse": [
+  "{event} closed the mine that kept {ruin} alive, and the {kind} was abandoned in {year}.",
+  "With {event}, the work at {ruin} ended; the {kind} was empty in {year}.",
+  "The {kind} of {ruin} did not outlast {event}, and was abandoned in {year}."
+ ],
+ "ruin_well_failed": [
+  "The well of {ruin} ran dry in {year}, and the {kind} was abandoned.",
+  "In {year} the water at {ruin} gave out, and the {kind} was left to the elements.",
+  "With no water left in {year}, the {kind} at {ruin} had to be given up."
+ ],
+ "ruin_raiders": [
+  "Raiders drove the folk of {ruin} out in {year}, and the {kind} stayed empty.",
+  "After repeated raids, the {kind} of {ruin} was abandoned in {year}.",
+  "In {year} the last household of {ruin} fled raiders; the {kind} was never retaken."
+ ],
+ "ruin_enclosure": [
+  "In {year} the lord of the land cleared {ruin}, and the {kind} became pasture.",
+  "The {kind} of {ruin} was enclosed in {year}; its tenants were turned out.",
+  "Tenants of {ruin} were evicted in {year}, and the {kind} was given over to sheep."
+ ]
+}

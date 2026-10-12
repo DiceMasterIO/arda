@@ -256,7 +256,7 @@ Storage values: `HTTP JSON; ts-rs bindings/ts/arda/<Name>.ts` means the type is 
 | Suggestion | `crates/arda-society/src/tables.rs:175` | `crates/arda-society/data/*.json` (compiled in) | SRD 5.1 stat block or class suggestion. |
 | RoleDef | `crates/arda-society/src/tables.rs:186` | `crates/arda-society/data/*.json` (compiled in) | One notable role kind. |
 | RoleTable | `crates/arda-society/src/tables.rs:199` | `crates/arda-society/data/*.json` (compiled in) | `roles.json`. |
-| HistoryTable | `crates/arda-society/src/tables.rs:206` | `crates/arda-society/data/*.json` (compiled in) | `history.json`. |
+| HistoryTable | `crates/arda-society/src/tables.rs:206` | `crates/arda-society/data/*.json` (compiled in) | `history.json`, `history_text.json` (event and lore templates), `history_backstory.json`. |
 | HookDef | `crates/arda-society/src/tables.rs:238` | `crates/arda-society/data/*.json` (compiled in) | One campaign-hook template set: `[title, text]` pairs, so a title always matches its text. |
 | HookTable | `crates/arda-society/src/tables.rs:245` | `crates/arda-society/data/*.json` (compiled in) | `hooks.json`. |
 | CultureNames | `crates/arda-society/src/tables.rs:254` | `crates/arda-society/data/*.json` (compiled in) | Syllables for one culture. |
@@ -2434,6 +2434,9 @@ Required `no` marks an `Option` field, a serde default, a field omitted when emp
 | refs | `EntityRef[]` | yes | Further references. |
 | cause | `Option<u32>` | no | Event that caused this one. |
 | severity | `u8` | yes | 1 (minor) to 3 (catastrophic). |
+| name | `Option<String>` | no | Proper name of a major event ("The Grey Cough"); unique in the world; omitted when absent. |
+| backstory | `Option<String>` | no | One or two sentences of origin and cause, distinct from `text`; omitted when absent. |
+| cause_kind | `Option<String>` | no | Closed key: foul_wells, ship_borne, famine_weakened, war_camp, crowded_lanes, river_spate, snowmelt, storm_surge, war_levy, rain_failure, blight, lamp_fire, bad_timber, flooded_gallery, toll_quarrel, border_claim; omitted when absent. |
 
 ### Dynasty
 

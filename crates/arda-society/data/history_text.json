@@ -1,0 +1,264 @@
+{
+ "events": {
+  "founding_root": [
+   "Folk settle at {site} and name the place {settlement}.",
+   "A few families raise the first hearths of {settlement} at {site}.",
+   "{settlement} owes its place to {site}: whoever first pitched a tent there never moved on.",
+   "Where {site} offered water and shelter, a handful of households stayed the winter, and by spring there was a village called {settlement}."
+  ],
+  "founding_from": [
+   "Younger sons and daughters of {parent} clear new ground at {site} and call it {settlement}.",
+   "Settlers from {parent} follow the road and put down roots at {site}.",
+   "When the fields of {parent} could feed no more mouths, a party walked out to {site} and began {settlement}.",
+   "A grant of common land at {site} lets {parent} send its surplus households to start {settlement}."
+  ],
+  "realm_formed": [
+   "The lords of {settlement} bind {count} neighbouring settlements by oath and proclaim {realm}.",
+   "At {settlement} the headmen of the country swear to one banner, and {realm} begins.",
+   "{settlement} calls the headmen together, and {count} neighbouring places pledge themselves under the new name of {realm}.",
+   "Wearied of paying tribute to everyone, {count} settlements around {settlement} agree to answer to one table, and call it {realm}."
+  ],
+  "war": [
+   "{realm_a} and {realm_b} go to war over the country around {place}.",
+   "Raiding and reprisals around {place} turn into open war between {realm_a} and {realm_b}.",
+   "Old grievances at {place} set {realm_a} and {realm_b} at each other's throats.",
+   "{realm_a} marches on {place}, and {realm_b} answers in kind; neither will name the first blow.",
+   "Envoys from {realm_a} and {realm_b} part in anger at {place}, and within the season both are mustering."
+  ],
+  "peace_gains": [
+   "{winner} has the better of it, and {loser} gives up {gains}.",
+   "The war ends with {winner}'s banners over {gains}; {loser} signs to keep the rest.",
+   "Terms are read out at {place}: {gains} to {winner}, and a promise of quiet from {loser}.",
+   "{loser} kneels, in the way such things are done, and {winner} rides home with {gains}."
+  ],
+  "peace_status_quo": [
+   "Neither side can claim victory; {winner} and {loser} swap hostages and go home.",
+   "Exhausted, {winner} and {loser} make peace on the old borders.",
+   "After years of burnt barns and empty cradles, {winner} and {loser} agree that nothing was worth it, and change no boundary.",
+   "A truce is cried at {place}; {winner} and {loser} both claim the credit and keep their land."
+  ],
+  "border_shift": [
+   "{settlement} is handed from {loser} to {winner}.",
+   "The folk of {settlement} wake to find themselves subjects of {winner}.",
+   "Surveyors from {winner} drive new stakes at {settlement}, and {loser} does not send anyone to pull them up.",
+   "By the terms of the peace, {settlement} owes its tithes to {winner} from the next harvest."
+  ],
+  "flood": [
+   "The river bursts its banks and drowns the low fields of {places}.",
+   "Water runs through the streets of {places} and down into the cellars.",
+   "The river lifts over its banks, and {places} stand in brown water.",
+   "In the night the river changes its bed, taking mills, byres and cellars at {places}."
+  ],
+  "plague": [
+   "Carried along the roads from {settlement}, it empties houses in {places}.",
+   "It breaks out in {settlement} and spreads to {places}.",
+   "First seen at {settlement}, the sickness follows carters and pilgrims to {places}.",
+   "Bells toll for weeks as it passes from {settlement} to {places}, and few houses escape."
+  ],
+  "fire": [
+   "A fire in the lower lanes burns a third of {settlement}.",
+   "Wind drives a fire through the thatch of {settlement}.",
+   "Fire sweeps {settlement}, and the bucket chains cannot hold it.",
+   "Fire jumps the lanes of {settlement} from roof to roof, and by dawn only the stone buildings remain."
+  ],
+  "famine": [
+   "Hunger spreads across {places}, and the granaries stand empty.",
+   "The barns of {realm} are empty by midwinter, and {places} go hungry.",
+   "By midwinter the folk of {places} are boiling bark.",
+   "Bread is rationed across {realm}, and {places} suffer longest."
+  ],
+  "mine_collapse": [
+   "Old galleries give way beneath {settlement}, burying a shift of miners.",
+   "The deep workings at {settlement} come down on the night shift.",
+   "A seam gives way at {settlement}, and the rescue crews dig until the lamps run dry.",
+   "The roof comes down in the {settlement} workings, and the shift below is lost."
+  ],
+  "accession": [
+   "{ruler} of House {house} is raised as {title} of {realm}.",
+   "{ruler} takes the seat of {realm}.",
+   "With the old ruler's seal on a ribbon around the neck, {ruler} of House {house} becomes {title} of {realm}.",
+   "{realm} bows to {ruler}, newly crowned {title}, of House {house}."
+  ],
+  "dynasty_founding": [
+   "House {house} takes the lordship of {realm} at its founding.",
+   "The oath-fires of {realm} are lit for House {house} of {settlement}, first of its rulers.",
+   "{realm} has no past yet, and House {house} is the first to claim it.",
+   "At the founding of {realm}, the headmen of {settlement} raise a chief from House {house} to speak for them all."
+  ],
+  "dynasty_usurpation": [
+   "House {house} seizes the throne of {realm} by force and oath-breaking.",
+   "House {house} takes the high seat at {settlement} while the old ruling line is away, and the gates are shut behind them.",
+   "Blades are drawn in the hall at {settlement}; by morning House {house} holds {realm}.",
+   "The sworn men of {realm} find that their oaths now belong to House {house}, who need not be asked."
+  ],
+  "dynasty_succession": [
+   "The old line fails, and the lords of {realm} give the crown to House {house}.",
+   "Without a child of the blood left, the council at {settlement} turns to House {house} to carry {realm}.",
+   "The last heir of the old line is buried, and House {house} is named to follow them.",
+   "House {house} has the nearest claim on the vacant crown of {realm}, and nobody is in a position to dispute it."
+  ],
+  "dynasty_conquest": [
+   "After a lost war, House {house} is set over {realm}.",
+   "The victors of the war set House {house} on the throne of {realm}, and the old rulers are not seen again.",
+   "House {house} comes to {settlement} at the head of an army and is crowned in the hall.",
+   "Defeat costs {realm} its ruling line; House {house} is given the seat at {settlement}."
+  ],
+  "dynasty_election": [
+   "The electors of {realm} raise House {house} to rule.",
+   "Delegates gather at {settlement} and, after three days of argument, choose House {house} to rule {realm}.",
+   "With no clear heir, the notables of {realm} vote, and House {house} wins by a handful of voices.",
+   "The ring of the elders is passed to House {house}, and {realm} has a new ruling family."
+  ],
+  "abandon_plague": [
+   "The last families leave {ruin} after the sickness, and the {kind} falls to nettles.",
+   "The sickness has emptied {ruin}; the survivors burn their belongings and walk away from the {kind}.",
+   "No one will touch the doors of {ruin} after the fever, and the {kind} slowly returns to the wild.",
+   "Whole families die at {ruin}, and the few who live join kin at {settlement}."
+  ],
+  "abandon_flood": [
+   "The flood leaves {ruin} under silt; nobody rebuilds the {kind}.",
+   "{ruin} sits too low, and after the water the {kind} is not worth the digging out.",
+   "The river takes the well, the fields and the footbridge of {ruin}, and the {kind} is let go.",
+   "Silt a hand deep covers every floor in {ruin}; the folk take what floats and leave for {settlement}."
+  ],
+  "abandon_war": [
+   "Soldiers burn {ruin} in the war, and the {kind} is never resettled.",
+   "Both armies pass through {ruin} and the {kind} is stripped of everything; its people do not come back.",
+   "The war leaves {ruin} a black outline, and the {kind} stays empty.",
+   "Pressed for grain and recruits, the {kind} of {ruin} dissolves into the roads towards {settlement}."
+  ],
+  "abandon_famine": [
+   "Hunger drives the people of {ruin} to {settlement}, and the {kind} is left empty.",
+   "In the hungry years the {kind} of {ruin} eats its seed corn and then departs, household by household.",
+   "{ruin} cannot feed itself, so the {kind} walks to {settlement} and does not return.",
+   "A thin harvest finishes {ruin}; the {kind} is empty by the next sowing."
+  ],
+  "abandon_fire": [
+   "Fire takes {ruin}, and its folk move to {settlement} rather than rebuild.",
+   "The roofs of {ruin} burn in a single night, and the {kind} is not rebuilt.",
+   "After the fire, the {kind} of {ruin} moves its hearths to {settlement}.",
+   "A lamp left burning ends {ruin}; the survivors will not build again on the ashes of the {kind}."
+  ],
+  "abandon_mine_collapse": [
+   "With the mine closed, {ruin} has no reason to exist; the {kind} empties in a season.",
+   "With its diggings buried, {ruin} has nothing left to sell, and the {kind} slowly empties.",
+   "The collapse takes the best men of {ruin}; the {kind} cannot spare any more.",
+   "Wages stop when the mine closes, and by autumn the {kind} at {ruin} is quiet."
+  ],
+  "abandon_well_failed": [
+   "The well at {ruin} fails in a dry summer, and the {kind} is left to the crows.",
+   "Two dry summers dry the well of {ruin}, and the {kind} sets out for water.",
+   "Water must be hauled from far off to {ruin}; in the end the {kind} is simply abandoned.",
+   "No one at {ruin} can dig deeper, so the {kind} is left to the crows."
+  ],
+  "abandon_raiders": [
+   "Raiders strike {ruin} twice in a year; the survivors take refuge in {settlement}.",
+   "Tired of being robbed, the folk of the {kind} at {ruin} walk the road to {settlement} and take what they can carry.",
+   "{ruin} is attacked in the dark twice in a year, and the {kind} is then left to the owls.",
+   "Raiders return to {ruin} each autumn until the {kind} has nothing worth the trouble."
+  ],
+  "abandon_enclosure": [
+   "The lord clears {ruin} for sheep, and its tenants are turned out onto the road.",
+   "Sheep are worth more to the lord than tenants, and the {kind} at {ruin} is cleared.",
+   "A new boundary ditch cuts {ruin} off from its common, and the {kind} fades into the pasture.",
+   "The tenants of {ruin} are paid to leave, and the walls of the {kind} are used for the sheepfold."
+  ]
+ },
+ "lore": {
+  "site_line": [
+   "{line}"
+  ],
+  "root": [
+   "One of the oldest hearths in the land: folk were living at {site} by {year} {era}.",
+   "{settlement} was already old when its neighbours were founded; its first houses stood at {site} around {year} {era}.",
+   "The chroniclers of {settlement} begin their tale in {year} {era}, when the first families settled at {site}.",
+   "The oldest graves in {settlement} are dated to {year} {era}, and the first houses were set beside {site}."
+  ],
+  "from": [
+   "Settlers from {parent} founded {settlement} at {site} in {year} {era}, and the two still argue over grazing rights.",
+   "The founding families came from {parent} in {year} {era}; old folk still call the place {parent}'s daughter.",
+   "Folk from {parent} walked the road to {site} in {year} {era} and stayed; the oldest graves here face back towards {parent}.",
+   "{settlement} began in {year} {era} as a summer camp of herders from {parent} and slowly became a place of its own.",
+   "In {year} {era} a family from {parent} quarrelled with their kin and built anew at {site}; the feud is forgotten, the name is not."
+  ],
+  "captured": [
+   "{settlement} belonged to {former} until {war} ended in {year} {era}.",
+   "{settlement} was part of {former} until {war}; the old boundary stones still stand in the fields.",
+   "In {year} {era} {war} drew a new line through the fields of {settlement}; the people of {former} are still remembered at harvest.",
+   "Folk here counted themselves of {former} until {war} changed the map in {year} {era}."
+  ],
+  "captured_recent": [
+   "Grandparents here were born subjects of {former}; {war} moved the border in {year} {era}.",
+   "{settlement} was part of {former} until {war} ended in {year} {era}, and some families still keep the old banner in a chest.",
+   "Taxes were paid to {former} within living memory; {war} ended that in {year} {era}.",
+   "It is only since {war} in {year} {era} that {settlement} has stopped looking east towards {former} out of habit."
+  ],
+  "plague": [
+   "{event} emptied whole streets; a burial field lies outside the walls.",
+   "Families here still name the dead of {event} at midwinter.",
+   "The hospice by the gate was founded in the year of {event}, and it has never been empty since.",
+   "People here swear the old burial field by the gate was dug in the year of {event}.",
+   "The year of {event} is cut into the lintel of the hospice, and visitors are told to notice it."
+  ],
+  "flood": [
+   "High-water marks from the flood of {year} {era} are cut into the oldest doorposts.",
+   "The flood of {year} {era} took the old mill and half the lower fields.",
+   "Old men at {settlement} still point to the line where {event} reached, high on the church wall.",
+   "{event} left {settlement} a ford instead of a bridge, and the mud of {year} {era} is still talked about."
+  ],
+  "fire": [
+   "After the fire of {year} {era} the place was rebuilt in stone, and thatch is still frowned on.",
+   "Scorched beams from the fire of {year} {era} still show in the cellars.",
+   "{event} destroyed the old records of {settlement}; what is told of earlier times is memory.",
+   "The street plan of {settlement} is wider than it was, since {event} cleared the old lanes in {year} {era}."
+  ],
+  "famine": [
+   "In the hungry years of {year} {era} the folk here ate their seed corn and bark bread.",
+   "Children of {settlement} are taught a rhyme about {event}, and what the hungry did in {year} {era}.",
+   "The granary at {settlement} was built, with a lock and two keys, after {event}.",
+   "A stone in the square records those who died in {event}, in {year} {era}."
+  ],
+  "mine_collapse": [
+   "The collapse of {year} {era} sealed a shift of miners below; nobody works that gallery now.",
+   "Miners at {settlement} touch the lintel of the pit on the way down, as they have since {event}.",
+   "A widows' fund was raised after {event}, in {year} {era}, and is still paid.",
+   "The shaft sealed in {year} {era} stands under a cairn, and {event} is never mentioned lightly."
+  ],
+  "dynasty": [
+   "House {house} has ruled {realm} from here since {year} {era}.",
+   "The banner of House {house} has flown over {settlement} since {year} {era}.",
+   "Folk say House {house} never leaves {settlement} for long, as {realm} began for them in {year} {era}.",
+   "The great hall of {settlement} has held House {house} and its arguments since {year} {era}."
+  ],
+  "ruin": [
+   "Half a day's walk away lie the ruins of {ruin}, a {kind} abandoned in {year} {era}.",
+   "Shepherds avoid the tumbled walls of {ruin}, a {kind} empty since {year} {era}.",
+   "Stones from {ruin}, a {kind} deserted in {year} {era}, are built into half the barns here.",
+   "A track leads out of {settlement} to {ruin}, a {kind} that was abandoned in {year} {era} and whose name is still on the old maps."
+  ],
+  "export": [
+   "Its {good} goes out along the road to {dest}, and has for generations.",
+   "Carters from {dest} come each season for its {good}.",
+   "Every autumn a train of {good} leaves for {dest}; the whole place turns out to load it.",
+   "The market at {dest} would be poorer without its {good}, and both sides know it."
+  ],
+  "quiet": [
+   "Little of note has happened here, and the folk of {settlement} like it that way.",
+   "The chronicles barely mention {settlement}; its people prefer it so.",
+   "Nothing great has happened at {settlement}, and no one is inclined to invent it.",
+   "{settlement} appears in the chronicles mostly as a place that others passed through."
+  ],
+  "plague_small": [
+   "{event} carried off half the households; their hearths were never relit.",
+   "Families here still name the dead of {event} at midwinter.",
+   "A lych-gate stands where the dead of {event} were carried out, and nobody lingers under it.",
+   "The survivors of {event} burned the worst-hit houses; the charred footings still show in the grass."
+  ],
+  "ruin_caused": [
+   "Out past the fields lie the walls of {ruin}, a {kind} given up after {event}, in {year} {era}.",
+   "Carters sometimes point out {ruin}, a {kind} that {event} emptied in {year} {era}.",
+   "{event} ended the {kind} of {ruin} in {year} {era}; its stones still turn up in neighbouring walls.",
+   "Nobody lives at {ruin} now: {event} drove out the {kind} in {year} {era}."
+  ]
+ }
+}

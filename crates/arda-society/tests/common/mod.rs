@@ -13,3 +13,8 @@ pub fn build(seed: u64) -> (WorldSettlements, Society) {
     let society = simulate_society(seed, &world).expect("society");
     (world, society)
 }
+
+/// Twenty seeds for the statistical history tests.
+pub fn seeds20() -> Vec<u64> {
+    (1..=20).map(|k| k * 37).collect()
+}

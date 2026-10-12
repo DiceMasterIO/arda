@@ -4,7 +4,7 @@
 //! battle deaths bring a new house to power.
 
 use super::founding::Founding;
-use super::{event, Dynasty, EventKind, Reign, Timeline, War};
+use super::{event, stories, Dynasty, EventKind, Reign, Timeline, War};
 use crate::ctx::Ctx;
 use crate::names;
 use crate::num::{i32_of, u64_of_usize};
@@ -92,7 +92,7 @@ pub fn reigns(
             "founding",
             &mut dynasties,
         );
-        push_dynasty_event(ctx, tl, r, &house, year, None);
+        push_dynasty_event(ctx, tl, r, (&house, ""), year, None);
         let first_reign = reigns.len();
         loop {
             let female = rng.chance(if hereditary { 330 } else { 400 });
@@ -203,8 +203,9 @@ pub fn reigns(
                 }
                 house_n += 1;
                 let cause_id = at_war.map(|w| w.event);
+                let old = house.name.clone();
                 house = new_house(ctx, r.id, culture, house_n, end, origin, &mut dynasties);
-                push_dynasty_event(ctx, tl, r, &house, end, cause_id);
+                push_dynasty_event(ctx, tl, r, (&house, &old), end, cause_id);
             }
         }
     }
@@ -241,7 +242,7 @@ fn push_dynasty_event(
     ctx: &Ctx<'_>,
     tl: &mut Timeline,
     r: &crate::ctx::RealmInfo,
-    d: &Dynasty,
+    (d, old_house): (&Dynasty, &str),
     year: i32,
     cause: Option<u32>,
 ) {
@@ -253,26 +254,37 @@ fn push_dynasty_event(
     );
     let slots = Slots::new()
         .with("house", d.name.clone())
-        .with("realm", r.name.clone());
+        .with("old_house", old_house)
+        .with("realm", r.name.clone())
+        .with("year", year.to_string())
+        .with("settlement", ctx.s(r.seat).name.clone());
     let key = format!("dynasty_{}", d.origin);
-    let text = pick_fill(
-        ctx.t
-            .history
-            .events
-            .get(&key)
-            .map_or(&[][..], Vec::as_slice),
-        &mut rng,
-        &slots,
-    );
-    let mut e = event(
-        EventKind::DynastyFounded,
-        year,
-        format!("House {} rises in {}", d.name, r.name),
-        text,
-    );
+    let list = |m: &std::collections::BTreeMap<String, Vec<String>>| {
+        m.get(&key).map_or(&[][..], Vec::as_slice).to_vec()
+    };
+    let h = &ctx.t.history;
+    let title = pick_fill(&list(&h.titles), &mut rng, &slots);
+    let text = pick_fill(&list(&h.events), &mut rng, &slots);
+    let mut e = event(EventKind::DynastyFounded, year, title, text);
     e.realms.push(r.id);
     e.settlements.push(ctx.s(r.seat).id);
     e.refs.push(EntityRef::Dynasty { id: d.id.clone() });
     e.cause = cause;
+    if d.origin != "founding" {
+        stories::name_event(ctx, tl, &mut e, &key, &slots, &mut rng);
+        let war = cause.and_then(|c| tl.get(c)).cloned();
+        let sl = slots.with(
+            "war",
+            war.as_ref()
+                .map_or(String::new(), crate::text::event_phrase),
+        );
+        let linked = if d.origin == "conquest" {
+            war.as_ref()
+        } else {
+            None
+        };
+        stories::tell(ctx, &mut e, &key, linked, &sl, &mut rng);
+        e.cause = cause;
+    }
     tl.push(e);
 }

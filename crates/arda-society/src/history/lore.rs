@@ -61,6 +61,7 @@ fn one(ctx: &Ctx<'_>, src: &Sources<'_>, i: usize) -> Vec<HistoryHook> {
     let s = ctx.s(i);
     let t = &ctx.t.history;
     let mut rng = Stream::new(ctx.seed, "lore", s.id, 0);
+    let mut rng_story = Stream::new(ctx.seed, "lore_story", s.id, 0);
     let era = t.era_abbrev.as_str();
     let base = Slots::new()
         .with("settlement", s.name.clone())
@@ -171,6 +172,12 @@ fn one(ctx: &Ctx<'_>, src: &Sources<'_>, i: usize) -> Vec<HistoryHook> {
             Some(e.year),
             vec![EntityRef::Event { id: e.id }],
         );
+        // Half the time, at the event's home, the line goes on to say where it came from.
+        if let (Some(story), Some(last)) = (&e.backstory, out.last_mut()) {
+            if e.settlements.first() == Some(&s.id) && rng_story.chance(500) {
+                last.text = format!("{} {story}", last.text);
+            }
+        }
     }
     let seat_of = || ctx.realms.iter().find(|r| r.seat == i);
     if let Some(r) = ctx.is_seat(i).then(seat_of).flatten() {
@@ -199,9 +206,20 @@ fn one(ctx: &Ctx<'_>, src: &Sources<'_>, i: usize) -> Vec<HistoryHook> {
             .with("ruin", r.name.clone())
             .with("kind", r.kind.clone())
             .with("year", r.abandoned.to_string());
+        let cause = r
+            .cause_event
+            .and_then(|c| h.event(c))
+            .filter(|c| super::stories::is_disaster(c.kind));
+        let (key, sl) = match cause {
+            Some(c) => (
+                "ruin_caused",
+                sl.with("event", crate::text::event_phrase(c)),
+            ),
+            None => ("ruin", sl),
+        };
         add(
             &mut out,
-            "ruin",
+            key,
             &sl,
             Some(r.abandoned),
             vec![EntityRef::Ruin { id: r.id }],

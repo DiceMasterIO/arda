@@ -3,6 +3,7 @@
 //! formation → wars and border shifts → disasters → reigns → ruins →
 //! prosperity → history hooks.
 
+pub mod chains;
 pub mod disasters;
 pub mod founding;
 pub mod index;
@@ -11,6 +12,7 @@ pub mod prosperity;
 pub mod reigns;
 pub mod ruins;
 pub mod run;
+pub mod stories;
 pub mod wars;
 
 use crate::input::Tier;
@@ -82,7 +84,36 @@ pub struct Event {
     pub cause: Option<u32>,
     /// 1 (minor) to 3 (catastrophic).
     pub severity: u8,
+    /// Proper name of a major event ("The Grey Cough"); unique in the world.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub name: Option<String>,
+    /// One or two sentences on the origin and cause, distinct from `text`.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub backstory: Option<String>,
+    /// Why it happened, one of [`CAUSE_KINDS`].
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub cause_kind: Option<String>,
 }
+
+/// The closed list of `Event::cause_kind` values.
+pub const CAUSE_KINDS: [&str; 16] = [
+    "foul_wells",
+    "ship_borne",
+    "famine_weakened",
+    "war_camp",
+    "crowded_lanes",
+    "river_spate",
+    "snowmelt",
+    "storm_surge",
+    "war_levy",
+    "rain_failure",
+    "blight",
+    "lamp_fire",
+    "bad_timber",
+    "flooded_gallery",
+    "toll_quarrel",
+    "border_claim",
+];
 
 /// A ruling house.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
@@ -241,6 +272,15 @@ pub struct History {
 }
 
 impl History {
+    /// The event with id `id`.
+    #[must_use]
+    pub fn event(&self, id: u32) -> Option<&Event> {
+        self.events
+            .binary_search_by_key(&id, |e| e.id)
+            .ok()
+            .and_then(|i| self.events.get(i))
+    }
+
     /// Replays the border shifts in year order from the first allegiances
     /// and returns the resulting realm of every settlement, or the first
     /// shift whose `from_realm` disagrees with the replayed state.
@@ -280,6 +320,12 @@ impl Timeline {
         e.id = id;
         self.events.push(e);
         id
+    }
+
+    /// The event with provisional id `id`.
+    #[must_use]
+    pub fn get(&self, id: u32) -> Option<&Event> {
+        self.events.get(crate::num::usize_of(u64::from(id)))
     }
 
     /// Sorts chronologically and returns the provisional → final id map.
@@ -338,5 +384,8 @@ pub fn event(kind: EventKind, year: i32, title: String, text: String) -> Event {
         refs: Vec::new(),
         cause: None,
         severity: 1,
+        name: None,
+        backstory: None,
+        cause_kind: None,
     }
 }

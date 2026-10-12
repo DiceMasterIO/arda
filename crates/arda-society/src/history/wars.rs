@@ -6,7 +6,7 @@
 //! and differing cultures and falls with mutual trade.
 
 use super::founding::Founding;
-use super::{event, BorderShift, EventKind, Timeline, War};
+use super::{event, stories, BorderShift, EventKind, Timeline, War};
 use crate::ctx::Ctx;
 use crate::num::{i32_of, i64_of};
 use crate::refs::EntityRef;
@@ -192,19 +192,28 @@ fn add_war(
         .with("years", years.to_string())
         .with("cause", good)
         .with("year", begin.to_string());
-    let name = crate::text::pick_name(&t.war_names, rng, &slots);
+    let raw = crate::text::pick_name(&t.war_names, rng, &slots);
+    let title = stories::unique_name(tl, &raw, begin);
+    let name = crate::text::lower_the(&title);
     let slots = slots.with("war", name.clone());
-    let title = crate::text::capitalise_first(&name);
     let mut e = event(
         EventKind::War,
         begin,
-        title,
+        title.clone(),
         pick_fill(key_list(t, "war"), rng, &slots),
     );
     e.end_year = end;
     e.ongoing = end.is_none();
     e.realms = vec![ra.id, rb.id];
     e.severity = u8::try_from(years.clamp(1, 9) / 3 + 1).unwrap_or(1);
+    e.name = Some(title.clone());
+    let kind = if trade > 0 {
+        "toll_quarrel"
+    } else {
+        "border_claim"
+    };
+    e.cause_kind = Some(kind.to_string());
+    stories::tell(ctx, &mut e, &format!("war_{kind}"), None, &slots, rng);
     let war_id = tl.push(e);
     run.wars.push(War {
         event: war_id,
@@ -258,9 +267,11 @@ fn add_war(
         );
         e.settlements.push(s.id);
         e.realms = vec![rl.id, rw.id];
-        e.cause = Some(war_id);
         e.refs.push(EntityRef::Event { id: peace_id });
         e.severity = 2;
+        let war_ev = tl.get(war_id).cloned();
+        let sl = sl.with("year", end.to_string());
+        stories::tell(ctx, &mut e, "border_shift", war_ev.as_ref(), &sl, rng);
         tl.push(e);
         run.shifts.push(BorderShift {
             settlement: s.id,

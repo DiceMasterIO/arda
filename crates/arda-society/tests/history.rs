@@ -205,3 +205,250 @@ fn prosperity_ends_at_present_wealth() {
         assert_eq!(st.prosperity.samples[0][0], st.founded);
     }
 }
+
+// ---- richer history (1.0 task 16) ----
+
+use arda_society::history::{Event, CAUSE_KINDS};
+use arda_society::tables::Tables;
+use std::collections::BTreeSet;
+
+fn twenty() -> Vec<(arda_society::input::WorldSettlements, arda_society::Society)> {
+    common::seeds20().into_iter().map(common::build).collect()
+}
+
+/// Whether `text` could have come from `template` (literal chunks in order).
+fn fits(template: &str, text: &str) -> bool {
+    let text = text.to_lowercase();
+    let mut at = 0;
+    let mut rest = template;
+    let mut chunks = Vec::new();
+    while let Some(o) = rest.find('{') {
+        chunks.push(&rest[..o]);
+        rest = rest[o..].find('}').map_or("", |c| &rest[o + c + 1..]);
+    }
+    chunks.push(rest);
+    for c in chunks {
+        let c = c.to_lowercase();
+        let c = c.trim();
+        if c.is_empty() {
+            continue;
+        }
+        match text[at..].find(c) {
+            Some(p) => at += p + c.len(),
+            None => return false,
+        }
+    }
+    true
+}
+
+fn families(e: &Event) -> Vec<String> {
+    use EventKind as K;
+    let one = |s: &str| vec![s.to_string()];
+    match e.kind {
+        K::Founding => vec!["founding_root".into(), "founding_from".into()],
+        K::RealmFormed => one("realm_formed"),
+        K::Accession => one("accession"),
+        K::War => one("war"),
+        K::Peace => vec!["peace_gains".into(), "peace_status_quo".into()],
+        K::BorderShift => one("border_shift"),
+        K::Flood => one("flood"),
+        K::Plague => one("plague"),
+        K::Fire => one("fire"),
+        K::Famine => one("famine"),
+        K::MineCollapse => one("mine_collapse"),
+        K::DynastyFounded => [
+            "founding",
+            "usurpation",
+            "succession",
+            "conquest",
+            "election",
+        ]
+        .iter()
+        .map(|o| format!("dynasty_{o}"))
+        .collect(),
+        K::Abandonment => [
+            "plague",
+            "flood",
+            "war",
+            "famine",
+            "fire",
+            "mine_collapse",
+            "well_failed",
+            "raiders",
+            "enclosure",
+        ]
+        .iter()
+        .map(|o| format!("abandon_{o}"))
+        .collect(),
+    }
+}
+
+#[test]
+fn every_event_kind_shows_four_templates_across_seeds() {
+    let t = Tables::load().unwrap();
+    let mut seen: BTreeMap<EventKind, BTreeSet<(String, usize)>> = BTreeMap::new();
+    for (_, s) in twenty() {
+        for e in &s.history.events {
+            for fam in families(e) {
+                let list = &t.history.events[&fam];
+                for (i, tpl) in list.iter().enumerate() {
+                    if fits(tpl, &e.text) {
+                        seen.entry(e.kind).or_default().insert((fam.clone(), i));
+                    }
+                }
+            }
+        }
+    }
+    for (kind, set) in &seen {
+        assert!(
+            set.len() >= 4,
+            "{kind:?} shows only {} templates",
+            set.len()
+        );
+    }
+}
+
+fn strings(v: &serde_json::Value, out: &mut Vec<String>) {
+    match v {
+        serde_json::Value::String(s) => out.push(s.clone()),
+        serde_json::Value::Array(a) => a.iter().for_each(|x| strings(x, out)),
+        serde_json::Value::Object(m) => m.values().for_each(|x| strings(x, out)),
+        _ => {}
+    }
+}
+
+#[test]
+fn no_generated_string_keeps_a_brace() {
+    for (_, s) in twenty() {
+        let v = serde_json::to_value(&s).unwrap();
+        let mut all = Vec::new();
+        strings(&v, &mut all);
+        for text in all {
+            assert!(!text.contains('{') && !text.contains('}'), "{text}");
+        }
+    }
+}
+
+#[test]
+fn causes_are_earlier_and_connected() {
+    for (world, s) in twenty() {
+        let h = &s.history;
+        let mut linked = 0;
+        for e in &h.events {
+            let Some(c) = e.cause else { continue };
+            let cause = h.event(c).expect("cause exists");
+            assert!(cause.year <= e.year, "{} <- {}", e.title, cause.title);
+            let near = |a: &Event, b: &Event| {
+                a.settlements.iter().any(|x| {
+                    b.settlements.contains(x)
+                        || world.roads.iter().any(|r| {
+                            (r.from == *x && r.to.is_some_and(|t| b.settlements.contains(&t)))
+                                || (r.to == Some(*x) && b.settlements.contains(&r.from))
+                        })
+                })
+            };
+            assert!(
+                e.realms.iter().any(|r| cause.realms.contains(r))
+                    || near(e, cause)
+                    || e.refs.iter().any(
+                        |r| matches!(r, arda_society::refs::EntityRef::Event { id } if *id == c)
+                    ),
+                "{} <- {} are unconnected",
+                e.title,
+                cause.title
+            );
+            linked += 1;
+        }
+        assert!(linked > 0);
+    }
+}
+
+#[test]
+fn named_events_have_unique_names_and_plagues_have_causes() {
+    let mut chain = false;
+    let mut names_seen = 0;
+    for (_, s) in twenty() {
+        let h = &s.history;
+        let mut names = BTreeSet::new();
+        for e in &h.events {
+            if let Some(n) = &e.name {
+                assert!(!n.trim().is_empty());
+                assert!(names.insert(n.clone()), "duplicate event name {n}");
+                names_seen += 1;
+            }
+            if e.kind == EventKind::Plague {
+                assert!(e.name.is_some() && e.backstory.is_some(), "{}", e.title);
+                let k = e.cause_kind.as_deref().unwrap();
+                assert!(CAUSE_KINDS.contains(&k), "{k}");
+            }
+            if let Some(k) = &e.cause_kind {
+                assert!(CAUSE_KINDS.contains(&k.as_str()), "{k}");
+            }
+            if e.kind == EventKind::Plague {
+                let fam = e
+                    .cause
+                    .and_then(|c| h.event(c))
+                    .filter(|c| c.kind == EventKind::Famine);
+                let root = fam.and_then(|f| f.cause).and_then(|c| h.event(c));
+                if root.is_some_and(|r| matches!(r.kind, EventKind::Flood | EventKind::War)) {
+                    chain = true;
+                }
+            }
+        }
+    }
+    assert!(names_seen > 20);
+    assert!(chain, "no flood/war -> famine -> plague chain in 20 seeds");
+}
+
+#[test]
+fn storage_stays_bounded() {
+    for (_, s) in twenty() {
+        for st in &s.settlements {
+            let bytes = serde_json::to_string(&st.hooks).unwrap().len();
+            assert!(bytes < 4096 * 2, "settlement hooks {bytes}");
+        }
+        for r in &s.realms {
+            let bytes: usize = s
+                .history
+                .events
+                .iter()
+                .filter(|e| e.realms.first() == Some(&r.state.id))
+                .map(|e| serde_json::to_string(e).unwrap().len())
+                .sum();
+            let old: usize = s
+                .history
+                .events
+                .iter()
+                .filter(|e| e.realms.first() == Some(&r.state.id))
+                .map(|e| {
+                    let mut e = e.clone();
+                    (e.name, e.backstory, e.cause_kind) = (None, None, None);
+                    serde_json::to_string(&e).unwrap().len()
+                })
+                .sum();
+            // Accessions of a long-lived realm already fill most of the 16 KB
+            // (Invariant 6, assumed); what this change adds must stay small.
+            assert!(
+                bytes - old < 6 * 1024,
+                "names and backstories of realm {} add {}",
+                r.state.id,
+                bytes - old
+            );
+        }
+    }
+}
+
+#[test]
+fn linter_rejects_unknown_slot_and_empty_family() {
+    let t = Tables::load().unwrap();
+    let mut bad = t.history.clone();
+    bad.events.get_mut("flood").unwrap()[0] = "{nonsense} floods".into();
+    assert!(arda_society::families::lint(&bad).is_err());
+    let mut bad = t.history.clone();
+    bad.lore.get_mut("quiet").unwrap().clear();
+    assert!(arda_society::families::lint(&bad).is_err());
+    let mut bad = t.history.clone();
+    bad.events.insert("unused_kind".into(), vec!["x".into()]);
+    assert!(arda_society::families::lint(&bad).is_err());
+    assert!(arda_society::families::lint(&t.history).is_ok());
+}
