@@ -80,3 +80,18 @@ async fn connections_beyond_the_cap_wait_for_a_free_slot() {
         .unwrap();
     assert!(String::from_utf8_lossy(&buf).starts_with("HTTP/1.1 200"));
 }
+
+#[tokio::test]
+async fn the_serve_future_completes_when_the_shutdown_signal_fires() {
+    let listener = TcpListener::bind("127.0.0.1:0").await.unwrap();
+    let app = Router::new().route("/ok", get(|| async { "ok" }));
+    let (tx, rx) = tokio::sync::oneshot::channel::<()>();
+    let task = tokio::spawn(serve(listener, app, LIMITS, async {
+        let _ = rx.await;
+    }));
+    tokio::time::sleep(Duration::from_millis(100)).await;
+    assert!(!task.is_finished(), "served returned before the signal");
+    tx.send(()).unwrap();
+    let done = tokio::time::timeout(Duration::from_secs(2), task).await;
+    assert!(done.unwrap().unwrap().is_ok());
+}

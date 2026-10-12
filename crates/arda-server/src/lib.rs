@@ -22,6 +22,7 @@ pub mod npc_dto;
 pub mod npcs;
 pub mod overview;
 pub mod people;
+pub mod probe;
 pub mod query;
 pub mod realms;
 pub mod relief;

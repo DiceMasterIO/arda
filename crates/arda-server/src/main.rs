@@ -15,8 +15,12 @@ use std::time::Duration;
 #[command(version)]
 struct Args {
     /// World directory produced by `arda generate`.
+    #[arg(long, required_unless_present = "probe")]
+    world: Option<PathBuf>,
+    /// Health probe for container healthchecks: GET /v1/health on loopback
+    /// at `--port`, exit 0 on 200, 1 otherwise. Serves nothing.
     #[arg(long)]
-    world: PathBuf,
+    probe: bool,
     /// TCP port.
     #[arg(long, default_value_t = 8787)]
     port: u16,
@@ -55,7 +59,8 @@ struct Args {
 }
 
 async fn run(args: Args) -> Result<(), String> {
-    let mut config = ServerConfig::new(args.world);
+    let world = args.world.ok_or("--world is required")?;
+    let mut config = ServerConfig::new(world);
     config.query.area_bytes = args.area_cache_mib << 20;
     config.query.fine_bytes = args.fine_cache_mib << 20;
     config.overview.max_quality_px = args.max_overview_px;
@@ -83,16 +88,54 @@ async fn run(args: Args) -> Result<(), String> {
         state.tactical.library_version(),
         state.sheet_mapping.as_ref().map_or("none", |m| m.name())
     );
-    serve(listener, router(Arc::new(state)), limits, async {
+    serve(listener, router(Arc::new(state)), limits, shutdown_signal())
+        .await
+        .map_err(|e| e.to_string())
+}
+
+/// Resolves on Ctrl-C (SIGINT) or, on Unix, SIGTERM, which is what
+/// `docker stop` sends to PID 1.
+async fn shutdown_signal() {
+    #[cfg(unix)]
+    {
+        use tokio::signal::unix::{signal, SignalKind};
+        match signal(SignalKind::terminate()) {
+            Ok(mut term) => {
+                tokio::select! {
+                    _ = tokio::signal::ctrl_c() => {}
+                    _ = term.recv() => {}
+                }
+            }
+            Err(_) => {
+                let _ = tokio::signal::ctrl_c().await;
+            }
+        }
+    }
+    #[cfg(not(unix))]
+    {
         let _ = tokio::signal::ctrl_c().await;
-    })
-    .await
-    .map_err(|e| e.to_string())
+    }
+}
+
+/// Runs the `--probe` check against loopback.
+fn run_probe(port: u16) -> ExitCode {
+    let addr = SocketAddr::new(std::net::Ipv4Addr::LOCALHOST.into(), port);
+    match arda_server::probe::probe(addr, Duration::from_secs(3)) {
+        Ok(()) => ExitCode::SUCCESS,
+        Err(e) => {
+            eprintln!("arda-server: {e}");
+            ExitCode::FAILURE
+        }
+    }
 }
 
 #[tokio::main]
 async fn main() -> ExitCode {
-    match run(Args::parse()).await {
+    let args = Args::parse();
+    if args.probe {
+        return run_probe(args.port);
+    }
+    match run(args).await {
         Ok(()) => ExitCode::SUCCESS,
         Err(e) => {
             eprintln!("arda-server: {e}");
