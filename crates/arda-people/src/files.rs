@@ -56,6 +56,9 @@ pub struct SocietyFiles {
     pub roads: RoadsFile,
     /// `realms.json`; `None` when the file is absent.
     pub realms: Option<RealmsFile>,
+    /// `gazetteer.json`; `None` when the file is absent (worlds settled
+    /// before the gazetteer existed).
+    pub gazetteer: Option<arda_settle::gazetteer::GazetteerFile>,
     /// Record index by settlement id.
     pub index: BTreeMap<u64, usize>,
 }
@@ -106,6 +109,12 @@ impl SocietyFiles {
         } else {
             None
         };
+        let gpath = dir.join("gazetteer.json");
+        let gazetteer = if gpath.is_file() {
+            Some(read::<arda_settle::gazetteer::GazetteerFile>(&gpath)?)
+        } else {
+            None
+        };
         let index = settlements
             .settlements
             .iter()
@@ -118,6 +127,7 @@ impl SocietyFiles {
             records,
             roads,
             realms,
+            gazetteer,
             index,
         })
     }

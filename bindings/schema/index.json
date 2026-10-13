@@ -33,27 +33,6 @@
       "url": "/v1/schema/AreaRivers.json"
     },
     {
-      "name": "BakeAccepted",
-      "routes": [
-        "POST /v1/tactical/bake"
-      ],
-      "url": "/v1/schema/BakeAccepted.json"
-    },
-    {
-      "name": "BakeRequest",
-      "routes": [
-        "POST /v1/tactical/bake (request)"
-      ],
-      "url": "/v1/schema/BakeRequest.json"
-    },
-    {
-      "name": "BakeStatus",
-      "routes": [
-        "GET /v1/tactical/bake/{id}"
-      ],
-      "url": "/v1/schema/BakeStatus.json"
-    },
-    {
       "name": "CellSample",
       "routes": [
         "GET /v1/cell/{gx}/{gy}"
@@ -75,11 +54,26 @@
       "url": "/v1/schema/Event.json"
     },
     {
-      "name": "GenerateNpcRequest",
+      "name": "Gazetteer",
       "routes": [
-        "POST /v1/npc/generate (request)"
+        "GET /v1/gazetteer"
       ],
-      "url": "/v1/schema/GenerateNpcRequest.json"
+      "url": "/v1/schema/Gazetteer.json"
+    },
+    {
+      "name": "GazetteerFeature",
+      "routes": [
+        "Gazetteer.features[]",
+        "society/gazetteer.json"
+      ],
+      "url": "/v1/schema/GazetteerFeature.json"
+    },
+    {
+      "name": "GazetteerPoint",
+      "routes": [
+        "Gazetteer.features[]"
+      ],
+      "url": "/v1/schema/GazetteerPoint.json"
     },
     {
       "name": "Health",
@@ -99,8 +93,7 @@
       "name": "Npc",
       "routes": [
         "GET /v1/npc/{id}",
-        "GET /v1/npc/demo/{npc_id}",
-        "POST /v1/npc/generate"
+        "GET /v1/npc/demo/{npc_id}"
       ],
       "url": "/v1/schema/Npc.json"
     },

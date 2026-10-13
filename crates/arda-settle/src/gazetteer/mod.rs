@@ -25,6 +25,7 @@
 
 mod coarse;
 mod detect;
+mod list;
 mod name;
 mod range;
 mod shape;
@@ -32,9 +33,10 @@ mod shape;
 use crate::features::Peak;
 use crate::grid::Grid;
 use crate::num::ui;
-use arda_names::PlaceKind;
+pub use arda_names::PlaceKind;
 use serde::{Deserialize, Serialize};
 
+pub use list::{list, points, tier_rank, Filter, GazetteerItem, GazetteerList, GazetteerPoint};
 pub use name::name_features;
 
 /// `gazetteer.json` format version.

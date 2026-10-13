@@ -306,7 +306,7 @@ pub fn paint(c: &mut Canvas, inks: &[Ink], halo: Rgb, halo_opacity: f32) {
     }
 }
 
-fn cumulative(path: &[(f32, f32)]) -> (Vec<f32>, f32) {
+pub(super) fn cumulative(path: &[(f32, f32)]) -> (Vec<f32>, f32) {
     let mut cum = vec![0.0];
     let mut t = 0.0;
     for s in path.windows(2) {
@@ -317,7 +317,7 @@ fn cumulative(path: &[(f32, f32)]) -> (Vec<f32>, f32) {
 }
 
 /// Point and tangent angle at arc length `s`.
-fn at(path: &[(f32, f32)], cum: &[f32], s: f32) -> (f32, f32) {
+pub(super) fn at(path: &[(f32, f32)], cum: &[f32], s: f32) -> (f32, f32) {
     let k = cum
         .partition_point(|&c| c <= s)
         .clamp(1, path.len().max(2) - 1);
@@ -328,7 +328,7 @@ fn at(path: &[(f32, f32)], cum: &[f32], s: f32) -> (f32, f32) {
 }
 
 /// Total turning between arc lengths `s0` and `s1`, radians.
-fn bend(path: &[(f32, f32)], cum: &[f32], s0: f32, s1: f32) -> f32 {
+pub(super) fn bend(path: &[(f32, f32)], cum: &[f32], s0: f32, s1: f32) -> f32 {
     let n = 8;
     let mut total = 0.0;
     let mut last: Option<f32> = None;
@@ -353,7 +353,7 @@ fn bend(path: &[(f32, f32)], cum: &[f32], s0: f32, s1: f32) -> f32 {
 }
 
 /// Centre and baseline angle of a glyph set along the path.
-fn glyph_frame(
+pub(super) fn glyph_frame(
     path: &[(f32, f32)],
     cum: &[f32],
     start: f32,

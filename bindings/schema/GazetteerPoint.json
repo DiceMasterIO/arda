@@ -1,0 +1,62 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "description": "A settlement as a map point.",
+  "properties": {
+    "at_m": {
+      "description": "Centre, metres on the world grid.",
+      "items": {
+        "format": "int64",
+        "type": "integer"
+      },
+      "maxItems": 2,
+      "minItems": 2,
+      "type": "array"
+    },
+    "culture": {
+      "description": "Culture key.",
+      "type": "string"
+    },
+    "id": {
+      "description": "The settlement's id (a decimal string).",
+      "type": "string"
+    },
+    "kind": {
+      "description": "`hamlet`, `village`, `town` or `city`.",
+      "type": "string"
+    },
+    "min_zoom": {
+      "description": "Zoom from which a map shows the label.",
+      "format": "uint8",
+      "maximum": 255,
+      "minimum": 0,
+      "type": "integer"
+    },
+    "name": {
+      "description": "Name.",
+      "type": "string"
+    },
+    "name_gloss": {
+      "description": "English gloss.",
+      "type": "string"
+    },
+    "rank": {
+      "description": "Importance, 2 (city) to 5 (hamlet).",
+      "format": "uint8",
+      "maximum": 255,
+      "minimum": 0,
+      "type": "integer"
+    }
+  },
+  "required": [
+    "id",
+    "kind",
+    "name",
+    "name_gloss",
+    "culture",
+    "at_m",
+    "rank",
+    "min_zoom"
+  ],
+  "title": "GazetteerPoint",
+  "type": "object"
+}

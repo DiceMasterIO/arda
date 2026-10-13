@@ -27,6 +27,7 @@ pub mod detail;
 pub mod error;
 pub mod fixed;
 pub mod height;
+pub mod labels;
 pub mod land;
 pub mod lattice;
 pub mod lowrelief;

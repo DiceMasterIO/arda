@@ -106,8 +106,9 @@ impl TileFormat {
     }
 }
 
-/// Cache identity of an encoded overview tile: `(z, x, y, format, oblique)`.
-type TileKey = (u32, u32, u32, TileFormat, bool);
+/// Cache identity of an encoded overview tile:
+/// `(z, x, y, format, oblique, labelled)`.
+type TileKey = (u32, u32, u32, TileFormat, bool, bool);
 
 /// Overview renders, the decoded pyramid base and cut tiles, all bounded.
 pub struct Overview {
@@ -118,6 +119,7 @@ pub struct Overview {
     /// Decoded pyramid bases: default, then oblique (goal 24).
     base: Mutex<[Option<Arc<Rgb>>; 2]>,
     render: Mutex<()>,
+    labels: std::sync::OnceLock<Arc<arda_midzoom::labels::Labeler>>,
 }
 
 impl Overview {
@@ -147,7 +149,14 @@ impl Overview {
             tiles: Mutex::new(ByteLru::new(limits.cache_bytes)),
             base: Mutex::new([None, None]),
             render: Mutex::new(()),
+            labels: std::sync::OnceLock::new(),
         })
+    }
+
+    /// Shares the gazetteer's labels (set up by the relief levels); overview
+    /// tiles then carry names unless asked not to.
+    pub fn set_labels(&self, labels: Arc<arda_midzoom::labels::Labeler>) {
+        let _ = self.labels.set(labels);
     }
 
     /// Pyramid geometry.
@@ -229,7 +238,9 @@ impl Overview {
 
     /// Slippy tile `(z, x, y)` as a 256 px RGBA PNG or lossless WebP. Both
     /// encode the same pixels. `oblique` cuts the tile from the oblique
-    /// pyramid (goal 24, opt-in) instead of the default one.
+    /// pyramid (goal 24, opt-in) instead of the default one. `labels` draws
+    /// the gazetteer's names when the world has them; the oblique pyramid
+    /// never carries labels (its ground is shifted).
     ///
     /// # Errors
     /// [`ServerError::NotFound`] outside the pyramid; render or encode failures.
@@ -237,9 +248,10 @@ impl Overview {
         &self,
         query: &WorldQuery,
         (z, x, y): (u32, u32, u32),
-        (format, oblique): (TileFormat, bool),
+        (format, oblique, labels): (TileFormat, bool, bool),
     ) -> ServerResult<Arc<Vec<u8>>> {
-        let key = (z, x, y, format, oblique);
+        let labeler = self.labels.get().filter(|_| labels && !oblique);
+        let key = (z, x, y, format, oblique, labeler.is_some());
         if z > self.pyramid.max_zoom || x >= (1 << z) || y >= (1 << z) {
             return Err(ServerError::NotFound(format!(
                 "tile {z}/{x}/{y} is outside the pyramid (zoom 0..={})",
@@ -250,7 +262,12 @@ impl Overview {
             return Ok(hit);
         }
         let base = self.base(query, oblique)?;
-        let rgba = tiles::cut(&base, self.pyramid.max_zoom, z, x, y)?;
+        let mut rgba = tiles::cut(&base, self.pyramid.max_zoom, z, x, y)?;
+        if let Some(l) = labeler {
+            let origin = (i64::from(x) * 256, i64::from(y) * 256);
+            let level = l.level(u8::try_from(z).unwrap_or(u8::MAX));
+            l.draw_rgba(&level, origin, (256, 256), &mut rgba);
+        }
         let bytes = Arc::new(match format {
             TileFormat::Png => tiles::encode_rgba(TILE_PX, TILE_PX, &rgba)?,
             TileFormat::Webp => crate::tactical::images::encode_webp(&rgba, TILE_PX)?,

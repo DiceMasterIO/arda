@@ -59,6 +59,7 @@ pub fn router(state: Arc<AppState>) -> Router {
         .route("/settlements/{id}", get(crate::people::one))
         .route("/settlements/{id}/plan", get(crate::people::plan))
         .route("/settlements/{id}/npcs", get(crate::people::npcs))
+        .route("/gazetteer", get(crate::gazetteer::get))
         .route("/realms", get(crate::realms::list))
         .route("/realms/{id}", get(crate::realms::one))
         .route("/schema", get(crate::schema::routes::index))
@@ -332,6 +333,18 @@ async fn overview_png(
     Ok(png(&headers, &bytes))
 }
 
+/// `?labels=0` leaves the gazetteer's names off a tile; they are on by
+/// default (logic/17 §labels).
+fn labels_flag(q: &std::collections::BTreeMap<String, String>) -> ServerResult<bool> {
+    match q.get("labels").map(String::as_str) {
+        None | Some("1") => Ok(true),
+        Some("0") => Ok(false),
+        Some(other) => Err(ServerError::BadRequest(format!(
+            "labels must be 0 or 1, not {other:?}"
+        ))),
+    }
+}
+
 /// `/v1/tiles/overview/{z}/{x}/{y}.webp` (goal 68) and `.png`;
 /// `?oblique=1` serves the opt-in oblique pyramid (goal 24).
 async fn overview_tile(
@@ -340,7 +353,9 @@ async fn overview_tile(
     path: Segments,
     query: Params,
 ) -> ServerResult<Response> {
-    let oblique = crate::tactical::world_routes::flag(&params(query)?, "oblique")?;
+    let q = params(query)?;
+    let oblique = crate::tactical::world_routes::flag(&q, "oblique")?;
+    let labels = labels_flag(&q)?;
     let p = segments(path, 3)?;
     let (y_text, format) = TileFormat::split(&p[2]).ok_or_else(|| {
         ServerError::NotFound("overview tiles are served as {y}.webp or {y}.png".into())
@@ -356,7 +371,7 @@ async fn overview_tile(
         )));
     }
     let bytes = blocking(state, move |s| {
-        s.overview.tile(&s.query, (z, x, y), (format, oblique))
+        s.overview.tile(&s.query, (z, x, y), (format, oblique, labels))
     })
     .await?;
     Ok(image(&headers, format.content_type(), &bytes))
@@ -367,7 +382,9 @@ async fn relief_tile(
     State(state): Shared,
     headers: HeaderMap,
     path: Segments,
+    query: Params,
 ) -> ServerResult<Response> {
+    let labels = labels_flag(&params(query)?)?;
     let p = segments(path, 3)?;
     let y_text = p[2]
         .strip_suffix(".webp")
@@ -377,7 +394,7 @@ async fn relief_tile(
         parse::<u32>("x", &p[1])?,
         parse::<u32>("y", y_text)?,
     );
-    let bytes = blocking(state, move |s| s.relief.tile(z, x, y)).await?;
+    let bytes = blocking(state, move |s| s.relief.tile(z, x, y, labels)).await?;
     Ok(image(&headers, "image/webp", &bytes))
 }
 

@@ -4,10 +4,11 @@
 
 use crate::cache::ByteLru;
 use crate::error::{lock, ServerError, ServerResult};
+use arda_midzoom::labels::Labeler;
 use arda_midzoom::pyramid::MAX_EXTRA_LEVELS;
 use arda_midzoom::{Landscape, MidzoomError, Pyramid, ReliefWorld};
 use std::path::Path;
-use std::sync::{Arc, Mutex};
+use std::sync::{Arc, Mutex, OnceLock};
 
 /// Relief limits.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -32,7 +33,8 @@ pub const RELIEF_WORKING_BYTES: u64 = 768 << 20;
 pub struct Relief {
     world: Option<Arc<ReliefWorld>>,
     pyramid: Pyramid,
-    tiles: Mutex<ByteLru<(u32, u32, u32), Vec<u8>>>,
+    tiles: Mutex<ByteLru<(u32, u32, u32, bool), Vec<u8>>>,
+    labels: OnceLock<Arc<Labeler>>,
 }
 
 impl std::fmt::Debug for Relief {
@@ -88,6 +90,7 @@ impl Relief {
             world,
             pyramid,
             tiles: Mutex::new(ByteLru::new(limits.cache_bytes)),
+            labels: OnceLock::new(),
         })
     }
 
@@ -107,21 +110,43 @@ impl Relief {
         }
     }
 
+    /// Sets the gazetteer's labels up for this pyramid and returns them,
+    /// so the overview can share them (logic/17 §labels). Once only.
+    ///
+    /// # Errors
+    /// The embedded fonts failed to parse.
+    pub fn enable_labels(
+        &self,
+        file: &arda_settle::gazetteer::GazetteerFile,
+        settlements: &[arda_settle::model::Settlement],
+    ) -> ServerResult<Arc<Labeler>> {
+        let l = Arc::new(
+            arda_midzoom::labels::labeler(&self.pyramid, file, settlements)
+                .map_err(|e| internal(&e))?,
+        );
+        Ok(Arc::clone(self.labels.get_or_init(|| l)))
+    }
+
     /// The lossless WebP of relief tile `(z, x, y)`, rendering on a miss.
+    /// `labels` draws the gazetteer's names on it when the world has them.
     ///
     /// # Errors
     /// [`ServerError::NotFound`] outside the relief levels; render failures.
-    pub fn tile(&self, z: u32, x: u32, y: u32) -> ServerResult<Arc<Vec<u8>>> {
+    pub fn tile(&self, z: u32, x: u32, y: u32, labels: bool) -> ServerResult<Arc<Vec<u8>>> {
         let world = self.world.as_ref().ok_or_else(|| {
             ServerError::NotFound("this world has no formed fine terrain for relief".into())
         })?;
         self.pyramid.check(z, x, y).map_err(|e| internal(&e))?;
-        let key = (z, x, y);
+        let labeler = self.labels.get().filter(|_| labels);
+        let key = (z, x, y, labeler.is_some());
         if let Some(hit) = lock(&self.tiles)?.get(&key) {
             return Ok(hit);
         }
-        let rgba =
+        let mut rgba =
             arda_midzoom::render_tile(world, &self.pyramid, z, x, y).map_err(|e| internal(&e))?;
+        if let Some(l) = labeler {
+            arda_midzoom::labels::draw_tile(l, z, x, y, &mut rgba);
+        }
         let webp = Arc::new(crate::tactical::images::encode_webp(
             &rgba.pixels,
             rgba.width,

@@ -157,7 +157,9 @@ pub async fn post_json(uri: &str, body: Vec<u8>) -> Reply {
 }
 
 fn has_society(dir: &Path) -> bool {
-    loads(dir) && dir.join("society/notables.json").is_file()
+    loads(dir)
+        && dir.join("society/notables.json").is_file()
+        && dir.join("society/gazetteer.json").is_file()
 }
 
 /// A fixture world with `society/` (`arda settle`, `arda society build`):

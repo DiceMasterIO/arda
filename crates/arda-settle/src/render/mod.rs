@@ -27,6 +27,7 @@ pub mod labels;
 pub mod layers;
 pub mod mask;
 mod text;
+pub mod tilelabels;
 
 use crate::canvas::Canvas;
 use crate::error::SettleError;

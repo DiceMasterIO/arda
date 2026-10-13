@@ -148,6 +148,10 @@ catalog! {
     "RealmSociety" => arda_society::RealmSociety, ["RealmDetail.politics"];
     "Relation" => arda_society::politics::relations::Relation, ["RealmDetail.relations[]"];
     "Event" => arda_society::history::Event, ["RealmDetail.events[]"];
+    "Gazetteer" => arda_settle::gazetteer::GazetteerList, ["GET /v1/gazetteer"];
+    "GazetteerFeature" => arda_settle::gazetteer::GazetteerFeature,
+        ["Gazetteer.features[]", "society/gazetteer.json"];
+    "GazetteerPoint" => arda_settle::gazetteer::GazetteerPoint, ["Gazetteer.features[]"];
     "SchemaIndex" => SchemaIndex, ["GET /v1/schema"];
 }
 

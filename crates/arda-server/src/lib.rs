@@ -17,6 +17,7 @@ pub mod derived;
 pub mod dto;
 pub mod error;
 pub mod fine;
+pub mod gazetteer;
 pub mod npc;
 pub mod npc_dto;
 pub mod npcs;
@@ -251,6 +252,13 @@ impl AppState {
         )?;
         if let Some(world) = relief.shared_world() {
             tactical.set_tint_source(world);
+        }
+        // logic/17 §labels: tiles carry the gazetteer's names.
+        if let Some(w) = &people {
+            if let Some(file) = &w.files.gazetteer {
+                let labels = relief.enable_labels(file, &w.files.settlements.settlements)?;
+                overview.set_labels(labels);
+            }
         }
         Ok(Self {
             query,

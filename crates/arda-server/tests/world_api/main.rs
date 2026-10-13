@@ -7,6 +7,7 @@ mod cells;
 mod contract;
 mod dungeon;
 mod endpoints;
+mod gazetteer;
 #[path = "../../../../tests/support/fixture_dir.rs"]
 mod fixture_dir;
 mod looks;

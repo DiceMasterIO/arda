@@ -1,0 +1,103 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "description": "One entry of `society/gazetteer.json`.",
+  "properties": {
+    "anchor_m": {
+      "description": "Label anchor, metres on the world grid.",
+      "items": {
+        "format": "int64",
+        "type": "integer"
+      },
+      "maxItems": 2,
+      "minItems": 2,
+      "type": "array"
+    },
+    "area_ha": {
+      "description": "Area, hectares (0 for ranges and rivers).",
+      "format": "uint64",
+      "minimum": 0,
+      "type": "integer"
+    },
+    "culture": {
+      "description": "Culture key of the speech at the anchor.",
+      "type": "string"
+    },
+    "extent_m": {
+      "description": "Bounding box, metres: `x0, y0, x1, y1`.",
+      "items": {
+        "format": "int64",
+        "type": "integer"
+      },
+      "maxItems": 4,
+      "minItems": 4,
+      "type": "array"
+    },
+    "id": {
+      "description": "Stable id, 1-based in file order.",
+      "type": "string"
+    },
+    "kind": {
+      "description": "`sea`, `bay`, `lake`, `island`, `cape`, `forest`, `marsh`,\n`mountain` (a range) or `river`.",
+      "type": "string"
+    },
+    "length_m": {
+      "description": "Length of the path or main axis, metres.",
+      "format": "uint64",
+      "minimum": 0,
+      "type": "integer"
+    },
+    "min_zoom": {
+      "description": "Zoom from which a map shows the label (0 is the whole world).",
+      "format": "uint8",
+      "maximum": 255,
+      "minimum": 0,
+      "type": "integer"
+    },
+    "name": {
+      "description": "Native name.",
+      "type": "string"
+    },
+    "name_gloss": {
+      "description": "English gloss.",
+      "type": "string"
+    },
+    "path_m": {
+      "description": "Label path (at most 24 points, reading left to right) for long\nfeatures; the course of a river, from its mouth.",
+      "items": {
+        "items": {
+          "format": "int64",
+          "type": "integer"
+        },
+        "maxItems": 2,
+        "minItems": 2,
+        "type": "array"
+      },
+      "type": [
+        "array",
+        "null"
+      ]
+    },
+    "rank": {
+      "description": "Importance, 1 (largest) to 5.",
+      "format": "uint8",
+      "maximum": 255,
+      "minimum": 0,
+      "type": "integer"
+    }
+  },
+  "required": [
+    "id",
+    "kind",
+    "name",
+    "name_gloss",
+    "culture",
+    "anchor_m",
+    "extent_m",
+    "area_ha",
+    "length_m",
+    "rank",
+    "min_zoom"
+  ],
+  "title": "GazetteerFeature",
+  "type": "object"
+}

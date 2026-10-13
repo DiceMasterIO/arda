@@ -63,6 +63,9 @@ fn every_schema_name_is_a_typescript_binding() {
         "RealmSociety",
         "Relation",
         "Event",
+        "Gazetteer",
+        "GazetteerFeature",
+        "GazetteerPoint",
     ];
     for e in catalog().unwrap() {
         assert!(
