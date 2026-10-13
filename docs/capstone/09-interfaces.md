@@ -508,7 +508,17 @@ Response `image/png` (`crates/arda-server/src/tactical/world_routes.rs:298-326`)
 
 ### GET /v1/tactical/window/tiles/{z}/{x}/{y}.webp
 
-Response `image/webp`: 512 px lossless tiles cut from the `/window.png` render of the same query, `z = max_zoom` the full render; 404 outside the pyramid (`window_tile` in `crates/arda-server/src/tactical/world_routes.rs`). Query as `GET /v1/tactical/window.png`.
+Response `image/webp`: 512 px lossless tiles cut from the `/window.png` render of the same query, `z = max_zoom` the full render; 404 outside the pyramid or for a tile not named `{y}.webp` (`window_tile` in `crates/arda-server/src/tactical/world_routes.rs`). Query as `GET /v1/tactical/window.png`; the `tiles` block of `GET /v1/tactical/window` describes the pyramid.
+
+| Field | Type | Required | Notes |
+|---|---|---|---|
+| z, x, y | u32 | yes | path segments; `y` carries the `.webp` suffix; `z = max_zoom` is the full render |
+| gx0, gy0 | u32 | no | cell window origin (with `w`, `h` 1..=3) |
+| gsx, gsy | u32 | no | square window origin (with `w`, `h` 1..=192) |
+| w, h | u32 | yes | |
+| ppsq | u32 | no | default 32 |
+| grid | 0 or 1 | no | |
+| world_grade | 0 or 1 | no | |
 
 ### GET /v1/tactical/library
 

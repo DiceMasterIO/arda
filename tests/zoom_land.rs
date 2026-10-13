@@ -1,3 +1,8 @@
+//! This file is the `zoom_land` module of the `zoom_continuity` test target
+//! (`mod zoom_land;` in `tests/zoom_continuity.rs`), not a target of its own, so
+//! it is deliberately absent from the root `[[test]]` list. Run its gates with
+//! `cargo test --release --test zoom_continuity -- --ignored`.
+//!
 //! Zoom continuity of worked land (goal 49; logic/17 §land): roads, field
 //! walls and buildings sit in the same squares on the mid-zoom relief at
 //! z9 (one pixel per square on MICRO) and on the composed tactical map,
