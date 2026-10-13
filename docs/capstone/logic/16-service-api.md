@@ -65,6 +65,7 @@ Added by this spec (goals 57, 65, 67, 70):
 | `GET /v1/settlements/{id}/buildings` | `[TownBuilding]` with their `BuildingSpec` | 10 |
 | `GET /v1/settlements/{id}/npcs[?building=&job=&notable=&cursor=]` | `NpcPage` (`Npc` records; commoners generated on demand) | 13 |
 | `GET /v1/npc/{npc_id}` | `Npc` with its sheet | 13 |
+| `POST /v1/npc/generate` | `Npc` (implemented): one new NPC from optional `GenerateNpcRequest` inputs (Arda's own: `seed`, `job`, `office`, `rank`, `ancestry`, `sex`, `tier`, `culture`, `settlement_id`, `notable`), stored nowhere, synthetic ids; body ≤ 16 KiB, JSON only (415); 422 `unsatisfiable` | 13 §npc-generate-one |
 | `GET /v1/realms` | `RealmList` (implemented): `{format_version, realms: [RealmSummary]}`, the `realms.json` records without `borders` plus `style`, `rank`, `government_label`, `ruler` when `society.json` exists | 08, 14 |
 | `GET /v1/realms/{id}` | `RealmDetail` (implemented): `{record (with borders), politics, relations, events, reigns}`; 404 unknown id, 400 non-numeric | 08, 14 |
 | `GET /v1/roads[?bbox=]` | roads, crossings and passes clipped to the box | 08 |
@@ -109,6 +110,7 @@ Every error is `{"error": {"code", "status", "message"}}`; clients match on `cod
 | 409 | `stale_society` | `history.json` was built from different 08 files (14 State transitions) |
 | 413 | `payload_too_large` | a window or posted layout above the limits |
 | 422 | `invalid_layout` | a layout or sidecar inconsistent with the library (11, 12) |
+| 422 | `unsatisfiable` | `POST /v1/npc/generate` inputs that are valid but no inhabitant matches (13 §npc-generate-one) |
 | 500 | `resource_limit` | an allocation or budget refused the work |
 | 501 | `not_implemented` | a route whose source crate is not merged yet; the body adds `planned_source` |
 | 500 | `internal` | anything else |

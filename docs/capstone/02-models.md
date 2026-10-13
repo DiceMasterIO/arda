@@ -298,6 +298,7 @@ Storage values: `HTTP JSON; ts-rs bindings/ts/arda/<Name>.ts` means the type is 
 | Tier (arda-npc) | `crates/arda-npc/src/input.rs:17` | in-memory input; HTTP request body | Settlement size class (`logic/06` step 4). |
 | SettlementFunction (arda-npc) | `crates/arda-npc/src/input.rs:44` | in-memory input; HTTP request body | What a settlement lives on. |
 | SettlementProfile (arda-npc) | `crates/arda-npc/src/input.rs:94` | in-memory input; HTTP request body | One settlement to populate. |
+| OneRequest | `crates/arda-npc/src/one/mod.rs:48` | in-memory input | What a caller asks of `generate_one`: optional salt, job, office, rank, ancestry, sex, tier, culture, borrowed settlement and notability (logic/13 §npc-generate-one). |
 | NotableSlot | `crates/arda-npc/src/input.rs:133` | in-memory input; HTTP request body | A notable slot fixed by the society layer (`arda-society` `NpcRole`, logic/14 §soc-offices; adapter A14): a role in a building, and the name and sex history gave the holder, if any. |
 | BuildingSpec (arda-npc) | `crates/arda-npc/src/input.rs:168` | in-memory input; HTTP request body | One building of a settlement. |
 | HouseholdId (arda-npc) | `crates/arda-npc/src/npc.rs:16` | `society/notables.json` (notables); regenerated otherwise | Identity of a household: its home building and index inside it. |
@@ -544,8 +545,9 @@ Storage values: `HTTP JSON; ts-rs bindings/ts/arda/<Name>.ts` means the type is 
 | ApiError | `crates/arda-server/src/error.rs:72` | HTTP JSON; ts-rs `bindings/ts/arda/ApiError.ts` | JSON body of every error response. |
 | NotYetError | `crates/arda-server/src/error.rs:79` | HTTP JSON; ts-rs `bindings/ts/arda/NotYetError.ts` | The 501 body of a feature whose source crate does not exist yet. |
 | ApiErrorBody | `crates/arda-server/src/error.rs:88` | HTTP JSON; ts-rs `bindings/ts/arda/ApiErrorBody.ts` | Machine-readable code, HTTP status and human message. |
-| PopulationRequest (npc.rs runtime) | `crates/arda-server/src/npc.rs:23` | HTTP JSON (runtime body) | Body of `POST /v1/npc/population` (TS: `PopulationRequest`). |
-| NpcDemo (npc.rs runtime) | `crates/arda-server/src/npc.rs:34` | HTTP JSON (runtime body) | Body of `GET /v1/npc/demo` (TS: `NpcDemo`). |
+| GenerateNpcRequest (npc.rs runtime) | `crates/arda-server/src/npc.rs:39` | HTTP JSON (runtime body) | Body of `POST /v1/npc/generate` (TS: `GenerateNpcRequest`). |
+| PopulationRequest (npc.rs runtime) | `crates/arda-server/src/npc.rs:75` | HTTP JSON (runtime body) | Body of `POST /v1/npc/population` (TS: `PopulationRequest`). |
+| NpcDemo (npc.rs runtime) | `crates/arda-server/src/npc.rs:86` | HTTP JSON (runtime body) | Body of `GET /v1/npc/demo` (TS: `NpcDemo`). |
 | Tier | `crates/arda-server/src/npc_dto/input.rs:11` | HTTP JSON; ts-rs `bindings/ts/arda/Tier.ts` | Settlement size class. |
 | SettlementFunction | `crates/arda-server/src/npc_dto/input.rs:25` | HTTP JSON; ts-rs `bindings/ts/arda/SettlementFunction.ts` | What a settlement lives on. |
 | Biome | `crates/arda-server/src/npc_dto/input.rs:55` | HTTP JSON; ts-rs `bindings/ts/arda/Biome.ts` | The closed settlement biome list. |
@@ -571,7 +573,8 @@ Storage values: `HTTP JSON; ts-rs bindings/ts/arda/<Name>.ts` means the type is 
 | RosterEntry | `crates/arda-server/src/npc_dto/mod.rs:286` | HTTP JSON; ts-rs `bindings/ts/arda/RosterEntry.ts` | Compact index entry for one inhabitant. |
 | Population | `crates/arda-server/src/npc_dto/mod.rs:300` | HTTP JSON; ts-rs `bindings/ts/arda/Population.ts` | The population of one settlement; notables stored in full. |
 | PopulationRequest | `crates/arda-server/src/npc_dto/mod.rs:322` | HTTP JSON; ts-rs `bindings/ts/arda/PopulationRequest.ts` | Body of `POST /v1/npc/population`. |
-| NpcDemo | `crates/arda-server/src/npc_dto/mod.rs:334` | HTTP JSON; ts-rs `bindings/ts/arda/NpcDemo.ts` | Body of `GET /v1/npc/demo`: the market-town example and its population. |
+| GenerateNpcRequest | `crates/arda-server/src/npc_dto/mod.rs:335` | HTTP JSON; ts-rs `bindings/ts/arda/GenerateNpcRequest.ts` | Body of `POST /v1/npc/generate`: Arda's own inputs, every field optional. |
+| NpcDemo | `crates/arda-server/src/npc_dto/mod.rs:381` | HTTP JSON; ts-rs `bindings/ts/arda/NpcDemo.ts` | Body of `GET /v1/npc/demo`: the market-town example and its population. |
 | Ability | `crates/arda-server/src/npc_dto/sheet.rs:9` | HTTP JSON; ts-rs `bindings/ts/arda/Ability.ts` | One of the six abilities, in SRD order. |
 | SheetKind | `crates/arda-server/src/npc_dto/sheet.rs:33` | HTTP JSON; ts-rs `bindings/ts/arda/SheetKind.ts` | What the sheet is built from. |
 | Background | `crates/arda-server/src/npc_dto/sheet.rs:59` | HTTP JSON; ts-rs `bindings/ts/arda/Background.ts` | Flavour background of a class build. |
@@ -3398,6 +3401,21 @@ Required `no` marks an `Option` field, a serde default, a field omitted when emp
 | family_name | `Option<String>` | no | Family name fixed by history; the holder's household shares it.; serde default |
 | female | `Option<bool>` | no | Sex fixed by history.; serde default |
 
+### OneRequest
+
+| Field | Type | Required | Notes |
+|---|---|---|---|
+| seed | `u64` | no | Caller's salt; serde default 0. |
+| job | `Option<String>` | no | Occupation key. |
+| office | `Option<String>` | no | Office kind; the person holds it. |
+| rank | `Option<SocialRank>` | no | Required rank. |
+| ancestry | `Option<String>` | no | SRD race key. |
+| sex | `Option<Sex>` | no | Required sex. |
+| tier | `Option<Tier>` | no | Overrides the borrowed settlement's tier. |
+| culture | `Option<String>` | no | Overrides the borrowed culture and drops its ancestry mix. |
+| settlement | `Option<SettlementProfile>` | no | Context to borrow. |
+| notable | `Option<bool>` | no | Required notability. |
+
 ### BuildingSpec (arda-npc)
 
 | Field | Type | Required | Notes |
@@ -5628,9 +5646,21 @@ Required `no` marks an `Option` field, a serde default, a field omitted when emp
 
 | Field | Type | Required | Notes |
 |---|---|---|---|
-| code | `String` | yes | Stable code: `bad_request`, `out_of_range`, `not_found`, `no_block`, `payload_too_large`, `unsupported_media_type`, `invalid_layout`, `resource_limit`, `not_implemented` or `internal`. |
+| code | `String` | yes | Stable code: `bad_request`, `out_of_range`, `not_found`, `no_block`, `payload_too_large`, `unsupported_media_type`, `invalid_layout`, `unsatisfiable`, `resource_limit`, `not_implemented` or `internal`. |
 | status | `u16` | yes | HTTP status repeated in the body. |
 | message | `String` | yes | Human-readable detail; not stable. |
+
+### GenerateNpcRequest (npc.rs runtime)
+
+| Field | Type | Required | Notes |
+|---|---|---|---|
+| seed | `Option<String>` | no | Decimal u64 salt; default `"0"`. |
+| job, office, ancestry, culture | `Option<String>` | no | Table keys. |
+| rank | `Option<SocialRank>` | no | |
+| sex | `Option<Sex>` | no | |
+| tier | `Option<Tier>` | no | |
+| settlement_id | `Option<String>` | no | Decimal id of a stored settlement. |
+| notable | `Option<bool>` | no | |
 
 ### PopulationRequest (npc.rs runtime)
 
@@ -5873,6 +5903,18 @@ Required `no` marks an `Option` field, a serde default, a field omitted when emp
 | world_seed | `String` | yes | World seed as a decimal string. |
 | settlement | `SettlementProfile` | yes | The settlement to populate. |
 | buildings | `BuildingSpec[]` | yes | Its buildings. |
+
+### GenerateNpcRequest
+
+| Field | Type | Required | Notes |
+|---|---|---|---|
+| seed | `Option<String>` | no | Decimal u64 salt; default `"0"`. |
+| job, office, ancestry, culture | `Option<String>` | no | Table keys. |
+| rank | `Option<SocialRank>` | no | |
+| sex | `Option<Sex>` | no | |
+| tier | `Option<Tier>` | no | |
+| settlement_id | `Option<String>` | no | Decimal id of a stored settlement. |
+| notable | `Option<bool>` | no | |
 
 ### NpcDemo
 

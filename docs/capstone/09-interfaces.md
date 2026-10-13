@@ -24,6 +24,7 @@ edges:
     - { kind: http, name: "GET /v1/tiles/overview/{z}/{x}/{y}.png", site: crates/arda-server/src/routes.rs }
     - { kind: http, name: "GET /v1/tiles/relief/{z}/{x}/{y}.webp", site: crates/arda-server/src/routes.rs }
     - { kind: http, name: "POST /v1/npc/population", site: crates/arda-server/src/routes.rs, schema: Population }
+    - { kind: http, name: "POST /v1/npc/generate", site: crates/arda-server/src/npc.rs, schema: Npc }
     - { kind: http, name: "GET /v1/npc/demo", site: crates/arda-server/src/routes.rs }
     - { kind: http, name: "GET /v1/npc/demo/{npc_id}", site: crates/arda-server/src/routes.rs, schema: Npc }
     - { kind: http, name: "GET /v1/npc/{npc_id}", site: crates/arda-server/src/npcs/mod.rs, schema: Npc }
@@ -80,6 +81,7 @@ The only cross-repo surface is `arda-server`'s HTTP API under `/v1` (consumed by
 | http | GET /v1/tiles/overview/{z}/{x}/{y}.png | - | `crates/arda-server/src/routes.rs` |
 | http | GET /v1/tiles/relief/{z}/{x}/{y}.webp | - | `crates/arda-server/src/routes.rs` |
 | http | POST /v1/npc/population | - | `crates/arda-server/src/routes.rs` |
+| http | POST /v1/npc/generate | - | `crates/arda-server/src/npc.rs` |
 | http | GET /v1/npc/demo | - | `crates/arda-server/src/routes.rs` |
 | http | GET /v1/npc/demo/{npc_id} | - | `crates/arda-server/src/routes.rs` |
 | http | GET /v1/npc/{npc_id} | - | `crates/arda-server/src/npcs/mod.rs` |
@@ -231,11 +233,32 @@ Response `image/webp`, mid-zoom relief past the overview's native zoom; no query
 
 Model: Population
 
-Request body: `PopulationRequest` (`crates/arda-server/src/npc_dto/mod.rs:322`), limited to `MAX_BODY_BYTES` (`crates/arda-server/src/routes.rs:40-43`, `crates/arda-server/src/routes.rs:367-386`).
+Request body: `PopulationRequest` (`crates/arda-server/src/npc_dto/mod.rs:322`), limited to `MAX_BODY_BYTES` (`crates/arda-server/src/routes.rs:40-43`, `crates/arda-server/src/routes.rs:377-395`).
+
+### POST /v1/npc/generate
+
+Model: Npc
+
+Request body: `GenerateNpcRequest` (`crates/arda-server/src/npc_dto/mod.rs:335`; wire struct `crates/arda-server/src/npc.rs:39`), every field optional, unknown fields refused, at most `MAX_GENERATE_BODY_BYTES` = 16 KiB (`crates/arda-server/src/npc.rs:33`), `Content-Type: application/json` required (415). Handler `generate_route` (`crates/arda-server/src/npc.rs:217`) converts it to `arda_npc::OneRequest` (`settlement_id` resolved through `arda_people::World::profile`) and calls `arda_npc::generate_one` with the served world seed; the response goes through `AppState::npc_response(.., NpcAt::Root)`, so `--sheet-mapping` applies. Nothing is stored; `id`, `home_building` and `household` are synthetic (settlement 0) and never resolve.
+
+| Field | Type | Required | Notes |
+|---|---|---|---|
+| seed | String | no | decimal u64 salt, default `"0"` |
+| job | String | no | `occupations.json` job key |
+| office | String | no | `occupations.json` office kind |
+| rank | SocialRank | no | |
+| ancestry | String | no | SRD race key |
+| sex | Sex | no | |
+| tier | Tier | no | default: borrowed, else village, else smallest tier with the job |
+| culture | String | no | `cultures.json` key |
+| settlement_id | String | no | decimal id; 404 unknown or without `society/` |
+| notable | bool | no | |
+
+400 `bad_request` (malformed seed or id, unknown field or key, a rank or tier the job lacks), 404 `not_found`, 413, 415, 422 `unsatisfiable`.
 
 ### GET /v1/npc/demo
 
-Type `NpcDemo` (`crates/arda-server/src/npc_dto/mod.rs:334`; wire struct `crates/arda-server/src/npc.rs:34`).
+Type `NpcDemo` (`crates/arda-server/src/npc_dto/mod.rs:381`; wire struct `crates/arda-server/src/npc.rs:86`).
 
 | Field | Type | Required |
 |---|---|---|

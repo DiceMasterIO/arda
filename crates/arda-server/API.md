@@ -89,15 +89,16 @@ Every error is JSON with the right HTTP status:
 |---|---|---|
 | 400 | `bad_request` | Unparsable path or query value, missing parameter, unknown `format` or `style`, `quality` outside 512 px…limit |
 | 400 | `out_of_range` | Cell, area or point outside the world |
-| 400 | `bad_request` | Malformed JSON body, bad `world_seed`, or NPC inputs the generator refuses (foreign or duplicate buildings, too little housing) |
-| 404 | `not_found` | Unknown route, tile outside the pyramid, missing layer file, unknown NPC id |
-| 413 | `payload_too_large` | A request body above 2 MiB, a population above 50,000 or more than 20,000 buildings |
+| 400 | `bad_request` | Malformed JSON body, bad `world_seed` or `seed`, or NPC inputs the generator refuses (foreign or duplicate buildings, too little housing, unknown job/office/ancestry/culture keys, a rank or tier the job lacks) |
+| 404 | `not_found` | Unknown route, tile outside the pyramid, missing layer file, unknown NPC id, unknown `settlement_id` in `POST /v1/npc/generate` |
+| 413 | `payload_too_large` | A request body above 2 MiB (16 KiB for `POST /v1/npc/generate`), a population above 50,000 or more than 20,000 buildings |
 | 400 | `bad_request` | Tactical: `ppsq` not 64, 96 or 128 (world images also accept 16 and 32), `grid` or `demo_overlays` not 0 or 1, a bad `demo_at`, a missing `/window` parameter, a posted body that isn't a `TacticalLayout` (malformed JSON, unknown field) |
 | 404 | `not_found` | Unknown route, tile outside the pyramid, missing layer file, unknown tactical layout |
 | 404 | `no_block` | Tactical: an open-sea cell with no land square (logic/16 §api-errors) |
 | 413 | `payload_too_large` | Tactical: posted body over 4 MiB, layout over 41 616 squares (a 3 × 3-cell window plus its apron), render over 96 Mi pixels, a `/window` side over 3 cells, more than 4 placements a square (+64), or free lights summing to more than 16× the render's pixels |
-| 415 | `unsupported_media_type` | Tactical: `POST /render` without `Content-Type: application/json` |
+| 415 | `unsupported_media_type` | `POST /v1/tactical/render` or `POST /v1/npc/generate` without `Content-Type: application/json` |
 | 422 | `invalid_layout` | Tactical: layout inconsistent with itself or the loaded library (square count, ground without texture, unknown kit or asset, forbidden rotation or mirror), a name over 128 bytes or with control characters, a placement or light more than 16 squares off the map) |
+| 422 | `unsatisfiable` | `POST /v1/npc/generate`: valid inputs that no generated inhabitant matches all at once |
 | 500 | `resource_limit` | An allocation or window limit refused the work |
 | 500 | `sheet_mapping` | The `--sheet-mapping` could not reshape a served NPC (a strict table lacks one of its values); the message names the rule |
 | 500 | `internal` | Anything else |
@@ -880,6 +881,71 @@ Response: `Population` (TS `Population`): households, the roster (one compact en
 inhabitant) and the notables as full `Npc` records with SRD 5.1 sheets. Commoners are not
 stored; regenerate them by id. The same body always returns the same bytes.
 
+### `POST /v1/npc/generate`
+
+Generates **one new NPC** with a full SRD 5.1 sheet from a few optional inputs, without a
+settlement profile or building list, and **stores nothing** (logic/13 §npc-generate-one,
+OI-40). The result is a pure function of the served world's seed and the body: the same
+body always returns the same bytes. A game that wants to keep the NPC saves it under its
+own id (DiceMaster: `game:<uuid>`). Body (TS `GenerateNpcRequest`, JSON Schema
+`GenerateNpcRequest.json`), every field optional, unknown fields refused:
+
+| Field | Type | Default | Meaning |
+|---|---|---|---|
+| `seed` | decimal u64 string | `"0"` | Caller's salt, e.g. derived from its own uuid. Different salts give different people. |
+| `job` | occupation key | none | `occupations.json` `jobs`: `smith`, `farmer`, `priest`, `mayor`, `child`, … (96 keys). |
+| `office` | office kind | none | `occupations.json` `offices`: `reeve`, `high_priest`, `captain`, … The NPC holds it, is a notable and is addressed by its title. |
+| `rank` | `SocialRank` | none | `dependent`, `labourer`, `tradesfolk`, `master`, `gentry`, `noble` (logic/13 §npc-ranks). |
+| `ancestry` | SRD race key | culture's mix | `human`, `dwarf`, `elf`, `halfling`, `dragonborn`, `gnome`, `half-elf`, `half-orc`, `tiefling`. |
+| `sex` | `female` \| `male` | either | |
+| `tier` | `Tier` | see below | `hamlet`, `village`, `town`, `city`: the size of the synthetic settlement, which sets ranks and class levels. |
+| `culture` | culture key | `heartland` | `cultures.json`: `heartland`, `highland`, `sylvan`, `coastal`, `southern`, `borderland`. Names and the ancestry mix. |
+| `settlement_id` | decimal u64 string | none | A stored settlement whose tier, functions, wealth, culture, biome, tongue, ancestry mix and name are borrowed. Needs a world with `society/`. |
+| `notable` | bool | either | Whether the NPC must (or must not) be a notable, with a class build rather than a stat block. |
+
+- **Tier**: `tier` if given, else the borrowed settlement's, else `village` when the job exists
+  in a village, else the smallest tier that has it (a `headman` is a hamlet's, a `mayor` a
+  town's, a `lord_mayor` a city's).
+- **Filters**: every given field holds in the result. Without `job`, `office` or `rank` the NPC
+  is an adult inhabitant (never a child) of a sample village-sized settlement; with only
+  `rank` or `notable`, a job of that rank (or notability) in the tier is drawn from the salt.
+- **Synthetic ids**: the NPC lives in a synthetic settlement with the reserved id `0`, which
+  names no real settlement. `id`, `home_building` and `household` are synthetic: `GET
+  /v1/npc/{id}` answers 404 for them. `relationships` is empty and `employer` and
+  `workplace_building` are `null`, since they would point into the synthetic settlement.
+  Names in `personality.bond` are flavour only.
+- **Limits**: the body is at most **16 KiB** (413); the synthetic settlement holds 40 people,
+  and at most 16 of them are tried before a request counts as unsatisfiable, so a request
+  costs milliseconds.
+- `--sheet-mapping` applies as on every NPC route (`X-Arda-Sheet-Mapping`).
+
+Response: the bare `Npc` (TS `Npc`, schema `Npc.json`), the same shape as `GET /v1/npc/{id}`.
+
+Errors: 400 `bad_request` for a malformed `seed` or `settlement_id`, an unknown field, an
+unknown `job`, `office`, `ancestry` or `culture` key (the message lists the valid keys), a
+`rank` the job does not have in the tier (`smith` + `noble`), or a job the requested tier does
+not have (`mayor` + `hamlet`; the message lists the tiers that do); 404 `not_found` for an
+unknown `settlement_id` or a `settlement_id` on a world without `society/`; 413
+`payload_too_large`; 415 `unsupported_media_type` without `Content-Type: application/json`;
+422 `unsatisfiable` when the inputs are valid but nobody matches them all (`farmhand` +
+`notable: true`, an office whose holder never has the requested job).
+
+**The body is Arda's own inputs** (maintainer decision D8). DiceMaster's
+`CharacterCreationInput` describes a player character built step by step (race, class,
+ability scores, background, equipment) and Arda does not consume it; this endpoint picks an
+Arda inhabitant by job and rank. The body is small and optional-everything so an adapter on
+DiceMaster's side can map its own fields onto it.
+
+```sh
+curl -s -X POST -H 'content-type: application/json' \
+  -d '{"job":"smith","ancestry":"dwarf","seed":"7"}' \
+  localhost:8787/v1/npc/generate | jq '.name, .ancestry, .job.key, .social_rank, .sheet.hit_points'
+curl -s -X POST -H 'content-type: application/json' \
+  -d '{"office":"high_priest","tier":"town","sex":"female"}' localhost:8787/v1/npc/generate | jq .job.title
+curl -s -X POST -H 'content-type: application/json' \
+  -d '{"rank":"gentry","settlement_id":"1"}' localhost:8787/v1/npc/generate | jq '.job.key, .ancestry'
+```
+
 ### `GET /v1/npc/demo`
 
 The market-town example of `arda-npc` (`sample::market_town`, the `town` example): Wendlebrook,
@@ -917,7 +983,8 @@ describe the same JSON.
 | `TacticalScene` | `/v1/tactical/cell/{gx}/{gy}/scene` |
 | `DungeonDto` | `/v1/tactical/dungeon` (its `layout` is a `TacticalLayoutDto`, its `rules` a `RulesSidecarDto`) |
 | `PrefetchRequest`, `PrefetchAccepted` | `POST /v1/tactical/prefetch` |
-| `Npc`, `Sheet`, `NpcPage` | `/v1/npc/{id}`, `/v1/npc/demo/{id}`; `Npc.sheet`; `/v1/npcs` and the building routes |
+| `Npc`, `Sheet`, `NpcPage` | `/v1/npc/{id}`, `/v1/npc/demo/{id}`, `POST /v1/npc/generate`; `Npc.sheet`; `/v1/npcs` and the building routes |
+| `GenerateNpcRequest` | the `POST /v1/npc/generate` body |
 | `Population`, `PopulationRequest`, `NpcDemo` | `POST /v1/npc/population` and its body; `/v1/npc/demo` |
 | `SettlementList`, `SettlementDetail`, `Settlement`, `SettlementSociety`, `TownPlan`, `SettlementNpcs` | the settlement routes |
 | `RealmList`, `RealmDetail`, `Realm`, `RealmSociety`, `Relation`, `Event` | `/v1/realms` and `/v1/realms/{id}`; the realm record, its politics, relations and history events |
@@ -944,7 +1011,7 @@ Goal 69: the game has its own SRD 5.1 creature and character schema. `--sheet-ma
 game.json` makes the server reshape every `Npc` it sends into that schema: `/v1/npc/{id}`,
 `/v1/npcs`, `/v1/buildings/{b}/residents` and `/workers` (each `npcs[].npc`),
 `/v1/settlements/{id}/npcs`, `/v1/npc/demo` (`population.npcs`), `/v1/npc/demo/{id}` and
-`POST /v1/npc/population` (`npcs`). Mapped responses carry `X-Arda-Sheet-Mapping: <name>`.
+`POST /v1/npc/population` (`npcs`) and `POST /v1/npc/generate`. Mapped responses carry `X-Arda-Sheet-Mapping: <name>`.
 Everything around the NPC (page envelopes, refs, cursors) and every other route is unchanged,
 and without the flag every body is byte-identical to an unmapped server. Scene tokens keep
 referencing NPCs by `npc_id`, so a token still resolves through `/v1/npc/{npc_id}`, now in
