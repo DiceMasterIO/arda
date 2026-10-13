@@ -53,7 +53,10 @@ pub fn unexcused(old: &Snapshot, new: &Snapshot, open: &dyn Fn(&str) -> bool) ->
         let family = old.families.get(name);
         let Some(after) = new.schemas.get(name) else {
             if !bumped(family) {
-                out.push(format!("{name}: schema removed (family {family:?})"));
+                out.push(format!(
+                    "{name}: schema removed (family {})",
+                    family.map_or("?", String::as_str)
+                ));
             }
             continue;
         };
@@ -61,9 +64,10 @@ pub fn unexcused(old: &Snapshot, new: &Snapshot, open: &dyn Fn(&str) -> bool) ->
             let home = b.def.as_deref().and_then(|d| old.home(d));
             if !bumped(family) && !bumped(home) {
                 out.push(format!(
-                    "{name}: {}: {} (family {family:?}{})",
+                    "{name}: {}: {} (family {}{})",
                     if b.at.is_empty() { "/" } else { &b.at },
                     b.what,
+                    family.map_or("?", String::as_str),
                     home.map_or_else(String::new, |h| format!(", owner {h}"))
                 ));
             }
