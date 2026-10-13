@@ -44,7 +44,17 @@ list_sites() {
         n=$((n + 1))
         echo "apps/viewer/package-lock.json #$n: $v"
     done < <(grep -m2 '"version"' apps/viewer/package-lock.json | sed 's/.*: *"\([^"]*\)".*/\1/')
-    echo "crates/arda-server/API.md arda_version: $(grep -m1 -o '"arda_version":"[^"]*"' crates/arda-server/API.md | sed 's/.*:"\(.*\)"/\1/')"
+    # Every example `arda_version` and `server_version` in the API reference
+    # (the /v1/world and /v1/health bodies), one site per occurrence.
+    local key
+    for key in arda_version server_version; do
+        n=0
+        while IFS= read -r v; do
+            n=$((n + 1))
+            echo "crates/arda-server/API.md $key #$n: $v"
+        done < <(grep -o '"'"$key"'":"[^"]*"' crates/arda-server/API.md | sed 's/.*:"\(.*\)"/\1/')
+        [ "$n" -gt 0 ] || echo "crates/arda-server/API.md $key: (no example found)"
+    done
 }
 
 check() {
@@ -58,8 +68,9 @@ check() {
             bad=$((bad + 1))
         fi
     done < <(list_sites)
-    # 21 path entries + the workspace version + lock members + viewer + API.md.
-    [ "$sites" -ge 40 ] || die "found only $sites version sites; the layout changed, update tools/release.sh"
+    # 21 path entries + the workspace version + lock members + viewer + the
+    # API.md arda_version and server_version examples.
+    [ "$sites" -ge 42 ] || die "found only $sites version sites; the layout changed, update tools/release.sh"
     [ "$bad" -eq 0 ] || die "$bad of $sites version sites disagree with $want"
     echo "release.sh --check: all $sites version sites are $want"
 }
@@ -85,7 +96,7 @@ bump() {
     # Workspace version, then every internal path entry.
     sed -i -E '/^\[workspace\.package\]/,/^\[/ s/^version *= *"[^"]*"/version = "'"$new"'"/' Cargo.toml
     sed -i -E '/path *= *"crates\// s/version *= *"[^"]*"/version = "'"$new"'"/' Cargo.toml
-    sed -i -E '0,/"arda_version":"[^"]*"/ s/"arda_version":"[^"]*"/"arda_version":"'"$new"'"/' crates/arda-server/API.md
+    sed -i -E 's/"(arda_version|server_version)":"[^"]*"/"\1":"'"$new"'"/g' crates/arda-server/API.md
     (cd apps/viewer && npm version "$new" --no-git-tag-version --allow-same-version >/dev/null)
     cargo update -w
     ARDA_BLESS=1 cargo test --release --test golden_world --test golden_recipes
