@@ -1,4 +1,4 @@
-//! Generation stages: continent (`logic/01`), area (`logic/02`), block (`logic/03`).
+//! Generation stages: continent (`logic/01`), area (`logic/02`).
 //!
 //! Every stage is a pure function over prior stages' outputs; the
 //! orchestrator is the only caller that touches disk.
@@ -9,7 +9,6 @@
 mod terrain_interpolation;
 
 pub mod area;
-pub mod block;
 pub mod continent;
 pub mod formation;
 pub mod hydrology;

@@ -2,7 +2,7 @@
 
 use anyhow::{bail, Context, Result};
 use arda::{
-    export_area_with_quality_and_style, export_area_with_scale, export_block, export_overview,
+    export_area_with_quality_and_style, export_area_with_scale, export_overview,
     export_overview_with_look, generate, AreaImageScale, ExportFormat, GenerateConfig,
     ImageQuality, LatitudeBand, MapStyle, OverviewLook, World,
 };
@@ -32,7 +32,7 @@ struct Cli {
 
 #[derive(Subcommand)]
 enum Command {
-    /// Run the batch: continent, areas, blocks.
+    /// Run the batch: continent, areas, terrain.
     Generate {
         /// The sole source of nondeterminism.
         #[arg(long)]
@@ -107,9 +107,8 @@ enum Command {
         /// Render the whole world as one overview image instead of one area.
         #[arg(long)]
         overview: bool,
-        /// Render one tactical block (the WFC tile layer) as
-        /// `<ax>,<ay>,<cx>,<cy>`. Blocks exist on a 64-cell stride.
-        #[arg(long)]
+        /// Removed in 1.0; fails with a pointer to the replacement.
+        #[arg(long, hide = true)]
         block: Option<String>,
         /// Export an area PNG at 4096×4096 pixels; the terrain remains 100 m.
         #[arg(long, conflicts_with_all = ["overview", "block", "quality"])]
@@ -277,31 +276,11 @@ fn run_export(
     image: ImageOptions,
 ) -> Result<()> {
     image.validate(format, overview, block)?;
-    if let Some(spec) = block {
-        let parts: Vec<&str> = spec.split(',').map(str::trim).collect();
-        let [ax, ay, cx, cy] = parts.as_slice() else {
-            bail!("block must look like 1,1,64,128 (area x, area y, cell x, cell y), got {spec}");
-        };
-        let world = World::load(world)?;
-        std::fs::create_dir_all(out).context("cannot create the output directory")?;
-        let fmt = match format {
-            Format::Png => ExportFormat::Png,
-            Format::Json => ExportFormat::Json,
-        };
-        let path = export_block(
-            &world,
-            ax.parse().context("area x must be a number")?,
-            ay.parse().context("area y must be a number")?,
-            cx.parse().context("cell x must be a number")?,
-            cy.parse().context("cell y must be a number")?,
-            out,
-            fmt,
-        )
-        .with_context(|| {
-            format!("no block at {spec}; blocks are materialised on a 64-cell stride over land")
-        })?;
-        println!("wrote {}", path.display());
-        return Ok(());
+    if block.is_some() {
+        bail!(
+            "--block was removed in 1.0; use `arda-refine render --world <dir> --cell <gx>,<gy>` \
+             or `GET /v1/tactical/cell/{{gx}}/{{gy}}.png`"
+        );
     }
     if overview {
         let world = World::load(world)?;

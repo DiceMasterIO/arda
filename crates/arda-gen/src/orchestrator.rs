@@ -37,7 +37,6 @@ pub(crate) mod shared_solve;
 mod water_forms;
 
 use crate::area::prepare::{prepare_area_terrain, SharedTerrain};
-use crate::block::{constraints_for, fill_block};
 use crate::continent::bundles::bundle_for;
 use crate::continent::climate::climate;
 use crate::continent::hydrology::{extract_rivers, hydrology};
@@ -51,10 +50,10 @@ use arda_core::hydrology::{
     AnnualCatchment, BasinId, GlobalLake, GlobalReach, HydrologyMetadata, SharedCrossing,
 };
 use arda_core::{
-    encode_blocks, encode_cells, encode_continent_objects, encode_objects, encode_overview,
-    AreaCells, AreaCoord, AreaObjects, BlockArchive, CellCoord, ContinentCell, ContinentObjects,
-    ContinentOverview, ContinentRiver, DischargeMilli, GenerateConfig, Manifest, RainfallMm,
-    TempCentiC, TerrainKind, ValidationStats, AREA_CELLS, FORMAT_VERSION,
+    encode_cells, encode_continent_objects, encode_objects, encode_overview, AreaCells, AreaCoord,
+    AreaObjects, ContinentCell, ContinentObjects, ContinentOverview, ContinentRiver,
+    DischargeMilli, GenerateConfig, Manifest, RainfallMm, TempCentiC, ValidationStats,
+    FORMAT_VERSION,
 };
 use publication::{PublicationError, WorldOutput};
 use std::path::{Path, PathBuf};
@@ -69,12 +68,6 @@ const CONTINENT_ATTEMPTS: u8 = 5;
 
 /// Acceptable land fraction, per mille (`logic/01` step 9).
 const LAND_FRACTION_GATE: std::ops::RangeInclusive<u16> = 250..=900;
-
-/// Block sampling stride for the skeleton.
-///
-/// `ponytail:` sampled blocks; the full batch materialises one per land cell
-/// (`mockup/02`). Build-order step 6 removes the stride.
-const SKELETON_BLOCK_STRIDE: u16 = 64;
 
 /// The step-9 river gate (`logic/01` §Q9, feature 03 §Q7): a continent
 /// needs at least one major river that reaches the sea, i.e. one whose
@@ -350,7 +343,7 @@ fn generate_world_inner(
         if fine.is_none_or(|(_, descriptor)| descriptor.recipe_version >= 4) {
             fine_materials::apply(&mut cells, seed, area);
         }
-        write_area(seed, area, &cells, &objects, &output, &mut writes)?;
+        write_area(area, &cells, &objects, &output, &mut writes)?;
         if let Some(features) = water {
             let w = water_forms::area_water(
                 area,

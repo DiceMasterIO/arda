@@ -1,5 +1,5 @@
 //! Final layer writes under one admitted receipt: global hydrology tables,
-//! per-area files and skeleton blocks.
+//! per-area files.
 
 use super::*;
 
@@ -123,9 +123,8 @@ pub(super) fn create_private(path: &Path) -> Result<(), GenError> {
     })
 }
 
-/// Writes already composed cells/objects and the unchanged sampled tactical skeleton.
+/// Writes already composed cells and objects.
 pub(super) fn write_area(
-    seed: u64,
     area: AreaCoord,
     cells: &AreaCells,
     objects: &AreaObjects,
@@ -140,27 +139,5 @@ pub(super) fn write_area(
         &encode_objects(objects)?,
         writes,
     )?;
-
-    let mut archive = BlockArchive::default();
-    let mut y = 0u16;
-    while y < AREA_CELLS {
-        let mut x = 0u16;
-        while x < AREA_CELLS {
-            if let Some(at) = CellCoord::new(x, y) {
-                if cells.get(at).terrain == TerrainKind::Land {
-                    let c = constraints_for(cells, at);
-                    archive.insert(at, fill_block(seed, area, at, &c));
-                }
-            }
-            x += SKELETON_BLOCK_STRIDE;
-        }
-        y += SKELETON_BLOCK_STRIDE;
-    }
-
-    let name = format!("{}.tiles.zst", area.dir_name());
-    let blocks = encode_blocks(&archive).map_err(|e| GenError::Encode {
-        path: format!("blocks/{name}"),
-        source: e,
-    })?;
-    write_file(output, &Path::new("blocks").join(name), &blocks, writes)
+    Ok(())
 }

@@ -94,7 +94,7 @@ fn generate_then_load_round_trips() {
 
 #[test]
 fn world_directory_matches_the_mockup_layout() {
-    // mockup/02: world.json, continent/, areas/<ax>_<ay>/, blocks/.
+    // world.json, continent/, areas/<ax>_<ay>/; no blocks/ since 1.0.
     let dir = micro_world("layout");
 
     assert!(dir.path().join("world.json").is_file());
@@ -102,7 +102,10 @@ fn world_directory_matches_the_mockup_layout() {
     assert!(dir.path().join("areas/00_00/cells.bin").is_file());
     assert!(dir.path().join("areas/00_00/objects.bin").is_file());
     assert!(dir.path().join("areas/01_03/cells.bin").is_file());
-    assert!(dir.path().join("blocks/00_00.tiles.zst").is_file());
+    assert!(
+        !dir.path().join("blocks").exists(),
+        "blocks/ was retired in 1.0"
+    );
 }
 
 #[test]
@@ -159,7 +162,6 @@ fn the_same_seed_produces_byte_identical_worlds() {
         "world.json",
         "areas/00_00/cells.bin",
         "areas/01_03/objects.bin",
-        "blocks/00_00.tiles.zst",
     ] {
         assert_eq!(
             std::fs::read(a.path().join(rel)).unwrap(),
@@ -181,39 +183,30 @@ fn different_seeds_produce_different_worlds() {
 }
 
 #[test]
-fn every_area_materialises_blocks_where_it_has_sampled_land() {
-    // Guards the block stride: identical block archives across tiles are only
-    // legitimate when both are genuinely empty.
-    let dir = micro_world("blocks-present");
-    let world = World::load(dir.path()).unwrap();
+fn a_world_that_still_has_a_retired_blocks_folder_loads_and_exports() {
+    // Worlds written before 1.0 carry blocks/; readers ignore it.
+    let src = micro_world("legacy-blocks-src");
+    let dir = TempDir::new("legacy-blocks");
+    copy_tree(src.path(), dir.path());
+    std::fs::create_dir_all(dir.path().join("blocks")).unwrap();
+    std::fs::write(dir.path().join("blocks/00_00.tiles.zst"), b"retired").unwrap();
 
-    let mut report = Vec::new();
-    for ay in 0..4 {
-        for ax in 0..2 {
-            let area = world.area(ax, ay).unwrap();
-            let mut land = 0;
-            let mut blocks = 0;
-            let mut y = 0u16;
-            while y < 512 {
-                let mut x = 0u16;
-                while x < 512 {
-                    if area.cell(x, y).unwrap().terrain == arda::TerrainKind::Land {
-                        land += 1;
-                        if world.block(ax, ay, x, y).is_ok() {
-                            blocks += 1;
-                        }
-                    }
-                    x += 64;
-                }
-                y += 64;
-            }
-            report.push(format!("{ax},{ay}: sampled land {land}, blocks {blocks}"));
-            assert_eq!(land, blocks, "tile {ax},{ay} has land without blocks");
+    let world = World::load(dir.path()).unwrap();
+    assert!(world.area(0, 0).is_ok());
+    let out = TempDir::new("legacy-blocks-out");
+    let path = arda::export_area(&world, 0, 0, out.path(), arda::ExportFormat::Json).unwrap();
+    assert!(path.is_file());
+}
+
+fn copy_tree(from: &Path, to: &Path) {
+    std::fs::create_dir_all(to).unwrap();
+    for entry in std::fs::read_dir(from).unwrap() {
+        let entry = entry.unwrap();
+        let target = to.join(entry.file_name());
+        if entry.file_type().unwrap().is_dir() {
+            copy_tree(&entry.path(), &target);
+        } else {
+            std::fs::copy(entry.path(), target).unwrap();
         }
     }
-    println!("{}", report.join("\n"));
-    assert!(
-        report.iter().any(|r| !r.ends_with("blocks 0")),
-        "no tile materialised any block"
-    );
 }

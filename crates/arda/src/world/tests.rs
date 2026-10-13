@@ -157,11 +157,6 @@ fn borrowed_area_is_cached_and_safe_for_concurrent_readers() {
             .raw(),
         1234
     );
-    assert!(world
-        .block(0, 0, 0, 0)
-        .unwrap_err()
-        .to_string()
-        .contains("00_00.tiles.zst"));
 }
 
 #[test]

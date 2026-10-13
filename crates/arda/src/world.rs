@@ -1,7 +1,7 @@
 //! Manifest-first stored-world queries with independent area and block caches.
 
 use arda_core::{
-    AreaCoord, AreaObjects, Block, FormatError, GenerateConfig, LoadError, Manifest, SizeKm,
+    AreaCoord, AreaObjects, FormatError, GenerateConfig, LoadError, Manifest, SizeKm,
     TerrainFileError, TerrainFileReader, FINE_TERRAIN_LATEST_RECIPE_VERSION, FINE_TERRAIN_PATH,
 };
 use std::{
@@ -21,7 +21,6 @@ pub struct World {
     manifest: Manifest,
     domain: arda_core::hydrology::HydrologyDomain,
     areas: BTreeMap<AreaCoord, OnceLock<Area>>,
-    blocks: BTreeMap<AreaCoord, OnceLock<arda_core::BlockArchive>>,
 }
 
 impl World {
@@ -84,17 +83,12 @@ impl World {
             .area_coords()
             .map(|at| (at, OnceLock::new()))
             .collect();
-        let blocks = config
-            .area_coords()
-            .map(|at| (at, OnceLock::new()))
-            .collect();
 
         Ok(Self {
             dir: dir.to_path_buf(),
             manifest,
             domain,
             areas,
-            blocks,
         })
     }
 
@@ -355,37 +349,6 @@ impl World {
             max_y: self.manifest.areas_high - 1,
         }
     }
-
-    /// Reads one block.
-    ///
-    /// # Errors
-    /// [`LoadError::OutOfRange`] when the tile or cell is outside the world,
-    /// or no block was materialised for that cell.
-    pub fn block(&self, ax: i32, ay: i32, cx: u16, cy: u16) -> Result<&Block, LoadError> {
-        let out_of_range = || LoadError::OutOfRange {
-            what: "block",
-            x: i32::from(cx),
-            y: i32::from(cy),
-            max_x: i32::from(arda_core::AREA_CELLS) - 1,
-            max_y: i32::from(arda_core::AREA_CELLS) - 1,
-        };
-        let slot = self
-            .blocks
-            .get(&AreaCoord::new(ax, ay))
-            .ok_or_else(|| self.area_range(ax, ay))?;
-        let at = arda_core::CellCoord::new(cx, cy).ok_or_else(out_of_range)?;
-        let archive = if let Some(archive) = slot.get() {
-            archive
-        } else {
-            let path = self
-                .dir
-                .join("blocks")
-                .join(format!("{}.tiles.zst", AreaCoord::new(ax, ay).dir_name()));
-            let loaded = arda_core::decode_blocks(&path.display().to_string(), &read(&path)?)?;
-            slot.get_or_init(|| loaded)
-        };
-        archive.get(at).ok_or_else(out_of_range)
-    }
 }
 
 impl std::fmt::Debug for World {
@@ -442,16 +405,6 @@ fn read_bounded(path: &Path, limit: usize) -> Result<Vec<u8>, LoadError> {
         ));
     }
     Ok(bytes)
-}
-
-fn read(path: &Path) -> Result<Vec<u8>, LoadError> {
-    std::fs::read(path).map_err(|source| {
-        arda_core::FormatError::Io {
-            path: path.display().to_string(),
-            source,
-        }
-        .into()
-    })
 }
 
 #[cfg(test)]
