@@ -383,7 +383,7 @@ fn export_overview_renders_an_existing_world() {
 }
 
 #[test]
-fn export_block_is_removed_and_names_the_replacement() {
+fn the_removed_block_flag_names_the_replacement() {
     let world = micro_world("blk-gone");
     let out = TempDir::new("blk-gone-out");
 
