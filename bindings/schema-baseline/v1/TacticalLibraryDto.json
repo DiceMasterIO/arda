@@ -1,0 +1,173 @@
+{
+  "$defs": {
+    "GroundKeyDto": {
+      "description": "One ground key and how many texture variants back it.",
+      "properties": {
+        "key": {
+          "description": "The key, e.g. `cobbles`.",
+          "type": "string"
+        },
+        "variants": {
+          "description": "Texture variants.",
+          "format": "uint32",
+          "minimum": 0,
+          "type": "integer"
+        },
+        "water": {
+          "description": "Whether the texture is a water texture.",
+          "type": "boolean"
+        }
+      },
+      "required": [
+        "key",
+        "variants",
+        "water"
+      ],
+      "type": "object"
+    },
+    "LibraryAssetDto": {
+      "description": "One placeable asset.",
+      "properties": {
+        "blocks_movement": {
+          "description": "Blocks movement.",
+          "type": "boolean"
+        },
+        "blocks_sight": {
+          "description": "Blocks sight.",
+          "type": "boolean"
+        },
+        "class": {
+          "description": "`prop` or `vegetation`.",
+          "type": "string"
+        },
+        "cover": {
+          "description": "SRD cover it grants.",
+          "type": "string"
+        },
+        "difficult_terrain": {
+          "description": "Makes its squares difficult terrain.",
+          "type": "boolean"
+        },
+        "footprint": {
+          "description": "Footprint in squares, `[w, h]`.",
+          "items": {
+            "format": "uint32",
+            "minimum": 0,
+            "type": "integer"
+          },
+          "maxItems": 2,
+          "minItems": 2,
+          "type": "array"
+        },
+        "id": {
+          "description": "Asset id for `AssetRef::Id`.",
+          "type": "string"
+        },
+        "layer": {
+          "description": "Draw layer (`floor`, `prop`, `canopy`, …).",
+          "type": "string"
+        },
+        "rotations": {
+          "description": "Allowed rotations in degrees.",
+          "items": {
+            "format": "uint16",
+            "maximum": 65535,
+            "minimum": 0,
+            "type": "integer"
+          },
+          "type": "array"
+        },
+        "tags": {
+          "description": "Tags as `key:value` strings for tag queries (I8), sorted.",
+          "items": {
+            "type": "string"
+          },
+          "type": "array"
+        }
+      },
+      "required": [
+        "id",
+        "class",
+        "layer",
+        "footprint",
+        "rotations",
+        "tags",
+        "cover",
+        "blocks_sight",
+        "blocks_movement",
+        "difficult_terrain"
+      ],
+      "type": "object"
+    },
+    "WallKitDto": {
+      "description": "One wall kit and the roles it has pieces for.",
+      "properties": {
+        "kit": {
+          "description": "Kit name, e.g. `stone`.",
+          "type": "string"
+        },
+        "roles": {
+          "description": "Piece roles (`run`, `door`, `window`, `gate`, joints), sorted.",
+          "items": {
+            "type": "string"
+          },
+          "type": "array"
+        }
+      },
+      "required": [
+        "kit",
+        "roles"
+      ],
+      "type": "object"
+    }
+  },
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "description": "The loaded asset library, summarised.",
+  "properties": {
+    "assets": {
+      "description": "Placeable assets (props and vegetation), sorted by id.",
+      "items": {
+        "$ref": "#/$defs/LibraryAssetDto"
+      },
+      "type": "array"
+    },
+    "grounds": {
+      "description": "Ground keys a `Square.ground` may use, sorted.",
+      "items": {
+        "$ref": "#/$defs/GroundKeyDto"
+      },
+      "type": "array"
+    },
+    "library": {
+      "description": "Library name.",
+      "type": "string"
+    },
+    "library_version": {
+      "description": "`library_version`; part of every render cache key.",
+      "type": "string"
+    },
+    "pixels_per_square": {
+      "description": "Art resolution in pixels per square.",
+      "format": "uint32",
+      "minimum": 0,
+      "type": "integer"
+    },
+    "wall_kits": {
+      "description": "Wall kits a `WallSegment.kit` may use, sorted.",
+      "items": {
+        "$ref": "#/$defs/WallKitDto"
+      },
+      "type": "array"
+    }
+  },
+  "required": [
+    "library",
+    "library_version",
+    "pixels_per_square",
+    "grounds",
+    "wall_kits",
+    "assets"
+  ],
+  "title": "TacticalLibraryDto",
+  "type": "object"
+}

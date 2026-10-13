@@ -1,0 +1,422 @@
+{
+  "$defs": {
+    "Biome": {
+      "description": "The biome a settlement reports, serialised snake_case.",
+      "oneOf": [
+        {
+          "const": "temperate",
+          "description": "Open temperate lowland: farmland and grass (the default).",
+          "type": "string"
+        },
+        {
+          "const": "warm_temperate",
+          "description": "Warm temperate lowland, 15 °C mean or more.",
+          "type": "string"
+        },
+        {
+          "const": "temperate_forest",
+          "description": "Broadleaf or mixed forest.",
+          "type": "string"
+        },
+        {
+          "const": "boreal_forest",
+          "description": "Cold conifer forest, under 6 °C mean.",
+          "type": "string"
+        },
+        {
+          "const": "highland",
+          "description": "Hills and mountains, 5 °C mean or more.",
+          "type": "string"
+        },
+        {
+          "const": "alpine",
+          "description": "Mountains under 5 °C mean.",
+          "type": "string"
+        },
+        {
+          "const": "wetland",
+          "description": "Beside marsh or fen.",
+          "type": "string"
+        },
+        {
+          "const": "steppe",
+          "description": "Dry grassland.",
+          "type": "string"
+        },
+        {
+          "const": "coastal",
+          "description": "On the sea coast.",
+          "type": "string"
+        }
+      ]
+    },
+    "Function": {
+      "description": "What a settlement lives on (`arda-npc` `SettlementFunction`).",
+      "oneOf": [
+        {
+          "const": "farming",
+          "description": "Arable fields.",
+          "type": "string"
+        },
+        {
+          "const": "pastoral",
+          "description": "Herds and flocks.",
+          "type": "string"
+        },
+        {
+          "const": "fishing",
+          "description": "Inshore or river fishing.",
+          "type": "string"
+        },
+        {
+          "const": "port",
+          "description": "A harbour with sea or river trade.",
+          "type": "string"
+        },
+        {
+          "const": "market",
+          "description": "A regular market.",
+          "type": "string"
+        },
+        {
+          "const": "mining",
+          "description": "Mines or quarries.",
+          "type": "string"
+        },
+        {
+          "const": "logging",
+          "description": "Forestry and charcoal.",
+          "type": "string"
+        },
+        {
+          "const": "crafting",
+          "description": "Workshops and guilds.",
+          "type": "string"
+        },
+        {
+          "const": "fortress",
+          "description": "A garrison or castle.",
+          "type": "string"
+        },
+        {
+          "const": "abbey",
+          "description": "A religious house.",
+          "type": "string"
+        },
+        {
+          "const": "crossing",
+          "description": "A ford, bridge or ferry.",
+          "type": "string"
+        },
+        {
+          "const": "capital",
+          "description": "The seat of a realm.",
+          "type": "string"
+        }
+      ]
+    },
+    "Preset": {
+      "description": "A culture or ancestry preset.",
+      "oneOf": [
+        {
+          "const": "heartland",
+          "description": "Mellow lowland farming folk.",
+          "type": "string"
+        },
+        {
+          "const": "highland",
+          "description": "Clipped, consonant-heavy hill folk.",
+          "type": "string"
+        },
+        {
+          "const": "sylvan",
+          "description": "Soft, breathy forest folk.",
+          "type": "string"
+        },
+        {
+          "const": "coastal",
+          "description": "Harsh northern seafarers.",
+          "type": "string"
+        },
+        {
+          "const": "southern",
+          "description": "Flowing, open-syllabled warm-country folk.",
+          "type": "string"
+        },
+        {
+          "const": "borderland",
+          "description": "Steppe marchfolk with vowel harmony.",
+          "type": "string"
+        },
+        {
+          "const": "dwarvish",
+          "description": "Dwarvish: heavy, closed, back-vowelled.",
+          "type": "string"
+        },
+        {
+          "const": "elvish",
+          "description": "Elvish: sibilant, vowel-rich, end-stressed.",
+          "type": "string"
+        },
+        {
+          "const": "halfling",
+          "description": "Halfling: bouncy, homely, doubled consonants.",
+          "type": "string"
+        },
+        {
+          "const": "gnomish",
+          "description": "Gnomish: quick, long, buzzing.",
+          "type": "string"
+        },
+        {
+          "const": "orcish",
+          "description": "Orcish: guttural with glottal breaks.",
+          "type": "string"
+        },
+        {
+          "const": "draconic",
+          "description": "Draconic: hissing, rolling, long vowels.",
+          "type": "string"
+        },
+        {
+          "const": "infernal",
+          "description": "Infernal: dark, sonorous, buzzing.",
+          "type": "string"
+        },
+        {
+          "const": "ancient",
+          "description": "The pre-settlement substrate tongue river names come from.",
+          "type": "string"
+        }
+      ]
+    },
+    "Tier": {
+      "description": "Settlement size class (`arda-npc` `Tier`).",
+      "oneOf": [
+        {
+          "const": "hamlet",
+          "description": "A handful of farms, 12–80 people.",
+          "type": "string"
+        },
+        {
+          "const": "village",
+          "description": "A village of a few hundred.",
+          "type": "string"
+        },
+        {
+          "const": "town",
+          "description": "A town, 1,000–8,000 people.",
+          "type": "string"
+        },
+        {
+          "const": "city",
+          "description": "A city, 8,000 people or more.",
+          "type": "string"
+        }
+      ]
+    },
+    "Tongue": {
+      "description": "Everything needed to rebuild a place's local language.",
+      "properties": {
+        "dialect_seed": {
+          "description": "Seed of the dialect map of the culture region.",
+          "type": "string"
+        },
+        "height": {
+          "description": "Height of the dialect map.",
+          "format": "int64",
+          "type": "integer"
+        },
+        "language_seed": {
+          "description": "Seed of the culture's standard language.",
+          "type": "string"
+        },
+        "preset": {
+          "$ref": "#/$defs/Preset",
+          "description": "The culture's preset."
+        },
+        "substrate_seed": {
+          "description": "Seed of the world's shared substrate tongue.",
+          "type": "string"
+        },
+        "width": {
+          "description": "Width of the dialect map, in the caller's units (cells).",
+          "format": "int64",
+          "type": "integer"
+        },
+        "x": {
+          "description": "Where the place lies on the map.",
+          "format": "int64",
+          "type": "integer"
+        },
+        "y": {
+          "description": "Where the place lies on the map.",
+          "format": "int64",
+          "type": "integer"
+        }
+      },
+      "required": [
+        "preset",
+        "language_seed",
+        "substrate_seed",
+        "dialect_seed",
+        "width",
+        "height",
+        "x",
+        "y"
+      ],
+      "type": "object"
+    }
+  },
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "description": "One settlement, as written to `society/settlements.json`.",
+  "properties": {
+    "biome": {
+      "$ref": "#/$defs/Biome",
+      "description": "Biome, from a closed list."
+    },
+    "buildings": {
+      "additionalProperties": {
+        "format": "uint32",
+        "minimum": 0,
+        "type": "integer"
+      },
+      "description": "Estimated building mix: building function → count.",
+      "type": "object"
+    },
+    "cell_x": {
+      "description": "Centre cell column.",
+      "format": "uint32",
+      "minimum": 0,
+      "type": "integer"
+    },
+    "cell_y": {
+      "description": "Centre cell row.",
+      "format": "uint32",
+      "minimum": 0,
+      "type": "integer"
+    },
+    "coastal": {
+      "description": "On a sea coast.",
+      "type": "boolean"
+    },
+    "culture": {
+      "description": "Culture key (`arda-npc` `data/content/cultures.json`).",
+      "type": "string"
+    },
+    "functions": {
+      "description": "Economic functions, sorted.",
+      "items": {
+        "$ref": "#/$defs/Function"
+      },
+      "type": "array"
+    },
+    "height_m": {
+      "description": "Ground height at the centre, metres.",
+      "format": "int32",
+      "type": "integer"
+    },
+    "history": {
+      "description": "A one-line origin hook for the referee.",
+      "type": "string"
+    },
+    "id": {
+      "description": "Stable identifier, 1-based in placement order (a JSON string, I5).",
+      "pattern": "^[0-9]+$",
+      "type": "string"
+    },
+    "name": {
+      "description": "Display name.",
+      "type": "string"
+    },
+    "name_gloss": {
+      "description": "English gloss of the name (\"Oakford\"); `name` is the native form.",
+      "type": "string"
+    },
+    "population": {
+      "description": "Inhabitants.",
+      "format": "uint32",
+      "minimum": 0,
+      "type": "integer"
+    },
+    "rank": {
+      "description": "Rank among towns and cities (1 = largest); 0 for villages and hamlets.",
+      "format": "uint32",
+      "minimum": 0,
+      "type": "integer"
+    },
+    "realm_id": {
+      "description": "Owning realm, 1-based (a JSON string, I5).",
+      "pattern": "^[0-9]+$",
+      "type": "string"
+    },
+    "riverine": {
+      "description": "On a river.",
+      "type": "boolean"
+    },
+    "site_tags": {
+      "description": "Descriptive site tags (see the README).",
+      "items": {
+        "type": "string"
+      },
+      "type": "array"
+    },
+    "tier": {
+      "$ref": "#/$defs/Tier",
+      "description": "Size class."
+    },
+    "tongue": {
+      "anyOf": [
+        {
+          "$ref": "#/$defs/Tongue"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "description": "The local speech the name was drawn in, for naming the settlement's\npeople in the same dialect (A5)."
+    },
+    "wealth": {
+      "description": "Overall wealth, 0–255.",
+      "format": "uint8",
+      "maximum": 255,
+      "minimum": 0,
+      "type": "integer"
+    },
+    "x_m": {
+      "description": "Centre, metres east of the world's west edge.",
+      "format": "int64",
+      "type": "integer"
+    },
+    "y_m": {
+      "description": "Centre, metres south of the world's north edge.",
+      "format": "int64",
+      "type": "integer"
+    }
+  },
+  "required": [
+    "id",
+    "name",
+    "tier",
+    "population",
+    "functions",
+    "wealth",
+    "culture",
+    "realm_id",
+    "biome",
+    "coastal",
+    "riverine",
+    "name_gloss",
+    "x_m",
+    "y_m",
+    "cell_x",
+    "cell_y",
+    "height_m",
+    "rank",
+    "site_tags",
+    "history",
+    "buildings"
+  ],
+  "title": "Settlement",
+  "type": "object"
+}

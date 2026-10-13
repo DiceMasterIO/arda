@@ -1,0 +1,540 @@
+{
+  "$defs": {
+    "Biome": {
+      "description": "The closed settlement biome list.",
+      "oneOf": [
+        {
+          "const": "temperate",
+          "description": "Open temperate lowland.",
+          "type": "string"
+        },
+        {
+          "const": "warm_temperate",
+          "description": "Warm temperate lowland.",
+          "type": "string"
+        },
+        {
+          "const": "temperate_forest",
+          "description": "Broadleaf or mixed forest.",
+          "type": "string"
+        },
+        {
+          "const": "boreal_forest",
+          "description": "Cold conifer forest.",
+          "type": "string"
+        },
+        {
+          "const": "highland",
+          "description": "Hills and mountains.",
+          "type": "string"
+        },
+        {
+          "const": "alpine",
+          "description": "Cold mountains.",
+          "type": "string"
+        },
+        {
+          "const": "wetland",
+          "description": "Beside marsh or fen.",
+          "type": "string"
+        },
+        {
+          "const": "steppe",
+          "description": "Dry grassland.",
+          "type": "string"
+        },
+        {
+          "const": "coastal",
+          "description": "On the sea coast.",
+          "type": "string"
+        }
+      ]
+    },
+    "BuildingFunction": {
+      "description": "What a building is for: a plain snake_case string (vocabulary I7).",
+      "oneOf": [
+        {
+          "const": "house",
+          "description": "A town house.",
+          "type": "string"
+        },
+        {
+          "const": "farmhouse",
+          "description": "A farmstead's dwelling.",
+          "type": "string"
+        },
+        {
+          "const": "cottage",
+          "description": "A small cottage.",
+          "type": "string"
+        },
+        {
+          "const": "manor",
+          "description": "A noble manor.",
+          "type": "string"
+        },
+        {
+          "const": "inn",
+          "description": "An inn.",
+          "type": "string"
+        },
+        {
+          "const": "tavern",
+          "description": "A tavern.",
+          "type": "string"
+        },
+        {
+          "const": "bakery",
+          "description": "A bakery.",
+          "type": "string"
+        },
+        {
+          "const": "brewery",
+          "description": "A brewery.",
+          "type": "string"
+        },
+        {
+          "const": "mill",
+          "description": "A mill.",
+          "type": "string"
+        },
+        {
+          "const": "smithy",
+          "description": "A forge.",
+          "type": "string"
+        },
+        {
+          "const": "workshop",
+          "description": "A workshop; its craft is a `craft:<key>` tag.",
+          "type": "string"
+        },
+        {
+          "const": "tannery",
+          "description": "A tannery.",
+          "type": "string"
+        },
+        {
+          "const": "apothecary",
+          "description": "An apothecary.",
+          "type": "string"
+        },
+        {
+          "const": "temple",
+          "description": "A temple.",
+          "type": "string"
+        },
+        {
+          "const": "shrine",
+          "description": "A shrine.",
+          "type": "string"
+        },
+        {
+          "const": "library",
+          "description": "A library.",
+          "type": "string"
+        },
+        {
+          "const": "warehouse",
+          "description": "A warehouse.",
+          "type": "string"
+        },
+        {
+          "const": "market",
+          "description": "An open market place.",
+          "type": "string"
+        },
+        {
+          "const": "stall",
+          "description": "A market stall.",
+          "type": "string"
+        },
+        {
+          "const": "dock",
+          "description": "A dock.",
+          "type": "string"
+        },
+        {
+          "const": "boathouse",
+          "description": "A boathouse.",
+          "type": "string"
+        },
+        {
+          "const": "keep",
+          "description": "A keep.",
+          "type": "string"
+        },
+        {
+          "const": "barracks",
+          "description": "Barracks.",
+          "type": "string"
+        },
+        {
+          "const": "guardhouse",
+          "description": "A guardhouse.",
+          "type": "string"
+        },
+        {
+          "const": "stable",
+          "description": "Stables.",
+          "type": "string"
+        },
+        {
+          "const": "barn",
+          "description": "A barn.",
+          "type": "string"
+        },
+        {
+          "const": "street",
+          "description": "A street.",
+          "type": "string"
+        },
+        {
+          "const": "farm",
+          "description": "A farm yard.",
+          "type": "string"
+        },
+        {
+          "const": "market_hall",
+          "description": "A market hall.",
+          "type": "string"
+        },
+        {
+          "const": "mine",
+          "description": "A mine.",
+          "type": "string"
+        },
+        {
+          "const": "lumber_camp",
+          "description": "A lumber camp.",
+          "type": "string"
+        },
+        {
+          "const": "school",
+          "description": "A school.",
+          "type": "string"
+        }
+      ]
+    },
+    "BuildingSpec": {
+      "additionalProperties": false,
+      "description": "One building of a settlement.",
+      "properties": {
+        "capacity": {
+          "description": "Resident capacity.",
+          "format": "uint16",
+          "maximum": 65535,
+          "minimum": 0,
+          "type": "integer"
+        },
+        "function": {
+          "$ref": "#/$defs/BuildingFunction",
+          "description": "What the building is for."
+        },
+        "id": {
+          "description": "Building id, unique within the settlement.",
+          "type": "string"
+        },
+        "settlement_id": {
+          "description": "Owning settlement id.",
+          "type": "string"
+        },
+        "tags": {
+          "description": "Free tags such as `craft:weaving`; omitted when empty.",
+          "items": {
+            "type": "string"
+          },
+          "type": "array"
+        },
+        "wealth": {
+          "description": "Building wealth, 0–255.",
+          "format": "uint8",
+          "maximum": 255,
+          "minimum": 0,
+          "type": "integer"
+        },
+        "workplace_slots": {
+          "description": "Workplace slots, master included.",
+          "format": "uint16",
+          "maximum": 65535,
+          "minimum": 0,
+          "type": "integer"
+        }
+      },
+      "required": [
+        "id",
+        "settlement_id",
+        "function",
+        "capacity",
+        "workplace_slots",
+        "wealth"
+      ],
+      "type": "object"
+    },
+    "SettlementFunction": {
+      "description": "What a settlement lives on.",
+      "oneOf": [
+        {
+          "const": "farming",
+          "description": "Arable fields.",
+          "type": "string"
+        },
+        {
+          "const": "pastoral",
+          "description": "Herds and flocks.",
+          "type": "string"
+        },
+        {
+          "const": "fishing",
+          "description": "Fishing.",
+          "type": "string"
+        },
+        {
+          "const": "port",
+          "description": "A harbour.",
+          "type": "string"
+        },
+        {
+          "const": "market",
+          "description": "A regular market.",
+          "type": "string"
+        },
+        {
+          "const": "mining",
+          "description": "Mines or quarries.",
+          "type": "string"
+        },
+        {
+          "const": "logging",
+          "description": "Forestry and charcoal.",
+          "type": "string"
+        },
+        {
+          "const": "crafting",
+          "description": "Workshops and guilds.",
+          "type": "string"
+        },
+        {
+          "const": "fortress",
+          "description": "A garrison or castle.",
+          "type": "string"
+        },
+        {
+          "const": "abbey",
+          "description": "A religious house.",
+          "type": "string"
+        },
+        {
+          "const": "crossing",
+          "description": "A ford, bridge or ferry.",
+          "type": "string"
+        },
+        {
+          "const": "capital",
+          "description": "The seat of a realm.",
+          "type": "string"
+        }
+      ]
+    },
+    "SettlementProfile": {
+      "additionalProperties": false,
+      "description": "One settlement to populate.",
+      "properties": {
+        "ancestry_mix": {
+          "additionalProperties": {
+            "format": "uint32",
+            "minimum": 0,
+            "type": "integer"
+          },
+          "default": null,
+          "description": "Optional ancestry weights replacing the culture's table.",
+          "type": [
+            "object",
+            "null"
+          ]
+        },
+        "biome": {
+          "$ref": "#/$defs/Biome",
+          "description": "Biome."
+        },
+        "coastal": {
+          "description": "On a sea coast.",
+          "type": "boolean"
+        },
+        "culture": {
+          "description": "Culture key.",
+          "type": "string"
+        },
+        "functions": {
+          "description": "Economic functions.",
+          "items": {
+            "$ref": "#/$defs/SettlementFunction"
+          },
+          "type": "array"
+        },
+        "id": {
+          "description": "Settlement id.",
+          "type": "string"
+        },
+        "name": {
+          "description": "Display name.",
+          "type": "string"
+        },
+        "population": {
+          "description": "Number of inhabitants.",
+          "format": "uint32",
+          "minimum": 0,
+          "type": "integer"
+        },
+        "realm_id": {
+          "description": "Realm id.",
+          "type": "string"
+        },
+        "riverine": {
+          "description": "On a river.",
+          "type": "boolean"
+        },
+        "tier": {
+          "$ref": "#/$defs/Tier",
+          "description": "Size class."
+        },
+        "tongue": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/Tongue"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "description": "The local speech the settlement was named in (`arda_names::Tongue`)."
+        },
+        "wealth": {
+          "description": "Wealth, 0–255.",
+          "format": "uint8",
+          "maximum": 255,
+          "minimum": 0,
+          "type": "integer"
+        }
+      },
+      "required": [
+        "id",
+        "name",
+        "tier",
+        "population",
+        "functions",
+        "wealth",
+        "culture",
+        "realm_id",
+        "biome",
+        "coastal",
+        "riverine"
+      ],
+      "type": "object"
+    },
+    "Tier": {
+      "description": "Settlement size class.",
+      "oneOf": [
+        {
+          "const": "hamlet",
+          "description": "Hamlet.",
+          "type": "string"
+        },
+        {
+          "const": "village",
+          "description": "Village.",
+          "type": "string"
+        },
+        {
+          "const": "town",
+          "description": "Town.",
+          "type": "string"
+        },
+        {
+          "const": "city",
+          "description": "City.",
+          "type": "string"
+        }
+      ]
+    },
+    "Tongue": {
+      "additionalProperties": false,
+      "description": "Recipe of a place's local speech (`arda_names::Tongue`): seeds are\ndecimal strings.",
+      "properties": {
+        "dialect_seed": {
+          "description": "Seed of the region's dialect map.",
+          "type": "string"
+        },
+        "height": {
+          "description": "Dialect map height, cells.",
+          "format": "int64",
+          "type": "integer"
+        },
+        "language_seed": {
+          "description": "Seed of the standard language.",
+          "type": "string"
+        },
+        "preset": {
+          "description": "Culture preset key (`heartland`, `sylvan`, …).",
+          "type": "string"
+        },
+        "substrate_seed": {
+          "description": "Seed of the shared substrate tongue.",
+          "type": "string"
+        },
+        "width": {
+          "description": "Dialect map width, cells.",
+          "format": "int64",
+          "type": "integer"
+        },
+        "x": {
+          "description": "Place column, cells.",
+          "format": "int64",
+          "type": "integer"
+        },
+        "y": {
+          "description": "Place row, cells.",
+          "format": "int64",
+          "type": "integer"
+        }
+      },
+      "required": [
+        "preset",
+        "language_seed",
+        "substrate_seed",
+        "dialect_seed",
+        "width",
+        "height",
+        "x",
+        "y"
+      ],
+      "type": "object"
+    }
+  },
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "additionalProperties": false,
+  "description": "Body of `POST /v1/npc/population`.",
+  "properties": {
+    "buildings": {
+      "description": "Its buildings.",
+      "items": {
+        "$ref": "#/$defs/BuildingSpec"
+      },
+      "type": "array"
+    },
+    "settlement": {
+      "$ref": "#/$defs/SettlementProfile",
+      "description": "The settlement to populate."
+    },
+    "world_seed": {
+      "description": "World seed as a decimal string.",
+      "type": "string"
+    }
+  },
+  "required": [
+    "world_seed",
+    "settlement",
+    "buildings"
+  ],
+  "title": "PopulationRequest",
+  "type": "object"
+}

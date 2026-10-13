@@ -1,0 +1,93 @@
+{
+  "$defs": {
+    "PrefetchCell": {
+      "description": "One neighbour of a prefetch.",
+      "properties": {
+        "gx": {
+          "description": "Cell column.",
+          "format": "uint32",
+          "minimum": 0,
+          "type": "integer"
+        },
+        "gy": {
+          "description": "Cell row.",
+          "format": "uint32",
+          "minimum": 0,
+          "type": "integer"
+        },
+        "image": {
+          "description": "Whether its image pyramid warms too (else JSON and blocks only).",
+          "type": "boolean"
+        },
+        "status": {
+          "$ref": "#/$defs/PrefetchStatus",
+          "description": "Queue outcome."
+        }
+      },
+      "required": [
+        "gx",
+        "gy",
+        "status",
+        "image"
+      ],
+      "type": "object"
+    },
+    "PrefetchStatus": {
+      "description": "What happened to one neighbour.",
+      "oneOf": [
+        {
+          "const": "queued",
+          "description": "Added to the queue.",
+          "type": "string"
+        },
+        {
+          "const": "pending",
+          "description": "Already queued or warming.",
+          "type": "string"
+        },
+        {
+          "const": "dropped",
+          "description": "The queue was full.",
+          "type": "string"
+        }
+      ]
+    }
+  },
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "description": "`202` body of `POST /v1/tactical/prefetch` (TS `PrefetchAccepted`).",
+  "properties": {
+    "cells": {
+      "description": "The neighbours inside the world, nearest ring first, row-major.",
+      "items": {
+        "$ref": "#/$defs/PrefetchCell"
+      },
+      "type": "array"
+    },
+    "ppsq": {
+      "description": "The ppsq warmed.",
+      "format": "uint32",
+      "minimum": 0,
+      "type": "integer"
+    },
+    "queue_len": {
+      "description": "Cells waiting after this request.",
+      "format": "uint32",
+      "minimum": 0,
+      "type": "integer"
+    },
+    "radius": {
+      "description": "The radius used.",
+      "format": "uint32",
+      "minimum": 0,
+      "type": "integer"
+    }
+  },
+  "required": [
+    "radius",
+    "ppsq",
+    "cells",
+    "queue_len"
+  ],
+  "title": "PrefetchAccepted",
+  "type": "object"
+}

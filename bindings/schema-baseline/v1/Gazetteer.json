@@ -1,0 +1,201 @@
+{
+  "$defs": {
+    "GazetteerFeature": {
+      "description": "One entry of `society/gazetteer.json`.",
+      "properties": {
+        "anchor_m": {
+          "description": "Label anchor, metres on the world grid.",
+          "items": {
+            "format": "int64",
+            "type": "integer"
+          },
+          "maxItems": 2,
+          "minItems": 2,
+          "type": "array"
+        },
+        "area_ha": {
+          "description": "Area, hectares (0 for ranges and rivers).",
+          "format": "uint64",
+          "minimum": 0,
+          "type": "integer"
+        },
+        "culture": {
+          "description": "Culture key of the speech at the anchor.",
+          "type": "string"
+        },
+        "extent_m": {
+          "description": "Bounding box, metres: `x0, y0, x1, y1`.",
+          "items": {
+            "format": "int64",
+            "type": "integer"
+          },
+          "maxItems": 4,
+          "minItems": 4,
+          "type": "array"
+        },
+        "id": {
+          "description": "Stable id, 1-based in file order.",
+          "type": "string"
+        },
+        "kind": {
+          "description": "`sea`, `bay`, `lake`, `island`, `cape`, `forest`, `marsh`,\n`mountain` (a range) or `river`.",
+          "type": "string"
+        },
+        "length_m": {
+          "description": "Length of the path or main axis, metres.",
+          "format": "uint64",
+          "minimum": 0,
+          "type": "integer"
+        },
+        "min_zoom": {
+          "description": "Zoom from which a map shows the label (0 is the whole world).",
+          "format": "uint8",
+          "maximum": 255,
+          "minimum": 0,
+          "type": "integer"
+        },
+        "name": {
+          "description": "Native name.",
+          "type": "string"
+        },
+        "name_gloss": {
+          "description": "English gloss.",
+          "type": "string"
+        },
+        "path_m": {
+          "description": "Label path (at most 24 points, reading left to right) for long\nfeatures; the course of a river, from its mouth.",
+          "items": {
+            "items": {
+              "format": "int64",
+              "type": "integer"
+            },
+            "maxItems": 2,
+            "minItems": 2,
+            "type": "array"
+          },
+          "type": [
+            "array",
+            "null"
+          ]
+        },
+        "rank": {
+          "description": "Importance, 1 (largest) to 5.",
+          "format": "uint8",
+          "maximum": 255,
+          "minimum": 0,
+          "type": "integer"
+        }
+      },
+      "required": [
+        "id",
+        "kind",
+        "name",
+        "name_gloss",
+        "culture",
+        "anchor_m",
+        "extent_m",
+        "area_ha",
+        "length_m",
+        "rank",
+        "min_zoom"
+      ],
+      "type": "object"
+    },
+    "GazetteerItem": {
+      "anyOf": [
+        {
+          "$ref": "#/$defs/GazetteerFeature",
+          "description": "A natural feature."
+        },
+        {
+          "$ref": "#/$defs/GazetteerPoint",
+          "description": "A settlement."
+        }
+      ],
+      "description": "One entry of the served list: told apart by `kind` (a natural feature\nhas `anchor_m`, a settlement `at_m`)."
+    },
+    "GazetteerPoint": {
+      "description": "A settlement as a map point.",
+      "properties": {
+        "at_m": {
+          "description": "Centre, metres on the world grid.",
+          "items": {
+            "format": "int64",
+            "type": "integer"
+          },
+          "maxItems": 2,
+          "minItems": 2,
+          "type": "array"
+        },
+        "culture": {
+          "description": "Culture key.",
+          "type": "string"
+        },
+        "id": {
+          "description": "The settlement's id (a decimal string).",
+          "type": "string"
+        },
+        "kind": {
+          "description": "`hamlet`, `village`, `town` or `city`.",
+          "type": "string"
+        },
+        "min_zoom": {
+          "description": "Zoom from which a map shows the label.",
+          "format": "uint8",
+          "maximum": 255,
+          "minimum": 0,
+          "type": "integer"
+        },
+        "name": {
+          "description": "Name.",
+          "type": "string"
+        },
+        "name_gloss": {
+          "description": "English gloss.",
+          "type": "string"
+        },
+        "rank": {
+          "description": "Importance, 2 (city) to 5 (hamlet).",
+          "format": "uint8",
+          "maximum": 255,
+          "minimum": 0,
+          "type": "integer"
+        }
+      },
+      "required": [
+        "id",
+        "kind",
+        "name",
+        "name_gloss",
+        "culture",
+        "at_m",
+        "rank",
+        "min_zoom"
+      ],
+      "type": "object"
+    }
+  },
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "description": "`GET /v1/gazetteer` body.",
+  "properties": {
+    "features": {
+      "description": "Natural features, then settlements by id.",
+      "items": {
+        "$ref": "#/$defs/GazetteerItem"
+      },
+      "type": "array"
+    },
+    "format_version": {
+      "description": "Format version (1).",
+      "format": "uint32",
+      "minimum": 0,
+      "type": "integer"
+    }
+  },
+  "required": [
+    "format_version",
+    "features"
+  ],
+  "title": "Gazetteer",
+  "type": "object"
+}

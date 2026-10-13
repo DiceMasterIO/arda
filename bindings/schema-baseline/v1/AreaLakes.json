@@ -1,0 +1,100 @@
+{
+  "$defs": {
+    "LakeDto": {
+      "description": "One saved lake fragment inside an area.",
+      "properties": {
+        "cells": {
+          "description": "Covered global cells `[gx, gy]`.",
+          "items": {
+            "items": {
+              "format": "uint32",
+              "minimum": 0,
+              "type": "integer"
+            },
+            "maxItems": 2,
+            "minItems": 2,
+            "type": "array"
+          },
+          "type": "array"
+        },
+        "global_id": {
+          "description": "Stable global basin id, decimal string.",
+          "type": "string"
+        },
+        "id": {
+          "description": "Tile-local id, 1-based.",
+          "format": "uint32",
+          "minimum": 0,
+          "type": "integer"
+        },
+        "max_depth_m": {
+          "description": "Greatest local depth, metres.",
+          "format": "double",
+          "type": "number"
+        },
+        "outlet": {
+          "description": "Global cell of supported surface outflow, if in this area.",
+          "items": {
+            "format": "uint32",
+            "minimum": 0,
+            "type": "integer"
+          },
+          "maxItems": 2,
+          "minItems": 2,
+          "type": [
+            "array",
+            "null"
+          ]
+        },
+        "surface_m": {
+          "description": "Representative water surface, metres.",
+          "format": "double",
+          "type": "number"
+        }
+      },
+      "required": [
+        "id",
+        "global_id",
+        "surface_m",
+        "max_depth_m",
+        "cells"
+      ],
+      "type": "object"
+    }
+  },
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "description": "`/v1/area/{ax}/{ay}/lakes`.",
+  "properties": {
+    "ax": {
+      "description": "Area column.",
+      "format": "int32",
+      "type": "integer"
+    },
+    "ay": {
+      "description": "Area row.",
+      "format": "int32",
+      "type": "integer"
+    },
+    "contract_version": {
+      "description": "Cell contract version.",
+      "format": "uint32",
+      "minimum": 0,
+      "type": "integer"
+    },
+    "lakes": {
+      "description": "Lakes in stored order.",
+      "items": {
+        "$ref": "#/$defs/LakeDto"
+      },
+      "type": "array"
+    }
+  },
+  "required": [
+    "contract_version",
+    "ax",
+    "ay",
+    "lakes"
+  ],
+  "title": "AreaLakes",
+  "type": "object"
+}

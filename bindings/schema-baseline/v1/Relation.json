@@ -1,0 +1,101 @@
+{
+  "$defs": {
+    "Stance": {
+      "description": "How two realms stand.",
+      "oneOf": [
+        {
+          "const": "alliance",
+          "description": "Sworn allies.",
+          "type": "string"
+        },
+        {
+          "const": "trade_pact",
+          "description": "A treaty of trade.",
+          "type": "string"
+        },
+        {
+          "const": "neutral",
+          "description": "No particular ties.",
+          "type": "string"
+        },
+        {
+          "const": "rivalry",
+          "description": "Hostile but at peace.",
+          "type": "string"
+        },
+        {
+          "const": "war",
+          "description": "At war now.",
+          "type": "string"
+        }
+      ]
+    }
+  },
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "description": "Relation between realms `a < b`.",
+  "properties": {
+    "a": {
+      "description": "Lower realm id.",
+      "type": "string"
+    },
+    "b": {
+      "description": "Higher realm id.",
+      "type": "string"
+    },
+    "border_roads": {
+      "description": "Roads crossing their shared border.",
+      "items": {
+        "type": "string"
+      },
+      "type": "array"
+    },
+    "marriage": {
+      "description": "Whether their houses are joined by marriage.",
+      "type": "boolean"
+    },
+    "reasons": {
+      "description": "Why they stand as they do.",
+      "items": {
+        "type": "string"
+      },
+      "type": "array"
+    },
+    "score": {
+      "description": "Underlying score (positive friendly).",
+      "format": "int32",
+      "type": "integer"
+    },
+    "stance": {
+      "$ref": "#/$defs/Stance",
+      "description": "Stance."
+    },
+    "trade_sp": {
+      "description": "Yearly trade between them, silver pieces.",
+      "format": "uint64",
+      "minimum": 0,
+      "type": "integer"
+    },
+    "wars": {
+      "description": "War event ids between them.",
+      "items": {
+        "format": "uint32",
+        "minimum": 0,
+        "type": "integer"
+      },
+      "type": "array"
+    }
+  },
+  "required": [
+    "a",
+    "b",
+    "stance",
+    "score",
+    "border_roads",
+    "trade_sp",
+    "wars",
+    "marriage",
+    "reasons"
+  ],
+  "title": "Relation",
+  "type": "object"
+}

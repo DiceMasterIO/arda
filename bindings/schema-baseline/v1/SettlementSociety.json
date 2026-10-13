@@ -1,0 +1,837 @@
+{
+  "$defs": {
+    "BuildingRef": {
+      "description": "One building as society sees it.",
+      "properties": {
+        "function": {
+          "description": "Building-function key (plain snake_case).",
+          "type": "string"
+        },
+        "id": {
+          "description": "Building id, unique within the settlement.",
+          "type": "string"
+        },
+        "tags": {
+          "description": "Free tags; a workshop carries `craft:<name>`.",
+          "items": {
+            "type": "string"
+          },
+          "type": "array"
+        }
+      },
+      "required": [
+        "id",
+        "function"
+      ],
+      "type": "object"
+    },
+    "ClassLevel": {
+      "description": "An SRD 5.1 class and level.",
+      "properties": {
+        "class": {
+          "description": "SRD class name.",
+          "type": "string"
+        },
+        "level": {
+          "description": "Level.",
+          "format": "uint8",
+          "maximum": 255,
+          "minimum": 0,
+          "type": "integer"
+        }
+      },
+      "required": [
+        "class",
+        "level"
+      ],
+      "type": "object"
+    },
+    "EntityRef": {
+      "description": "A reference to one entity of the input world or of the society.",
+      "oneOf": [
+        {
+          "description": "An input settlement.",
+          "properties": {
+            "id": {
+              "description": "Settlement id.",
+              "type": "string"
+            },
+            "kind": {
+              "const": "settlement",
+              "type": "string"
+            }
+          },
+          "required": [
+            "kind",
+            "id"
+          ],
+          "type": "object"
+        },
+        {
+          "description": "An input realm.",
+          "properties": {
+            "id": {
+              "description": "Realm id.",
+              "type": "string"
+            },
+            "kind": {
+              "const": "realm",
+              "type": "string"
+            }
+          },
+          "required": [
+            "kind",
+            "id"
+          ],
+          "type": "object"
+        },
+        {
+          "description": "An input road.",
+          "properties": {
+            "id": {
+              "description": "Road id.",
+              "type": "string"
+            },
+            "kind": {
+              "const": "road",
+              "type": "string"
+            }
+          },
+          "required": [
+            "kind",
+            "id"
+          ],
+          "type": "object"
+        },
+        {
+          "description": "A building of a settlement.",
+          "properties": {
+            "id": {
+              "description": "Building id within the settlement.",
+              "type": "string"
+            },
+            "kind": {
+              "const": "building",
+              "type": "string"
+            },
+            "settlement": {
+              "description": "Settlement id.",
+              "type": "string"
+            }
+          },
+          "required": [
+            "kind",
+            "settlement",
+            "id"
+          ],
+          "type": "object"
+        },
+        {
+          "description": "A faction.",
+          "properties": {
+            "id": {
+              "description": "Faction id.",
+              "type": "string"
+            },
+            "kind": {
+              "const": "faction",
+              "type": "string"
+            }
+          },
+          "required": [
+            "kind",
+            "id"
+          ],
+          "type": "object"
+        },
+        {
+          "description": "A notable NPC slot.",
+          "properties": {
+            "id": {
+              "description": "Role id.",
+              "type": "string"
+            },
+            "kind": {
+              "const": "role",
+              "type": "string"
+            }
+          },
+          "required": [
+            "kind",
+            "id"
+          ],
+          "type": "object"
+        },
+        {
+          "description": "A ruin of an abandoned settlement.",
+          "properties": {
+            "id": {
+              "description": "Ruin id.",
+              "format": "uint32",
+              "minimum": 0,
+              "type": "integer"
+            },
+            "kind": {
+              "const": "ruin",
+              "type": "string"
+            }
+          },
+          "required": [
+            "kind",
+            "id"
+          ],
+          "type": "object"
+        },
+        {
+          "description": "A timeline event.",
+          "properties": {
+            "id": {
+              "description": "Event id.",
+              "format": "uint32",
+              "minimum": 0,
+              "type": "integer"
+            },
+            "kind": {
+              "const": "event",
+              "type": "string"
+            }
+          },
+          "required": [
+            "kind",
+            "id"
+          ],
+          "type": "object"
+        },
+        {
+          "description": "A ruling house.",
+          "properties": {
+            "id": {
+              "description": "Dynasty id.",
+              "type": "string"
+            },
+            "kind": {
+              "const": "dynasty",
+              "type": "string"
+            }
+          },
+          "required": [
+            "kind",
+            "id"
+          ],
+          "type": "object"
+        },
+        {
+          "description": "A trade good.",
+          "properties": {
+            "key": {
+              "description": "Good key.",
+              "type": "string"
+            },
+            "kind": {
+              "const": "good",
+              "type": "string"
+            }
+          },
+          "required": [
+            "kind",
+            "key"
+          ],
+          "type": "object"
+        }
+      ]
+    },
+    "Faction": {
+      "description": "One faction.",
+      "properties": {
+        "goals": {
+          "description": "What it wants.",
+          "items": {
+            "type": "string"
+          },
+          "type": "array"
+        },
+        "id": {
+          "description": "Stable id (`f<settlement>.<kind>`).",
+          "type": "string"
+        },
+        "influence": {
+          "description": "Influence, 0–100.",
+          "format": "uint8",
+          "maximum": 255,
+          "minimum": 0,
+          "type": "integer"
+        },
+        "kind": {
+          "description": "Kind key.",
+          "type": "string"
+        },
+        "kind_label": {
+          "description": "Readable kind.",
+          "type": "string"
+        },
+        "leader_role": {
+          "description": "Leader NPC slot.",
+          "type": "string"
+        },
+        "name": {
+          "description": "Name.",
+          "type": "string"
+        },
+        "seat_building": {
+          "description": "Building it meets in.",
+          "format": "uint64",
+          "minimum": 0,
+          "type": [
+            "integer",
+            "null"
+          ]
+        },
+        "settlement": {
+          "description": "Settlement.",
+          "type": "string"
+        }
+      },
+      "required": [
+        "id",
+        "settlement",
+        "kind",
+        "kind_label",
+        "name",
+        "goals",
+        "leader_role",
+        "influence"
+      ],
+      "type": "object"
+    },
+    "FactionRelation": {
+      "description": "Stance between factions `a < b` (by id) of one settlement.",
+      "properties": {
+        "a": {
+          "description": "Lower faction id.",
+          "type": "string"
+        },
+        "b": {
+          "description": "Higher faction id.",
+          "type": "string"
+        },
+        "reason": {
+          "description": "Why.",
+          "type": "string"
+        },
+        "stance": {
+          "$ref": "#/$defs/FactionStance",
+          "description": "Stance."
+        }
+      },
+      "required": [
+        "a",
+        "b",
+        "stance",
+        "reason"
+      ],
+      "type": "object"
+    },
+    "FactionStance": {
+      "description": "How two factions stand.",
+      "oneOf": [
+        {
+          "const": "allied",
+          "description": "Working together.",
+          "type": "string"
+        },
+        {
+          "const": "friendly",
+          "description": "On good terms.",
+          "type": "string"
+        },
+        {
+          "const": "rival",
+          "description": "Competing.",
+          "type": "string"
+        },
+        {
+          "const": "hostile",
+          "description": "Openly hostile.",
+          "type": "string"
+        }
+      ]
+    },
+    "GoodRole": {
+      "description": "How a key good moves through a market.",
+      "oneOf": [
+        {
+          "const": "export",
+          "description": "Mostly sent out.",
+          "type": "string"
+        },
+        {
+          "const": "import",
+          "description": "Mostly brought in.",
+          "type": "string"
+        },
+        {
+          "const": "transit",
+          "description": "Mostly carried through to elsewhere.",
+          "type": "string"
+        }
+      ]
+    },
+    "HistoryHook": {
+      "description": "One line of settlement history.",
+      "properties": {
+        "refs": {
+          "description": "Entities it mentions.",
+          "items": {
+            "$ref": "#/$defs/EntityRef"
+          },
+          "type": "array"
+        },
+        "text": {
+          "description": "The line.",
+          "type": "string"
+        },
+        "year": {
+          "description": "Year it refers to, if any.",
+          "format": "int32",
+          "type": [
+            "integer",
+            "null"
+          ]
+        }
+      },
+      "required": [
+        "text",
+        "refs"
+      ],
+      "type": "object"
+    },
+    "Hook": {
+      "description": "One plot hook.",
+      "properties": {
+        "id": {
+          "description": "Stable id (`h<settlement>.<kind>` or `hr<realm>.<kind>`).",
+          "type": "string"
+        },
+        "kind": {
+          "description": "Kind key.",
+          "type": "string"
+        },
+        "refs": {
+          "description": "Entities involved.",
+          "items": {
+            "$ref": "#/$defs/EntityRef"
+          },
+          "type": "array"
+        },
+        "tension": {
+          "description": "How hot the tension is, 0–100.",
+          "format": "uint8",
+          "maximum": 255,
+          "minimum": 0,
+          "type": "integer"
+        },
+        "text": {
+          "description": "Two or three sentences for the referee.",
+          "type": "string"
+        },
+        "title": {
+          "description": "Title.",
+          "type": "string"
+        }
+      },
+      "required": [
+        "id",
+        "kind",
+        "title",
+        "text",
+        "tension",
+        "refs"
+      ],
+      "type": "object"
+    },
+    "KeyGood": {
+      "description": "One of a market's key trade goods.",
+      "properties": {
+        "good": {
+          "description": "Good key.",
+          "type": "string"
+        },
+        "role": {
+          "$ref": "#/$defs/GoodRole",
+          "description": "Dominant direction."
+        },
+        "value_sp": {
+          "description": "Value handled per year, silver pieces.",
+          "format": "uint64",
+          "minimum": 0,
+          "type": "integer"
+        }
+      },
+      "required": [
+        "good",
+        "role",
+        "value_sp"
+      ],
+      "type": "object"
+    },
+    "Ledger": {
+      "description": "Where each load of one settlement went.",
+      "properties": {
+        "demand": {
+          "additionalProperties": {
+            "format": "uint64",
+            "minimum": 0,
+            "type": "integer"
+          },
+          "description": "Loads wanted.",
+          "type": "object"
+        },
+        "exports": {
+          "additionalProperties": {
+            "format": "uint64",
+            "minimum": 0,
+            "type": "integer"
+          },
+          "description": "Loads sent out.",
+          "type": "object"
+        },
+        "imports": {
+          "additionalProperties": {
+            "format": "uint64",
+            "minimum": 0,
+            "type": "integer"
+          },
+          "description": "Loads brought in.",
+          "type": "object"
+        },
+        "local_use": {
+          "additionalProperties": {
+            "format": "uint64",
+            "minimum": 0,
+            "type": "integer"
+          },
+          "description": "Own production used at home.",
+          "type": "object"
+        },
+        "production": {
+          "additionalProperties": {
+            "format": "uint64",
+            "minimum": 0,
+            "type": "integer"
+          },
+          "description": "Loads produced.",
+          "type": "object"
+        },
+        "shortfall": {
+          "additionalProperties": {
+            "format": "uint64",
+            "minimum": 0,
+            "type": "integer"
+          },
+          "description": "Demand left unmet.",
+          "type": "object"
+        },
+        "stored": {
+          "additionalProperties": {
+            "format": "uint64",
+            "minimum": 0,
+            "type": "integer"
+          },
+          "description": "Surplus nobody could reach.",
+          "type": "object"
+        }
+      },
+      "required": [
+        "production",
+        "demand",
+        "local_use",
+        "exports",
+        "imports",
+        "stored",
+        "shortfall"
+      ],
+      "type": "object"
+    },
+    "NpcRole": {
+      "description": "One notable NPC slot.",
+      "properties": {
+        "building": {
+          "default": null,
+          "description": "Workplace building.",
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "class": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/ClassLevel"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "description": "Suggested SRD 5.1 class and level."
+        },
+        "duties": {
+          "description": "What the role does.",
+          "type": "string"
+        },
+        "faction": {
+          "description": "Faction led, if any.",
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "family_name": {
+          "description": "Family name fixed by history.",
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "female": {
+          "description": "Sex fixed by history.",
+          "type": [
+            "boolean",
+            "null"
+          ]
+        },
+        "given_name": {
+          "description": "Given name fixed by history (rulers, vassals).",
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "id": {
+          "description": "Stable id.",
+          "type": "string"
+        },
+        "kind": {
+          "description": "Role kind key (`ruler`, `captain`, `high_priest`, …).",
+          "type": "string"
+        },
+        "settlement": {
+          "description": "Settlement.",
+          "type": "string"
+        },
+        "stat_block": {
+          "description": "Suggested SRD 5.1 NPC stat block.",
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "title": {
+          "description": "Title as the NPC would be addressed.",
+          "type": "string"
+        }
+      },
+      "required": [
+        "id",
+        "settlement",
+        "kind",
+        "title",
+        "duties"
+      ],
+      "type": "object"
+    },
+    "Prosperity": {
+      "description": "Prosperity history of one settlement.",
+      "properties": {
+        "present": {
+          "description": "Present wealth, 0–255 (the input value).",
+          "format": "uint8",
+          "maximum": 255,
+          "minimum": 0,
+          "type": "integer"
+        },
+        "samples": {
+          "description": "`[year, wealth]` samples from founding to present.",
+          "items": {
+            "items": {
+              "format": "int32",
+              "type": "integer"
+            },
+            "maxItems": 2,
+            "minItems": 2,
+            "type": "array"
+          },
+          "type": "array"
+        },
+        "trend": {
+          "$ref": "#/$defs/Trend",
+          "description": "Current direction."
+        }
+      },
+      "required": [
+        "present",
+        "trend",
+        "samples"
+      ],
+      "type": "object"
+    },
+    "SettlementEconomy": {
+      "description": "Economy of one settlement.",
+      "properties": {
+        "key_goods": {
+          "description": "Key trade goods (markets only), most valuable first.",
+          "items": {
+            "$ref": "#/$defs/KeyGood"
+          },
+          "type": "array"
+        },
+        "ledger": {
+          "$ref": "#/$defs/Ledger",
+          "description": "Where every load went."
+        },
+        "market": {
+          "description": "Whether it is a market (market or port function).",
+          "type": "boolean"
+        },
+        "trade_balance_sp": {
+          "description": "Export value minus import value, silver pieces per year.",
+          "format": "int64",
+          "type": "integer"
+        }
+      },
+      "required": [
+        "ledger",
+        "trade_balance_sp",
+        "market",
+        "key_goods"
+      ],
+      "type": "object"
+    },
+    "Trend": {
+      "description": "Direction of a settlement's fortunes now.",
+      "oneOf": [
+        {
+          "const": "rising",
+          "description": "Trade surplus, growing.",
+          "type": "string"
+        },
+        {
+          "const": "stable",
+          "description": "Holding steady.",
+          "type": "string"
+        },
+        {
+          "const": "declining",
+          "description": "Trade deficit or war, shrinking.",
+          "type": "string"
+        },
+        {
+          "const": "recovering",
+          "description": "Climbing back after a recent blow.",
+          "type": "string"
+        }
+      ]
+    }
+  },
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "description": "Society of one settlement.",
+  "properties": {
+    "buildings": {
+      "description": "Buildings with ids.",
+      "items": {
+        "$ref": "#/$defs/BuildingRef"
+      },
+      "type": "array"
+    },
+    "economy": {
+      "$ref": "#/$defs/SettlementEconomy",
+      "description": "Economy."
+    },
+    "faction_relations": {
+      "description": "Stances between its factions.",
+      "items": {
+        "$ref": "#/$defs/FactionRelation"
+      },
+      "type": "array"
+    },
+    "factions": {
+      "description": "Factions.",
+      "items": {
+        "$ref": "#/$defs/Faction"
+      },
+      "type": "array"
+    },
+    "founded": {
+      "description": "Year founded.",
+      "format": "int32",
+      "type": "integer"
+    },
+    "founded_from": {
+      "default": null,
+      "description": "Settlement whose settlers founded it.",
+      "type": [
+        "string",
+        "null"
+      ]
+    },
+    "founding_event": {
+      "description": "Founding event id.",
+      "format": "uint32",
+      "minimum": 0,
+      "type": "integer"
+    },
+    "history_hooks": {
+      "description": "2–4 lines of history.",
+      "items": {
+        "$ref": "#/$defs/HistoryHook"
+      },
+      "type": "array"
+    },
+    "hooks": {
+      "description": "3–5 plot hooks.",
+      "items": {
+        "$ref": "#/$defs/Hook"
+      },
+      "type": "array"
+    },
+    "id": {
+      "description": "Settlement id.",
+      "type": "string"
+    },
+    "name": {
+      "description": "Name.",
+      "type": "string"
+    },
+    "prosperity": {
+      "$ref": "#/$defs/Prosperity",
+      "description": "Prosperity over time."
+    },
+    "realm_id": {
+      "description": "Realm today.",
+      "type": "string"
+    },
+    "roles": {
+      "description": "Notable NPC slots.",
+      "items": {
+        "$ref": "#/$defs/NpcRole"
+      },
+      "type": "array"
+    }
+  },
+  "required": [
+    "id",
+    "name",
+    "realm_id",
+    "founded",
+    "founding_event",
+    "buildings",
+    "economy",
+    "prosperity",
+    "factions",
+    "faction_relations",
+    "roles",
+    "history_hooks",
+    "hooks"
+  ],
+  "title": "SettlementSociety",
+  "type": "object"
+}

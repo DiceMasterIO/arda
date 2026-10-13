@@ -1,0 +1,168 @@
+{
+  "$defs": {
+    "Sex": {
+      "description": "Biological sex.",
+      "oneOf": [
+        {
+          "const": "female",
+          "description": "Female.",
+          "type": "string"
+        },
+        {
+          "const": "male",
+          "description": "Male.",
+          "type": "string"
+        }
+      ]
+    },
+    "SocialRank": {
+      "description": "Standing in local society.",
+      "oneOf": [
+        {
+          "const": "dependent",
+          "description": "Children and dependants.",
+          "type": "string"
+        },
+        {
+          "const": "labourer",
+          "description": "Labourers, hands and servants.",
+          "type": "string"
+        },
+        {
+          "const": "tradesfolk",
+          "description": "Journeymen, clerks and small traders.",
+          "type": "string"
+        },
+        {
+          "const": "master",
+          "description": "Masters, owners and minor officials.",
+          "type": "string"
+        },
+        {
+          "const": "gentry",
+          "description": "Clergy leads, officers and magistrates.",
+          "type": "string"
+        },
+        {
+          "const": "noble",
+          "description": "Lords and ladies.",
+          "type": "string"
+        }
+      ]
+    },
+    "Tier": {
+      "description": "Settlement size class.",
+      "oneOf": [
+        {
+          "const": "hamlet",
+          "description": "Hamlet.",
+          "type": "string"
+        },
+        {
+          "const": "village",
+          "description": "Village.",
+          "type": "string"
+        },
+        {
+          "const": "town",
+          "description": "Town.",
+          "type": "string"
+        },
+        {
+          "const": "city",
+          "description": "City.",
+          "type": "string"
+        }
+      ]
+    }
+  },
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "additionalProperties": false,
+  "description": "Body of `POST /v1/npc/generate`: Arda's own inputs, every field\noptional (logic/13 §npc-generate-one).",
+  "properties": {
+    "ancestry": {
+      "description": "SRD race key, e.g. `dwarf`.",
+      "type": [
+        "string",
+        "null"
+      ]
+    },
+    "culture": {
+      "description": "Culture key (`cultures.json`), e.g. `highland`.",
+      "type": [
+        "string",
+        "null"
+      ]
+    },
+    "job": {
+      "description": "Occupation key (`occupations.json` `jobs`), e.g. `smith`.",
+      "type": [
+        "string",
+        "null"
+      ]
+    },
+    "notable": {
+      "description": "Whether the NPC must (or must not) be a notable.",
+      "type": [
+        "boolean",
+        "null"
+      ]
+    },
+    "office": {
+      "description": "Society office kind (`occupations.json` `offices`), e.g. `reeve`; the NPC holds it and is a notable.",
+      "type": [
+        "string",
+        "null"
+      ]
+    },
+    "rank": {
+      "anyOf": [
+        {
+          "$ref": "#/$defs/SocialRank"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "description": "Required social rank."
+    },
+    "seed": {
+      "description": "Caller's salt as a decimal u64 string; default `\"0\"`. The same body gives the same NPC.",
+      "type": [
+        "string",
+        "null"
+      ]
+    },
+    "settlement_id": {
+      "description": "A stored settlement (decimal id) whose tier, culture, biome, tongue and ancestry mix are borrowed; 404 when unknown.",
+      "type": [
+        "string",
+        "null"
+      ]
+    },
+    "sex": {
+      "anyOf": [
+        {
+          "$ref": "#/$defs/Sex"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "description": "Required sex."
+    },
+    "tier": {
+      "anyOf": [
+        {
+          "$ref": "#/$defs/Tier"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "description": "Size class of the synthetic settlement; default the borrowed settlement's, else `village` when it has the job, else the smallest tier that does."
+    }
+  },
+  "title": "GenerateNpcRequest",
+  "type": "object"
+}

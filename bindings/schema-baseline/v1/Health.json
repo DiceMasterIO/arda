@@ -1,0 +1,32 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "description": "`/v1/health`.",
+  "properties": {
+    "contract_version": {
+      "description": "Cell contract version.",
+      "format": "uint32",
+      "minimum": 0,
+      "type": "integer"
+    },
+    "seed": {
+      "description": "Seed of the served world, decimal string.",
+      "type": "string"
+    },
+    "server_version": {
+      "description": "Version of the `arda-server` build answering (its Cargo package\nversion).",
+      "type": "string"
+    },
+    "status": {
+      "description": "Always `\"ok\"` when the service answers.",
+      "type": "string"
+    }
+  },
+  "required": [
+    "status",
+    "contract_version",
+    "seed",
+    "server_version"
+  ],
+  "title": "Health",
+  "type": "object"
+}

@@ -1,0 +1,100 @@
+{
+  "$defs": {
+    "SchemaIndexEntry": {
+      "additionalProperties": false,
+      "description": "One schema in [`SchemaIndex`].",
+      "properties": {
+        "family": {
+          "description": "Its version family: a `GET /v1/world` `versions` key, or\n`api_version` for the error bodies.",
+          "type": "string"
+        },
+        "name": {
+          "description": "File stem and TypeScript type name.",
+          "type": "string"
+        },
+        "routes": {
+          "description": "The routes (or body parts, such as `TacticalBlockDto.scene`) it describes.",
+          "items": {
+            "type": "string"
+          },
+          "type": "array"
+        },
+        "stability": {
+          "$ref": "#/$defs/Stability",
+          "description": "`stable` (frozen), `unstable` or `debug` (outside the freeze)."
+        },
+        "url": {
+          "description": "Where it is served: `/v1/schema/{name}.json`.",
+          "type": "string"
+        }
+      },
+      "required": [
+        "name",
+        "url",
+        "family",
+        "stability",
+        "routes"
+      ],
+      "type": "object"
+    },
+    "Stability": {
+      "description": "How firmly a route or schema is frozen (`docs/capstone/versioning.md`).",
+      "oneOf": [
+        {
+          "const": "stable",
+          "description": "Frozen for 1.x under the versioning policy.",
+          "type": "string"
+        },
+        {
+          "const": "unstable",
+          "description": "Served, but outside the freeze: may change shape in a minor release.",
+          "type": "string"
+        },
+        {
+          "const": "debug",
+          "description": "Samples and test seams; may change or disappear in any release.",
+          "type": "string"
+        }
+      ]
+    }
+  },
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "additionalProperties": false,
+  "description": "`GET /v1/schema`: the catalogue of published schemas (`index.json`).",
+  "properties": {
+    "api_version": {
+      "description": "The API version (`v1`).",
+      "type": "string"
+    },
+    "dialect": {
+      "description": "The JSON Schema dialect every file declares ([`DIALECT`]).",
+      "type": "string"
+    },
+    "format_version": {
+      "description": "Version of this body ([`INDEX_FORMAT`]).",
+      "format": "uint32",
+      "minimum": 0,
+      "type": "integer"
+    },
+    "note": {
+      "description": "How `--sheet-mapping` affects the `Npc` schemas.",
+      "type": "string"
+    },
+    "schemas": {
+      "description": "Every schema, in name order.",
+      "items": {
+        "$ref": "#/$defs/SchemaIndexEntry"
+      },
+      "type": "array"
+    }
+  },
+  "required": [
+    "format_version",
+    "api_version",
+    "dialect",
+    "note",
+    "schemas"
+  ],
+  "title": "SchemaIndex",
+  "type": "object"
+}

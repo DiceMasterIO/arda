@@ -1,0 +1,894 @@
+{
+  "$defs": {
+    "AssetClassDto": {
+      "description": "Catalogue asset classes.",
+      "oneOf": [
+        {
+          "const": "ground",
+          "description": "Tileable ground texture.",
+          "type": "string"
+        },
+        {
+          "const": "wall",
+          "description": "Wall-kit piece.",
+          "type": "string"
+        },
+        {
+          "const": "prop",
+          "description": "Furniture, goods, vehicles and structures.",
+          "type": "string"
+        },
+        {
+          "const": "vegetation",
+          "description": "Trees, bushes, reeds and rocks.",
+          "type": "string"
+        },
+        {
+          "const": "water",
+          "description": "Tileable water texture.",
+          "type": "string"
+        }
+      ]
+    },
+    "AssetRefDto": {
+      "description": "An asset chosen by id or by a deterministic tag query.",
+      "oneOf": [
+        {
+          "additionalProperties": false,
+          "description": "A specific asset id.",
+          "properties": {
+            "id": {
+              "type": "string"
+            }
+          },
+          "required": [
+            "id"
+          ],
+          "type": "object"
+        },
+        {
+          "additionalProperties": false,
+          "description": "Any asset of the class carrying every tag.",
+          "properties": {
+            "query": {
+              "properties": {
+                "class": {
+                  "anyOf": [
+                    {
+                      "$ref": "#/$defs/AssetClassDto"
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ],
+                  "default": null,
+                  "description": "Restrict to a class."
+                },
+                "tags": {
+                  "description": "Required tags.",
+                  "items": {
+                    "type": "string"
+                  },
+                  "type": "array"
+                }
+              },
+              "required": [
+                "tags"
+              ],
+              "type": "object"
+            }
+          },
+          "required": [
+            "query"
+          ],
+          "type": "object"
+        }
+      ]
+    },
+    "CoverLevelDto": {
+      "description": "SRD 5.1 degrees of cover.",
+      "oneOf": [
+        {
+          "const": "none",
+          "description": "No cover.",
+          "type": "string"
+        },
+        {
+          "const": "half",
+          "description": "Half cover: +2 AC and Dexterity saves.",
+          "type": "string"
+        },
+        {
+          "const": "three_quarters",
+          "description": "Three-quarters cover: +5.",
+          "type": "string"
+        },
+        {
+          "const": "total",
+          "description": "Total cover: cannot be targeted directly.",
+          "type": "string"
+        }
+      ]
+    },
+    "DungeonDoorDto": {
+      "additionalProperties": false,
+      "description": "A door on a square edge, in layout edge terms (as `WallSegmentDto`).",
+      "properties": {
+        "axis": {
+          "$ref": "#/$defs/EdgeAxisDto",
+          "description": "Which edge."
+        },
+        "locked": {
+          "description": "Needs a key or a check.",
+          "type": "boolean"
+        },
+        "secret": {
+          "description": "Looks like wall until found.",
+          "type": "boolean"
+        },
+        "x": {
+          "description": "Square column.",
+          "format": "uint32",
+          "minimum": 0,
+          "type": "integer"
+        },
+        "y": {
+          "description": "Square row.",
+          "format": "uint32",
+          "minimum": 0,
+          "type": "integer"
+        }
+      },
+      "required": [
+        "x",
+        "y",
+        "axis",
+        "locked",
+        "secret"
+      ],
+      "type": "object"
+    },
+    "DungeonExitDto": {
+      "additionalProperties": false,
+      "description": "An exit: its kind and the floor square a token arrives on.",
+      "properties": {
+        "kind": {
+          "$ref": "#/$defs/DungeonExitKindDto",
+          "description": "Kind."
+        },
+        "x": {
+          "description": "Column.",
+          "format": "uint32",
+          "minimum": 0,
+          "type": "integer"
+        },
+        "y": {
+          "description": "Row.",
+          "format": "uint32",
+          "minimum": 0,
+          "type": "integer"
+        }
+      },
+      "required": [
+        "kind",
+        "x",
+        "y"
+      ],
+      "type": "object"
+    },
+    "DungeonExitKindDto": {
+      "description": "A way in or out of the level.",
+      "oneOf": [
+        {
+          "const": "stairs_up",
+          "description": "Stairs up (`prop.stairs`).",
+          "type": "string"
+        },
+        {
+          "const": "stairs_down",
+          "description": "Stairs down (`prop.stairs_down`).",
+          "type": "string"
+        },
+        {
+          "const": "mouth",
+          "description": "An opening on the map edge (a cave mouth).",
+          "type": "string"
+        }
+      ]
+    },
+    "DungeonKindDto": {
+      "description": "What was generated.",
+      "oneOf": [
+        {
+          "const": "dungeon",
+          "description": "Built rooms and corridors.",
+          "type": "string"
+        },
+        {
+          "const": "cave",
+          "description": "Natural caverns.",
+          "type": "string"
+        }
+      ]
+    },
+    "DungeonParamsDto": {
+      "additionalProperties": false,
+      "description": "Generation parameters (`arda_dungeon::Params`).",
+      "properties": {
+        "height": {
+          "description": "Height in squares (16–160).",
+          "format": "uint32",
+          "minimum": 0,
+          "type": "integer"
+        },
+        "kind": {
+          "$ref": "#/$defs/DungeonKindDto",
+          "description": "Dungeon or cave."
+        },
+        "seed": {
+          "description": "Seed, a decimal string.",
+          "type": "string"
+        },
+        "width": {
+          "description": "Width in squares (16–160).",
+          "format": "uint32",
+          "minimum": 0,
+          "type": "integer"
+        }
+      },
+      "required": [
+        "seed",
+        "kind",
+        "width",
+        "height"
+      ],
+      "type": "object"
+    },
+    "DungeonRoomDto": {
+      "additionalProperties": false,
+      "description": "A room: its purpose and its floor rectangle in squares.",
+      "properties": {
+        "h": {
+          "description": "Height in squares.",
+          "format": "uint32",
+          "minimum": 0,
+          "type": "integer"
+        },
+        "id": {
+          "description": "Index in `rooms`.",
+          "format": "uint32",
+          "minimum": 0,
+          "type": "integer"
+        },
+        "purpose": {
+          "$ref": "#/$defs/RoomPurposeDto",
+          "description": "What it is for."
+        },
+        "w": {
+          "description": "Width in squares.",
+          "format": "uint32",
+          "minimum": 0,
+          "type": "integer"
+        },
+        "x": {
+          "description": "Left column.",
+          "format": "uint32",
+          "minimum": 0,
+          "type": "integer"
+        },
+        "y": {
+          "description": "Top row.",
+          "format": "uint32",
+          "minimum": 0,
+          "type": "integer"
+        }
+      },
+      "required": [
+        "id",
+        "purpose",
+        "x",
+        "y",
+        "w",
+        "h"
+      ],
+      "type": "object"
+    },
+    "EdgeAxisDto": {
+      "description": "Which edge of a square a segment lies on.",
+      "oneOf": [
+        {
+          "const": "horizontal",
+          "description": "The north edge of square `(x, y)`.",
+          "type": "string"
+        },
+        {
+          "const": "vertical",
+          "description": "The west edge of square `(x, y)`.",
+          "type": "string"
+        }
+      ]
+    },
+    "EdgeRoleDto": {
+      "description": "Why a rules edge exists.",
+      "oneOf": [
+        {
+          "const": "parapet",
+          "description": "Bridge parapet: blocks movement, not sight.",
+          "type": "string"
+        },
+        {
+          "const": "retaining",
+          "description": "Low retaining wall.",
+          "type": "string"
+        },
+        {
+          "const": "building",
+          "description": "A building's wall, door or window.",
+          "type": "string"
+        },
+        {
+          "const": "boundary",
+          "description": "Hedge, drystone wall or fence around a field.",
+          "type": "string"
+        },
+        {
+          "const": "gate",
+          "description": "A gate in a field boundary.",
+          "type": "string"
+        }
+      ]
+    },
+    "EdgeRuleDto": {
+      "additionalProperties": false,
+      "description": "Movement and sight rules of one unit edge.",
+      "properties": {
+        "axis": {
+          "$ref": "#/$defs/EdgeAxisDto",
+          "description": "Which edge of the square."
+        },
+        "blocks_movement": {
+          "description": "Blocks movement across the edge.",
+          "type": "boolean"
+        },
+        "blocks_sight": {
+          "description": "Blocks sight across the edge.",
+          "type": "boolean"
+        },
+        "cover": {
+          "$ref": "#/$defs/CoverLevelDto",
+          "default": "none",
+          "description": "Cover it grants."
+        },
+        "role": {
+          "$ref": "#/$defs/EdgeRoleDto",
+          "description": "Why it is there."
+        },
+        "x": {
+          "description": "Square column.",
+          "format": "uint32",
+          "minimum": 0,
+          "type": "integer"
+        },
+        "y": {
+          "description": "Square row.",
+          "format": "uint32",
+          "minimum": 0,
+          "type": "integer"
+        }
+      },
+      "required": [
+        "x",
+        "y",
+        "axis",
+        "role",
+        "blocks_movement",
+        "blocks_sight"
+      ],
+      "type": "object"
+    },
+    "LightSourceDto": {
+      "additionalProperties": false,
+      "description": "A light source not attached to an asset.",
+      "properties": {
+        "colour": {
+          "description": "RGB colour.",
+          "items": {
+            "format": "uint8",
+            "maximum": 255,
+            "minimum": 0,
+            "type": "integer"
+          },
+          "maxItems": 3,
+          "minItems": 3,
+          "type": "array"
+        },
+        "radius_ft": {
+          "description": "Bright-light radius in feet.",
+          "format": "uint16",
+          "maximum": 65535,
+          "minimum": 0,
+          "type": "integer"
+        },
+        "x": {
+          "description": "Position in squares.",
+          "format": "float",
+          "type": "number"
+        },
+        "y": {
+          "description": "Position in squares.",
+          "format": "float",
+          "type": "number"
+        }
+      },
+      "required": [
+        "x",
+        "y",
+        "radius_ft",
+        "colour"
+      ],
+      "type": "object"
+    },
+    "PlacementDto": {
+      "additionalProperties": false,
+      "description": "A prop or vegetation placement.",
+      "properties": {
+        "asset": {
+          "$ref": "#/$defs/AssetRefDto",
+          "description": "What to place."
+        },
+        "mirror": {
+          "default": false,
+          "description": "Horizontal mirror, applied before rotation.",
+          "type": "boolean"
+        },
+        "rotation": {
+          "default": 0,
+          "description": "Clockwise rotation in degrees.",
+          "format": "uint16",
+          "maximum": 65535,
+          "minimum": 0,
+          "type": "integer"
+        },
+        "x": {
+          "description": "Anchor position in squares (`3.5` is a square centre).",
+          "format": "float",
+          "type": "number"
+        },
+        "y": {
+          "description": "Anchor position in squares.",
+          "format": "float",
+          "type": "number"
+        }
+      },
+      "required": [
+        "asset",
+        "x",
+        "y"
+      ],
+      "type": "object"
+    },
+    "RoomPurposeDto": {
+      "description": "The purpose of a room, which decided its dressing.",
+      "oneOf": [
+        {
+          "const": "entrance",
+          "description": "Where the stairs up arrive.",
+          "type": "string"
+        },
+        {
+          "const": "crypt",
+          "description": "Tombs, coffins and bones.",
+          "type": "string"
+        },
+        {
+          "const": "barracks",
+          "description": "Beds, racks and a table.",
+          "type": "string"
+        },
+        {
+          "const": "storage",
+          "description": "Barrels, crates and sacks.",
+          "type": "string"
+        },
+        {
+          "const": "shrine",
+          "description": "An altar, candles and statues.",
+          "type": "string"
+        },
+        {
+          "const": "prison",
+          "description": "Locked cells and cages.",
+          "type": "string"
+        },
+        {
+          "const": "treasure",
+          "description": "Treasure chests behind a locked door.",
+          "type": "string"
+        },
+        {
+          "const": "hall",
+          "description": "A plain hall with a table and a brazier.",
+          "type": "string"
+        },
+        {
+          "const": "cavern",
+          "description": "A natural cavern (caves only).",
+          "type": "string"
+        }
+      ]
+    },
+    "RulesCellDto": {
+      "additionalProperties": false,
+      "description": "One square's rules; an absent field means \"no opinion\".",
+      "properties": {
+        "blocks_movement": {
+          "description": "Impassable.",
+          "type": [
+            "boolean",
+            "null"
+          ]
+        },
+        "blocks_sight": {
+          "description": "Heavily obscured.",
+          "type": [
+            "boolean",
+            "null"
+          ]
+        },
+        "cover": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/CoverLevelDto"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "description": "Cover the square's contents grant."
+        },
+        "deck": {
+          "description": "A walkable deck (bridge, jetty) over the square.",
+          "type": [
+            "boolean",
+            "null"
+          ]
+        },
+        "difficult": {
+          "description": "Difficult terrain.",
+          "type": [
+            "boolean",
+            "null"
+          ]
+        },
+        "ext": {
+          "additionalProperties": true,
+          "description": "Layer extras: `feature`, `road_class`, `deck_elevation_ft` (ways),\n`crop`, `field`, `furrow` (fields), `building` (town).",
+          "type": [
+            "object",
+            "null"
+          ]
+        },
+        "lightly_obscured": {
+          "description": "Lightly obscured.",
+          "type": [
+            "boolean",
+            "null"
+          ]
+        },
+        "water_depth_ft": {
+          "description": "Water depth in feet: under 5 wades, 5 or more swims (I15).",
+          "format": "uint8",
+          "maximum": 255,
+          "minimum": 0,
+          "type": [
+            "integer",
+            "null"
+          ]
+        }
+      },
+      "type": "object"
+    },
+    "RulesSidecarDto": {
+      "additionalProperties": false,
+      "description": "The per-square rules sidecar, format 2.",
+      "properties": {
+        "edges": {
+          "default": [],
+          "description": "Low edge features that are not wall-kit walls (always present on\nthe wire; the domain JSON omits an empty list).",
+          "items": {
+            "$ref": "#/$defs/EdgeRuleDto"
+          },
+          "type": "array"
+        },
+        "format_version": {
+          "description": "Always 2.",
+          "format": "uint32",
+          "minimum": 0,
+          "type": "integer"
+        },
+        "height": {
+          "description": "Height in squares.",
+          "format": "uint32",
+          "minimum": 0,
+          "type": "integer"
+        },
+        "squares": {
+          "description": "Row-major cells.",
+          "items": {
+            "$ref": "#/$defs/RulesCellDto"
+          },
+          "type": "array"
+        },
+        "width": {
+          "description": "Width in squares (the layout's).",
+          "format": "uint32",
+          "minimum": 0,
+          "type": "integer"
+        }
+      },
+      "required": [
+        "format_version",
+        "width",
+        "height",
+        "squares"
+      ],
+      "type": "object"
+    },
+    "SquareDto": {
+      "additionalProperties": false,
+      "description": "One 5-ft square.",
+      "properties": {
+        "dryness": {
+          "description": "Climate dryness, `0` (lush) to `255` (parched steppe); omitted when\nzero. The compositor tints vegetated ground toward dry grass by it.",
+          "format": "uint8",
+          "maximum": 255,
+          "minimum": 0,
+          "type": "integer"
+        },
+        "elevation_ft": {
+          "default": 0,
+          "description": "Elevation in feet.",
+          "format": "int16",
+          "maximum": 32767,
+          "minimum": -32768,
+          "type": "integer"
+        },
+        "ground": {
+          "description": "Ground type key, matching a texture's `ground` field.",
+          "type": "string"
+        },
+        "water_depth_ft": {
+          "default": 0,
+          "description": "Water depth in feet; zero is dry land.",
+          "format": "uint8",
+          "maximum": 255,
+          "minimum": 0,
+          "type": "integer"
+        }
+      },
+      "required": [
+        "ground"
+      ],
+      "type": "object"
+    },
+    "TacticalLayoutDto": {
+      "additionalProperties": false,
+      "description": "Mirror of `arda_tactical::TacticalLayout`: a W × H battle map.",
+      "properties": {
+        "height": {
+          "description": "Height in squares.",
+          "format": "uint32",
+          "minimum": 0,
+          "type": "integer"
+        },
+        "lights": {
+          "default": [],
+          "description": "Free-standing light sources.",
+          "items": {
+            "$ref": "#/$defs/LightSourceDto"
+          },
+          "type": "array"
+        },
+        "name": {
+          "description": "Layout name.",
+          "type": "string"
+        },
+        "origin": {
+          "description": "World square of square `(0, 0)` (I10); absent for layouts with no\nworld position.",
+          "items": {
+            "format": "int64",
+            "type": "integer"
+          },
+          "maxItems": 2,
+          "minItems": 2,
+          "type": [
+            "array",
+            "null"
+          ]
+        },
+        "placements": {
+          "default": [],
+          "description": "Props and vegetation.",
+          "items": {
+            "$ref": "#/$defs/PlacementDto"
+          },
+          "type": "array"
+        },
+        "squares": {
+          "description": "Row-major squares, `width × height` of them.",
+          "items": {
+            "$ref": "#/$defs/SquareDto"
+          },
+          "type": "array"
+        },
+        "walls": {
+          "default": [],
+          "description": "Wall, door, window and gate segments on square edges.",
+          "items": {
+            "$ref": "#/$defs/WallSegmentDto"
+          },
+          "type": "array"
+        },
+        "width": {
+          "description": "Width in squares.",
+          "format": "uint32",
+          "minimum": 0,
+          "type": "integer"
+        }
+      },
+      "required": [
+        "name",
+        "width",
+        "height",
+        "squares"
+      ],
+      "type": "object"
+    },
+    "WallRoleDto": {
+      "description": "Wall-kit piece roles; layouts use the edge roles `run`, `door`, `window`, `gate`.",
+      "oneOf": [
+        {
+          "const": "run",
+          "description": "Plain wall along one edge.",
+          "type": "string"
+        },
+        {
+          "const": "door",
+          "description": "Doorway along one edge.",
+          "type": "string"
+        },
+        {
+          "const": "window",
+          "description": "Wall with a window along one edge.",
+          "type": "string"
+        },
+        {
+          "const": "gate",
+          "description": "Wide gate along one edge.",
+          "type": "string"
+        },
+        {
+          "const": "corner",
+          "description": "Joint with arms east and south.",
+          "type": "string"
+        },
+        {
+          "const": "tee",
+          "description": "Joint with arms east, south and west.",
+          "type": "string"
+        },
+        {
+          "const": "cross",
+          "description": "Joint with arms in all four directions.",
+          "type": "string"
+        },
+        {
+          "const": "end",
+          "description": "Joint with one arm, east.",
+          "type": "string"
+        },
+        {
+          "const": "post",
+          "description": "Optional joint on a straight run.",
+          "type": "string"
+        }
+      ]
+    },
+    "WallSegmentDto": {
+      "additionalProperties": false,
+      "description": "A wall-kit edge feature.",
+      "properties": {
+        "axis": {
+          "$ref": "#/$defs/EdgeAxisDto",
+          "description": "Which edge."
+        },
+        "kind": {
+          "$ref": "#/$defs/WallRoleDto",
+          "description": "Edge role."
+        },
+        "kit": {
+          "description": "Wall kit name.",
+          "type": "string"
+        },
+        "tags": {
+          "description": "Free edge tags: `locked` and `secret` on doors. Absent when empty.",
+          "items": {
+            "type": "string"
+          },
+          "type": [
+            "array",
+            "null"
+          ]
+        },
+        "x": {
+          "description": "Square column.",
+          "format": "uint32",
+          "minimum": 0,
+          "type": "integer"
+        },
+        "y": {
+          "description": "Square row.",
+          "format": "uint32",
+          "minimum": 0,
+          "type": "integer"
+        }
+      },
+      "required": [
+        "x",
+        "y",
+        "axis",
+        "kind",
+        "kit"
+      ],
+      "type": "object"
+    }
+  },
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "additionalProperties": false,
+  "description": "`GET /v1/tactical/dungeon`: a generated level.",
+  "properties": {
+    "doors": {
+      "description": "Every door, including locked and secret ones.",
+      "items": {
+        "$ref": "#/$defs/DungeonDoorDto"
+      },
+      "type": "array"
+    },
+    "exits": {
+      "description": "Stairs and mouths.",
+      "items": {
+        "$ref": "#/$defs/DungeonExitDto"
+      },
+      "type": "array"
+    },
+    "layout": {
+      "$ref": "#/$defs/TacticalLayoutDto",
+      "description": "The battle map; `POST /render` takes it as it is."
+    },
+    "params": {
+      "$ref": "#/$defs/DungeonParamsDto",
+      "description": "The parameters it was made from."
+    },
+    "rooms": {
+      "description": "Rooms (one `cavern` spanning the map for caves).",
+      "items": {
+        "$ref": "#/$defs/DungeonRoomDto"
+      },
+      "type": "array"
+    },
+    "rules": {
+      "$ref": "#/$defs/RulesSidecarDto",
+      "description": "Per-square rules: rock impassable and opaque, scree difficult."
+    }
+  },
+  "required": [
+    "params",
+    "layout",
+    "rules",
+    "rooms",
+    "doors",
+    "exits"
+  ],
+  "title": "DungeonDto",
+  "type": "object"
+}

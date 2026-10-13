@@ -1,0 +1,577 @@
+{
+  "$defs": {
+    "Ability": {
+      "description": "One of the six abilities, in SRD order.",
+      "oneOf": [
+        {
+          "const": "STR",
+          "description": "Strength.",
+          "type": "string"
+        },
+        {
+          "const": "DEX",
+          "description": "Dexterity.",
+          "type": "string"
+        },
+        {
+          "const": "CON",
+          "description": "Constitution.",
+          "type": "string"
+        },
+        {
+          "const": "INT",
+          "description": "Intelligence.",
+          "type": "string"
+        },
+        {
+          "const": "WIS",
+          "description": "Wisdom.",
+          "type": "string"
+        },
+        {
+          "const": "CHA",
+          "description": "Charisma.",
+          "type": "string"
+        }
+      ]
+    },
+    "Attack": {
+      "additionalProperties": false,
+      "description": "One attack line.",
+      "properties": {
+        "average": {
+          "description": "Average damage.",
+          "format": "int16",
+          "maximum": 32767,
+          "minimum": -32768,
+          "type": "integer"
+        },
+        "damage": {
+          "description": "Damage dice.",
+          "type": "string"
+        },
+        "damage_type": {
+          "description": "Damage type.",
+          "type": "string"
+        },
+        "extra": {
+          "description": "Extra effects.",
+          "items": {
+            "type": "string"
+          },
+          "type": "array"
+        },
+        "kind": {
+          "$ref": "#/$defs/AttackKind",
+          "description": "Melee or ranged."
+        },
+        "name": {
+          "description": "Name.",
+          "type": "string"
+        },
+        "range": {
+          "description": "Reach or range.",
+          "type": "string"
+        },
+        "to_hit": {
+          "description": "Attack bonus.",
+          "format": "int8",
+          "maximum": 127,
+          "minimum": -128,
+          "type": "integer"
+        }
+      },
+      "required": [
+        "name",
+        "kind",
+        "to_hit",
+        "damage",
+        "average",
+        "damage_type",
+        "range",
+        "extra"
+      ],
+      "type": "object"
+    },
+    "AttackKind": {
+      "description": "Melee or ranged.",
+      "oneOf": [
+        {
+          "const": "melee",
+          "description": "Melee.",
+          "type": "string"
+        },
+        {
+          "const": "ranged",
+          "description": "Ranged.",
+          "type": "string"
+        }
+      ]
+    },
+    "Background": {
+      "additionalProperties": false,
+      "description": "Flavour background of a class build.",
+      "properties": {
+        "name": {
+          "description": "Name.",
+          "type": "string"
+        },
+        "skills": {
+          "description": "Granted skills.",
+          "items": {
+            "type": "string"
+          },
+          "type": "array"
+        },
+        "text": {
+          "description": "Description.",
+          "type": "string"
+        }
+      },
+      "required": [
+        "name",
+        "text",
+        "skills"
+      ],
+      "type": "object"
+    },
+    "Coins": {
+      "additionalProperties": false,
+      "description": "Coins carried.",
+      "properties": {
+        "cp": {
+          "description": "Copper.",
+          "format": "uint32",
+          "minimum": 0,
+          "type": "integer"
+        },
+        "gp": {
+          "description": "Gold.",
+          "format": "uint32",
+          "minimum": 0,
+          "type": "integer"
+        },
+        "sp": {
+          "description": "Silver.",
+          "format": "uint32",
+          "minimum": 0,
+          "type": "integer"
+        }
+      },
+      "required": [
+        "gp",
+        "sp",
+        "cp"
+      ],
+      "type": "object"
+    },
+    "Item": {
+      "additionalProperties": false,
+      "description": "An item and how many.",
+      "properties": {
+        "name": {
+          "description": "SRD item name.",
+          "type": "string"
+        },
+        "quantity": {
+          "description": "Quantity.",
+          "format": "uint16",
+          "maximum": 65535,
+          "minimum": 0,
+          "type": "integer"
+        }
+      },
+      "required": [
+        "name",
+        "quantity"
+      ],
+      "type": "object"
+    },
+    "SaveBonus": {
+      "additionalProperties": false,
+      "description": "A saving throw.",
+      "properties": {
+        "ability": {
+          "$ref": "#/$defs/Ability",
+          "description": "Ability."
+        },
+        "bonus": {
+          "description": "Total bonus.",
+          "format": "int8",
+          "maximum": 127,
+          "minimum": -128,
+          "type": "integer"
+        },
+        "proficient": {
+          "description": "Whether proficiency applies.",
+          "type": "boolean"
+        }
+      },
+      "required": [
+        "ability",
+        "bonus",
+        "proficient"
+      ],
+      "type": "object"
+    },
+    "SheetKind": {
+      "description": "What the sheet is built from.",
+      "oneOf": [
+        {
+          "description": "An SRD NPC stat block.",
+          "properties": {
+            "challenge_rating": {
+              "description": "Challenge rating.",
+              "type": "string"
+            },
+            "name": {
+              "description": "Stat block name.",
+              "type": "string"
+            },
+            "type": {
+              "const": "stat_block",
+              "type": "string"
+            },
+            "xp": {
+              "description": "Experience points.",
+              "format": "uint32",
+              "minimum": 0,
+              "type": "integer"
+            }
+          },
+          "required": [
+            "type",
+            "name",
+            "challenge_rating",
+            "xp"
+          ],
+          "type": "object"
+        },
+        {
+          "description": "A class build.",
+          "properties": {
+            "background": {
+              "$ref": "#/$defs/Background",
+              "description": "Flavour background."
+            },
+            "class": {
+              "description": "Class name.",
+              "type": "string"
+            },
+            "level": {
+              "description": "Class level.",
+              "format": "uint8",
+              "maximum": 255,
+              "minimum": 0,
+              "type": "integer"
+            },
+            "subclass": {
+              "description": "SRD subclass.",
+              "type": [
+                "string",
+                "null"
+              ]
+            },
+            "type": {
+              "const": "class",
+              "type": "string"
+            }
+          },
+          "required": [
+            "type",
+            "class",
+            "level",
+            "background"
+          ],
+          "type": "object"
+        }
+      ]
+    },
+    "SkillBonus": {
+      "additionalProperties": false,
+      "description": "A proficient skill.",
+      "properties": {
+        "ability": {
+          "$ref": "#/$defs/Ability",
+          "description": "Ability used."
+        },
+        "bonus": {
+          "description": "Total bonus.",
+          "format": "int8",
+          "maximum": 127,
+          "minimum": -128,
+          "type": "integer"
+        },
+        "expertise": {
+          "description": "Whether proficiency is doubled.",
+          "type": "boolean"
+        },
+        "name": {
+          "description": "SRD skill name.",
+          "type": "string"
+        }
+      },
+      "required": [
+        "name",
+        "ability",
+        "bonus",
+        "expertise"
+      ],
+      "type": "object"
+    },
+    "SpellRef": {
+      "additionalProperties": false,
+      "description": "A spell known or prepared.",
+      "properties": {
+        "level": {
+          "description": "Spell level, 0 for cantrips.",
+          "format": "uint8",
+          "maximum": 255,
+          "minimum": 0,
+          "type": "integer"
+        },
+        "name": {
+          "description": "SRD spell name.",
+          "type": "string"
+        }
+      },
+      "required": [
+        "name",
+        "level"
+      ],
+      "type": "object"
+    },
+    "Spellcasting": {
+      "additionalProperties": false,
+      "description": "Spellcasting block.",
+      "properties": {
+        "ability": {
+          "$ref": "#/$defs/Ability",
+          "description": "Casting ability."
+        },
+        "attack_bonus": {
+          "description": "Spell attack bonus.",
+          "format": "int8",
+          "maximum": 127,
+          "minimum": -128,
+          "type": "integer"
+        },
+        "pact_magic": {
+          "description": "Pact Magic slots.",
+          "type": "boolean"
+        },
+        "save_dc": {
+          "description": "Spell save DC.",
+          "format": "uint8",
+          "maximum": 255,
+          "minimum": 0,
+          "type": "integer"
+        },
+        "slots": {
+          "description": "Slots per spell level (index 0 = 1st level).",
+          "items": {
+            "format": "uint8",
+            "maximum": 255,
+            "minimum": 0,
+            "type": "integer"
+          },
+          "type": "array"
+        },
+        "spells": {
+          "description": "Cantrips and spells.",
+          "items": {
+            "$ref": "#/$defs/SpellRef"
+          },
+          "type": "array"
+        }
+      },
+      "required": [
+        "ability",
+        "save_dc",
+        "attack_bonus",
+        "slots",
+        "pact_magic",
+        "spells"
+      ],
+      "type": "object"
+    }
+  },
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "additionalProperties": false,
+  "description": "A full SRD 5.1 sheet.",
+  "properties": {
+    "abilities": {
+      "description": "STR, DEX, CON, INT, WIS, CHA.",
+      "items": {
+        "format": "uint8",
+        "maximum": 255,
+        "minimum": 0,
+        "type": "integer"
+      },
+      "maxItems": 6,
+      "minItems": 6,
+      "type": "array"
+    },
+    "armor": {
+      "description": "Worn armour and shield.",
+      "items": {
+        "type": "string"
+      },
+      "type": "array"
+    },
+    "armor_class": {
+      "description": "Armour class.",
+      "format": "uint8",
+      "maximum": 255,
+      "minimum": 0,
+      "type": "integer"
+    },
+    "attacks": {
+      "description": "Attacks.",
+      "items": {
+        "$ref": "#/$defs/Attack"
+      },
+      "type": "array"
+    },
+    "coins": {
+      "$ref": "#/$defs/Coins",
+      "description": "Coins."
+    },
+    "damage_resistances": {
+      "description": "Damage resistances.",
+      "items": {
+        "type": "string"
+      },
+      "type": "array"
+    },
+    "equipment": {
+      "description": "Equipment.",
+      "items": {
+        "$ref": "#/$defs/Item"
+      },
+      "type": "array"
+    },
+    "features": {
+      "description": "Features by name.",
+      "items": {
+        "type": "string"
+      },
+      "type": "array"
+    },
+    "hit_dice": {
+      "description": "Hit dice.",
+      "type": "string"
+    },
+    "hit_points": {
+      "description": "Hit points.",
+      "format": "uint16",
+      "maximum": 65535,
+      "minimum": 0,
+      "type": "integer"
+    },
+    "kind": {
+      "$ref": "#/$defs/SheetKind",
+      "description": "Stat block or class build."
+    },
+    "languages": {
+      "description": "Languages.",
+      "items": {
+        "type": "string"
+      },
+      "type": "array"
+    },
+    "modifiers": {
+      "description": "Their modifiers.",
+      "items": {
+        "format": "int8",
+        "maximum": 127,
+        "minimum": -128,
+        "type": "integer"
+      },
+      "maxItems": 6,
+      "minItems": 6,
+      "type": "array"
+    },
+    "passive_perception": {
+      "description": "Passive Wisdom (Perception).",
+      "format": "uint8",
+      "maximum": 255,
+      "minimum": 0,
+      "type": "integer"
+    },
+    "proficiency_bonus": {
+      "description": "Proficiency bonus.",
+      "format": "int8",
+      "maximum": 127,
+      "minimum": -128,
+      "type": "integer"
+    },
+    "saves": {
+      "description": "All six saving throws.",
+      "items": {
+        "$ref": "#/$defs/SaveBonus"
+      },
+      "type": "array"
+    },
+    "senses": {
+      "description": "Senses.",
+      "items": {
+        "type": "string"
+      },
+      "type": "array"
+    },
+    "size": {
+      "description": "Size category.",
+      "type": "string"
+    },
+    "skills": {
+      "description": "Proficient skills.",
+      "items": {
+        "$ref": "#/$defs/SkillBonus"
+      },
+      "type": "array"
+    },
+    "speed": {
+      "description": "Walking speed, feet.",
+      "format": "uint8",
+      "maximum": 255,
+      "minimum": 0,
+      "type": "integer"
+    },
+    "spellcasting": {
+      "anyOf": [
+        {
+          "$ref": "#/$defs/Spellcasting"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "description": "Spellcasting, for casters."
+    }
+  },
+  "required": [
+    "kind",
+    "size",
+    "abilities",
+    "modifiers",
+    "proficiency_bonus",
+    "saves",
+    "skills",
+    "hit_points",
+    "hit_dice",
+    "armor_class",
+    "armor",
+    "speed",
+    "senses",
+    "passive_perception",
+    "languages",
+    "damage_resistances",
+    "attacks",
+    "features",
+    "equipment",
+    "coins"
+  ],
+  "title": "Sheet",
+  "type": "object"
+}

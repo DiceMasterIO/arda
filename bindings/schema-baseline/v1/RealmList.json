@@ -1,0 +1,140 @@
+{
+  "$defs": {
+    "RealmRuler": {
+      "description": "The present ruler of a realm in a [`RealmSummary`].",
+      "properties": {
+        "name": {
+          "description": "Regnal name (\"Aldric the Wise\"), else the given name.",
+          "type": "string"
+        },
+        "title": {
+          "description": "Title (\"Duke\", \"Queen\").",
+          "type": "string"
+        }
+      },
+      "required": [
+        "name",
+        "title"
+      ],
+      "type": "object"
+    },
+    "RealmSummary": {
+      "description": "One entry of `GET /v1/realms`: the `realms.json` record without\n`borders`, plus the politics headline when the society layer exists.",
+      "properties": {
+        "culture": {
+          "description": "Culture of the seat.",
+          "type": "string"
+        },
+        "government_label": {
+          "description": "Readable government; absent before `arda society build`.",
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "id": {
+          "description": "Realm id, a decimal string.",
+          "type": "string"
+        },
+        "land_cells": {
+          "description": "Land cells (hectares).",
+          "format": "uint64",
+          "minimum": 0,
+          "type": "integer"
+        },
+        "name": {
+          "description": "Name.",
+          "type": "string"
+        },
+        "name_gloss": {
+          "description": "English gloss of the name.",
+          "type": "string"
+        },
+        "neighbours": {
+          "description": "Realms sharing a land border, decimal strings.",
+          "items": {
+            "type": "string"
+          },
+          "type": "array"
+        },
+        "population": {
+          "description": "Total population of members.",
+          "format": "uint64",
+          "minimum": 0,
+          "type": "integer"
+        },
+        "rank": {
+          "description": "`kingdom`, `duchy` or `county`; absent before `arda society build`.",
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "ruler": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/RealmRuler"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "description": "Present ruler; absent before `arda society build`."
+        },
+        "seat": {
+          "description": "Seat settlement id, a decimal string.",
+          "type": "string"
+        },
+        "settlements": {
+          "description": "Member settlement ids, decimal strings.",
+          "items": {
+            "type": "string"
+          },
+          "type": "array"
+        },
+        "style": {
+          "description": "Formal style (\"the Duchy of Veld\"); absent before `arda society build`.",
+          "type": [
+            "string",
+            "null"
+          ]
+        }
+      },
+      "required": [
+        "id",
+        "name",
+        "name_gloss",
+        "seat",
+        "culture",
+        "settlements",
+        "population",
+        "land_cells",
+        "neighbours"
+      ],
+      "type": "object"
+    }
+  },
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "description": "`GET /v1/realms`.",
+  "properties": {
+    "format_version": {
+      "description": "Version of this body (1).",
+      "format": "uint32",
+      "minimum": 0,
+      "type": "integer"
+    },
+    "realms": {
+      "description": "Realms in id order.",
+      "items": {
+        "$ref": "#/$defs/RealmSummary"
+      },
+      "type": "array"
+    }
+  },
+  "required": [
+    "format_version",
+    "realms"
+  ],
+  "title": "RealmList",
+  "type": "object"
+}

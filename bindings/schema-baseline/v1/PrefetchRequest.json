@@ -1,0 +1,53 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "additionalProperties": false,
+  "description": "Body of `POST /v1/tactical/prefetch` (TS `PrefetchRequest`).",
+  "properties": {
+    "demo_overlays": {
+      "default": null,
+      "description": "Warm the demo-overlay blocks instead (`?demo_overlays=1`).",
+      "type": [
+        "boolean",
+        "null"
+      ]
+    },
+    "gx": {
+      "description": "Centre cell column.",
+      "format": "uint32",
+      "minimum": 0,
+      "type": "integer"
+    },
+    "gy": {
+      "description": "Centre cell row.",
+      "format": "uint32",
+      "minimum": 0,
+      "type": "integer"
+    },
+    "ppsq": {
+      "default": null,
+      "description": "Pixels per square of the images to warm (the cell route's options;\ndefault 128).",
+      "format": "uint32",
+      "minimum": 0,
+      "type": [
+        "integer",
+        "null"
+      ]
+    },
+    "radius": {
+      "default": null,
+      "description": "Rings of neighbours to warm, 1–2 (default 1: the 8 neighbours).",
+      "format": "uint32",
+      "minimum": 0,
+      "type": [
+        "integer",
+        "null"
+      ]
+    }
+  },
+  "required": [
+    "gx",
+    "gy"
+  ],
+  "title": "PrefetchRequest",
+  "type": "object"
+}

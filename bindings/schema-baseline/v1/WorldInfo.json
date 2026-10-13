@@ -1,0 +1,348 @@
+{
+  "$defs": {
+    "FineTerrainDto": {
+      "description": "Canonical fine terrain descriptor.",
+      "properties": {
+        "recipe_version": {
+          "description": "Recipe that produced `terrain/fine.bin`.",
+          "format": "uint16",
+          "maximum": 65535,
+          "minimum": 0,
+          "type": "integer"
+        },
+        "spacing_m": {
+          "description": "Lattice spacing, metres (39.0625).",
+          "format": "double",
+          "type": "number"
+        }
+      },
+      "required": [
+        "recipe_version",
+        "spacing_m"
+      ],
+      "type": "object"
+    },
+    "LatitudeDto": {
+      "description": "Latitude belt the continent sits in, degrees north.",
+      "properties": {
+        "north_deg": {
+          "description": "Northern edge.",
+          "format": "int16",
+          "maximum": 32767,
+          "minimum": -32768,
+          "type": "integer"
+        },
+        "south_deg": {
+          "description": "Southern edge.",
+          "format": "int16",
+          "maximum": 32767,
+          "minimum": -32768,
+          "type": "integer"
+        }
+      },
+      "required": [
+        "south_deg",
+        "north_deg"
+      ],
+      "type": "object"
+    },
+    "SizeKmDto": {
+      "description": "Continent extent in kilometres (manifest `config.size_km`).",
+      "properties": {
+        "height": {
+          "description": "North–south extent.",
+          "format": "uint32",
+          "minimum": 0,
+          "type": "integer"
+        },
+        "width": {
+          "description": "East–west extent.",
+          "format": "uint32",
+          "minimum": 0,
+          "type": "integer"
+        }
+      },
+      "required": [
+        "width",
+        "height"
+      ],
+      "type": "object"
+    },
+    "TilePyramidDto": {
+      "description": "Slippy overview tile pyramid geometry.",
+      "properties": {
+        "base_px": {
+          "description": "Edge of the square pyramid at `max_zoom`, pixels (`tile_px << max_zoom`).",
+          "format": "uint32",
+          "minimum": 0,
+          "type": "integer"
+        },
+        "image_height_px": {
+          "description": "Overview image height inside the base square, pixels.",
+          "format": "uint32",
+          "minimum": 0,
+          "type": "integer"
+        },
+        "image_width_px": {
+          "description": "Overview image width inside the base square, pixels.",
+          "format": "uint32",
+          "minimum": 0,
+          "type": "integer"
+        },
+        "max_zoom": {
+          "description": "Deepest zoom; zoom 0 is the whole world in one tile.",
+          "format": "uint32",
+          "minimum": 0,
+          "type": "integer"
+        },
+        "relief_max_zoom": {
+          "description": "Deepest zoom of `/v1/tiles/relief` (levels `max_zoom + 1..=` this);\nequal to `max_zoom` when the world has no relief levels.",
+          "format": "uint32",
+          "minimum": 0,
+          "type": "integer"
+        },
+        "tile_px": {
+          "description": "Tile edge, pixels.",
+          "format": "uint32",
+          "minimum": 0,
+          "type": "integer"
+        }
+      },
+      "required": [
+        "tile_px",
+        "max_zoom",
+        "base_px",
+        "image_width_px",
+        "image_height_px",
+        "relief_max_zoom"
+      ],
+      "type": "object"
+    },
+    "VersionsDto": {
+      "description": "The current version of every family (`GET /v1/world` `versions`).\n\nA family's version bumps when a body it covers removes or renames a\nfield, changes a field's type or meaning, or gains a value in a closed\nenum; additions bump nothing (`docs/capstone/versioning.md`).",
+      "properties": {
+        "bake_format": {
+          "description": "Bake job bodies (`BakeRequest`, `BakeAccepted`, `BakeStatus`).",
+          "format": "uint32",
+          "minimum": 0,
+          "type": "integer"
+        },
+        "columnar_layout_version": {
+          "description": "Binary `ARDACOLS` layout of `?format=bin` area cells.",
+          "format": "uint32",
+          "minimum": 0,
+          "type": "integer"
+        },
+        "contract_version": {
+          "description": "Cell contract (`CellSample`, `PointSample`, area bodies, `Health`,\n`WorldInfo`).",
+          "format": "uint32",
+          "minimum": 0,
+          "type": "integer"
+        },
+        "gazetteer_format": {
+          "description": "`Gazetteer.format_version`.",
+          "format": "uint32",
+          "minimum": 0,
+          "type": "integer"
+        },
+        "layout_schema": {
+          "description": "`TacticalLayout` (`TacticalLayoutDto`).",
+          "format": "uint32",
+          "minimum": 0,
+          "type": "integer"
+        },
+        "library_catalogue_format": {
+          "description": "Tactical library `catalog.json` `format_version` this server loads.",
+          "format": "uint32",
+          "minimum": 0,
+          "type": "integer"
+        },
+        "npc_format": {
+          "description": "`Npc` and the bodies built from it (`Sheet`, `Population`,\n`GenerateNpcRequest`, `NpcDemo`).",
+          "format": "uint32",
+          "minimum": 0,
+          "type": "integer"
+        },
+        "npc_page_format": {
+          "description": "`NpcPage.format_version`.",
+          "format": "uint32",
+          "minimum": 0,
+          "type": "integer"
+        },
+        "realm_format": {
+          "description": "Realm bodies (`RealmList.format_version`).",
+          "format": "uint32",
+          "minimum": 0,
+          "type": "integer"
+        },
+        "rules_sidecar_format": {
+          "description": "`arda-scene` rules sidecar (`RulesSidecarDto.format_version`).",
+          "format": "uint32",
+          "minimum": 0,
+          "type": "integer"
+        },
+        "scene_format": {
+          "description": "`arda-scene` scene (`SceneDto.format_version`).",
+          "format": "uint32",
+          "minimum": 0,
+          "type": "integer"
+        },
+        "schema_index_format": {
+          "description": "`SchemaIndex.format_version`.",
+          "format": "uint32",
+          "minimum": 0,
+          "type": "integer"
+        },
+        "settlement_format": {
+          "description": "Settlement bodies (`SettlementList.format_version`).",
+          "format": "uint32",
+          "minimum": 0,
+          "type": "integer"
+        },
+        "sheet_mapping_format": {
+          "description": "`--sheet-mapping` file `version` this server reads.",
+          "format": "uint32",
+          "minimum": 0,
+          "type": "integer"
+        },
+        "tactical_format": {
+          "description": "Tactical envelopes: `TacticalBlockDto`, `TacticalScene`,\n`DungeonDto`, `TacticalLibraryDto`, prefetch and layout listings.",
+          "format": "uint32",
+          "minimum": 0,
+          "type": "integer"
+        }
+      },
+      "required": [
+        "contract_version",
+        "tactical_format",
+        "layout_schema",
+        "scene_format",
+        "rules_sidecar_format",
+        "bake_format",
+        "npc_format",
+        "npc_page_format",
+        "settlement_format",
+        "realm_format",
+        "gazetteer_format",
+        "schema_index_format",
+        "columnar_layout_version",
+        "library_catalogue_format",
+        "sheet_mapping_format"
+      ],
+      "type": "object"
+    }
+  },
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "description": "`/v1/world`: identity, size and grids of the served world.",
+  "properties": {
+    "api_version": {
+      "description": "HTTP API version.",
+      "type": "string"
+    },
+    "arda_version": {
+      "description": "Generator version that wrote the world (the manifest's\n`arda_version`). Tactical, NPC and image bodies come from the serving\nbuild instead: see `server_version`.",
+      "type": "string"
+    },
+    "area_cells": {
+      "description": "Cells along an area edge (512).",
+      "format": "uint32",
+      "minimum": 0,
+      "type": "integer"
+    },
+    "areas_high": {
+      "description": "Area tile rows.",
+      "format": "int32",
+      "type": "integer"
+    },
+    "areas_wide": {
+      "description": "Area tiles per row.",
+      "format": "int32",
+      "type": "integer"
+    },
+    "cell_size_m": {
+      "description": "Cell spacing, metres (100).",
+      "format": "uint32",
+      "minimum": 0,
+      "type": "integer"
+    },
+    "cells_high": {
+      "description": "Global cell rows (`areas_high × 512`).",
+      "format": "uint32",
+      "minimum": 0,
+      "type": "integer"
+    },
+    "cells_wide": {
+      "description": "Global cell columns (`areas_wide × 512`).",
+      "format": "uint32",
+      "minimum": 0,
+      "type": "integer"
+    },
+    "contract_version": {
+      "description": "Cell contract version.",
+      "format": "uint32",
+      "minimum": 0,
+      "type": "integer"
+    },
+    "fine_terrain": {
+      "anyOf": [
+        {
+          "$ref": "#/$defs/FineTerrainDto"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "description": "Fine terrain, when the world has it."
+    },
+    "format_version": {
+      "description": "The world's on-disk format major (`world.json` `format_version`), not\na body version; the server loads only its own major.",
+      "format": "uint32",
+      "minimum": 0,
+      "type": "integer"
+    },
+    "latitude": {
+      "$ref": "#/$defs/LatitudeDto",
+      "description": "Latitude belt."
+    },
+    "seed": {
+      "description": "World seed as a decimal string (u64 does not fit a JS number).",
+      "type": "string"
+    },
+    "server_version": {
+      "description": "Version of the `arda-server` build serving the world (its Cargo\npackage version, e.g. `1.0.0`); tactical, NPC and image bodies come\nfrom this build.",
+      "type": "string"
+    },
+    "size_km": {
+      "$ref": "#/$defs/SizeKmDto",
+      "description": "Nominal continent extent."
+    },
+    "tiles": {
+      "$ref": "#/$defs/TilePyramidDto",
+      "description": "Overview tile pyramid."
+    },
+    "versions": {
+      "$ref": "#/$defs/VersionsDto",
+      "description": "Current version of every family (`docs/capstone/versioning.md`)."
+    }
+  },
+  "required": [
+    "contract_version",
+    "api_version",
+    "seed",
+    "arda_version",
+    "format_version",
+    "size_km",
+    "latitude",
+    "areas_wide",
+    "areas_high",
+    "area_cells",
+    "cell_size_m",
+    "cells_wide",
+    "cells_high",
+    "tiles",
+    "server_version",
+    "versions"
+  ],
+  "title": "WorldInfo",
+  "type": "object"
+}
