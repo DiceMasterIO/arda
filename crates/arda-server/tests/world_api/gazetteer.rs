@@ -25,7 +25,10 @@ fn items(v: &Value) -> &Vec<Value> {
 }
 
 fn kinds(v: &Value) -> Vec<&str> {
-    items(v).iter().map(|f| f["kind"].as_str().unwrap()).collect()
+    items(v)
+        .iter()
+        .map(|f| f["kind"].as_str().unwrap())
+        .collect()
 }
 
 #[tokio::test]
@@ -55,7 +58,9 @@ async fn lists_features_then_settlements_with_the_files_numbers() {
 async fn filters_by_kind_rank_and_box() {
     let seas = ok("/v1/gazetteer?kind=sea,range").await;
     assert!(!items(&seas).is_empty());
-    assert!(kinds(&seas).iter().all(|k| matches!(*k, "sea" | "mountain")));
+    assert!(kinds(&seas)
+        .iter()
+        .all(|k| matches!(*k, "sea" | "mountain")));
     let top = ok("/v1/gazetteer?min_rank=2").await;
     assert!(items(&top).iter().all(|f| f["rank"].as_u64().unwrap() <= 2));
     let kinds_top = kinds(&top);
@@ -69,9 +74,20 @@ async fn filters_by_kind_rank_and_box() {
         let e = f.get("extent_m").map_or_else(
             || {
                 let a = &f["at_m"];
-                vec![a[0].as_i64().unwrap(), a[1].as_i64().unwrap(), a[0].as_i64().unwrap(), a[1].as_i64().unwrap()]
+                vec![
+                    a[0].as_i64().unwrap(),
+                    a[1].as_i64().unwrap(),
+                    a[0].as_i64().unwrap(),
+                    a[1].as_i64().unwrap(),
+                ]
             },
-            |e| e.as_array().unwrap().iter().map(|v| v.as_i64().unwrap()).collect(),
+            |e| {
+                e.as_array()
+                    .unwrap()
+                    .iter()
+                    .map(|v| v.as_i64().unwrap())
+                    .collect()
+            },
         );
         assert!(e[0] <= 20_000 && e[1] <= 20_000, "{f}");
     }
