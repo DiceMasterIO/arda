@@ -117,6 +117,119 @@
         "relief_max_zoom"
       ],
       "type": "object"
+    },
+    "VersionsDto": {
+      "description": "The current version of every family (`GET /v1/world` `versions`).\n\nA family's version bumps when a body it covers removes or renames a\nfield, changes a field's type or meaning, or gains a value in a closed\nenum; additions bump nothing (`docs/capstone/versioning.md`).",
+      "properties": {
+        "bake_format": {
+          "description": "Bake job bodies (`BakeRequest`, `BakeAccepted`, `BakeStatus`).",
+          "format": "uint32",
+          "minimum": 0,
+          "type": "integer"
+        },
+        "columnar_layout_version": {
+          "description": "Binary `ARDACOLS` layout of `?format=bin` area cells.",
+          "format": "uint32",
+          "minimum": 0,
+          "type": "integer"
+        },
+        "contract_version": {
+          "description": "Cell contract (`CellSample`, `PointSample`, area bodies, `Health`,\n`WorldInfo`).",
+          "format": "uint32",
+          "minimum": 0,
+          "type": "integer"
+        },
+        "gazetteer_format": {
+          "description": "`Gazetteer.format_version`.",
+          "format": "uint32",
+          "minimum": 0,
+          "type": "integer"
+        },
+        "layout_schema": {
+          "description": "`TacticalLayout` (`TacticalLayoutDto`).",
+          "format": "uint32",
+          "minimum": 0,
+          "type": "integer"
+        },
+        "library_catalogue_format": {
+          "description": "Tactical library `catalog.json` `format_version` this server loads.",
+          "format": "uint32",
+          "minimum": 0,
+          "type": "integer"
+        },
+        "npc_format": {
+          "description": "`Npc` and the bodies built from it (`Sheet`, `Population`,\n`GenerateNpcRequest`, `NpcDemo`).",
+          "format": "uint32",
+          "minimum": 0,
+          "type": "integer"
+        },
+        "npc_page_format": {
+          "description": "`NpcPage.format_version`.",
+          "format": "uint32",
+          "minimum": 0,
+          "type": "integer"
+        },
+        "realm_format": {
+          "description": "Realm bodies (`RealmList.format_version`).",
+          "format": "uint32",
+          "minimum": 0,
+          "type": "integer"
+        },
+        "rules_sidecar_format": {
+          "description": "`arda-scene` rules sidecar (`RulesSidecarDto.format_version`).",
+          "format": "uint32",
+          "minimum": 0,
+          "type": "integer"
+        },
+        "scene_format": {
+          "description": "`arda-scene` scene (`SceneDto.format_version`).",
+          "format": "uint32",
+          "minimum": 0,
+          "type": "integer"
+        },
+        "schema_index_format": {
+          "description": "`SchemaIndex.format_version`.",
+          "format": "uint32",
+          "minimum": 0,
+          "type": "integer"
+        },
+        "settlement_format": {
+          "description": "Settlement bodies (`SettlementList.format_version`).",
+          "format": "uint32",
+          "minimum": 0,
+          "type": "integer"
+        },
+        "sheet_mapping_format": {
+          "description": "`--sheet-mapping` file `version` this server reads.",
+          "format": "uint32",
+          "minimum": 0,
+          "type": "integer"
+        },
+        "tactical_format": {
+          "description": "Tactical envelopes: `TacticalBlockDto`, `TacticalScene`,\n`DungeonDto`, `TacticalLibraryDto`, prefetch and layout listings.",
+          "format": "uint32",
+          "minimum": 0,
+          "type": "integer"
+        }
+      },
+      "required": [
+        "contract_version",
+        "tactical_format",
+        "layout_schema",
+        "scene_format",
+        "rules_sidecar_format",
+        "bake_format",
+        "npc_format",
+        "npc_page_format",
+        "settlement_format",
+        "realm_format",
+        "gazetteer_format",
+        "schema_index_format",
+        "columnar_layout_version",
+        "library_catalogue_format",
+        "sheet_mapping_format"
+      ],
+      "type": "object"
     }
   },
   "$schema": "https://json-schema.org/draft/2020-12/schema",
@@ -127,7 +240,7 @@
       "type": "string"
     },
     "arda_version": {
-      "description": "Generator version that wrote the world.",
+      "description": "Generator version that wrote the world (the manifest's\n`arda_version`). Tactical, NPC and image bodies come from the serving\nbuild instead: see `server_version`.",
       "type": "string"
     },
     "area_cells": {
@@ -182,7 +295,7 @@
       "description": "Fine terrain, when the world has it."
     },
     "format_version": {
-      "description": "Stored format major.",
+      "description": "The world's on-disk format major (`world.json` `format_version`), not\na body version; the server loads only its own major.",
       "format": "uint32",
       "minimum": 0,
       "type": "integer"
@@ -195,6 +308,10 @@
       "description": "World seed as a decimal string (u64 does not fit a JS number).",
       "type": "string"
     },
+    "server_version": {
+      "description": "Version of the `arda-server` build serving the world (its Cargo\npackage version, e.g. `1.0.0`); tactical, NPC and image bodies come\nfrom this build.",
+      "type": "string"
+    },
     "size_km": {
       "$ref": "#/$defs/SizeKmDto",
       "description": "Nominal continent extent."
@@ -202,6 +319,10 @@
     "tiles": {
       "$ref": "#/$defs/TilePyramidDto",
       "description": "Overview tile pyramid."
+    },
+    "versions": {
+      "$ref": "#/$defs/VersionsDto",
+      "description": "Current version of every family (`docs/capstone/versioning.md`)."
     }
   },
   "required": [
@@ -218,7 +339,9 @@
     "cell_size_m",
     "cells_wide",
     "cells_high",
-    "tiles"
+    "tiles",
+    "server_version",
+    "versions"
   ],
   "title": "WorldInfo",
   "type": "object"

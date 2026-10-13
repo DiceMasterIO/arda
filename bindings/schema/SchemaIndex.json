@@ -4,6 +4,10 @@
       "additionalProperties": false,
       "description": "One schema in [`SchemaIndex`].",
       "properties": {
+        "family": {
+          "description": "Its version family: a `GET /v1/world` `versions` key, or\n`api_version` for the error bodies.",
+          "type": "string"
+        },
         "name": {
           "description": "File stem and TypeScript type name.",
           "type": "string"
@@ -15,6 +19,10 @@
           },
           "type": "array"
         },
+        "stability": {
+          "$ref": "#/$defs/Stability",
+          "description": "`stable` (frozen), `unstable` or `debug` (outside the freeze)."
+        },
         "url": {
           "description": "Where it is served: `/v1/schema/{name}.json`.",
           "type": "string"
@@ -23,9 +31,31 @@
       "required": [
         "name",
         "url",
+        "family",
+        "stability",
         "routes"
       ],
       "type": "object"
+    },
+    "Stability": {
+      "description": "How firmly a route or schema is frozen (`docs/capstone/versioning.md`).",
+      "oneOf": [
+        {
+          "const": "stable",
+          "description": "Frozen for 1.x under the versioning policy.",
+          "type": "string"
+        },
+        {
+          "const": "unstable",
+          "description": "Served, but outside the freeze: may change shape in a minor release.",
+          "type": "string"
+        },
+        {
+          "const": "debug",
+          "description": "Samples and test seams; may change or disappear in any release.",
+          "type": "string"
+        }
+      ]
     }
   },
   "$schema": "https://json-schema.org/draft/2020-12/schema",

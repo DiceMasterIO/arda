@@ -423,7 +423,7 @@
   "description": "`GET /v1/settlements[?tier=&realm=]`.",
   "properties": {
     "format_version": {
-      "description": "Version of this body (1).",
+      "description": "Version of this body ([`SETTLEMENT_FORMAT`]).",
       "format": "uint32",
       "minimum": 0,
       "type": "integer"

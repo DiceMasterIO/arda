@@ -3,6 +3,7 @@ import type { FineTerrainDto } from "./FineTerrainDto";
 import type { LatitudeDto } from "./LatitudeDto";
 import type { SizeKmDto } from "./SizeKmDto";
 import type { TilePyramidDto } from "./TilePyramidDto";
+import type { VersionsDto } from "./VersionsDto";
 
 /**
  * `/v1/world`: identity, size and grids of the served world.
@@ -21,11 +22,14 @@ api_version: string,
  */
 seed: string, 
 /**
- * Generator version that wrote the world.
+ * Generator version that wrote the world (the manifest's
+ * `arda_version`). Tactical, NPC and image bodies come from the serving
+ * build instead: see `server_version`.
  */
 arda_version: string, 
 /**
- * Stored format major.
+ * The world's on-disk format major (`world.json` `format_version`), not
+ * a body version; the server loads only its own major.
  */
 format_version: number, 
 /**
@@ -67,4 +71,14 @@ fine_terrain: FineTerrainDto | null,
 /**
  * Overview tile pyramid.
  */
-tiles: TilePyramidDto, };
+tiles: TilePyramidDto, 
+/**
+ * Version of the `arda-server` build serving the world (its Cargo
+ * package version, e.g. `1.0.0`); tactical, NPC and image bodies come
+ * from this build.
+ */
+server_version: string, 
+/**
+ * Current version of every family (`docs/capstone/versioning.md`).
+ */
+versions: VersionsDto, };

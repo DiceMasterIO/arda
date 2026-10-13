@@ -12,6 +12,10 @@
       "description": "Seed of the served world, decimal string.",
       "type": "string"
     },
+    "server_version": {
+      "description": "Version of the `arda-server` build answering (its Cargo package\nversion).",
+      "type": "string"
+    },
     "status": {
       "description": "Always `\"ok\"` when the service answers.",
       "type": "string"
@@ -20,7 +24,8 @@
   "required": [
     "status",
     "contract_version",
-    "seed"
+    "seed",
+    "server_version"
   ],
   "title": "Health",
   "type": "object"

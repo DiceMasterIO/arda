@@ -15,4 +15,9 @@ contract_version: number,
 /**
  * Seed of the served world, decimal string.
  */
-seed: string, };
+seed: string, 
+/**
+ * Version of the `arda-server` build answering (its Cargo package
+ * version).
+ */
+server_version: string, };
