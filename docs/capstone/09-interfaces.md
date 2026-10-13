@@ -53,6 +53,10 @@ edges:
     - { kind: http, name: "GET /v1/tactical/window/tiles/{z}/{x}/{y}.webp", site: crates/arda-server/src/tactical/world_routes.rs }
     - { kind: http, name: "GET /v1/tactical/library", site: crates/arda-server/src/tactical/world_routes.rs }
     - { kind: http, name: "POST /v1/tactical/prefetch", site: crates/arda-server/src/tactical/routes.rs, schema: PrefetchAccepted }
+    - { kind: http, name: "POST /v1/tactical/bake", site: crates/arda-server/src/tactical/bake_routes.rs, schema: BakeAccepted }
+    - { kind: http, name: "GET /v1/tactical/bake/{id}", site: crates/arda-server/src/tactical/bake_routes.rs, schema: BakeStatus }
+    - { kind: http, name: "GET /v1/tactical/bake/{id}/tiles/{z}/{x}/{y}.webp", site: crates/arda-server/src/tactical/bake_routes.rs }
+    - { kind: http, name: "DELETE /v1/tactical/bake/{id}", site: crates/arda-server/src/tactical/bake_routes.rs }
     - { kind: http, name: "GET /v1/tactical/dungeon", site: crates/arda-server/src/tactical/dungeon.rs, schema: DungeonDto }
     - { kind: http, name: "GET /v1/tactical/dungeon.png", site: crates/arda-server/src/tactical/dungeon.rs }
     - { kind: http, name: "GET /v1/tactical/dungeon/scene", site: crates/arda-server/src/tactical/dungeon.rs, schema: SceneDto }
@@ -110,6 +114,10 @@ The only cross-repo surface is `arda-server`'s HTTP API under `/v1` (consumed by
 | http | GET /v1/tactical/window/tiles/{z}/{x}/{y}.webp | - | `crates/arda-server/src/tactical/world_routes.rs` |
 | http | GET /v1/tactical/library | - | `crates/arda-server/src/tactical/world_routes.rs` |
 | http | POST /v1/tactical/prefetch | - | `crates/arda-server/src/tactical/routes.rs` |
+| http | POST /v1/tactical/bake | - | `crates/arda-server/src/tactical/bake_routes.rs` |
+| http | GET /v1/tactical/bake/{id} | - | `crates/arda-server/src/tactical/bake_routes.rs` |
+| http | GET /v1/tactical/bake/{id}/tiles/{z}/{x}/{y}.webp | - | `crates/arda-server/src/tactical/bake_routes.rs` |
+| http | DELETE /v1/tactical/bake/{id} | - | `crates/arda-server/src/tactical/bake_routes.rs` |
 | http | GET /v1/tactical/dungeon | - | `crates/arda-server/src/tactical/dungeon.rs` |
 | http | GET /v1/tactical/dungeon.png | - | `crates/arda-server/src/tactical/dungeon.rs` |
 | http | GET /v1/tactical/dungeon/scene | - | `crates/arda-server/src/tactical/dungeon.rs` |
@@ -507,6 +515,38 @@ Type `TacticalLibraryDto` (`crates/arda-server/src/tactical/library_dto.rs:12`).
 Model: PrefetchAccepted
 
 Request body `PrefetchRequest` (`crates/arda-server/src/tactical/prefetch.rs:44`); answers `202 Accepted` at once (`crates/arda-server/src/tactical/routes.rs:63-87`).
+
+### POST /v1/tactical/bake
+
+Model: BakeAccepted
+
+Request body `BakeRequest` (`crates/arda-server/src/tactical/bake_dto.rs:15`), `application/json` only (415), at most `max_body_bytes`; checked by `Tactical::check_bake` (`crates/arda-server/src/tactical/bake_render.rs:24`) and queued by `Baker::submit` (`crates/arda-server/src/tactical/bake.rs`). Answers `202 Accepted` (`200` once the job is `done` or `failed`) with `Location: status_url`; 503 `busy` when 8 jobs wait; 501 with `--bake-workers 0`.
+
+| Field | Type | Required |
+|---|---|---|
+| format_version | `u32` | yes |
+| job_id | `String` (32 hex digits) | yes |
+| state | BakeState (`queued`, `running`, `done`, `failed`) | yes |
+| status_url | `String` | yes |
+
+### GET /v1/tactical/bake/{id}
+
+Model: BakeStatus
+
+`Cache-Control: no-store`; 404 `not_found` for unknown, deleted or evicted jobs (`crates/arda-server/src/tactical/bake_routes.rs`). `GET /v1/tactical/bake/{id}/tiles/{z}/{x}/{y}.webp` serves the finished set's tiles (strong `ETag`, `no-store`); `DELETE /v1/tactical/bake/{id}` answers 204.
+
+| Field | Type | Required |
+|---|---|---|
+| format_version | `u32` | yes |
+| job_id | `String` | yes |
+| state | BakeState | yes |
+| gx, gy | `u32` | yes |
+| origin_gs | `[i64; 2]` | yes |
+| world_grade | `bool` | yes |
+| tiles | Option<TacticalTilesDto> | yes (null until done) |
+| tile_count | `u32` | yes |
+| total_bytes | `u32` | yes |
+| error | Option<ApiErrorBody> | yes (null unless failed) |
 
 ### GET /v1/tactical/dungeon
 

@@ -624,6 +624,10 @@ Storage values: `HTTP JSON; ts-rs bindings/ts/arda/<Name>.ts` means the type is 
 | PrefetchStatus | `crates/arda-server/src/tactical/prefetch.rs:67` | HTTP JSON; ts-rs `bindings/ts/arda/PrefetchStatus.ts` | What happened to one neighbour. |
 | PrefetchCell | `crates/arda-server/src/tactical/prefetch.rs:78` | HTTP JSON; ts-rs `bindings/ts/arda/PrefetchCell.ts` | One neighbour of a prefetch. |
 | PrefetchAccepted | `crates/arda-server/src/tactical/prefetch.rs:91` | HTTP JSON; ts-rs `bindings/ts/arda/PrefetchAccepted.ts` | `202` body of `POST /v1/tactical/prefetch` (TS `PrefetchAccepted`). |
+| BakeRequest | `crates/arda-server/src/tactical/bake_dto.rs:15` | HTTP JSON; ts-rs `bindings/ts/arda/BakeRequest.ts` | Body of `POST /v1/tactical/bake` (TS `BakeRequest`). |
+| BakeState | `crates/arda-server/src/tactical/bake_dto.rs:41` | HTTP JSON; ts-rs `bindings/ts/arda/BakeState.ts` | Where a bake job stands. |
+| BakeAccepted | `crates/arda-server/src/tactical/bake_dto.rs:55` | HTTP JSON; ts-rs `bindings/ts/arda/BakeAccepted.ts` | `202` (or `200` once finished) body of `POST /v1/tactical/bake`. |
+| BakeStatus | `crates/arda-server/src/tactical/bake_dto.rs:69` | HTTP JSON; ts-rs `bindings/ts/arda/BakeStatus.ts` | `GET /v1/tactical/bake/{id}`. |
 | CoverLevelDto | `crates/arda-server/src/tactical/rules_dto.rs:15` | HTTP JSON; ts-rs `bindings/ts/arda/CoverLevelDto.ts` | SRD 5.1 degrees of cover. |
 | EdgeRoleDto | `crates/arda-server/src/tactical/rules_dto.rs:29` | HTTP JSON; ts-rs `bindings/ts/arda/EdgeRoleDto.ts` | Why a rules edge exists. |
 | RulesCellDto | `crates/arda-server/src/tactical/rules_dto.rs:45` | HTTP JSON; ts-rs `bindings/ts/arda/RulesCellDto.ts` | One square's rules; an absent field means "no opinion". |
@@ -6376,6 +6380,48 @@ Required `no` marks an `Option` field, a serde default, a field omitted when emp
 | cells | `PrefetchCell[]` | yes | The neighbours inside the world, nearest ring first, row-major. |
 | queue_len | `u32` | yes | Cells waiting after this request. |
 
+### BakeRequest
+
+| Field | Type | Required | Notes |
+|---|---|---|---|
+| format_version | `Option<u32>` | no | Body version; `1` when present.; serde default |
+| gx | `u32` | yes | Cell column. |
+| gy | `u32` | yes | Cell row. |
+| ppsq | `Option<u32>` | no | Output pixels per square: 64, 96 or 128 (default 128).; serde default |
+| world_grade | `Option<bool>` | no | Pull ground and water toward the world map's colours, as `?world_grade=1` on the cell route (default false).; serde default |
+| layout | `TacticalLayoutDto` | yes | The edited cell: exactly 64 × 64 squares with `origin` equal to `[gx * 64, gy * 64]`. |
+
+### BakeState
+
+| Field | Type | Required | Notes |
+|---|---|---|---|
+| value | enum | yes | accepted: queued, running, done, failed |
+
+### BakeAccepted
+
+| Field | Type | Required | Notes |
+|---|---|---|---|
+| format_version | `u32` | yes | Body version (1). |
+| job_id | `String` | yes | Content-addressed job id (32 hex digits). |
+| state | `BakeState` | yes | Where the job stands now. |
+| status_url | `String` | yes | `/v1/tactical/bake/{job_id}`. |
+
+### BakeStatus
+
+| Field | Type | Required | Notes |
+|---|---|---|---|
+| format_version | `u32` | yes | Body version (1). |
+| job_id | `String` | yes | The job id. |
+| state | `BakeState` | yes | Where the job stands. |
+| gx | `u32` | yes | Cell column. |
+| gy | `u32` | yes | Cell row. |
+| origin_gs | `[i64; 2]` | yes | Top-left square of the cell in world squares. |
+| world_grade | `bool` | yes | Whether the world grade applies. |
+| tiles | `Option<TacticalTilesDto>` | yes | Pyramid geometry once `done`, else `null`. |
+| tile_count | `u32` | yes | Tiles in the set once `done`, else 0. |
+| total_bytes | `u32` | yes | Encoded bytes of the set once `done`, else 0. |
+| error | `Option<ApiErrorBody>` | yes | Why the job failed, when `failed`, else `null`. |
+
 ### CoverLevelDto
 
 | Field | Type | Required | Notes |
@@ -6785,6 +6831,7 @@ Core codecs write explicit little-endian fields; Rust padding is never persisted
 | NPC content tables | compiled-in JSON parsed, then cross-file references (job stat blocks and others) must resolve | `crates/arda-npc/src/data/mod.rs:88` |
 | `PopulationRequest` | population ≤ 50,000, buildings ≤ 20,000, body ≤ 2 MiB; unknown fields refused | `crates/arda-server/src/npc.rs:14`, `crates/arda-server/src/npc.rs:97`, `crates/arda-server/src/npc.rs:22` |
 | `PrefetchRequest` | radius 1–2 (default 1), queue ≤ 64 cells, workers ≤ 8 | `crates/arda-server/src/tactical/prefetch.rs:31`, `crates/arda-server/src/tactical/prefetch.rs:204` |
+| `BakeRequest` | unknown fields refused; body ≤ 4 MiB; layout exactly 64 × 64 at the cell's origin and valid for the library (422); ppsq 64/96/128; queue ≤ 8 jobs (503 `busy`) | `crates/arda-server/src/tactical/bake_render.rs:24`, `crates/arda-server/src/tactical/bake.rs:35` |
 | Wire mirrors | `#[serde(deny_unknown_fields)]` on `npc_dto`, `NpcPage`, `Token` and others; tests re-serialise domain JSON through each mirror | `crates/arda-server/src/npc_dto/mod.rs:1` |
 | Asset catalogue | validator over catalogue and images; library directory check at load | `crates/arda-tactical/src/validate.rs:121`, `crates/arda-tactical/src/library.rs:89` |
 | `TacticalLayout` | sizes, ground keys, wall kits and roles, placements and rotations checked against the library (422 `invalid_layout`) | `crates/arda-tactical/src/layout.rs:264`, `crates/arda-server/src/error.rs:5` |

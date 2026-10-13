@@ -98,7 +98,9 @@ Defined in `crates/arda-server/src/main.rs:16`; routes are nested under `/v1` (`
 | `--header-timeout-s` | 10 | `crates/arda-server/src/main.rs:44` |
 | `--max-connections` | 64 | `crates/arda-server/src/main.rs:47` |
 | `--prefetch-workers` | 2 (`crates/arda-server/src/tactical/prefetch.rs:37`); 0 disables | `crates/arda-server/src/main.rs:50` |
-| `--sheet-mapping` | absent; a bad file refuses startup | `crates/arda-server/src/main.rs:54` |
+| `--bake-workers` | 1 (`crates/arda-server/src/tactical/bake.rs:37`); 0 disables `POST /v1/tactical/bake` (501); values above 1 bake one at a time | `crates/arda-server/src/main.rs:58` |
+| `--bake-result-mib` | 384 (`crates/arda-server/src/tactical/bake.rs:41`): finished bake tile sets held for download, oldest evicted first; counted in startup admission, and below one worst-case 128-ppsq set (about 362 MiB) startup is refused while baking is on | `crates/arda-server/src/main.rs:62` |
+| `--sheet-mapping` | absent; a bad file refuses startup | `crates/arda-server/src/main.rs:66` |
 | `--probe` | off; `GET /v1/health` on loopback at `--port`, exit 0 on 200, 1 otherwise, serves nothing and needs no `--world` (the image `HEALTHCHECK`) | `crates/arda-server/src/probe.rs` |
 
 ### Other binaries

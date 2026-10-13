@@ -96,13 +96,15 @@ Every error is JSON with the right HTTP status:
 | 404 | `not_found` | Unknown route, tile outside the pyramid, missing layer file, unknown tactical layout |
 | 404 | `no_block` | Tactical: an open-sea cell with no land square (logic/16 §api-errors) |
 | 413 | `payload_too_large` | Tactical: posted body over 4 MiB, layout over 41 616 squares (a 3 × 3-cell window plus its apron), render over 96 Mi pixels, a `/window` side over 3 cells, more than 4 placements a square (+64), or free lights summing to more than 16× the render's pixels |
-| 415 | `unsupported_media_type` | `POST /v1/tactical/render` or `POST /v1/npc/generate` without `Content-Type: application/json` |
+| 415 | `unsupported_media_type` | `POST /v1/tactical/render`, `POST /v1/tactical/bake` or `POST /v1/npc/generate` without `Content-Type: application/json` |
 | 422 | `invalid_layout` | Tactical: layout inconsistent with itself or the loaded library (square count, ground without texture, unknown kit or asset, forbidden rotation or mirror), a name over 128 bytes or with control characters, a placement or light more than 16 squares off the map) |
 | 422 | `unsatisfiable` | `POST /v1/npc/generate`: valid inputs that no generated inhabitant matches all at once |
 | 500 | `resource_limit` | An allocation or window limit refused the work |
 | 500 | `sheet_mapping` | The `--sheet-mapping` could not reshape a served NPC (a strict table lacks one of its values); the message names the rule |
 | 500 | `internal` | Anything else |
 | 501 | `not_implemented` | `/v1/tactical/cell/{gx}/{gy}` served by the `PendingBlocks` source (body adds `planned_source`); the default server uses `RefineBlocks` |
+| 501 | `not_implemented` | `POST /v1/tactical/bake` on a server started with `--bake-workers 0` (no `planned_source`) |
+| 503 | `busy` | `POST /v1/tactical/bake` while 8 bake jobs already wait; retry later |
 
 The `message` is for humans and isn't stable. Match on `code`. Absolute filesystem paths in a message are shortened to `…/` and the file name, so a
 response never discloses where the server keeps its world; 5xx errors are logged in full on
@@ -574,9 +576,10 @@ Renders a client-supplied `TacticalLayout` JSON body and returns the PNG.
 
 - The body is at most **4 MiB** and must parse as a `TacticalLayout` (unknown fields are
   rejected); otherwise the response is 413 or 400.
-- The layout is at most **16 384 squares** (128 × 128), and the render at most **24 Mi
-  pixels** (for example 32 × 32 squares at 128 ppsq), or the response is **413
-  `payload_too_large`**.
+- The layout is at most **41 616 squares** (204 × 204, a 3 × 3-cell window plus its apron),
+  and the render at most **96 Mi pixels** (100 663 296; a cell plus its apron, 76 × 76
+  squares, at 128 ppsq), or the response is **413 `payload_too_large`**
+  (`TacticalLimits::default()`).
 - The body must be sent as `Content-Type: application/json` (415 otherwise), which makes
   browsers preflight it against the localhost-only CORS policy.
 - The layout is checked against the loaded library first, and an inconsistent one returns
@@ -759,6 +762,88 @@ curl -s -X POST -H 'content-type: application/json' -d '{"gx":618,"gy":689,"ppsq
 **Walking off an edge.** Cell images are rendered with an apron from the neighbouring blocks
 (see "Seamless world images"), so the cell east of `(gx, gy)` is simply `(gx + 1, gy)`: its
 west edge joins this cell's east edge pixel for pixel, and once prefetched it loads from cache.
+
+### `POST /v1/tactical/bake`
+
+Bakes a client-edited cell into its WebP tile set (1.0 task 04; logic/16 §api-tactical). A
+client that records a lasting change (a burned house, a frozen lake) posts the edited cell
+layout once, polls the job, downloads every tile into its own storage and deletes the job.
+Arda keeps nothing afterwards: a bake reads and writes none of the shared render, pyramid,
+PNG or tile caches, and finished tile sets live only in memory until deleted or evicted.
+
+Body (TS `BakeRequest`, `Content-Type: application/json`, unknown fields rejected, at most
+4 MiB):
+
+```json
+{"gx": 529, "gy": 812, "ppsq": 128, "world_grade": false, "layout": { "name": "cell_529_812", "width": 64, "height": 64, "origin": [33856, 51968], "squares": [ ... ] }}
+```
+
+- `layout` is the `layout` of `GET /v1/tactical/cell/{gx}/{gy}`, edited: exactly 64 × 64
+  squares with `origin` equal to `[gx * 64, gy * 64]` (422 `invalid_layout` otherwise; windows
+  are not bakeable yet). It is checked against the loaded library like `POST /render` (422 on
+  an unknown ground, kit or asset; 413 over the limits). `ppsq` is 64, 96 or 128 (default
+  128); `world_grade` matches `?world_grade=1` on the cell route (default false);
+  `format_version`, when present, must be 1.
+- **Seams.** The server takes the cell's apron block (6 squares from every neighbour) as the
+  cell route does, pastes the posted cell into its centre and renders the apron cropped to
+  the cell, with the world's render seed. Squares inside the cell come from the post. Walls
+  (by their square), placements and lights (by their position, strictly inside the cell; a
+  position on the cell's border line stays with the neighbour) come from the post when
+  anchored inside the cell and from the neighbours otherwise, so an item straddling the edge
+  is drawn once. Edges therefore join the neighbours' unbaked tiles, and an unedited layout
+  bakes to tiles byte-identical to `GET /v1/tactical/cell/{gx}/{gy}/tiles/…` at the same
+  `ppsq` and `world_grade`.
+- **Job id.** The first 32 hex digits of BLAKE3 over the world seed, `library_version` and the
+  canonical request (every option resolved). Re-posting the same body returns the same job:
+  **202** while `queued` or `running`, **200** once `done` or `failed`. Response (TS
+  `BakeAccepted`, with `Location` set to `status_url`):
+
+  ```json
+  {"format_version":1,"job_id":"62e24fde911d80ba08128c242a3a3321","state":"queued","status_url":"/v1/tactical/bake/62e24fde911d80ba08128c242a3a3321"}
+  ```
+
+- **Limits.** At most 8 jobs wait and one bakes at a time (`--bake-workers`, default 1; 0
+  turns baking off and the post answers **501 `not_implemented`**). A full queue answers
+  **503 `busy`**: retry later. Finished sets are held within `--bake-result-mib` (default
+  384); when a new set does not fit, the oldest finished sets are evicted first (no
+  time-to-live). One 128-ppsq set is 341 tiles; the server refuses to start with a budget
+  below the worst case of one set (about 362 MiB) while baking is on.
+- **Never slows requests.** Bakes render in their own lane, one at a time, and encode tiles
+  one at a time through the slot interactive encodes share, so a request waits for at most one
+  tile encode. Each request and each finished job log one stderr line.
+- **Size and time.** On MICRO seed 42 (release build), the river cell (529, 812) at 128 ppsq
+  with a 16 × 16 ground edit baked in 3.6 s (render 2.3 s) into 341 tiles of
+  150 673 194 bytes.
+
+`GET /v1/tactical/bake/{id}` (TS `BakeStatus`, `Cache-Control: no-store`):
+
+```json
+{"format_version":1,"job_id":"62e24fde…","state":"done","gx":529,"gy":812,"origin_gs":[33856,51968],"world_grade":false,
+ "tiles":{"tile_px":512,"ppsq":128,"image_width_px":8192,"image_height_px":8192,"max_zoom":4,"format":"webp"},
+ "tile_count":341,"total_bytes":150673194,"error":null}
+```
+
+`state` is `queued`, `running`, `done` or `failed`; `tiles`, `tile_count` and `total_bytes`
+are set once `done`, `error` (an `ApiErrorBody`) once `failed`. A job that failed stays failed
+for the same body until it is deleted or evicted.
+
+`GET /v1/tactical/bake/{id}/tiles/{z}/{x}/{y}.webp` returns one 512 px lossless WebP tile of
+the pyramid `tiles` describes (as the cell route's tiles), with a strong `ETag` and
+`Cache-Control: no-store`; 404 `not_found` before `done` or outside the pyramid.
+
+`DELETE /v1/tactical/bake/{id}` frees the job and answers **204**; a queued job is dropped, a
+running one is discarded when it finishes. Unknown, deleted or evicted ids are **404
+`not_found`** on every route. CORS allows `DELETE` from localhost origins.
+
+```sh
+curl -s "$B/cell/529/812" | jq '.layout' > cell.json        # edit cell.json
+jq -n --slurpfile l cell.json '{gx:529, gy:812, ppsq:128, layout:$l[0]}' > bake.json
+ID=$(curl -s -X POST -H 'content-type: application/json' --data-binary @bake.json $B/bake | jq -r .job_id)
+until [ "$(curl -s $B/bake/$ID | jq -r .state)" = done ]; do sleep 1; done
+for z in 0 1 2 3 4; do n=$((1 << z)); for x in $(seq 0 $((n-1))); do for y in $(seq 0 $((n-1))); do
+  mkdir -p tiles/$z/$x; curl -s -o tiles/$z/$x/$y.webp $B/bake/$ID/tiles/$z/$x/$y.webp; done; done; done
+curl -s -X DELETE $B/bake/$ID -o /dev/null -w '%{http_code}\n'   # 204
+```
 
 ### `GET /v1/tactical/library`
 

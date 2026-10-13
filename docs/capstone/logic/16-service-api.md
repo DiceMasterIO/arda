@@ -71,6 +71,10 @@ Added by this spec (goals 57, 65, 67, 70):
 | `GET /v1/roads[?bbox=]` | roads, crossings and passes clipped to the box | 08 |
 | `GET /v1/tiles/overlay/{z}/{x}/{y}.png` | 256 px transparent overlay tiles: tier symbols, road classes, realm borders, labels, aligned with the overview pyramid | 08 overlay, goal 41 |
 | `GET /v1/tactical/prefetch?gx=&gy=&radius=1` | `202` with the queued cells | §api-prefetch |
+| `POST /v1/tactical/bake` | `202 BakeAccepted {format_version, job_id, state, status_url}` (`200` once finished) for a posted `BakeRequest {gx, gy, ppsq?, world_grade?, layout}` (implemented, 1.0 task 04) | §api-tactical, §api-prefetch |
+| `GET /v1/tactical/bake/{id}` | `BakeStatus {format_version, job_id, state, gx, gy, origin_gs, world_grade, tiles, tile_count, total_bytes, error}` | §api-tactical |
+| `GET /v1/tactical/bake/{id}/tiles/{z}/{x}/{y}.webp` | 512 px lossless WebP tile of the baked set, `Cache-Control: no-store` | §api-tiles |
+| `DELETE /v1/tactical/bake/{id}` | `204`; frees the set | §api-cache |
 
 ### §api-cell-society
 
@@ -79,6 +83,8 @@ When `society/` exists, `/v1/cell` and `/v1/area/.../cells` fill `road` from `ro
 ### §api-tactical
 
 A tactical request resolves in this order: validate coordinates → cache lookup (§api-cache) → `refine_block` with town, ways and fields reservations (09 §reservations) → scene (12) with tokens (12 §scene-tokens) → images on demand. The server's `BlockSource` seam returns the whole `RefinedBlock` (layout, rules sidecar, meta), not the layout alone, so scene and image are built from one layout (goal 48). Sea blocks answer `404 no_block`. Images are rendered from a window with a 2-square apron and cropped (11 §seam-art); walking off an edge loads the neighbour, which joins invisibly (goal 67).
+
+**Bake** (`POST /v1/tactical/bake`, 1.0 task 04, closes OI-44). A client posts an edited cell layout (exactly 64 × 64 squares, `origin = [gx·64, gy·64]`, checked against the library; 422 `invalid_layout` otherwise; windows are not bakeable). The server takes the cell's apron block as the cell image does, splices the posted cell into its centre (`tactical/splice.rs`: squares inside the cell from the post; walls by their square and placements and lights by their position strictly inside the cell from the post, everything else from the apron, item order kept), renders the apron cropped to the cell with the world render seed, builds the pyramid and encodes every tile. An unedited layout bakes to the cell route's tiles byte for byte; edges join the unbaked neighbours. The job id is the first 32 hex digits of BLAKE3 over the world seed, `library_version` and the canonical request, so a re-post returns the same job. The client downloads the tiles, stores them under its own campaign, cell and version, and deletes the job.
 
 ### §api-tiles
 
@@ -92,10 +98,13 @@ A tactical request resolves in this order: validate coordinates → cache lookup
 - `ETag` is the hex of the key (quoted); `If-None-Match` answers `304`. Tactical, overview and relief bodies carry `Cache-Control: no-cache` and are revalidated by `ETag`: their bytes depend on the served world and library, which the URL does not name (review round 2 #44; `public, max-age=3600` before).
 - Budgets (defaults, assumed, tunable; all flags): decoded areas 1 GiB, fine windows 512 MiB, overview PNGs and tiles 1 GiB, tactical layouts and scenes 1 GiB, tactical renders and tiles 4 GiB, town plans and populations 1 GiB. At start the worst case of all budgets plus one transient request per worker must fit 16 GiB, or the server refuses to start (goal-prompt §8).
 - Only one full-resolution tactical render runs per key at a time; concurrent requests for the same key wait for it.
+- Bakes bypass every shared cache: `POST /v1/tactical/bake` reads and writes no render, pyramid, PNG or tile entry, and keeps only the encoded tiles of finished jobs, in memory, within `--bake-result-mib` (default 384 MiB, oldest finished set evicted first, no time-to-live) until `DELETE`. Admission adds, when baking is on, one transient render with its pyramid, the parsed bodies of the queued jobs and the result budget (about 1.9 GiB with defaults, 15.9 GiB in all), and refuses a result budget below one worst-case 128-ppsq set (341 tiles, about 362 MiB).
 
 ### §api-prefetch
 
 A tactical cell request enqueues its 8 neighbours at low priority (radius 1; `?radius=` up to 2 on the prefetch route). The queue is bounded (64 cells), deduplicated and drops when full; prefetching never changes any response's bytes. Prefetch stops at sea cells and the world edge (goal 67).
+
+The bake lane is prefetch's sibling: its own queue (at most 8 waiting jobs, a full queue answers 503 `busy`), one worker (`--bake-workers`, 0 or 1; 0 answers 501), its own render lock beside the request and prefetch lanes, and tile encodes taken one at a time through the shared encode slot, so a bake never holds an interactive request for more than one tile encode and never changes any other response's bytes.
 
 ### §api-errors
 
@@ -112,7 +121,8 @@ Every error is `{"error": {"code", "status", "message"}}`; clients match on `cod
 | 422 | `invalid_layout` | a layout or sidecar inconsistent with the library (11, 12) |
 | 422 | `unsatisfiable` | `POST /v1/npc/generate` inputs that are valid but no inhabitant matches (13 §npc-generate-one) |
 | 500 | `resource_limit` | an allocation or budget refused the work |
-| 501 | `not_implemented` | a route whose source crate is not merged yet; the body adds `planned_source` |
+| 501 | `not_implemented` | a route whose source crate is not merged yet; the body adds `planned_source`. Also `POST /v1/tactical/bake` with `--bake-workers 0` (no `planned_source`) |
+| 503 | `busy` | a bounded background queue is full (`POST /v1/tactical/bake` with 8 jobs waiting); retry later |
 | 500 | `internal` | anything else |
 
 ### §api-bindings
