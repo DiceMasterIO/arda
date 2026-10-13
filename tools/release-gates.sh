@@ -112,7 +112,7 @@ status=0
   done
   if [ -n "$mems" ]; then
     echo
-    echo "Memory: $(printf '%s\n' "$mems" | awk '{printf "%s %.0f MiB; ", $2, $3/1024}')"
+    echo "Memory: $(printf '%s\n' "$mems" | awk '{printf "%s%s %.0f MiB", (NR>1?"; ":""), $2, $3/1024}')"
   fi
   if [ "${#failed_targets[@]}" -gt 0 ]; then
     echo

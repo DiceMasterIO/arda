@@ -142,7 +142,8 @@ fn opening_the_society_server_takes_under_budget() {
         best = best.min(ms(start.elapsed()));
         drop(state);
     }
-    println!("MEM server_open_peak_rss_kib {}", peak_rss_kib());
+    // Process high-water mark: includes the gates that ran before in this binary.
+    println!("MEM server_gates_peak_rss_kib {}", peak_rss_kib());
     report("server_open", best, OPEN_MS, "-");
 }
 
