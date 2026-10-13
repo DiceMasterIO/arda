@@ -37,5 +37,7 @@ assets: Array<LibraryAssetDto>,
 /**
  * Effect art a consumer draws over tiles, one entry per effect set,
  * sorted by id. Never placed by layouts or drawn by the compositor.
+ * Absent (not an empty list) when the library has none, so the field
+ * is an optional addition to the frozen `tactical_format` 1 body.
  */
-effects: Array<EffectDto>, };
+effects?: Array<EffectDto>, };

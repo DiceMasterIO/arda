@@ -177,7 +177,7 @@
       "type": "array"
     },
     "effects": {
-      "description": "Effect art a consumer draws over tiles, one entry per effect set,\nsorted by id. Never placed by layouts or drawn by the compositor.",
+      "description": "Effect art a consumer draws over tiles, one entry per effect set,\nsorted by id. Never placed by layouts or drawn by the compositor.\nAbsent (not an empty list) when the library has none, so the field\nis an optional addition to the frozen `tactical_format` 1 body.",
       "items": {
         "$ref": "#/$defs/EffectDto"
       },
@@ -218,8 +218,7 @@
     "pixels_per_square",
     "grounds",
     "wall_kits",
-    "assets",
-    "effects"
+    "assets"
   ],
   "title": "TacticalLibraryDto",
   "type": "object"
