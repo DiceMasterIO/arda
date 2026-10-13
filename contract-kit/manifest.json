@@ -426,6 +426,23 @@
       }
     },
     {
+      "id": "tactical-window-tile",
+      "route": "GET /v1/tactical/window/tiles/{z}/{x}/{y}.webp",
+      "method": "GET",
+      "uri": "/v1/tactical/window/tiles/0/0/0.webp?gx0=479&gy0=1245&w=2&h=1",
+      "status": 200,
+      "content_type": "image/webp",
+      "headers": {
+        "cache-control": "no-cache",
+        "etag": "\"aa3ac03a7c8922b0f7e7340a9842bd20\""
+      },
+      "schema": null,
+      "body": {
+        "sha256": "bf20a90e7b980ed16732d0c4133e9a973f7fd25d2ec1ab08b1164931163fd3fa",
+        "bytes": 274110
+      }
+    },
+    {
       "id": "tactical-prefetch",
       "route": "POST /v1/tactical/prefetch",
       "method": "POST",
