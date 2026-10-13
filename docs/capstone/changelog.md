@@ -556,6 +556,15 @@ key: feat/2026-09-29-recipe5-formation
   - Against the previous best recipe-4 world: grid-straight river runs 265‰ → 0‰, bed pits 447 → 1.
 - Tests: formation determinism (repeat and single-thread); no fine or sampled pits; local fill; admission refusal; ria infill; basin closure; glacial basins; order and area conservation; integer sqrt, Catmull-Rom and blur; formed shader light, snow, sea, shore and lake colours.
 
+## 2026-09-25 - Terrain study and requested evidence cleanup
+- **Request**: replace the feature's accumulated working evidence with a readable study, a catalogue and representative images; delete redundant feature files.
+- **Retained study**: the terrain-corrections feature folder keeps a `STUDY.md` that gives the chronological account from first Atlas rendering through the accepted procedural source and full 32K delivery, and an `EXPERIMENTS.md` that accounts for all 194 evidence groups, including rejected trials, numerical-only work and final outcome corrections. Eight existing images are retained unchanged.
+- **Preservation**: the original 523-file world, the final 524-file world and the final 32K PNG moved to `out/terrain-delivery/`; all file hashes were verified before and after relocation. `receipt.json` preserves hashes, stage timings, resource admission and cleanup counts.
+- **Deletion**: removed 22,094 redundant files totaling 32,673,485,699 bytes. The feature folder now holds only two Markdown files and eight images. Earlier September 22 feature folders and historical changelog entries remain intact.
+- **Reference refresh**: current chapter evidence links resolve to the study/catalogue or the relocated deliverable. Historical inline filenames are marked as provenance for removed experiments.
+- **Review**: a review pass synthesized the experiment groups; the final read-only check corrected wording that could imply an unrun lateral-retreat hypothesis had been tested. Catalogue coverage, local links, image hashes and retained-world relocation were checked.
+- **Code**: implementation commit `52eab74` was pushed to a feature branch before consolidation. This cleanup changes documentation and local artifacts only; no generation or rendering code changed.
+
 ## 2026-09-25 - Preferred source: macro-geography composition
 Added shared integer local-relief gating and checked signed composition. The working diagnostic reproduces inland/coastal fields exactly across fresh processes and against an independent integer oracle. Actual Arda comparisons place rugged relief within an existing mountain belt while retaining quiet lowlands; local coastal geometry remains connected to the crop boundary. Eighteen targeted tests and workspace checks pass.
 

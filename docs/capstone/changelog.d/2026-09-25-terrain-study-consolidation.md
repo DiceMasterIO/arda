@@ -1,9 +1,0 @@
-# Terrain study and requested evidence cleanup
-
-- **Request**: replace the feature's accumulated working evidence with a readable study, a catalogue and representative images; delete redundant feature files.
-- **Retained study**: `features/2026-09-23-terrain-corrections/STUDY.md` gives the chronological account from first Atlas rendering through the accepted procedural source and full 32K delivery. `EXPERIMENTS.md` accounts for all 194 evidence groups, including rejected trials, numerical-only work and final outcome corrections. Eight existing images are retained unchanged.
-- **Preservation**: original 523-file world, final 524-file world and final 32K PNG moved to `out/terrain-delivery/`; all file hashes verified before and after relocation. `receipt.json` preserves hashes, stage timings, resource admission and cleanup counts.
-- **Deletion**: removed 22,094 redundant files totaling 32,673,485,699 bytes. The current feature folder contains only two Markdown files and eight images. Earlier September22 feature folders and historical changelog entries remain intact.
-- **Reference refresh**: current chapter evidence links now resolve to the study/catalogue or relocated deliverable. Historical inline filenames are explicitly marked as provenance for removed experiments.
-- **Review**: two GPT-6 Sol agents synthesized the experiment groups; final read-only review caught and corrected wording that could imply an unrun lateral-retreat hypothesis had been tested. Catalogue coverage, local links, image hashes and retained-world relocation were checked.
-- **Code**: implementation commit `52eab74` was pushed to `DiceMasterIO/arda`, branch `codex/geographical-rendering-first-pass`, before consolidation. This cleanup changes documentation and local artifacts only; no generation or rendering code changed.
