@@ -1,0 +1,425 @@
+{
+  "api_version": "v1",
+  "dialect": "https://json-schema.org/draft/2020-12/schema",
+  "format_version": 1,
+  "note": "Schemas describe Arda's own NPC shape; a server started with --sheet-mapping reshapes every Npc it serves (header X-Arda-Sheet-Mapping) and the Npc parts of these schemas no longer apply to it.",
+  "schemas": [
+    {
+      "family": "api_version",
+      "name": "ApiError",
+      "routes": [
+        "every 4xx and 5xx response"
+      ],
+      "stability": "stable",
+      "url": "/v1/schema/ApiError.json"
+    },
+    {
+      "family": "contract_version",
+      "name": "AreaCells",
+      "routes": [
+        "GET /v1/area/{ax}/{ay}/cells?format=json"
+      ],
+      "stability": "stable",
+      "url": "/v1/schema/AreaCells.json"
+    },
+    {
+      "family": "contract_version",
+      "name": "AreaLakes",
+      "routes": [
+        "GET /v1/area/{ax}/{ay}/lakes"
+      ],
+      "stability": "stable",
+      "url": "/v1/schema/AreaLakes.json"
+    },
+    {
+      "family": "contract_version",
+      "name": "AreaRivers",
+      "routes": [
+        "GET /v1/area/{ax}/{ay}/rivers"
+      ],
+      "stability": "stable",
+      "url": "/v1/schema/AreaRivers.json"
+    },
+    {
+      "family": "bake_format",
+      "name": "BakeAccepted",
+      "routes": [
+        "POST /v1/tactical/bake"
+      ],
+      "stability": "stable",
+      "url": "/v1/schema/BakeAccepted.json"
+    },
+    {
+      "family": "bake_format",
+      "name": "BakeRequest",
+      "routes": [
+        "POST /v1/tactical/bake (request)"
+      ],
+      "stability": "stable",
+      "url": "/v1/schema/BakeRequest.json"
+    },
+    {
+      "family": "bake_format",
+      "name": "BakeStatus",
+      "routes": [
+        "GET /v1/tactical/bake/{id}"
+      ],
+      "stability": "stable",
+      "url": "/v1/schema/BakeStatus.json"
+    },
+    {
+      "family": "contract_version",
+      "name": "CellSample",
+      "routes": [
+        "GET /v1/cell/{gx}/{gy}"
+      ],
+      "stability": "stable",
+      "url": "/v1/schema/CellSample.json"
+    },
+    {
+      "family": "tactical_format",
+      "name": "DungeonDto",
+      "routes": [
+        "GET /v1/tactical/dungeon"
+      ],
+      "stability": "stable",
+      "url": "/v1/schema/DungeonDto.json"
+    },
+    {
+      "family": "realm_format",
+      "name": "Event",
+      "routes": [
+        "RealmDetail.events[]"
+      ],
+      "stability": "stable",
+      "url": "/v1/schema/Event.json"
+    },
+    {
+      "family": "gazetteer_format",
+      "name": "Gazetteer",
+      "routes": [
+        "GET /v1/gazetteer"
+      ],
+      "stability": "stable",
+      "url": "/v1/schema/Gazetteer.json"
+    },
+    {
+      "family": "gazetteer_format",
+      "name": "GazetteerFeature",
+      "routes": [
+        "Gazetteer.features[]",
+        "society/gazetteer.json"
+      ],
+      "stability": "stable",
+      "url": "/v1/schema/GazetteerFeature.json"
+    },
+    {
+      "family": "gazetteer_format",
+      "name": "GazetteerPoint",
+      "routes": [
+        "Gazetteer.features[]"
+      ],
+      "stability": "stable",
+      "url": "/v1/schema/GazetteerPoint.json"
+    },
+    {
+      "family": "npc_format",
+      "name": "GenerateNpcRequest",
+      "routes": [
+        "POST /v1/npc/generate (request)"
+      ],
+      "stability": "stable",
+      "url": "/v1/schema/GenerateNpcRequest.json"
+    },
+    {
+      "family": "contract_version",
+      "name": "Health",
+      "routes": [
+        "GET /v1/health"
+      ],
+      "stability": "stable",
+      "url": "/v1/schema/Health.json"
+    },
+    {
+      "family": "api_version",
+      "name": "NotYetError",
+      "routes": [
+        "501 from /v1/tactical/cell and /window (PendingBlocks test seam only)"
+      ],
+      "stability": "debug",
+      "url": "/v1/schema/NotYetError.json"
+    },
+    {
+      "family": "npc_format",
+      "name": "Npc",
+      "routes": [
+        "GET /v1/npc/{id}",
+        "GET /v1/npc/demo/{npc_id}",
+        "POST /v1/npc/generate"
+      ],
+      "stability": "stable",
+      "url": "/v1/schema/Npc.json"
+    },
+    {
+      "family": "npc_format",
+      "name": "NpcDemo",
+      "routes": [
+        "GET /v1/npc/demo"
+      ],
+      "stability": "debug",
+      "url": "/v1/schema/NpcDemo.json"
+    },
+    {
+      "family": "npc_page_format",
+      "name": "NpcPage",
+      "routes": [
+        "GET /v1/npcs",
+        "GET /v1/buildings/{building}/residents",
+        "GET /v1/buildings/{building}/workers"
+      ],
+      "stability": "stable",
+      "url": "/v1/schema/NpcPage.json"
+    },
+    {
+      "family": "contract_version",
+      "name": "PointSample",
+      "routes": [
+        "GET /v1/point"
+      ],
+      "stability": "stable",
+      "url": "/v1/schema/PointSample.json"
+    },
+    {
+      "family": "npc_format",
+      "name": "Population",
+      "routes": [
+        "POST /v1/npc/population"
+      ],
+      "stability": "stable",
+      "url": "/v1/schema/Population.json"
+    },
+    {
+      "family": "npc_format",
+      "name": "PopulationRequest",
+      "routes": [
+        "POST /v1/npc/population (request)"
+      ],
+      "stability": "stable",
+      "url": "/v1/schema/PopulationRequest.json"
+    },
+    {
+      "family": "tactical_format",
+      "name": "PrefetchAccepted",
+      "routes": [
+        "POST /v1/tactical/prefetch"
+      ],
+      "stability": "stable",
+      "url": "/v1/schema/PrefetchAccepted.json"
+    },
+    {
+      "family": "tactical_format",
+      "name": "PrefetchRequest",
+      "routes": [
+        "POST /v1/tactical/prefetch (request)"
+      ],
+      "stability": "stable",
+      "url": "/v1/schema/PrefetchRequest.json"
+    },
+    {
+      "family": "realm_format",
+      "name": "Realm",
+      "routes": [
+        "RealmDetail.record"
+      ],
+      "stability": "stable",
+      "url": "/v1/schema/Realm.json"
+    },
+    {
+      "family": "realm_format",
+      "name": "RealmDetail",
+      "routes": [
+        "GET /v1/realms/{id}"
+      ],
+      "stability": "stable",
+      "url": "/v1/schema/RealmDetail.json"
+    },
+    {
+      "family": "realm_format",
+      "name": "RealmList",
+      "routes": [
+        "GET /v1/realms"
+      ],
+      "stability": "stable",
+      "url": "/v1/schema/RealmList.json"
+    },
+    {
+      "family": "realm_format",
+      "name": "RealmSociety",
+      "routes": [
+        "RealmDetail.politics"
+      ],
+      "stability": "stable",
+      "url": "/v1/schema/RealmSociety.json"
+    },
+    {
+      "family": "realm_format",
+      "name": "Relation",
+      "routes": [
+        "RealmDetail.relations[]"
+      ],
+      "stability": "stable",
+      "url": "/v1/schema/Relation.json"
+    },
+    {
+      "family": "rules_sidecar_format",
+      "name": "RulesSidecarDto",
+      "routes": [
+        "TacticalBlockDto.rules",
+        "DungeonDto.rules"
+      ],
+      "stability": "stable",
+      "url": "/v1/schema/RulesSidecarDto.json"
+    },
+    {
+      "family": "scene_format",
+      "name": "SceneDto",
+      "routes": [
+        "GET /v1/tactical/dungeon/scene",
+        "TacticalBlockDto.scene",
+        "TacticalScene.scene"
+      ],
+      "stability": "stable",
+      "url": "/v1/schema/SceneDto.json"
+    },
+    {
+      "family": "schema_index_format",
+      "name": "SchemaIndex",
+      "routes": [
+        "GET /v1/schema"
+      ],
+      "stability": "stable",
+      "url": "/v1/schema/SchemaIndex.json"
+    },
+    {
+      "family": "settlement_format",
+      "name": "Settlement",
+      "routes": [
+        "SettlementList.settlements[]",
+        "SettlementDetail.record"
+      ],
+      "stability": "stable",
+      "url": "/v1/schema/Settlement.json"
+    },
+    {
+      "family": "settlement_format",
+      "name": "SettlementDetail",
+      "routes": [
+        "GET /v1/settlements/{id}"
+      ],
+      "stability": "stable",
+      "url": "/v1/schema/SettlementDetail.json"
+    },
+    {
+      "family": "settlement_format",
+      "name": "SettlementList",
+      "routes": [
+        "GET /v1/settlements"
+      ],
+      "stability": "stable",
+      "url": "/v1/schema/SettlementList.json"
+    },
+    {
+      "family": "settlement_format",
+      "name": "SettlementNpcs",
+      "routes": [
+        "GET /v1/settlements/{id}/npcs"
+      ],
+      "stability": "stable",
+      "url": "/v1/schema/SettlementNpcs.json"
+    },
+    {
+      "family": "settlement_format",
+      "name": "SettlementSociety",
+      "routes": [
+        "SettlementDetail.society"
+      ],
+      "stability": "stable",
+      "url": "/v1/schema/SettlementSociety.json"
+    },
+    {
+      "family": "npc_format",
+      "name": "Sheet",
+      "routes": [
+        "Npc.sheet"
+      ],
+      "stability": "stable",
+      "url": "/v1/schema/Sheet.json"
+    },
+    {
+      "family": "tactical_format",
+      "name": "TacticalBlockDto",
+      "routes": [
+        "GET /v1/tactical/cell/{gx}/{gy}",
+        "GET /v1/tactical/window"
+      ],
+      "stability": "stable",
+      "url": "/v1/schema/TacticalBlockDto.json"
+    },
+    {
+      "family": "layout_schema",
+      "name": "TacticalLayoutDto",
+      "routes": [
+        "GET /v1/tactical/layout/{name}",
+        "POST /v1/tactical/render (request)",
+        "DungeonDto.layout"
+      ],
+      "stability": "stable",
+      "url": "/v1/schema/TacticalLayoutDto.json"
+    },
+    {
+      "family": "tactical_format",
+      "name": "TacticalLayouts",
+      "routes": [
+        "GET /v1/tactical/layouts"
+      ],
+      "stability": "debug",
+      "url": "/v1/schema/TacticalLayouts.json"
+    },
+    {
+      "family": "tactical_format",
+      "name": "TacticalLibraryDto",
+      "routes": [
+        "GET /v1/tactical/library"
+      ],
+      "stability": "stable",
+      "url": "/v1/schema/TacticalLibraryDto.json"
+    },
+    {
+      "family": "tactical_format",
+      "name": "TacticalScene",
+      "routes": [
+        "GET /v1/tactical/cell/{gx}/{gy}/scene"
+      ],
+      "stability": "stable",
+      "url": "/v1/schema/TacticalScene.json"
+    },
+    {
+      "family": "settlement_format",
+      "name": "TownPlan",
+      "routes": [
+        "GET /v1/settlements/{id}/plan"
+      ],
+      "stability": "stable",
+      "url": "/v1/schema/TownPlan.json"
+    },
+    {
+      "family": "contract_version",
+      "name": "WorldInfo",
+      "routes": [
+        "GET /v1/world"
+      ],
+      "stability": "stable",
+      "url": "/v1/schema/WorldInfo.json"
+    }
+  ]
+}

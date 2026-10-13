@@ -1,0 +1,714 @@
+{
+  "kit_format": 1,
+  "about": "Arda <-> DiceMaster contract kit: golden responses of the canonical world. See README.md.",
+  "fixture": {
+    "seed": "42",
+    "size": "micro",
+    "terrain": "fine",
+    "recipe_version": 7,
+    "society": true,
+    "arda_version": "0.8.1",
+    "server_version": "0.8.1",
+    "world_json_blake3": "d454292d8980f930c3785b1fd4363eaf8e8d188487b8062aa657c4485bbd857b",
+    "world_fingerprint": "world.txt",
+    "library": "placeholder",
+    "library_version": "0.1.0+seed58",
+    "contract_version": 3,
+    "api_version": "v1",
+    "sheet_mapping": null
+  },
+  "cases": [
+    {
+      "id": "health",
+      "route": "GET /v1/health",
+      "method": "GET",
+      "uri": "/v1/health",
+      "status": 200,
+      "content_type": "application/json",
+      "headers": {},
+      "schema": "Health",
+      "golden": "golden/health.json"
+    },
+    {
+      "id": "world",
+      "route": "GET /v1/world",
+      "method": "GET",
+      "uri": "/v1/world",
+      "status": 200,
+      "content_type": "application/json",
+      "headers": {},
+      "schema": "WorldInfo",
+      "golden": "golden/world.json"
+    },
+    {
+      "id": "cell",
+      "route": "GET /v1/cell/{gx}/{gy}",
+      "method": "GET",
+      "uri": "/v1/cell/479/1245",
+      "status": 200,
+      "content_type": "application/json",
+      "headers": {},
+      "schema": "CellSample",
+      "golden": "golden/cell.json"
+    },
+    {
+      "id": "point",
+      "route": "GET /v1/point",
+      "method": "GET",
+      "uri": "/v1/point?x_m=47950.5&y_m=124550.25",
+      "status": 200,
+      "content_type": "application/json",
+      "headers": {},
+      "schema": "PointSample",
+      "golden": "golden/point.json"
+    },
+    {
+      "id": "area-cells",
+      "route": "GET /v1/area/{ax}/{ay}/cells",
+      "method": "GET",
+      "uri": "/v1/area/0/2/cells",
+      "status": 200,
+      "content_type": "application/json",
+      "headers": {},
+      "schema": "AreaCells",
+      "body": {
+        "sha256": "f55b7604fd9dcabe0c48eb307a4b581bca88d2b43cd2ad37f5ca7d17e7cb1310",
+        "bytes": 36133585
+      }
+    },
+    {
+      "id": "area-cells-bin",
+      "route": "GET /v1/area/{ax}/{ay}/cells",
+      "method": "GET",
+      "uri": "/v1/area/0/2/cells?format=bin",
+      "status": 200,
+      "content_type": "application/octet-stream",
+      "headers": {},
+      "schema": null,
+      "body": {
+        "sha256": "8391eb7466bb6deaa97cc9eaad08029aa0acde28306eb844bed6136180c43a49",
+        "bytes": 27001292
+      }
+    },
+    {
+      "id": "area-rivers",
+      "route": "GET /v1/area/{ax}/{ay}/rivers",
+      "method": "GET",
+      "uri": "/v1/area/0/2/rivers",
+      "status": 200,
+      "content_type": "application/json",
+      "headers": {},
+      "schema": "AreaRivers",
+      "golden": "golden/area-rivers.json"
+    },
+    {
+      "id": "area-lakes",
+      "route": "GET /v1/area/{ax}/{ay}/lakes",
+      "method": "GET",
+      "uri": "/v1/area/0/2/lakes",
+      "status": 200,
+      "content_type": "application/json",
+      "headers": {},
+      "schema": "AreaLakes",
+      "golden": "golden/area-lakes.json"
+    },
+    {
+      "id": "overview-png",
+      "route": "GET /v1/overview.png",
+      "method": "GET",
+      "uri": "/v1/overview.png",
+      "status": 200,
+      "content_type": "image/png",
+      "headers": {
+        "cache-control": "no-cache",
+        "etag": "\"4443b1500d3955f1871a15f24033734de25a86d4ac44c70a780484603e6edd32\""
+      },
+      "schema": null,
+      "body": {
+        "sha256": "9cf660fd0d7c168ffb332e739b1917ffda94a7ac4464ff580ddc82b834492ec2",
+        "bytes": 1945537
+      }
+    },
+    {
+      "id": "overview-tile-webp",
+      "route": "GET /v1/tiles/overview/{z}/{x}/{y}.webp",
+      "method": "GET",
+      "uri": "/v1/tiles/overview/2/0/2.webp",
+      "status": 200,
+      "content_type": "image/webp",
+      "headers": {
+        "cache-control": "no-cache",
+        "etag": "\"528583a5a8aadf92588ae8b4a9a25988f92c529c6e93ce9b7222623e7fee7765\""
+      },
+      "schema": null,
+      "body": {
+        "sha256": "f4b7aea54e9f54c59ffe9da56629f51669291f4de79d02855b8e2c68e1445075",
+        "bytes": 45418
+      }
+    },
+    {
+      "id": "overview-tile-webp-304",
+      "route": "GET /v1/tiles/overview/{z}/{x}/{y}.webp",
+      "method": "GET",
+      "uri": "/v1/tiles/overview/2/0/2.webp",
+      "if_none_match_of": "overview-tile-webp",
+      "status": 304,
+      "content_type": null,
+      "headers": {
+        "etag": "\"528583a5a8aadf92588ae8b4a9a25988f92c529c6e93ce9b7222623e7fee7765\""
+      },
+      "schema": null,
+      "body": {
+        "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+        "bytes": 0
+      }
+    },
+    {
+      "id": "overview-tile-webp-nolabels",
+      "route": "GET /v1/tiles/overview/{z}/{x}/{y}.webp",
+      "method": "GET",
+      "uri": "/v1/tiles/overview/2/0/2.webp?labels=0",
+      "status": 200,
+      "content_type": "image/webp",
+      "headers": {
+        "cache-control": "no-cache",
+        "etag": "\"9fd8c5db817464fbfc862aa4a5b968ea75341e5f050c54d73e3bff8b76810726\""
+      },
+      "schema": null,
+      "body": {
+        "sha256": "97062a8515bd475830a322dace82052879b62b852d498c2367aa524e53e877b6",
+        "bytes": 45372
+      }
+    },
+    {
+      "id": "overview-tile-png",
+      "route": "GET /v1/tiles/overview/{z}/{x}/{y}.png",
+      "method": "GET",
+      "uri": "/v1/tiles/overview/2/0/2.png",
+      "status": 200,
+      "content_type": "image/png",
+      "headers": {
+        "cache-control": "no-cache",
+        "etag": "\"84dfd53500ad99acaf83ffde54247a0ccfcb096e7eb2174860ec0f8a25737683\""
+      },
+      "schema": null,
+      "body": {
+        "sha256": "5356fb2986e591a64a37c7f5988babb8ced33feff7a8c673f707c7eea3ced7e0",
+        "bytes": 59237
+      }
+    },
+    {
+      "id": "relief-tile",
+      "route": "GET /v1/tiles/relief/{z}/{x}/{y}.webp",
+      "method": "GET",
+      "uri": "/v1/tiles/relief/9/119/311.webp",
+      "status": 200,
+      "content_type": "image/webp",
+      "headers": {
+        "cache-control": "no-cache",
+        "etag": "\"ca62eb95641c0f959fb4a4d8016c2593f79773cf2f93ef75a6b6a4e61238ac3b\""
+      },
+      "schema": null,
+      "body": {
+        "sha256": "f0b14db1f33ad249cbd3c82a6c558cc65bcef966c859a64c6ac71269da999220",
+        "bytes": 82962
+      }
+    },
+    {
+      "id": "gazetteer",
+      "route": "GET /v1/gazetteer",
+      "method": "GET",
+      "uri": "/v1/gazetteer",
+      "status": 200,
+      "content_type": "application/json",
+      "headers": {},
+      "schema": "Gazetteer",
+      "golden": "golden/gazetteer.json"
+    },
+    {
+      "id": "realms",
+      "route": "GET /v1/realms",
+      "method": "GET",
+      "uri": "/v1/realms",
+      "status": 200,
+      "content_type": "application/json",
+      "headers": {},
+      "schema": "RealmList",
+      "golden": "golden/realms.json"
+    },
+    {
+      "id": "realm",
+      "route": "GET /v1/realms/{id}",
+      "method": "GET",
+      "uri": "/v1/realms/3",
+      "status": 200,
+      "content_type": "application/json",
+      "headers": {},
+      "schema": "RealmDetail",
+      "golden": "golden/realm.json"
+    },
+    {
+      "id": "settlements",
+      "route": "GET /v1/settlements",
+      "method": "GET",
+      "uri": "/v1/settlements",
+      "status": 200,
+      "content_type": "application/json",
+      "headers": {},
+      "schema": "SettlementList",
+      "golden": "golden/settlements.json"
+    },
+    {
+      "id": "settlements-towns",
+      "route": "GET /v1/settlements",
+      "method": "GET",
+      "uri": "/v1/settlements?tier=town",
+      "status": 200,
+      "content_type": "application/json",
+      "headers": {},
+      "schema": "SettlementList",
+      "golden": "golden/settlements-towns.json"
+    },
+    {
+      "id": "settlement",
+      "route": "GET /v1/settlements/{id}",
+      "method": "GET",
+      "uri": "/v1/settlements/10",
+      "status": 200,
+      "content_type": "application/json",
+      "headers": {},
+      "schema": "SettlementDetail",
+      "golden": "golden/settlement.json"
+    },
+    {
+      "id": "settlement-plan",
+      "route": "GET /v1/settlements/{id}/plan",
+      "method": "GET",
+      "uri": "/v1/settlements/10/plan",
+      "status": 200,
+      "content_type": "application/json",
+      "headers": {},
+      "schema": "TownPlan",
+      "golden": "golden/settlement-plan.json"
+    },
+    {
+      "id": "settlement-npcs",
+      "route": "GET /v1/settlements/{id}/npcs",
+      "method": "GET",
+      "uri": "/v1/settlements/10/npcs",
+      "status": 200,
+      "content_type": "application/json",
+      "headers": {},
+      "schema": "SettlementNpcs",
+      "golden": "golden/settlement-npcs.json"
+    },
+    {
+      "id": "tactical-cell",
+      "route": "GET /v1/tactical/cell/{gx}/{gy}",
+      "method": "GET",
+      "uri": "/v1/tactical/cell/479/1245",
+      "status": 200,
+      "content_type": "application/json",
+      "headers": {
+        "cache-control": "no-cache"
+      },
+      "schema": "TacticalBlockDto",
+      "golden": "golden/tactical-cell.json"
+    },
+    {
+      "id": "tactical-scene-day",
+      "route": "GET /v1/tactical/cell/{gx}/{gy}/scene",
+      "method": "GET",
+      "uri": "/v1/tactical/cell/479/1245/scene?time=day",
+      "status": 200,
+      "content_type": "application/json",
+      "headers": {
+        "cache-control": null
+      },
+      "schema": "TacticalScene",
+      "golden": "golden/tactical-scene-day.json"
+    },
+    {
+      "id": "tactical-scene-night",
+      "route": "GET /v1/tactical/cell/{gx}/{gy}/scene",
+      "method": "GET",
+      "uri": "/v1/tactical/cell/479/1245/scene?time=night",
+      "status": 200,
+      "content_type": "application/json",
+      "headers": {
+        "cache-control": null
+      },
+      "schema": "TacticalScene",
+      "golden": "golden/tactical-scene-night.json"
+    },
+    {
+      "id": "tactical-cell-png",
+      "route": "GET /v1/tactical/cell/{gx}/{gy}.png",
+      "method": "GET",
+      "uri": "/v1/tactical/cell/479/1245.png?ppsq=64",
+      "status": 200,
+      "content_type": "image/png",
+      "headers": {
+        "cache-control": "no-cache",
+        "etag": "\"886902172a16d7747db04221e2054418\""
+      },
+      "schema": null,
+      "body": {
+        "sha256": "4eaac5b28ab1fb7e1ed039508ed903e6f537994292a036964deba5988c7cb738",
+        "bytes": 33607752
+      }
+    },
+    {
+      "id": "tactical-cell-png-304",
+      "route": "GET /v1/tactical/cell/{gx}/{gy}.png",
+      "method": "GET",
+      "uri": "/v1/tactical/cell/479/1245.png?ppsq=64",
+      "if_none_match_of": "tactical-cell-png",
+      "status": 304,
+      "content_type": null,
+      "headers": {
+        "etag": "\"886902172a16d7747db04221e2054418\""
+      },
+      "schema": null,
+      "body": {
+        "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+        "bytes": 0
+      }
+    },
+    {
+      "id": "tactical-cell-tile",
+      "route": "GET /v1/tactical/cell/{gx}/{gy}/tiles/{z}/{x}/{y}.webp",
+      "method": "GET",
+      "uri": "/v1/tactical/cell/479/1245/tiles/3/2/2.webp?ppsq=64",
+      "status": 200,
+      "content_type": "image/webp",
+      "headers": {
+        "cache-control": "no-cache",
+        "etag": "\"240be9bfa29265b988f594b3b6133f37\""
+      },
+      "schema": null,
+      "body": {
+        "sha256": "022a4bf314af4aef2d3c794c3efdfea17195f12db646a8e7564142df7138751f",
+        "bytes": 424564
+      }
+    },
+    {
+      "id": "tactical-window",
+      "route": "GET /v1/tactical/window",
+      "method": "GET",
+      "uri": "/v1/tactical/window?gx0=479&gy0=1245&w=2&h=1",
+      "status": 200,
+      "content_type": "application/json",
+      "headers": {
+        "cache-control": "no-cache"
+      },
+      "schema": "TacticalBlockDto",
+      "body": {
+        "sha256": "6388751139b6f5968189f8c1f9c0d4c3f8484201b0bfae7172a8e0750d3a663c",
+        "bytes": 2074907
+      }
+    },
+    {
+      "id": "tactical-window-png",
+      "route": "GET /v1/tactical/window.png",
+      "method": "GET",
+      "uri": "/v1/tactical/window.png?gx0=479&gy0=1245&w=2&h=1",
+      "status": 200,
+      "content_type": "image/png",
+      "headers": {
+        "cache-control": "no-cache",
+        "etag": "\"97f056a1255524bfd614cc806271c5a8\""
+      },
+      "schema": null,
+      "body": {
+        "sha256": "9056b490b50f5b68c52f741258c1ea1c1fbb4341b3c848ef36646865054ec71a",
+        "bytes": 17394865
+      }
+    },
+    {
+      "id": "tactical-prefetch",
+      "route": "POST /v1/tactical/prefetch",
+      "method": "POST",
+      "uri": "/v1/tactical/prefetch",
+      "request": {
+        "content_type": "application/json",
+        "body": "requests/tactical-prefetch.json"
+      },
+      "status": 202,
+      "content_type": "application/json",
+      "headers": {},
+      "schema": "PrefetchAccepted",
+      "golden": "golden/tactical-prefetch.json"
+    },
+    {
+      "id": "tactical-library",
+      "route": "GET /v1/tactical/library",
+      "method": "GET",
+      "uri": "/v1/tactical/library",
+      "status": 200,
+      "content_type": "application/json",
+      "headers": {},
+      "schema": "TacticalLibraryDto",
+      "golden": "golden/tactical-library.json"
+    },
+    {
+      "id": "tactical-bake",
+      "route": "POST /v1/tactical/bake",
+      "method": "POST",
+      "uri": "/v1/tactical/bake",
+      "request": {
+        "content_type": "application/json",
+        "body": "requests/tactical-bake.json"
+      },
+      "status": 202,
+      "content_type": "application/json",
+      "headers": {
+        "location": "/v1/tactical/bake/352177500ed3746b00a33d47938badd5"
+      },
+      "schema": "BakeAccepted",
+      "golden": "golden/tactical-bake.json"
+    },
+    {
+      "id": "tactical-bake-delete",
+      "route": "DELETE /v1/tactical/bake/{id}",
+      "method": "DELETE",
+      "uri": "/v1/tactical/bake/352177500ed3746b00a33d47938badd5",
+      "uri_from_location_of": "tactical-bake",
+      "status": 204,
+      "content_type": null,
+      "headers": {},
+      "schema": null,
+      "body": {
+        "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+        "bytes": 0
+      }
+    },
+    {
+      "id": "dungeon",
+      "route": "GET /v1/tactical/dungeon",
+      "method": "GET",
+      "uri": "/v1/tactical/dungeon?gx=479&gy=1245",
+      "status": 200,
+      "content_type": "application/json",
+      "headers": {
+        "cache-control": "no-cache"
+      },
+      "schema": "DungeonDto",
+      "golden": "golden/dungeon.json"
+    },
+    {
+      "id": "dungeon-png",
+      "route": "GET /v1/tactical/dungeon.png",
+      "method": "GET",
+      "uri": "/v1/tactical/dungeon.png?gx=479&gy=1245&ppsq=64",
+      "status": 200,
+      "content_type": "image/png",
+      "headers": {
+        "cache-control": "no-cache",
+        "etag": "\"0cf50ca00793d1d11ba177f0f8152797\""
+      },
+      "schema": null,
+      "body": {
+        "sha256": "6822a60ded675d86d8f4e8bfb525c913584b730942340881fe46307a32c56fda",
+        "bytes": 10404767
+      }
+    },
+    {
+      "id": "dungeon-scene",
+      "route": "GET /v1/tactical/dungeon/scene",
+      "method": "GET",
+      "uri": "/v1/tactical/dungeon/scene?gx=479&gy=1245",
+      "status": 200,
+      "content_type": "application/json",
+      "headers": {
+        "cache-control": null
+      },
+      "schema": "SceneDto",
+      "golden": "golden/dungeon-scene.json"
+    },
+    {
+      "id": "npc-notable",
+      "route": "GET /v1/npc/{npc_id}",
+      "method": "GET",
+      "uri": "/v1/npc/11963265889539307354",
+      "status": 200,
+      "content_type": "application/json",
+      "headers": {},
+      "schema": "Npc",
+      "golden": "golden/npc-notable.json"
+    },
+    {
+      "id": "npc-commoner-ref",
+      "route": "GET /v1/npc/{npc_id}",
+      "method": "GET",
+      "uri": "/v1/npc/10.2.1",
+      "status": 200,
+      "content_type": "application/json",
+      "headers": {},
+      "schema": "Npc",
+      "golden": "golden/npc-commoner-ref.json"
+    },
+    {
+      "id": "npc-commoner-id",
+      "route": "GET /v1/npc/{npc_id}",
+      "method": "GET",
+      "uri": "/v1/npc/11305443758690896062?settlement=10",
+      "status": 200,
+      "content_type": "application/json",
+      "headers": {},
+      "schema": "Npc",
+      "golden": "golden/npc-commoner-id.json"
+    },
+    {
+      "id": "npcs",
+      "route": "GET /v1/npcs",
+      "method": "GET",
+      "uri": "/v1/npcs?settlement=10&limit=5",
+      "status": 200,
+      "content_type": "application/json",
+      "headers": {},
+      "schema": "NpcPage",
+      "golden": "golden/npcs.json"
+    },
+    {
+      "id": "npcs-realm-job",
+      "route": "GET /v1/npcs",
+      "method": "GET",
+      "uri": "/v1/npcs?realm=3&job=smith&limit=3",
+      "status": 200,
+      "content_type": "application/json",
+      "headers": {},
+      "schema": "NpcPage",
+      "golden": "golden/npcs-realm-job.json"
+    },
+    {
+      "id": "building-residents",
+      "route": "GET /v1/buildings/{building}/residents",
+      "method": "GET",
+      "uri": "/v1/buildings/10.2/residents",
+      "status": 200,
+      "content_type": "application/json",
+      "headers": {},
+      "schema": "NpcPage",
+      "golden": "golden/building-residents.json"
+    },
+    {
+      "id": "building-workers",
+      "route": "GET /v1/buildings/{building}/workers",
+      "method": "GET",
+      "uri": "/v1/buildings/10.2/workers",
+      "status": 200,
+      "content_type": "application/json",
+      "headers": {},
+      "schema": "NpcPage",
+      "golden": "golden/building-workers.json"
+    },
+    {
+      "id": "npc-population",
+      "route": "POST /v1/npc/population",
+      "method": "POST",
+      "uri": "/v1/npc/population",
+      "request": {
+        "content_type": "application/json",
+        "body": "requests/npc-population.json"
+      },
+      "status": 200,
+      "content_type": "application/json",
+      "headers": {},
+      "schema": "Population",
+      "golden": "golden/npc-population.json"
+    },
+    {
+      "id": "npc-generate",
+      "route": "POST /v1/npc/generate",
+      "method": "POST",
+      "uri": "/v1/npc/generate",
+      "request": {
+        "content_type": "application/json",
+        "body": "requests/npc-generate.json"
+      },
+      "status": 200,
+      "content_type": "application/json",
+      "headers": {},
+      "schema": "Npc",
+      "golden": "golden/npc-generate.json"
+    },
+    {
+      "id": "schema-index",
+      "route": "GET /v1/schema",
+      "method": "GET",
+      "uri": "/v1/schema",
+      "status": 200,
+      "content_type": "application/json",
+      "headers": {},
+      "schema": "SchemaIndex",
+      "golden": "golden/schema-index.json"
+    },
+    {
+      "id": "schema-file",
+      "route": "GET /v1/schema/{name}.json",
+      "method": "GET",
+      "uri": "/v1/schema/TacticalScene.json",
+      "status": 200,
+      "content_type": "application/schema+json",
+      "headers": {},
+      "schema": null,
+      "golden": "golden/schema-file.json"
+    },
+    {
+      "id": "error-no-block",
+      "route": "GET /v1/tactical/cell/{gx}/{gy}",
+      "method": "GET",
+      "uri": "/v1/tactical/cell/5/5",
+      "status": 404,
+      "content_type": "application/json",
+      "headers": {},
+      "schema": "ApiError",
+      "golden": "golden/error-no-block.json"
+    },
+    {
+      "id": "error-out-of-range",
+      "route": "GET /v1/cell/{gx}/{gy}",
+      "method": "GET",
+      "uri": "/v1/cell/5000/1",
+      "status": 400,
+      "content_type": "application/json",
+      "headers": {},
+      "schema": "ApiError",
+      "golden": "golden/error-out-of-range.json"
+    },
+    {
+      "id": "error-npc-not-found",
+      "route": "GET /v1/npc/{npc_id}",
+      "method": "GET",
+      "uri": "/v1/npc/10.2.999",
+      "status": 404,
+      "content_type": "application/json",
+      "headers": {},
+      "schema": "ApiError",
+      "golden": "golden/error-npc-not-found.json"
+    },
+    {
+      "id": "error-bad-request",
+      "route": "GET /v1/point",
+      "method": "GET",
+      "uri": "/v1/point?x_m=abc&y_m=1",
+      "status": 400,
+      "content_type": "application/json",
+      "headers": {},
+      "schema": "ApiError",
+      "golden": "golden/error-bad-request.json"
+    },
+    {
+      "id": "error-bake-not-found",
+      "route": "GET /v1/tactical/bake/{id}",
+      "method": "GET",
+      "uri": "/v1/tactical/bake/00000000000000000000000000000000",
+      "status": 404,
+      "content_type": "application/json",
+      "headers": {},
+      "schema": "ApiError",
+      "golden": "golden/error-bake-not-found.json"
+    }
+  ]
+}
