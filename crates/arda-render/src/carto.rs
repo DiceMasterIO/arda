@@ -2,7 +2,7 @@
 
 use crate::channels::{AreaImageScale, ChannelInput};
 pub use crate::overview::render_overview_png;
-use crate::{AtlasTerrain, RenderError};
+use crate::{AtlasTerrain, BandOverlay, RenderError};
 use arda_core::{AreaCells, AreaObjects, GlobalCell};
 
 /// Hypsometric palette: millimetres of elevation to RGB.
@@ -164,7 +164,7 @@ pub fn render_area_png_to<W: std::io::Write>(
     scale: AreaImageScale,
     writer: W,
 ) -> Result<(), RenderError> {
-    render_area_png_to_inner(cells, objects, origin, scale, None, writer)
+    render_area_png_to_inner(cells, objects, origin, scale, (None, None), writer)
 }
 
 /// Streams an Atlas area PNG with per-pixel saved-terrain interpolation.
@@ -181,7 +181,25 @@ pub fn render_area_png_to_atlas<W: std::io::Write>(
     terrain: &AtlasTerrain,
     writer: W,
 ) -> Result<(), RenderError> {
-    render_area_png_to_inner(cells, objects, origin, scale, Some(terrain), writer)
+    render_area_png_to_inner(cells, objects, origin, scale, (Some(terrain), None), writer)
+}
+
+/// Streams an area PNG (Atlas when `terrain` is given) and lets `overlay`
+/// paint each group of [`crate::AREA_OVERLAY_ROWS`] finished rows before
+/// they are encoded. Memory is one row group, whatever the output size;
+/// `None` is exactly [`render_area_png_to`] / [`render_area_png_to_atlas`].
+///
+/// # Errors
+/// As [`render_area_png_to_atlas`], plus the overlay's failures.
+pub fn render_area_png_to_with_overlay<W: std::io::Write>(
+    cells: &AreaCells,
+    objects: &AreaObjects,
+    origin: GlobalCell,
+    scale: AreaImageScale,
+    (terrain, overlay): (Option<&AtlasTerrain>, Option<&dyn BandOverlay>),
+    writer: W,
+) -> Result<(), RenderError> {
+    render_area_png_to_inner(cells, objects, origin, scale, (terrain, overlay), writer)
 }
 
 fn render_area_png_to_inner<W: std::io::Write>(
@@ -189,7 +207,7 @@ fn render_area_png_to_inner<W: std::io::Write>(
     objects: &AreaObjects,
     origin: GlobalCell,
     scale: AreaImageScale,
-    terrain: Option<&AtlasTerrain>,
+    (terrain, overlay): (Option<&AtlasTerrain>, Option<&dyn BandOverlay>),
     writer: W,
 ) -> Result<(), RenderError> {
     let inputs = objects.channel_edges.iter().map(|edge| ChannelInput {
@@ -232,10 +250,30 @@ fn render_area_png_to_inner<W: std::io::Write>(
         &objects.lakes,
     )?;
     crate::encode_png_rows(scale.side(), scale.side(), writer, |output| {
-        for y in 0..scale.side() as usize {
-            output
-                .write_all(raster.row(y)?)
-                .map_err(|_| RenderError::Png)?;
+        let side = scale.side() as usize;
+        let Some(overlay) = overlay else {
+            for y in 0..side {
+                output
+                    .write_all(raster.row(y)?)
+                    .map_err(|_| RenderError::Png)?;
+            }
+            return Ok(());
+        };
+        let mut group: Vec<u8> = Vec::with_capacity(crate::AREA_OVERLAY_ROWS * side * 3);
+        let mut y0 = 0;
+        while y0 < side {
+            let y1 = (y0 + crate::AREA_OVERLAY_ROWS).min(side);
+            group.clear();
+            for y in y0..y1 {
+                group.extend_from_slice(raster.row(y)?);
+            }
+            overlay.paint(
+                u32::try_from(y0).map_err(|_| RenderError::Png)?,
+                &mut group,
+                scale.side(),
+            )?;
+            output.write_all(&group).map_err(|_| RenderError::Png)?;
+            y0 = y1;
         }
         Ok(())
     })

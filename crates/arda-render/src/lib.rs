@@ -8,6 +8,7 @@ mod channel_curve;
 mod channel_geometry;
 mod channels;
 mod hydrology_json;
+mod overlay;
 mod overview;
 mod quality;
 use arda_core::GlobalCell;
@@ -20,14 +21,17 @@ pub use atlas::{
     ReliefSurface, SALT_CRUST, SALT_MUDFLAT, SALT_NONE, SALT_SALINE_LAKE,
 };
 pub use carto::{
-    render_area_png, render_area_png_to, render_area_png_to_atlas, render_overview_png,
+    render_area_png, render_area_png_to, render_area_png_to_atlas, render_area_png_to_with_overlay,
+    render_overview_png,
 };
 pub use channels::AreaImageScale;
 pub use json::{area_json, SCHEMA_VERSION};
+pub use overlay::{BandOverlay, AREA_OVERLAY_ROWS};
 pub use overview::{
     write_atlas_overview_png, write_atlas_overview_png_with_channels,
     write_atlas_overview_png_with_channels_formed, write_atlas_overview_png_with_channels_oblique,
-    write_atlas_overview_png_with_channels_recipe4, write_overview_png, ObliqueRelief,
+    write_atlas_overview_png_with_channels_overlay, write_atlas_overview_png_with_channels_recipe4,
+    write_overview_png, write_overview_png_with_overlay, AtlasChannelLook, ObliqueRelief,
     ObliqueReliefBuilder, OverviewChannelContext, OverviewRaster, DEFAULT_TILT_Q12,
 };
 pub use quality::ImageQuality;
@@ -86,6 +90,12 @@ pub enum RenderError {
     /// The world is missing its manifest.
     #[error("refusing to export a partial world")]
     PartialWorld,
+    /// An overlay could not paint its rows.
+    #[error("overlay failed: {reason}")]
+    Overlay {
+        /// What failed.
+        reason: String,
+    },
 }
 
 /// Encodes an RGB buffer as a PNG.

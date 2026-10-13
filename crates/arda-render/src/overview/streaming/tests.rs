@@ -160,7 +160,7 @@ fn mixed_style_trunk_widening_protects_atlas_sea_across_area_and_band_seams() {
             1024,
             512,
             &mut encoded,
-            (ChannelStyle::Legacy, None),
+            (ChannelStyle::Legacy, None, None),
             |at| {
                 if at.x == 0 {
                     Ok::<_, RenderError>((trunk.clone(), None, None))

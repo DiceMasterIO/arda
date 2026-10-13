@@ -8,11 +8,94 @@ use super::{
     atlas_river_halo, channel_overlay::ChannelTile, sample_atlas_channel_base_pixel, sample_pixel,
     style_river_band, validate_exact_dimensions, ChannelStyle, Feature, OverviewChannelContext,
 };
-use crate::{AtlasTerrain, RenderError};
+use crate::{AtlasTerrain, BandOverlay, RenderError};
 use arda_core::{AreaCells, AreaCoord};
 use std::io::Write;
 
 const BAND_ROWS: u32 = 256;
+
+/// Channel style, oblique look and overlay of one streamed render.
+type Look<'a> = (
+    ChannelStyle,
+    Option<&'a ObliqueRelief>,
+    Option<&'a dyn BandOverlay>,
+);
+
+/// River and channel symbol set of an Atlas overview with an overlay.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum AtlasChannelLook {
+    /// The original overview symbol.
+    Original,
+    /// The narrower, translucent recipe 4 symbol.
+    Recipe4,
+    /// Recipe 5 formed land and four-times-wide river symbols.
+    Formed,
+}
+
+/// Encodes a Classic overview like [`write_overview_png`], then lets
+/// `overlay` paint each 256-row band before it is encoded. Memory stays
+/// bounded by the band; `None` is exactly [`write_overview_png`].
+///
+/// # Errors
+/// As [`write_overview_png`], plus the overlay's own failures.
+pub fn write_overview_png_with_overlay<W, F, E>(
+    areas_wide: i32,
+    areas_high: i32,
+    (width, height): (u32, u32),
+    output: W,
+    overlay: Option<&dyn BandOverlay>,
+    mut load_area: F,
+) -> Result<(), E>
+where
+    W: Write,
+    F: FnMut(AreaCoord) -> Result<AreaCells, E>,
+    E: From<RenderError>,
+{
+    write_overview_png_inner(
+        areas_wide,
+        areas_high,
+        width,
+        height,
+        output,
+        (ChannelStyle::Legacy, None, overlay),
+        move |at| load_area(at).map(|cells| (cells, None, None)),
+    )
+}
+
+/// Encodes an Atlas overview with channels like the
+/// `write_atlas_overview_png_with_channels*` family (selected by `look`),
+/// then lets `overlay` paint each 256-row band before it is encoded.
+///
+/// # Errors
+/// As [`write_atlas_overview_png_with_channels`], plus the overlay's failures.
+pub fn write_atlas_overview_png_with_channels_overlay<W, F, E>(
+    areas_wide: i32,
+    areas_high: i32,
+    (width, height): (u32, u32),
+    output: W,
+    (look, overlay): (AtlasChannelLook, Option<&dyn BandOverlay>),
+    mut load_area: F,
+) -> Result<(), E>
+where
+    W: Write,
+    F: FnMut(AreaCoord) -> Result<(AreaCells, AtlasTerrain, OverviewChannelContext), E>,
+    E: From<RenderError>,
+{
+    let style = match look {
+        AtlasChannelLook::Original => ChannelStyle::Legacy,
+        AtlasChannelLook::Recipe4 => ChannelStyle::Fine,
+        AtlasChannelLook::Formed => ChannelStyle::Formed,
+    };
+    write_atlas_overview_png_with_channels_inner(
+        areas_wide,
+        areas_high,
+        width,
+        height,
+        output,
+        (style, None, overlay),
+        &mut load_area,
+    )
+}
 
 fn band_height(height: u32) -> u32 {
     height.min(BAND_ROWS)
@@ -53,7 +136,7 @@ where
         width,
         height,
         output,
-        (ChannelStyle::Legacy, None),
+        (ChannelStyle::Legacy, None, None),
         move |at| load_area(at).map(|cells| (cells, None, None)),
     )
 }
@@ -84,7 +167,7 @@ where
         width,
         height,
         output,
-        (ChannelStyle::Legacy, None),
+        (ChannelStyle::Legacy, None, None),
         move |at| load_area(at).map(|(cells, terrain)| (cells, Some(terrain), None)),
     )
 }
@@ -115,7 +198,7 @@ where
         width,
         height,
         output,
-        (ChannelStyle::Legacy, None),
+        (ChannelStyle::Legacy, None, None),
         &mut load_area,
     )
 }
@@ -146,7 +229,7 @@ where
         width,
         height,
         output,
-        (ChannelStyle::Fine, None),
+        (ChannelStyle::Fine, None, None),
         &mut load_area,
     )
 }
@@ -175,7 +258,7 @@ where
         width,
         height,
         output,
-        (ChannelStyle::Formed, None),
+        (ChannelStyle::Formed, None, None),
         &mut load_area,
     )
 }
@@ -208,7 +291,7 @@ where
         width,
         height,
         output,
-        (ChannelStyle::Formed, Some(relief)),
+        (ChannelStyle::Formed, Some(relief), None),
         &mut load_area,
     )
 }
@@ -219,7 +302,7 @@ fn write_atlas_overview_png_with_channels_inner<W, F, E>(
     width: u32,
     height: u32,
     output: W,
-    style: (ChannelStyle, Option<&ObliqueRelief>),
+    style: Look<'_>,
     mut load_area: F,
 ) -> Result<(), E>
 where
@@ -246,7 +329,7 @@ fn write_overview_png_inner<W, F, E>(
     width: u32,
     height: u32,
     output: W,
-    (style, look): (ChannelStyle, Option<&ObliqueRelief>),
+    (style, look, overlay): Look<'_>,
     mut load_area: F,
 ) -> Result<(), E>
 where
@@ -328,6 +411,9 @@ where
                 .map_err(|_| RenderError::ExactOverviewDimensions)?
                 * band.width
                 * 3;
+            if let Some(overlay) = overlay {
+                overlay.paint(band_y0, &mut band.rgb[start..end], width)?;
+            }
             writer
                 .write_all(&band.rgb[start..end])
                 .map_err(|_| RenderError::Png)?;

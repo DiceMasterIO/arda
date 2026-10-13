@@ -18,7 +18,8 @@ use sampling::{sample_atlas_channel_base_pixel, sample_pixel};
 pub use streaming::{
     write_atlas_overview_png, write_atlas_overview_png_with_channels,
     write_atlas_overview_png_with_channels_formed, write_atlas_overview_png_with_channels_oblique,
-    write_atlas_overview_png_with_channels_recipe4, write_overview_png,
+    write_atlas_overview_png_with_channels_overlay, write_atlas_overview_png_with_channels_recipe4,
+    write_overview_png, write_overview_png_with_overlay, AtlasChannelLook,
 };
 
 #[derive(Clone, Copy)]
@@ -253,7 +254,19 @@ impl OverviewRaster {
     ///
     /// # Errors
     /// Returns the PNG encoding error.
-    pub fn finish(mut self) -> Result<Vec<u8>, RenderError> {
+    pub fn finish(self) -> Result<Vec<u8>, RenderError> {
+        self.finish_with_overlay(None)
+    }
+
+    /// [`Self::finish`], letting `overlay` paint each 256-row band after the
+    /// river styling and before encoding (`None` changes nothing).
+    ///
+    /// # Errors
+    /// Returns the overlay's or the PNG encoding error.
+    pub fn finish_with_overlay(
+        mut self,
+        overlay: Option<&dyn crate::BandOverlay>,
+    ) -> Result<Vec<u8>, RenderError> {
         let (width, height) = (self.width, self.height);
         let row_width = usize::try_from(width).map_err(|_| RenderError::ExactOverviewDimensions)?;
         let halo = atlas_river_halo(width, height);
@@ -276,6 +289,15 @@ impl OverviewRaster {
                 &self.features[start..end],
                 &mut self.rgb[start * 3..end * 3],
             )?;
+            if let Some(overlay) = overlay {
+                let from = usize::try_from(y0).map_err(|_| RenderError::ExactOverviewDimensions)?
+                    * row_width
+                    * 3;
+                let to = usize::try_from(y1).map_err(|_| RenderError::ExactOverviewDimensions)?
+                    * row_width
+                    * 3;
+                overlay.paint(y0, &mut self.rgb[from..to], width)?;
+            }
             y0 = y1;
         }
 
