@@ -12,6 +12,7 @@ mod fixture_dir;
 mod gates;
 mod gazetteer;
 mod inventory;
+mod library_asset;
 mod looks;
 mod mapping;
 mod npc;

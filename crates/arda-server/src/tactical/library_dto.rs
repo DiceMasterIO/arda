@@ -1,6 +1,7 @@
 //! `GET /v1/tactical/library`: what the loaded catalogue offers, for the
 //! viewer's layout editor (ground keys, wall kits and placeable assets).
 
+use arda_tactical::catalog::EFFECT_DECAL_TAG;
 use arda_tactical::Library;
 use schemars::JsonSchema;
 use serde::Serialize;
@@ -20,8 +21,30 @@ pub struct TacticalLibraryDto {
     pub grounds: Vec<GroundKeyDto>,
     /// Wall kits a `WallSegment.kit` may use, sorted.
     pub wall_kits: Vec<WallKitDto>,
-    /// Placeable assets (props and vegetation), sorted by id.
+    /// Placeable assets (props and vegetation), sorted by id. Damage props
+    /// (`prop.rubble_heap`, `prop.broken_deck`, `prop.charred_floor`) are
+    /// props tagged `free:damage`.
     pub assets: Vec<LibraryAssetDto>,
+    /// Effect art a consumer draws over tiles, one entry per effect set,
+    /// sorted by id. Never placed by layouts or drawn by the compositor.
+    pub effects: Vec<EffectDto>,
+}
+
+/// One effect set: a transparent texture or decal with numbered variants.
+/// The images are `GET /v1/tactical/library/asset/{id}.{n}.png` for
+/// `n` in `0..variants`.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, TS, JsonSchema)]
+pub struct EffectDto {
+    /// The set id without its variant number, e.g. `effect.frost`.
+    pub id: String,
+    /// `texture` (tileable) or `decal` (single patch).
+    pub kind: String,
+    /// Footprint in squares, `[w, h]`; the same for every variant.
+    pub footprint: [u32; 2],
+    /// Tags as `key:value` strings, sorted; those of the first variant.
+    pub tags: Vec<String>,
+    /// Number of variants, numbered from 0.
+    pub variants: u32,
 }
 
 /// One ground key and how many texture variants back it.
@@ -69,6 +92,21 @@ pub struct LibraryAssetDto {
     pub difficult_terrain: bool,
 }
 
+fn tag_list(t: &arda_tactical::catalog::Tags) -> Vec<String> {
+    let mut tags: Vec<String> = [
+        ("biome", &t.biome),
+        ("culture", &t.culture),
+        ("wealth", &t.wealth),
+        ("function", &t.function),
+        ("free", &t.free),
+    ]
+    .iter()
+    .flat_map(|(k, vs)| vs.iter().map(move |v| format!("{k}:{v}")))
+    .collect();
+    tags.sort();
+    tags
+}
+
 fn word<T: Serialize>(v: &T) -> String {
     serde_json::to_value(v)
         .ok()
@@ -83,8 +121,23 @@ pub fn summarise(lib: &Library) -> TacticalLibraryDto {
     let mut grounds: BTreeMap<String, (u32, bool)> = BTreeMap::new();
     let mut kits: BTreeMap<String, Vec<String>> = BTreeMap::new();
     let mut assets = Vec::new();
+    let mut effects: BTreeMap<String, EffectDto> = BTreeMap::new();
     for a in &c.assets {
         let class = word(&a.class);
+        if a.class.is_effect() {
+            let id = arda_tactical::library::effect_base(&a.id).to_string();
+            let decal = a.tags.free.iter().any(|t| t == EFFECT_DECAL_TAG);
+            effects
+                .entry(id.clone())
+                .and_modify(|e| e.variants += 1)
+                .or_insert_with(|| EffectDto {
+                    id,
+                    kind: if decal { "decal" } else { "texture" }.into(),
+                    footprint: [a.footprint.w, a.footprint.h],
+                    tags: tag_list(&a.tags),
+                    variants: 1,
+                });
+        }
         if let Some(key) = &a.ground {
             let e = grounds.entry(key.clone()).or_insert((0, false));
             e.0 += 1;
@@ -94,18 +147,7 @@ pub fn summarise(lib: &Library) -> TacticalLibraryDto {
             kits.entry(w.kit.clone()).or_default().push(word(&w.role));
         }
         if class == "prop" || class == "vegetation" {
-            let t = &a.tags;
-            let mut tags: Vec<String> = [
-                ("biome", &t.biome),
-                ("culture", &t.culture),
-                ("wealth", &t.wealth),
-                ("function", &t.function),
-                ("free", &t.free),
-            ]
-            .iter()
-            .flat_map(|(k, vs)| vs.iter().map(move |v| format!("{k}:{v}")))
-            .collect();
-            tags.sort();
+            let tags = tag_list(&a.tags);
             assets.push(LibraryAssetDto {
                 id: a.id.clone(),
                 class,
@@ -142,5 +184,6 @@ pub fn summarise(lib: &Library) -> TacticalLibraryDto {
             })
             .collect(),
         assets,
+        effects: effects.into_values().collect(),
     }
 }

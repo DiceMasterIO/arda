@@ -22,6 +22,7 @@ pub mod dungeon_dto;
 pub mod encode;
 pub mod images;
 pub mod key;
+pub mod library_asset;
 pub mod library_dto;
 pub mod prefetch;
 pub mod pyramid;

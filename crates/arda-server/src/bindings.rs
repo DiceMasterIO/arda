@@ -27,7 +27,9 @@ use crate::tactical::dungeon_dto::{
     DungeonDoorDto, DungeonDto, DungeonExitDto, DungeonExitKindDto, DungeonKindDto,
     DungeonParamsDto, DungeonRoomDto, RoomPurposeDto,
 };
-use crate::tactical::library_dto::{GroundKeyDto, LibraryAssetDto, TacticalLibraryDto, WallKitDto};
+use crate::tactical::library_dto::{
+    EffectDto, GroundKeyDto, LibraryAssetDto, TacticalLibraryDto, WallKitDto,
+};
 use crate::tactical::prefetch::{PrefetchAccepted, PrefetchCell, PrefetchRequest, PrefetchStatus};
 use crate::tactical::rules_dto::{
     CoverLevelDto, EdgeRoleDto, EdgeRuleDto, RulesCellDto, RulesSidecarDto,
@@ -187,6 +189,7 @@ exported!(
     GroundKeyDto,
     WallKitDto,
     LibraryAssetDto,
+    EffectDto,
     PrefetchRequest,
     PrefetchStatus,
     PrefetchCell,

@@ -1,5 +1,50 @@
 {
   "$defs": {
+    "EffectDto": {
+      "description": "One effect set: a transparent texture or decal with numbered variants.\nThe images are `GET /v1/tactical/library/asset/{id}.{n}.png` for\n`n` in `0..variants`.",
+      "properties": {
+        "footprint": {
+          "description": "Footprint in squares, `[w, h]`; the same for every variant.",
+          "items": {
+            "format": "uint32",
+            "minimum": 0,
+            "type": "integer"
+          },
+          "maxItems": 2,
+          "minItems": 2,
+          "type": "array"
+        },
+        "id": {
+          "description": "The set id without its variant number, e.g. `effect.frost`.",
+          "type": "string"
+        },
+        "kind": {
+          "description": "`texture` (tileable) or `decal` (single patch).",
+          "type": "string"
+        },
+        "tags": {
+          "description": "Tags as `key:value` strings, sorted; those of the first variant.",
+          "items": {
+            "type": "string"
+          },
+          "type": "array"
+        },
+        "variants": {
+          "description": "Number of variants, numbered from 0.",
+          "format": "uint32",
+          "minimum": 0,
+          "type": "integer"
+        }
+      },
+      "required": [
+        "id",
+        "kind",
+        "footprint",
+        "tags",
+        "variants"
+      ],
+      "type": "object"
+    },
     "GroundKeyDto": {
       "description": "One ground key and how many texture variants back it.",
       "properties": {
@@ -125,9 +170,16 @@
   "description": "The loaded asset library, summarised.",
   "properties": {
     "assets": {
-      "description": "Placeable assets (props and vegetation), sorted by id.",
+      "description": "Placeable assets (props and vegetation), sorted by id. Damage props\n(`prop.rubble_heap`, `prop.broken_deck`, `prop.charred_floor`) are\nprops tagged `free:damage`.",
       "items": {
         "$ref": "#/$defs/LibraryAssetDto"
+      },
+      "type": "array"
+    },
+    "effects": {
+      "description": "Effect art a consumer draws over tiles, one entry per effect set,\nsorted by id. Never placed by layouts or drawn by the compositor.",
+      "items": {
+        "$ref": "#/$defs/EffectDto"
       },
       "type": "array"
     },
@@ -166,7 +218,8 @@
     "pixels_per_square",
     "grounds",
     "wall_kits",
-    "assets"
+    "assets",
+    "effects"
   ],
   "title": "TacticalLibraryDto",
   "type": "object"

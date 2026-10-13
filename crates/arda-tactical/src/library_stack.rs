@@ -83,16 +83,8 @@ fn slot(a: &Asset) -> Slot {
     match (&a.ground, &a.wall) {
         (Some(key), _) if a.class.is_texture() => Slot::Ground(key.clone()),
         (_, Some(w)) if a.class == AssetClass::Wall => Slot::Wall(w.kit.clone(), w.role),
-        _ if a.class.is_effect() => Slot::Effect(effect_name(&a.id).to_string()),
+        _ if a.class.is_effect() => Slot::Effect(crate::library::effect_base(&a.id).to_string()),
         _ => Slot::Id(family_base(&a.id).to_string()),
-    }
-}
-
-/// `effect.frost` for `effect.frost.2`: the id without its variant number.
-fn effect_name(id: &str) -> &str {
-    match id.rsplit_once('.') {
-        Some((name, n)) if !n.is_empty() && n.bytes().all(|b| b.is_ascii_digit()) => name,
-        _ => id,
     }
 }
 

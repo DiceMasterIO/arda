@@ -54,6 +54,7 @@ export type { EdgeDto } from "./EdgeDto";
 export type { EdgeExitDto } from "./EdgeExitDto";
 export type { EdgeRoleDto } from "./EdgeRoleDto";
 export type { EdgeRuleDto } from "./EdgeRuleDto";
+export type { EffectDto } from "./EffectDto";
 export type { EntranceDto } from "./EntranceDto";
 export type { FineHeights } from "./FineHeights";
 export type { FineTerrainDto } from "./FineTerrainDto";

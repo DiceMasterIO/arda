@@ -275,6 +275,16 @@ pub fn family_base(id: &str) -> &str {
     }
 }
 
+/// The effect set an effect id belongs to: `effect.frost` for
+/// `effect.frost.2` (the id without its variant number), or `id` itself.
+#[must_use]
+pub fn effect_base(id: &str) -> &str {
+    match id.rsplit_once('.') {
+        Some((name, n)) if !n.is_empty() && n.bytes().all(|b| b.is_ascii_digit()) => name,
+        _ => id,
+    }
+}
+
 /// Whether `tags` carries the bare or namespaced tag `q`.
 fn has_tag(t: &crate::catalog::Tags, q: &str) -> bool {
     let list = |ns: &str| match ns {
