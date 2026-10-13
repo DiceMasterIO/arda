@@ -15,6 +15,7 @@ pub mod culture;
 pub mod error;
 pub mod features;
 pub mod field;
+pub mod gazetteer;
 pub mod grid;
 pub mod ids;
 pub mod landuse;
@@ -112,6 +113,16 @@ pub fn encode(
                     rivers: s.rivers.clone(),
                     mountains: s.mountains.clone(),
                     regions: s.regions.clone(),
+                },
+            )?,
+        ),
+        (
+            "gazetteer.json",
+            output::json_bytes(
+                &at("gazetteer.json"),
+                &gazetteer::GazetteerFile {
+                    format_version: gazetteer::FORMAT_VERSION,
+                    features: s.gazetteer.clone(),
                 },
             )?,
         ),

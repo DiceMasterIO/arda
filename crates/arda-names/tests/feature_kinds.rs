@@ -46,3 +46,13 @@ fn sea_keys_parse() {
     assert_eq!(PlaceKind::from_key("sea"), Some(PlaceKind::Sea));
     assert_eq!(PlaceKind::from_key("gulf"), Some(PlaceKind::Sea));
 }
+
+#[test]
+fn existing_kinds_keep_the_numbers_they_seed_with() {
+    // Names draw from `kind as u64`; adding a kind must not move these.
+    assert_eq!(PlaceKind::Pass as u64, 15);
+    assert_eq!(PlaceKind::Bay as u64, 16);
+    assert_eq!(PlaceKind::Region as u64, 20);
+    assert_eq!(PlaceKind::Realm as u64, 21);
+    assert_eq!(PlaceKind::Sea as u64, 22);
+}

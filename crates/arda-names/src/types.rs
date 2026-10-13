@@ -43,8 +43,6 @@ pub enum PlaceKind {
     Marsh,
     /// A mountain pass.
     Pass,
-    /// A sea or gulf.
-    Sea,
     /// A bay.
     Bay,
     /// An island.
@@ -57,6 +55,8 @@ pub enum PlaceKind {
     Region,
     /// A realm, derived from its capital or region (`PlaceSpec::from`).
     Realm,
+    /// A sea or gulf. Last, so the numbers every other kind seeds with stay put.
+    Sea,
 }
 
 impl PlaceKind {

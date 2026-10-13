@@ -7,13 +7,14 @@
 //! [`DialectMap`], so neighbouring places sound alike and distant ones
 //! drift apart. One [`NameScope`] covers the whole world: no two places
 //! share a spelling. Places are named in a fixed order (rivers, peaks,
-//! settlements by id, passes, realms, regions), which keeps the result
-//! deterministic.
+//! settlements by id, passes, realms, regions, then the gazetteer's
+//! features), which keeps the result deterministic.
 
 use crate::crossings::{Crossing, Pass};
 use crate::culture::{Culture, CultureMap};
 use crate::error::SettleError;
 use crate::features;
+use crate::gazetteer::{self, GazetteerFeature};
 use crate::grid::Grid;
 use crate::model::{Function, Settlement, Tier};
 use crate::names;
@@ -133,7 +134,7 @@ impl<'a> Naming<'a> {
     }
 
     /// A unique name for `spec`, spoken at cell `(x, y)`.
-    fn name(&mut self, x: i64, y: i64, spec: &PlaceSpec) -> Result<Name, SettleError> {
+    pub(crate) fn name(&mut self, x: i64, y: i64, spec: &PlaceSpec) -> Result<Name, SettleError> {
         Ok(match self.lang_at(x, y) {
             Some(lang) => self.scope.place_name(&lang, spec)?,
             None => Name {
@@ -157,6 +158,8 @@ pub struct Named {
     pub mountains: Vec<NamedPeak>,
     /// Named regions.
     pub regions: Vec<NamedRegion>,
+    /// Named seas, lakes, islands, capes, forests, marshes, ranges and rivers.
+    pub gazetteer: Vec<GazetteerFeature>,
 }
 
 /// Names rivers, peaks, settlements, crossings, passes, realms and regions.
@@ -203,7 +206,8 @@ pub fn name_world(
             .and_then(|k| named_rivers.get(k.wrapping_sub(1)))
             .map(|r| r.name.clone())
     };
-    let mountains: Vec<NamedPeak> = features::peaks(g)?
+    let peaks = features::peaks(g)?;
+    let mountains: Vec<NamedPeak> = peaks
         .iter()
         .map(|p| {
             let (x, y) = g.xy(p.cell);
@@ -281,10 +285,14 @@ pub fn name_world(
         r.culture = cultures.at(x, y).key().to_string();
     }
     let regions = name_regions(&mut nm, cultures, settlements, &full)?;
+    // Last, so no name above changes (gazetteer module doc).
+    let found = gazetteer::find(g, &peaks, &gazetteer::Thresholds::default());
+    let gazetteer = gazetteer::name_features(&mut nm, cultures, g, found, &named_rivers)?;
     Ok(Named {
         rivers: named_rivers,
         mountains,
         regions,
+        gazetteer,
     })
 }
 

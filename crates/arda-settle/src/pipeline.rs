@@ -4,6 +4,7 @@ use crate::cost::CostSurface;
 use crate::crossings::{self, Crossing, Pass};
 use crate::culture::CultureMap;
 use crate::error::SettleError;
+use crate::gazetteer::GazetteerFeature;
 use crate::grid::Grid;
 use crate::landuse::{self, LandUse};
 use crate::market::Lattice;
@@ -42,6 +43,8 @@ pub struct Society {
     pub mountains: Vec<NamedPeak>,
     /// Named regions.
     pub regions: Vec<NamedRegion>,
+    /// Named large natural features.
+    pub gazetteer: Vec<GazetteerFeature>,
     /// Statistics.
     pub stats: Stats,
 }
@@ -126,6 +129,7 @@ pub fn run(g: &Grid, params: PlaceParams) -> Result<Society, SettleError> {
         rivers: named.rivers,
         mountains: named.mountains,
         regions: named.regions,
+        gazetteer: named.gazetteer,
         stats,
     })
 }
