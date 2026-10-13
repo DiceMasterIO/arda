@@ -11,6 +11,7 @@ mod endpoints;
 mod fixture_dir;
 mod gates;
 mod gazetteer;
+mod inventory;
 mod looks;
 mod mapping;
 mod npc;
