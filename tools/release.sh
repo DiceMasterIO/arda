@@ -55,6 +55,11 @@ list_sites() {
         done < <(grep -o '"'"$key"'":"[^"]*"' crates/arda-server/API.md | sed 's/.*:"\(.*\)"/\1/')
         [ "$n" -gt 0 ] || echo "crates/arda-server/API.md $key: (no example found)"
     done
+    # The contract kit's fixture identity: its goldens were recorded by this
+    # release (re-blessed by a bump).
+    for key in arda_version server_version; do
+        echo "contract-kit/manifest.json $key: $(grep -m1 '"'"$key"'"' contract-kit/manifest.json | sed 's/.*: *"\([^"]*\)".*/\1/')"
+    done
 }
 
 check() {
@@ -69,7 +74,7 @@ check() {
         fi
     done < <(list_sites)
     # 21 path entries + the workspace version + lock members + viewer + the
-    # API.md arda_version and server_version examples.
+    # API.md arda_version and server_version examples + the contract kit.
     [ "$sites" -ge 42 ] || die "found only $sites version sites; the layout changed, update tools/release.sh"
     [ "$bad" -eq 0 ] || die "$bad of $sites version sites disagree with $want"
     echo "release.sh --check: all $sites version sites are $want"
@@ -106,6 +111,10 @@ bump() {
     for g in tests/golden/micro-42*.txt; do
         if git diff --quiet --ignore-all-space -- "$g"; then git checkout -- "$g"; fi
     done
+    # The contract kit's goldens carry the version (world.json, /v1/health,
+    # /v1/world, ETags): re-record them on the rebuilt fixture.
+    ARDA_BLESS_CONTRACT=1 cargo test --release -p arda-server --test contract_kit
+    cargo test --release -p arda-server --test contract_kit
 
     check "$new"
     expected_diff
@@ -114,7 +123,8 @@ bump() {
 Bumped $old -> $new. Next, by hand:
   1. Add a '## $new — $(date +%F)' section to CHANGELOG.md (tools/release.sh --notes $new previews it).
   2. git add Cargo.toml Cargo.lock apps/viewer/package.json apps/viewer/package-lock.json \\
-         crates/arda-server/API.md tests/golden CHANGELOG.md
+         crates/arda-server/API.md tests/golden contract-kit/manifest.json \\
+         contract-kit/world.txt contract-kit/golden CHANGELOG.md
   3. git commit -m 'release: Arda v$new'
   4. git tag v$new
   5. Push the branch and the tag only when ready: the tag starts .github/workflows/release.yml.
@@ -127,7 +137,8 @@ expected_diff() {
     while IFS= read -r f; do
         case "$f" in
             Cargo.toml|Cargo.lock|apps/viewer/package.json|apps/viewer/package-lock.json|\
-crates/arda-server/API.md|tests/golden/micro-42*.txt) ;;
+crates/arda-server/API.md|tests/golden/micro-42*.txt|\
+contract-kit/manifest.json|contract-kit/world.txt|contract-kit/golden/*) ;;
             *) echo "unexpected change: $f" >&2; bad=1 ;;
         esac
     done < <(git diff --name-only)
