@@ -56,7 +56,6 @@ arda/
 │   │       ├── manifest.rs     # world.json, format_version gate (logic/05)
 │   │       ├── cells.rs        # cells.bin fixed little-endian layout
 │   │       ├── objects.rs      # objects.bin
-│   │       └── blocks.rs       # tiles.zst archive, 2 B/square + relaxed marks
 │   ├── arda-gen/src/
 │   │   ├── lib.rs              # World::generate orchestrator + rayon fan-out
 │   │   ├── continent/
