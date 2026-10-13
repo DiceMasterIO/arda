@@ -14,7 +14,6 @@ use arda_core::GlobalCell;
 
 pub mod carto;
 pub mod json;
-pub mod symbolic;
 
 pub use atlas::{
     formed_river_rgb, AtlasFineWorldBounds, AtlasHalo, AtlasNeighbor, AtlasTerrain, ReliefGeometry,
@@ -24,7 +23,7 @@ pub use carto::{
     render_area_png, render_area_png_to, render_area_png_to_atlas, render_overview_png,
 };
 pub use channels::AreaImageScale;
-pub use json::{area_json, block_json, SCHEMA_VERSION};
+pub use json::{area_json, SCHEMA_VERSION};
 pub use overview::{
     write_atlas_overview_png, write_atlas_overview_png_with_channels,
     write_atlas_overview_png_with_channels_formed, write_atlas_overview_png_with_channels_oblique,
@@ -32,7 +31,6 @@ pub use overview::{
     ObliqueReliefBuilder, OverviewChannelContext, OverviewRaster, DEFAULT_TILT_Q12,
 };
 pub use quality::ImageQuality;
-pub use symbolic::{render_block_png, SQUARE_PX};
 
 use thiserror::Error;
 
@@ -84,12 +82,6 @@ pub enum RenderError {
     Json {
         /// Serializer failure.
         reason: String,
-    },
-    /// A square holds a tile id this build has no entry for.
-    #[error("tile id {id} has no entry in the vocabulary")]
-    UnmappedTile {
-        /// The unmapped id.
-        id: u16,
     },
     /// The world is missing its manifest.
     #[error("refusing to export a partial world")]
@@ -146,8 +138,8 @@ where
 mod tests {
     use super::*;
     use arda_core::{
-        AreaCells, Block, Cell, GenerateConfig, HeightMm, Manifest, SquareCoord, TerrainKind,
-        TileId, ValidationStats, FORMAT_VERSION,
+        AreaCells, Cell, GenerateConfig, HeightMm, Manifest, TerrainKind, ValidationStats,
+        FORMAT_VERSION,
     };
 
     fn manifest() -> Manifest {
@@ -169,37 +161,12 @@ mod tests {
         }
     }
 
-    fn block() -> Block {
-        let mut b = Block::filled(TileId::new(9));
-        b.set(SquareCoord::new(0, 0).unwrap(), TileId::new(1));
-        b.set(SquareCoord::new(63, 63).unwrap(), TileId::new(21));
-        b
-    }
-
     fn cells() -> AreaCells {
         AreaCells::flat(Cell {
             height: HeightMm::new(180_000),
             terrain: TerrainKind::Land,
             ..Cell::default()
         })
-    }
-
-    #[test]
-    fn block_png_has_a_png_signature() {
-        let bytes = render_block_png(&block()).unwrap();
-        assert_eq!(
-            &bytes[..8],
-            &[0x89, b'P', b'N', b'G', 0x0D, 0x0A, 0x1A, 0x0A]
-        );
-    }
-
-    #[test]
-    fn block_png_is_byte_identical_on_repeat() {
-        // logic/04: re-export must produce the same bytes.
-        assert_eq!(
-            render_block_png(&block()).unwrap(),
-            render_block_png(&block()).unwrap()
-        );
     }
 
     #[test]
@@ -223,18 +190,6 @@ mod tests {
     }
 
     #[test]
-    fn an_unmapped_tile_is_refused_naming_the_id() {
-        // logic/04: unmapped-tile is a typed refusal, not a silent default.
-        let mut b = Block::filled(TileId::new(9));
-        b.set(SquareCoord::new(1, 1).unwrap(), TileId::new(60_000));
-        let err = render_block_png(&b).unwrap_err();
-        match err {
-            RenderError::UnmappedTile { id } => assert_eq!(id, 60_000),
-            other => panic!("expected UnmappedTile, got {other:?}"),
-        }
-    }
-
-    #[test]
     fn area_json_carries_the_schema_version_and_snake_case_keys() {
         let json = area_json(
             &manifest(),
@@ -251,14 +206,6 @@ mod tests {
             !json.contains("areaX"),
             "schema must be snake_case (logic/04)"
         );
-    }
-
-    #[test]
-    fn block_json_carries_the_tile_legend() {
-        let json = block_json(&manifest(), &block());
-        assert!(json.contains("\"legend\""));
-        assert!(json.contains("\"grass\""));
-        assert!(json.contains("\"relaxed\""));
     }
 
     #[test]

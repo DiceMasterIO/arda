@@ -5,10 +5,7 @@
 
 use crate::hydrology_json::{hydrology, HydrologyOut};
 use crate::RenderError;
-use arda_core::{
-    AreaCells, AreaObjects, Block, CellCoord, Cover, Manifest, SquareCoord, TerrainKind,
-    AREA_CELLS, BLOCK_SQUARES, SKELETON_TILES,
-};
+use arda_core::{AreaCells, AreaObjects, CellCoord, Cover, Manifest, TerrainKind, AREA_CELLS};
 use serde::Serialize;
 
 /// Schema 2 adds connected hydrology and representative-state semantics.
@@ -84,23 +81,6 @@ struct ChannelEdgeOut {
     from_width_dm: u32,
     to_width_dm: u32,
     discharge_milli_cumecs: u64,
-}
-
-#[derive(Serialize)]
-struct LegendEntry {
-    id: u16,
-    name: &'static str,
-}
-
-#[derive(Serialize)]
-struct BlockOut {
-    schema_version: u32,
-    format_version: u32,
-    seed: u64,
-    squares_per_side: u8,
-    relaxed: bool,
-    legend: Vec<LegendEntry>,
-    squares: Vec<u16>,
 }
 
 const fn terrain_name(t: TerrainKind) -> &'static str {
@@ -211,40 +191,6 @@ pub fn area_json(
     serde_json::to_string_pretty(&doc).map_err(|e| RenderError::Json {
         reason: e.to_string(),
     })
-}
-
-/// Serialises one block, legend included.
-///
-/// Build-order step 8 grows the legend with per-tile static attributes
-/// (`build-interview.md` §Q5).
-#[must_use]
-pub fn block_json(manifest: &Manifest, block: &Block) -> String {
-    let mut squares = Vec::with_capacity(usize::from(BLOCK_SQUARES) * usize::from(BLOCK_SQUARES));
-    for y in 0..BLOCK_SQUARES {
-        for x in 0..BLOCK_SQUARES {
-            let Some(at) = SquareCoord::new(x, y) else {
-                continue;
-            };
-            squares.push(block.square(at).raw());
-        }
-    }
-
-    let doc = BlockOut {
-        schema_version: SCHEMA_VERSION,
-        format_version: manifest.format_version,
-        seed: manifest.seed,
-        squares_per_side: BLOCK_SQUARES,
-        relaxed: block.is_relaxed(),
-        legend: SKELETON_TILES
-            .iter()
-            .map(|t| LegendEntry {
-                id: t.id.raw(),
-                name: t.name,
-            })
-            .collect(),
-        squares,
-    };
-    serde_json::to_string_pretty(&doc).unwrap_or_default()
 }
 
 #[cfg(test)]
