@@ -56,7 +56,7 @@ Implemented (registered in `crates/arda-server/src/routes.rs` and `src/tactical/
 | `GET /v1/cell/{gx}/{gy}`, `GET /v1/point?x_m=&y_m=` | `CellSample`, `PointSample` | 05, §api-cell-society |
 | `GET /v1/area/{ax}/{ay}/cells[?format=json\|bin]`, `/rivers`, `/lakes` | `AreaCells` or `ARDACOLS`, `AreaRivers`, `AreaLakes` | 05 |
 | `GET /v1/overview.png[?quality=&style=]` | PNG | 04 |
-| (overview overlay query parameter) | placeholder for 1.0 task 15 (export overlays), which documents it | 04 |
+| `?overlay=society\|none` on `GET /v1/overview.png` and the overview tiles | land use, roads and tier symbols painted into the overview pyramid (implemented); default `society` when the world has `society/`, never for the oblique look; `society` without society files or with oblique is 400; render, pyramid and tile cache keys include it | 04 §overlay |
 | `GET /v1/tiles/overview/{z}/{x}/{y}.webp\|.png[?oblique=&labels=]` | 256 px tiles | §api-tiles |
 | `GET /v1/tiles/relief/{z}/{x}/{y}.webp[?labels=]` | 256 px mid-zoom relief tiles | 17 |
 | `GET /v1/settlements[?tier=&realm=]` | `SettlementList` `{format_version, settlements}` | 08 |
