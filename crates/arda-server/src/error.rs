@@ -3,14 +3,15 @@
 //! Status mapping: malformed or out-of-world coordinates are 400, absent
 //! routes, tiles and layer files are 404, oversized tactical requests are
 //! 413, inconsistent tactical layouts are 422, world-derived tactical blocks
-//! are 501 until their source exists, and everything else is 500.
+//! are 501 until their source exists (and switched-off features are 501),
+//! a full background queue is 503 `busy`, and everything else is 500.
 
 use crate::tactical::block::BlockError;
 use axum::http::StatusCode;
 use axum::response::{IntoResponse, Response};
 use axum::Json;
 use schemars::JsonSchema;
-use serde::Serialize;
+use serde::{Deserialize, Serialize};
 use ts_rs::TS;
 
 /// Every failure the service reports.
@@ -62,6 +63,13 @@ pub enum ServerError {
     /// reshape an NPC (logic/16 §api-sheet-mapping).
     #[error("sheet mapping: {0}")]
     SheetMapping(String),
+    /// A bounded background queue is full; retry later (503 `busy`).
+    #[error("busy: {0}")]
+    Busy(String),
+    /// A feature switched off by configuration, for example
+    /// `--bake-workers 0` (501 `not_implemented`).
+    #[error("disabled: {0}")]
+    Disabled(String),
     /// An invariant broke inside the service.
     #[error("internal: {0}")]
     Internal(String),
@@ -84,11 +92,11 @@ pub struct NotYetError {
 }
 
 /// Machine-readable code, HTTP status and human message.
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, TS, JsonSchema)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, TS, JsonSchema)]
 pub struct ApiErrorBody {
     /// Stable code: `bad_request`, `out_of_range`, `not_found`, `no_block`, `payload_too_large`,
     /// `unsupported_media_type`, `invalid_layout`, `unsatisfiable`, `resource_limit`,
-    /// `not_implemented` or `internal`.
+    /// `not_implemented`, `busy` or `internal`.
     pub code: String,
     /// HTTP status repeated in the body.
     pub status: u16,
@@ -139,6 +147,8 @@ impl ServerError {
             // logic/16 §api-errors: a cell with no land square.
             Self::Block(BlockError::NoBlock { .. }) => (StatusCode::NOT_FOUND, "no_block"),
             Self::Block(BlockError::Window(_)) => (StatusCode::BAD_REQUEST, "bad_request"),
+            Self::Busy(_) => (StatusCode::SERVICE_UNAVAILABLE, "busy"),
+            Self::Disabled(_) => (StatusCode::NOT_IMPLEMENTED, "not_implemented"),
             _ => (StatusCode::INTERNAL_SERVER_ERROR, "internal"),
         }
     }
@@ -323,6 +333,14 @@ mod tests {
         assert_eq!(
             ServerError::InvalidLayout("x".into()).classify().0,
             StatusCode::UNPROCESSABLE_ENTITY
+        );
+        assert_eq!(
+            ServerError::Busy("x".into()).classify(),
+            (StatusCode::SERVICE_UNAVAILABLE, "busy")
+        );
+        assert_eq!(
+            ServerError::Disabled("x".into()).classify(),
+            (StatusCode::NOT_IMPLEMENTED, "not_implemented")
         );
     }
 }

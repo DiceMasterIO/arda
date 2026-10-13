@@ -1,5 +1,5 @@
-//! Full-resolution renders in two lanes (goal 67; logic/16 §api-cache,
-//! §api-prefetch).
+//! Full-resolution renders in two cached lanes, plus the uncached bake lane
+//! (goal 67, 1.0 task 04; logic/16 §api-cache, §api-prefetch).
 //!
 //! Requests render one at a time in the request lane; the prefetch workers
 //! render one at a time in their own lane, so warming neighbours never
@@ -7,6 +7,10 @@
 //! transient render per lane). A key renders at most once at a time: a
 //! request for a key already rendering, in either lane, waits for that
 //! render and takes its result instead of starting a second one.
+//!
+//! The bake lane (`POST /v1/tactical/bake`) renders a client-edited cell
+//! one job at a time and never touches the render cache: its own lock, no
+//! cache reads or writes, no in-flight sharing.
 
 use super::{cached, stage, RenderKey, Tactical};
 use crate::error::{lock, ServerResult};
@@ -31,6 +35,8 @@ pub(crate) enum Lane {
 pub(crate) struct Lanes {
     request: Mutex<()>,
     prefetch: Mutex<()>,
+    /// `POST /bake` jobs: one render, pyramid and tile encode at a time.
+    bake: Mutex<()>,
     /// PNG encoding and pyramid building after a render: one at a time
     /// across both lanes, so admission counts one transient encode (review
     /// round 2 #32: they ran outside the render locks, unbounded).
@@ -112,6 +118,32 @@ impl Tactical {
         if let Some(hit) = cached(&self.renders, key)? {
             return Ok(hit);
         }
+        let img = self.render_key(key, layout)?;
+        let bytes = img.data.len();
+        Ok(lock(&self.renders)?.insert(key.clone(), Arc::new(img), bytes))
+    }
+
+    /// Holds the bake lane until the guard drops: one bake renders at a
+    /// time, beside (never in) the request and prefetch lanes.
+    pub(super) fn bake_lane(&self) -> std::sync::MutexGuard<'_, ()> {
+        self.lanes
+            .bake
+            .lock()
+            .unwrap_or_else(PoisonError::into_inner)
+    }
+
+    /// Renders `key` without reading or writing the render cache or the
+    /// in-flight set (`POST /bake`); the caller holds [`Self::bake_lane`].
+    pub(super) fn render_uncached(
+        &self,
+        key: &RenderKey,
+        layout: &TacticalLayout,
+    ) -> ServerResult<Rgba> {
+        self.render_key(key, layout)
+    }
+
+    /// Admits `layout` and renders `key` (no cache, no lane).
+    fn render_key(&self, key: &RenderKey, layout: &TacticalLayout) -> ServerResult<Rgba> {
         self.admit(layout, key.ppsq)?;
         let opts = RenderOptions {
             ppsq: key.ppsq,
@@ -135,8 +167,7 @@ impl Tactical {
             }
         };
         stage("render", &img, start);
-        let bytes = img.data.len();
-        Ok(lock(&self.renders)?.insert(key.clone(), Arc::new(img), bytes))
+        Ok(img)
     }
 }
 
