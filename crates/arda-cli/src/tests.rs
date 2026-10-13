@@ -26,7 +26,8 @@ fn style_parses_and_omission_defaults_to_classic() {
             ImageOptions {
                 detail,
                 quality,
-                style
+                style,
+                society: None,
             }
             .style(),
             expected
@@ -48,7 +49,8 @@ fn style_parses_and_omission_defaults_to_classic() {
         ImageOptions {
             detail,
             quality,
-            style
+            style,
+            society: None,
         }
         .style(),
         MapStyle::Classic
@@ -216,6 +218,7 @@ fn explicit_style_rejects_json_and_blocks_before_io() {
                 detail: false,
                 quality: None,
                 style: Some(Style::Atlas),
+                society: None,
             },
         );
         assert!(result.is_err_and(|error| {
@@ -285,6 +288,7 @@ fn detail_json_reports_the_invalid_mode_before_reading_the_world() {
             detail: true,
             quality: None,
             style: None,
+            society: None,
         },
     );
     assert!(error.is_err_and(|e| e.to_string() == "--detail is valid only for area PNG exports"));
@@ -325,6 +329,7 @@ fn png_quality_defaults_to_8k_for_area_and_overview() {
                 detail,
                 quality,
                 style: None,
+                society: None,
             }
             .quality()
             .pixels(),
@@ -377,6 +382,7 @@ fn explicit_quality_rejects_non_png_modes_before_reading_the_world() {
         detail: false,
         quality: Some(ImageQuality::DEFAULT),
         style: None,
+        society: None,
     };
     for (format, overview, block) in [
         (Format::Json, false, None),

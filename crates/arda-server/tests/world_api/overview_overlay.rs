@@ -53,8 +53,10 @@ async fn overlay_none_is_the_plain_export_and_society_only_adds_pixels() {
     assert_eq!((a.width, a.height), (b.width, b.height));
     let changed = a
         .pixels
-        .chunks_exact(3)
-        .zip(b.pixels.chunks_exact(3))
+        .as_chunks::<3>()
+        .0
+        .iter()
+        .zip(b.pixels.as_chunks::<3>().0)
         .filter(|(x, y)| x != y)
         .count();
     let total = (a.width * a.height) as usize;

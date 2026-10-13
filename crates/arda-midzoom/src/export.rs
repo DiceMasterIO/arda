@@ -33,7 +33,7 @@ pub fn has_society(world: &World) -> bool {
         .is_file()
 }
 
-fn overlay_error(reason: impl ToString) -> ExportError {
+fn overlay_error(reason: impl std::fmt::Display) -> ExportError {
     ExportError::Render(RenderError::Overlay {
         reason: reason.to_string(),
     })

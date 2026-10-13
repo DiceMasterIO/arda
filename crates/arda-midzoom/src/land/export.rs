@@ -146,7 +146,7 @@ impl BandOverlay for AreaLandOverlay {
     fn paint(&self, y0: u32, rows: &mut [u8], width: u32) -> Result<(), RenderError> {
         let fail = |reason: String| RenderError::Overlay { reason };
         let w = width as usize;
-        if width != self.side || w == 0 || rows.len() % (w * 3) != 0 {
+        if width != self.side || w == 0 || !rows.len().is_multiple_of(w * 3) {
             return Err(fail("rows do not match the area's image size".into()));
         }
         let h = rows.len() / (w * 3);

@@ -177,7 +177,7 @@ fn land_tone_sampled(c: &mut Canvas, v: &View, codes: &[u8], k: usize) {
 impl BandOverlay for SocietyBandOverlay {
     fn paint(&self, y0: u32, rows: &mut [u8], width: u32) -> Result<(), RenderError> {
         let w = width as usize;
-        if w == 0 || rows.len() % (w * 3) != 0 {
+        if w == 0 || !rows.len().is_multiple_of(w * 3) {
             return Err(RenderError::Overlay {
                 reason: "rows are not a whole number of image rows".into(),
             });
