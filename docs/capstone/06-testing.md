@@ -80,12 +80,13 @@ Root `[[test]]` targets are declared explicitly (`Cargo.toml:104`–`126`):
 
 | Check | Command | Source |
 |---|---|---|
-| Workspace tests (CI) | `cargo test --workspace --all-features --no-fail-fast` | `.github/workflows/ci.yml:15` |
+| Workspace tests (CI) | `cargo test --workspace --all-features --no-fail-fast` | `.github/workflows/ci.yml:17` |
 | Workspace tests (README) | `cargo test --workspace --all-features` | `README.md:403` |
-| Formatting | `cargo fmt --all --check` | `.github/workflows/ci.yml:32` |
-| Lint | `cargo clippy --workspace --all-targets -- -D warnings` | `.github/workflows/ci.yml:33` |
-| MSRV | `cargo check --workspace --all-targets --all-features --locked` on toolchain 1.96.1 | `.github/workflows/ci.yml:22` |
-| Dependency policy | `EmbarkStudios/cargo-deny-action@v2` against `deny.toml` | `.github/workflows/ci.yml:39` |
+| Formatting | `cargo fmt --all --check` | `.github/workflows/ci.yml:37` |
+| Lint | `cargo clippy --workspace --all-targets -- -D warnings` | `.github/workflows/ci.yml:38` |
+| MSRV | `cargo check --workspace --all-targets --all-features --locked` on toolchain 1.96.1 | `.github/workflows/ci.yml:26` |
+| Release verify (tag) | `tools/release.sh --check`, fmt, clippy `--locked`, `cargo test --workspace --locked` on the tag's commit | `.github/workflows/release.yml` job `verify` |
+| Dependency policy | `EmbarkStudios/cargo-deny-action` (v2.1.1, SHA-pinned) against `deny.toml` | `.github/workflows/ci.yml:44` |
 | Golden world bless | `ARDA_BLESS=1 cargo test --test golden_world` | `tests/golden_world.rs:4` |
 | Recipe goldens bless | `ARDA_BLESS=1 cargo test --test golden_recipes` | `tests/golden_recipes.rs:10` |
 | Bindings/schema freshness | `cargo test -p arda-server bindings` / `schema`; bless with `ARDA_BLESS_BINDINGS=1` | `crates/arda-server/src/bindings.rs:4`, `crates/arda-server/src/schema/mod.rs:9` |
@@ -106,14 +107,24 @@ The single workflow `.github/workflows/ci.yml` runs on `push` and `pull_request`
 
 | Job | Runner | Toolchain | Runs |
 |---|---|---|---|
-| `test` | `ubuntu-latest`, `macos-latest`, `windows-latest`, `fail-fast: false` (`ci.yml:7`–`9`) | `dtolnay/rust-toolchain@stable` | workspace tests, including both golden targets |
-| `msrv` | `ubuntu-latest` | `1.96.1` (`ci.yml:22`) | locked all-target check, no tests |
+| `test` | `ubuntu-latest`, `macos-latest`, `windows-latest`, `fail-fast: false` (`ci.yml:7`–`9`) | `dtolnay/rust-toolchain` (SHA-pinned), `stable` | workspace tests, including both golden targets |
+| `msrv` | `ubuntu-latest` | `1.96.1` (`ci.yml:26`) | locked all-target check, no tests |
 | `lint` | `ubuntu-latest` | stable + rustfmt, clippy | fmt, clippy `-D warnings` |
 | `deny` | `ubuntu-latest` | action-provided | licences, bans, advisories, sources (`deny.toml`) |
 | `viewer` | `ubuntu-latest`, working directory `apps/viewer` | Node 26 (`actions/setup-node`, SHA-pinned) | `npm ci`, `npm run licences`, `typecheck`, `lint`, `npm test` (Vitest plus `node --test scripts/`), `build` |
 
 Not run by CI: `#[ignore]` tests (no `--ignored` step), Criterion benches, and the art-gen `node --test` suite.
-There is no other workflow file under `.github/workflows/`.
+
+A second workflow, `.github/workflows/release.yml`, runs on `v*` tags and on manual dispatch (a dry run that never pushes or releases):
+
+| Job | Runner | Runs |
+|---|---|---|
+| `verify` | `ubuntu-latest`, Rust 1.98.1 | tag equals `Cargo.toml` version, `tools/release.sh --check`, a `CHANGELOG.md` section exists, fmt, clippy, `cargo test --workspace --locked` |
+| `binaries` | matrix: `x86_64-unknown-linux-gnu` (`ubuntu-22.04`), `aarch64-unknown-linux-gnu` (`ubuntu-22.04-arm`), `aarch64-apple-darwin` (`macos-latest`), `x86_64-pc-windows-msvc` (`windows-latest`) | `cargo build --release --locked`, `tools/smoke-binaries.sh` (version checks everywhere; generate seed 42 and serve `/v1/health` on Linux), `tools/package-release.sh`, upload |
+| `image` | `ubuntu-latest` | `tools/docker-smoke.sh` on the amd64 placeholder image, then `buildx` `linux/amd64,linux/arm64` with SBOM and max provenance; pushes to GHCR only on a real tag |
+| `release` | `ubuntu-latest`, tags only | `SHA256SUMS`, notes from `tools/release.sh --notes`, `gh release create --draft` |
+
+The ignored wall-clock release gates are not part of either workflow; the maintainer runs them before tagging (task 09's gate runner).
 
 ### Golden world test
 

@@ -54,7 +54,20 @@
 
 ## Install
 
-Build from source with stable Rust and a native C toolchain (compiler and linker):
+Tagged releases carry prebuilt `arda` and `arda-server` binaries for Linux (x86_64, aarch64), macOS (Apple silicon) and Windows (x86_64), and a multi-architecture image. Download an archive and `SHA256SUMS` from the [releases page](https://github.com/DiceMasterIO/arda/releases), then check it:
+
+```sh
+sha256sum --check --ignore-missing SHA256SUMS
+tar -xzf arda-<version>-x86_64-unknown-linux-gnu.tar.gz
+```
+
+Or pull the image (placeholder tactical art library only; `<version>` is a release number such as `1.0.0`):
+
+```sh
+docker pull ghcr.io/dicemasterio/arda:<version>
+```
+
+Or build from source with stable Rust and a native C toolchain (compiler and linker):
 
 ```sh
 git clone https://github.com/DiceMasterIO/arda.git

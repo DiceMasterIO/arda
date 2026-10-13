@@ -228,10 +228,16 @@ build (`--build-context artlib=…`) and is never required. Open: the `commercia
 rule (logic/11) is not implemented (`validate.rs` only checks a non-empty licence), so
 `LicenseRef-AI-generated` is not gated.
 
-**Status (2026-09-25 record):** facade/CLI/Docker definition and CI delivered; release automation
-and full-content acceptance open. **Depends on:** OI-01 and the capabilities
+**Status (2026-10-12):** release automation written (`.github/workflows/release.yml`, `tools/release.sh`,
+`tools/package-release.sh`, `tools/smoke-binaries.sh`) and decided: four binary targets, a
+placeholder-only `linux/amd64,linux/arm64` GHCR image (D1), GitHub releases drafted for the maintainer to publish,
+no crates.io publication (D5, `publish = false`), `repository` corrected (D4). Proven locally: `actionlint`,
+`shellcheck`, a release build with the binary smoke, packaging, `tools/docker-smoke.sh` on amd64, the `release.sh`
+bump on a throwaway clone. **Waits on a real tag:** the hosted-runner matrix (macOS, Windows, native arm64), the
+QEMU arm64 image build, the GHCR push and attestations, and the draft release. Full-content acceptance and the
+release gates (task 09) remain open. *(2026-09-25 record: facade/CLI/Docker definition and CI delivered.)* **Depends on:** OI-01 and the capabilities
 included in the release. **Targets:** current facade/CLI/Dockerfile,
-`.github/workflows/`; release automation is **proposed**.
+`.github/workflows/`; release automation is written, untested on a real tag.
 
 1. Audit the existing CLI/public API against newly implemented layers and queries. Add only missing entry points/options/help/errors; do not rebuild delivered generate/preview/export commands.
 2. Decide supported binary targets, crate/image publication, version tags and format compatibility policy. Separate a tested local image from a published multi-architecture release.

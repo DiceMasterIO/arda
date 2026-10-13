@@ -98,7 +98,7 @@ These selection reasons come from the August 2026 stack decisions and are not re
 |---|---|
 | Rust stable with `rustfmt`, `clippy` | Pinned channel (`rust-toolchain.toml`); CI also checks Rust 1.96.1 (`.github/workflows/ci.yml:22`) |
 | Workspace lints | `unsafe_code`, `missing_docs` denied; clippy `all`, `unwrap_used`, `expect_used` denied plus selected pedantic warnings (`Cargo.toml:50`-`Cargo.toml:64`) |
-| `cargo-deny` | Run by `EmbarkStudios/cargo-deny-action@v2` (`.github/workflows/ci.yml:39`); policy in `deny.toml` |
+| `cargo-deny` | Run by `EmbarkStudios/cargo-deny-action` v2.1.1, SHA-pinned (`.github/workflows/ci.yml:44`); policy in `deny.toml` |
 | Python 3 standard library | Offline table generators `tools/generate_water_forcing_tables.py` (writes forcing tables consumed by `crates/arda-gen/src/hydrology/forcing_tables.rs`) and `tools/generate_spectral_tables.py` (writes `crates/arda-gen/src/spectral_tables.rs`, `tools/generate_spectral_tables.py:6`); never run by a build |
 
 ### License policy (`deny.toml`)
@@ -167,7 +167,7 @@ No database, broker or remote API is connected from `crates/*/src/`; the Rust ru
 | Image providers behind Slopify (`openai-image`, `google-image`, `fal`, `replicate`, `codex-image`) | Slopify, selected by `--provider` (default `openai-image`, model `gpt-image-2`) | Not contacted by art-gen directly; art-gen checks Slopify's `/api/providers` readiness and refuses when the provider has no key configured in Slopify (`tools/art-gen/generate.mjs:44`, `tools/art-gen/generate.mjs:504`-`tools/art-gen/generate.mjs:507`) | Provider keys live in Slopify's settings; art-gen holds none |
 | Image reviewer (`claude-code` default, or `codex`) | Slopify, on art-gen's request (`--reviewer`) | Requested through the Slopify project payload | `tools/art-gen/generate.mjs` defaults (`reviewer`, `reviewerModel`) |
 
-Submission is gated: `--dry-run` contacts nothing and `--yes` is required to submit paid generations (`tools/art-gen/generate.mjs:114`-`tools/art-gen/generate.mjs:115`). Reads retry on network drops with delays 2-60 s; writes do not (`tools/art-gen/generate.mjs:431`). GitHub Actions supplies CI (`.github/workflows/ci.yml`). crates.io and GHCR are the recorded release destinations; no publishing workflow exists.
+Submission is gated: `--dry-run` contacts nothing and `--yes` is required to submit paid generations (`tools/art-gen/generate.mjs:114`-`tools/art-gen/generate.mjs:115`). Reads retry on network drops with delays 2-60 s; writes do not (`tools/art-gen/generate.mjs:431`). GitHub Actions supplies CI (`.github/workflows/ci.yml`). GHCR (image) and GitHub releases (binaries) are the release destinations, driven by `.github/workflows/release.yml`; crates are not published to crates.io (`publish = false`).
 
 ## Forcing data provenance
 

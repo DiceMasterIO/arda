@@ -152,7 +152,7 @@ Third-party runtime controls such as `RAYON_NUM_THREADS` are read by `rayon`, no
 | Server caches | Byte-bounded LRUs (`crates/arda-server/src/cache.rs:1`): areas 1 GiB, derived 256 MiB, fine windows 512 MiB (`crates/arda-server/src/query.rs:36`-`crates/arda-server/src/query.rs:38`); overview PNGs/tiles 256 MiB each (`crates/arda-server/src/overview.rs:32`); relief tiles 128 MiB (`crates/arda-server/src/relief.rs:22`); tactical renders 768 MiB, pyramid 1 GiB, encoded 256 MiB (`crates/arda-server/src/tactical/mod.rs:80`-`crates/arda-server/src/tactical/mod.rs:82`). Only area and fine budgets have flags. All in-memory; nothing persisted. | as cited |
 | Test fixture cache | Shared worlds under `target/`, built in a sibling dir and renamed into place, stamped `.fixture-stamp` with a fingerprint of library sources, data, manifests and lockfile; stale stamps rebuild (`tests/support/fixture_dir.rs:1`-`tests/support/fixture_dir.rs:27`) | as cited |
 | Logs | No logging crate; `println!`/`eprintln!` only. Server: startup banner on stdout (`crates/arda-server/src/main.rs:79`); 5xx detail on stderr with redacted body (`crates/arda-server/src/error.rs:217`); per-request tactical line `arda-server tactical <route> <detail> cache=<hit\|miss> bytes=<n> <ms> ms` (`crates/arda-server/src/tactical/routes.rs:138`) | as cited |
-| CI | `.github/workflows/ci.yml`, on push and pull_request (`.github/workflows/ci.yml:2`): `test` matrix ubuntu/macos/windows, `cargo test --workspace --all-features --no-fail-fast` (`.github/workflows/ci.yml:9`-`.github/workflows/ci.yml:15`); `msrv` Rust 1.96.1 `cargo check --workspace --all-targets --all-features --locked` (`.github/workflows/ci.yml:22`-`.github/workflows/ci.yml:23`); `lint` fmt check and clippy `-D warnings` (`.github/workflows/ci.yml:32`-`.github/workflows/ci.yml:33`); `deny` cargo-deny-action v2 (`.github/workflows/ci.yml:39`). No viewer or art-gen job; no release or publish workflow. | as cited |
+| CI | `.github/workflows/ci.yml`, on push and pull_request (`.github/workflows/ci.yml:2`): `test` matrix ubuntu/macos/windows, `cargo test --workspace --all-features --no-fail-fast` (`.github/workflows/ci.yml:9`-`.github/workflows/ci.yml:17`); `msrv` Rust 1.96.1 `cargo check --workspace --all-targets --all-features --locked` (`.github/workflows/ci.yml:26`-`.github/workflows/ci.yml:27`); `lint` fmt check and clippy `-D warnings` (`.github/workflows/ci.yml:37`-`.github/workflows/ci.yml:38`); `deny` cargo-deny-action v2.1.1 (`.github/workflows/ci.yml:44`). Actions are pinned to full commit SHAs. A `viewer` job and no art-gen job. `.github/workflows/release.yml` (tag `v*` and manual dry run) verifies, builds four binary targets and the multi-platform GHCR image, and drafts the GitHub release; see Release process. | as cited, `.github/workflows/release.yml` |
 | Line endings | `* text=auto eol=lf` so golden fixtures hash identically on Windows; `tools/art-gen/checklist.csv` kept `-text` | `.gitattributes` |
 | Build profiles | `[profile.test] opt-level = 2`; `[profile.release] codegen-units = 1` | `Cargo.toml:68`-`Cargo.toml:72` |
 
@@ -177,12 +177,28 @@ Third-party runtime controls such as `RAYON_NUM_THREADS` are read by `rayon`, no
 
 ### Release process
 
-Observed from the `release: Arda v0.8.1` commit (`022ce7c`) and tags `v0.5.0`…`v0.8.1`:
+Releases v0.5.0 to v0.8.1 were hand-made `release: Arda v<version>` commits with tags. Since 1.0 a tag drives the build; the maintainer's credentials and approval stay in GitHub.
 
-1. Add a `## <version> — <date>` section to `CHANGELOG.md` (`CHANGELOG.md:6`); the design ledger lives in `docs/capstone/changelog.md` and `docs/capstone/changelog.d/` (`CHANGELOG.md:3`-`CHANGELOG.md:4`).
-2. Bump `[workspace.package] version` and every path entry's `version` in `[workspace.dependencies]` (`Cargo.toml:6`, `Cargo.toml:12`-`Cargo.toml:32`), which updates `Cargo.lock`; bump `apps/viewer/package.json:4` and its lockfile; update the version in `crates/arda-server/API.md`.
-3. Re-bless `tests/golden/micro-42.txt` with `ARDA_BLESS=1`: the saved world manifest embeds `arda_version`, so `world.json`'s fingerprint changes with every version bump.
-4. Commit as `release: Arda v<version>` and tag `v<version>`. No workflow builds or publishes artifacts; crates are not published to crates.io and no image is pushed.
+**Cutting a release.**
+
+1. Run `tools/release.sh <version>` on a clean branch. It bumps `[workspace.package] version` and the 21 path entries in `[workspace.dependencies]` (`Cargo.toml`), `apps/viewer/package.json` and its lockfile (`npm version --no-git-tag-version`), and the `arda_version` in `crates/arda-server/API.md`; runs `cargo update -w`; re-blesses `tests/golden/micro-42*.txt` with `ARDA_BLESS=1 cargo test --release --test golden_world --test golden_recipes` (the saved `world.json` embeds `arda_version`); checks that every version site agrees; and checks that `git diff` touches only those files. It prints the remaining commands.
+2. Add a `## <version> — <date>` section to `CHANGELOG.md`. `tools/release.sh --notes <version>` prints what the release page will show. The design ledger (`docs/capstone/changelog.md`, `changelog.d/`) is separate.
+3. Run the release gates (ignored wall-clock tests) locally; task 09's gate runner and receipt own that step. CI never runs them.
+4. Commit as `release: Arda v<version>`, tag `v<version>`, push the branch and the tag.
+5. The tag starts `.github/workflows/release.yml`: `verify` (tag equals the `Cargo.toml` version, `tools/release.sh --check`, a changelog section exists, fmt, clippy, `cargo test --workspace --locked`), then `binaries`, `image`, `release`. Review the **draft** release and publish it by hand.
+
+`tools/release.sh --check [version]` verifies all 50 version sites (workspace version, 21 path entries, 24 lockfile members, viewer package and lockfile, API.md) without writing; it also runs in `verify`.
+
+**Artifacts.**
+
+- Binaries `arda` and `arda-server` for `x86_64-unknown-linux-gnu`, `aarch64-unknown-linux-gnu` (built on Ubuntu 22.04 for older glibc), `aarch64-apple-darwin` and `x86_64-pc-windows-msvc`: `arda-<version>-<target>.tar.gz` (`.zip` on Windows) with LICENSE, NOTICE, README.md and CHANGELOG.md, plus `SHA256SUMS` on the release. Each build is smoke-tested first; Linux builds also generate the seed-42 micro world and answer `/v1/health`.
+- Image `ghcr.io/dicemasterio/arda`, `linux/amd64` and `linux/arm64`, built from the root `Dockerfile` with no `artlib` context, so it carries the placeholder tactical library only (maintainer decision D1). Tags: `vX.Y.Z` gives `X.Y.Z`, `X.Y` and `latest`; a pre-release such as `v1.0.0-rc.1` pushes only its exact tag and the GitHub release is marked pre-release. OCI labels carry the version and revision; an SBOM and max-mode provenance attestation are attached to the manifest. The amd64 image is checked by `tools/docker-smoke.sh` before anything is pushed.
+- Crates are not published (maintainer decision D5): every member sets `publish = false`. The public interface is the HTTP API, the CLI and the world format, not the Rust crates.
+- An AI-library image is not published (D1). If that ever changes: store `arda-art-<library_version>.tar.zst` as a release asset of its own, commit its sha256 in a lock file, download and verify it in the `image` job, and pass it with `--build-context artlib=<dir>`. Uploading the asset is the maintainer's action.
+
+**Dry run.** Start the `release` workflow from the Actions tab (`workflow_dispatch`) on any branch. It uses the `Cargo.toml` version, runs `verify`, `binaries` and `image` (smoke plus a no-push multi-platform build) and skips login, push and the `release` job. Locally: `tools/release.sh --check`, `cargo build --release --locked -p arda-cli -p arda-server`, `tools/smoke-binaries.sh target/release --serve`, `tools/package-release.sh <version> <target> target/release <dir>` and `tools/docker-smoke.sh <world-dir>`.
+
+**Pins.** Every third-party action is pinned to a full commit SHA with the version in a comment. The release toolchain is Rust 1.98.1 (`RUST_TOOLCHAIN` in `release.yml`), matching the Dockerfile's `RUSTUP_TOOLCHAIN`; change both together.
 
 ### Recorded measurements
 
