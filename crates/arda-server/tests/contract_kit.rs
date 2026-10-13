@@ -19,15 +19,15 @@
 
 #[path = "../../../tests/support/fixture_dir.rs"]
 mod fixture_dir;
+#[path = "contract_kit/manifest.rs"]
+mod manifest;
 
 use arda_server::{router, AppState, ServerConfig};
 use axum::body::Body;
 use axum::http::Request;
 use http_body_util::BodyExt;
-use serde::{Deserialize, Serialize};
-use sha2::{Digest, Sha256};
+use manifest::{fingerprint, read_manifest, sha256, write_manifest, BodyHash, Case, Fixture};
 use std::collections::BTreeMap;
-use std::fmt::Write as _;
 use std::path::{Path, PathBuf};
 use std::sync::{Arc, OnceLock};
 use std::time::Duration;
@@ -45,88 +45,6 @@ fn kit() -> PathBuf {
 
 fn blessing() -> bool {
     std::env::var_os(BLESS).is_some()
-}
-
-#[derive(Debug, Serialize, Deserialize)]
-struct Manifest {
-    kit_format: u32,
-    about: String,
-    fixture: Fixture,
-    cases: Vec<Case>,
-}
-
-/// Which world, build and library the goldens were recorded on.
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
-struct Fixture {
-    seed: String,
-    size: String,
-    terrain: String,
-    recipe_version: u16,
-    society: bool,
-    arda_version: String,
-    server_version: String,
-    world_json_blake3: String,
-    world_fingerprint: String,
-    library: String,
-    library_version: String,
-    contract_version: u32,
-    api_version: String,
-    sheet_mapping: Option<String>,
-}
-
-#[derive(Debug, Clone, Serialize, Deserialize)]
-struct RequestBody {
-    content_type: String,
-    body: String,
-}
-
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
-struct BodyHash {
-    sha256: String,
-    bytes: usize,
-}
-
-#[derive(Debug, Clone, Serialize, Deserialize)]
-struct Case {
-    id: String,
-    route: String,
-    method: String,
-    uri: String,
-    #[serde(default, skip_serializing_if = "Option::is_none")]
-    request: Option<RequestBody>,
-    #[serde(default, skip_serializing_if = "Option::is_none")]
-    if_none_match_of: Option<String>,
-    #[serde(default, skip_serializing_if = "Option::is_none")]
-    uri_from_location_of: Option<String>,
-    status: u16,
-    content_type: Option<String>,
-    headers: BTreeMap<String, Option<String>>,
-    schema: Option<String>,
-    #[serde(default, skip_serializing_if = "Option::is_none")]
-    golden: Option<String>,
-    #[serde(default, skip_serializing_if = "Option::is_none")]
-    body: Option<BodyHash>,
-}
-
-fn read_manifest() -> Manifest {
-    let path = kit().join("manifest.json");
-    let text = std::fs::read_to_string(&path).unwrap_or_else(|e| panic!("{}: {e}", path.display()));
-    serde_json::from_str(&text).unwrap_or_else(|e| panic!("{}: {e}", path.display()))
-}
-
-fn write_manifest(m: &Manifest) {
-    let mut text = serde_json::to_string_pretty(m).unwrap();
-    text.push('\n');
-    std::fs::write(kit().join("manifest.json"), text).unwrap();
-}
-
-fn sha256(bytes: &[u8]) -> String {
-    Sha256::digest(bytes)
-        .iter()
-        .fold(String::new(), |mut s, b| {
-            let _ = write!(s, "{b:02x}");
-            s
-        })
 }
 
 // ---- the canonical world --------------------------------------------------
@@ -172,31 +90,6 @@ fn state() -> Arc<AppState> {
         c.library = workspace().join("assets/tactical/placeholder");
         Arc::new(AppState::open(&c).unwrap())
     }))
-}
-
-/// `<path>  <blake3>` of every world file, sorted, as `tests/golden_world.rs`
-/// writes it; the fixture stamp is not part of the world.
-fn fingerprint(root: &Path) -> String {
-    fn walk(root: &Path, dir: &Path, out: &mut Vec<String>) {
-        let mut paths: Vec<PathBuf> = std::fs::read_dir(dir)
-            .unwrap()
-            .map(|e| e.unwrap().path())
-            .collect();
-        paths.sort();
-        for path in paths {
-            if path.is_dir() {
-                walk(root, &path, out);
-            } else if path.file_name() != Some(fixture_dir::STAMP.as_ref()) {
-                let rel = path.strip_prefix(root).unwrap().to_string_lossy();
-                let hash = blake3::hash(&std::fs::read(&path).unwrap());
-                out.push(format!("{}  {}", rel.replace('\\', "/"), hash.to_hex()));
-            }
-        }
-    }
-    let mut entries = Vec::new();
-    walk(root, root, &mut entries);
-    entries.sort();
-    entries.join("\n") + "\n"
 }
 
 // ---- requests -------------------------------------------------------------
@@ -496,4 +389,32 @@ fn cases_are_unique_and_well_formed() {
             assert!(kit().join(&r.body).is_file(), "{}: {}", case.id, r.body);
         }
     }
+}
+
+/// Stable routes without a case: a finished bake's tiles exist only once the
+/// background job is done, so their bytes cannot be replayed in order.
+const UNCOVERED: &[&str] = &["GET /v1/tactical/bake/{id}/tiles/{z}/{x}/{y}.webp"];
+
+#[test]
+fn every_stable_route_of_the_policy_has_a_case() {
+    let policy = std::fs::read_to_string(workspace().join("docs/capstone/versioning.md")).unwrap();
+    let stable: Vec<String> = policy
+        .lines()
+        .filter_map(|l| l.strip_prefix("| `")?.split_once("` | stable |"))
+        .map(|(route, _)| route.to_owned())
+        .collect();
+    assert!(stable.len() >= 40, "{} stable routes", stable.len());
+    let cases: std::collections::BTreeSet<String> =
+        read_manifest().cases.into_iter().map(|c| c.route).collect();
+    for route in &cases {
+        assert!(stable.contains(route), "{route} is not a stable route");
+    }
+    let missing: Vec<&String> = stable
+        .iter()
+        .filter(|r| !cases.contains(*r) && !UNCOVERED.contains(&r.as_str()))
+        .collect();
+    assert!(
+        missing.is_empty(),
+        "stable routes without a case: {missing:#?}"
+    );
 }

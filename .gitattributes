@@ -5,3 +5,7 @@
 
 # Committed with CRLF; keep it byte-identical.
 tools/art-gen/checklist.csv -text
+
+# Contract kit goldens and requests are compared byte for byte.
+contract-kit/golden/** -text
+contract-kit/requests/** -text
