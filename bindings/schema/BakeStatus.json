@@ -1,0 +1,194 @@
+{
+  "$defs": {
+    "ApiErrorBody": {
+      "description": "Machine-readable code, HTTP status and human message.",
+      "properties": {
+        "code": {
+          "description": "Stable code: `bad_request`, `out_of_range`, `not_found`, `no_block`, `payload_too_large`,\n`unsupported_media_type`, `invalid_layout`, `resource_limit`, `not_implemented`, `busy`\nor `internal`.",
+          "type": "string"
+        },
+        "message": {
+          "description": "Human-readable detail; not stable.",
+          "type": "string"
+        },
+        "status": {
+          "description": "HTTP status repeated in the body.",
+          "format": "uint16",
+          "maximum": 65535,
+          "minimum": 0,
+          "type": "integer"
+        }
+      },
+      "required": [
+        "code",
+        "status",
+        "message"
+      ],
+      "type": "object"
+    },
+    "BakeState": {
+      "description": "Where a bake job stands.",
+      "oneOf": [
+        {
+          "const": "queued",
+          "description": "Waiting for the bake lane.",
+          "type": "string"
+        },
+        {
+          "const": "running",
+          "description": "Rendering and encoding.",
+          "type": "string"
+        },
+        {
+          "const": "done",
+          "description": "Tiles ready to download.",
+          "type": "string"
+        },
+        {
+          "const": "failed",
+          "description": "Finished with `error`.",
+          "type": "string"
+        }
+      ]
+    },
+    "TacticalTilesDto": {
+      "description": "Tile pyramid geometry of one render.",
+      "properties": {
+        "format": {
+          "description": "Tile file extension: `webp`.",
+          "type": "string"
+        },
+        "image_height_px": {
+          "description": "Full-resolution render height, pixels.",
+          "format": "uint32",
+          "minimum": 0,
+          "type": "integer"
+        },
+        "image_width_px": {
+          "description": "Full-resolution render width, pixels.",
+          "format": "uint32",
+          "minimum": 0,
+          "type": "integer"
+        },
+        "max_zoom": {
+          "description": "Deepest zoom; it is the render at full resolution.",
+          "format": "uint32",
+          "minimum": 0,
+          "type": "integer"
+        },
+        "ppsq": {
+          "description": "Output pixels per square of the render the pyramid is cut from.",
+          "format": "uint32",
+          "minimum": 0,
+          "type": "integer"
+        },
+        "tile_px": {
+          "description": "Tile edge in pixels (512).",
+          "format": "uint32",
+          "minimum": 0,
+          "type": "integer"
+        }
+      },
+      "required": [
+        "tile_px",
+        "ppsq",
+        "image_width_px",
+        "image_height_px",
+        "max_zoom",
+        "format"
+      ],
+      "type": "object"
+    }
+  },
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "description": "`GET /v1/tactical/bake/{id}` (TS `BakeStatus`).",
+  "properties": {
+    "error": {
+      "anyOf": [
+        {
+          "$ref": "#/$defs/ApiErrorBody"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "description": "Why the job failed, when `failed`, else `null`."
+    },
+    "format_version": {
+      "description": "Body version ([`BAKE_FORMAT`]).",
+      "format": "uint32",
+      "minimum": 0,
+      "type": "integer"
+    },
+    "gx": {
+      "description": "Cell column.",
+      "format": "uint32",
+      "minimum": 0,
+      "type": "integer"
+    },
+    "gy": {
+      "description": "Cell row.",
+      "format": "uint32",
+      "minimum": 0,
+      "type": "integer"
+    },
+    "job_id": {
+      "description": "The job id.",
+      "type": "string"
+    },
+    "origin_gs": {
+      "description": "Top-left square of the cell in world squares (64 per cell).",
+      "items": {
+        "format": "int64",
+        "type": "integer"
+      },
+      "maxItems": 2,
+      "minItems": 2,
+      "type": "array"
+    },
+    "state": {
+      "$ref": "#/$defs/BakeState",
+      "description": "Where the job stands."
+    },
+    "tile_count": {
+      "description": "Tiles in the set once `done`, else 0.",
+      "format": "uint32",
+      "minimum": 0,
+      "type": "integer"
+    },
+    "tiles": {
+      "anyOf": [
+        {
+          "$ref": "#/$defs/TacticalTilesDto"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "description": "Pyramid geometry once `done`, else `null`."
+    },
+    "total_bytes": {
+      "description": "Encoded bytes of the whole set once `done`, else 0.",
+      "format": "uint32",
+      "minimum": 0,
+      "type": "integer"
+    },
+    "world_grade": {
+      "description": "Whether the world grade applies.",
+      "type": "boolean"
+    }
+  },
+  "required": [
+    "format_version",
+    "job_id",
+    "state",
+    "gx",
+    "gy",
+    "origin_gs",
+    "world_grade",
+    "tile_count",
+    "total_bytes"
+  ],
+  "title": "BakeStatus",
+  "type": "object"
+}

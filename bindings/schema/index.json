@@ -33,6 +33,27 @@
       "url": "/v1/schema/AreaRivers.json"
     },
     {
+      "name": "BakeAccepted",
+      "routes": [
+        "POST /v1/tactical/bake"
+      ],
+      "url": "/v1/schema/BakeAccepted.json"
+    },
+    {
+      "name": "BakeRequest",
+      "routes": [
+        "POST /v1/tactical/bake (request)"
+      ],
+      "url": "/v1/schema/BakeRequest.json"
+    },
+    {
+      "name": "BakeStatus",
+      "routes": [
+        "GET /v1/tactical/bake/{id}"
+      ],
+      "url": "/v1/schema/BakeStatus.json"
+    },
+    {
       "name": "CellSample",
       "routes": [
         "GET /v1/cell/{gx}/{gy}"

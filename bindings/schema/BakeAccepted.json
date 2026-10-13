@@ -1,0 +1,59 @@
+{
+  "$defs": {
+    "BakeState": {
+      "description": "Where a bake job stands.",
+      "oneOf": [
+        {
+          "const": "queued",
+          "description": "Waiting for the bake lane.",
+          "type": "string"
+        },
+        {
+          "const": "running",
+          "description": "Rendering and encoding.",
+          "type": "string"
+        },
+        {
+          "const": "done",
+          "description": "Tiles ready to download.",
+          "type": "string"
+        },
+        {
+          "const": "failed",
+          "description": "Finished with `error`.",
+          "type": "string"
+        }
+      ]
+    }
+  },
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "description": "`202` (or `200` once done) body of `POST /v1/tactical/bake`\n(TS `BakeAccepted`).",
+  "properties": {
+    "format_version": {
+      "description": "Body version ([`BAKE_FORMAT`]).",
+      "format": "uint32",
+      "minimum": 0,
+      "type": "integer"
+    },
+    "job_id": {
+      "description": "Content-addressed job id (32 hex digits): the same body against the\nsame world and library always gets the same id.",
+      "type": "string"
+    },
+    "state": {
+      "$ref": "#/$defs/BakeState",
+      "description": "Where the job stands now."
+    },
+    "status_url": {
+      "description": "Where to poll: `/v1/tactical/bake/{job_id}`.",
+      "type": "string"
+    }
+  },
+  "required": [
+    "format_version",
+    "job_id",
+    "state",
+    "status_url"
+  ],
+  "title": "BakeAccepted",
+  "type": "object"
+}
