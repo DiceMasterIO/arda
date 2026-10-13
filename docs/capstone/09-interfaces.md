@@ -1,13 +1,17 @@
 ---
-generated_at_commit: 022ce7cb5707
-generated_date: 2026-10-10
+generated_at_commit: b6cae7350f6b
+generated_date: 2026-10-13
 capstone_version: 7.0.1
-content_hash: 413fd8551453
+content_hash: eb418a4a3677
 paths_covered:
   - ":(top)crates/arda-server/src/**"
   - ":(top)bindings/**"
   - ":(top)crates/arda-town/src/plan/types.rs"
   - ":(top)crates/arda-dungeon/src/lib.rs"
+  - ":(top)contract-kit/**"
+  - ":(top)Dockerfile"
+  - ":(top)tools/docker-entrypoint.sh"
+  - ":(top)crates/arda-server/tests/contract_kit.rs"
 known_as:
   - "127.0.0.1:8787"
 edges:
@@ -63,12 +67,13 @@ edges:
     - { kind: http, name: "GET /v1/tactical/dungeon/scene", site: crates/arda-server/src/tactical/dungeon.rs, schema: SceneDto }
     - { kind: schema, name: bindings/ts/arda, site: crates/arda-server/src/bindings.rs }
     - { kind: schema, name: bindings/schema, site: crates/arda-server/src/schema/mod.rs }
+    - { kind: schema, name: contract-kit, site: contract-kit/manifest.json }
   consumes: []
 ---
 
 # Interfaces
 
-The only cross-repo surface is `arda-server`'s HTTP API under `/v1` (consumed by the DiceMaster VTT, a sibling repo) and the two committed schema packages generated from the same Rust types. Every route is registered in `router` (`crates/arda-server/src/routes.rs:28-65`) and the nested tactical router (`crates/arda-server/src/tactical/routes.rs:37-59`). `apps/viewer` calls the same API from inside this repo (`apps/viewer/src/api/client.ts:52`), so it is not an edge.
+The only cross-repo surface is `arda-server`'s HTTP API under `/v1` (consumed by the DiceMaster VTT, a sibling repo) and the two committed schema packages generated from the same Rust types. Every route is registered in `router` (`crates/arda-server/src/routes.rs:28-76`) and the nested tactical router (`crates/arda-server/src/tactical/routes.rs:37-63`) (the bake routes merged from `crates/arda-server/src/tactical/bake_routes.rs:34-42`). `apps/viewer` calls the same API from inside this repo (`apps/viewer/src/api/client.ts:52`), so it is not an edge.
 
 ## Produces
 
@@ -125,6 +130,7 @@ The only cross-repo surface is `arda-server`'s HTTP API under `/v1` (consumed by
 | http | GET /v1/tactical/dungeon/scene | - | `crates/arda-server/src/tactical/dungeon.rs` |
 | schema | bindings/ts/arda | - | `crates/arda-server/src/bindings.rs` |
 | schema | bindings/schema | - | `crates/arda-server/src/schema/mod.rs` |
+| schema | contract-kit | - | `contract-kit/manifest.json` |
 
 Contract facts shared by every row:
 
@@ -132,24 +138,24 @@ Contract facts shared by every row:
 |---|---|---|
 | Cell contract version | `CONTRACT_VERSION: u32 = 3`; "Clients must reject a version they do not know"; bumped when a field changes meaning, unit or presence | `crates/arda-server/src/contract/mod.rs:4-5`, `crates/arda-server/src/contract/mod.rs:24-31` |
 | Contract 3 change | `road` gains `footpath`; `built_by` is a settlement id string; `land_use` and `realm_id` added (null without `society/`) | `crates/arda-server/src/contract/mod.rs:26-30` |
-| `contract_version` emitted in | `Health` (`routes.rs:184`), `WorldInfo` (`dto.rs:103`), `CellSample` (`contract/convert.rs:201`), `PointSample` (`query.rs:337`), `AreaCells` (`columnar.rs:271`), `AreaRivers` (`routes.rs:263`), `AreaLakes` (`routes.rs:279`) | `crates/arda-server/src/` |
-| Versions in TS | `export const API_VERSION` and one constant per version family (`CONTRACT_VERSION`, `TACTICAL_FORMAT`, …) written into `index.ts` | `crates/arda-server/src/bindings.rs:76-86` |
+| `contract_version` emitted in | `Health` (`routes.rs:202`), `WorldInfo` (`dto.rs:112`), `CellSample` (`contract/convert.rs:201`), `PointSample` (`query.rs:337`), `AreaCells` (`columnar.rs:271`), `AreaRivers` (`routes.rs:282`), `AreaLakes` (`routes.rs:298`) | `crates/arda-server/src/` |
+| Versions in TS | `export const API_VERSION` and one constant per version family (`CONTRACT_VERSION`, `TACTICAL_FORMAT`, …) written into `index.ts` | `crates/arda-server/src/bindings.rs:76-84` |
 | Version families | `WorldInfo.versions` (`VersionsDto`) lists every family; `WorldInfo.server_version` and `Health.server_version` name the serving build, `WorldInfo.arda_version` the generator that wrote the world; policy, stability per route and the schema freeze guard in [versioning.md](versioning.md) | `crates/arda-server/src/versions.rs` |
-| API version | `API_VERSION = "v1"`; every route nests under `/v1` | `crates/arda-server/src/dto.rs:12`, `crates/arda-server/src/routes.rs:61` |
-| Tactical envelope versions | `TACTICAL_FORMAT = 1`, `LAYOUT_SCHEMA = 1`, `SCENE_FORMAT = TACTICAL_FORMAT` | `crates/arda-server/src/tactical/dto.rs:90-92`, `crates/arda-server/src/tactical/scene.rs:21` |
-| Unknown path | 404 `not_found` "every endpoint lives under /v1" | `crates/arda-server/src/routes.rs:177-179` |
-| Error body | every 4xx/5xx is `ApiError { error: ApiErrorBody }`; 501 from unready tactical sources is `NotYetError` (adds `planned_source`) | `crates/arda-server/src/error.rs:71-96` |
-| Error codes | `ServerError::classify` maps variants to status and code | `crates/arda-server/src/error.rs:112-140` |
-| CORS | only `http(s)://localhost`, `127.0.0.1`, `[::1]` origins; methods GET/HEAD/POST/DELETE/OPTIONS; exposes `ETag`, `X-Arda-Cache`, `X-Arda-Sheet-Mapping` | `crates/arda-server/src/routes.rs:67-104` |
-| Image caching | strong `ETag` (BLAKE3 of bytes), `304` on `If-None-Match`, `Cache-Control: no-cache` | `crates/arda-server/src/routes.rs:143-175`, `crates/arda-server/src/tactical/routes.rs:142-179` |
-| Sheet mapping | with `--sheet-mapping`, every NPC-bearing body is reshaped and carries `X-Arda-Sheet-Mapping`; the `Npc` schemas then no longer apply | `crates/arda-server/src/sheet_map/mod.rs:263-277`, `crates/arda-server/src/schema/mod.rs:158` |
-| Bind address | `--host` default `127.0.0.1`, `--port` default `8787` | `crates/arda-server/src/main.rs:20-25` |
-| Deploy config | `Dockerfile` builds and runs only the `arda` CLI (`ENTRYPOINT ["arda"]`); no compose, Kubernetes or ingress files name the server | `Dockerfile:4`, `Dockerfile:11` |
-| Authentication | none; no auth layer in the router | `crates/arda-server/src/routes.rs:60-64` |
+| API version | `API_VERSION = "v1"`; every route nests under `/v1` | `crates/arda-server/src/dto.rs:12`, `crates/arda-server/src/routes.rs:72` |
+| Tactical envelope versions | `TACTICAL_FORMAT = 1`, `LAYOUT_SCHEMA = 1`, `SCENE_FORMAT = TACTICAL_FORMAT` | `crates/arda-server/src/tactical/dto.rs:90-92`, `crates/arda-server/src/tactical/scene.rs:24` |
+| Unknown path | 404 `not_found` "every endpoint lives under /v1" | `crates/arda-server/src/routes.rs:195-197` |
+| Error body | every 4xx/5xx is `ApiError { error: ApiErrorBody }`; 501 from unready tactical sources is `NotYetError` (adds `planned_source`) | `crates/arda-server/src/error.rs:80-100` |
+| Error codes | `ServerError::classify` maps variants to status and code | `crates/arda-server/src/error.rs:121-154` |
+| CORS | only `http(s)://localhost`, `127.0.0.1`, `[::1]` origins; methods GET/HEAD/POST/DELETE/OPTIONS; exposes `ETag`, `X-Arda-Cache`, `X-Arda-Sheet-Mapping` | `crates/arda-server/src/routes.rs:80-125` |
+| Image caching | strong `ETag` (BLAKE3 of bytes), `304` on `If-None-Match`, `Cache-Control: no-cache` | `crates/arda-server/src/routes.rs:157-193`, `crates/arda-server/src/tactical/routes.rs:147-182` |
+| Sheet mapping | with `--sheet-mapping`, every NPC-bearing body is reshaped and carries `X-Arda-Sheet-Mapping`; the `Npc` schemas then no longer apply | `crates/arda-server/src/sheet_map/mod.rs:263-277`, `crates/arda-server/src/schema/mod.rs:176` |
+| Bind address | `--host` default `127.0.0.1`, `--port` default `8787` | `crates/arda-server/src/main.rs:24-29` |
+| Deploy config | `Dockerfile` builds `arda` and `arda-server` (`cargo build --release --locked -p arda-cli -p arda-server`), runs `ENTRYPOINT ["arda-entrypoint"]` (`tools/docker-entrypoint.sh`: with no arguments it serves `/worlds/world` on `0.0.0.0:8787`), `EXPOSE 8787` and a `HEALTHCHECK` running `arda-server --probe`; no compose, Kubernetes or ingress files name the server | `Dockerfile:21`, `Dockerfile:34-43`, `tools/docker-entrypoint.sh:9-22` |
+| Authentication | none; no auth layer in the router | `crates/arda-server/src/routes.rs:28-76` |
 
 ### GET /v1/health
 
-Type `Health` (`crates/arda-server/src/dto.rs:133`).
+Type `Health` (`crates/arda-server/src/dto.rs:144`).
 
 | Field | Type | Required |
 |---|---|---|
@@ -160,7 +166,7 @@ Type `Health` (`crates/arda-server/src/dto.rs:133`).
 
 ### GET /v1/world
 
-Model: WorldInfo (with `server_version` and `versions`; see 02-models)
+Model: WorldInfo
 
 ### GET /v1/cell/{gx}/{gy}
 
@@ -184,7 +190,7 @@ Type `AreaCells` (`crates/arda-server/src/columnar.rs:237`) as `application/json
 
 ### GET /v1/area/{ax}/{ay}/rivers
 
-Type `AreaRivers` (`crates/arda-server/src/dto.rs:211`).
+Type `AreaRivers` (`crates/arda-server/src/dto.rs:225`).
 
 | Field | Type | Required |
 |---|---|---|
@@ -195,7 +201,7 @@ Type `AreaRivers` (`crates/arda-server/src/dto.rs:211`).
 
 ### GET /v1/area/{ax}/{ay}/lakes
 
-Type `AreaLakes` (`crates/arda-server/src/dto.rs:224`).
+Type `AreaLakes` (`crates/arda-server/src/dto.rs:238`).
 
 | Field | Type | Required |
 |---|---|---|
@@ -210,7 +216,7 @@ Model: PointSample
 
 ### GET /v1/overview.png
 
-Response `image/png` (`crates/arda-server/src/routes.rs:302-316`). Query parameters:
+Response `image/png` (`crates/arda-server/src/routes.rs:321-339`). Query parameters:
 
 | Field | Type | Required | Notes |
 |---|---|---|---|
@@ -220,41 +226,44 @@ Response `image/png` (`crates/arda-server/src/routes.rs:302-316`). Query paramet
 
 ### GET /v1/tiles/overview/{z}/{x}/{y}.webp
 
-Response `image/webp`; `z` above 31 is 404 (`crates/arda-server/src/routes.rs:320-346`). Query parameters:
+Response `image/webp`; `z` above 31 is 404 (`crates/arda-server/src/routes.rs:369-407`). Query parameters:
 
 | Field | Type | Required | Notes |
 |---|---|---|---|
 | oblique | 0 or 1 | no | serves the oblique pyramid |
-| overlay | String | no | `society` or `none`; as on `/v1/overview.png` |
+| overlay | String | no | `society` or `none`; as on `/v1/overview.png` (`overlay_flag`, `crates/arda-server/src/routes.rs:344-354`) |
+| labels | 0 or 1 | no | default 1; `0` leaves the gazetteer's names off the tile; other values are 400 (`labels_flag`, `crates/arda-server/src/routes.rs:357-366`) |
 
 ### GET /v1/tiles/overview/{z}/{x}/{y}.png
 
-Response `image/png`; same handler and parameters as the `.webp` form (`crates/arda-server/src/routes.rs:320-346`).
+Response `image/png`; same handler and parameters as the `.webp` form (`crates/arda-server/src/routes.rs:369-407`).
 
 | Field | Type | Required | Notes |
 |---|---|---|---|
 | oblique | 0 or 1 | no | serves the oblique pyramid |
 | overlay | String | no | `society` or `none`; as on `/v1/overview.png` |
+| labels | 0 or 1 | no | as on the `.webp` form |
 
 ### GET /v1/tiles/relief/{z}/{x}/{y}.webp
 
-Response `image/webp`, mid-zoom relief past the overview's native zoom; no query parameters (`crates/arda-server/src/routes.rs:349-365`).
+Response `image/webp`, mid-zoom relief past the overview's native zoom (`crates/arda-server/src/routes.rs:410-428`).
 
 | Field | Type | Required | Notes |
 |---|---|---|---|
 | z, x, y | u32 path segments | yes | `{y}` must end in `.webp` |
+| labels | 0 or 1 | no | default 1; `0` omits the gazetteer's names |
 
 ### POST /v1/npc/population
 
 Model: Population
 
-Request body: `PopulationRequest` (`crates/arda-server/src/npc_dto/mod.rs:322`), limited to `MAX_BODY_BYTES` (`crates/arda-server/src/routes.rs:40-43`, `crates/arda-server/src/routes.rs:377-395`).
+Request body: `PopulationRequest` (`crates/arda-server/src/npc_dto/mod.rs:327`), limited to `MAX_BODY_BYTES` (`crates/arda-server/src/routes.rs:40-43`, `crates/arda-server/src/routes.rs:430-449`).
 
 ### POST /v1/npc/generate
 
 Model: Npc
 
-Request body: `GenerateNpcRequest` (`crates/arda-server/src/npc_dto/mod.rs:335`; wire struct `crates/arda-server/src/npc.rs:39`), every field optional, unknown fields refused, at most `MAX_GENERATE_BODY_BYTES` = 16 KiB (`crates/arda-server/src/npc.rs:33`), `Content-Type: application/json` required (415). Handler `generate_route` (`crates/arda-server/src/npc.rs:217`) converts it to `arda_npc::OneRequest` (`settlement_id` resolved through `arda_people::World::profile`) and calls `arda_npc::generate_one` with the served world seed; the response goes through `AppState::npc_response(.., NpcAt::Root)`, so `--sheet-mapping` applies. Nothing is stored; `id`, `home_building` and `household` are synthetic (settlement 0) and never resolve.
+Request body: `GenerateNpcRequest` (`crates/arda-server/src/npc_dto/mod.rs:340`; wire struct `crates/arda-server/src/npc.rs:39`), every field optional, unknown fields refused, at most `MAX_GENERATE_BODY_BYTES` = 16 KiB (`crates/arda-server/src/npc.rs:33`), `Content-Type: application/json` required (415). Handler `generate_route` (`crates/arda-server/src/npc.rs:217`) converts it to `arda_npc::OneRequest` (`settlement_id` resolved through `arda_people::World::profile`) and calls `arda_npc::generate_one` with the served world seed; the response goes through `AppState::npc_response(.., NpcAt::Root)`, so `--sheet-mapping` applies. Nothing is stored; `id`, `home_building` and `household` are synthetic (settlement 0) and never resolve.
 
 | Field | Type | Required | Notes |
 |---|---|---|---|
@@ -273,7 +282,7 @@ Request body: `GenerateNpcRequest` (`crates/arda-server/src/npc_dto/mod.rs:335`;
 
 ### GET /v1/npc/demo
 
-Type `NpcDemo` (`crates/arda-server/src/npc_dto/mod.rs:381`; wire struct `crates/arda-server/src/npc.rs:86`).
+Type `NpcDemo` (`crates/arda-server/src/npc_dto/mod.rs:386`; wire struct `crates/arda-server/src/npc.rs:86`).
 
 | Field | Type | Required |
 |---|---|---|
@@ -290,13 +299,13 @@ Model: Npc
 
 Model: Npc
 
-Optional `?settlement=`; `{npc_id}` is an id or a `<settlement>.<building>.<index>` reference (`crates/arda-server/src/npcs/mod.rs:172-234`).
+Optional `?settlement=`; `{npc_id}` is an id or a `<settlement>.<building>.<index>` reference (`crates/arda-server/src/npcs/mod.rs:177-231`).
 
 ### GET /v1/npcs
 
 Model: NpcPage
 
-Query: `settlement`, `building`, `job`, `realm`, `notable`, `limit`, `cursor` (`crates/arda-server/src/npcs/mod.rs:71-116`).
+Query: `settlement`, `building`, `job`, `realm`, `notable`, `limit`, `cursor` (`crates/arda-server/src/npcs/mod.rs:72-116`).
 
 ### GET /v1/buildings/{building}/residents
 
@@ -354,7 +363,15 @@ Model: SettlementNpcs
 
 Model: Gazetteer
 
-Typed `GazetteerList { format_version: 1, features: [GazetteerFeature | GazetteerPoint] }`: the natural features of `society/gazetteer.json` in file order, then the settlements by id as points (`kind` `hamlet`..`city`, `at_m`, `rank` 5..2). Query: `kind` (comma list, `sea`, `lake`, `range`, `city`, ...), `bbox` (`x0,y0,x1,y1`, metres), `min_rank` (1-5, keeps rank at most this). 404 `not_found` without `society/` or `gazetteer.json`.
+Handler `get` (`crates/arda-server/src/gazetteer.rs:68`), filters in `filter` (`crates/arda-server/src/gazetteer.rs:22-66`). Typed `GazetteerList { format_version: 1, features: [GazetteerFeature | GazetteerPoint] }`: the natural features of `society/gazetteer.json` in file order, then the settlements by id as points (`kind` `hamlet`..`city`, `at_m`, `rank` 5..2). Query parameters:
+
+| Field | Type | Required | Notes |
+|---|---|---|---|
+| kind | String | no | comma list (`sea`, `lake`, `range`, `city`, ...); unknown kind is 400 |
+| bbox | String | no | `x0,y0,x1,y1` in metres with `x0 <= x1` and `y0 <= y1`; else 400 |
+| min_rank | u32 | no | 1 to 5, keeps rank at most this |
+
+404 `not_found` without `society/` or `gazetteer.json`.
 
 ### GET /v1/realms
 
@@ -380,7 +397,7 @@ Model: RealmDetail
 
 Model: SchemaIndex
 
-Response `application/json`, the committed `bindings/schema/index.json` (`crates/arda-server/src/schema/routes.rs:33-39`); type `SchemaIndex` with `SchemaIndexEntry` items (`crates/arda-server/src/schema/mod.rs`, `index()` builds it).
+Response `application/json`, the committed `bindings/schema/index.json` (`crates/arda-server/src/schema/routes.rs:34-39`); type `SchemaIndex` with `SchemaIndexEntry` items (`crates/arda-server/src/schema/mod.rs`, `index()` builds it).
 
 | Field | Type | Required | Notes |
 |---|---|---|---|
@@ -396,7 +413,7 @@ Response `application/schema+json`, `Cache-Control: public, max-age=3600`, one c
 
 | Field | Type | Required | Notes |
 |---|---|---|---|
-| Name | path segment | yes | a `catalog!` name (`crates/arda-server/src/schema/mod.rs:98-132`) |
+| Name | path segment | yes | a `catalog!` name (`crates/arda-server/src/schema/mod.rs:115-166`) |
 
 ### GET /v1/tactical/layouts
 
@@ -412,7 +429,7 @@ Type `TacticalLayouts` (`crates/arda-server/src/tactical/dto.rs:14`).
 
 ### GET /v1/tactical/layout/{name}
 
-A built-in `arda_tactical::TacticalLayout`, described by `TacticalLayoutDto` (`crates/arda-server/src/tactical/dto.rs:97`); `Cache-Control: no-cache` (`crates/arda-server/src/tactical/routes.rs:188-203`).
+A built-in `arda_tactical::TacticalLayout`, described by `TacticalLayoutDto` (`crates/arda-server/src/tactical/dto.rs:97`); `Cache-Control: no-cache` (`crates/arda-server/src/tactical/routes.rs:193-222`).
 
 | Field | Type | Required | Notes |
 |---|---|---|---|
@@ -427,16 +444,16 @@ A built-in `arda_tactical::TacticalLayout`, described by `TacticalLayoutDto` (`c
 
 ### GET /v1/tactical/layout/{name}.png
 
-Response `image/png` with `ETag`, `X-Arda-Cache`, `Server-Timing` (`crates/arda-server/src/tactical/routes.rs:188-217`). Query parameters:
+Response `image/png` with `ETag`, `X-Arda-Cache`, `Server-Timing` (`crates/arda-server/src/tactical/routes.rs:193-222`). Query parameters:
 
 | Field | Type | Required | Notes |
 |---|---|---|---|
-| ppsq | u32 | no | 64, 96 or 128 (default 128) (`crates/arda-server/src/tactical/mod.rs:46-48`) |
+| ppsq | u32 | no | 64, 96 or 128 (default 128) (`crates/arda-server/src/tactical/mod.rs:53-55`) |
 | grid | 0 or 1 | no | |
 
 ### GET /v1/tactical/layout/{name}/tiles/{z}/{x}/{y}.webp
 
-Response `image/webp` (`crates/arda-server/src/tactical/routes.rs:238-274`). Query parameters:
+Response `image/webp` (`crates/arda-server/src/tactical/routes.rs:243-279`). Query parameters:
 
 | Field | Type | Required | Notes |
 |---|---|---|---|
@@ -445,7 +462,7 @@ Response `image/webp` (`crates/arda-server/src/tactical/routes.rs:238-274`). Que
 
 ### POST /v1/tactical/render
 
-Request: a `TacticalLayoutDto` JSON body with `Content-Type: application/json` (else 415), bounded by `max_body_bytes`; response `image/png` (`crates/arda-server/src/tactical/routes.rs:276-332`). Query parameters:
+Request: a `TacticalLayoutDto` JSON body with `Content-Type: application/json` (else 415), bounded by `max_body_bytes`; response `image/png` (`crates/arda-server/src/tactical/routes.rs:281-337`). Query parameters:
 
 | Field | Type | Required | Notes |
 |---|---|---|---|
@@ -457,11 +474,11 @@ Request: a `TacticalLayoutDto` JSON body with `Content-Type: application/json` (
 
 Model: TacticalBlockDto
 
-Query: `ppsq` (64/96/128 or 16/32), `grid`, `demo_overlays`, `demo_at`, `world_grade` (`crates/arda-server/src/tactical/world_routes.rs:64-97`, `crates/arda-server/src/tactical/world_routes.rs:147-185`).
+Query: `ppsq` (64/96/128 or 16/32), `grid`, `demo_overlays`, `demo_at`, `world_grade` (`crates/arda-server/src/tactical/world_routes.rs:67-100`, `crates/arda-server/src/tactical/world_routes.rs:148-187`).
 
 ### GET /v1/tactical/cell/{gx}/{gy}.png
 
-Response `image/png`, same handler as the JSON form (`crates/arda-server/src/tactical/world_routes.rs:147-175`).
+Response `image/png`, same handler as the JSON form (`crates/arda-server/src/tactical/world_routes.rs:148-187`).
 
 | Field | Type | Required | Notes |
 |---|---|---|---|
@@ -475,11 +492,11 @@ Response `image/png`, same handler as the JSON form (`crates/arda-server/src/tac
 
 Model: TacticalScene
 
-Query: `time` = `day` (default) or `night`, plus the cell options (`crates/arda-server/src/tactical/scene.rs:92-112`).
+Query: `time` = `day` (default) or `night`, plus the cell options (`crates/arda-server/src/tactical/scene.rs:93-115`).
 
 ### GET /v1/tactical/cell/{gx}/{gy}/tiles/{z}/{x}/{y}.webp
 
-Response `image/webp` (`crates/arda-server/src/tactical/world_routes.rs:188-227`).
+Response `image/webp` (`crates/arda-server/src/tactical/world_routes.rs:189-227`).
 
 | Field | Type | Required | Notes |
 |---|---|---|---|
@@ -495,7 +512,7 @@ Query: `gx0,gy0,w,h` in cells (`w`, `h` 1..=3) or `gsx,gsy,w,h` in squares (1..=
 
 ### GET /v1/tactical/window.png
 
-Response `image/png` (`crates/arda-server/src/tactical/world_routes.rs:298-326`).
+Response `image/png` (`crates/arda-server/src/tactical/world_routes.rs:341-368`).
 
 | Field | Type | Required | Notes |
 |---|---|---|---|
@@ -537,13 +554,13 @@ Type `TacticalLibraryDto` (`crates/arda-server/src/tactical/library_dto.rs:12`).
 
 Model: PrefetchAccepted
 
-Request body `PrefetchRequest` (`crates/arda-server/src/tactical/prefetch.rs:44`); answers `202 Accepted` at once (`crates/arda-server/src/tactical/routes.rs:63-87`).
+Request body `PrefetchRequest` (`crates/arda-server/src/tactical/prefetch.rs:44`); answers `202 Accepted` at once (`crates/arda-server/src/tactical/routes.rs:66-92`).
 
 ### POST /v1/tactical/bake
 
 Model: BakeAccepted
 
-Request body `BakeRequest` (`crates/arda-server/src/tactical/bake_dto.rs:15`), `application/json` only (415), at most `max_body_bytes`; checked by `Tactical::check_bake` (`crates/arda-server/src/tactical/bake_render.rs:24`) and queued by `Baker::submit` (`crates/arda-server/src/tactical/bake.rs`). Answers `202 Accepted` (`200` once the job is `done` or `failed`) with `Location: status_url`; 503 `busy` when 8 jobs wait; 501 with `--bake-workers 0`.
+Request body `BakeRequest` (`crates/arda-server/src/tactical/bake_dto.rs:15`; handler `submit`, `crates/arda-server/src/tactical/bake_routes.rs:54-96`), `application/json` only (415), at most `max_body_bytes`, unknown fields refused; checked by `Tactical::check_bake` (`crates/arda-server/src/tactical/bake_render.rs:24`) and queued by `Baker::submit` (`crates/arda-server/src/tactical/bake.rs`). Answers `202 Accepted` (`200` once the job is `done` or `failed`) with `Location: status_url`; 503 `busy` when 8 jobs wait; 501 with `--bake-workers 0`.
 
 | Field | Type | Required |
 |---|---|---|
@@ -552,11 +569,21 @@ Request body `BakeRequest` (`crates/arda-server/src/tactical/bake_dto.rs:15`), `
 | state | BakeState (`queued`, `running`, `done`, `failed`) | yes |
 | status_url | `String` | yes |
 
+Request body fields (`BakeRequest`, `crates/arda-server/src/tactical/bake_dto.rs:15-35`):
+
+| Field | Type | Required | Notes |
+|---|---|---|---|
+| format_version | u32 | no | `1` when present |
+| gx, gy | u32 | yes | cell column and row |
+| ppsq | u32 | no | 64, 96 or 128 (default 128) |
+| world_grade | bool | no | as `?world_grade=1` on the cell route (default false) |
+| layout | TacticalLayoutDto | yes | exactly 64 x 64 squares with `origin` equal to `[gx * 64, gy * 64]` (422 `invalid_layout` otherwise) |
+
 ### GET /v1/tactical/bake/{id}
 
 Model: BakeStatus
 
-`Cache-Control: no-store`; 404 `not_found` for unknown, deleted or evicted jobs (`crates/arda-server/src/tactical/bake_routes.rs`). `GET /v1/tactical/bake/{id}/tiles/{z}/{x}/{y}.webp` serves the finished set's tiles (strong `ETag`, `no-store`); `DELETE /v1/tactical/bake/{id}` answers 204.
+`Cache-Control: no-store` (`BAKE_CACHE_CONTROL`, `crates/arda-server/src/tactical/bake_routes.rs:31`, handler `status` at `crates/arda-server/src/tactical/bake_routes.rs:98-108`); 404 `not_found` for unknown, deleted or evicted jobs (`Baker::status`, `crates/arda-server/src/tactical/bake.rs:249`). The tiles and the delete have their own sections below.
 
 | Field | Type | Required |
 |---|---|---|
@@ -570,6 +597,23 @@ Model: BakeStatus
 | tile_count | `u32` | yes |
 | total_bytes | `u32` | yes |
 | error | Option<ApiErrorBody> | yes (null unless failed) |
+
+### GET /v1/tactical/bake/{id}/tiles/{z}/{x}/{y}.webp
+
+Response `image/webp`, one 512 px lossless tile of the pyramid `BakeStatus.tiles` describes, with a strong `ETag`, `If-None-Match` answered `304` and `Cache-Control: no-store` (handler `tile`, `crates/arda-server/src/tactical/bake_routes.rs:118-153`). 404 `not_found` for an unknown id, a job not yet `done`, a tile outside the pyramid, or a last segment not ending in `.webp` (`Baker::tile`, `crates/arda-server/src/tactical/bake.rs:262-279`).
+
+| Field | Type | Required | Notes |
+|---|---|---|---|
+| id | String | yes | path segment, the `job_id` of `POST /v1/tactical/bake` |
+| z, x, y | u32 | yes | path segments; `y` carries the `.webp` suffix; no query parameters |
+
+### DELETE /v1/tactical/bake/{id}
+
+Answers `204 No Content` with no body and frees the job and its tiles; a queued job is dropped and a running job's result is discarded when it finishes (handler `delete`, `crates/arda-server/src/tactical/bake_routes.rs:110-116`; `Baker::delete`, `crates/arda-server/src/tactical/bake.rs:284-296`). 404 `not_found` for an unknown, already deleted or evicted id. CORS allows `DELETE` from localhost origins (`crates/arda-server/src/routes.rs:108-114`).
+
+| Field | Type | Required | Notes |
+|---|---|---|---|
+| id | String | yes | path segment, the `job_id` of `POST /v1/tactical/bake` |
 
 ### GET /v1/tactical/dungeon
 
@@ -588,7 +632,7 @@ The handler serialises `arda_dungeon::Dungeon` (`crates/arda-dungeon/src/lib.rs`
 
 ### GET /v1/tactical/dungeon.png
 
-Response `image/png` (`crates/arda-server/src/tactical/dungeon.rs:110-160`).
+Response `image/png` (`crates/arda-server/src/tactical/dungeon.rs:110-161`).
 
 | Field | Type | Required | Notes |
 |---|---|---|---|
@@ -630,22 +674,33 @@ An `arda_scene::Scene`, described by `SceneDto` (`crates/arda-server/src/tactica
 
 ### bindings/ts/arda
 
-ts-rs TypeScript declarations of every wire type, committed under `bindings/ts/arda/` (`BINDINGS_DIR`, `crates/arda-server/src/bindings.rs:40`); `cargo test -p arda-server bindings` fails when stale, `ARDA_BLESS_BINDINGS=1` rewrites them (`crates/arda-server/src/bindings.rs:1-5`). No `package.json`; consumers import the files directly.
+ts-rs TypeScript declarations of every wire type, committed under `bindings/ts/arda/` (`BINDINGS_DIR`, `crates/arda-server/src/bindings.rs:47`); `cargo test -p arda-server bindings` fails when stale, `ARDA_BLESS_BINDINGS=1` rewrites them (`crates/arda-server/src/bindings.rs:1-5`). No `package.json`; consumers import the files directly.
 
 | Field | Type | Required | Notes |
 |---|---|---|---|
-| CONTRACT_VERSION | number const | yes | `index.ts` (`crates/arda-server/src/bindings.rs:69`) |
-| API_VERSION | string const | yes | `index.ts` (`crates/arda-server/src/bindings.rs:70`) |
-| `export type { <Name> }` | type re-export | yes | one per exported type in `exported!` (`crates/arda-server/src/bindings.rs:56-79`) |
+| CONTRACT_VERSION | number const | yes | `index.ts`, the first constant of `VersionsDto::current().entries()` (`crates/arda-server/src/bindings.rs:77-84`) |
+| API_VERSION | string const | yes | `index.ts` (`crates/arda-server/src/bindings.rs:76`) |
+| `export type { <Name> }` | type re-export | yes | one per exported type in `exported!` (`crates/arda-server/src/bindings.rs:63-94`) |
 
 ### bindings/schema
 
-JSON Schema (draft 2020-12) files, one `<Name>.json` per body plus `index.json`, generated with schemars from the same Rust types and served by `GET /v1/schema` (`crates/arda-server/src/schema/mod.rs:1-11`, `crates/arda-server/src/schema/mod.rs:25`); a schema's name equals the TypeScript type name.
+JSON Schema (draft 2020-12) files, one `<Name>.json` per body plus `index.json`, generated with schemars from the same Rust types and served by `GET /v1/schema` (`crates/arda-server/src/schema/mod.rs:1-11`, `crates/arda-server/src/schema/mod.rs:25`); `bindings/schema-baseline/v1/` holds the frozen copy the freeze guard compares against (`versioning.md`); a schema's name equals the TypeScript type name.
 
 | Field | Type | Required | Notes |
 |---|---|---|---|
-| `<Name>.json` | JSON Schema document | yes | one per `catalog!` entry, 32 entries (`crates/arda-server/src/schema/mod.rs:98-132`) |
+| `<Name>.json` | JSON Schema document | yes | one per `catalog!` entry, 45 entries (`crates/arda-server/src/schema/mod.rs:115-166`) |
 | index.json | object | yes | see `GET /v1/schema` |
+
+### contract-kit
+
+Golden responses of the canonical world (seed 42, MICRO, fine terrain, society) for the stable routes, plus a live checker; `contract-kit/manifest.json` carries `kit_format` 1, the fixture identity (`arda_version`, `server_version`, BLAKE3 of `world.json`, `library_version`, `contract_version`) and one entry per case (`contract-kit/manifest.json:1-12`, `contract-kit/README.md:1-24`). `contract-kit/check.mjs` (Node 22, standard library only) replays the cases against a running server; `crates/arda-server/tests/contract_kit.rs` replays them in-process and fails when a stable route of [versioning.md](versioning.md) has no case (`ARDA_BLESS_CONTRACT=1` re-records).
+
+| Field | Type | Required | Notes |
+|---|---|---|---|
+| manifest.json | JSON | yes | kit format, fixture identity, cases |
+| golden/ | JSON bodies | yes | responses byte for byte as served; large bodies and images are stored as SHA-256 and size |
+| requests/ | JSON bodies | yes | bodies the `POST` cases send (`npc-generate`, `npc-population`, `tactical-bake`, `tactical-prefetch`) |
+| world.txt | text | yes | `<path>  <blake3>` of every file of the canonical world |
 
 ## Consumes
 

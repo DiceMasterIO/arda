@@ -1,8 +1,8 @@
 ---
-generated_at_commit: 022ce7cb5707
-generated_date: 2026-10-10
+generated_at_commit: b6cae7350f6b
+generated_date: 2026-10-13
 capstone_version: 7.0.1
-content_hash: 96a1ba3738b2
+content_hash: 0a578d6f5325
 paths_covered:
   - ":(top)apps/viewer/index.html"
   - ":(top)apps/viewer/package.json"
@@ -17,11 +17,14 @@ paths_covered:
   - ":(top)apps/viewer/src/components/**"
   - ":(top)apps/viewer/src/views/**"
   - ":(top)apps/viewer/src/render/**"
+  - ":(top)apps/viewer/vite.config.ts"
+  - ":(top)apps/viewer/scripts/**"
+  - ":(top)apps/viewer/licence-policy.json"
 ---
 
 # Viewer design system (extracted)
 
-Extraction mode: what `apps/viewer` implements, as found. The whole visual system is one hand-written stylesheet, `apps/viewer/src/styles.css` (143 lines), plus `leaflet/dist/leaflet.css` (`apps/viewer/src/main.tsx:3`) and colour literals in TypeScript for map overlays. No component library, no CSS framework, no CSS modules, no design-token file beyond the `:root` custom properties (`apps/viewer/package.json:16-20` lists only `leaflet`, `react`, `react-dom` as runtime dependencies).
+Extraction mode: what `apps/viewer` implements, as found. The whole visual system is one hand-written stylesheet, `apps/viewer/src/styles.css` (143 lines), plus `leaflet/dist/leaflet.css` (`apps/viewer/src/main.tsx:3`) and colour literals in TypeScript for map overlays. No component library, no CSS framework, no CSS modules, no design-token file beyond the `:root` custom properties (`apps/viewer/package.json:17-21` lists only `leaflet`, `react`, `react-dom` as runtime dependencies).
 
 ## Typography
 
@@ -181,7 +184,9 @@ Labels wrap or precede their control inline (`<label>text <select/></label>`), n
 
 ## Design-system pick
 
-Hand-built: React 19 components with one global stylesheet and Leaflet 1.9 for maps (`apps/viewer/package.json:16-20`). No component library.
+Hand-built: React 19 components with one global stylesheet and Leaflet 1.9 for maps (`apps/viewer/package.json:17-21`). No component library.
+
+Build-time licence handling (no runtime or visual effect): the Vite config adds the `licenceNotices()` plugin (`apps/viewer/vite.config.ts:12`), which during `build` emits `THIRD_PARTY_LICENSES.txt` into `dist/` with the licence text of every non-dev package in `package-lock.json` and fails the build when a package has no licence file (`apps/viewer/scripts/licence-notices.mjs:25-38`). `npm run licences` checks the lockfile against `apps/viewer/licence-policy.json`, whose `runtime` allow-list is MIT, ISC, BSD-2-Clause, BSD-3-Clause, Apache-2.0, 0BSD, Zlib, MIT-0, CC0-1.0, and whose `buildOnly` list is MPL-2.0, CC-BY-4.0, BlueOak-1.0.0, Python-2.0 (`apps/viewer/package.json:15`, `apps/viewer/scripts/check-licences.mjs:1-4`); `npm test` also runs `node --test scripts/` (`apps/viewer/package.json:14`).
 
 ## Implementation constraints
 

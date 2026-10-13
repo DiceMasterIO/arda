@@ -1,8 +1,8 @@
 ---
-generated_at_commit: 022ce7cb5707
-generated_date: 2026-10-10
+generated_at_commit: b6cae7350f6b
+generated_date: 2026-10-13
 capstone_version: 7.0.1
-content_hash: b8fd1e060549
+content_hash: b5108f625f42
 paths_covered:
   - ":(top)crates/arda-art-import/**"
   - ":(top)crates/arda-cli/src/tactical_import.rs"
@@ -229,7 +229,7 @@ The contact sheet lays out every processed asset (imported and rejected, in scan
 
 ### §imp-exit
 
-After `import` returns, the CLI prints to stdout: `<out>: N imported, N rejected, N skipped, N flagged for review`, `coverage: …`, `contact sheet: <path>` when given, `report: <out>/report.md` (`crates/arda-cli/src/tactical_import.rs:52-74`). If `!report.valid()`, each `validation` then `stack_validation` line goes to stderr and the command fails with "the imported library failed validation" (`tactical_import.rs:75-84`). An `ImportError` from `import` fails with context "importing <raw_dir>" (`tactical_import.rs:51`). `main` returns `anyhow::Result` (`crates/arda-cli/src/main.rs:360-364`), so a failure exits non-zero with the error on stderr; success exits 0.
+After `import` returns, the CLI prints to stdout: `<out>: N imported, N rejected, N skipped, N flagged for review`, `coverage: …`, `contact sheet: <path>` when given, `report: <out>/report.md` (`crates/arda-cli/src/tactical_import.rs:52-74`). If `!report.valid()`, each `validation` then `stack_validation` line goes to stderr and the command fails with "the imported library failed validation" (`tactical_import.rs:75-84`). An `ImportError` from `import` fails with context "importing <raw_dir>" (`tactical_import.rs:51`). `main` returns `anyhow::Result` (`crates/arda-cli/src/main.rs:399-400`), so a failure exits non-zero with the error on stderr; success exits 0.
 
 ### §imp-determinism
 

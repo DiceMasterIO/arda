@@ -1,8 +1,8 @@
 ---
-generated_at_commit: 022ce7cb5707
-generated_date: 2026-10-10
+generated_at_commit: b6cae7350f6b
+generated_date: 2026-10-13
 capstone_version: 7.0.1
-content_hash: df89ad13b6d0
+content_hash: b0a36e2c603a
 paths_covered:
   - ":(top)crates/arda-dungeon/**"
   - ":(top)crates/arda-cli/src/dungeon.rs"
@@ -13,11 +13,12 @@ paths_covered:
   - ":(top)crates/arda-server/src/tactical/world_routes.rs"
   - ":(top)crates/arda-server/src/error.rs"
   - ":(top)crates/arda-server/tests/world_api/dungeon.rs"
+  - ":(top)crates/arda-server/src/schema/**"
 ---
 
 # 18 — Dungeons and caves: seeded underground battle maps
 
-> Descriptive extraction of current behavior at commit 022ce7cb5707, not a normative design. Owns the `arda dungeon` subcommand (`crates/arda-cli/src/main.rs:145-147`, `crates/arda-cli/src/dungeon.rs:82`), the library call `arda_dungeon::generate` (`crates/arda-dungeon/src/lib.rs:227`) and the routes `GET /v1/tactical/dungeon`, `/v1/tactical/dungeon.png` and `/v1/tactical/dungeon/scene` (`crates/arda-server/src/tactical/routes.rs:56-58`). The compositor that paints a level is owned by [11](11-tactical-art-compositor.md), the scene builder by [12](12-scene-data.md), the server conventions by [16](16-service-api.md).
+> Descriptive extraction of current behavior at commit 022ce7cb5707, not a normative design. Owns the `arda dungeon` subcommand (`crates/arda-cli/src/main.rs:153-155`, `crates/arda-cli/src/dungeon.rs:82`), the library call `arda_dungeon::generate` (`crates/arda-dungeon/src/lib.rs:229`) and the routes `GET /v1/tactical/dungeon`, `/v1/tactical/dungeon.png` and `/v1/tactical/dungeon/scene` (`crates/arda-server/src/tactical/routes.rs:61-63`). The compositor that paints a level is owned by [11](11-tactical-art-compositor.md), the scene builder by [12](12-scene-data.md), the server conventions by [16](16-service-api.md).
 
 Rule names below are descriptive labels for observed behavior; code may cite them as `// logic/18 §<rule>`.
 
@@ -29,23 +30,23 @@ Rule names below are descriptive labels for observed behavior; code may cite the
 | `GET /v1/tactical/dungeon` | `seed`, or `gx` and `gy`; `kind` (`dungeon`), `w` (48), `h` (36) | `crates/arda-server/src/tactical/dungeon.rs:28-70`, `:78` |
 | `GET /v1/tactical/dungeon/scene` | as above | `crates/arda-server/src/tactical/dungeon.rs:91` |
 | `GET /v1/tactical/dungeon.png` | as above, plus `ppsq` (128) and `grid` (`0`) | `crates/arda-server/src/tactical/dungeon.rs:110-137` |
-| `arda_dungeon::generate(&Params)` | `{seed, kind, width, height}` | `crates/arda-dungeon/src/lib.rs:87-97`, `:227` |
+| `arda_dungeon::generate(&Params)` | `{seed, kind, width, height}` | `crates/arda-dungeon/src/lib.rs:87-99`, `:229` |
 
 - Authority: none. The CLI is a local process; the server routes carry no authentication and share the server's loopback binding and CORS (16 §api-conventions).
-- Preconditions: both sides lie in `MIN_SIDE..=MAX_SIDE` = 16..=160 squares (`crates/arda-dungeon/src/lib.rs:40-42`, `:104-113`). The generator reads no world data: a level is a pure function of `Params` (`crates/arda-dungeon/src/lib.rs:20-21`). The server form `?gx=&gy=` requires the cell to lie inside the served world (`crates/arda-server/src/tactical/world_routes.rs:106-117`). `--scene` and `--render` require a loadable library or `top:…:bottom` stack (`crates/arda-cli/src/dungeon.rs:117-118`); the server uses the library it validated at startup.
+- Preconditions: both sides lie in `MIN_SIDE..=MAX_SIDE` = 16..=160 squares (`crates/arda-dungeon/src/lib.rs:40-42`, `:106-115`). The generator reads no world data: a level is a pure function of `Params` (`crates/arda-dungeon/src/lib.rs:20-21`). The server form `?gx=&gy=` requires the cell to lie inside the served world (`crates/arda-server/src/tactical/world_routes.rs:108-119`). `--scene` and `--render` require a loadable library or `top:…:bottom` stack (`crates/arda-cli/src/dungeon.rs:117-118`); the server uses the library it validated at startup.
 
 ## Rules
 
 ### §dgn-params
 
-- Size parsing (CLI): `WxH` split on `x` or `X`, each side a `u32`; anything else is an error naming the text (`crates/arda-cli/src/dungeon.rs:56-68`). The bounds check is `Params::check` inside `generate` (`crates/arda-dungeon/src/lib.rs:228`).
+- Size parsing (CLI): `WxH` split on `x` or `X`, each side a `u32`; anything else is an error naming the text (`crates/arda-cli/src/dungeon.rs:56-68`). The bounds check is `Params::check` inside `generate` (`crates/arda-dungeon/src/lib.rs:230`).
 - Kind: CLI `ValueEnum` `dungeon` or `cave` (`crates/arda-cli/src/dungeon.rs:10-16`); server `Kind::parse`, exactly `dungeon` or `cave` (`crates/arda-dungeon/src/lib.rs:66-74`).
 - Server seed selection (`crates/arda-server/src/tactical/dungeon.rs:40-60`): `seed` alone → that `u64`; `gx` and `gy` without `seed` → `site_seed(world_seed, gx, gy, salt)` with salt 0 for `dungeon` and 1 for `cave`; every other combination (none, `seed` with a cell, one coordinate) → `400 bad_request` "give either seed, or gx and gy (a world cell)". The server runs `Params::check` before generating (`:67-68`).
 - Query keys other than `kind`, `w`, `h`, `seed`, `gx`, `gy` (and `ppsq`, `grid` on the PNG route) are ignored: `level` reads named keys only (`crates/arda-server/src/tactical/dungeon.rs:32-70`).
 
 ### §dgn-site-seed
 
-`site_seed(world_seed, gx, gy, salt) = hash2(hash_str(world_seed ^ salt, "arda-dungeon site"), gx, gy)` (`crates/arda-dungeon/src/lib.rs:239-245`). A world cell therefore always opens onto the same level per kind. Where a world places dungeon entrances is not implemented: no caller chooses sites (`crates/arda-dungeon/README.md` "World tie-in" states it as a follow-up; no other caller of `site_seed` than `crates/arda-server/src/tactical/dungeon.rs:48`).
+`site_seed(world_seed, gx, gy, salt) = hash2(hash_str(world_seed ^ salt, "arda-dungeon site"), gx, gy)` (`crates/arda-dungeon/src/lib.rs:241-247`). A world cell therefore always opens onto the same level per kind. Where a world places dungeon entrances is not implemented: no caller chooses sites (`crates/arda-dungeon/README.md` "World tie-in" states it as a follow-up; no other caller of `site_seed` than `crates/arda-server/src/tactical/dungeon.rs:48`).
 
 ### §dgn-rng
 
@@ -146,9 +147,9 @@ The sidecar has `format_version` `SIDECAR_FORMAT_VERSION` (2), the map size, one
 
 - `/dungeon`: the whole `Dungeon` (`params`, `layout`, `rules`, `rooms`, `doors`, `exits`) as JSON with `Cache-Control: no-cache`; no `ETag` and no cache lookup (`crates/arda-server/src/tactical/dungeon.rs:78-88`, `crates/arda-server/src/tactical/routes.rs:30-32`). `params.seed` is serialised as a decimal string and read from a string or a number (`#[serde(with = "arda_scene::serde_str")]` on `Params::seed`, `crates/arda-dungeon/src/lib.rs`), per 16 §api-conventions; the CLI's `--meta` file carries the same `params`. The body is described by the wire mirror `DungeonDto` (TS binding and JSON Schema `DungeonDto`, `crates/arda-server/src/tactical/dungeon_dto.rs`), whose test round-trips dungeons and caves through it; the schema catalogue lists `/dungeon` under `DungeonDto` and `/dungeon/scene` under `SceneDto` (`crates/arda-server/src/schema/mod.rs`).
 - `/dungeon/scene`: `arda_scene::build_scene(layout, served library, world seed, Some(rules))` as JSON, with no `Cache-Control` header and no `ETag` (`crates/arda-server/src/tactical/dungeon.rs:91-107`).
-- `/dungeon.png`: `ppsq` in `PPSQ_OPTIONS` = {64, 96, 128}, default 128; `grid` `0`/absent or `1` (`crates/arda-server/src/tactical/dungeon.rs:117-137`, `crates/arda-server/src/tactical/mod.rs:46-48`). The layout passes `admit` (≤ `max_squares` = 204 × 204; render ≤ `max_render_px` = 96 Mi px; `admit_work`; `TacticalLayout::check` against the library) (`crates/arda-server/src/tactical/mod.rs:296-315`, `:75-79`), is keyed by `RenderKey {world_seed, anchor = layout name, BLAKE3(layout JSON), ppsq, grid, library_version}` (`:337-357`) and rendered or served from the PNG cache (`:363-380`). The response carries `ETag`, `Cache-Control: no-cache`, `X-Arda-Cache` and `Server-Timing`, and answers `304` to a matching `If-None-Match` (`crates/arda-server/src/tactical/routes.rs:142-178`).
-- At the defaults a 160 × 160 level exceeds `max_render_px` at every allowed `ppsq` (160² × 64² = 104,857,600 > 100,663,296), so its PNG is refused with `413` (`crates/arda-server/src/tactical/mod.rs:304-310`).
-- Every request logs one line `arda-server tactical <route> <detail> cache=<hit|miss> bytes=<n> <ms> ms` to stderr (`crates/arda-server/src/tactical/routes.rs:132-140`).
+- `/dungeon.png`: `ppsq` in `PPSQ_OPTIONS` = {64, 96, 128}, default 128; `grid` `0`/absent or `1` (`crates/arda-server/src/tactical/dungeon.rs:117-137`, `crates/arda-server/src/tactical/mod.rs:53`). The layout passes `admit` (≤ `max_squares` = 204 × 204; render ≤ `max_render_px` = 96 Mi px; `admit_work`; `TacticalLayout::check` against the library) (`crates/arda-server/src/tactical/mod.rs:303-322`, `:82-86`), is keyed by `RenderKey {world_seed, anchor = layout name, BLAKE3(layout JSON), ppsq, grid, library_version}` (`:344-364`) and rendered or served from the PNG cache (`:370-387`). The response carries `ETag`, `Cache-Control: no-cache`, `X-Arda-Cache` and `Server-Timing`, and answers `304` to a matching `If-None-Match` (`crates/arda-server/src/tactical/routes.rs:147-183`).
+- At the defaults a 160 × 160 level exceeds `max_render_px` at every allowed `ppsq` (160² × 64² = 104,857,600 > 100,663,296), so its PNG is refused with `413` (`crates/arda-server/src/tactical/mod.rs:311-317`).
+- Every request logs one line `arda-server tactical <route> <detail> cache=<hit|miss> bytes=<n> <ms> ms` to stderr (`crates/arda-server/src/tactical/routes.rs:137-145`).
 
 ### §dgn-cli-outputs
 
@@ -157,14 +158,14 @@ The sidecar has `format_version` `SIDECAR_FORMAT_VERSION` (2), the map size, one
 ## Steps
 
 1. Parse inputs (§dgn-params); on the server, derive the seed (§dgn-site-seed) and check the size.
-2. `generate`: check the size, then branch by kind (`crates/arda-dungeon/src/lib.rs:227-233`).
+2. `generate`: check the size, then branch by kind (`crates/arda-dungeon/src/lib.rs:229-235`).
 3. Dungeon: rooms (§dgn-rooms) → zone grid → spanning tree, loops and corridors (§dgn-corridors) → purposes (§dgn-purposes) → openings (§dgn-openings) → prison cells (§dgn-prison) → squares (§dgn-ground) → walls (§dgn-zones) → stairs, room, cell and corridor dressing (§dgn-dress) → door list, room list, sidecar (§dgn-rules-sidecar) (`crates/arda-dungeon/src/built.rs:257-620`).
 4. Cave: caverns (§dgn-caverns) → mouth (§dgn-mouth) → water (§dgn-water) → ground (§dgn-ground) → walls with the mouth open → descent and scatter (§dgn-dress) → lights → cavern room, sidecar (`crates/arda-dungeon/src/cave.rs:278-513`).
 5. Emit: CLI files (§dgn-cli-outputs) or the route's body (§dgn-serve).
 
 ## Branches
 
-- Kind: `Dungeon` → `built::generate`; `Cave` → `cave::generate` (`crates/arda-dungeon/src/lib.rs:229-232`).
+- Kind: `Dungeon` → `built::generate`; `Cave` → `cave::generate` (`crates/arda-dungeon/src/lib.rs:231-234`).
 - Seed source on the server: explicit `seed` or world cell (§dgn-params).
 - Fewer than two BSP rooms → the two-room fallback (`crates/arda-dungeon/src/built.rs:275-292`).
 - No dead end and fewer than 4 rooms → no treasure room, so no forced `locked` door (`crates/arda-dungeon/src/built.rs:372-382`).
@@ -177,13 +178,13 @@ The sidecar has `format_version` `SIDECAR_FORMAT_VERSION` (2), the map size, one
 | Failure | CLI | Server | Site |
 |---|---|---|---|
 | malformed size | error "size `…` is not WxH" or a number error, nonzero exit | `w`/`h` not a `u32` → `400 bad_request` | `crates/arda-cli/src/dungeon.rs:56-68`, `crates/arda-server/src/tactical/dungeon.rs:37-39` |
-| side outside 16..=160 | `DungeonError::Params`, nonzero exit | `400 bad_request` | `crates/arda-dungeon/src/lib.rs:104-113`, `crates/arda-server/src/tactical/dungeon.rs:67-68` |
+| side outside 16..=160 | `DungeonError::Params`, nonzero exit | `400 bad_request` | `crates/arda-dungeon/src/lib.rs:106-115`, `crates/arda-server/src/tactical/dungeon.rs:67-68` |
 | unknown kind | clap rejects | `400 bad_request` | `crates/arda-cli/src/dungeon.rs:24-25`, `crates/arda-server/src/tactical/dungeon.rs:33-36` |
 | no seed / seed and cell / one coordinate | n/a (seed defaults to 1) | `400 bad_request` | `crates/arda-server/src/tactical/dungeon.rs:55-59` |
-| cell outside the world | n/a | `400 out_of_range` | `crates/arda-server/src/tactical/world_routes.rs:106-117`, `crates/arda-server/src/error.rs:115-117` |
+| cell outside the world | n/a | `400 out_of_range` | `crates/arda-server/src/tactical/world_routes.rs:108-119`, `crates/arda-server/src/error.rs:124-126` |
 | bad `ppsq` or `grid` | n/a (`--ppsq` any `u32`) | `400 bad_request` | `crates/arda-server/src/tactical/dungeon.rs:117-137` |
 | generator cannot meet its own invariants (no cavern in 16 draws, no stair slot, no descent slot) | `DungeonError::Generation`, nonzero exit | `500 internal` | `crates/arda-dungeon/src/cave.rs:288-289`, `:428-430`, `crates/arda-dungeon/src/built.rs:538-543`, `crates/arda-server/src/tactical/dungeon.rs:72-75` |
-| render too large / layout invalid for the library | render error, nonzero exit | `413 payload_too_large` / `422 invalid_layout` | `crates/arda-server/src/tactical/mod.rs:296-315` |
+| render too large / layout invalid for the library | render error, nonzero exit | `413 payload_too_large` / `422 invalid_layout` | `crates/arda-server/src/tactical/mod.rs:303-322` |
 | scene build failure | error, nonzero exit | `500 internal` "scene: …" | `crates/arda-cli/src/dungeon.rs:120`, `crates/arda-server/src/tactical/dungeon.rs:96-102` |
 | library unreadable | error "loading …", nonzero exit | server refuses to start (16) | `crates/arda-cli/src/dungeon.rs:117-118` |
 | write failure midway | earlier files stay written; no rollback, no temp-file rename | n/a | `crates/arda-cli/src/dungeon.rs:77-80`, `:94-133` |
@@ -195,19 +196,19 @@ The sidecar has `format_version` `SIDECAR_FORMAT_VERSION` (2), the map size, one
 
 ## State transitions
 
-None in the generator: no entity has a lifecycle and nothing is stored (`crates/arda-dungeon/src/lib.rs:20-21`). The CLI goes from nothing to files on disk, layout first (§dgn-cli-outputs). The server's only state change is a PNG cache insertion keyed by `RenderKey` (`crates/arda-server/src/tactical/mod.rs:378`).
+None in the generator: no entity has a lifecycle and nothing is stored (`crates/arda-dungeon/src/lib.rs:20-21`). The CLI goes from nothing to files on disk, layout first (§dgn-cli-outputs). The server's only state change is a PNG cache insertion keyed by `RenderKey` (`crates/arda-server/src/tactical/mod.rs:385`).
 
 ## Invariants
 
 Asserted by `crates/arda-dungeon/tests/levels.rs` over its 48-level sweep and by `crates/arda-server/tests/world_api/dungeon.rs`:
 
-1. Determinism: the same `Params` give byte-identical JSON; seeds 42 and 43 differ (`crates/arda-dungeon/tests/levels.rs:49-58`). The same server query gives identical bodies; a world cell gives the same cave and its neighbour a different one (`crates/arda-server/tests/world_api/dungeon.rs:8-46`). Render hashes are pinned in `tests/golden/renders.txt` (`crates/arda-dungeon/tests/levels.rs:195`).
-2. Every layout passes `TacticalLayout::check` against the placeholder library; sidecar and layout sizes agree (`crates/arda-dungeon/tests/levels.rs:61-68`).
-3. Reachability: from the first exit, every non-impassable square is reachable with all doors, gates and secret doors opened (`check::unreachable`), and at least 80 % of floor squares are walkable (`crates/arda-dungeon/tests/levels.rs:71-93`, `crates/arda-dungeon/src/check.rs:16-63`).
-4. No floating door: every door or gate lies between two floor squares and both its ends touch another wall segment (`crates/arda-dungeon/tests/levels.rs:96-101`, `crates/arda-dungeon/src/check.rs:79-108`).
-5. Exits: every level has `StairsDown` with `prop.stairs_down` placed; dungeons `StairsUp` with `prop.stairs`; caves a `Mouth`; every exit square is floor (`crates/arda-dungeon/tests/levels.rs:104-125`).
-6. Scene rules: rock squares are impassable and heavily obscured; across the sweep locked and secret doors, wading and swimming water and difficult terrain all occur; a dungeon's `doors` count equals the scene's opening walls (`crates/arda-dungeon/tests/levels.rs:129-169`).
-7. Out-of-range sizes are refused (`crates/arda-dungeon/tests/levels.rs:187-190`); bad server queries answer 400 (`crates/arda-server/tests/world_api/dungeon.rs:48-60`).
+1. Determinism: the same `Params` give byte-identical JSON; seeds 42 and 43 differ (`crates/arda-dungeon/tests/levels.rs:49-58`). The same server query gives identical bodies; a world cell gives the same cave and its neighbour a different one (`crates/arda-server/tests/world_api/dungeon.rs:8-48`). Render hashes are pinned in `tests/golden/renders.txt` (`crates/arda-dungeon/tests/levels.rs:210`).
+2. Every layout passes `TacticalLayout::check` against the placeholder library; sidecar and layout sizes agree (`crates/arda-dungeon/tests/levels.rs:76-83`).
+3. Reachability: from the first exit, every non-impassable square is reachable with all doors, gates and secret doors opened (`check::unreachable`), and at least 80 % of floor squares are walkable (`crates/arda-dungeon/tests/levels.rs:86-108`, `crates/arda-dungeon/src/check.rs:16-63`).
+4. No floating door: every door or gate lies between two floor squares and both its ends touch another wall segment (`crates/arda-dungeon/tests/levels.rs:111-116`, `crates/arda-dungeon/src/check.rs:79-108`).
+5. Exits: every level has `StairsDown` with `prop.stairs_down` placed; dungeons `StairsUp` with `prop.stairs`; caves a `Mouth`; every exit square is floor (`crates/arda-dungeon/tests/levels.rs:119-140`).
+6. Scene rules: rock squares are impassable and heavily obscured; across the sweep locked and secret doors, wading and swimming water and difficult terrain all occur; a dungeon's `doors` count equals the scene's opening walls (`crates/arda-dungeon/tests/levels.rs:144-184`).
+7. Out-of-range sizes are refused (`crates/arda-dungeon/tests/levels.rs:202-205`); bad server queries answer 400 (`crates/arda-server/tests/world_api/dungeon.rs:50-62`).
 8. Every placed id exists in the committed placeholder library (`crates/arda-dungeon/README.md` "Vocabulary"; enforced by invariant 2).
 
 ## Outcomes & side effects
@@ -215,7 +216,7 @@ Asserted by `crates/arda-dungeon/tests/levels.rs` over its 48-level sweep and by
 - CLI success: one summary line `<name>: WxH squares, N rooms, N doors, N props -> <out>`, plus `rendered <png> (WxH px)` with `--render`; files as §dgn-cli-outputs; exit 0 (`crates/arda-cli/src/dungeon.rs:95-104`, `:132`). Layout names are `dungeon_<seed>` or `cave_<seed>` (`crates/arda-dungeon/src/built.rs:473`, `crates/arda-dungeon/src/cave.rs:343`).
 - Server success: JSON or PNG bodies per §dgn-serve and one stderr log line per request.
 - Failure: CLI prints the anyhow chain and exits nonzero; the server answers `{"error": {code, status, message}}` (16 §api-errors).
-- Render seed differs by entry point: the CLI renders and builds scenes with the level seed (`crates/arda-cli/src/dungeon.rs:120`, `:129`), the server with the world seed (`crates/arda-server/src/tactical/dungeon.rs:96-100`; `RenderKey.world_seed`, `crates/arda-server/src/tactical/mod.rs:348`), so the same level can paint differently in texture variants.
+- Render seed differs by entry point: the CLI renders and builds scenes with the level seed (`crates/arda-cli/src/dungeon.rs:120`, `:129`), the server with the world seed (`crates/arda-server/src/tactical/dungeon.rs:96-100`; `RenderKey.world_seed`, `crates/arda-server/src/tactical/mod.rs:355`), so the same level can paint differently in texture variants.
 - Records: nothing is persisted by the server; the CLI files are the only record and carry their `params` in `--meta` (`crates/arda-cli/src/dungeon.rs:108-113`).
 
 ## Dimensions not in play
@@ -225,7 +226,7 @@ Asserted by `crates/arda-dungeon/tests/levels.rs` over its 48-level sweep and by
 - D7 Time: no deadlines, expiry or clock input; generation reads no clock (`crates/arda-dungeon/src/lib.rs:20-21`). The server's `Instant` timing affects only the log line and `Server-Timing` (`crates/arda-server/src/tactical/dungeon.rs:79-82`).
 - D9 Lifecycle: no entity changes state (State transitions).
 - D11 Termination: a single synchronous step per call; an abandoned CLI run leaves whichever files were already written (Unhappy paths).
-- D12 Visibility: the full level is returned, secret doors included and marked `secret` (`crates/arda-dungeon/src/lib.rs:158-170`); nothing is hidden from the caller. Hiding secrets from players is not implemented here.
+- D12 Visibility: the full level is returned, secret doors included and marked `secret` (`crates/arda-dungeon/src/lib.rs:160-172`); nothing is hidden from the caller. Hiding secrets from players is not implemented here.
 - D13 Notification: nobody is notified; stdout/stderr only.
 - D14 Effects on others: generation touches no world, society or other client state; the PNG cache is shared and bounded (16 §api-cache).
 - D15 Record and audit: no journal; reproducibility comes from `params` (seed, kind, size) alone.

@@ -1,8 +1,8 @@
 ---
-generated_at_commit: 022ce7cb5707
-generated_date: 2026-10-10
+generated_at_commit: b6cae7350f6b
+generated_date: 2026-10-13
 capstone_version: 7.0.1
-content_hash: 494c10b0add7
+content_hash: 9ccd81c01ead
 paths_covered:
   - ":(top)apps/viewer/README.md"
   - ":(top)apps/viewer/src/styles.css"

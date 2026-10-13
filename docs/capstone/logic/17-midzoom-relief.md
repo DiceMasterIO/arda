@@ -1,8 +1,8 @@
 ---
-generated_at_commit: 022ce7cb5707
-generated_date: 2026-10-10
+generated_at_commit: b6cae7350f6b
+generated_date: 2026-10-13
 capstone_version: 7.0.1
-content_hash: 58a63322fefa
+content_hash: a48fef3bb6dc
 paths_covered:
   - ":(top)crates/arda-midzoom/**"
   - ":(top)crates/arda-server/src/relief.rs"
@@ -11,11 +11,13 @@ paths_covered:
   - ":(top)crates/arda-server/tests/world_api/relief.rs"
   - ":(top)tests/zoom_land.rs"
   - ":(top)tests/zoom_continuity.rs"
+  - ":(top)crates/arda-server/src/overview.rs"
+  - ":(top)crates/arda-settle/src/render/tilelabels.rs"
 ---
 
 # 17 — Mid-zoom relief: on-demand ~10 m refinement between the world map and tactical maps
 
-> The world stores one height every 39.0625 m. Zoomed past the overview's native scale, each sample spans many pixels and the map is smooth by construction. Storing a 4× finer level everywhere breaks the 16 GiB budget, so, like the tactical layer (09), detail is grown on demand for the tiles on screen only, from the stored fine terrain and area data (`crates/arda-midzoom/src/lib.rs:1-21`). The layer reads only public APIs (`World::fine_terrain`, `World::read_area`, `arda::area_atlas_terrain`), so it composes with any world that stores recipe-5 fine terrain. The rules were written as a normative design and merged with the crate; this file restates them against the code at commit 022ce7cb5707, each rule with its source sites. It owns the route `GET /v1/tiles/relief/{z}/{x}/{y}.webp` (`crates/arda-server/src/routes.rs:39`, `:349-365`) and the `arda-midzoom` binary (`crates/arda-midzoom/src/bin/arda-midzoom.rs`).
+> The world stores one height every 39.0625 m. Zoomed past the overview's native scale, each sample spans many pixels and the map is smooth by construction. Storing a 4× finer level everywhere breaks the 16 GiB budget, so, like the tactical layer (09), detail is grown on demand for the tiles on screen only, from the stored fine terrain and area data (`crates/arda-midzoom/src/lib.rs:1-21`). The layer reads only public APIs (`World::fine_terrain`, `World::read_area`, `arda::area_atlas_terrain`), so it composes with any world that stores recipe-5 fine terrain. The rules were written as a normative design and merged with the crate; this file restates them against the code at commit 022ce7cb5707, each rule with its source sites. It owns the route `GET /v1/tiles/relief/{z}/{x}/{y}.webp` (`crates/arda-server/src/routes.rs:39`, `:409-427`) and the `arda-midzoom` binary (`crates/arda-midzoom/src/bin/arda-midzoom.rs`).
 
 Code cites rules as `// logic/17 §<rule>`.
 
@@ -23,13 +25,13 @@ Code cites rules as `// logic/17 §<rule>`.
 
 | Entry point | Inputs | Site |
 |---|---|---|
-| `GET /v1/tiles/relief/{z}/{x}/{y}.webp` | `z`, `x`, `y` as `u32`; the last segment must end in `.webp` | `crates/arda-server/src/routes.rs:349-365` |
+| `GET /v1/tiles/relief/{z}/{x}/{y}.webp[?labels=0\|1]` | `z`, `x`, `y` as `u32`; the last segment must end in `.webp`; `labels` is `0` (names off) or `1`/absent (names on) | `crates/arda-server/src/routes.rs:409-427`, `labels_flag` `:355-366` |
 | `arda-midzoom --world <dir> --z <z> --center x,y --out <png> [--size 512] [--base-px 4096] [--plain] [--tiles k]` | crop centre in world metres; side in pixels; overview base; `--plain` ignores `society/`; `--tiles k` times a k × k block of 256 px tiles instead | `crates/arda-midzoom/src/bin/arda-midzoom.rs:10-39` |
-| `arda_midzoom::render_tile`, `render_window`, `refine_tile`, `refine_nodes(_for)` | library calls | `crates/arda-midzoom/src/tile.rs:41`, `:66`, `crates/arda-midzoom/src/lib.rs:58-86`, `crates/arda-midzoom/src/refine.rs:40-75` |
+| `arda_midzoom::render_tile`, `render_window`, `refine_tile`, `refine_nodes(_for)` | library calls | `crates/arda-midzoom/src/tile.rs:41`, `:66`, `crates/arda-midzoom/src/lib.rs:60-88`, `crates/arda-midzoom/src/refine.rs:40-75` |
 
 - Authority: none; the route shares the server's unauthenticated loopback binding (16 §api-conventions); the binary is a local process.
-- Preconditions: a loadable world whose manifest carries fine terrain with recipe ≥ 5. The server enables relief only then (`crates/arda-server/src/relief.rs:77-86`); `ReliefWorld::new` refuses a world without fine terrain with `MidzoomError::NoFineTerrain` (`crates/arda-midzoom/src/world.rs:49-58`, `crates/arda-midzoom/src/source.rs:88-92`). Worked land (§land) additionally needs `<world>/society/settlements.json` (`crates/arda-midzoom/src/land/mod.rs:76-85`); the server builds the landscape from the same society overlays as its tactical blocks (`crates/arda-server/src/lib.rs:200-219`).
-- The pyramid's native zoom is the overview's `max_zoom` (`crates/arda-server/src/lib.rs:215-220`); the binary derives it as `log2(base_px / 256)` (`crates/arda-midzoom/src/bin/arda-midzoom.rs:45-49`).
+- Preconditions: a loadable world whose manifest carries fine terrain with recipe ≥ 5. The server enables relief only then (`crates/arda-server/src/relief.rs:82-91`); `ReliefWorld::new` refuses a world without fine terrain with `MidzoomError::NoFineTerrain` (`crates/arda-midzoom/src/world.rs:49-58`, `crates/arda-midzoom/src/source.rs:88-92`). Worked land (§land) additionally needs `<world>/society/settlements.json` (`crates/arda-midzoom/src/land/mod.rs:77-86`); the server builds the landscape from the same society overlays as its tactical blocks (`crates/arda-server/src/lib.rs:233-243`).
+- The pyramid's native zoom is the overview's `max_zoom` (`crates/arda-server/src/lib.rs:247-253`); the binary derives it as `log2(base_px / 256)` (`crates/arda-midzoom/src/bin/arda-midzoom.rs:45-49`).
 
 ## Rules
 
@@ -96,9 +98,9 @@ Sites: `crates/arda-midzoom/src/lowrelief.rs:24-32`, `crates/arda-midzoom/src/lo
 ### §land
 Relief tiles of a world with `society/` (`arda settle`, `arda society build`) draw worked land from the geometry the tactical overlays compose (arda-blocks `SocietyOverlays`, shared with the server's blocks), so parcels, roads and buildings stay in place across the relief → tactical hand-off as water does (§water). Order per land pixel: shader colour → §low-relief → land use and canopy → channels (§rivers) → roads → settlements. Detail by pixel size: > 45 m the 100 m land-use raster as a bilinear tone; ≤ 45 m parcels, hedgerows and roads; ≤ 20 m settlement plans; ≤ 6 m strips, furrows, orchard rows, crowns, roof pitches and shadows. A world without `society/` renders byte-identically to before.
 
-Area PNG exports reuse this worked land without the relief beneath (`Works`, logic/04 §overlay): the same thresholds and geometry, no low-relief drainage or canopy.
+The worked land is the `Works` struct (grid, parcels, coarse tone, roads, settlement plans), gathered by `Works::gather(land, grid, bbox)`; `LandWindow` holds `Works` plus the low-relief and forest fields that only relief tiles use. Area PNG exports reuse `Works` without the relief beneath (logic/04 §overlay): `AreaLandOverlay` (a `BandOverlay`) cuts each group of exported rows into chunks about 3,200 m wide, gathers `Works` per chunk in parallel and paints land-use tone, parcels (tone, walls, orchard trees), then roads and settlements, with the same pixel-size thresholds and geometry, no low-relief drainage or canopy; row groups hold at most 4 Mi pixels (16 to 1,024 rows). A pixel depends only on its world position, so a settlement across an area border paints the same pixels from both areas. `arda_midzoom::export::{export_overview, export_area}` choose the layer by `SocietyMode` (`Off`, `Auto` when `society/settlements.json` exists, `On` errors without it) and refuse the oblique look with an overlay.
 
-Sites: `crates/arda-midzoom/src/land/mod.rs:12-13`, `crates/arda-midzoom/src/land/mod.rs:43`, `crates/arda-midzoom/src/land/mod.rs:76-85`, `crates/arda-midzoom/src/land/mod.rs:367-446`, `crates/arda-server/src/lib.rs:206-219`.
+Sites: `crates/arda-midzoom/src/land/mod.rs:12-13`, `:43`, `:77-86`, `Works` `:153-161`, `Works::gather` `:251-328`, `Works::paint` `:330-343`, `LandWindow::gather` `:356-410`, `LandWindow::ground` `:421-486`, `crates/arda-midzoom/src/land/export.rs:1-15` (constants `:26-30`), `AreaLandOverlay` `:33-105`, `Works::pixel` `:107-143`, `BandOverlay::paint` `:145-186`, `crates/arda-midzoom/src/export.rs:15-115`, `crates/arda-server/src/lib.rs:233-243`.
 
 ### §land-fields
 Parcels are the arda-fields partition itself (`arda_fields::partition`), built once per window from the same inputs the tactical fields layer reads: the land-use raster (crofts as arable), heights and river pieces of the surroundings, settle's road segments and the settlements within `INPUT_REACH_M` (3.2 km) of the window, and the fields layer's culture and wealth (`FIELDS_CULTURE`, `FIELDS_WEALTH` of arda-blocks). The partition is a fixed global hierarchy:
@@ -128,9 +130,9 @@ Grassland reference (111, 119, 62); targets: ploughed (120, 108, 74), stubble (1
 Sites: `crates/arda-midzoom/src/land/tone.rs:55-172`.
 
 ### §labels
-Relief and overview tiles carry the gazetteer's names (logic/15 §name-what-is-named), drawn after the relief and its worked land (`crates/arda-midzoom/src/labels.rs`, `crates/arda-settle/src/render/tilelabels.rs`). A level's layout is made once, for the whole level, from the gazetteer, the settlements and the zoom, then clipped to each tile, so labels never differ between neighbours and a name crossing a tile edge is cut, not re-placed; glyph coverage depends only on global pixels, so tiles join exactly. Items show from their `min_zoom` (features: rank minus 1; city 1, town 2, village 4, hamlet 6). Placement is greedy, rank first: settlement symbols are reserved, a settlement name takes the first free of eight positions beside its symbol, an area name is letter-spaced to fill about 70% of its path (curved text) or of its extent (centred on the anchor, nudged up or down), and a name that does not fit is left out. Water names are pale italic on a deep-blue halo, ranges small capitals, forests green italic, other names dark on a paper halo; type sizes are constant in pixels (12.5 to 27). Tiles take `?labels=0` to leave them off (default on; cache keys include the flag); worlds without `society/gazetteer.json` and the oblique pyramid carry none.
+Relief and overview tiles carry the gazetteer's names (logic/15 §name-what-is-named), drawn after the relief and its worked land (`crates/arda-midzoom/src/labels.rs`, `crates/arda-settle/src/render/tilelabels.rs`). A level's layout is made once, for the whole level, from the gazetteer, the settlements and the zoom, then clipped to each tile, so labels never differ between neighbours and a name crossing a tile edge is cut, not re-placed; glyph coverage depends only on global pixels, so tiles join exactly. Items show from their `min_zoom` (features: rank minus 1; city 1, town 2, village 4, hamlet 6). Placement is greedy, rank first: settlement symbols are reserved, a settlement name takes the first free of eight positions beside its symbol, an area name is letter-spaced to fill about 70% of its path (curved text) or of its extent (centred on the anchor, nudged up or down), and a name that does not fit is left out. Water names are pale italic on a deep-blue halo, ranges small capitals, forests green italic, other names dark on a paper halo; type sizes are constant in pixels (12.5 to 27). Tiles take `?labels=0` to leave them off (default on; cache keys include the flag, `TileKey = (z, x, y, labelled)`); a tile is labelled only when the flag is on and the server enabled labels (`crates/arda-server/src/relief.rs:32-33`, `:143-144`); worlds without `society/gazetteer.json` and the oblique pyramid carry none.
 
-Sites: `crates/arda-settle/src/render/tilelabels.rs`, `crates/arda-midzoom/src/labels.rs`, `crates/arda-server/src/relief.rs`, `crates/arda-server/src/overview.rs`.
+Sites: `crates/arda-settle/src/render/tilelabels.rs`, `crates/arda-midzoom/src/labels.rs`, `crates/arda-server/src/relief.rs:116-131` (`enable_labels`, once per server), `:143-152` (draw per tile), `crates/arda-server/src/lib.rs:257-263`, `crates/arda-server/src/overview.rs`.
 
 ### §pyramid
 Relief levels continue the overview pyramid: level `z ∈ (max_zoom, max_zoom + 8]` has `max(areas) × 51.2 km / (256 · 2^z)` metres per pixel; pixel `p` covers world `[p·m, (p+1)·m)`. Subdivision: n = 4 at ≤ 16 m/px, n = 2 at ≤ 32 m/px, else 1. Pixels outside the world are transparent. The viewer switches to these tiles past native zoom and offers the tactical map (logic/09) at ≤ 2 m/px.
@@ -139,16 +141,16 @@ Sites: `crates/arda-midzoom/src/pyramid.rs:10-13`, `crates/arda-midzoom/src/pyra
 
 ## Steps
 
-1. Route: strip `.webp`, parse `z`, `x`, `y`, run the rest on the blocking pool (`crates/arda-server/src/routes.rs:354-363`).
-2. Refuse when the world has no relief (`crates/arda-server/src/relief.rs:115-117`) or the address is outside the relief levels or grid (§pyramid; `crates/arda-midzoom/src/pyramid.rs:77-83`).
-3. Answer from the byte-bounded tile cache keyed `(z, x, y)` (128 MiB default) when present (`crates/arda-server/src/relief.rs:19-25`, `:119-122`).
-4. Otherwise `render_tile` → `render_window` for the 256 px window (`crates/arda-midzoom/src/tile.rs:41-59`): pick `n` (§pyramid), refine the nodes with a margin, fading waves shorter than four pixels (§base → §detail/§amplitude → §mantle → §means → §pits; `crates/arda-midzoom/src/tile.rs:73-86`), gather area contexts, water (§water) and, with society, land (§land); shade each pixel (§render), skipping pixels outside the world (`crates/arda-midzoom/src/tile.rs:87-102`).
-5. Encode lossless WebP, insert into the cache (`crates/arda-server/src/relief.rs:123-130`), answer with `ETag` (BLAKE3 of the bytes), `Cache-Control: no-cache` and `304` on a matching `If-None-Match` (`crates/arda-server/src/routes.rs:143`, `:151-175`).
+1. Route: parse `?labels` (`labels_flag`), strip `.webp`, parse `z`, `x`, `y`, run the rest on the blocking pool (`crates/arda-server/src/routes.rs:416-426`).
+2. Refuse when the world has no relief (`crates/arda-server/src/relief.rs:139-141`) or the address is outside the relief levels or grid (§pyramid; `crates/arda-midzoom/src/pyramid.rs:77-83`).
+3. Answer from the byte-bounded tile cache keyed `(z, x, y, labelled)` (128 MiB default) when present (`crates/arda-server/src/relief.rs:20-26`, `:143-147`).
+4. Otherwise `render_tile` → `render_window` for the 256 px window (`crates/arda-midzoom/src/tile.rs:41-59`): pick `n` (§pyramid), refine the nodes with a margin, fading waves shorter than four pixels (§base → §detail/§amplitude → §mantle → §means → §pits; `crates/arda-midzoom/src/tile.rs:73-86`), gather area contexts, water (§water) and, with society, land (§land); shade each pixel (§render), skipping pixels outside the world (`crates/arda-midzoom/src/tile.rs:87-102`); when labelled, draw the gazetteer's names over the render (`crates/arda-midzoom/src/labels.rs:53-59`, `crates/arda-server/src/relief.rs:150-152`).
+5. Encode lossless WebP, insert into the cache (`crates/arda-server/src/relief.rs:153-158`), answer with `ETag` (BLAKE3 of the bytes), `Cache-Control: no-cache` and `304` on a matching `If-None-Match` (`crates/arda-server/src/routes.rs:161`, `:169-195`).
 6. Binary: load the world, attach the landscape unless `--plain`, render the crop twice (cold, warm) and refuse a mismatch as "non-deterministic render", write an RGBA PNG and print timings; with `--tiles k`, render one warm-up tile then k × k tiles and print mean, median and max (`crates/arda-midzoom/src/bin/arda-midzoom.rs:41-132`).
 
 ## Branches
 
-- World without recipe-5 fine terrain: the server serves no relief levels and reports `relief_max_zoom` equal to the overview's `max_zoom` (`crates/arda-server/src/relief.rs:77-86`, `:100-108`, `crates/arda-server/src/dto.rs:54-56`).
+- World without recipe-5 fine terrain: the server serves no relief levels and reports `relief_max_zoom` equal to the overview's `max_zoom` (`crates/arda-server/src/relief.rs:82-91`, `:106-114`, `crates/arda-server/src/dto.rs:54-56`).
 - World without `society/`: terrain and water only, byte-identical to a plain render (§land, §low-relief).
 - Subdivision by pixel size (§pyramid).
 - Pixel size thresholds within §render, §water, §rivers, §land, §land-roads and §land-tones decide which detail is drawn.
@@ -157,22 +159,23 @@ Sites: `crates/arda-midzoom/src/pyramid.rs:10-13`, `crates/arda-midzoom/src/pyra
 
 | Failure | Response | Site |
 |---|---|---|
-| last segment without `.webp` | `404 not_found` | `crates/arda-server/src/routes.rs:355-357` |
-| non-integer `z`/`x`/`y` | `400 bad_request` | `crates/arda-server/src/routes.rs:358-362` |
-| world has no formed fine terrain | `404 not_found` | `crates/arda-server/src/relief.rs:115-117` |
-| `z` not a relief level, or `x`/`y` ≥ 2^z | `404 not_found` (`OutOfPyramid`) | `crates/arda-midzoom/src/pyramid.rs:77-83`, `crates/arda-server/src/relief.rs:47-53` |
-| allocation refused | `500 resource_limit` | `crates/arda-server/src/relief.rs:50` |
-| read, shading, water or society failure | `500 internal` "relief: …" | `crates/arda-server/src/relief.rs:51`, `crates/arda-midzoom/src/error.rs:6-48` |
+| `labels` other than `0` or `1` | `400 bad_request` "labels must be 0 or 1" (checked before the path) | `crates/arda-server/src/routes.rs:355-366`, `:416` |
+| last segment without `.webp` | `404 not_found` | `crates/arda-server/src/routes.rs:418-420` |
+| non-integer `z`/`x`/`y` | `400 bad_request` | `crates/arda-server/src/routes.rs:421-425` |
+| world has no formed fine terrain | `404 not_found` | `crates/arda-server/src/relief.rs:139-141` |
+| `z` not a relief level, or `x`/`y` ≥ 2^z | `404 not_found` (`OutOfPyramid`) | `crates/arda-midzoom/src/pyramid.rs:77-83`, `crates/arda-server/src/relief.rs:52-58` |
+| allocation refused | `500 resource_limit` | `crates/arda-server/src/relief.rs:55` |
+| read, shading, water or society failure | `500 internal` "relief: …" | `crates/arda-server/src/relief.rs:56`, `crates/arda-midzoom/src/error.rs:6-48` |
 | refinement window empty or above 2,048 nodes a side, or `n ∉ {1, 2, 4, 8}` | `MidzoomError::Window` | `crates/arda-midzoom/src/refine.rs:22`, `:63-68` |
-| world or fine layer unloadable at server start | server refuses to start | `crates/arda-server/src/relief.rs:62-79` |
+| world or fine layer unloadable at server start | server refuses to start | `crates/arda-server/src/relief.rs:69-98` |
 | binary: malformed `--center`, unloadable world, unreadable society, write error | error, nonzero exit | `crates/arda-midzoom/src/bin/arda-midzoom.rs:41-86` |
 
-- Concurrency: two misses for the same tile both render; the cache lock is released during rendering and the second insert replaces the first with identical bytes (`crates/arda-server/src/relief.rs:120-130`). No single-flight.
+- Concurrency: two misses for the same tile both render; the cache lock is released during rendering and the second insert replaces the first with identical bytes (`crates/arda-server/src/relief.rs:145-158`). No single-flight.
 - Retry: none. A failed render is not cached; the next request renders again.
 
 ## State transitions
 
-None persisted: tiles are derived on demand and held only in the in-memory LRU, evicted by byte budget (`crates/arda-server/src/relief.rs:35`, `:90`). `ReliefWorld` caches up to 12 area Atlas contexts (`crates/arda-midzoom/src/world.rs:14`, `:101`) and `WorldTerrain` up to 512 fine chunks and 16 areas (`crates/arda-midzoom/src/source.rs:51-53`). The world on disk is never written.
+None persisted: tiles are derived on demand and held only in the in-memory LRU, evicted by byte budget (`crates/arda-server/src/relief.rs:39`, `:95`). `ReliefWorld` caches up to 12 area Atlas contexts (`crates/arda-midzoom/src/world.rs:14`, `:101`) and `WorldTerrain` up to 512 fine chunks and 16 areas (`crates/arda-midzoom/src/source.rs:51-53`). The world on disk is never written.
 
 ## Invariants
 
@@ -185,15 +188,16 @@ Checked by tests:
 5. Isotropy: detail energy within 10 % over twelve azimuths (`crates/arda-midzoom/tests/checks.rs:272`); gentle low ground stays smooth (`:309`).
 6. Pyramid: tiles outside the relief levels are refused; off-world pixels are transparent and land is opaque (`crates/arda-midzoom/tests/world.rs:118`, `:135`); saved rivers draw blue-teal (`:146`).
 7. Budget: a warm 256 px tile at ~10 m renders in < 150 ms (`crates/arda-midzoom/tests/world.rs:167`); a tile of nodes refines within budget (`crates/arda-midzoom/tests/checks.rs:336`).
-8. Land agreement with the tactical layer (release gate, `#[ignore]`, needs a settled MICRO seed 42 world): relief z9 against composed tactical blocks on villages, town centres, roads and farmland; road IoU ≥ 0.85, building IoU ≥ 0.95, walls between two fields on a relief hedge line ≥ 0.95; land tiles pixel-exact across windows at z7, z8 and z10, and plain worlds unchanged (`tests/zoom_land.rs:175-213`). Synthetic: every tactical field is one relief parcel and every wall between fields lies on a parcel edge; road squares IoU ≥ 0.97 against `arda_ways::apply_ways` (`crates/arda-midzoom/tests/land.rs:29`, `:134`, `:186`).
+8. Land agreement with the tactical layer (release gate, `#[ignore]`, needs a settled MICRO seed 42 world): relief z9 against composed tactical blocks on villages, town centres, roads and farmland; road IoU ≥ 0.85, building IoU ≥ 0.95, walls between two fields on a relief hedge line ≥ 0.95; land tiles pixel-exact across windows at z7, z8 and z10, and plain worlds unchanged (`tests/zoom_land.rs:180-218`, a module of the `zoom_continuity` target (`tests/zoom_land.rs:1-5`)). Synthetic: every tactical field is one relief parcel and every wall between fields lies on a parcel edge; road squares IoU ≥ 0.97 against `arda_ways::apply_ways` (`crates/arda-midzoom/tests/land.rs:29`, `:134`, `:186`).
 9. Water agreement (release gate): relief z9 and tactical water squares on MICRO 42 rivers, an inlet and coasts, IoU ≥ 0.9 per cell, and on an arid world (`tests/zoom_continuity.rs:163`, `:231`); `region_water_matches_the_refined_blocks` on the synthetic world, lakes included (`crates/arda-refine/src/region.rs:244`).
-10. Every value is integer and a pure function of the seed and the global position (`crates/arda-midzoom/src/lib.rs:20-21`).
+10. Labels: relief tiles join across a label and hide it below its zoom (`crates/arda-midzoom/tests/labels.rs:60`). Society exports: a settlement on an area border paints the same pixels from both sides; `off` is the plain export, `on` is deterministic and differs (`crates/arda-midzoom/tests/export.rs:86`, `:136`).
+11. Every value is integer and a pure function of the seed and the global position (`crates/arda-midzoom/src/lib.rs:20-21`).
 
 ## Outcomes & side effects
 
-- Route: a 256 × 256 lossless WebP (`image/webp`) with `ETag` and `Cache-Control: no-cache`, or `304` (`crates/arda-server/src/routes.rs:151-175`). `/v1/world` advertises `tiles.relief_max_zoom` (`crates/arda-server/src/dto.rs:54-56`).
+- Route: a 256 × 256 lossless WebP (`image/webp`) with `ETag` and `Cache-Control: no-cache`, or `304` (`crates/arda-server/src/routes.rs:169-195`). `/v1/world` advertises `tiles.relief_max_zoom` (`crates/arda-server/src/dto.rs:54-56`).
 - Binary: a PNG at `--out` and one timing line, or timing lines only with `--tiles` (`crates/arda-midzoom/src/bin/arda-midzoom.rs:82-97`, `:103-131`).
-- The relief world is shared with the tactical world grade as its tint source (`crates/arda-server/src/lib.rs:221-223`, `crates/arda-server/src/relief.rs:94-98`).
+- The relief world is shared with the tactical world grade as its tint source (`crates/arda-server/src/lib.rs:254-256`, `crates/arda-server/src/relief.rs:100-104`).
 - No files written by the server, no notifications, no external calls.
 
 ## Dimensions not in play

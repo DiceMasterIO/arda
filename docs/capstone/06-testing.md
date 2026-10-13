@@ -1,8 +1,8 @@
 ---
-generated_at_commit: 022ce7cb5707
-generated_date: 2026-10-10
+generated_at_commit: b6cae7350f6b
+generated_date: 2026-10-13
 capstone_version: 7.0.1
-content_hash: 7e1d16327067
+content_hash: 90ef2e787c56
 paths_covered:
   - ":(top)Cargo.toml"
   - ":(top).gitattributes"
@@ -16,14 +16,20 @@ paths_covered:
   - ":(top)apps/viewer/vite.config.ts"
   - ":(top)apps/viewer/src/**"
   - ":(top)tools/art-gen/test/**"
+  - ":(top)contract-kit/**"
+  - ":(top)tools/release-gates.sh"
+  - ":(top)tools/release.sh"
+  - ":(top)apps/viewer/scripts/**"
+  - ":(top)bindings/schema-baseline/**"
 ---
 
 # Testing
 
 Counts below are `#[test]` / `#[tokio::test]` attributes counted from source at
-`022ce7cb5707` (no test run): 1,247 in `crates/*/src/`, 509 in `crates/*/tests/`,
-17 in root `tests/`, 1,773 in total, of which 29 carry `#[ignore]` and 67 are
-`#[tokio::test]`. Viewer and art-gen counts are `it(`/`test(` calls.
+the commit this chapter is stamped with (no test run): 1,281 in `crates/*/src/`,
+590 in `crates/*/tests/`, 17 in root `tests/`, 1,888 in total, of which 36 carry
+`#[ignore]` and 105 are `#[tokio::test]`. Viewer and art-gen counts are
+`it(`/`test(` calls.
 
 ## Layout
 
@@ -31,18 +37,18 @@ Counts below are `#[test]` / `#[tokio::test]` attributes counted from source at
 
 | Suite | Location | Mapping to source |
 |---|---|---|
-| Unit tests | `#[cfg(test)] mod tests` blocks and sibling `*_tests.rs` / `tests/` modules inside `crates/<crate>/src/` | Same module as the code (e.g. `crates/arda-gen/src/formation/form_tests.rs:24`, `crates/arda-server/src/bindings.rs:204`) |
-| Crate integration tests | `crates/<crate>/tests/*.rs`, one test binary per top-level file; subdirectories are modules (`crates/arda-server/tests/world_api/main.rs:5`) | Public API of that crate only |
+| Unit tests | `#[cfg(test)] mod tests` blocks and sibling `*_tests.rs` / `tests/` modules inside `crates/<crate>/src/` | Same module as the code (e.g. `crates/arda-gen/src/formation/form_tests.rs:24`, `crates/arda-server/src/bindings.rs:236`) |
+| Crate integration tests | `crates/<crate>/tests/*.rs`, one test binary per top-level file; subdirectories are modules (`crates/arda-server/tests/world_api/main.rs:6`) | Public API of that crate only |
 | Workspace tests | root `tests/`, hosted by the root package `arda-workspace-tests` (`Cargo.toml:77`), `autotests = false` (`Cargo.toml:78`), empty lib `tests/empty_lib.rs` (`Cargo.toml:84`) | Cross-crate: generation → settle → society → server |
-| Benches | `crates/arda-gen/benches/area_erosion.rs`, `continent_stage.rs`, `harness = false` (`crates/arda-gen/Cargo.toml:20`) | arda-gen timing budgets |
+| Benches | `crates/arda-gen/benches/area_erosion.rs`, `continent_stage.rs`, `harness = false` (`crates/arda-gen/Cargo.toml:21`) | arda-gen timing budgets |
 | Doctests | one fence at `crates/arda-names/src/lib.rs:8`; every other fence under `crates/*/src/` is `text` (e.g. `crates/arda-ids/src/hash.rs:13`) | arda-names README example |
-| Viewer | `apps/viewer/src/**/*.test.ts`, Vitest, `environment: "node"`, include `src/**/*.test.ts` (`apps/viewer/vite.config.ts:19`) | Co-located with `.ts` source |
-| Art tooling | `tools/art-gen/test/art-gen.test.mjs`, `mock-slopify.test.mjs`, `node:test` | `tools/art-gen/*.mjs` |
+| Viewer | `apps/viewer/src/**/*.test.ts`, Vitest, `environment: "node"`, include `src/**/*.test.ts` (`apps/viewer/vite.config.ts:20`) | Co-located with `.ts` source |
+| Art tooling | `tools/art-gen/test/art-gen.test.mjs`, `mock-slopify.test.mjs`, `safety.test.mjs`, `node:test`; stub server helper `fake-slopify.mjs` | `tools/art-gen/*.mjs` (`safety.mjs` for the spend caps) |
 
 Root `[[test]]` targets are declared explicitly (`Cargo.toml:104`–`126`):
 `golden_world`, `golden_recipes`, `arid_recipe7`, `e2e_village`, `zoom_continuity`,
 `fixture_dir`. `tests/zoom_land.rs` is not a target of its own; it is the module
-`mod zoom_land;` of `zoom_continuity` (`tests/zoom_continuity.rs:14`).
+`mod zoom_land;` of `zoom_continuity` (`tests/zoom_continuity.rs:14`; its module header says so, `tests/zoom_land.rs:1`).
 `tests/support/fixture_dir.rs` is included by `#[path]` (`tests/fixture_dir.rs:7`).
 
 ### Per-crate inventory
@@ -52,36 +58,36 @@ Root `[[test]]` targets are declared explicitly (`Cargo.toml:104`–`126`):
 | `arda` | 11 | 21 | 0 | `round_trip.rs`, `area_exports.rs` (+`area_exports/reload.rs`) |
 | `arda-art-import` | 30 | 12 | 0 | `holes.rs`, `import.rs`, `fixtures/mod.rs` |
 | `arda-blocks` | 4 | 7 | 0 | `compose.rs`, `settlements.rs` |
-| `arda-cli` | 15 | 18 | 0 | `cli.rs`, `tactical.rs` |
+| `arda-cli` | 15 | 17 | 0 | `cli.rs`, `tactical.rs` |
 | `arda-core` | 105 | 0 | 0 | none |
-| `arda-dungeon` | 0 | 9 | 0 | `levels.rs`, `golden/renders.txt` |
+| `arda-dungeon` | 0 | 10 | 0 | `levels.rs`, `golden/renders.txt` |
 | `arda-fields` | 20 | 24 | 0 | `complete.rs`, `cores.rs`, `landuse.rs`, `mines.rs`, `partition.rs`, `rules.rs`, `seams.rs`, `support/shape.rs` |
-| `arda-gen` | 557 | 29 | 9 | `anisotropy_probe.rs`, `coast_measurement.rs`, `continent_hydrology.rs`, `continent_measures.rs`, `cross_tile.rs` (+`oracles`, `seam_lakes`, `seams`), `drainage_invariants.rs` |
+| `arda-gen` | 549 | 29 | 9 | `anisotropy_probe.rs`, `coast_measurement.rs`, `continent_hydrology.rs`, `continent_measures.rs`, `cross_tile.rs` (+`oracles`, `seam_lakes`, `seams`), `drainage_invariants.rs` |
 | `arda-ids` | 12 | 0 | 0 | none |
-| `arda-midzoom` | 8 | 16 | 2 | `checks.rs`, `land.rs`, `world.rs` |
-| `arda-names` | 15 | 22 | 1 | `blocked_roots.rs`, `determinism.rs`, `dialects.rs`, `distinctness.rs`, `json_ids.rs`, `performance.rs`, `phonotactics.rs`, `serde_keys.rs`, `uniqueness.rs` |
-| `arda-npc` | 7 | 48 | 1 | 13 files incl. `determinism.rs`, `performance.rs`, `stat_blocks.rs`, `srd_math.rs`, `common/mod.rs` |
-| `arda-people` | 3 | 5 | 1 | `interiors.rs`, `notable_mix.rs`, `rivers.rs`, `town_wfc.rs` |
-| `arda-refine` | 34 | 37 | 4 | 11 files incl. `determinism.rs`, `perf.rs`, `real_world.rs`, `seams.rs`, `schema.rs` |
+| `arda-midzoom` | 8 | 19 | 2 | `checks.rs`, `export.rs`, `labels.rs`, `land.rs`, `world.rs` |
+| `arda-names` | 15 | 25 | 1 | `blocked_roots.rs`, `determinism.rs`, `dialects.rs`, `distinctness.rs`, `feature_kinds.rs`, `json_ids.rs`, `performance.rs`, `phonotactics.rs`, `serde_keys.rs`, `uniqueness.rs` |
+| `arda-npc` | 7 | 57 | 1 | 15 files incl. `determinism.rs`, `performance.rs`, `stat_blocks.rs`, `srd_math.rs`, `common/mod.rs` |
+| `arda-people` | 5 | 5 | 1 | `interiors.rs`, `notable_mix.rs`, `rivers.rs`, `town_wfc.rs` |
+| `arda-refine` | 43 | 41 | 4 | 13 files incl. `determinism.rs`, `perf.rs`, `real_world.rs`, `seams.rs`, `schema.rs` |
 | `arda-render` | 147 | 0 | 0 | none |
-| `arda-scene` | 12 | 47 | 0 | `derive.rs`, `hostile.rs`, `rules.rs`, `scene.rs`, `walls_los.rs`, `common/mod.rs` |
-| `arda-server` | 84 | 73 | 1 | `serve.rs` (3) and `world_api/` (70 across 15 modules) |
-| `arda-settle` | 29 | 28 | 2 | `memory.rs`, `micro.rs`, `names.rs`, `realms_micro.rs`, `render.rs`, `society.rs` (+`society/realms.rs`), `write.rs` |
-| `arda-society` | 4 | 37 | 2 | 10 files incl. `determinism.rs`, `scale.rs`, `trade_scale.rs` |
-| `arda-tactical` | 109 | 1 | 1 | `timing.rs` |
+| `arda-scene` | 12 | 49 | 0 | `derive.rs`, `hostile.rs`, `light_parity.rs`, `rules.rs`, `scene.rs`, `walls_los.rs`, `common/mod.rs` |
+| `arda-server` | 116 | 116 | 8 | `contract_kit.rs` (5), `serve.rs` (4) and `world_api/` (107 across 21 modules, 7 of the ignored in `gates.rs`) |
+| `arda-settle` | 32 | 39 | 2 | `band.rs`, `gazetteer.rs`, `memory.rs`, `micro.rs`, `names.rs`, `names_stable.rs`, `realms_micro.rs`, `render.rs`, `society.rs` (+`society/realms.rs`), `tilelabels.rs`, `write.rs` |
+| `arda-society` | 4 | 43 | 2 | 10 files incl. `determinism.rs`, `scale.rs`, `trade_scale.rs` |
+| `arda-tactical` | 115 | 1 | 1 | `timing.rs` |
 | `arda-town` | 20 | 41 | 0 | `blocks.rs`, `interiors.rs`, `plan.rs`, `rivers.rs`, `wfc.rs`, `wfc_rows.rs`, `common/mod.rs` |
 | `arda-ways` | 5 | 29 | 0 | `fallback.rs`, `ids.rs`, `reach.rs`, `rules_sidecar.rs`, `standing.rs`, `ways.rs` (+`ways/refusals.rs`), `wet.rs` |
 | `arda-wfc` | 6 | 5 | 0 | `solve.rs` |
 | root `tests/` | — | 17 | 5 | `golden_world.rs` (2), `golden_recipes.rs` (5), `arid_recipe7.rs` (2), `e2e_village.rs` (1), `zoom_continuity.rs` + `zoom_land.rs` (4), `fixture_dir.rs` (3) |
-| `apps/viewer` | — | 86 | — | 12 files: `api/{areaBin,client,scene,tactical}`, `format`, `hooks`, `geo/{cellWalk,coords,handoff,relief,tacticalTiles}`, `render/tacticalOverlay` |
-| `tools/art-gen` | — | 31 | — | `art-gen.test.mjs` (28), `mock-slopify.test.mjs` (3) |
+| `apps/viewer` | — | 86 + 6 | — | 12 Vitest files: `api/{areaBin,client,scene,tactical}`, `format`, `hooks`, `geo/{cellWalk,coords,handoff,relief,tacticalTiles}`, `render/tacticalOverlay`; plus `scripts/check-licences.test.mjs` (6, `node --test scripts/`) |
+| `tools/art-gen` | — | 43 | — | `art-gen.test.mjs` (28), `mock-slopify.test.mjs` (3), `safety.test.mjs` (12); shared stub `fake-slopify.mjs` |
 
 ### Commands
 
 | Check | Command | Source |
 |---|---|---|
 | Workspace tests (CI) | `cargo test --workspace --all-features --no-fail-fast` | `.github/workflows/ci.yml:17` |
-| Workspace tests (README) | `cargo test --workspace --all-features` | `README.md:403` |
+| Workspace tests (README) | `cargo test --workspace --all-features` | `README.md:432` |
 | Formatting | `cargo fmt --all --check` | `.github/workflows/ci.yml:37` |
 | Lint | `cargo clippy --workspace --all-targets -- -D warnings` | `.github/workflows/ci.yml:38` |
 | MSRV | `cargo check --workspace --all-targets --all-features --locked` on toolchain 1.96.1 | `.github/workflows/ci.yml:26` |
@@ -91,12 +97,12 @@ Root `[[test]]` targets are declared explicitly (`Cargo.toml:104`–`126`):
 | Recipe goldens bless | `ARDA_BLESS=1 cargo test --test golden_recipes` | `tests/golden_recipes.rs:10` |
 | Bindings/schema freshness | `cargo test -p arda-server bindings` / `schema`; bless with `ARDA_BLESS_BINDINGS=1` | `crates/arda-server/src/bindings.rs:4`, `crates/arda-server/src/schema/mod.rs:9` |
 | Schema freeze baseline | `ARDA_BLESS_SCHEMA_BASELINE=1 cargo test -p arda-server --lib frozen_schemas` rewrites `bindings/schema-baseline/v1/` (schemas plus `versions.json`); an explicit step, committed on its own, after a family bump or to adopt additions ([versioning.md](versioning.md) § Freeze guard) | `crates/arda-server/src/schema/tests.rs:161` |
-| Dungeon render bless | `ARDA_BLESS_DUNGEON=1 cargo test -p arda-dungeon` | `crates/arda-dungeon/tests/levels.rs:193` |
+| Dungeon render bless | `ARDA_BLESS_DUNGEON=1 cargo test -p arda-dungeon` | `crates/arda-dungeon/tests/levels.rs:208` |
 | Contract kit bless | `ARDA_BLESS_CONTRACT=1 cargo test --release -p arda-server --test contract_kit` rewrites `contract-kit/golden/`, the manifest's hashes, statuses, listed headers and fixture identity, and `contract-kit/world.txt`; never adds or removes cases (`tools/release.sh <version>` runs it) | `crates/arda-server/tests/contract_kit.rs` |
 | Contract kit live check | `node contract-kit/check.mjs --base http://127.0.0.1:8787` against a server on the canonical world; checker tests `node --test contract-kit/test/` | `contract-kit/README.md` |
 | Release gates (ignored; all wall-clock budgets, one receipt) | `tools/release-gates.sh` (add `--with-benches` for the `arda-gen` benches; exit 0 on pass) | `tools/release-gates.sh`, receipt `target/release-gates/receipt-<commit>.md` |
 | One gate crate by hand | e.g. `cargo test --release -p arda-server --test world_api -- --ignored --nocapture --test-threads=1` | `crates/arda-server/tests/world_api/gates.rs` |
-| Bench budgets | `cargo bench -p arda-gen --bench area_erosion` / `continent_stage` (also run by `--with-benches`) | `crates/arda-gen/Cargo.toml:20` |
+| Bench budgets | `cargo bench -p arda-gen --bench area_erosion` / `continent_stage` (also run by `--with-benches`) | `crates/arda-gen/Cargo.toml:21` |
 | Viewer | `npm test` (`vitest run`) in `apps/viewer` | `apps/viewer/package.json` `scripts.test` |
 | Art tooling | `node --test tools/art-gen/test/` | `tools/art-gen/test/art-gen.test.mjs:3` |
 
@@ -177,8 +183,8 @@ processes:
 
 | Fixture directory | Users (resolution order) |
 |---|---|
-| `target/arda-server-fixture/micro42` | `crates/arda-server/tests/world_api/support.rs:31` (`$ARDA_SERVER_TEST_WORLD`, then `out/micro42` if it loads at the current `FINE_TERRAIN_RECIPE_VERSION` and seed 42, `:21`, `:38`, else this fixture, `:42`); `crates/arda-settle/tests/micro.rs:33` (`$ARDA_TEST_WORLD` first, `:25`) |
-| `target/arda-server-fixture/micro42-society` | `crates/arda-server/tests/world_api/support.rs:173`: generate + `arda_settle::generate` + `arda_people::build`, used when the base world has no `society/notables.json` (`:159`) |
+| `target/arda-server-fixture/micro42` | `crates/arda-server/tests/world_api/support.rs:32` (`$ARDA_SERVER_TEST_WORLD`, then `out/micro42` if it loads at the current `FINE_TERRAIN_RECIPE_VERSION` and seed 42, `:21`, `:38`, else this fixture, `:42`); `crates/arda-settle/tests/micro.rs:33` (`$ARDA_TEST_WORLD` first, `:25`) |
+| `target/arda-server-fixture/micro42-society` | `crates/arda-server/tests/world_api/support.rs:175`: generate + `arda_settle::generate` + `arda_people::build`, used when the base world has no `society/notables.json` (`:159`) |
 | `target/arda-server-fixture/micro<seed>` | `crates/arda-settle/tests/realms_micro.rs:34` (`$ARDA_TEST_WORLD_<seed>` first, `:22`) |
 | `target/arda-people-fixture/micro42` | `crates/arda-people/tests/interiors.rs:47`, `rivers.rs:39`, `notable_mix.rs:37`, `crates/arda-blocks/tests/settlements.rs:43` (`$ARDA_TEST_WORLD` first) |
 | `target/arda-midzoom-fixture/micro42` | `crates/arda-midzoom/tests/world.rs:43` (`$ARDA_MIDZOOM_TEST_WORLD` first, `:36`) |
@@ -198,9 +204,9 @@ The facade and CLI suites generate MICRO 42 once per test binary into a
 | Category | Tests |
 |---|---|
 | Server release gates (new, `crates/arda-server/tests/world_api/gates.rs`; best of 3, society fixture) | cached cell WebP tile (< 20 ms), cold cell JSON plus scene (< 500 ms), cold 32×32 window PNG at 128 ppsq (< 1 s), `AppState::open` (< 2 s), `World::load` (< 100 ms), area cells JSON (< 500 ms) and bin (< 250 ms), warm overview tile (< 20 ms) |
-| Wall-clock release gates (`"wall-clock timing; release gate"`, each prints a `GATE name measured_ms budget_ms` line) | `tests/e2e_village.rs:296`, `crates/arda-tactical/tests/timing.rs:12`, `crates/arda-midzoom/tests/checks.rs:335`, `crates/arda-midzoom/tests/world.rs:166`, `crates/arda-names/tests/performance.rs:12`, `crates/arda-npc/tests/performance.rs:45`, `crates/arda-refine/tests/perf.rs:30`, `:43`, `crates/arda-server/tests/world_api/tactical_images.rs:122` |
+| Wall-clock release gates (`"wall-clock timing; release gate"`, each prints a `GATE name measured_ms budget_ms` line) | `tests/e2e_village.rs:304`, `crates/arda-tactical/tests/timing.rs:12`, `crates/arda-midzoom/tests/checks.rs:335`, `crates/arda-midzoom/tests/world.rs:166`, `crates/arda-names/tests/performance.rs:12`, `crates/arda-npc/tests/performance.rs:45`, `crates/arda-refine/tests/perf.rs:30`, `:46`, `crates/arda-server/tests/world_api/tactical_images.rs:122` |
 | Other timing | `crates/arda-society/tests/scale.rs:80` (4,000 settlements, `ARDA_SOCIETY_TILES`), `:113` (2,000 vs 8,000 linearity) |
-| Root release gates (generate worlds; not timing) | `tests/zoom_continuity.rs:162`, `:230`, `tests/zoom_land.rs:175`, `:212` |
+| Root release gates (generate worlds; not timing) | `tests/zoom_continuity.rs:162`, `:230`, `tests/zoom_land.rs:180`, `:217` |
 | Need an external world | `crates/arda-people/tests/town_wfc.rs:10` (`ARDA_WORLD`), `crates/arda-refine/tests/real_world.rs:22`, `:67` (`ARDA_REFINE_WORLD`, default `../../out/micro42`) |
 | Extra seeds | `crates/arda-settle/tests/realms_micro.rs:152` (seed 3), `:158` (seed 7) |
 | Measurement probes (arda-gen) | `crates/arda-gen/src/area/terrain_correction_probe.rs:15`, `src/area/lakes/tests/diagonal.rs:84`, `src/continent/tests.rs:128`, `tests/anisotropy_probe.rs:293`, `:308`, `tests/coast_measurement.rs:109`, `:158` (`ARDA_COAST_MEASUREMENT_OUT`), `tests/continent_measures.rs:22`, `:58` |
@@ -215,13 +221,13 @@ within 60 s (`crates/arda-gen/benches/continent_stage.rs:17`, `:37`).
 
 | Test | Line | Checks |
 |---|---|---|
-| `committed_bindings_are_fresh` | `crates/arda-server/src/bindings.rs:205` | ts-rs output equals `bindings/ts/arda/` (117 files) by file set and content; `ARDA_BLESS_BINDINGS` rewrites (`:208`) |
-| `u64_ids_are_strings_not_bigints` | `crates/arda-server/src/bindings.rs:238` | no `bigint` in any binding |
-| `npc_types_are_exported_with_string_ids` | `crates/arda-server/src/bindings.rs:246` | NPC types and `index.ts` re-exports |
-| `tactical_layout_binding_describes_the_layout_json` | `crates/arda-server/src/bindings.rs:276` | layout/asset binding shapes |
-| `committed_schemas_are_fresh` | `crates/arda-server/src/schema/tests.rs:4` | schemars output equals `bindings/schema/` (31 files); same bless switch (`:7`) |
-| `rendering_is_deterministic_and_every_schema_is_2020_12` | `crates/arda-server/src/schema/tests.rs:37` | repeat render equality, `$schema` dialect |
-| `crates/arda-server/tests/world_api/schemas.rs` (7 tests) | `:27` | live responses validated against the served `/v1/schema/{name}.json` with `jsonschema::draft202012` |
+| `committed_bindings_are_fresh` | `crates/arda-server/src/bindings.rs:237` | ts-rs output equals `bindings/ts/arda/` (134 files) by file set and content; `ARDA_BLESS_BINDINGS` rewrites (`:240`) |
+| `u64_ids_are_strings_not_bigints` | `crates/arda-server/src/bindings.rs:270` | no `bigint` in any binding |
+| `npc_types_are_exported_with_string_ids` | `crates/arda-server/src/bindings.rs:278` | NPC types and `index.ts` re-exports |
+| `tactical_layout_binding_describes_the_layout_json` | `crates/arda-server/src/bindings.rs:339` | layout/asset binding shapes |
+| `committed_schemas_are_fresh` | `crates/arda-server/src/schema/tests.rs:5` | schemars output equals `bindings/schema/` (46 files); same bless switch (`:8`) |
+| `rendering_is_deterministic_and_every_schema_is_2020_12` | `crates/arda-server/src/schema/tests.rs:38` | repeat render equality, `$schema` dialect |
+| `crates/arda-server/tests/world_api/schemas.rs` (9 tests) | `:27` | live responses validated against the served `/v1/schema/{name}.json` with `jsonschema::draft202012` |
 | `index_exports_every_version_family` | `crates/arda-server/src/bindings.rs:308` | `index.ts` exports `API_VERSION` and one constant per `VersionsDto` family |
 | `frozen_schemas_keep_their_shape_unless_their_family_is_bumped` | `crates/arda-server/src/schema/tests.rs:161` | freeze guard: every baseline schema in `bindings/schema-baseline/v1/` against the current one (`src/schema/compat.rs`): a removed property, a newly required one, a changed `type`/`format`/`const`/`$ref`, a removed enum value or variant, or a value added to a closed enum fails unless the owning family's version differs from the baseline's `versions.json`; `ARDA_BLESS_SCHEMA_BASELINE=1` re-baselines |
 | `every_schema_names_a_known_family` | `crates/arda-server/src/schema/tests.rs:215` | each catalogue entry's family is a `versions` key or `api_version` |
@@ -231,7 +237,7 @@ within 60 s (`crates/arda-gen/benches/continent_stage.rs:17`, `:37`).
 | `world_and_health_name_the_server_build_and_every_version_family` | `crates/arda-server/tests/world_api/endpoints.rs` | `server_version` on `/v1/health` and `/v1/world`, `arda_version` from the manifest, and every `versions` entry equal to its constant |
 
 The viewer imports the committed bindings through the `@arda` alias
-(`apps/viewer/vite.config.ts:7`); it does not regenerate them.
+(`apps/viewer/vite.config.ts:8`); it does not regenerate them.
 
 ### Contract kit
 
@@ -263,10 +269,10 @@ world was byte-identical to the test fixture (47 files), and the checker passed 
 
 | Area | Tests |
 |---|---|
-| Whole world | `tests/golden_world.rs:99`, `tests/golden_recipes.rs:65`, `crates/arda/tests/round_trip.rs:151`, `crates/arda-gen/tests/continent_hydrology.rs:219` |
+| Whole world | `tests/golden_world.rs:99`, `tests/golden_recipes.rs:65`, `crates/arda/tests/round_trip.rs:154`, `crates/arda-gen/tests/continent_hydrology.rs:219` |
 | Thread-count independence (rayon pool of 1 vs default) | `crates/arda-gen/src/formation/form_tests.rs:24`, `crates/arda-gen/src/formation/lattice.rs:287`, `crates/arda-gen/src/formation/plains_tests.rs:132`, `crates/arda-gen/src/formation/recipe_tests.rs:53` |
 | Reroll sequence | `crates/arda-gen/src/orchestrator/tests.rs:24` |
-| Render bytes on repeat | `crates/arda-render/src/lib.rs:197`, `:206`, `:265`; `crates/arda/tests/area_exports.rs:351`; `crates/arda-dungeon/tests/levels.rs:195` (pinned blake3 of two renders, `tests/golden/renders.txt`) |
+| Render bytes on repeat | `crates/arda-render/src/lib.rs:183`, `:222`; `crates/arda/tests/area_exports.rs:351`; `crates/arda-dungeon/tests/levels.rs:210` (pinned blake3 of two renders, `tests/golden/renders.txt`) |
 | Downstream generators | `crates/arda-society/tests/determinism.rs:11`, `crates/arda-refine/tests/determinism.rs:15` (+ order independence `:25`, window = blocks `:50`), `crates/arda-names/tests/determinism.rs:28` (+ `golden_names_are_stable` `:68`), `crates/arda-npc/tests/determinism.rs:11` (+ building/expansion order `:22`, `:45`), `crates/arda-wfc/tests/solve.rs:48`, `crates/arda-tactical/src/compose/tests_pose.rs:78`, `crates/arda-server/src/tiles.rs:243` |
 
 ## Doubles
@@ -274,12 +280,12 @@ world was byte-identical to the test fixture (47 files), and the checker passed 
 No mocking framework is declared: the only dev-dependencies are `serde_json`,
 `criterion`, `blake3`, `rayon`, `tokio`, `http-body-util`, `tower`,
 `jsonschema` and sibling workspace crates (`crates/*/Cargo.toml`
-`[dev-dependencies]`; root `Cargo.toml:86`). Collaborators are real; fakes are
+`[dev-dependencies]`; root `Cargo.toml:87`). Collaborators are real; fakes are
 synthetic inputs.
 
 | Technique | Examples |
 |---|---|
-| Synthetic inputs shipped in the library (`pub mod`) so downstream tests reuse them | `arda_refine::synthetic` (`crates/arda-refine/src/lib.rs:46`, re-exported by `crates/arda-refine/tests/common/mod.rs:5`), `arda_society::synthetic` (`crates/arda-society/src/lib.rs:35`), `arda_settle::synthetic` (`crates/arda-settle/src/lib.rs:43`), `arda_fields::synthetic` (`crates/arda-fields/src/lib.rs:34`), `arda_town::samples` (`crates/arda-town/src/lib.rs:26`), `arda_npc::sample` (`crates/arda-npc/src/lib.rs:28`) |
+| Synthetic inputs shipped in the library (`pub mod`) so downstream tests reuse them | `arda_refine::synthetic` (`crates/arda-refine/src/lib.rs:47`, re-exported by `crates/arda-refine/tests/common/mod.rs:5`), `arda_society::synthetic` (`crates/arda-society/src/lib.rs:36`), `arda_settle::synthetic` (`crates/arda-settle/src/lib.rs:44`), `arda_fields::synthetic` (`crates/arda-fields/src/lib.rs:34`), `arda_town::samples` (`crates/arda-town/src/lib.rs:26`), `arda_npc::sample` (`crates/arda-npc/src/lib.rs:29`) |
 | Per-binary shared fixtures in `tests/common/mod.rs` | `crates/arda-npc/tests/common/mod.rs:1`, `crates/arda-scene/tests/common/mod.rs:1`, `crates/arda-town/tests/common/mod.rs:1` (four plans built once per binary), `crates/arda-ways/tests/common/mod.rs:1`, `crates/arda-society/tests/common/mod.rs:1` |
 | Images generated in code instead of binary fixtures | `crates/arda-art-import/tests/fixtures/mod.rs:1` |
 | Real generated worlds | the `target/` fixtures and `LazyLock` snapshots in Layout |
@@ -298,21 +304,21 @@ individual test bodies were not read (shallow).
 | Area | Tests | Shape |
 |---|---:|---|
 | `arda-gen` | 549 unit + 29 integration | `hydrology/` 159, `continent/` 100, `orchestrator/` 92, `area/` 84, `formation/` 80, spectral/noise files 34; 9 of 29 ignored tests are measurement probes here |
-| `arda-render` | 147 unit, 0 integration | `atlas/` 51, `overview/` 34, `carto/` 15, `channels/` 14, `channel_geometry/` 12 |
-| `arda-server` | 84 unit + 73 integration | `tactical/` 20, `contract/` 13, `sheet_map/` 9; `world_api/` endpoints 11, tactical 11, cells 8, schemas 7 |
+| `arda-render` | 147 unit, 0 integration | `atlas/` 51, `overview/` 34, `carto/` 15, `channels/` 14, `channel_geometry/` 13 |
+| `arda-server` | 116 unit + 116 integration | `tactical/` 31, `contract/` 13, `sheet_map/` 9; `world_api/` endpoints 12, tactical 11, cells 9, schemas 9, gates 7 |
 | `arda-core` | 105 unit, 0 integration | `formats/` 71 |
-| `arda-tactical` | 109 unit + 1 ignored integration | `compose/` 60, `validate_tests.rs` 20 |
+| `arda-tactical` | 115 unit + 1 ignored integration | `compose/` 66, `validate_tests.rs` 20 |
 | `arda-npc`, `arda-scene`, `arda-town`, `arda-refine`, `arda-society`, `arda-ways` | 29–48 integration each | mostly black-box through `tests/`, few unit tests (`arda-society` 4, `arda-ways` 5) |
-| `arda-dungeon` | 0 unit, 9 integration | `crates/arda-dungeon/src/` (7 files) has no `#[test]` |
+| `arda-dungeon` | 0 unit, 10 integration | `crates/arda-dungeon/src/` (7 files) has no `#[test]` |
 | `arda-ids` | 12 unit, 0 integration | |
-| `arda-people` | 3 unit + 5 integration | top-level `build.rs`, `files.rs`, `people.rs`, `rivers.rs`, `town.rs` carry no unit tests |
-| `arda-settle` | 29 unit + 28 integration | 22 top-level `src/` files carry no unit tests (e.g. `pipeline.rs`, `suitability.rs`, `grid.rs`); covered through `tests/micro.rs`, `realms_micro.rs` |
-| `arda-cli` | 15 unit + 18 integration | `generate.rs`, `society.rs`, `tactical.rs`, `tactical_import.rs`, `dungeon.rs` carry no unit tests; `tests/cli.rs` (14) and `tests/tactical.rs` (4) run the binary |
+| `arda-people` | 5 unit + 5 integration | top-level `build.rs`, `people.rs`, `rivers.rs`, `town.rs` carry no unit tests |
+| `arda-settle` | 32 unit + 39 integration | 21 top-level `src/` files carry no unit tests (e.g. `pipeline.rs`, `suitability.rs`, `grid.rs`); covered through `tests/micro.rs`, `realms_micro.rs` |
+| `arda-cli` | 15 unit + 17 integration | `generate.rs`, `society.rs`, `tactical.rs`, `tactical_import.rs`, `dungeon.rs` carry no unit tests; `tests/cli.rs` (13) and `tests/tactical.rs` (4) run the binary |
 | `arda` facade | 11 unit + 21 integration | `world.rs`, `atlas.rs` carry no unit tests; `round_trip.rs` and `area_exports.rs` exercise them |
-| `arda-server` modules without unit tests | — | `derived.rs`, `dto.rs`, `npc.rs`, `people.rs`, `relief.rs`, `serve.rs` (`serve.rs` has `tests/serve.rs`; the others are reached through `world_api/`) |
+| `arda-server` modules without unit tests | — | `derived.rs`, `dto.rs`, `gazetteer.rs`, `npc.rs`, `people.rs`, `realms.rs`, `relief.rs`, `serve.rs`, `versions.rs` (`serve.rs` has `tests/serve.rs`; the others are reached through `world_api/`) |
 | Cross-crate pipeline | 17 root | golden world and recipes run in CI; village end-to-end and zoom continuity are ignored release gates |
-| Viewer | 86 | `api/client.test.ts` 24, `api/tactical.test.ts` 17, `geo/coords.test.ts` 13; React components (`.tsx`) have no tests |
-| Art tooling | 31 | prompts, payload schemas, dry-run and mocked submit/poll/download paths |
+| Viewer | 86 + 6 | `api/client.test.ts` 24, `api/tactical.test.ts` 17, `geo/coords.test.ts` 13; React components (`.tsx`) have no tests |
+| Art tooling | 43 | prompts, payload schemas, dry-run, mocked submit/poll/download paths, spend-cap safety (`safety.test.mjs`) |
 
 No property-based testing crate, fuzzing target, snapshot crate or coverage tool
 is declared in any `Cargo.toml` or in `apps/viewer/package.json`.

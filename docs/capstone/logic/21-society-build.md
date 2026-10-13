@@ -1,8 +1,8 @@
 ---
-generated_at_commit: 022ce7cb5707
-generated_date: 2026-10-10
+generated_at_commit: b6cae7350f6b
+generated_date: 2026-10-13
 capstone_version: 7.0.1
-content_hash: c6e2ae499689
+content_hash: a69c698c1c91
 paths_covered:
   - ":(top)crates/arda-people/**"
   - ":(top)crates/arda-cli/src/society.rs"
@@ -20,6 +20,9 @@ paths_covered:
   - ":(top)crates/arda-server/src/people.rs"
   - ":(top)crates/arda-server/tests/world_api/support.rs"
   - ":(top)tests/e2e_village.rs"
+  - ":(top)crates/arda-settle/src/gazetteer.rs"
+  - ":(top)crates/arda-server/src/realms.rs"
+  - ":(top)crates/arda-society/src/families.rs"
 ---
 
 # 21 — Society build: planning, simulation and stored notables over a settled world
@@ -30,14 +33,14 @@ Rule names below are descriptive labels for observed behavior; code may cite the
 
 ## Trigger & preconditions
 
-- Trigger: `arda society build --world <dir>`, parsed by clap as `Command::Society { command: SocietyCommand }` (`crates/arda-cli/src/main.rs:136-139`) and dispatched to `society::run` (`crates/arda-cli/src/main.rs:363`), which calls `arda_people::build(&world)` (`crates/arda-cli/src/society.rs:43-45`). `--world` is the only argument (`crates/arda-cli/src/society.rs:21-23`).
-- Other callers of `arda_people::build`: the test fixtures `tests/e2e_village.rs:96`, `tests/zoom_continuity.rs:79`, `crates/arda-server/tests/world_api/support.rs:183`. `arda_people::compute` (no writes) is called by `crates/arda-people/tests/notable_mix.rs:69`.
+- Trigger: `arda society build --world <dir>`, parsed by clap as `Command::Society { command: SocietyCommand }` (`crates/arda-cli/src/main.rs:144-147`) and dispatched to `society::run` (`crates/arda-cli/src/main.rs:402`), which calls `arda_people::build(&world)` (`crates/arda-cli/src/society.rs:43-45`). `--world` is the only argument (`crates/arda-cli/src/society.rs:21-23`).
+- Other callers of `arda_people::build`: the test fixtures `tests/e2e_village.rs:96`, `tests/zoom_continuity.rs:79`, `crates/arda-server/tests/world_api/support.rs:185`. `arda_people::compute` (no writes) is called by `crates/arda-people/tests/notable_mix.rs:69`.
 - Preconditions (checked by the first failing read, not up front):
   | Precondition | Checked at |
   |---|---|
   | `<dir>` loads as an `arda::World` (manifest, cells, fine terrain when declared) | `crates/arda-people/src/shared.rs:25-30` via `crates/arda-people/src/build.rs:59` |
-  | `<dir>/society/settlements.json` and `roads.json` exist and parse as `arda_settle::output::SettlementsFile` / `RoadsFile` | `crates/arda-people/src/files.rs:90-99` via `crates/arda-people/src/build.rs:61` |
-  | `settlements.json` has a top-level `settlements` array | `crates/arda-people/src/files.rs:94-98` |
+  | `<dir>/society/settlements.json` and `roads.json` exist and parse as `arda_settle::output::SettlementsFile` / `RoadsFile` | `crates/arda-people/src/files.rs:96-105` via `crates/arda-people/src/build.rs:61` |
+  | `settlements.json` has a top-level `settlements` array | `crates/arda-people/src/files.rs:100-104` |
   | `settlements.json`, `roads.json`, `realms.json` have `format_version` 1, each at most 1 GiB | `crates/arda-society/src/read.rs:20`, `:46-50`, `:56-65`, `:75-86` via `crates/arda-people/src/build.rs:76` (after all planning) |
 - The CLI help names `arda settle` as the prerequisite (`crates/arda-cli/src/society.rs:17-19`); the CLI enforces nothing beyond the reads above.
 - Authority: none. Any process that can read and write `<dir>/society/` runs it; no role, lock or ownership check exists in `crates/arda-cli/src/society.rs` or `crates/arda-people/src/`.
@@ -51,10 +54,10 @@ Rule names below are descriptive labels for observed behavior; code may cite the
 | Read | What | Where |
 |---|---|---|
 | `SharedSource::open(world_dir)` | the world as an `arda_refine::WorldSource` behind an `Arc` | `crates/arda-people/src/build.rs:59`, `crates/arda-people/src/shared.rs:25-30` |
-| `SocietyFiles::read(<world>/society)` | `settlements.json` typed (`SettlementsFile`), the same file again as raw JSON records (adapter A2), `roads.json` typed (`RoadsFile`), and an id → index map | `crates/arda-people/src/build.rs:61`, `crates/arda-people/src/files.rs:90-113` |
+| `SocietyFiles::read(<world>/society)` | `settlements.json` typed (`SettlementsFile`), the same file again as raw JSON records (adapter A2), `roads.json` typed (`RoadsFile`), `realms.json` typed (`RealmsFile`) and `gazetteer.json` typed (`GazetteerFile`) each only when the file exists (`SocietyFiles.realms`, `.gazetteer`: `None` when absent, `crates/arda-people/src/files.rs:58-61`, `:106-117`), and an id → index map | `crates/arda-people/src/build.rs:61`, `crates/arda-people/src/files.rs:96-133` |
 | `WorldSettlements::read_dir(<world>/society)` | `settlements.json`, `roads.json`, `realms.json` a third/second time, version-checked | `crates/arda-people/src/build.rs:76`, `crates/arda-society/src/read.rs:75-94` |
 
-`settlements.json` is therefore read three times and `roads.json` twice; nothing ties the reads to one snapshot of the files. Other `society/` files written by 08 (`names.json`, `landuse.bin`, `realms.bin`, `roads.bin`) are not read by `crates/arda-people/src/build.rs`.
+`settlements.json` is therefore read three times and `roads.json` twice, and `realms.json` twice when present (optionally by `SocietyFiles::read`, required by `read_dir`); nothing ties the reads to one snapshot of the files. `compute` does not use `SocietyFiles.realms` or `.gazetteer`: they serve `arda_people::World` readers (`SocietyFiles::realm`, `crates/arda-people/src/files.rs:153-157`, used by `crates/arda-server/src/realms.rs:99`; the gazetteer by `crates/arda-server/src/lib.rs:257-263`, label tiles, logic/17 §labels). An existing `realms.json` or `gazetteer.json` that does not parse fails `SocietyFiles::read` with `PeopleError::Format` at step 3, before planning; a missing `gazetteer.json` is not an error. Other `society/` files written by 08 (`names.json`, `landuse.bin`, `realms.bin`, `roads.bin`, `stats.json`) are not read by `crates/arda-people/src/build.rs`.
 
 ### §build-seed
 
@@ -86,7 +89,7 @@ The seed for planning, simulation and notables is the world source's seed (`src.
 
 - The plan buildings of every planned settlement, as `arda_society::input::BuildingSpec` (`crates/arda-people/src/town.rs:220-230`), are concatenated in settlement order (`crates/arda-people/src/build.rs:70-72`) and replace `WorldSettlements::buildings` (`crates/arda-people/src/build.rs:77`; `read_dir` leaves it empty, `crates/arda-society/src/read.rs:92`).
 - Settlements without a plan contribute no explicit buildings; arda-society derives theirs from the building mix (`crates/arda-society/src/read.rs:68-70`; rules: 14).
-- `arda_society::simulate_society(seed, &world)` (`crates/arda-people/src/build.rs:78`; `crates/arda-society/src/lib.rs:134`) produces `Society`, whose `settlements` follow input settlement order (`crates/arda-society/src/lib.rs:210-221`, `crates/arda-society/src/ctx.rs:152-154`). Simulation rules: 14.
+- `arda_society::simulate_society(seed, &world)` (`crates/arda-people/src/build.rs:78`; `crates/arda-society/src/lib.rs:136`) produces `Society`, whose `settlements` follow input settlement order (`crates/arda-society/src/lib.rs:212-223`, `crates/arda-society/src/ctx.rs:152-154`). Simulation rules: 14.
 
 ### §build-buildings
 
@@ -109,8 +112,8 @@ Per settlement, in settlement order (`crates/arda-people/src/build.rs:80-102`):
 
 1. The raw record deserialises into `arda_npc::SettlementProfile`; a mismatch is `PeopleError::Format` naming `<world>/society/settlements.json` (`crates/arda-people/src/build.rs:91-92`).
 2. Society's `roles` of that settlement become `NotableSlot`s via `slot` (`crates/arda-people/src/build.rs:93`; `crates/arda-people/src/people.rs:281-291`).
-3. `Generator::with_notables(seed, &profile, &buildings, &slots)?.population()?` (`crates/arda-people/src/build.rs:94`; `crates/arda-npc/src/lib.rs:74-83`). Generation rules: 13.
-4. `pop.npcs` (stored notables, `crates/arda-npc/src/population.rs:58-59`) becomes a `StoredNotable { settlement_id, buildings, npcs }` (`crates/arda-people/src/build.rs:97-101`; `crates/arda-people/src/files.rs:22-30`); households, roster and commoners are discarded (goal 56, `crates/arda-people/src/build.rs:1-3`).
+3. `Generator::with_notables(seed, &profile, &buildings, &slots)?.population()?` (`crates/arda-people/src/build.rs:94`; `crates/arda-npc/src/lib.rs:76-85`). Generation rules: 13.
+4. `pop.npcs` (stored notables, `crates/arda-npc/src/population.rs:58-59`) becomes a `StoredNotable { settlement_id, buildings, npcs }` (`crates/arda-people/src/build.rs:97-101`; `crates/arda-people/src/files.rs:23-31`); households, roster and commoners are discarded (goal 56, `crates/arda-people/src/build.rs:1-3`).
 
 The three sequences (`settlements`, raw `records`, plans × `society.settlements`) are combined with `zip` (`crates/arda-people/src/build.rs:80-85`); no length check exists, so a length mismatch truncates silently to the shortest.
 
@@ -120,10 +123,10 @@ The three sequences (`settlements`, raw `records`, plans × `society.settlements
 
 | File | Writer | Format | Trailing newline |
 |---|---|---|---|
-| `society.json` (`SOCIETY_FILE`, `crates/arda-people/src/files.rs:15`) | `arda_society::output::write_json` (`crates/arda-people/src/build.rs:48`; `crates/arda-society/src/output.rs:20-30`): `create_dir_all(parent)`, then `std::fs::write` of `serde_json::to_string_pretty` (`crates/arda-society/src/output.rs:12-14`) | `Society`, `format_version` from arda-society (`crates/arda-society/src/lib.rs:112`, `:239`) | no |
-| `notables.json` (`NOTABLES_FILE`, `crates/arda-people/src/files.rs:17`) | `files::write` (`crates/arda-people/src/build.rs:49`; `crates/arda-people/src/files.rs:79-83`): `serde_json::to_vec_pretty`, push `\n`, `std::fs::write` | `NotablesFile { format_version: 1, seed: <decimal string>, settlements }` (`crates/arda-people/src/files.rs:13`, `:34-41`; `crates/arda-people/src/build.rs:106-110`) | yes |
+| `society.json` (`SOCIETY_FILE`, `crates/arda-people/src/files.rs:16`) | `arda_society::output::write_json` (`crates/arda-people/src/build.rs:48`; `crates/arda-society/src/output.rs:20-30`): `create_dir_all(parent)`, then `std::fs::write` of `serde_json::to_string_pretty` (`crates/arda-society/src/output.rs:12-14`) | `Society`, `format_version` from arda-society (`crates/arda-society/src/lib.rs:114`, `:241`) | no |
+| `notables.json` (`NOTABLES_FILE`, `crates/arda-people/src/files.rs:18`) | `files::write` (`crates/arda-people/src/build.rs:49`; `crates/arda-people/src/files.rs:85-89`): `serde_json::to_vec_pretty`, push `\n`, `std::fs::write` | `NotablesFile { format_version: 1, seed: <decimal string>, settlements }` (`crates/arda-people/src/files.rs:14`, `:35-42`; `crates/arda-people/src/build.rs:106-110`) | yes |
 
-- Neither write is atomic: no temp file, no rename, no fsync (`crates/arda-society/src/output.rs:29`, `crates/arda-people/src/files.rs:82`).
+- Neither write is atomic: no temp file, no rename, no fsync (`crates/arda-society/src/output.rs:29`, `crates/arda-people/src/files.rs:88`).
 - Existing files are overwritten (truncated by `std::fs::write`) without backup or a prior-existence check.
 - Nothing is written until `compute` has succeeded for every settlement (`crates/arda-people/src/build.rs:46`).
 
@@ -138,7 +141,7 @@ The three sequences (`settlements`, raw `records`, plans × `society.settlements
 | `notables` | Σ `pop.npcs.len()` | `crates/arda-people/src/build.rs:95` |
 | `population` | Σ `pop.population` (stored and regenerated inhabitants) | `crates/arda-people/src/build.rs:96` |
 
-The CLI prints one line on success: `wrote <world>/society: <settlements> settlements (<planned> with town plans), <population> inhabitants, <notables> stored notables` (`crates/arda-cli/src/society.rs:46-53`). On failure the error carries the context `building the society of <world>` (`crates/arda-cli/src/society.rs:45`) and propagates out of `main` (`crates/arda-cli/src/main.rs:360`), so the process exits non-zero with anyhow's error chain.
+The CLI prints one line on success: `wrote <world>/society: <settlements> settlements (<planned> with town plans), <population> inhabitants, <notables> stored notables` (`crates/arda-cli/src/society.rs:46-53`). On failure the error carries the context `building the society of <world>` (`crates/arda-cli/src/society.rs:45`) and propagates out of `main` (`crates/arda-cli/src/main.rs:399`), so the process exits non-zero with anyhow's error chain.
 
 ### §build-read-path
 
@@ -147,7 +150,7 @@ Pointer only. `arda_people::World` (`crates/arda-people/src/people.rs:43-55`) is
 - `World::with_source` reads `SocietyFiles`, then `society.json` and `notables.json` only if they exist (`crates/arda-people/src/people.rs:79-90`); either may be absent.
 - `World::plan` draws plans on demand with `read_history` applied and an LRU-by-tick cache of `PLAN_CACHE` = 64 (`crates/arda-people/src/people.rs:18`, `:137-162`); `World::buildings`, `slots` and `population` redo §build-buildings and §build-notables for one settlement (`crates/arda-people/src/people.rs:223-259`), regenerating commoners; `notable` and `notables_of` serve the stored `notables.json` (`crates/arda-people/src/people.rs:263-276`).
 - A plan-less settlement without `society.json` fails with `society/society.json is missing: run \`arda society build\`` (`crates/arda-people/src/people.rs:207-215`); `slots` returns empty instead (`crates/arda-people/src/people.rs:240-246`).
-- The server opens `World::with_source` when `society/settlements.json` exists and warms town and city plans (`crates/arda-server/src/lib.rs:184-198`); routes reach it through `people()` and map errors with `people_error` (`crates/arda-server/src/people.rs:30-45`); `crates/arda-server/src/npcs/page.rs:17` imports it. Server rules: [16](16-service-api.md). Shallow: server routes and `npcs/` not inventoried here.
+- The server opens `World::with_source` when `society/settlements.json` exists and warms town and city plans (`crates/arda-server/src/lib.rs:217-231`); routes reach it through `people()` and map errors with `people_error` (`crates/arda-server/src/people.rs:30-45`); `crates/arda-server/src/npcs/page.rs:17` imports it. Server rules: [16](16-service-api.md). Shallow: server routes and `npcs/` not inventoried here.
 
 ## Steps
 
@@ -179,24 +182,24 @@ Pointer only. `arda_people::World` (`crates/arda-people/src/people.rs:43-55`) is
 | Failure | Result | Files written | Where |
 |---|---|---|---|
 | World does not load | `PeopleError::World(<msg>)` | none | `crates/arda-people/src/shared.rs:26-28` |
-| `settlements.json` / `roads.json` missing or unreadable | `PeopleError::Io { path }` | none | `crates/arda-people/src/files.rs:61`, `:70` |
-| Either file invalid JSON or wrong shape; no `settlements` array | `PeopleError::Format { path }` | none | `crates/arda-people/src/files.rs:62`, `:71`, `:98` |
+| `settlements.json` / `roads.json` missing or unreadable | `PeopleError::Io { path }` | none | `crates/arda-people/src/files.rs:67`, `:76` |
+| Either file invalid JSON or wrong shape; no `settlements` array | `PeopleError::Format { path }` | none | `crates/arda-people/src/files.rs:68`, `:77`, `:104` |
 | A record does not fit `TownSite` | `PeopleError::Format` (path `settlements.json`), raised inside a planner thread | none | `crates/arda-people/src/town.rs:33-36` |
 | Terrain or river layer fails during planning | `PeopleError::World` | none | `crates/arda-people/src/terrain.rs:71`, `crates/arda-people/src/rivers.rs:22-37` |
 | Planner thread panics | `PeopleError::World("a planner thread panicked")` | none | `crates/arda-people/src/build.rs:153-155` |
-| `realms.json` missing, any input over 1 GiB, or any `format_version` ≠ 1 | `PeopleError::Society(SocietyError::Io/Input)`, detected only after every settlement has been planned | none | `crates/arda-society/src/read.rs:40-65`, `:75-86`; `crates/arda-people/src/lib.rs:63-64` |
+| `realms.json` missing (an unparseable one fails earlier, at `SocietyFiles::read`, as `PeopleError::Format`), any input over 1 GiB, or any `format_version` ≠ 1 | `PeopleError::Society(SocietyError::Io/Input)`, detected only after every settlement has been planned | none | `crates/arda-society/src/read.rs:40-65`, `:75-86`; `crates/arda-people/src/lib.rs:63-64` |
 | Simulation refuses input | `PeopleError::Society` | none | `crates/arda-people/src/build.rs:78` |
 | Record does not fit `SettlementProfile` | `PeopleError::Format` (full `settlements.json` path) | none | `crates/arda-people/src/build.rs:91-92` |
 | NPC generator refuses | `PeopleError::Npc` | none | `crates/arda-people/src/build.rs:94`; `crates/arda-people/src/lib.rs:66-67` |
 | Writing `society.json` fails | `PeopleError::Society(SocietyError::Io)`; `notables.json` keeps its previous content (or stays absent) | possibly a truncated/partial `society.json` | `crates/arda-society/src/output.rs:22-29` |
-| Writing `notables.json` fails | `PeopleError::Io` or `Format` | new `society.json` beside an old, missing or partial `notables.json` | `crates/arda-people/src/files.rs:80-82` |
+| Writing `notables.json` fails | `PeopleError::Io` or `Format` | new `society.json` beside an old, missing or partial `notables.json` | `crates/arda-people/src/files.rs:86-88` |
 | Process killed or interrupted mid-write | no handler | partial file possible | not implemented in `crates/arda-cli/src/society.rs` or `crates/arda-people/src/` |
 
 Absent:
 
 - Retry: not implemented anywhere in `crates/arda-people/src/`.
 - Rollback or compensation of a half-written pair: not implemented (`crates/arda-people/src/build.rs:48-49`).
-- Stale-output detection: `society.json` and `notables.json` carry no hash of the 08 inputs (`crates/arda-people/src/files.rs:34-41`); `arda settle` rewrites its own files with `std::fs::write` and leaves both files in place (`crates/arda-settle/src/lib.rs:145-152`); `World::with_source` loads them without comparing seed, version or inputs (`crates/arda-people/src/people.rs:79-116`). 14's `inputs_hash` / `stale_society` is not implemented on this path.
+- Stale-output detection: `society.json` and `notables.json` carry no hash of the 08 inputs (`crates/arda-people/src/files.rs:35-42`); `arda settle` encodes every file, then rewrites its own files (now including `gazetteer.json`) with `std::fs::write` and leaves both files in place (`crates/arda-settle/src/lib.rs:156-163`); `World::with_source` loads them without comparing seed, version or inputs (`crates/arda-people/src/people.rs:79-116`). 14's `inputs_hash` / `stale_society` is not implemented on this path.
 - `NotablesFile.format_version` is never checked on read (`crates/arda-people/src/people.rs:88-90`).
 - Concurrent runs: no lock file or advisory lock; two builds on one world write the same paths, last writer per file wins (`crates/arda-people/src/build.rs:48-49`).
 - Early version check: `format_version` of the 08 files is checked only by `read_dir` at step 6, after planning (`crates/arda-people/src/build.rs:69-76`).
@@ -220,7 +223,7 @@ Observable in arda-people and the CLI:
 
 1. Settlement order: `notables.json` `settlements[i].settlement_id` equals `settlements.json` `settlements[i].id` (`crates/arda-people/src/build.rs:80-101`); asserted by `crates/arda-people/tests/notable_mix.rs:73-80` over `compute`.
 2. Scheduling independence: plan results keep settlement order whatever the thread count (`crates/arda-people/src/build.rs:119-121`, `:150-161`). Plan determinism per settlement is asserted by `crates/arda-people/tests/rivers.rs:96-100` (same plan JSON twice).
-3. Determinism for equal inputs: all randomness derives from the world seed (§build-seed); `notables.json` is byte-identical for equal values (`crates/arda-people/src/files.rs:74-79`). No test in `crates/arda-people/tests/` compares two `build` outputs byte for byte.
+3. Determinism for equal inputs: all randomness derives from the world seed (§build-seed); `notables.json` is byte-identical for equal values (`crates/arda-people/src/files.rs:80-85`). No test in `crates/arda-people/tests/` compares two `build` outputs byte for byte.
 4. Every inhabitant is housed: the building list given to the NPC generator has capacity ≥ population on both paths (`crates/arda-people/src/town.rs:185`; 10 §town-capacity), except where every appended cottage has capacity 0 (the loop counts `capacity.max(1)`, `crates/arda-people/src/town.rs:195`).
 5. Only notables are stored: households, roster and commoner counts are not written (`crates/arda-people/src/build.rs:97-101`).
 6. `planned ≤ settlements` and each `StoredNotable.buildings` is `plan` exactly for planned settlements (`crates/arda-people/src/build.rs:70-75`, `:87-90`).
@@ -232,10 +235,10 @@ Not enforced: consistency of `society.json`/`notables.json` with the current 08 
 ## Outcomes & side effects
 
 - Success: two files in `<world>/society/` (§build-write) and one stdout line (§build-report); exit status 0.
-- Failure: error chain on stderr via anyhow, non-zero exit (`crates/arda-cli/src/main.rs:360`); files as in Unhappy paths.
-- Consumers: `arda_people::World` and through it the server (§build-read-path); `tests/e2e_village.rs:300-309` checks both files have `format_version` 1; `crates/arda-server/tests/world_api/support.rs:160` treats `society/notables.json` as the readiness marker of a fixture world.
+- Failure: error chain on stderr via anyhow, non-zero exit (`crates/arda-cli/src/main.rs:399`); files as in Unhappy paths.
+- Consumers: `arda_people::World` and through it the server (§build-read-path); `tests/e2e_village.rs:308-317` (an `#[ignore]` wall-clock release gate that also prints `GATE e2e_cold_*` timing lines) checks both files have `format_version` 1; `crates/arda-server/tests/world_api/support.rs:160` treats `society/notables.json` together with `society/gazetteer.json` as the readiness marker of a fixture world (`has_society`, `crates/arda-server/tests/world_api/support.rs:159-163`).
 - Termination: the command is a single synchronous process; abandonment equals process exit, leaving files as in State transitions.
-- Record and audit: the outputs record `seed` (`crates/arda-people/src/files.rs:37-38`; `crates/arda-society/src/lib.rs:115`) and format versions; no timestamp, input hash, tool version or run log is recorded.
+- Record and audit: the outputs record `seed` (`crates/arda-people/src/files.rs:38-39`; `crates/arda-society/src/lib.rs:117`) and format versions; no timestamp, input hash, tool version or run log is recorded.
 - Temporary resources: up to `threads × 4` scoped OS threads per chunk, all joined before `plan_all` returns (`crates/arda-people/src/build.rs:134-158`); no temporary files.
 
 ## Dimensions not in play
@@ -246,5 +249,5 @@ Not enforced: consistency of `society.json`/`notables.json` with the current 08 
 - D7 Time: no wall clock, deadline or expiry; no timestamps are written (§Outcomes & side effects). Calendar years inside `society.json` are 14's.
 - D9 Lifecycle: no entity state machine; the only transitions are file replacements (State transitions).
 - D12 Visibility and disclosure: everything computed for stored notables is written; commoners and households are omitted by design for storage (goal 56), not for disclosure; no actor-specific views exist at this layer.
-- D13 Notification: nothing is notified; the running server is not signalled and holds whatever it loaded at startup (`crates/arda-server/src/lib.rs:184-198`).
+- D13 Notification: nothing is notified; the running server is not signalled and holds whatever it loaded at startup (`crates/arda-server/src/lib.rs:217-231`).
 - D14 Effects on others: no shared state beyond the two output files; their consumers are listed in Outcomes & side effects.

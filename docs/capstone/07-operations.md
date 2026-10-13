@@ -1,8 +1,8 @@
 ---
-generated_at_commit: 022ce7cb5707
-generated_date: 2026-10-10
+generated_at_commit: b6cae7350f6b
+generated_date: 2026-10-13
 capstone_version: 7.0.1
-content_hash: aa5464971e03
+content_hash: d6f554562c40
 paths_covered:
   - ":(top)Cargo.toml"
   - ":(top)crates/*/Cargo.toml"
@@ -27,6 +27,13 @@ paths_covered:
   - ":(top)apps/viewer/src/api/client.ts"
   - ":(top)tools/art-gen/generate.mjs"
   - ":(top)tools/art-gen/test/**"
+  - ":(top)tools/*.sh"
+  - ":(top).dockerignore"
+  - ":(top)contract-kit/**"
+  - ":(top)apps/viewer/scripts/**"
+  - ":(top)apps/viewer/licence-policy.json"
+  - ":(top)tools/art-gen/safety.mjs"
+  - ":(top)tools/art-gen/README.md"
 ---
 
 # Operations
@@ -37,16 +44,16 @@ Six Rust binaries plus the viewer dev server and the art tool. All Rust binaries
 
 | Process | Binary (manifest) | Local command | Container command | Depends on |
 |---|---|---|---|---|
-| World CLI | `arda` (`crates/arda-cli/Cargo.toml:9`) | `cargo run -p arda-cli --release -- generate --seed 42 --micro --out out/micro42` | `docker run --rm -v /host/worlds:/worlds --entrypoint arda arda-local generate --seed 42 --micro --out /worlds/w42` (`Dockerfile`) | Filesystem only |
-| HTTP server | `arda-server` (`crates/arda-server/Cargo.toml:12`) | `cargo run -p arda-server --release -- --world out/micro42` | `docker run --rm -v /host/worlds/w42:/worlds/world:ro -p 8787:8787 arda-local` (default entry `tools/docker-entrypoint.sh`: `--host 0.0.0.0 --port 8787`, world `/worlds/world`) | A generated world directory; tactical library (default `assets/tactical/placeholder`, `crates/arda-server/src/tactical/mod.rs:50`), validated at startup |
-| Settlements | `arda-settle` (`crates/arda-settle/Cargo.toml:31`) | `cargo run -p arda-settle --release -- generate --world out/micro42` | None | A generated world |
-| Town planner | `arda-town` (`crates/arda-town/Cargo.toml:12`) | `cargo run -p arda-town -- info --site aldermere` | None | Built-in sample sites; tactical library for `block` |
-| Tactical refinement | `arda-refine` (`crates/arda-refine/Cargo.toml:9`) | `cargo run -p arda-refine --release -- survey --world out/micro42` | None | A generated world |
-| Mid-zoom relief | `arda-midzoom` (`crates/arda-midzoom/Cargo.toml:9`) | `cargo run -p arda-midzoom --release -- --world out/micro42 --z 4 --center 50000,100000 --out /tmp/mz.png` | None | A generated world; optional `society/` |
-| Viewer | Vite (`apps/viewer/package.json:9`) | `cd apps/viewer && npm ci && npm run dev` (port 5173, `apps/viewer/vite.config.ts:16`) | None | A running `arda-server`, default base `http://localhost:8787` (`apps/viewer/src/api/client.ts:52`) |
-| Art generation | `node tools/art-gen/generate.mjs` | `node tools/art-gen/generate.mjs --only "ground.grass.*" --limit 3 --dry-run` (`tools/art-gen/generate.mjs:5`) | None | A local Slopify for real runs (`tools/art-gen/generate.mjs:21`); output feeds `arda tactical import` |
+| World CLI | `arda` (`crates/arda-cli/Cargo.toml:10`) | `cargo run -p arda-cli --release -- generate --seed 42 --micro --out out/micro42` | `docker run --rm -v /host/worlds:/worlds --entrypoint arda arda-local generate --seed 42 --micro --out /worlds/w42` (`Dockerfile`) | Filesystem only |
+| HTTP server | `arda-server` (`crates/arda-server/Cargo.toml:13`) | `cargo run -p arda-server --release -- --world out/micro42` | `docker run --rm -v /host/worlds/w42:/worlds/world:ro -p 8787:8787 arda-local` (default entry `tools/docker-entrypoint.sh`: `--host 0.0.0.0 --port 8787`, world `/worlds/world`) | A generated world directory; tactical library (default `assets/tactical/placeholder`, `crates/arda-server/src/tactical/mod.rs:57`), validated at startup |
+| Settlements | `arda-settle` (`crates/arda-settle/Cargo.toml:33`) | `cargo run -p arda-settle --release -- generate --world out/micro42` | None | A generated world |
+| Town planner | `arda-town` (`crates/arda-town/Cargo.toml:13`) | `cargo run -p arda-town -- info --site aldermere` | None | Built-in sample sites; tactical library for `block` |
+| Tactical refinement | `arda-refine` (`crates/arda-refine/Cargo.toml:10`) | `cargo run -p arda-refine --release -- survey --world out/micro42` | None | A generated world |
+| Mid-zoom relief | `arda-midzoom` (`crates/arda-midzoom/Cargo.toml:10`) | `cargo run -p arda-midzoom --release -- --world out/micro42 --z 4 --center 50000,100000 --out /tmp/mz.png` | None | A generated world; optional `society/` |
+| Viewer | Vite (`apps/viewer/package.json:9`) | `cd apps/viewer && npm ci && npm run dev` (port 5173, `apps/viewer/vite.config.ts:17`) | None | A running `arda-server`, default base `http://localhost:8787` (`apps/viewer/src/api/client.ts:52`) |
+| Art generation | `node tools/art-gen/generate.mjs` | `node tools/art-gen/generate.mjs --only "ground.grass.*" --limit 3 --dry-run` (`tools/art-gen/generate.mjs:5`) | None | A local Slopify for real runs (`tools/art-gen/generate.mjs:22`); output feeds `arda tactical import` |
 
-The world pipeline order is `arda generate` → `arda settle` (writes `<world>/society/`, `crates/arda-cli/src/main.rs:129`) → `arda society build` (writes `society.json`, `notables.json`, `crates/arda-cli/src/society.rs:17`-`crates/arda-cli/src/society.rs:20`). Process stdout carries a one-line banner and summaries; every binary prints errors as `<binary>: <error>` on stderr and exits non-zero (`crates/arda-server/src/main.rs:98`, `crates/arda-settle/src/main.rs:71`, `crates/arda-refine/src/bin/arda-refine.rs:79`).
+The world pipeline order is `arda generate` → `arda settle` (writes `<world>/society/`, `crates/arda-cli/src/main.rs:137`) → `arda society build` (writes `society.json`, `notables.json`, `crates/arda-cli/src/society.rs:17`-`crates/arda-cli/src/society.rs:20`). Process stdout carries a one-line banner and summaries; every binary prints errors as `<binary>: <error>` on stderr and exits non-zero (`crates/arda-server/src/main.rs:136`, `crates/arda-settle/src/main.rs:71`, `crates/arda-refine/src/bin/arda-refine.rs:88`).
 
 ### `arda` subcommands and flags
 
@@ -65,16 +72,17 @@ Defined in `crates/arda-cli/src/main.rs:34`.
 | `preview` | `--seed`, `--size`, `--micro`, `--out` | as `generate`; writes `world/` and `overview.png` | `crates/arda-cli/src/main.rs:73` |
 | | `--px 1..=512` | absent; conflicts with `--quality`, `--style` | `crates/arda-cli/src/main.rs:84` |
 | | `--quality` | `8k` (512–32768 px or `1k`–`32k`) | `crates/arda-cli/src/main.rs:87` |
-| | `--style classic\|atlas\|atlas-oblique` | Classic | `crates/arda-cli/src/main.rs:91`, `crates/arda-cli/src/main.rs:157` |
-| | `--society auto\|off` | `auto` (a fresh preview world has no society) | `crates/arda-cli/src/main.rs` |
-| `export` | `--world`, `--out` | required | `crates/arda-cli/src/main.rs:100`, `crates/arda-cli/src/main.rs:125` |
-| | `--area ax,ay` | `0,0` | `crates/arda-cli/src/main.rs:103` |
-| | `--format png\|json` | `png` | `crates/arda-cli/src/main.rs:106` |
-| | `--overview` | off | `crates/arda-cli/src/main.rs:109` |
-| | `--detail` (4096² area PNG) | off; conflicts with overview/quality | `crates/arda-cli/src/main.rs:116` |
-| | `--quality`, `--style` | `8k`, Classic; `atlas-oblique` overview only (`crates/arda-cli/src/main.rs:200`) | `crates/arda-cli/src/main.rs:119`, `crates/arda-cli/src/main.rs:122` |
-| | `--society auto\|off` | `auto`: land use, roads and settlements on overview and area PNGs when `<world>/society/` exists (logic/04 §overlay); `off` is the plain terrain | `crates/arda-cli/src/main.rs` |
-| `settle` | `--world` | required | `crates/arda-cli/src/main.rs:132` |
+| | `--style classic\|atlas\|atlas-oblique` | Classic | `crates/arda-cli/src/main.rs:91`, `crates/arda-cli/src/main.rs:183` |
+| | `--society auto\|off` | `auto` (a fresh preview world has no society) | `crates/arda-cli/src/main.rs:95` |
+| `export` | `--world`, `--out` | required | `crates/arda-cli/src/main.rs:104`, `crates/arda-cli/src/main.rs:133` |
+| | `--area ax,ay` | `0,0` | `crates/arda-cli/src/main.rs:107` |
+| | `--format png\|json` | `png` | `crates/arda-cli/src/main.rs:110` |
+| | `--overview` | off | `crates/arda-cli/src/main.rs:113` |
+| | `--block` (hidden) | removed in 1.0; fails with a pointer to `arda-refine render` and `GET /v1/tactical/cell/{gx}/{gy}.png` | `crates/arda-cli/src/main.rs:115`, `crates/arda-cli/src/main.rs:316` |
+| | `--detail` (4096² area PNG) | off; conflicts with overview/quality | `crates/arda-cli/src/main.rs:119` |
+| | `--quality`, `--style` | `8k`, Classic; `atlas-oblique` overview only (`crates/arda-cli/src/main.rs:227`) | `crates/arda-cli/src/main.rs:122`, `crates/arda-cli/src/main.rs:125` |
+| | `--society auto\|off` | `auto`: land use, roads and settlements on overview and area PNGs when `<world>/society/` exists (logic/04 §overlay); `off` is the plain terrain | `crates/arda-cli/src/main.rs:130` |
+| `settle` | `--world` | required | `crates/arda-cli/src/main.rs:140` |
 | `society build` | `--world` | required | `crates/arda-cli/src/society.rs:23` |
 | `tactical validate` | `<dir>` (library or `top:…:bottom` stack) | required | `crates/arda-cli/src/tactical.rs:16` |
 | `tactical import` | `<raw_dir>`, `--out`, `--manifest`, `--base` (`assets/tactical/placeholder`), `--no-base`, `--reference`, `--grade-strength`, `--contact-sheet` | as listed | `crates/arda-cli/src/tactical_import.rs:11` |
@@ -84,25 +92,25 @@ Defined in `crates/arda-cli/src/main.rs:34`.
 
 ### `arda-server` flags
 
-Defined in `crates/arda-server/src/main.rs:16`; routes are nested under `/v1` (`crates/arda-server/src/routes.rs:61`).
+Defined in `crates/arda-server/src/main.rs:16`; routes are nested under `/v1` (`crates/arda-server/src/routes.rs:72`).
 
 | Flag | Default | Site |
 |---|---|---|
-| `--world` | required | `crates/arda-server/src/main.rs:19` |
-| `--port` | 8787 | `crates/arda-server/src/main.rs:22` |
-| `--host` | `127.0.0.1` | `crates/arda-server/src/main.rs:25` |
-| `--area-cache-mib` | 1024 | `crates/arda-server/src/main.rs:28` |
-| `--fine-cache-mib` | 512 | `crates/arda-server/src/main.rs:31` |
-| `--max-overview-px` | 8192 | `crates/arda-server/src/main.rs:34` |
-| `--tile-base-px` | 4096 | `crates/arda-server/src/main.rs:37` |
-| `--library` | `assets/tactical/placeholder` | `crates/arda-server/src/main.rs:41` |
-| `--header-timeout-s` | 10 | `crates/arda-server/src/main.rs:44` |
-| `--max-connections` | 64 | `crates/arda-server/src/main.rs:47` |
-| `--prefetch-workers` | 2 (`crates/arda-server/src/tactical/prefetch.rs:37`); 0 disables | `crates/arda-server/src/main.rs:50` |
+| `--world` | required unless `--probe` | `crates/arda-server/src/main.rs:19` |
+| `--port` | 8787 | `crates/arda-server/src/main.rs:26` |
+| `--host` | `127.0.0.1` | `crates/arda-server/src/main.rs:29` |
+| `--area-cache-mib` | 1024 | `crates/arda-server/src/main.rs:32` |
+| `--fine-cache-mib` | 512 | `crates/arda-server/src/main.rs:35` |
+| `--max-overview-px` | 8192 | `crates/arda-server/src/main.rs:38` |
+| `--tile-base-px` | 4096 | `crates/arda-server/src/main.rs:41` |
+| `--library` | `assets/tactical/placeholder` | `crates/arda-server/src/main.rs:45` |
+| `--header-timeout-s` | 10 | `crates/arda-server/src/main.rs:48` |
+| `--max-connections` | 64 | `crates/arda-server/src/main.rs:51` |
+| `--prefetch-workers` | 2 (`crates/arda-server/src/tactical/prefetch.rs:37`); 0 disables | `crates/arda-server/src/main.rs:54` |
 | `--bake-workers` | 1 (`crates/arda-server/src/tactical/bake.rs:37`); 0 disables `POST /v1/tactical/bake` (501); values above 1 bake one at a time | `crates/arda-server/src/main.rs:58` |
 | `--bake-result-mib` | 384 (`crates/arda-server/src/tactical/bake.rs:41`): finished bake tile sets held for download, oldest evicted first; counted in startup admission, and below one worst-case 128-ppsq set (about 362 MiB) startup is refused while baking is on | `crates/arda-server/src/main.rs:62` |
 | `--sheet-mapping` | absent; a bad file refuses startup | `crates/arda-server/src/main.rs:66` |
-| `--probe` | off; `GET /v1/health` on loopback at `--port`, exit 0 on 200, 1 otherwise, serves nothing and needs no `--world` (the image `HEALTHCHECK`) | `crates/arda-server/src/probe.rs` |
+| `--probe` | off; `GET /v1/health` on loopback at `--port`, exit 0 on 200, 1 otherwise, serves nothing and needs no `--world` (the image `HEALTHCHECK`) | `crates/arda-server/src/main.rs:23`, `crates/arda-server/src/probe.rs` |
 
 ### Other binaries
 
@@ -114,33 +122,36 @@ Defined in `crates/arda-server/src/main.rs:16`; routes are nested under `/v1` (`
 | | `block --site [--window x,y,w,h \| --focus NAME] [--size] --out [--library] [--seed] [--ppsq] [--grid] [--json]` | size 64, `assets/tactical/placeholder`, seed 42, ppsq 48 | `crates/arda-town/src/main.rs:38` |
 | | `info --site [--seed]`; `export --site --out [--seed]` | seed 42; sites `aldermere`, `thornby`, `highcrag`, `saltwick` | `crates/arda-town/src/main.rs:74`, `crates/arda-town/src/main.rs:83` |
 | `arda-refine` | `render --world --cell gx,gy [--window WxH] --out [--json] [--scale]` | window 1x1, scale 12 | `crates/arda-refine/src/bin/arda-refine.rs:22` |
-| | `stats --world --cell`; `survey --world` | none | `crates/arda-refine/src/bin/arda-refine.rs:43`, `crates/arda-refine/src/bin/arda-refine.rs:52` |
+| | `stats --world --cell`; `coastwet --world [--stride]` (coast and wetland statistics as JSON); `survey --world` | `--stride` 16 | `crates/arda-refine/src/bin/arda-refine.rs:43`, `crates/arda-refine/src/bin/arda-refine.rs:52`, `crates/arda-refine/src/bin/arda-refine.rs:61` |
 | `arda-midzoom` | `--world --z --center x,y [--size] [--base-px] --out [--plain] [--tiles k]` | size 512, base 4096 | `crates/arda-midzoom/src/bin/arda-midzoom.rs:12` |
 
 ## Configuration
 
-Runtime configuration is CLI flags only; no binary reads a config file from a fixed or implicit location (files such as `--sheet-mapping` or `--manifest` are passed explicitly). Compile-time `CARGO_PKG_VERSION` labels banners and manifests (`crates/arda-cli/src/main.rs:240`, `crates/arda-server/src/main.rs:81`). `GenerateConfig` validates size 64–4000 km per axis, latitude band, and density 1–200 people/km² (`crates/arda-core/src/config.rs:10`-`crates/arda-core/src/config.rs:13`, `crates/arda-core/src/config.rs:83`-`crates/arda-core/src/config.rs:100`). No variable matching `*_SECRET`, `*_TOKEN`, `*_PASSWORD` or `*_KEY` is read anywhere in the repository.
+Runtime configuration is CLI flags only; no binary reads a config file from a fixed or implicit location (files such as `--sheet-mapping` or `--manifest` are passed explicitly). Compile-time `CARGO_PKG_VERSION` labels banners and manifests (`crates/arda-cli/src/main.rs:271`, `crates/arda-server/src/main.rs:96`). `GenerateConfig` validates size 64–4000 km per axis, latitude band, and density 1–200 people/km² (`crates/arda-core/src/config.rs:10`-`crates/arda-core/src/config.rs:13`, `crates/arda-core/src/config.rs:83`-`crates/arda-core/src/config.rs:100`). No variable matching `*_SECRET`, `*_TOKEN`, `*_PASSWORD` or `*_KEY` is read anywhere in the repository.
 
 | Name | Default | Consuming code | Documented where |
 |---|---|---|---|
 | `ARDA_BLESS` | unset | Rewrites root golden fixtures instead of comparing (`tests/golden_world.rs:82`, `tests/golden_recipes.rs:102`) | Panic message in the same files |
-| `ARDA_BLESS_BINDINGS` | unset | Rewrites `bindings/ts/arda` and the served JSON Schemas (`crates/arda-server/src/bindings.rs:208`, `crates/arda-server/src/schema/tests.rs:7`) | `apps/viewer/README.md:77` |
-| `ARDA_BLESS_DUNGEON` | unset | Rewrites dungeon golden (`crates/arda-dungeon/tests/levels.rs:215`) | Panic message there |
+| `ARDA_BLESS_BINDINGS` | unset | Rewrites `bindings/ts/arda` and the served JSON Schemas (`crates/arda-server/src/bindings.rs:240`, `crates/arda-server/src/schema/tests.rs:8`) | `apps/viewer/README.md:78` |
+| `ARDA_BLESS_SCHEMA_BASELINE` | unset | Rewrites `bindings/schema-baseline/v1/` (schemas plus `versions.json`) instead of comparing (`crates/arda-server/src/schema/tests.rs:164`) | `docs/capstone/versioning.md` § Freeze guard |
+| `ARDA_BLESS_DUNGEON` | unset | Rewrites dungeon golden (`crates/arda-dungeon/tests/levels.rs:230`) | Panic message there |
 | `ARDA_BLESS_CONTRACT` | unset | Rewrites the contract kit's goldens, hashes, expected headers, fixture identity and `world.txt` instead of comparing (`crates/arda-server/tests/contract_kit.rs`); `tools/release.sh <version>` sets it | `contract-kit/README.md` |
 | `ARDA_TEST_WORLD`, `ARDA_TEST_WORLD_<seed>` | unset → tests build a fixture under `target/` | `crates/arda-blocks/tests/settlements.rs:35`, `crates/arda-people/tests/interiors.rs:39`, `crates/arda-settle/tests/micro.rs:25`, `crates/arda-settle/tests/realms_micro.rs:22` | None beyond code |
-| `ARDA_SERVER_TEST_WORLD` | unset → built fixture | `crates/arda-server/tests/world_api/support.rs:35`, `crates/arda-server/tests/world_api/schemas.rs:199` | None beyond code |
-| `ARDA_MIDZOOM_TEST_WORLD` | unset → built fixture | `crates/arda-midzoom/tests/world.rs:36` | None beyond code |
+| `ARDA_SERVER_TEST_WORLD` | unset → built fixture | `crates/arda-server/tests/world_api/support.rs:35`, `crates/arda-server/tests/world_api/schemas.rs:225` | None beyond code |
+| `ARDA_MIDZOOM_TEST_WORLD` | unset → built fixture | `crates/arda-midzoom/tests/world.rs:36`, `crates/arda-midzoom/tests/export.rs:40` | None beyond code |
 | `ARDA_ZOOM_WORLD`, `ARDA_ZOOM_ARID_WORLD` | unset → built fixture | `tests/zoom_continuity.rs:164`, `tests/zoom_continuity.rs:235` | None beyond code |
 | `ARDA_WORLD` | required by that test | `crates/arda-people/tests/town_wfc.rs:12` | None beyond code |
-| `ARDA_REFINE_WORLD` | `../../out/micro42` | `crates/arda-refine/tests/real_world.rs:17` | None beyond code |
+| `ARDA_WORLD`, `ARDA_LIBRARY` (container only) | `/worlds/world`; the AI library stacked over the placeholder when `/opt/arda/library/ai/catalog.json` exists, else the placeholder | `tools/docker-entrypoint.sh:13`, `tools/docker-entrypoint.sh:22`; read only when the image is started with no arguments | Header comment of the script |
+| `ARDA_SMOKE_PORT` | 18787 (`tools/docker-smoke.sh`), 18788 (`tools/smoke-binaries.sh`) | Host port the smoke scripts publish or bind (`tools/docker-smoke.sh:31`, `tools/smoke-binaries.sh:33`) | None beyond code |
+| `ARDA_REFINE_WORLD` | `../../out/micro42` | `crates/arda-refine/tests/real_world.rs:17`, `crates/arda-refine/tests/coastwet_world.rs:10` | None beyond code |
 | `ARDA_COAST_MEASUREMENT_OUT` | required by that test | `crates/arda-gen/tests/coast_measurement.rs:111` | None beyond code |
 | `ARDA_SOCIETY_TILES` | test default | `crates/arda-society/tests/scale.rs:82` | None beyond code |
 | `ARDA_TOWN_DEBUG` | unset | Town planner debug output (`crates/arda-town/src/plan/mod.rs:308`) | None beyond code |
 | `SINKS`, `LAKES`, `PLAN_ID` | unset | Diagnostic examples (`crates/arda-gen/examples/water_diag.rs:32`, `crates/arda/examples/water_metrics.rs:151`, `crates/arda-server/examples/tactical_timing.rs:35`) | None beyond code |
 | `VITE_ARDA_API` | `http://localhost:8787`, after `?api=` and localStorage (`apps/viewer/src/config.ts:10`-`apps/viewer/src/config.ts:19`) | Viewer API base | `apps/viewer/README.md:57` |
-| `SLOPIFY_URL` | `http://127.0.0.1:6969`; `--server` overrides | `tools/art-gen/generate.mjs:21` | `tools/art-gen/generate.mjs:108` |
-| `ART_GEN_MAX_SPEND` | unset; default for `--max-spend` (USD, worst case incl. reviewer remakes); `--max-images N` caps images per run | `tools/art-gen/generate.mjs` (`maxSpend`), `tools/art-gen/safety.mjs` | `tools/art-gen/README.md` (Spending safety) |
-| `SLOPIFY_DIR` | `../slopify` | art-gen tests against Slopify's code (`tools/art-gen/test/art-gen.test.mjs:28`) | `tools/art-gen/README.md:249` |
+| `SLOPIFY_URL` | `http://127.0.0.1:6969`; `--server` overrides | `tools/art-gen/generate.mjs:22` | `tools/art-gen/generate.mjs:106` |
+| `ART_GEN_MAX_SPEND` | unset; default for `--max-spend` (USD, worst case incl. reviewer remakes); `--max-images N` caps images per run | `tools/art-gen/generate.mjs:130` (`maxSpend`), `tools/art-gen/safety.mjs` | `tools/art-gen/README.md` (Spending safety) |
+| `SLOPIFY_DIR` | `../slopify` | art-gen tests against Slopify's code (`tools/art-gen/test/art-gen.test.mjs:28`) | `tools/art-gen/README.md:262` |
 
 Third-party runtime controls such as `RAYON_NUM_THREADS` are read by `rayon`, not by repository code.
 
@@ -150,13 +161,13 @@ Third-party runtime controls such as `RAYON_NUM_THREADS` are read by `rayon`, no
 |---|---|---|
 | Docker image | Multi-stage `Dockerfile`: `rust:1.98.1-bookworm` with `RUSTUP_TOOLCHAIN=1.98.1` builds `cargo build --release --locked -p arda-cli -p arda-server` (BuildKit cache mounts); runtime `debian:bookworm-slim` pinned by digest, user and group `arda` 10001, both binaries in `/usr/local/bin`, `WORKDIR /opt/arda`, `EXPOSE 8787`, `VOLUME /worlds`, `HEALTHCHECK arda-server --probe`, OCI labels (`VERSION`, `REVISION` build args). Entry `arda-entrypoint` (`tools/docker-entrypoint.sh`): no arguments serves `/worlds/world` on `0.0.0.0:8787`; arguments go to `arda-server` verbatim; `--entrypoint arda` runs the CLI. Two variants: default ships the placeholder library only (`/opt/arda/library/placeholder`); `--build-context artlib=<dir>` adds the AI library at `/opt/arda/library/ai`, stacked over the placeholder. Maintainer decision D1: the published GHCR image is the placeholder variant only; the AI library stays an opt-in local build. Mount worlds `:ro` for serving; CLI use needs a directory writable by UID 10001. Checked by `tools/docker-smoke.sh`. | `Dockerfile`, `.dockerignore`, `tools/docker-entrypoint.sh`, `tools/docker-smoke.sh` |
 | Compose | None in the repository | — |
-| Ports | `arda-server` binds `127.0.0.1:8787` by default (`crates/arda-server/src/main.rs:22`-`crates/arda-server/src/main.rs:25`); viewer dev server 5173 (`apps/viewer/vite.config.ts:16`); art-gen talks to Slopify on 6969 (`tools/art-gen/generate.mjs:21`) | as cited |
+| Ports | `arda-server` binds `127.0.0.1:8787` by default (`crates/arda-server/src/main.rs:26`-`crates/arda-server/src/main.rs:29`); viewer dev server 5173 (`apps/viewer/vite.config.ts:17`); art-gen talks to Slopify on 6969 (`tools/art-gen/generate.mjs:22`) | as cited |
 | Server health | `GET /v1/health` (`crates/arda-server/src/routes.rs:30`) | — |
-| Server limits | Header-read timeout and connection cap in a custom hyper accept loop (`crates/arda-server/src/serve.rs:1`); CORS allows only local origins, methods GET/HEAD/POST/OPTIONS (`crates/arda-server/src/routes.rs:92`) | as cited |
-| Server caches | Byte-bounded LRUs (`crates/arda-server/src/cache.rs:1`): areas 1 GiB, derived 256 MiB, fine windows 512 MiB (`crates/arda-server/src/query.rs:36`-`crates/arda-server/src/query.rs:38`); overview PNGs/tiles 256 MiB each (`crates/arda-server/src/overview.rs:32`); relief tiles 128 MiB (`crates/arda-server/src/relief.rs:22`); tactical renders 768 MiB, pyramid 1 GiB, encoded 256 MiB (`crates/arda-server/src/tactical/mod.rs:80`-`crates/arda-server/src/tactical/mod.rs:82`). Only area and fine budgets have flags. All in-memory; nothing persisted. | as cited |
+| Server limits | Header-read timeout and connection cap in a custom hyper accept loop (`crates/arda-server/src/serve.rs:1`); CORS allows only local origins, methods GET/HEAD/POST/DELETE/OPTIONS (`crates/arda-server/src/routes.rs:103`) | as cited |
+| Server caches | Byte-bounded LRUs (`crates/arda-server/src/cache.rs:1`): areas 1 GiB, derived 256 MiB, fine windows 512 MiB (`crates/arda-server/src/query.rs:36`-`crates/arda-server/src/query.rs:38`); overview PNGs/tiles 256 MiB each (`crates/arda-server/src/overview.rs:33`); relief tiles 128 MiB (`crates/arda-server/src/relief.rs:23`); tactical renders 768 MiB, pyramid 1 GiB, encoded 256 MiB (`crates/arda-server/src/tactical/mod.rs:87`-`crates/arda-server/src/tactical/mod.rs:89`). Finished bake tile sets: 384 MiB default (`crates/arda-server/src/tactical/bake.rs:41`). Only area, fine and bake-result budgets have flags. All in-memory; nothing persisted. | as cited |
 | Test fixture cache | Shared worlds under `target/`, built in a sibling dir and renamed into place, stamped `.fixture-stamp` with a fingerprint of library sources, data, manifests and lockfile; stale stamps rebuild (`tests/support/fixture_dir.rs:1`-`tests/support/fixture_dir.rs:27`) | as cited |
-| Logs | No logging crate; `println!`/`eprintln!` only. Server: startup banner on stdout (`crates/arda-server/src/main.rs:79`); 5xx detail on stderr with redacted body (`crates/arda-server/src/error.rs:217`); per-request tactical line `arda-server tactical <route> <detail> cache=<hit\|miss> bytes=<n> <ms> ms` (`crates/arda-server/src/tactical/routes.rs:138`) | as cited |
-| CI | `.github/workflows/ci.yml`, on push and pull_request (`.github/workflows/ci.yml:2`): `test` matrix ubuntu/macos/windows, `cargo test --workspace --all-features --no-fail-fast` (`.github/workflows/ci.yml:9`-`.github/workflows/ci.yml:17`); `msrv` Rust 1.96.1 `cargo check --workspace --all-targets --all-features --locked` (`.github/workflows/ci.yml:26`-`.github/workflows/ci.yml:27`); `lint` fmt check and clippy `-D warnings` (`.github/workflows/ci.yml:37`-`.github/workflows/ci.yml:38`); `deny` cargo-deny-action v2.1.1 (`.github/workflows/ci.yml:44`). Actions are pinned to full commit SHAs. A `viewer` job and no art-gen job. `.github/workflows/release.yml` (tag `v*` and manual dry run) verifies, builds four binary targets and the multi-platform GHCR image, and drafts the GitHub release; see Release process. | as cited, `.github/workflows/release.yml` |
+| Logs | No logging crate; `println!`/`eprintln!` only. Server: startup banner on stdout (`crates/arda-server/src/main.rs:94`); 5xx detail on stderr with redacted body (`crates/arda-server/src/error.rs:231`); per-request tactical line `arda-server tactical <route> <detail> cache=<hit\|miss> bytes=<n> <ms> ms` (`crates/arda-server/src/tactical/routes.rs:143`) | as cited |
+| CI | `.github/workflows/ci.yml`, on push and pull_request (`.github/workflows/ci.yml:2`): `test` matrix ubuntu/macos/windows, `cargo test --workspace --all-features --no-fail-fast` (`.github/workflows/ci.yml:8`-`.github/workflows/ci.yml:17`); `msrv` Rust 1.96.1 `cargo check --workspace --all-targets --all-features --locked` (`.github/workflows/ci.yml:26`-`.github/workflows/ci.yml:27`); `lint` fmt check and clippy `-D warnings` (`.github/workflows/ci.yml:37`-`.github/workflows/ci.yml:38`); `deny` cargo-deny-action v2.1.1 (`.github/workflows/ci.yml:44`). Actions are pinned to full commit SHAs. A `viewer` job (working directory `apps/viewer`, Node 26): `npm ci`, `npm run licences`, `typecheck`, `lint`, `npm test`, `npm run build` (`.github/workflows/ci.yml:46`-`.github/workflows/ci.yml:63`); no art-gen job. `.github/workflows/release.yml` (tag `v*` and manual dry run) verifies, builds four binary targets and the multi-platform GHCR image, and drafts the GitHub release; see Release process. | as cited, `.github/workflows/release.yml` |
 | Line endings | `* text=auto eol=lf` so golden fixtures hash identically on Windows; `tools/art-gen/checklist.csv` kept `-text` | `.gitattributes` |
 | Build profiles | `[profile.test] opt-level = 2`; `[profile.release] codegen-units = 1` | `Cargo.toml:68`-`Cargo.toml:72` |
 
@@ -164,15 +175,15 @@ Third-party runtime controls such as `RAYON_NUM_THREADS` are read by `rayon`, no
 
 | Task | Command | Source |
 |---|---|---|
-| Tests (as CI) | `cargo test --workspace --all-features --no-fail-fast` | `.github/workflows/ci.yml:15` |
-| MSRV check | `cargo +1.96.1 check --workspace --all-targets --all-features --locked` | `.github/workflows/ci.yml:22`-`.github/workflows/ci.yml:23` |
-| Format | `cargo fmt --all --check` | `.github/workflows/ci.yml:32` |
-| Lint | `cargo clippy --workspace --all-targets -- -D warnings` | `.github/workflows/ci.yml:33` |
-| Dependency policy | `cargo deny check` (policy `deny.toml`) | `.github/workflows/ci.yml:39` |
+| Tests (as CI) | `cargo test --workspace --all-features --no-fail-fast` | `.github/workflows/ci.yml:17` |
+| MSRV check | `cargo +1.96.1 check --workspace --all-targets --all-features --locked` | `.github/workflows/ci.yml:26`-`.github/workflows/ci.yml:27` |
+| Format | `cargo fmt --all --check` | `.github/workflows/ci.yml:37` |
+| Lint | `cargo clippy --workspace --all-targets -- -D warnings` | `.github/workflows/ci.yml:38` |
+| Dependency policy | `cargo deny check` (policy `deny.toml`) | `.github/workflows/ci.yml:44` |
 | Benches | `cargo bench -p arda-gen` (`area_erosion`, `continent_stage`) | `crates/arda-gen/Cargo.toml` |
 | Golden re-bless | `ARDA_BLESS=1 cargo test --release --test golden_world --test golden_recipes` rewrites `tests/golden/micro-42*.txt` | `tests/golden_world.rs:82`, `tests/golden_recipes.rs:102` |
-| Bindings/schema re-bless | `ARDA_BLESS_BINDINGS=1 cargo test -p arda-server bindings` (schemas: same variable, `schema` tests) | `apps/viewer/README.md:77`, `crates/arda-server/src/schema/tests.rs:7` |
-| Dungeon re-bless | `ARDA_BLESS_DUNGEON=1 cargo test -p arda-dungeon` | `crates/arda-dungeon/tests/levels.rs:215` |
+| Bindings/schema re-bless | `ARDA_BLESS_BINDINGS=1 cargo test -p arda-server bindings` (schemas: same variable, `schema` tests) | `apps/viewer/README.md:78`, `crates/arda-server/src/schema/tests.rs:8` |
+| Dungeon re-bless | `ARDA_BLESS_DUNGEON=1 cargo test -p arda-dungeon` | `crates/arda-dungeon/tests/levels.rs:230` |
 | Contract kit re-bless | `ARDA_BLESS_CONTRACT=1 cargo test --release -p arda-server --test contract_kit` | `contract-kit/README.md` |
 | Contract kit live check | `node contract-kit/check.mjs --base http://127.0.0.1:8787` (exit 0 all match, 1 a difference, 2 unreachable); its tests `node --test contract-kit/test/` | `contract-kit/check.mjs` |
 | Viewer | `npm run typecheck`, `npm run lint`, `npm test`, `npm run build` in `apps/viewer` | `apps/viewer/package.json` |

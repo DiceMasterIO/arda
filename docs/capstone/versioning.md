@@ -1,3 +1,7 @@
+---
+generated_date: 2026-10-13
+---
+
 # Versioning and compatibility policy
 
 From 1.0, clients such as DiceMaster code against `/v1` and pin `(seed, arda_version, server_version)`. This page says what is frozen, which version number covers which body, what each kind of release may change, and what a server does with an older or newer world or library. It is normative. The byte-level route reference is [`crates/arda-server/API.md`](../../crates/arda-server/API.md); the rules every route follows are in [logic/16](logic/16-service-api.md).
