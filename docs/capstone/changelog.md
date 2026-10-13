@@ -2,6 +2,34 @@
 generated_date: 2026-08-24
 ---
 
+## 2026-10-13 - map: all
+key: map/all@b6cae7350f6b
+
+- **Refreshed (covered paths changed)**: 01-architecture.md, 02-models.md, 03-conventions.md, 04-data-flow.md, 05-dependencies.md, 06-testing.md, 07-operations.md, 08-glossary.md, 09-interfaces.md, open-items.md, logic/07, 17, 18, 19, 20, 21, 22, uiux/01-direction.md, uiux/02-system.md.
+- **Drift fixed**: moved `file:line` pointers remapped; 1.0 content added (overlays on exports, gazetteer and tile labels, bake, `npc/generate`, realms, contract kit, versions, release automation, container image, art spend caps, viewer licence policy, `arda-refine coastwet`); retired block archive removed.
+- **09-interfaces**: bake tile and DELETE payload sections, `BakeRequest` and gazetteer tables, `contract-kit` edge; no `to`/`from` written.
+- **paths_covered**: globs added for `contract-kit/**`, `tools/*.sh`, release workflow, Dockerfile, viewer licence files and the new gazetteer, realms, coastwet and label sources.
+- **Open**: 02-models has no entity rows for a few scratch and error types of the blocks, wfc and dungeon crates (predates this run); 03-conventions lexical-count rows (`as`, `#[allow]`, HashMap) not recounted.
+- **Skipped as current**: logic/01-06, 08-16, uiux/screens/*, mockup/*, standards.md, implementation.md.
+
+## 2026-10-13 - Housekeeping before 1.0
+- **tests**: `tests/zoom_land.rs` gains a module-header note: it is the `zoom_land` module of the `zoom_continuity` target (`mod zoom_land;`, `tests/zoom_continuity.rs`), not a target of its own, and is run with `cargo test --release --test zoom_continuity -- --ignored`. It stays out of the root `[[test]]` list; moving it was ruled out because 06-testing, logic/17 and open-items cite the current path.
+- **docs**: `09-interfaces.md` gives `GET /v1/tactical/window/tiles/{z}/{x}/{y}.webp` the path and query table it lacked (same fields as `/window.png`).
+- **docs**: the 2026-09-25 terrain-study fragment is folded into `changelog.md` as a dated entry, trimmed (no `codex/` branch name, no agent or model names; commit `52eab74` kept), and the fragment removed.
+- **capstone schema**: `logic/README.md` is checked as a scenario by `~/.agents/skills/core/references/schema.txt` and reports eight missing headings. The upstream fix is a `logic-readme` record above `logic-scenario` (`match logic/README.md`, `keys! generated_date`); the installed skill is left unedited and the patch goes to `GentBajko/capstone`. In a scratch copy it removes the row (32 findings to 24 before the refresh).
+- **docs**: `versioning.md` gains `generated_date` frontmatter (the schema pass required it).
+- **Why**: `map-check` on main reported stale and false-positive findings that every 1.0 branch would meet again; the test-registration and fragment questions kept coming back from audits.
+- **Tests**: `cargo test --test zoom_continuity -- --list` still lists the `zoom_land::` tests; `cargo fmt`, `clippy`, `cargo test --workspace` green.
+
+## 2026-10-12 - Contract kit: golden responses of the canonical world and a live checker
+- **contract-kit** (new, repository root): `manifest.json` (kit format 1; fixture identity: seed 42, MICRO, fine recipe 7, society, `arda_version`, `server_version`, BLAKE3 of `world.json`, `library_version`, `contract_version`; 54 cases with method, URI, request body, status, content type, `etag`/`cache-control`/`location`, schema name and a golden file or SHA-256 plus size), `golden/` (38 JSON bodies as served), `requests/`, `world.txt` (the canonical world's file fingerprint), `README.md` (world recipe, serving, checking, manifest reference, the DiceMaster side). 41 of the 42 stable routes have a case, plus `no_block`, `out_of_range`, `not_found`, `bad_request` and two `304` revalidations; a finished bake's tiles are left out (their existence depends on when the background job ends). About 2.8 MB.
+- **contract-kit** `check.mjs`: Node 22+ standard library only; replays every case against a running server, compares status, content type, headers and bytes or hash, names the first differing JSON path, exits 0, 1 (a difference) or 2 (unreachable). Tests in `contract-kit/test/` against a `node:http` stub.
+- **arda-server** (tests): `tests/contract_kit.rs` replays the kit in-process on the stamped society fixture with the CLI's default limits and the placeholder library, validates every JSON golden against its served schema, checks the fixture identity and `world.txt`, and fails when a stable route of `versioning.md` has no case. `ARDA_BLESS_CONTRACT=1` re-records (never adds or removes cases). Dev-dependency `sha2` (MIT/Apache-2.0) for the SHA-256 the Node checker can compute.
+- **tools**: `tools/release.sh <version>` re-blesses the kit after a bump and allows its files in the release diff; `--check` counts the manifest's `arda_version` and `server_version` as version sites (54 sites). `.gitattributes` keeps kit goldens and requests byte-exact.
+- **docs**: 06-testing § Contract kit and the bless and live-check commands; 07-operations `ARDA_BLESS_CONTRACT`, the commands and the release step; logic/16 §api-schema and versioning.md point at the kit.
+- **Why**: DiceMaster plans a replay test over recorded Arda fixtures and a live contract test against the published image. Arda only checked its own side (fresh schemas, live bodies valid); nothing pinned which bodies a client may rely on, and DiceMaster's docs named a legacy-terrain world without society. One versioned kit gives both sides the same canonical world, bodies and checker.
+- **Tests**: `contract_kit.rs` (5 tests; failed first with an empty `golden/` on "missing golden", and with one altered golden byte naming the case), `node --test contract-kit/test/` (5). Live: the release CLI's canonical world was byte-identical to the test fixture (47 files), and `check.mjs` passed 54 of 54 cases against `arda-server` on it, cold (about 9 s) and warm (0.4 s).
+
 ## 2026-10-13 - Settlements, roads and land use on overview and area exports
 - **arda-render**: `BandOverlay` hook (`paint(y0, rows, width)`) called on each streamed overview band and area row group before encoding; `write_overview_png_with_overlay`, `write_atlas_overview_png_with_channels_overlay`, `OverviewRaster::finish_with_overlay`, `render_area_png_to_with_overlay`; `RenderError::Overlay`. `None` keeps the exact bytes (goldens untouched).
 - **arda-settle**: `render::band::SocietyBandOverlay` (land-use tone, roads by class, tier symbols, painted in 128-column strips from whole-image geometry); `layers.rs` split into band-paintable pieces (`road_lines`/`paint_roads`, `symbol_list`/`paint_symbols`, `land_tone`) with `arda-settle render` byte-identical.
