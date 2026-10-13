@@ -19,7 +19,7 @@ paths_covered:
 
 # Open items
 
-Only open work is listed. Items finished by v0.8.1 (OI-01, OI-07–OI-11, OI-13, OI-15, OI-17–OI-27, OI-39, OI-40, OI-44) and the dated milestone logs, verification receipts and historical inventories were removed on 2026-10-10; they remain in git history before this change and in [changelog.md](changelog.md). Item numbers are stable and are not reused.
+Only open work is listed. Items finished by v0.8.1 (OI-01, OI-07–OI-11, OI-13, OI-15, OI-17–OI-27, OI-39, OI-40, OI-44, OI-45) and the dated milestone logs, verification receipts and historical inventories were removed on 2026-10-10; they remain in git history before this change and in [changelog.md](changelog.md). Item numbers are stable and are not reused.
 
 ## Current state
 
@@ -294,7 +294,6 @@ These items were added in the 2026-10-10 audit. Each records what exists and wha
 | OI-41 | Coast generation mix (recipe 9 candidate) | Tactical coast and wetland ground is calibrated (`arda-refine coastwet`, `crates/arda-refine/src/biome.rs`, `prior.rs`; `logic/09-tactical-refinement.md` §biome-calibration). What remains is upstream: shore formation (`crates/arda-gen/src/formation/shore.rs`, recipe 7) classes 59–68 % of sea-touching land cells as cliff and only 5–6 % as sand beach on MICRO seed 42, against a target of about a third sand. Cover marsh (`area/mod.rs:246`, `shared_compose.rs:181`, `orchestrator/fine_materials.rs:89`) is rare, so marsh ground comes from the wetness signal. | A recipe-9 decision on shore classification thresholds and on marsh cover, with `coastwet` re-run on the new world; recipes 5-8 keep their bytes. |
 | OI-42 | Multi-world serving | One `--world <dir>` per process (`crates/arda-server/src/main.rs:1-2`, `:17-19`). | Multiple worlds per process, or a world id in any `/v1` route (`crates/arda-server/src/routes.rs:28-76`). Image cache-control assumes URLs that do not name the world (`crates/arda-server/src/routes.rs:157-161`). |
 | OI-43 | Sampled block archive (closed 2026-10-13) | Retired: `arda generate` no longer writes `blocks/`; `World::block`, `export_block`, the 24-tile vocabulary and the zstd block format are deleted; `arda export --block` is a hidden flag that fails with the replacement hint. Older worlds with `blocks/` still load (the folder is ignored). | Nothing remains. |
-| OI-45 | Effect and damage art | The asset library holds ground, wall, prop and light art (`assets/tactical/placeholder/catalog.json`; `tools/art-gen/prompts.json` tiers 0–5). | Transparent effect textures (frost, fire, scorch, acid, ash, web, grease, fog, water) and damage decals and props (charred floor, rubble, broken deck), listed by `GET /v1/tactical/library` (`crates/arda-server/src/tactical/routes.rs:58`). |
 
 ## Scope boundaries and conditional extensions
 

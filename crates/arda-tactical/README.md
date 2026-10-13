@@ -46,7 +46,7 @@ Images are 8-bit PNGs, usually RGBA; RGB and grey are also accepted. Alpha is st
 {
   "format_version": 1,              // must be 1
   "library": "placeholder",         // short name
-  "library_version": "0.1.0+seed58",// part of the render seed: new art, new variation
+  "library_version": "0.2.0+seed58",// part of the render seed: new art, new variation
   "pixels_per_square": 128,         // source art resolution per 5-ft square
   "vocabulary": {                   // allowed values of the controlled tags
     "biome": ["temperate"], "culture": ["human"],
@@ -64,7 +64,7 @@ The art is authored at `pixels_per_square`. The output resolution is a render op
 | field | type | default | meaning |
 |---|---|---|---|
 | `id` | string | required | unique and stable, e.g. `prop.barrel` |
-| `class` | `ground` \| `wall` \| `prop` \| `vegetation` \| `water` | required | the asset class |
+| `class` | `ground` \| `wall` \| `prop` \| `vegetation` \| `water` \| `effect` | required | the asset class |
 | `image` | string | required | path relative to the library |
 | `footprint` | `{"w": u32, "h": u32}` | required | size in squares before rotation; the image must be exactly `w·ppsq × h·ppsq` |
 | `anchor` | `{"x": f32, "y": f32}` \| null | centre | pivot in squares from the image's top-left corner; a placement puts this point at its `x, y` |
@@ -111,6 +111,8 @@ The art is authored at `pixels_per_square`. The output resolution is a render op
   - `post`: east and west, on straight runs; optional
 
 Every kit must provide `run`, `corner`, `tee`, `cross` and `end`. If a kit has several assets with the same role (such as the importer's takes `wall.stone.run.alt1`, `.alt2`, …), one is picked per edge or vertex by a hash of the seed and its world position (`origin` plus the local edge midpoint or vertex), so neighbouring windows agree.
+
+**Effects.** Class `effect` (ids `effect.<name>.<n>`) is transparent art for a consumer to draw over tiles, never placed by a layout or drawn by the compositor. It carries one free tag, `effect:texture` (tileable, 2 × 2 squares) or `effect:decal` (one patch), layer `floor`, and must be partly but not wholly transparent (`effect_alpha`). `FORMAT_VERSION` stays 1. A stacked library replaces an effect by its name (`effect.frost`), all variants at once.
 
 **Props and vegetation.** These are cut-outs on a transparent background. The footprint covers the object; the anchor places it. Tree canopies use the `canopy` layer; low vegetation and rocks use `prop`. Floors laid over water, such as docks and bridges, use `floor`.
 
@@ -199,7 +201,7 @@ cargo test --release -p arda-tactical --test timing -- --ignored --nocapture
 
 ## Placeholder library
 
-`arda tactical placeholders` regenerates `assets/tactical/placeholder` byte for byte from the seed; a test checks the committed copy. It holds 63 ground and water textures (28 keys, 2–3 variants each), 63 wall pieces (7 kits × 9 roles), 56 props and 25 vegetation assets, all Apache-2.0.
+`arda tactical placeholders` regenerates `assets/tactical/placeholder` byte for byte from the seed; a test checks the committed copy. It holds 63 ground and water textures (28 keys, 2–3 variants each), 63 wall pieces (7 kits × 9 roles), 56 props and 25 vegetation assets, all Apache-2.0, plus (appended, 1.0 task 05) 27 procedural effect images (8 textures and one decal, 3 variants each, `effects/`) and 3 damage props (`prop.rubble_heap`, `prop.broken_deck`, `prop.charred_floor`); the library is 285 assets and `library_version` is `0.2.0+seed58`.
 
 - *Ground* is painted on a wrapping brush tile: periodic rotated noise, hundreds of translucent dabs, grass tufts, pebbles, angular stones and wandering cracks, all toroidal so every texture passes the seam rule.
 - *Cut-outs* are painted on a relief: colour, coverage, a height field and ink per pixel, then shaded from the top-left and outlined. Canopies are layered leaf clusters; rocks are irregular outlines with soft facets; nothing is painted outside a shape, so no shadow is baked.

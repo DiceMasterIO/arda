@@ -191,6 +191,7 @@ Payload field tables live in `09-interfaces.md`; each row cites its section ther
 | GET | `/v1/tactical/window.png` | `crates/arda-server/src/tactical/world_routes.rs:341` | query → PNG; `09-interfaces.md § GET /v1/tactical/window.png` |
 | GET | `/v1/tactical/window/tiles/{z}/{x}/{y}` | `crates/arda-server/src/tactical/world_routes.rs:301` | path + query → WebP tile; `09-interfaces.md § GET /v1/tactical/window/tiles/{z}/{x}/{y}.webp` |
 | GET | `/v1/tactical/library` | `crates/arda-server/src/tactical/world_routes.rs:371` | none → `TacticalLibraryDto`; `09-interfaces.md § GET /v1/tactical/library` |
+| GET | `/v1/tactical/library/asset/{id}.png` | `crates/arda-server/src/tactical/library_asset.rs` | none → PNG of any library asset; `09-interfaces.md § GET /v1/tactical/library/asset/{id}.png` |
 | POST | `/v1/tactical/prefetch` | `crates/arda-server/src/tactical/routes.rs:68` | JSON `PrefetchRequest` → 202 `PrefetchAccepted`; `09-interfaces.md § POST /v1/tactical/prefetch` |
 | POST | `/v1/tactical/bake` | `crates/arda-server/src/tactical/bake_routes.rs:54` | JSON `BakeRequest` (body limit `max_body_bytes`, `crates/arda-server/src/tactical/bake_routes.rs:38`) → `202 BakeAccepted` (`200` once finished); `09-interfaces.md § POST /v1/tactical/bake` |
 | GET | `/v1/tactical/bake/{id}` | `crates/arda-server/src/tactical/bake_routes.rs:98` | path → `BakeStatus`; `09-interfaces.md § GET /v1/tactical/bake/{id}` |

@@ -58,6 +58,7 @@ The asset spec is the manifest `id` of the entry whose `file` equals the file na
 | `ground` or `water` | `Texture { key }` | `water.<key>` if key starts `water_`, else `ground.<key>` (`:49-52`, `:68-70`) |
 | `prop` | `Prop { name }` | `prop.<name>` |
 | `veg` | `Vegetation { name }` | `veg.<name>` |
+| `effect` | `Effect { name }` | `effect.<name>` (variants are numbered `effect.<name>.<n>` in file order, like textures) |
 | `wall` | `Wall { kit, role }`, role in `run, door, window, gate, corner, tee, cross, end, post` | `wall.<kit>.<role>` (`:93-104`, `:119-147`) |
 
 Line numbers are in `crates/arda-art-import/src/naming.rs`. A word must be non-empty `[a-z0-9_]` (`crates/arda-art-import/src/naming.rs:111-115`). Parts after the needed ones are ignored (`ground.water_deep` is `water.water_deep`; `veg.tree_oak.v3` is `veg.tree_oak`) (test `crates/arda-art-import/src/naming.rs:153-177`). Any other first part is an error naming the convention (`crates/arda-art-import/src/naming.rs:105-107`); the file goes to `skipped` (§imp-ids).
@@ -92,6 +93,7 @@ The catalogue record starts from the base record standing for the target, else `
 
 | Target | Defaults |
 |---|---|
+| Effect | class `Effect`, layer `Floor`, footprint 2×2, 4 rotations, mirror, no biome or culture tags, blocks nothing, no cover, no shadow; free tag `effect:texture` and tileable, or `effect:decal` and not tileable for the names in `vocab::EFFECT_DECALS` (`scorch_mark`). `Base::find` matches an effect by its name (`effect_base`), so a placeholder record is inherited |
 | Texture | class `Water`/`Ground` and layer by `water_` prefix, footprint 2×2, rotations 0/90/180/270, mirror, tileable; keys in `STRUCTURED_KEYS` (`cobbles, flagstone, planks, stone_floor, rug, farmland, cliff`) get free tag `structured`, and `cobbles`/`flagstone` footprint 4×4 (`:14-22`, `:81-99`) |
 | Wall | class/layer `Wall`, 4 rotations, blocks movement, casts shadow; `drystone`: no sight block, `ThreeQuarters` cover, 4 ft; `hedge`/`wattle` 6 ft; `city_wall` 20 ft; else 10 ft, `Full` cover (`:101-123`) |
 | Prop | 4 rotations, mirror; name containing `rug, deck, planks, bridge, grave, drain` → layer `Floor`, nothing else; else blocks movement, `Half` cover, shadow, 3 ft; name containing `boat` → on water, no block, no cover, 1×2 (`:162-181`) |
@@ -118,6 +120,15 @@ Textures (`crates/arda-art-import/src/pipeline.rs:50-57`, `crates/arda-art-impor
 7. Flags: seam ratio still > 2.0 (`:90-92`); structured source with initial seam ratio > 3.0 (`:93-97`).
 
 Structured-ness is the free tag `structured` (`crates/arda-art-import/src/meta.rs:309-311`). Hole policy for textures is `Off` (`crates/arda-art-import/src/holes.rs:65`). Observed: grass variants 256×256 with seam ratio < 2.0, cobbles 512×512 (test `crates/arda-art-import/tests/import.rs:158-184`).
+
+**Effects** (`crates/arda-art-import/src/effect.rs`, 1.0 task 05) are the one class that keeps its alpha end to end: no background matte, no shadow strip, no hole clearing, no haze removal and no opaque flattening. Steps, target `footprint × ppsq`:
+
+1. Alpha source. The manifest key `alpha` is `source` (the file's alpha) or `luminance` (light on black: alpha is the brightest of R, G and B, at most 6 of 255 is fully clear, and the colour is divided by that alpha, so drawing the result over black gives the source back). Without the key, a file with alpha uses it, and an opaque file whose outer 2 % border averages under 30 of 255 is read as luminance (fix "opaque file with a black border"). Any other opaque file is flagged "no transparency" and stays opaque (the validator then rejects it as `effect_alpha`).
+2. Centre-crop to the tile aspect and resize with the premultiplied Mitchell filter (`ops::resize`; wrap for textures).
+3. Textures: an alpha-aware offset blend (half-tile roll, cross-fade in premultiplied alpha) makes opposite edges meet in colour and opacity; flag if the opacity-weighted seam ratio (`validate::seam_ratio_alpha`) stays over 2.0. Decals: alpha is multiplied by a smooth ramp over the outer 8 % of each side, so a decal never clips at the frame.
+4. Flag a fully transparent or fully opaque result.
+
+The importer vocabulary has `EFFECT_TEXTURES` and `EFFECT_DECALS` (`vocab.rs`) and the slots `effect.<name>` for coverage; the damage prop names are in `PROPS`. Tests: `crates/arda-art-import/tests/effects.rs`, and `effect.rs` unit tests.
 
 ### §imp-matte
 

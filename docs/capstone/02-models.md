@@ -4828,7 +4828,7 @@ Required `no` marks an `Option` field, a serde default, a field omitted when emp
 
 | Field | Type | Required | Notes |
 |---|---|---|---|
-| value | enum | yes | accepted: ground, wall, prop, vegetation, water, unknown |
+| value | enum | yes | accepted: ground, wall, prop, vegetation, water, effect, unknown |
 
 ### Footprint
 
@@ -6433,7 +6433,18 @@ Required `no` marks an `Option` field, a serde default, a field omitted when emp
 | pixels_per_square | `u32` | yes | Art resolution in pixels per square. |
 | grounds | `GroundKeyDto[]` | yes | Ground keys a `Square.ground` may use, sorted. |
 | wall_kits | `WallKitDto[]` | yes | Wall kits a `WallSegment.kit` may use, sorted. |
-| assets | `LibraryAssetDto[]` | yes | Placeable assets (props and vegetation), sorted by id. |
+| assets | `LibraryAssetDto[]` | yes | Placeable assets (props and vegetation), sorted by id. Damage props are props tagged `free:damage`. |
+| effects | `EffectDto[]` | yes | Effect art a consumer draws over tiles, one entry per effect set, sorted by id. Never placed by layouts or drawn by the compositor. |
+
+### EffectDto
+
+| Field | Type | Required | Notes |
+|---|---|---|---|
+| id | `String` | yes | The set id without its variant number, e.g. `effect.frost`. |
+| kind | `String` | yes | `texture` (tileable) or `decal` (single patch). |
+| footprint | `[u32; 2]` | yes | Footprint in squares, `[w, h]`; the same for every variant. |
+| tags | `String[]` | yes | Tags as `key:value` strings, sorted; those of the first variant. |
+| variants | `u32` | yes | Number of variants, numbered from 0. |
 
 ### GroundKeyDto
 

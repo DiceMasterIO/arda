@@ -549,6 +549,13 @@ Type `TacticalLibraryDto` (`crates/arda-server/src/tactical/library_dto.rs:12`).
 | grounds | Vec<GroundKeyDto> | yes |
 | wall_kits | Vec<WallKitDto> | yes |
 | assets | Vec<LibraryAssetDto> | yes |
+| effects | Vec<EffectDto> | yes |
+
+`EffectDto` is `{ id, kind, footprint, tags, variants }`: one entry per effect set (`effect.frost`, `kind` `texture` or `decal`, 2 x 2 squares), whose images are `{id}.{n}.png` for `n < variants`. Added with 1.0 task 05; additive, so no version bump (logic/16 §api-versioning).
+
+### GET /v1/tactical/library/asset/{id}.png
+
+Response `image/png`: the image of any asset id in the loaded stacked library (`library_asset::asset_png`, `crates/arda-server/src/tactical/library_asset.rs`), RGB when fully opaque and RGBA otherwise. Strong `ETag`, `Cache-Control: no-cache`, `304` on `If-None-Match`. 400 `bad_request` for a malformed id, 404 `not_found` for an unknown one.
 
 ### POST /v1/tactical/prefetch
 

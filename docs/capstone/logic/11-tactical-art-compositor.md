@@ -20,7 +20,9 @@ Code cites rules as `// logic/11 §<rule>`.
 
 ### §catalogue
 
-A library is a directory with `catalog.json` plus PNG images named by each asset's `image` path (relative, inside the directory). The catalogue carries `format_version` (1), `library`, `library_version` (part of every render's identity), `pixels_per_square` (source art resolution) and a controlled `vocabulary` for `biome`, `culture`, `wealth` and `function` tags. Every asset record carries (goal 58): `id`; `class` (`ground`, `wall`, `prop`, `vegetation`, `water`, goal 59); `footprint` in squares; `anchor`; allowed `rotations` (subset of 0, 90, 180, 270) and `mirror`; `tags` (the four controlled lists plus `free`); `placement` rules (`on_water`, `against_wall`, `near_road`, `clearance_squares`, allowed `ground` keys); `blocks_sight`, `blocks_movement`, `difficult_terrain`, `cover` (`none`, `half`, `three_quarters`, `full`); `light` (`radius_ft`, `colour`); render `layer` and `z`; `casts_shadow` and `height_ft`; `tileable`; `ground` key for textures; `wall` kit and role for wall pieces; `provenance` and `licence` (both required, non-empty). Unknown fields are rejected everywhere. The art can be swapped by pointing at another directory; no rebuild (goal 60).
+A library is a directory with `catalog.json` plus PNG images named by each asset's `image` path (relative, inside the directory). The catalogue carries `format_version` (1), `library`, `library_version` (part of every render's identity), `pixels_per_square` (source art resolution) and a controlled `vocabulary` for `biome`, `culture`, `wealth` and `function` tags. Every asset record carries (goal 58): `id`; `class` (`ground`, `wall`, `prop`, `vegetation`, `water`, goal 59; `effect`, 1.0 task 05); `footprint` in squares; `anchor`; allowed `rotations` (subset of 0, 90, 180, 270) and `mirror`; `tags` (the four controlled lists plus `free`); `placement` rules (`on_water`, `against_wall`, `near_road`, `clearance_squares`, allowed `ground` keys); `blocks_sight`, `blocks_movement`, `difficult_terrain`, `cover` (`none`, `half`, `three_quarters`, `full`); `light` (`radius_ft`, `colour`); render `layer` and `z`; `casts_shadow` and `height_ft`; `tileable`; `ground` key for textures; `wall` kit and role for wall pieces; `provenance` and `licence` (both required, non-empty). Unknown fields are rejected everywhere. The art can be swapped by pointing at another directory; no rebuild (goal 60).
+
+**Effect art** (`class: effect`, 1.0 task 05) is transparent art that a consumer (DiceMaster) draws over tiles: spell effects and lasting changes. Ids are `effect.<name>.<n>` (`effect.frost.0`); the numbered images of one name are a set of variants. An effect carries exactly one free tag, `effect:texture` (a tileable pattern, `tileable: true`, 2 × 2 squares) or `effect:decal` (one patch, `tileable: false`). It has layer `floor`, blocks nothing, gives no cover, casts no shadow and has no `ground`, `wall` or `light`. **No layout places an effect and the compositor never draws one**: nothing in `compose` reads the class, and a layout renders byte-identical with or without effect art in the library (tests `placeholders::tests::compositor_ignores_effect_art`). Effects are listed in `GET /v1/tactical/library` (`effects`) and their images are served by `GET /v1/tactical/library/asset/{id}.png` (09 interfaces). Stacked libraries (`library_stack`) shadow an effect by its name, not its variant: a higher library providing any `effect.frost.<n>` replaces every lower `effect.frost.<n>`, so a set never mixes two libraries' art. `FORMAT_VERSION` stays 1: the library and the crate ship together, and an older binary reading a catalogue with an `effect` asset parses it as `unknown`, which its validator rejects (the same failure as any class it does not know). **Damage props** (`prop.rubble_heap`, `prop.broken_deck`, `prop.charred_floor`) are ordinary props tagged `free:damage`, with only free tags so no dressing query picks them; layouts and bakes may place them. The placeholder `library_version` was bumped from `0.1.0+seed58` to `0.2.0+seed58` for the added art; the version is part of the render seed, so every placeholder render changed once (the pinned open-ground hash was repinned) while the compositor itself did not.
 
 ### §vocabulary
 
@@ -30,6 +32,8 @@ The canonical tactical keys (copied from `docs/goal-prompts/vocabulary.md`, whic
 - **Wall kits** (`WallSegment.kit`): `stone`, `timber`, `wattle`, `palisade`, `hedge`, `drystone`, `city_wall`, `log`, `adobe`; optional thin partition kits `<kit>_partition` (`timber_partition`, `wattle_partition`, `adobe_partition`), which a library may provide and the compositor prefers for edges tagged `partition` (§walls-assembly).
 - **Edge tags** (`WallSegment.tags`): `locked`, `secret` (doors); `partition` (an interior wall inside one building) and `party` (a wall two buildings share); see 10 §party-walls.
 - **Building functions** (`function:` tags): see [10](10-town-layout.md) §town-function-keys, including the three additions `mine`, `lumber_camp`, `school`.
+- **Effect ids** (`effect.<name>.<n>`, 1.0 task 05): textures `frost`, `fire`, `acid`, `ash`, `web`, `grease`, `fog`, `water`; decal `scorch_mark`.
+- **Damage prop ids** (`prop.<name>`, tag `free:damage`): `rubble_heap`, `broken_deck`, `charred_floor`.
 - **Prop ids** (`prop.<name>`): barrel, crate, sacks, chest, table, bench, bed, cart, rowboat, market_stall, tent, fence, dock_planks, bridge_deck, crane, well, brazier, woodpile, chair, stool, cupboard, shelf, bookshelf, hearth, oven, bar_counter, cask_rack, anvil, forge, workbench, loom, grindstone, weapon_rack, armour_stand, altar, pew, candle_stand, statue, hay_bale, trough, millstone, bucket, wheelbarrow, ladder, throne, banner, rug_small, lantern, signpost, grave, haycart.
 - **Vegetation ids** (`veg.<name>`): tree_oak, tree_elm, tree_birch, tree_fruit, bush, bush_flowering, reeds, boulder, stones, tree_pine, tree_spruce, tree_willow, tree_dead, fallen_log, stump, fern, mushroom_ring, heather, flower_patch, tall_grass, cattail, lily_pads, rock_small, rock_large, scree_patch; the biome scatter of 09 §ground-field adds driftwood, sea_rock, tide_pool, dune_grass, lichen_rock, rock_snow, alpine_flowers, tussock, krummholz, sagebrush, dry_grass, sedge, marsh_flowers.
 
@@ -45,18 +49,19 @@ The canonical tactical keys (copied from `docs/goal-prompts/vocabulary.md`, whic
 |---|---|
 | `format_version` | ≠ 1, or `pixels_per_square` = 0 |
 | `duplicate_id` | an id repeats |
-| `unknown_class` | not one of the five classes |
+| `unknown_class` | not one of the six classes |
 | `unknown_tag` | a controlled tag is not in `vocabulary` |
 | `licence`, `provenance` | empty |
 | `rotation` | empty, duplicated, or not in {0, 90, 180, 270} |
-| `class_fields` | a texture without `ground`, a wall without `wall`, a non-wall with `wall` |
+| `class_fields` | a texture without `ground`, a wall without `wall`, a non-wall with `wall`; an effect without exactly one of the free tags `effect:texture` and `effect:decal`, or an effect texture that is not `tileable` or a decal that is |
 | `wall_kit` | a kit lacks `run`, `corner`, `tee`, `cross` or `end` |
 | `image_missing` | unreadable, or the path leaves the library |
 | `image_size` | not `footprint × pixels_per_square`, or a footprint side over 16 squares (cached sprites stay bounded) |
 | `alpha_opaque` | a cut-out with no transparent pixel |
 | `alpha_fringe` | > 0.5 % of pixels have alpha 1–239 and lie > 2 px from an opaque pixel |
 | `texture_alpha` | a texture with any alpha < 255 |
-| `tile_seam` | for tileable textures, mean RGB difference across the wrap seams > 2 × the mean between interior neighbours |
+| `tile_seam` | for tileable textures, mean RGB difference across the wrap seams > 2 × the mean between interior neighbours; for tileable effects the difference is opacity-weighted and includes alpha |
+| `effect_alpha` | an effect with no visible pixel (every alpha 0) or no transparent one (every alpha 255); effects may otherwise be semi-transparent, and skip `alpha_opaque`, `alpha_fringe` and `texture_alpha` |
 
 Added by this spec (owner feat/tactical-library):
 
