@@ -159,13 +159,19 @@ gen --tier 4 --resume --yes
 
 ### Tier 5: interior partitions
 
-57 images: three thin partition kits, `wall.timber_partition.*`, `wall.wattle_partition.*` and `wall.adobe_partition.*` (nine pieces each, with alts). `arda-town` tags every wall edge inside one building `partition`; the compositor draws the edge with the `<kit>_partition` piece when the library has it, and until then squeezes the kit's own piece to half thickness, so these are an upgrade, not a gap. Make each kit's run first and use it as the reference.
+57 images: three thin partition kits, `wall.timber_partition.*`, `wall.wattle_partition.*` and `wall.adobe_partition.*` (nine pieces each, with alts). `arda-town` tags every wall edge inside one building `partition`; the compositor draws the edge with the `<kit>_partition` piece when the library has it, and until then squeezes the kit's own piece to half thickness, so these are an upgrade, not a gap. Make each kit's run first and use it as the reference. The band is one tenth to one fourteenth of the image height; a run whose band comes back over about one sixth is redone (delete the raw file and `--resume`, or strengthen the `thickness` wording in `expansion.mjs`, rebuild the pack and pass `--update-templates` if template text changed). The importer vocabulary lists the three partition kits, so their pieces are not flagged.
 
 ```sh
 for k in timber_partition wattle_partition adobe_partition; do
   gen --only "wall.$k.run" --yes
   gen --only "wall.$k.*" --reference out/art-gen/raw/wall.$k.run.png --resume --yes
 done
+```
+
+The exact tier-5 dry run (needs no Slopify and sends nothing; swap `--dry-run` for `--yes` to run it):
+
+```sh
+gen --tier 5 --parallel 5 --price-per-image 0.10 --max-images 57 --out /home/gent/code/arda/out/art-gen/raw --dry-run
 ```
 
 ### Tier 6: effect and damage art

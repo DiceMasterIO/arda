@@ -1262,7 +1262,7 @@ const pack = {
   tiers: {
     counts: tierCounts,
     about:
-      "0: the first 225 (already generated). 1: every variant of those 225, which fixes repetition on every map. 2: building-function and biome sets. 3: culture sets, rare dressing and the new wall kits. 4: the underground set for arda-dungeon (cave and bedrock ground, the cave wall kit, stairs down, torch sconces, stalagmites). 6: effect and damage art: transparent effect textures and decals (frost, fire, acid, ash, web, grease, fog, water, scorch mark) and the damage props (rubble heap, broken deck, charred floor). Within a tier, assets run in order of visual impact.",
+      "0: the first 225 (already generated). 1: every variant of those 225, which fixes repetition on every map. 2: building-function and biome sets. 3: culture sets, rare dressing and the new wall kits. 4: the underground set for arda-dungeon (cave and bedrock ground, the cave wall kit, stairs down, torch sconces, stalagmites). 5: the thin interior partition kits timber_partition, wattle_partition and adobe_partition (nine pieces each with alts; the compositor draws every wall edge inside one building with them, and squeezes the kit's own piece to half thickness until they exist). 6: effect and damage art: transparent effect textures and decals (frost, fire, acid, ash, web, grease, fog, water, scorch mark) and the damage props (rubble heap, broken deck, charred floor). Within a tier, assets run in order of visual impact.",
   },
   notes: {
     structured:

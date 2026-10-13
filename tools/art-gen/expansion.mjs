@@ -27,7 +27,9 @@
 // Tiers: 1 is every variant of the original 225 (they fix repetition on every map at once), 2 the
 // building-function and biome sets, 3 the culture sets, rare dressing and the new wall kits, 4 the
 // underground set (arda-dungeon): cave and bedrock ground, the cave wall kit, stairs down, torch
-// sconces and stalagmites, 6 effect and damage art: transparent
+// sconces and stalagmites, 5 the thin interior partition kits (`timber_partition`,
+// `wattle_partition`, `adobe_partition`: nine pieces each with alts, drawn for wall edges inside one
+// building), 6 effect and damage art: transparent
 // effect textures and decals and the damage props (see the end of this file).
 
 export const entries = [];
