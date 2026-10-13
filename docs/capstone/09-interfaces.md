@@ -549,7 +549,7 @@ Type `TacticalLibraryDto` (`crates/arda-server/src/tactical/library_dto.rs:12`).
 | grounds | Vec<GroundKeyDto> | yes |
 | wall_kits | Vec<WallKitDto> | yes |
 | assets | Vec<LibraryAssetDto> | yes |
-| effects | Vec<EffectDto> | yes |
+| effects | Vec<EffectDto> | no (omitted when empty) |
 
 `EffectDto` is `{ id, kind, footprint, tags, variants }`: one entry per effect set (`effect.frost`, `kind` `texture` or `decal`, 2 x 2 squares), whose images are `{id}.{n}.png` for `n < variants`. Added with 1.0 task 05; additive, so no version bump (logic/16 §api-versioning).
 

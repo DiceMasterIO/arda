@@ -6434,7 +6434,7 @@ Required `no` marks an `Option` field, a serde default, a field omitted when emp
 | grounds | `GroundKeyDto[]` | yes | Ground keys a `Square.ground` may use, sorted. |
 | wall_kits | `WallKitDto[]` | yes | Wall kits a `WallSegment.kit` may use, sorted. |
 | assets | `LibraryAssetDto[]` | yes | Placeable assets (props and vegetation), sorted by id. Damage props are props tagged `free:damage`. |
-| effects | `EffectDto[]` | yes | Effect art a consumer draws over tiles, one entry per effect set, sorted by id. Never placed by layouts or drawn by the compositor. |
+| effects | `EffectDto[]` | no | Effect art a consumer draws over tiles, one entry per effect set, sorted by id; absent when the library has none (an optional addition to `tactical_format` 1). Never placed by layouts or drawn by the compositor. |
 
 ### EffectDto
 

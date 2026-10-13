@@ -922,7 +922,7 @@ curl -s -X DELETE $B/bake/$ID -o /dev/null -w '%{http_code}\n'   # 204
 The loaded catalogue for layout editors: `grounds` (`key`, texture `variants`, `water`),
 `wall_kits` (`kit`, `roles`) and placeable `assets` (`id`, `class`, `layer`, `footprint`,
 `rotations`, `tags` as `key:value` strings, `cover`, `blocks_sight`, `blocks_movement`,
-`difficult_terrain`), and `effects` (`id`, `kind`, `footprint`, `tags`, `variants`): the
+`difficult_terrain`), and `effects` (`id`, `kind`, `footprint`, `tags`, `variants`; omitted when the library has none): the
 transparent effect art listed under "Effect and damage art" below. Damage props
 (`prop.rubble_heap`, `prop.broken_deck`, `prop.charred_floor`) are ordinary `assets`, tagged
 `free:damage`. TS type: `TacticalLibraryDto`.
