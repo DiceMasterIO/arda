@@ -33,5 +33,6 @@ fn hundred_thousand_names_under_a_second() {
     let took = start.elapsed();
     assert!(chars > 0);
     eprintln!("100k names in {took:?}");
+    println!("GATE names_100k {:.3} 1000", took.as_secs_f64() * 1e3);
     assert!(took.as_secs_f64() < 1.0, "took {took:?}");
 }

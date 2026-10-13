@@ -180,5 +180,6 @@ fn a_warm_256_px_tile_at_ten_metres_renders_within_budget() {
         })
         .min()
         .unwrap();
+    println!("GATE midzoom_warm_tile_z7 {ms} 150");
     assert!(ms < 150, "warm relief tile took {ms} ms");
 }

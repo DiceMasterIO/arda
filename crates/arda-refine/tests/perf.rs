@@ -30,13 +30,16 @@ fn best<F: FnMut()>(mut f: F) -> Duration {
 #[ignore = "wall-clock timing; release gate"]
 fn a_block_generates_in_under_250_ms() {
     let src = common::world(42);
+    let mut worst = Duration::ZERO;
     for k in [common::RIVER_CELL, common::FOREST_CELL, CellKey::new(3, 10)] {
         let t = best(|| {
             refine_block(&src, k).unwrap();
         });
         println!("block {k:?}: {t:?}");
-        assert!(t < Duration::from_millis(250), "{k:?} took {t:?}");
+        worst = worst.max(t);
     }
+    println!("GATE refine_block {:.3} 250", worst.as_secs_f64() * 1e3);
+    assert!(worst < Duration::from_millis(250), "took {worst:?}");
 }
 
 #[test]
@@ -51,5 +54,6 @@ fn a_quarter_block_generates_in_under_100_ms() {
         refine_window(&src, x0, y0, 32, 32).unwrap();
     });
     println!("quarter block: {t:?}");
+    println!("GATE refine_quarter_block {:.3} 100", t.as_secs_f64() * 1e3);
     assert!(t < Duration::from_millis(100), "took {t:?}");
 }

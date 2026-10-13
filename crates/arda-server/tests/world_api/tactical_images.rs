@@ -130,6 +130,10 @@ async fn a_cached_png_returns_in_under_5_ms() {
         best = best.min(start.elapsed());
         assert_eq!(header(&r, "x-arda-cache"), "hit");
     }
+    println!(
+        "GATE server_cached_layout_png {:.3} 5",
+        best.as_secs_f64() * 1e3
+    );
     assert!(
         best < Duration::from_millis(5),
         "cached request took {best:?}"

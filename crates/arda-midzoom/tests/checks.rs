@@ -340,5 +340,6 @@ fn a_tile_of_nodes_refines_well_within_budget() {
     let start = std::time::Instant::now();
     let _ = refine_nodes(&w, c + 3, c, 270, 270, 4).unwrap();
     let ms = start.elapsed().as_millis();
+    println!("GATE midzoom_refine_nodes {ms} 150");
     assert!(ms < 150, "refining a 256-px tile's nodes took {ms} ms");
 }

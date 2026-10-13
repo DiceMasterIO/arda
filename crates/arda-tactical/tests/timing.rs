@@ -9,7 +9,7 @@ use std::path::Path;
 use std::time::Instant;
 
 #[test]
-#[ignore = "timing test; run in release with --ignored"]
+#[ignore = "wall-clock timing; release gate"]
 fn a_64_square_map_at_128_ppsq_renders_in_under_two_seconds() {
     let dir = Path::new(env!("CARGO_MANIFEST_DIR")).join("../../assets/tactical/placeholder");
     let lib = Library::load(&dir).unwrap();
@@ -29,6 +29,7 @@ fn a_64_square_map_at_128_ppsq_renders_in_under_two_seconds() {
         "64 x 64 squares at 128 ppsq: best of 3 {best:.3} s on {} threads",
         rayon::current_num_threads()
     );
+    println!("GATE tactical_64x64_128ppsq {:.3} 2000", best * 1e3);
     if !cfg!(debug_assertions) {
         assert!(best < 2.0, "render took {best:.3} s");
     }

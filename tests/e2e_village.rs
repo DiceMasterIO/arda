@@ -285,6 +285,14 @@ async fn cold_images_are_quick(dir: &Path, gx: u64, gy: u64) {
         assert_eq!((info.width, info.height), (32 * 64, 32 * 64));
     }
     println!("goal 50: cold block {block:?}, cold quarter window {quarter:?} (best of 3)");
+    println!(
+        "GATE e2e_cold_block_png_64 {:.3} 500",
+        block.as_secs_f64() * 1e3
+    );
+    println!(
+        "GATE e2e_cold_quarter_window_64 {:.3} 250",
+        quarter.as_secs_f64() * 1e3
+    );
     assert!(block < BLOCK_BUDGET, "cold block took {block:?}");
     assert!(
         quarter < QUARTER_BUDGET,
@@ -293,7 +301,7 @@ async fn cold_images_are_quick(dir: &Path, gx: u64, gy: u64) {
 }
 
 #[test]
-#[ignore = "release gate: generates a world (cargo test --release --test e2e_village -- --ignored)"]
+#[ignore = "wall-clock timing; release gate"]
 fn a_village_tactical_map_with_its_people_is_served_over_http() {
     let dir = world();
     let soc = dir.join("society");

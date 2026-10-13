@@ -47,6 +47,10 @@ fn bench_erosion(c: &mut Criterion) {
     let mut h = base.clone();
     erosion::erode(&mut h, &base, &bundle);
     let elapsed = start.elapsed();
+    println!(
+        "GATE gen_area_erosion {:.3} 30000",
+        elapsed.as_secs_f64() * 1e3
+    );
     assert!(
         elapsed < BUDGET,
         "erosion took {elapsed:?}, over the {BUDGET:?} per-tile budget"

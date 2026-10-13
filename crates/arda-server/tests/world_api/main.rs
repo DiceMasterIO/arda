@@ -9,6 +9,7 @@ mod dungeon;
 mod endpoints;
 #[path = "../../../../tests/support/fixture_dir.rs"]
 mod fixture_dir;
+mod gates;
 mod gazetteer;
 mod looks;
 mod mapping;

@@ -55,6 +55,7 @@ fn city_of_twenty_thousand_is_fast() {
         })
         .min()
         .unwrap();
+    println!("GATE npc_city_20k {:.3} 1000", best.as_secs_f64() * 1e3);
     let limit = if cfg!(debug_assertions) {
         Duration::from_secs(5)
     } else {

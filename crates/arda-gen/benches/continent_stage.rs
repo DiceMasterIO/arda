@@ -34,6 +34,10 @@ fn bench_continent(c: &mut Criterion) {
     let start = std::time::Instant::now();
     let rivers = full_stage(42, config);
     let elapsed = start.elapsed();
+    println!(
+        "GATE gen_continent_stage {:.3} 60000",
+        elapsed.as_secs_f64() * 1e3
+    );
     assert!(
         elapsed <= BUDGET,
         "continent stage took {elapsed:?} (budget {BUDGET:?}, {rivers} rivers)"
