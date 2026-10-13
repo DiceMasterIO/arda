@@ -2,6 +2,23 @@
 generated_date: 2026-08-24
 ---
 
+## 2026-10-13 - Settlements, roads and land use on overview and area exports
+- **arda-render**: `BandOverlay` hook (`paint(y0, rows, width)`) called on each streamed overview band and area row group before encoding; `write_overview_png_with_overlay`, `write_atlas_overview_png_with_channels_overlay`, `OverviewRaster::finish_with_overlay`, `render_area_png_to_with_overlay`; `RenderError::Overlay`. `None` keeps the exact bytes (goldens untouched).
+- **arda-settle**: `render::band::SocietyBandOverlay` (land-use tone, roads by class, tier symbols, painted in 128-column strips from whole-image geometry); `layers.rs` split into band-paintable pieces (`road_lines`/`paint_roads`, `symbol_list`/`paint_symbols`, `land_tone`) with `arda-settle render` byte-identical.
+- **arda-midzoom**: `land::Works` (parcels, tone, roads, plans) factored out of `LandWindow`; `land::export::AreaLandOverlay` for area PNGs; `export` module (`SocietyMode`, `export_overview`, `export_area`).
+- **arda**: `export_overview_with_overlay`, `export_area_with_overlay`.
+- **arda-cli**: `--society auto|off` on `preview` and `export`.
+- **arda-server**: `?overlay=society|none` on `/v1/overview.png` and overview tiles; default `society` for worlds that have it; cache keys include it.
+- **Why**: a GM looking at the world map, and DiceMaster's static base map, need the human layer, not bare terrain (OI-12, OI-14).
+- **Tests**: arda-render hook (call order, `None` identity, row buffer independent of height); arda-settle band, strip and window seam equivalence; arda-midzoom border-settlement equality and Off/On export; arda-server overlay routes.
+
+## 2026-10-12 - API freeze: versioning policy, version families and the schema freeze guard
+- **arda-server**: `GET /v1/world` gains `server_version` (the serving build; `arda_version` stays the generator that wrote the world) and `versions`, the current version of every family (`VersionsDto`: contract, tactical, layout, scene, rules sidecar, bake, NPC, NPC page, settlement, realm, gazetteer, schema index, columnar layout, library catalogue, sheet mapping); `GET /v1/health` gains `server_version`. `index.ts` exports one constant per family. The schema index names each schema's `family` and `stability`. New constants `NPC_FORMAT`, `SETTLEMENT_FORMAT`, `REALM_FORMAT`; `SCENE_FORMAT` is now an alias of `TACTICAL_FORMAT`. All additive: no family bumps.
+- **arda-server**: schema freeze guard (`src/schema/compat.rs`) against the committed baseline `bindings/schema-baseline/v1/`; re-baseline with `ARDA_BLESS_SCHEMA_BASELINE=1`.
+- **docs**: `docs/capstone/versioning.md`, the route-by-route stability review (42 stable, 1 unstable, 6 debug) and the versioning and compatibility policy (families, open and closed enums, deprecation until both sides agree, output stability per release type, worlds, libraries, binaries). logic/16 brought up to date with the code (status, routes, cache budgets, errors without the never-emitted `stale_society`); API.md marks the unstable and debug surface and explains the three meanings of `format_version`.
+- **Why**: from 1.0 DiceMaster codes against `/v1` and pins its output; a version it cannot see, a misleading `arda_version` or an unmarked debug route would cost a breaking change to fix later.
+- **Tests**: `world_api/endpoints.rs` (`server_version`, `versions`), `bindings.rs` (`index.ts` constants), `schema::compat` (one synthetic pair per rule, family bumps, `$defs` ownership), `schema/tests.rs` (baseline guard, families, open enums listed in the policy), `world_api/inventory.rs` (every stable route of the policy answers). Golden responses recorded by 1.0 task 10 must include the new `WorldInfo` and `Health` fields.
+
 ## 2026-10-12 - Performance budgets as one release gate
 - **tools**: `tools/release-gates.sh` builds the release tests once, runs every wall-clock gate with `--ignored --nocapture --test-threads=1`, parses one `GATE <name> <measured_ms> <budget_ms>` line per gate and writes a Markdown receipt (commit, date, `lscpu`/`free`/kernel, load average, table, result) to stdout and `target/release-gates/receipt-<commit>.md`. Exit 0 on pass, 1 on an over-budget, missing or failed gate, 2 on a build error. `--with-benches` adds the `arda-gen` benches; `--from-log` re-parses a log.
 - **arda-server**: new `tests/world_api/gates.rs` with eight ignored gates (cached cell WebP tile, cold cell JSON plus scene, cold 32×32 window at 128 ppsq, `AppState::open`, `World::load`, area cells JSON and bin, warm overview tile), best of 3 through the real router on the settled society fixture. They print the `X-Arda-Cache` state.
