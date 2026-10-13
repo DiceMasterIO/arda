@@ -17,7 +17,6 @@ pub mod objects;
 pub mod playa;
 pub mod rng;
 pub mod terrain;
-pub mod tiles;
 pub mod water;
 
 pub use cell::{Cell, Cover, RoadClass, TerrainKind};
@@ -26,12 +25,10 @@ pub use continent::{
     ClimateRegime, ContinentCell, ContinentObjects, ContinentOverview, ContinentRiver,
 };
 pub use coords::{
-    AreaCoord, CellCoord, GlobalCell, KmCoord, SquareCoord, AREA_CELLS, BLOCK_SQUARES, CELL_SIZE_M,
-    SQUARE_SIZE_MM,
+    AreaCoord, CellCoord, GlobalCell, KmCoord, AREA_CELLS, CELL_SIZE_M, SQUARE_SIZE_MM,
 };
 pub use error::{ConfigError, FormatError, LoadError};
 pub use fixed::{DischargeMilli, HeightMm, RainfallMm, TempCentiC};
-pub use formats::blocks::{decode_blocks, encode_blocks, Block, BlockArchive, ZSTD_LEVEL};
 pub use formats::cells::{decode_cells, encode_cells, AreaCells, CELL_BYTES};
 pub use formats::manifest::{
     read_manifest, write_manifest, FineTerrainDescriptor, Manifest, ValidationStats,
@@ -55,7 +52,6 @@ pub use hydrology::{BasinId, Litres};
 pub use objects::{AreaObjects, Lake, RiverSegment, Terminus};
 pub use rng::{derive, rng, SeedKey, Stage, Tier};
 pub use terrain::{TerrainField, TerrainFieldError, TerrainPoint, FINE_FRAME_OFFSET_UM};
-pub use tiles::{may_adjoin, tile_def, tiles_in_group, TileDef, TileGroup, TileId, SKELETON_TILES};
 
 #[cfg(test)]
 mod foundation_tests;

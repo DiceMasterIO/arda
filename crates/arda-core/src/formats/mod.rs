@@ -4,7 +4,6 @@
 //! row format. No other crate encodes or decodes world bytes.
 
 pub mod area_objects_v4;
-pub mod blocks;
 pub mod cells;
 pub mod hydrology;
 pub mod manifest;

@@ -14,7 +14,6 @@ rand_chacha.workspace = true
 rand_core.workspace = true
 blake3.workspace = true
 thiserror.workspace = true
-zstd.workspace = true
 
 [lints]
 workspace = true

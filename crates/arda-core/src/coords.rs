@@ -5,8 +5,6 @@
 
 /// Cells along one edge of an area tile.
 pub const AREA_CELLS: u16 = 512;
-/// Squares along one edge of a block.
-pub const BLOCK_SQUARES: u8 = 64;
 /// Ground size of one area cell, in metres.
 pub const CELL_SIZE_M: i32 = 100;
 /// Ground size of one tactical square, in millimetres (five feet exactly).
@@ -72,43 +70,6 @@ impl CellCoord {
     }
 }
 
-/// Index of a five-foot square within one block.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
-pub struct SquareCoord {
-    x: u8,
-    y: u8,
-}
-
-impl SquareCoord {
-    /// Builds a square index, or `None` when either axis is outside the block.
-    #[must_use]
-    pub const fn new(x: u8, y: u8) -> Option<Self> {
-        if x < BLOCK_SQUARES && y < BLOCK_SQUARES {
-            Some(Self { x, y })
-        } else {
-            None
-        }
-    }
-
-    /// Square column.
-    #[must_use]
-    pub const fn x(self) -> u8 {
-        self.x
-    }
-
-    /// Square row.
-    #[must_use]
-    pub const fn y(self) -> u8 {
-        self.y
-    }
-
-    /// Row-major offset into a `64 * 64` array.
-    #[must_use]
-    pub const fn index(self) -> usize {
-        self.y as usize * BLOCK_SQUARES as usize + self.x as usize
-    }
-}
-
 /// Index of a 1 km cell within the continent working grid.
 ///
 /// Continent axes are capped at 4,000 km (`config.rs`), so `u16` holds
@@ -146,18 +107,6 @@ mod tests {
     fn cell_coord_index_is_row_major() {
         let c = CellCoord::new(3, 2).unwrap();
         assert_eq!(c.index(), 2 * 512 + 3);
-    }
-
-    #[test]
-    fn square_coord_rejects_out_of_bounds() {
-        assert!(SquareCoord::new(63, 63).is_some());
-        assert!(SquareCoord::new(64, 0).is_none());
-    }
-
-    #[test]
-    fn square_coord_index_is_row_major() {
-        let s = SquareCoord::new(5, 4).unwrap();
-        assert_eq!(s.index(), 4 * 64 + 5);
     }
 }
 
