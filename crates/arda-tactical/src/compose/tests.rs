@@ -338,6 +338,89 @@ fn a_partition_is_drawn_about_half_as_thick_as_an_outer_wall() {
     );
 }
 
+/// The test library plus a `timber_partition` kit copied from `timber`, each
+/// image passed through `paint`.
+fn lib_with_partition_kit(paint: impl Fn(&mut Rgba)) -> Library {
+    let base = lib();
+    let mut cat = base.catalog.clone();
+    let mut images: std::collections::BTreeMap<String, Rgba> = cat
+        .assets
+        .iter()
+        .map(|a| (a.id.clone(), base.image(&a.id).unwrap().clone()))
+        .collect();
+    let extra: Vec<_> = cat
+        .assets
+        .iter()
+        .filter(|a| a.wall.as_ref().is_some_and(|w| w.kit == "timber"))
+        .cloned()
+        .collect();
+    for mut a in extra {
+        let mut img = images[&a.id].clone();
+        a.id = a.id.replace("wall.timber.", "wall.timber_partition.");
+        if let Some(w) = a.wall.as_mut() {
+            w.kit = "timber_partition".into();
+        }
+        paint(&mut img);
+        images.insert(a.id.clone(), img);
+        cat.assets.push(a);
+    }
+    Library::from_parts(cat, images).unwrap()
+}
+
+/// Rows of the centre column a lone partition-tagged timber run changes.
+fn partition_rows(lib: &Library) -> usize {
+    use crate::catalog::WallRole;
+    use crate::layout::{EdgeAxis, WallSegment, TAG_PARTITION};
+    let opts = RenderOptions {
+        ppsq: 64,
+        grid: false,
+        lighting: false,
+    };
+    let empty = TacticalLayout::new("wall", 3, 2, "dirt");
+    let mut l = empty.clone();
+    l.walls.push(WallSegment {
+        x: 1,
+        y: 1,
+        axis: EdgeAxis::Horizontal,
+        kind: WallRole::Run,
+        kit: "timber".into(),
+        tags: vec![TAG_PARTITION.into()],
+    });
+    let a = render(&empty, lib, 7, &opts).unwrap();
+    let b = render(&l, lib, 7, &opts).unwrap();
+    (0..a.height)
+        .filter(|&y| a.get(96, y) != b.get(96, y))
+        .count()
+}
+
+#[test]
+fn dedicated_partition_pieces_draw_as_painted_and_thinner_than_the_exterior() {
+    // Pieces keeping only the middle third of the kit's band: drawn at full
+    // size (no further squeeze), so about a third of the exterior rows.
+    let thin = lib_with_partition_kit(|img| {
+        let rows: Vec<u32> = (0..img.height)
+            .filter(|&y| (0..img.width).any(|x| img.get(x, y)[3] > 0))
+            .collect();
+        let (lo, hi) = (rows[0], rows[rows.len() - 1]);
+        let third = (hi - lo) / 3;
+        for y in 0..img.height {
+            if y < lo + third || y > hi - third {
+                for x in 0..img.width {
+                    img.set(x, y, [0, 0, 0, 0]);
+                }
+            }
+        }
+    });
+    let (outer, dedicated) = (wall_rows(false), partition_rows(&thin));
+    assert!(dedicated > 0, "the dedicated piece is drawn");
+    assert!(
+        dedicated * 10 <= outer * 5,
+        "outer {outer} rows, dedicated {dedicated} rows"
+    );
+    // The same kit without partition pieces still falls back to the squeeze.
+    assert!(partition_rows(&lib()) > dedicated);
+}
+
 #[test]
 fn a_partition_uses_dedicated_partition_art_when_the_library_has_it() {
     use crate::catalog::WallRole;

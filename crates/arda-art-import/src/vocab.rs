@@ -51,6 +51,11 @@ pub const WALL_KITS: &[&str] = &[
     "drystone",
     "city_wall",
     "cave",
+    "log",
+    "adobe",
+    "timber_partition",
+    "wattle_partition",
+    "adobe_partition",
 ];
 
 /// Prop names (`prop.<name>`).

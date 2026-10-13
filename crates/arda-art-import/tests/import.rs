@@ -263,3 +263,40 @@ fn collect(dir: &Path, out: &mut Vec<PathBuf>) {
         }
     }
 }
+
+/// A thin interior partition kit is in the vocabulary: its run is not
+/// flagged, and the kit, which has one piece, is reported rather than rejected.
+#[test]
+fn partition_kits_are_in_the_vocabulary() {
+    let root = scratch("partition");
+    let raw = root.join("raw");
+    let s = 400u32;
+    let mut img = Rgba::filled(s, s, [255, 255, 255, 255]);
+    for y in (s / 2 - 16)..(s / 2 + 16) {
+        for x in 0..s {
+            img.set(x, y, [150, 120, 80, 255]);
+        }
+    }
+    fixtures::write_rgb_png(&img, &raw.join("wall.timber_partition.run.png"));
+    let r = import(&ImportOptions {
+        raw_dir: raw,
+        out_dir: root.join("lib"),
+        base: Some(placeholder()),
+        ..ImportOptions::default()
+    })
+    .unwrap();
+    let a = asset(&r, "wall.timber_partition.run");
+    assert!(
+        !a.flags.iter().any(|f| f.contains("vocabulary")),
+        "{:?}",
+        a.flags
+    );
+    assert!(
+        r.partial_kits
+            .iter()
+            .chain(&r.validation)
+            .any(|k| k.contains("kit:timber_partition")),
+        "{}",
+        r.to_markdown()
+    );
+}
