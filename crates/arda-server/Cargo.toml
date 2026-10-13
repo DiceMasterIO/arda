@@ -52,6 +52,7 @@ arda-names.workspace = true
 tokio = { version = "1", features = ["io-util"] }
 http-body-util = "0.1"
 jsonschema = { version = "0.58", default-features = false }
+sha2 = "0.11"
 tower = { version = "0.5", features = ["util"] }
 
 [lints]
