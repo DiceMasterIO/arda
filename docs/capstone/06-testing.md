@@ -92,6 +92,8 @@ Root `[[test]]` targets are declared explicitly (`Cargo.toml:104`–`126`):
 | Bindings/schema freshness | `cargo test -p arda-server bindings` / `schema`; bless with `ARDA_BLESS_BINDINGS=1` | `crates/arda-server/src/bindings.rs:4`, `crates/arda-server/src/schema/mod.rs:9` |
 | Schema freeze baseline | `ARDA_BLESS_SCHEMA_BASELINE=1 cargo test -p arda-server --lib frozen_schemas` rewrites `bindings/schema-baseline/v1/` (schemas plus `versions.json`); an explicit step, committed on its own, after a family bump or to adopt additions ([versioning.md](versioning.md) § Freeze guard) | `crates/arda-server/src/schema/tests.rs:161` |
 | Dungeon render bless | `ARDA_BLESS_DUNGEON=1 cargo test -p arda-dungeon` | `crates/arda-dungeon/tests/levels.rs:193` |
+| Contract kit bless | `ARDA_BLESS_CONTRACT=1 cargo test --release -p arda-server --test contract_kit` rewrites `contract-kit/golden/`, the manifest's hashes, statuses, listed headers and fixture identity, and `contract-kit/world.txt`; never adds or removes cases (`tools/release.sh <version>` runs it) | `crates/arda-server/tests/contract_kit.rs` |
+| Contract kit live check | `node contract-kit/check.mjs --base http://127.0.0.1:8787` against a server on the canonical world; checker tests `node --test contract-kit/test/` | `contract-kit/README.md` |
 | Release gates (ignored; all wall-clock budgets, one receipt) | `tools/release-gates.sh` (add `--with-benches` for the `arda-gen` benches; exit 0 on pass) | `tools/release-gates.sh`, receipt `target/release-gates/receipt-<commit>.md` |
 | One gate crate by hand | e.g. `cargo test --release -p arda-server --test world_api -- --ignored --nocapture --test-threads=1` | `crates/arda-server/tests/world_api/gates.rs` |
 | Bench budgets | `cargo bench -p arda-gen --bench area_erosion` / `continent_stage` (also run by `--with-benches`) | `crates/arda-gen/Cargo.toml:20` |
@@ -230,6 +232,32 @@ within 60 s (`crates/arda-gen/benches/continent_stage.rs:17`, `:37`).
 
 The viewer imports the committed bindings through the `@arda` alias
 (`apps/viewer/vite.config.ts:7`); it does not regenerate them.
+
+### Contract kit
+
+`contract-kit/` (1.0 task 10; `contract-kit/README.md`) pins the bytes a `/v1` client such as
+DiceMaster may rely on: 54 cases over 41 of the 42 stable routes of
+[versioning.md](versioning.md) (the finished bake's tiles depend on when the background job
+ends), each with its status, content type, listed headers (`etag`, `cache-control`,
+`location`) and either a golden body under `contract-kit/golden/` or the SHA-256 and size
+(images, the area columns, the window body). The world is the canonical one: MICRO seed 42,
+fine terrain, settled and society-built, whose file fingerprint is `contract-kit/world.txt`;
+the library is the committed placeholder. About 2.8 MB.
+
+| Test | Line | Checks |
+|---|---|---|
+| `every_case_matches_its_golden` | `crates/arda-server/tests/contract_kit.rs` | every case replayed in-process, in manifest order, against the stamped fixture `target/arda-server-fixture/micro42-society` with `ServerConfig::new` defaults (the CLI's) and the placeholder library: status, content type, headers, golden bytes or hash; hashed JSON bodies validate against their schema; `ARDA_BLESS_CONTRACT` rewrites |
+| `every_json_golden_validates_against_its_schema` | same file | each golden against the served `/v1/schema/{schema}.json` (`jsonschema::draft202012`) |
+| `the_fixture_identity_is_the_served_world` | same file | manifest `fixture` (seed, recipe, versions, `library_version`, BLAKE3 of `world.json`) equals the served world, and `world.txt` the fixture's fingerprint |
+| `cases_are_unique_and_well_formed` | same file | unique ids, one of golden or hash, `If-None-Match` and bake-delete references point at earlier cases |
+| `every_stable_route_of_the_policy_has_a_case` | same file | every **stable** row of versioning.md has a case, and every case's route is stable |
+| `contract-kit/test/check.test.mjs` (5 tests) | `node --test contract-kit/test/` | the live checker against a `node:http` stub: pass, a changed JSON value named by its path, a changed image and its 304, an unreachable server (exit 2) |
+
+The live acceptance: build the canonical world with the release CLI (`arda generate --seed 42
+--micro --terrain fine`, `arda settle`, `arda society build`), serve it with
+`arda-server --world <dir>`, run `node contract-kit/check.mjs --base <url>`. On 0.8.1 the CLI
+world was byte-identical to the test fixture (47 files), and the checker passed cold (about
+9 s) and warm (under 1 s).
 
 ### Determinism tests
 

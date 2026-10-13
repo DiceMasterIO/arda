@@ -126,6 +126,7 @@ Runtime configuration is CLI flags only; no binary reads a config file from a fi
 | `ARDA_BLESS` | unset | Rewrites root golden fixtures instead of comparing (`tests/golden_world.rs:82`, `tests/golden_recipes.rs:102`) | Panic message in the same files |
 | `ARDA_BLESS_BINDINGS` | unset | Rewrites `bindings/ts/arda` and the served JSON Schemas (`crates/arda-server/src/bindings.rs:208`, `crates/arda-server/src/schema/tests.rs:7`) | `apps/viewer/README.md:77` |
 | `ARDA_BLESS_DUNGEON` | unset | Rewrites dungeon golden (`crates/arda-dungeon/tests/levels.rs:215`) | Panic message there |
+| `ARDA_BLESS_CONTRACT` | unset | Rewrites the contract kit's goldens, hashes, expected headers, fixture identity and `world.txt` instead of comparing (`crates/arda-server/tests/contract_kit.rs`); `tools/release.sh <version>` sets it | `contract-kit/README.md` |
 | `ARDA_TEST_WORLD`, `ARDA_TEST_WORLD_<seed>` | unset → tests build a fixture under `target/` | `crates/arda-blocks/tests/settlements.rs:35`, `crates/arda-people/tests/interiors.rs:39`, `crates/arda-settle/tests/micro.rs:25`, `crates/arda-settle/tests/realms_micro.rs:22` | None beyond code |
 | `ARDA_SERVER_TEST_WORLD` | unset → built fixture | `crates/arda-server/tests/world_api/support.rs:35`, `crates/arda-server/tests/world_api/schemas.rs:199` | None beyond code |
 | `ARDA_MIDZOOM_TEST_WORLD` | unset → built fixture | `crates/arda-midzoom/tests/world.rs:36` | None beyond code |
@@ -172,6 +173,8 @@ Third-party runtime controls such as `RAYON_NUM_THREADS` are read by `rayon`, no
 | Golden re-bless | `ARDA_BLESS=1 cargo test --release --test golden_world --test golden_recipes` rewrites `tests/golden/micro-42*.txt` | `tests/golden_world.rs:82`, `tests/golden_recipes.rs:102` |
 | Bindings/schema re-bless | `ARDA_BLESS_BINDINGS=1 cargo test -p arda-server bindings` (schemas: same variable, `schema` tests) | `apps/viewer/README.md:77`, `crates/arda-server/src/schema/tests.rs:7` |
 | Dungeon re-bless | `ARDA_BLESS_DUNGEON=1 cargo test -p arda-dungeon` | `crates/arda-dungeon/tests/levels.rs:215` |
+| Contract kit re-bless | `ARDA_BLESS_CONTRACT=1 cargo test --release -p arda-server --test contract_kit` | `contract-kit/README.md` |
+| Contract kit live check | `node contract-kit/check.mjs --base http://127.0.0.1:8787` (exit 0 all match, 1 a difference, 2 unreachable); its tests `node --test contract-kit/test/` | `contract-kit/check.mjs` |
 | Viewer | `npm run typecheck`, `npm run lint`, `npm test`, `npm run build` in `apps/viewer` | `apps/viewer/package.json` |
 | Viewer licence policy | `npm run licences` in `apps/viewer` (policy `apps/viewer/licence-policy.json`) | `apps/viewer/scripts/check-licences.mjs` |
 | Art tool tests | `node --test tools/art-gen/test/` | `tools/art-gen/README.md:13` |
@@ -184,13 +187,13 @@ Releases v0.5.0 to v0.8.1 were hand-made `release: Arda v<version>` commits with
 
 **Cutting a release.**
 
-1. Run `tools/release.sh <version>` on a clean branch. It bumps `[workspace.package] version` and the 21 path entries in `[workspace.dependencies]` (`Cargo.toml`), `apps/viewer/package.json` and its lockfile (`npm version --no-git-tag-version`), and every `arda_version` and `server_version` example in `crates/arda-server/API.md` (the `/v1/world` and `/v1/health` bodies; `--check` counts each as a site); runs `cargo update -w`; re-blesses `tests/golden/micro-42*.txt` with `ARDA_BLESS=1 cargo test --release --test golden_world --test golden_recipes` (the saved `world.json` embeds `arda_version`); checks that every version site agrees; and checks that `git diff` touches only those files. It prints the remaining commands.
+1. Run `tools/release.sh <version>` on a clean branch. It bumps `[workspace.package] version` and the 21 path entries in `[workspace.dependencies]` (`Cargo.toml`), `apps/viewer/package.json` and its lockfile (`npm version --no-git-tag-version`), and every `arda_version` and `server_version` example in `crates/arda-server/API.md` (the `/v1/world` and `/v1/health` bodies; `--check` counts each as a site); runs `cargo update -w`; re-blesses `tests/golden/micro-42*.txt` with `ARDA_BLESS=1 cargo test --release --test golden_world --test golden_recipes` (the saved `world.json` embeds `arda_version`); re-blesses the contract kit (`contract-kit/golden/`, `manifest.json`, `world.txt`) with `ARDA_BLESS_CONTRACT=1 cargo test --release -p arda-server --test contract_kit` and runs it once more without; checks that every version site agrees; and checks that `git diff` touches only those files. It prints the remaining commands.
 2. Add a `## <version> — <date>` section to `CHANGELOG.md`. `tools/release.sh --notes <version>` prints what the release page will show. The design ledger (`docs/capstone/changelog.md`, `changelog.d/`) is separate.
 3. Run `tools/release-gates.sh --with-benches` on the release machine (see "Release gates" below). CI never runs the gates. Its receipt is `target/release-gates/receipt-<commit>.md`; the script exits 0 when every gate is present and under budget, 1 otherwise (2 on a build error). Attach the receipt to the release notes or paste it under "Recorded measurements".
 4. Commit as `release: Arda v<version>`, tag `v<version>`, push the branch and the tag.
 5. The tag starts `.github/workflows/release.yml`: `verify` (tag equals the `Cargo.toml` version, `tools/release.sh --check`, a changelog section exists, fmt, clippy, `cargo test --workspace --locked`), then `binaries`, `image`, `release`. Review the **draft** release and publish it by hand.
 
-`tools/release.sh --check [version]` verifies all 50 version sites (workspace version, 21 path entries, 24 lockfile members, viewer package and lockfile, API.md) without writing; it also runs in `verify`.
+`tools/release.sh --check [version]` verifies all 54 version sites (workspace version, 21 path entries, 24 lockfile members, viewer package and lockfile, API.md, and the contract kit manifest's `arda_version` and `server_version`) without writing; it also runs in `verify`.
 
 **Artifacts.**
 

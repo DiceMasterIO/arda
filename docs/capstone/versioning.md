@@ -7,6 +7,7 @@ The rules are held by tests:
 - `crates/arda-server/src/schema/tests.rs` `frozen_schemas_keep_their_shape_unless_their_family_is_bumped` compares the served JSON Schemas with the committed baseline `bindings/schema-baseline/v1/` (see [Freeze guard](#freeze-guard)).
 - `crates/arda-server/tests/world_api/inventory.rs` checks that every **stable** route in the table below answers on the MICRO seed-42 world with something other than `404` or `405`. It reads this page, so a stable row without a probe fails as well.
 - `every_open_enum_exists_and_the_policy_page_lists_it` checks the open-enum table against `OPEN_ENUMS` (`crates/arda-server/src/versions.rs`).
+- `crates/arda-server/tests/contract_kit.rs` replays the contract kit (`contract-kit/`): the exact bytes of every stable route but a finished bake's tiles on the canonical MICRO-42 world, for this release and the placeholder library; `every_stable_route_of_the_policy_has_a_case` fails when a stable row has no case. Clients pin the kit with the release and check a server with `contract-kit/check.mjs`.
 
 ## Route review (1.0 freeze)
 
