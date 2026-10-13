@@ -11,6 +11,7 @@ description = "Settlements, roads, realms and names for generated arda worlds"
 ab_glyph.workspace = true
 arda.workspace = true
 arda-core.workspace = true
+arda-render.workspace = true
 arda-ids.workspace = true
 arda-names.workspace = true
 clap.workspace = true

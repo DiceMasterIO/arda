@@ -53,11 +53,22 @@ impl Canvas {
 
     /// Composites `c` through a coverage mask at `opacity`.
     pub fn paint(&mut self, m: &Mask, c: Rgb, opacity: f32) {
+        self.paint_at(m, c, opacity, (0, 0));
+    }
+
+    /// [`Self::paint`] for a mask in the coordinates of a larger image whose
+    /// pixel `origin` is this canvas's top-left corner (a window of it).
+    pub fn paint_at(&mut self, m: &Mask, c: Rgb, opacity: f32, origin: (i64, i64)) {
         for y in 0..m.h {
             for x in 0..m.w {
                 let a = m.a[y * m.w + x];
                 if a > 0.0 {
-                    self.blend(m.x0 + ui(x), m.y0 + ui(y), c, a * opacity);
+                    self.blend(
+                        m.x0 - origin.0 + ui(x),
+                        m.y0 - origin.1 + ui(y),
+                        c,
+                        a * opacity,
+                    );
                 }
             }
         }

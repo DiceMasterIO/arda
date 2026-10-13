@@ -20,12 +20,14 @@
     clippy::cast_precision_loss
 )]
 
+pub mod band;
 pub mod font;
 pub mod furniture;
 pub mod guard;
 pub mod labels;
 pub mod layers;
 pub mod mask;
+pub mod roadlayer;
 mod text;
 pub mod tilelabels;
 

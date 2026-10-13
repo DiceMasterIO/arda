@@ -387,6 +387,7 @@ dependencies = [
  "arda-ids",
  "arda-names",
  "arda-npc",
+ "arda-render",
  "arda-society",
  "clap",
  "png",

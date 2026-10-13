@@ -3,12 +3,12 @@
 
 use super::labels::{Placer, Rect};
 use super::mask::{chaikin, Mask};
+pub use super::roadlayer::{paint_roads, road_lines, road_style, roads, Line, RoadLines, CLASSES};
 use super::View;
 use crate::canvas::{Canvas, Rgb};
 use crate::landuse::code;
 use crate::model::Tier;
 use crate::output::{RealmsFile, RoadsFile, SettlementsFile};
-use crate::roads::RoadClass;
 use std::collections::BTreeSet;
 
 /// Realm colours, muted for print.
@@ -42,18 +42,30 @@ pub fn shade(c: Rgb, k: f32) -> Rgb {
     c.map(|v| (f32::from(v) * k).round().clamp(0.0, 255.0) as u8)
 }
 
+/// How a land-use code tints the relief: `(multiply, colour, opacity)`.
+#[must_use]
+pub fn land_tone(code_: u8) -> Option<(bool, Rgb, f32)> {
+    match code_ {
+        code::ARABLE | code::ORCHARD => Some((true, [246, 226, 160], 0.55)),
+        code::FALLOW => Some((true, [240, 226, 180], 0.45)),
+        code::MEADOW => Some((true, [214, 236, 170], 0.35)),
+        code::BUILT => Some((false, [150, 92, 70], 0.55)),
+        _ => None,
+    }
+}
+
 /// Farmland and built ground as quiet tints over the relief.
 pub fn land_use(c: &mut Canvas, v: &View, codes: &[u8]) {
     for py in 0..c.height {
         for px in 0..c.width {
             let i = v.cell_at(px, py);
             let (x, y) = (px as i64, py as i64);
-            match codes[i] {
-                code::ARABLE | code::ORCHARD => c.multiply(x, y, [246, 226, 160], 0.55),
-                code::FALLOW => c.multiply(x, y, [240, 226, 180], 0.45),
-                code::MEADOW => c.multiply(x, y, [214, 236, 170], 0.35),
-                code::BUILT => c.blend(x, y, [150, 92, 70], 0.55),
-                _ => {}
+            if let Some((multiply, colour, alpha)) = land_tone(codes[i]) {
+                if multiply {
+                    c.multiply(x, y, colour, alpha);
+                } else {
+                    c.blend(x, y, colour, alpha);
+                }
             }
         }
     }
@@ -206,64 +218,6 @@ pub fn realm_borders(c: &mut Canvas, v: &View, realms: &RealmsFile) {
     c.paint(&dash, [84, 24, 70], 1.0);
 }
 
-/// Road styles: (casing width, casing colour, fill width, fill colour,
-/// dash on/off) at scale 1.
-pub fn road_style(class: RoadClass) -> (f32, Rgb, f32, Rgb, Option<(f32, f32)>) {
-    match class {
-        RoadClass::Highway => (4.4, [74, 30, 20], 2.6, [206, 64, 40], None),
-        RoadClass::Road => (3.2, [86, 56, 34], 1.9, [248, 222, 158], None),
-        RoadClass::Track => (0.0, INK, 1.15, [112, 82, 56], None),
-        RoadClass::Footpath | RoadClass::None => (0.0, INK, 0.95, [112, 82, 56], Some((3.0, 2.6))),
-    }
-}
-
-/// Roads by class: lanes first, then every casing, then fills from road
-/// to highway, so junctions merge.
-pub fn roads(c: &mut Canvas, v: &View, roads: &RoadsFile) {
-    let lines = |class: RoadClass| -> Vec<Vec<(f32, f32)>> {
-        roads
-            .roads
-            .iter()
-            .filter(|r| r.class == class)
-            .flat_map(|r| r.segments.iter())
-            .map(|seg| chaikin(&seg.iter().map(|&m| v.px(m)).collect::<Vec<_>>(), 3))
-            .collect()
-    };
-    let mut m = c.mask();
-    for class in [RoadClass::Footpath, RoadClass::Track] {
-        let (_, _, fw, fc, dash) = road_style(class);
-        m.clear();
-        for l in lines(class) {
-            match dash {
-                Some((on, off)) => {
-                    let mut ph = 0.0;
-                    m.dashed(&l, fw * v.s, on * v.s, off * v.s, &mut ph);
-                }
-                None => m.polyline(&l, fw * v.s),
-            }
-        }
-        c.paint(&m, fc, 0.9);
-    }
-    let trunk = [RoadClass::Road, RoadClass::Highway];
-    let paths: Vec<Vec<Vec<(f32, f32)>>> = trunk.iter().map(|&k| lines(k)).collect();
-    for (k, &class) in trunk.iter().enumerate() {
-        let (cw, cc, _, _, _) = road_style(class);
-        m.clear();
-        for l in &paths[k] {
-            m.polyline(l, cw * v.s);
-        }
-        c.paint(&m, cc, 0.95);
-    }
-    for (k, &class) in trunk.iter().enumerate() {
-        let (_, _, fw, fc, _) = road_style(class);
-        m.clear();
-        for l in &paths[k] {
-            m.polyline(l, fw * v.s);
-        }
-        c.paint(&m, fc, 1.0);
-    }
-}
-
 /// Symbol radius of a tier at scale 1 (the label's clearance).
 #[must_use]
 pub const fn symbol_r(t: Tier) -> f32 {
@@ -335,11 +289,68 @@ impl Symbols {
 
     /// Composites the symbols.
     pub fn paint(&self, c: &mut Canvas) {
-        c.paint(&self.halo, PAPER, 0.9);
-        c.paint(&self.ink, INK, 1.0);
-        c.paint(&self.paper, PAPER, 1.0);
-        c.paint(&self.red, TOWN_RED, 1.0);
+        self.paint_at(c, (0, 0));
     }
+
+    /// Composites symbols drawn in the coordinates of a larger image onto
+    /// a canvas that is its window starting at pixel `origin`.
+    pub fn paint_at(&self, c: &mut Canvas, origin: (i64, i64)) {
+        c.paint_at(&self.halo, PAPER, 0.9, origin);
+        c.paint_at(&self.ink, INK, 1.0, origin);
+        c.paint_at(&self.paper, PAPER, 1.0, origin);
+        c.paint_at(&self.red, TOWN_RED, 1.0, origin);
+    }
+}
+
+/// One settlement symbol to draw: pixel position, tier, realm seat.
+#[derive(Debug, Clone, Copy)]
+pub struct Sym {
+    /// Centre, page pixels.
+    pub at: (f32, f32),
+    /// Size class.
+    pub tier: Tier,
+    /// Whether it seats a realm.
+    pub seat: bool,
+}
+
+/// Every settlement's symbol, small first (so big ones overdraw).
+#[must_use]
+pub fn symbol_list(v: &View, st: &SettlementsFile, seats: &[u64]) -> Vec<Sym> {
+    let mut list: Vec<_> = st.settlements.iter().collect();
+    list.sort_by_key(|x| (x.tier, x.id));
+    list.into_iter()
+        .map(|x| Sym {
+            at: v.px([x.x_m, x.y_m]),
+            tier: x.tier,
+            seat: seats.contains(&x.id.get()),
+        })
+        .collect()
+}
+
+/// Paints the symbols meeting a canvas that is the window starting at
+/// pixel `origin` of the symbols' own coordinates, at scale `s`. No
+/// placer is involved: labels, when drawn, reserve boxes on their own.
+pub fn paint_symbols(c: &mut Canvas, list: &[Sym], s: f32, origin: (i64, i64)) {
+    let mut sym = Symbols::new(origin.0, origin.1, c.width, c.height);
+    let rect = [
+        origin.0 as f32,
+        origin.1 as f32,
+        (origin.0 + c.width as i64) as f32,
+        (origin.1 + c.height as i64) as f32,
+    ];
+    for x in list {
+        // Halo and seat ring reach at most 7 px past the radius.
+        let reach = (symbol_r(x.tier) + 7.0) * s;
+        if x.at.0 + reach < rect[0]
+            || x.at.0 - reach > rect[2]
+            || x.at.1 + reach < rect[1]
+            || x.at.1 - reach > rect[3]
+        {
+            continue;
+        }
+        sym.draw(x.at, x.tier, x.seat, s);
+    }
+    sym.paint_at(c, origin);
 }
 
 /// Every settlement's symbol, small first; reserves their boxes.
@@ -350,16 +361,11 @@ pub fn settlements(
     seats: &[u64],
     pl: &mut Placer<'_>,
 ) {
-    let mut sym = Symbols::new(0, 0, c.width, c.height);
-    let mut list: Vec<_> = st.settlements.iter().collect();
-    list.sort_by_key(|x| (x.tier, x.id));
-    for x in list {
-        let p = v.px([x.x_m, x.y_m]);
-        sym.draw(p, x.tier, seats.contains(&x.id.get()), v.s);
-        let r = symbol_r(x.tier) * v.s;
-        pl.reserve(Rect::around(p, r + v.s));
+    let list = symbol_list(v, st, seats);
+    paint_symbols(c, &list, v.s, (0, 0));
+    for x in &list {
+        pl.reserve(Rect::around(x.at, symbol_r(x.tier) * v.s + v.s));
     }
-    sym.paint(c);
 }
 
 /// Crossed picks at mines, pass marks on roads, and peak triangles; each
