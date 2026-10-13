@@ -12,7 +12,7 @@
     "world_json_blake3": "d454292d8980f930c3785b1fd4363eaf8e8d188487b8062aa657c4485bbd857b",
     "world_fingerprint": "world.txt",
     "library": "placeholder",
-    "library_version": "0.1.0+seed58",
+    "library_version": "0.2.0+seed58",
     "contract_version": 3,
     "api_version": "v1",
     "sheet_mapping": null
@@ -350,12 +350,12 @@
       "content_type": "image/png",
       "headers": {
         "cache-control": "no-cache",
-        "etag": "\"886902172a16d7747db04221e2054418\""
+        "etag": "\"8850bb878c7a73c5a8c83157c0d63f6a\""
       },
       "schema": null,
       "body": {
-        "sha256": "4eaac5b28ab1fb7e1ed039508ed903e6f537994292a036964deba5988c7cb738",
-        "bytes": 33607752
+        "sha256": "28395259506882b1a14e39be692ec93dd3e889714286cfaf551ed8dcf5345fb4",
+        "bytes": 33628549
       }
     },
     {
@@ -367,7 +367,7 @@
       "status": 304,
       "content_type": null,
       "headers": {
-        "etag": "\"886902172a16d7747db04221e2054418\""
+        "etag": "\"8850bb878c7a73c5a8c83157c0d63f6a\""
       },
       "schema": null,
       "body": {
@@ -384,12 +384,12 @@
       "content_type": "image/webp",
       "headers": {
         "cache-control": "no-cache",
-        "etag": "\"240be9bfa29265b988f594b3b6133f37\""
+        "etag": "\"1e83292c1a9b46cd83507a33887940d6\""
       },
       "schema": null,
       "body": {
-        "sha256": "022a4bf314af4aef2d3c794c3efdfea17195f12db646a8e7564142df7138751f",
-        "bytes": 424564
+        "sha256": "6e39ed102ac7a07bffc0a1385fe64d7840ed26cac2a646fde3d3adab5de86cb4",
+        "bytes": 425186
       }
     },
     {
@@ -404,7 +404,7 @@
       },
       "schema": "TacticalBlockDto",
       "body": {
-        "sha256": "6388751139b6f5968189f8c1f9c0d4c3f8484201b0bfae7172a8e0750d3a663c",
+        "sha256": "42bf685dc3283fd32e2cdf3ea261eb3e8fdb5709b6c65963abfed941d9884150",
         "bytes": 2074907
       }
     },
@@ -417,12 +417,12 @@
       "content_type": "image/png",
       "headers": {
         "cache-control": "no-cache",
-        "etag": "\"97f056a1255524bfd614cc806271c5a8\""
+        "etag": "\"76c0cee37ad24268c7c0df6b5c6f3ce5\""
       },
       "schema": null,
       "body": {
-        "sha256": "9056b490b50f5b68c52f741258c1ea1c1fbb4341b3c848ef36646865054ec71a",
-        "bytes": 17394865
+        "sha256": "5b9f6694bf99f23379c5f1142a6b8d8e87ef82ad986356810a5398769d5817a2",
+        "bytes": 17398310
       }
     },
     {
@@ -434,12 +434,12 @@
       "content_type": "image/webp",
       "headers": {
         "cache-control": "no-cache",
-        "etag": "\"aa3ac03a7c8922b0f7e7340a9842bd20\""
+        "etag": "\"e3a704b662c2cf21b6bf6156dccd5b1a\""
       },
       "schema": null,
       "body": {
-        "sha256": "bf20a90e7b980ed16732d0c4133e9a973f7fd25d2ec1ab08b1164931163fd3fa",
-        "bytes": 274110
+        "sha256": "090029d062053b52153ec99ac65a32319ca14865dfcb905e04e5a0d41614ef97",
+        "bytes": 274106
       }
     },
     {
@@ -469,6 +469,23 @@
       "golden": "golden/tactical-library.json"
     },
     {
+      "id": "tactical-library-asset",
+      "route": "GET /v1/tactical/library/asset/{id}.png",
+      "method": "GET",
+      "uri": "/v1/tactical/library/asset/effect.frost.0.png",
+      "status": 200,
+      "content_type": "image/png",
+      "headers": {
+        "cache-control": "no-cache",
+        "etag": "\"a3913fa1048ee0c74234a4f4d030620e\""
+      },
+      "schema": null,
+      "body": {
+        "sha256": "579b41659747ace155d44e19bdaa4d767ba00f1b230b44605263367180aaa231",
+        "bytes": 137140
+      }
+    },
+    {
       "id": "tactical-bake",
       "route": "POST /v1/tactical/bake",
       "method": "POST",
@@ -480,7 +497,7 @@
       "status": 202,
       "content_type": "application/json",
       "headers": {
-        "location": "/v1/tactical/bake/352177500ed3746b00a33d47938badd5"
+        "location": "/v1/tactical/bake/188447b82948c01091c02f5f708499b3"
       },
       "schema": "BakeAccepted",
       "golden": "golden/tactical-bake.json"
@@ -489,7 +506,7 @@
       "id": "tactical-bake-delete",
       "route": "DELETE /v1/tactical/bake/{id}",
       "method": "DELETE",
-      "uri": "/v1/tactical/bake/352177500ed3746b00a33d47938badd5",
+      "uri": "/v1/tactical/bake/188447b82948c01091c02f5f708499b3",
       "uri_from_location_of": "tactical-bake",
       "status": 204,
       "content_type": null,
@@ -522,12 +539,12 @@
       "content_type": "image/png",
       "headers": {
         "cache-control": "no-cache",
-        "etag": "\"0cf50ca00793d1d11ba177f0f8152797\""
+        "etag": "\"0fca8ed0c854e74fa38726e663d92edd\""
       },
       "schema": null,
       "body": {
-        "sha256": "6822a60ded675d86d8f4e8bfb525c913584b730942340881fe46307a32c56fda",
-        "bytes": 10404767
+        "sha256": "0b8a92ec7412612857fae6b4ac164dee6cb9385e15218f99f7e6636b232a2dbc",
+        "bytes": 10395209
       }
     },
     {

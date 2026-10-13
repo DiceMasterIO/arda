@@ -15,7 +15,7 @@ The rules are held by tests:
 
 ## Route review (1.0 freeze)
 
-Every route `crates/arda-server/src/routes.rs` and `crates/arda-server/src/tactical/routes.rs` (with `tactical/bake_routes.rs`) register, one row per method and documented path. Paths that share a registered route are listed apart: `/cell/{gx}/{gy}` also serves `{gy}.png`, `/layout/{file}` serves `{name}` and `{name}.png`, and every `tiles/{z}/{x}/{y}` route takes the format as the suffix of `{y}`. Checked by hand against both routers on 2026-10-13: 49 rows, of which **42 stable**, **1 unstable** and **6 debug**. `HEAD` is answered wherever `GET` is, and `OPTIONS` is the CORS preflight; neither has a row.
+Every route `crates/arda-server/src/routes.rs` and `crates/arda-server/src/tactical/routes.rs` (with `tactical/bake_routes.rs`) register, one row per method and documented path. Paths that share a registered route are listed apart: `/cell/{gx}/{gy}` also serves `{gy}.png`, `/layout/{file}` serves `{name}` and `{name}.png`, and every `tiles/{z}/{x}/{y}` route takes the format as the suffix of `{y}`. Checked by hand against both routers on 2026-10-13: 50 rows, of which **43 stable**, **1 unstable** and **6 debug**. `HEAD` is answered wherever `GET` is, and `OPTIONS` is the CORS preflight; neither has a row.
 
 Stability:
 
@@ -68,6 +68,7 @@ Every route can also answer `500 internal`; the table lists the other codes. "Di
 | `GET /v1/tactical/window.png` | stable | PNG | — (content) | `bad_request`, `out_of_range`, `payload_too_large`, `resource_limit` | yes |
 | `GET /v1/tactical/window/tiles/{z}/{x}/{y}.webp` | stable | 512 px WebP | — (content) | `bad_request`, `out_of_range`, `not_found`, `payload_too_large` | no |
 | `GET /v1/tactical/library` | stable | `TacticalLibraryDto` | `tactical_format` | — | no |
+| `GET /v1/tactical/library/asset/{id}.png` | stable | PNG | — (content) | `bad_request`, `not_found` | no (planned) |
 | `POST /v1/tactical/prefetch` | stable | `PrefetchAccepted` (body `PrefetchRequest`) | `tactical_format` | `bad_request`, `out_of_range`, `unsupported_media_type` | yes |
 | `POST /v1/tactical/bake` | stable | `BakeAccepted` (body `BakeRequest`) | `bake_format`, `layout_schema` | `bad_request`, `out_of_range`, `payload_too_large`, `unsupported_media_type`, `invalid_layout`, `not_implemented`, `busy` | no (planned) |
 | `GET /v1/tactical/bake/{id}` | stable | `BakeStatus` | `bake_format` | `not_found` | no (planned) |

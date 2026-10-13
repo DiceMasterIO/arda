@@ -242,7 +242,7 @@ The viewer imports the committed bindings through the `@arda` alias
 ### Contract kit
 
 `contract-kit/` (1.0 task 10; `contract-kit/README.md`) pins the bytes a `/v1` client such as
-DiceMaster may rely on: 54 cases over 41 of the 42 stable routes of
+DiceMaster may rely on: 55 cases over 42 of the 43 stable routes of
 [versioning.md](versioning.md) (the finished bake's tiles depend on when the background job
 ends), each with its status, content type, listed headers (`etag`, `cache-control`,
 `location`) and either a golden body under `contract-kit/golden/` or the SHA-256 and size

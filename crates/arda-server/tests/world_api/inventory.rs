@@ -206,6 +206,12 @@ fn probes(ids: &Ids) -> Vec<(&'static str, &'static str, String, Option<&'static
             "/v1/tactical/library".into(),
             None,
         ),
+        (
+            "GET /v1/tactical/library/asset/{id}.png",
+            "GET",
+            "/v1/tactical/library/asset/effect.frost.0.png".into(),
+            None,
+        ),
         // Refused before any work: radius 9 is 400.
         (
             "POST /v1/tactical/prefetch",
