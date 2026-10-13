@@ -75,6 +75,7 @@ Deterministic offline tabletop world generator in a Rust 2021 Cargo workspace (2
 |---|---|
 | `contract-dicemaster.md` (local only) | Arda ↔ DiceMaster contract; ignored by Git. |
 | [open-items.md](open-items.md) | Open work only: current state, remaining scope, work queue and items OI-32 … OI-46. |
+| [versioning.md](versioning.md) | `/v1` versioning and compatibility policy: route stability review, version families, enums, deprecation, output stability, freeze guard. |
 | [standards.md](standards.md) | Normative coding rules. |
 | [integration-plan.md](integration-plan.md) | Merge order, adapters and end-to-end acceptance test for the product branches. |
 | [integration-status.md](integration-status.md) | Integration record for the product branches. |

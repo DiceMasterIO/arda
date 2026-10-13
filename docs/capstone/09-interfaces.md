@@ -133,13 +133,14 @@ Contract facts shared by every row:
 | Cell contract version | `CONTRACT_VERSION: u32 = 3`; "Clients must reject a version they do not know"; bumped when a field changes meaning, unit or presence | `crates/arda-server/src/contract/mod.rs:4-5`, `crates/arda-server/src/contract/mod.rs:24-31` |
 | Contract 3 change | `road` gains `footpath`; `built_by` is a settlement id string; `land_use` and `realm_id` added (null without `society/`) | `crates/arda-server/src/contract/mod.rs:26-30` |
 | `contract_version` emitted in | `Health` (`routes.rs:184`), `WorldInfo` (`dto.rs:103`), `CellSample` (`contract/convert.rs:201`), `PointSample` (`query.rs:337`), `AreaCells` (`columnar.rs:271`), `AreaRivers` (`routes.rs:263`), `AreaLakes` (`routes.rs:279`) | `crates/arda-server/src/` |
-| Contract version in TS | `export const CONTRACT_VERSION` and `export const API_VERSION` written into `index.ts` | `crates/arda-server/src/bindings.rs:69-70` |
+| Versions in TS | `export const API_VERSION` and one constant per version family (`CONTRACT_VERSION`, `TACTICAL_FORMAT`, …) written into `index.ts` | `crates/arda-server/src/bindings.rs:76-86` |
+| Version families | `WorldInfo.versions` (`VersionsDto`) lists every family; `WorldInfo.server_version` and `Health.server_version` name the serving build, `WorldInfo.arda_version` the generator that wrote the world; policy, stability per route and the schema freeze guard in [versioning.md](versioning.md) | `crates/arda-server/src/versions.rs` |
 | API version | `API_VERSION = "v1"`; every route nests under `/v1` | `crates/arda-server/src/dto.rs:12`, `crates/arda-server/src/routes.rs:61` |
-| Tactical envelope versions | `TACTICAL_FORMAT = 1`, `LAYOUT_SCHEMA = 1`, `SCENE_FORMAT = 1` | `crates/arda-server/src/tactical/dto.rs:90-92`, `crates/arda-server/src/tactical/scene.rs:21` |
+| Tactical envelope versions | `TACTICAL_FORMAT = 1`, `LAYOUT_SCHEMA = 1`, `SCENE_FORMAT = TACTICAL_FORMAT` | `crates/arda-server/src/tactical/dto.rs:90-92`, `crates/arda-server/src/tactical/scene.rs:21` |
 | Unknown path | 404 `not_found` "every endpoint lives under /v1" | `crates/arda-server/src/routes.rs:177-179` |
 | Error body | every 4xx/5xx is `ApiError { error: ApiErrorBody }`; 501 from unready tactical sources is `NotYetError` (adds `planned_source`) | `crates/arda-server/src/error.rs:71-96` |
 | Error codes | `ServerError::classify` maps variants to status and code | `crates/arda-server/src/error.rs:112-140` |
-| CORS | only `http(s)://localhost`, `127.0.0.1`, `[::1]` origins; methods GET/HEAD/POST/OPTIONS; exposes `ETag`, `X-Arda-Cache`, `X-Arda-Sheet-Mapping` | `crates/arda-server/src/routes.rs:67-104` |
+| CORS | only `http(s)://localhost`, `127.0.0.1`, `[::1]` origins; methods GET/HEAD/POST/DELETE/OPTIONS; exposes `ETag`, `X-Arda-Cache`, `X-Arda-Sheet-Mapping` | `crates/arda-server/src/routes.rs:67-104` |
 | Image caching | strong `ETag` (BLAKE3 of bytes), `304` on `If-None-Match`, `Cache-Control: no-cache` | `crates/arda-server/src/routes.rs:143-175`, `crates/arda-server/src/tactical/routes.rs:142-179` |
 | Sheet mapping | with `--sheet-mapping`, every NPC-bearing body is reshaped and carries `X-Arda-Sheet-Mapping`; the `Npc` schemas then no longer apply | `crates/arda-server/src/sheet_map/mod.rs:263-277`, `crates/arda-server/src/schema/mod.rs:158` |
 | Bind address | `--host` default `127.0.0.1`, `--port` default `8787` | `crates/arda-server/src/main.rs:20-25` |
@@ -155,10 +156,11 @@ Type `Health` (`crates/arda-server/src/dto.rs:133`).
 | status | String | yes |
 | contract_version | u32 | yes |
 | seed | String | yes |
+| server_version | String | yes |
 
 ### GET /v1/world
 
-Model: WorldInfo
+Model: WorldInfo (with `server_version` and `versions`; see 02-models)
 
 ### GET /v1/cell/{gx}/{gy}
 

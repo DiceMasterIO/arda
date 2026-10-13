@@ -1,13 +1,13 @@
 ---
 generated_date: 2026-09-30
 scenario: service-api
-status: normative design; world routes implemented on feat/world-server, tactical routes in progress on feat/server-tactical (crate arda-server), developer viewer on feat/viewer
+status: implemented in crate arda-server (every route of §api-routes; frozen for 1.0 under [versioning.md](../versioning.md)); developer viewer in apps/viewer
 goals: 41, 57, 65, 66, 67, 68, 69, 70
 ---
 
 # 16 — Service API: HTTP routes, contract versioning, caching and TS bindings
 
-> Normative design for `arda-server`, the Rust HTTP service the maintainer's TS/React game calls (goal 65). It serves the world contract, the overview, settlements, roads, realms, history and NPCs, and on-demand tactical maps: layout, painted tiles and scene data. The byte-level reference for the implemented world routes is `crates/arda-server/API.md` on feat/world-server; this file states the rules every route follows and the routes the product layers add. It composes [08](08-settlements-roads-realms.md), [09](09-tactical-refinement.md), [10](10-town-layout.md), [11](11-tactical-art-compositor.md), [12](12-scene-data.md), [13](13-npc-population.md), [14](14-society-history.md) and [15](15-naming.md).
+> Normative design for `arda-server`, the Rust HTTP service the maintainer's TS/React game calls (goal 65). It serves the world contract, the overview, settlements, roads, realms, history and NPCs, and on-demand tactical maps: layout, painted tiles and scene data. The byte-level reference for every route is `crates/arda-server/API.md`; this file states the rules every route follows. What is frozen for 1.x, and what each release may change, is [versioning.md](../versioning.md). It composes [08](08-settlements-roads-realms.md), [09](09-tactical-refinement.md), [10](10-town-layout.md), [11](11-tactical-art-compositor.md), [12](12-scene-data.md), [13](13-npc-population.md), [14](14-society-history.md) and [15](15-naming.md).
 
 Code cites rules as `// logic/16 §<rule>`.
 
@@ -23,59 +23,75 @@ Code cites rules as `// logic/16 §<rule>`.
 - Every route is under `/v1`. JSON unless noted. Coordinates follow 08 §world-frame (cells) and 09 §square-frame (squares).
 - **Big integers**: every u64 on the wire (seed, reach and basin ids, render keys) is a decimal string, because it does not fit a JS number. Settlement, building, realm and road ids are also strings on the wire even though they are small, so the TS types never change when a world grows (the domain files under `society/` keep numbers). `NpcId` is `"<settlement>.<building>.<index>"` (13 §npc-id).
 - **Determinism**: the same request against the same world, society and library returns identical bytes, cold or cached (goal-prompt §8).
-- **CORS**: `GET`, `HEAD`, `OPTIONS` (and `POST` for `/v1/tactical/render`) from `http(s)://localhost`, `127.0.0.1` and `[::1]` on any port; other origins get no CORS headers.
+- **CORS**: `GET`, `HEAD`, `POST`, `DELETE` and `OPTIONS` from `http(s)://localhost`, `127.0.0.1` and `[::1]` on any port; other origins get no CORS headers.
 - **Security**: no authentication in v1; the server binds to loopback by default. How the game authenticates to and hosts the service is an open question (goal-prompt §6) and is not decided here.
 
 ### §api-versioning
 
-Three independent version numbers, each carried in the bodies that depend on it:
+The normative policy is [versioning.md](../versioning.md): the route-by-route stability review, every version family, what bumps what, open and closed enums, the deprecation window, output stability across releases, worlds, libraries and binaries. In short:
 
-| Family | Field | Current | Bumps when |
-|---|---|---|---|
-| world cell contract | `contract_version` | 1 → 2 with this spec, **3** with §api-cell-society contract 3 (`crates/arda-server/src/contract/mod.rs:31`) | a field's meaning, unit or presence changes |
-| tactical response | `tactical_format` | 1 | the `TacticalBlock` or `TacticalScene` envelope changes (the envelope carries the service-added `origin_gs` and `tokens`) |
-| scene | `scene.format_version` | 1 | the `arda-scene` schema changes (12) |
-| layout schema | `layout_schema` | 1 | `TacticalLayout` changes meaning (the planned optional `origin` field is additive and does not bump it) |
+| Family (`/v1/world` `versions` key) | Current | Bumps when |
+|---|---|---|
+| `contract_version` | **3** (`crates/arda-server/src/contract/mod.rs:31`) | a cell field's meaning, unit or presence changes |
+| `tactical_format` | 1 | the `TacticalBlock` or `TacticalScene` envelope changes (the envelope carries the service-added `origin_gs` and `tokens`); also the dungeon, library and prefetch bodies |
+| `scene_format` (`scene.format_version`) | 1 | the `arda-scene` schema changes (12) |
+| `rules_sidecar_format` (`rules.format_version`) | 2 | the rules sidecar changes (09, 12) |
+| `layout_schema` | 1 | `TacticalLayout` changes meaning (the optional `origin` was additive and did not bump it) |
+| `bake_format`, `npc_format`, `npc_page_format`, `settlement_format`, `realm_format`, `gazetteer_format`, `schema_index_format` | 1 | their bodies change shape (versioning.md) |
+| `columnar_layout_version` | 2 | the binary `ARDACOLS` layout changes |
+| `library_catalogue_format`, `sheet_mapping_format` | 1 | the input files this server reads change |
 
-Rules: clients reject a version they do not know. Adding an optional field never bumps a version; renaming, removing or re-meaning one does. A change that breaks a route's shape moves the route to `/v2`, and `/v1` stays served for one release. `GET /v1/world` lists every family's current version so the game can check once at start.
+Rules: clients reject a version they do not know. Adding an optional field, a route or a value of an open enum never bumps a version; renaming, removing, re-typing or re-meaning a field, or a new value of a closed enum, does. A change that breaks a route's path, parameters or envelope moves the route to `/v2`, and `/v1` stays served **until both sides (Arda and DiceMaster) agree to drop it** (the DiceMaster contract's rule; it replaces the earlier "one release"), and at least one minor release. `GET /v1/world` lists every family's current version in `versions`, with `arda_version` (the generator that wrote the world) and `server_version` (the build serving it), so the game checks once at start; `index.ts` exports the same numbers. The freeze guard (`src/schema/compat.rs`, baseline `bindings/schema-baseline/v1/`) fails on a breaking schema change that no family bump excuses.
 
-Contract 2 (this spec) changes: `road` gains the legend value `footpath` and is read from `society/roads.bin` (08 §roads) when present; `built_by` is read from `society/landuse.bin` owners and is a settlement id string or `null` (§api-cell-society); the sea-cell snowline is computed from sea level, not the seafloor (the journal's noted defect). Without `society/`, both fields keep contract-1 values and `contract_version` is still 2.
+Contract 2 changes: `road` gains the legend value `footpath` and is read from `society/roads.bin` (08 §roads) when present; `built_by` is read from `society/landuse.bin` owners and is a settlement id string or `null` (§api-cell-society); the sea-cell snowline is computed from sea level, not the seafloor (the journal's noted defect). Contract 3 is §api-cell-society.
 
 ### §api-routes
 
-Implemented on feat/world-server (see `crates/arda-server/API.md`): `/v1/health`, `/v1/world`, `/v1/cell/{gx}/{gy}`, `/v1/area/{ax}/{ay}/cells[?format=bin]`, `/v1/area/{ax}/{ay}/rivers`, `/v1/area/{ax}/{ay}/lakes`, `/v1/point?x_m=&y_m=`, `/v1/overview.png[?quality=&style=]`, `/v1/tiles/overview/{z}/{x}/{y}.png`.
-
-In progress on feat/server-tactical and used by feat/viewer: `/v1/tactical/layouts`, `/v1/tactical/layout/{name}`, `/v1/tactical/layout/{name}.png`, `/v1/tactical/layout/{name}/tiles/{z}/{x}/{y}.webp`, `/v1/tactical/cell/{gx}/{gy}`.
-
-Added by this spec (goals 57, 65, 67, 70):
+Implemented (registered in `crates/arda-server/src/routes.rs` and `src/tactical/routes.rs` with `src/tactical/bake_routes.rs`; bodies and errors in `crates/arda-server/API.md`; stability per route in [versioning.md](../versioning.md)):
 
 | Route | Response (TS type) | Source |
 |---|---|---|
-| `GET /v1/tactical/cell/{gx}/{gy}` | `TacticalBlock` `{tactical_format, layout_schema, origin_gs, cell, layout, rules, meta, tiles: TacticalTilesDto, scene_url}` | 09, 10 |
-| `GET /v1/tactical/cell/{gx}/{gy}/scene[?time=day\|night]` | `TacticalScene` `{tactical_format, origin_gs, scene, tokens}` | 12, 13 |
-| `GET /v1/tactical/cell/{gx}/{gy}.png[?ppsq=&grid=]` | PNG | 11 |
-| `GET /v1/tactical/cell/{gx}/{gy}/tiles/{z}/{x}/{y}.webp[?ppsq=]` | 512 px lossless WebP tile | 11, §api-tiles |
-| `GET /v1/tactical/window?gsx=&gsy=&w=&h=` | `TacticalBlock` for a window of ≤ 256 × 256 squares | 09 Branches |
-| `GET /v1/tactical/window/tiles/{z}/{x}/{y}.webp?…` | 512 px lossless WebP tile of the window render; the pyramid the window body's `tiles` describes | 11, §api-tiles |
-| `GET /v1/tactical/window/scene?…` | `TacticalScene` for the window | 12 |
-| `POST /v1/tactical/render` | PNG of a posted layout (debug and tooling; body limit) | 11 |
-| `GET /v1/settlements[?realm=&tier=&bbox=x0,y0,x1,y1]` | `SettlementList` (records of 08, paged `?cursor=`) | 08 |
-| `GET /v1/settlements/{id}` | `SettlementDetail` (record + history of 14 + offices) | 08, 14 |
+| `GET /v1/health` | `Health` `{status, contract_version, seed, server_version}` | — |
+| `GET /v1/world` | `WorldInfo` (with `server_version` and `versions`) | 01, §api-versioning |
+| `GET /v1/cell/{gx}/{gy}`, `GET /v1/point?x_m=&y_m=` | `CellSample`, `PointSample` | 05, §api-cell-society |
+| `GET /v1/area/{ax}/{ay}/cells[?format=json\|bin]`, `/rivers`, `/lakes` | `AreaCells` or `ARDACOLS`, `AreaRivers`, `AreaLakes` | 05 |
+| `GET /v1/overview.png[?quality=&style=]` | PNG | 04 |
+| (overview overlay query parameter) | placeholder for 1.0 task 15 (export overlays), which documents it | 04 |
+| `GET /v1/tiles/overview/{z}/{x}/{y}.webp\|.png[?oblique=&labels=]` | 256 px tiles | §api-tiles |
+| `GET /v1/tiles/relief/{z}/{x}/{y}.webp[?labels=]` | 256 px mid-zoom relief tiles | 17 |
+| `GET /v1/settlements[?tier=&realm=]` | `SettlementList` `{format_version, settlements}` | 08 |
+| `GET /v1/settlements/{id}` | `SettlementDetail` `{record, society}` | 08, 14 |
 | `GET /v1/settlements/{id}/plan` | `TownPlan` | 10 |
-| `GET /v1/settlements/{id}/buildings` | `[TownBuilding]` with their `BuildingSpec` | 10 |
-| `GET /v1/settlements/{id}/npcs[?building=&job=&notable=&cursor=]` | `NpcPage` (`Npc` records; commoners generated on demand) | 13 |
-| `GET /v1/npc/{npc_id}` | `Npc` with its sheet | 13 |
-| `POST /v1/npc/generate` | `Npc` (implemented): one new NPC from optional `GenerateNpcRequest` inputs (Arda's own: `seed`, `job`, `office`, `rank`, `ancestry`, `sex`, `tier`, `culture`, `settlement_id`, `notable`), stored nowhere, synthetic ids; body ≤ 16 KiB, JSON only (415); 422 `unsatisfiable` | 13 §npc-generate-one |
-| `GET /v1/gazetteer[?kind=&bbox=&min_rank=]` | `Gazetteer` (implemented, §api-gazetteer): natural features then settlement points in one list; `kind` is a comma list of kind keys, `bbox=x0,y0,x1,y1` metres keeps what meets the box, `min_rank=N` keeps rank N or more important; 400 on a bad value, 404 without `society/` or `gazetteer.json` | 08, 15 |
-| `GET /v1/realms` | `RealmList` (implemented): `{format_version, realms: [RealmSummary]}`, the `realms.json` records without `borders` plus `style`, `rank`, `government_label`, `ruler` when `society.json` exists | 08, 14 |
-| `GET /v1/realms/{id}` | `RealmDetail` (implemented): `{record (with borders), politics, relations, events, reigns}`; 404 unknown id, 400 non-numeric | 08, 14 |
-| `GET /v1/roads[?bbox=]` | roads, crossings and passes clipped to the box | 08 |
-| `GET /v1/tiles/overlay/{z}/{x}/{y}.png` | 256 px transparent overlay tiles: tier symbols, road classes, realm borders, labels, aligned with the overview pyramid | 08 overlay, goal 41 |
-| `GET /v1/tactical/prefetch?gx=&gy=&radius=1` | `202` with the queued cells | §api-prefetch |
-| `POST /v1/tactical/bake` | `202 BakeAccepted {format_version, job_id, state, status_url}` (`200` once finished) for a posted `BakeRequest {gx, gy, ppsq?, world_grade?, layout}` (implemented, 1.0 task 04) | §api-tactical, §api-prefetch |
+| `GET /v1/settlements/{id}/npcs` | `SettlementNpcs` (stored notables) | 13 |
+| `GET /v1/npc/{npc_id}[?settlement=]` | `Npc` with its sheet | 13 |
+| `GET /v1/npcs?settlement=&building=&job=&realm=&notable=&limit=&cursor=` | `NpcPage` | 13 §npc-queries |
+| `GET /v1/buildings/{building}/residents`, `/workers` | `NpcPage` | 13 |
+| `POST /v1/npc/population` | `Population` for a posted `PopulationRequest` | 13 |
+| `POST /v1/npc/generate` | `Npc`: one new NPC from optional `GenerateNpcRequest` inputs (Arda's own: `seed`, `job`, `office`, `rank`, `ancestry`, `sex`, `tier`, `culture`, `settlement_id`, `notable`), stored nowhere, synthetic ids; body ≤ 16 KiB, JSON only (415); 422 `unsatisfiable` | 13 §npc-generate-one |
+| `GET /v1/npc/demo`, `/v1/npc/demo/{npc_id}` | `NpcDemo`, `Npc` of the `arda-npc` sample town (debug) | 13 |
+| `GET /v1/gazetteer[?kind=&bbox=&min_rank=]` | `Gazetteer` (§api-gazetteer): natural features then settlement points in one list; `kind` is a comma list of kind keys, `bbox=x0,y0,x1,y1` metres keeps what meets the box, `min_rank=N` keeps rank N or more important; 400 on a bad value, 404 without `society/` or `gazetteer.json` | 08, 15 |
+| `GET /v1/realms` | `RealmList`: `{format_version, realms: [RealmSummary]}`, the `realms.json` records without `borders` plus `style`, `rank`, `government_label`, `ruler` when `society.json` exists | 08, 14 |
+| `GET /v1/realms/{id}` | `RealmDetail`: `{record (with borders), politics, relations, events, reigns}`; 404 unknown id, 400 non-numeric | 08, 14 |
+| `GET /v1/schema`, `GET /v1/schema/{Name}.json` | `SchemaIndex`, one JSON Schema (§api-schema) | §api-schema |
+| `GET /v1/tactical/layouts`, `/layout/{name}`, `/layout/{name}.png`, `/layout/{name}/tiles/{z}/{x}/{y}.webp` | built-in sample layouts (debug) | 11 |
+| `POST /v1/tactical/render[?ppsq=&grid=&origin=X,Y]` | PNG of a posted layout (tooling; unstable; body limit) | 11 |
+| `GET /v1/tactical/cell/{gx}/{gy}[?ppsq=]` | `TacticalBlock` `{tactical_format, layout_schema, origin, size, render_seed, layout, rules, meta, scene, tiles}` | 09, 10 |
+| `GET /v1/tactical/cell/{gx}/{gy}/scene[?time=day\|night]` | `TacticalScene` `{tactical_format, origin_gs, time, scene, tokens}` | 12, 13 |
+| `GET /v1/tactical/cell/{gx}/{gy}.png[?ppsq=&grid=&world_grade=]` | PNG | 11 |
+| `GET /v1/tactical/cell/{gx}/{gy}/tiles/{z}/{x}/{y}.webp[?ppsq=]` | 512 px lossless WebP tile | 11, §api-tiles |
+| `GET /v1/tactical/window?gx0=&gy0=&w=&h=` or `?gsx=&gsy=&w=&h=` | `TacticalBlock` for a window of 1–3 × 1–3 cells (`gx0`/`gy0`, cells) or 1–192 × 1–192 squares (`gsx`/`gsy`, world squares) | 09 Branches |
+| `GET /v1/tactical/window.png?…`, `/window/tiles/{z}/{x}/{y}.webp?…` | PNG and 512 px WebP tiles of the window render; the pyramid the window body's `tiles` describes | 11, §api-tiles |
+| `GET /v1/tactical/library` | `TacticalLibraryDto` (the loaded catalogue for layout editors) | 11 |
+| `POST /v1/tactical/prefetch` | `202 PrefetchAccepted` for a posted `PrefetchRequest {gx, gy, radius?, ppsq?, demo_overlays?}` | §api-prefetch |
+| `POST /v1/tactical/bake` | `202 BakeAccepted {format_version, job_id, state, status_url}` (`200` once finished) for a posted `BakeRequest {gx, gy, ppsq?, world_grade?, layout}` (1.0 task 04) | §api-tactical, §api-prefetch |
 | `GET /v1/tactical/bake/{id}` | `BakeStatus {format_version, job_id, state, gx, gy, origin_gs, world_grade, tiles, tile_count, total_bytes, error}` | §api-tactical |
 | `GET /v1/tactical/bake/{id}/tiles/{z}/{x}/{y}.webp` | 512 px lossless WebP tile of the baked set, `Cache-Control: no-store` | §api-tiles |
 | `DELETE /v1/tactical/bake/{id}` | `204`; frees the set | §api-cache |
+| `GET /v1/tactical/dungeon?seed=\|gx=&gy=[&kind=&w=&h=]`, `/dungeon.png`, `/dungeon/scene` | `DungeonDto`, PNG, `SceneDto` | 18 |
+
+`?demo_overlays=` and `?demo_at=` on the tactical cell, window and prefetch routes are debug options (versioning.md).
+
+Planned, not implemented (additive when they come; not designed here): roads clipped to a box (`GET /v1/roads?bbox=`), a transparent overlay tile pyramid of tier symbols, roads and borders aligned with the overview (goal 41), and building lists per settlement (`/v1/settlements/{id}/buildings`; the plan's `buildings` serve today).
 
 ### §api-cell-society
 
@@ -89,7 +105,7 @@ A tactical request resolves in this order: validate coordinates → cache lookup
 
 ### §api-tiles
 
-- Overview: 256 px PNG slippy tiles cut from one cached Atlas render at `base_px = 256 · 2^max_zoom` (default 4096), `z = 0` the whole world (implemented).
+- Overview: 256 px lossless WebP (and PNG) slippy tiles cut from one cached Atlas render at `base_px = 256 · 2^max_zoom` (default 4096), `z = 0` the whole world (implemented).
 - Tactical: lossless WebP (goal 68), 512 px tiles, one pyramid per block or window (`/cell/{gx}/{gy}/tiles/…` and `/window/tiles/…`, each described by its JSON body's `tiles`). Level `max_zoom` is the full render (a block at 128 px per square is 8192 px, so `max_zoom = 4`); each lower level halves with the compositor's integer premultiplied area average, rounding up; edge tiles are padded transparent.
 - `?ppsq=` accepts 64, 96 or 128 (default 128, 11 §ppsq).
 
@@ -97,13 +113,13 @@ A tactical request resolves in this order: validate coordinates → cache lookup
 
 - Every generated body is cached in a byte-bounded LRU keyed by `RenderKey = BLAKE3(world identity, society inputs hash, generator versions, library_version, route, coordinates, options)`. World identity is the seed plus the BLAKE3 of `world.json`; generator versions are the crate versions of `arda-refine`, `arda-town`, the ways and fields crates, `arda-scene` and `arda-npc`. This realises goal 67's "cached by (seed, coordinates, catalogue version)" and also invalidates on a generator change.
 - `ETag` is the hex of the key (quoted); `If-None-Match` answers `304`. Tactical, overview and relief bodies carry `Cache-Control: no-cache` and are revalidated by `ETag`: their bytes depend on the served world and library, which the URL does not name (review round 2 #44; `public, max-age=3600` before).
-- Budgets (defaults, assumed, tunable; all flags): decoded areas 1 GiB, fine windows 512 MiB, overview PNGs and tiles 1 GiB, tactical layouts and scenes 1 GiB, tactical renders and tiles 4 GiB, town plans and populations 1 GiB. At start the worst case of all budgets plus one transient request per worker must fit 16 GiB, or the server refuses to start (goal-prompt §8).
+- Budgets (defaults; flags only for areas and fine windows, [07-operations](../07-operations.md) Infrastructure): decoded areas 1 GiB (`--area-cache-mib`), derived coast/river/lake layers 256 MiB, fine windows 512 MiB (`--fine-cache-mib`); overview PNGs 256 MiB and overview tiles 256 MiB; relief tiles 128 MiB; tactical renders 768 MiB, tile pyramids 1 GiB, encoded PNGs and encoded tiles 256 MiB each; composed tactical blocks 256 MiB; finished bakes `--bake-result-mib` (384 MiB). At start the worst case of all budgets plus one transient request per worker must fit 16 GiB, or the server refuses to start (goal-prompt §8).
 - Only one full-resolution tactical render runs per key at a time; concurrent requests for the same key wait for it.
 - Bakes bypass every shared cache: `POST /v1/tactical/bake` reads and writes no render, pyramid, PNG or tile entry, and keeps only the encoded tiles of finished jobs, in memory, within `--bake-result-mib` (default 384 MiB, oldest finished set evicted first, no time-to-live) until `DELETE`. Admission adds, when baking is on, one transient render with its pyramid, the parsed bodies of the queued jobs and the result budget (about 1.9 GiB with defaults, 15.9 GiB in all), and refuses a result budget below one worst-case 128-ppsq set (341 tiles, about 362 MiB).
 
 ### §api-prefetch
 
-A tactical cell request enqueues its 8 neighbours at low priority (radius 1; `?radius=` up to 2 on the prefetch route). The queue is bounded (64 cells), deduplicated and drops when full; prefetching never changes any response's bytes. Prefetch stops at sea cells and the world edge (goal 67).
+`POST /v1/tactical/prefetch` enqueues a cell's 8 neighbours at low priority (`radius` 1, or 2 for the 24 cells of two rings). The queue is bounded (64 cells), deduplicated and drops when full; prefetching never changes any response's bytes. Prefetch stops at sea cells and the world edge (goal 67).
 
 The bake lane is prefetch's sibling: its own queue (at most 8 waiting jobs, a full queue answers 503 `busy`), one worker (`--bake-workers`, 0 or 1; 0 answers 501), its own render lock beside the request and prefetch lanes, and tile encodes taken one at a time through the shared encode slot, so a bake never holds an interactive request for more than one tile encode and never changes any other response's bytes.
 
@@ -117,12 +133,13 @@ Every error is `{"error": {"code", "status", "message"}}`; clients match on `cod
 | 400 | `out_of_range` | a cell, area, square or point outside the world |
 | 404 | `not_found` | unknown route, id, tile outside the pyramid, missing layer or society file |
 | 404 | `no_block` | a cell with no land square (open sea) |
-| 409 | `stale_society` | `history.json` was built from different 08 files (14 State transitions) |
-| 413 | `payload_too_large` | a window or posted layout above the limits |
+| 413 | `payload_too_large` | a window, render or posted body above the limits |
+| 415 | `unsupported_media_type` | a `POST` body without `Content-Type: application/json` |
 | 422 | `invalid_layout` | a layout or sidecar inconsistent with the library (11, 12) |
 | 422 | `unsatisfiable` | `POST /v1/npc/generate` inputs that are valid but no inhabitant matches (13 §npc-generate-one) |
 | 500 | `resource_limit` | an allocation or budget refused the work |
-| 501 | `not_implemented` | a route whose source crate is not merged yet; the body adds `planned_source`. Also `POST /v1/tactical/bake` with `--bake-workers 0` (no `planned_source`) |
+| 500 | `sheet_mapping` | `--sheet-mapping` could not reshape a served NPC (§api-sheet-mapping) |
+| 501 | `not_implemented` | the `PendingBlocks` test seam (debug; the body adds `planned_source`). Also `POST /v1/tactical/bake` with `--bake-workers 0` (no `planned_source`) |
 | 503 | `busy` | a bounded background queue is full (`POST /v1/tactical/bake` with 8 jobs waiting); retry later |
 | 500 | `internal` | anything else |
 
@@ -137,6 +154,7 @@ Every error is `{"error": {"code", "status", "message"}}`; clients match on `cod
 - Every public body has a JSON Schema (draft 2020-12), generated by `schemars` from the same Rust types as the TypeScript bindings: the server DTOs and mirrors, and the domain records `arda_settle::model::Settlement`, `arda_society::SettlementSociety` and `arda_town::TownPlan` through each crate's optional `schema` feature (the domain crates stay free of ts-rs). A schema is named after its TypeScript type.
 - The files are committed in `bindings/schema/` (`<Name>.json` plus `index.json`) and served byte for byte at `GET /v1/schema` and `GET /v1/schema/{Name}.json` (`application/schema+json`; unknown names 404). The index has its own schema, `SchemaIndex`; the dungeon body is `DungeonDto` (a mirror of `arda_dungeon::Dungeon`, seed a decimal string) and `/v1/tactical/dungeon/scene` is a bare `SceneDto`. Rendering is deterministic; the staleness test and `ARDA_BLESS_BINDINGS=1` cover them with the TS bindings.
 - Real responses of every route on the MICRO fixture validate against the served schemas (`tests/world_api/schemas.rs`).
+- The index names each schema's version `family` (a `versions` key, or `api_version`) and its `stability` (`stable`, `unstable`, `debug`; versioning.md). The freeze guard compares the schemas with the committed baseline `bindings/schema-baseline/v1/` and fails on a breaking change no family bump excuses; `ARDA_BLESS_SCHEMA_BASELINE=1` re-baselines (06-testing).
 
 ### §api-sheet-mapping
 
@@ -159,7 +177,7 @@ The GM tool path (goal 70) is a sequence of these routes, exercised by the devel
 ## Branches
 
 - No `society/`: settlement, NPC and overlay routes answer `404 not_found` naming the file; tactical cells are natural only (09 Branches).
-- A layer crate not merged: `501 not_implemented` with `planned_source`.
+- A block source that cannot build blocks (the `PendingBlocks` test seam, never installed by the default server): `501 not_implemented` with `planned_source`.
 
 ## Unhappy paths
 

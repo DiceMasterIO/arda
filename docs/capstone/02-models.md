@@ -532,6 +532,8 @@ Storage values: `HTTP JSON; ts-rs bindings/ts/arda/<Name>.ts` means the type is 
 | TilePyramidDto | `crates/arda-server/src/dto.rs:43` | HTTP JSON; ts-rs `bindings/ts/arda/TilePyramidDto.ts` | Slippy overview tile pyramid geometry. |
 | WorldInfo | `crates/arda-server/src/dto.rs:61` | HTTP JSON; ts-rs `bindings/ts/arda/WorldInfo.ts` | `/v1/world`: identity, size and grids of the served world. |
 | Health | `crates/arda-server/src/dto.rs:133` | HTTP JSON; ts-rs `bindings/ts/arda/Health.ts` | `/v1/health`. |
+| VersionsDto | `crates/arda-server/src/versions.rs:25` | HTTP JSON; ts-rs `bindings/ts/arda/VersionsDto.ts` | `WorldInfo.versions`: every version family's current version (`docs/capstone/versioning.md`). |
+| Stability | `crates/arda-server/src/versions.rs:130` | HTTP JSON; ts-rs `bindings/ts/arda/Stability.ts` | `stable`, `unstable` or `debug`; `SchemaIndexEntry.stability`. |
 | TerminusDto | `crates/arda-server/src/dto.rs:145` | HTTP JSON; ts-rs `bindings/ts/arda/TerminusDto.ts` | How a river segment ends. |
 | RiverDto | `crates/arda-server/src/dto.rs:173` | HTTP JSON; ts-rs `bindings/ts/arda/RiverDto.ts` | One saved watercourse reach fragment inside an area. |
 | LakeDto | `crates/arda-server/src/dto.rs:194` | HTTP JSON; ts-rs `bindings/ts/arda/LakeDto.ts` | One saved lake fragment inside an area. |
@@ -658,7 +660,7 @@ Storage values: `HTTP JSON; ts-rs bindings/ts/arda/<Name>.ts` means the type is 
 | DungeonExitKindDto | `crates/arda-server/src/tactical/dungeon_dto.rs:119` | HTTP JSON; ts-rs `bindings/ts/arda/DungeonExitKindDto.ts` | A way in or out of the level. |
 | DungeonExitDto | `crates/arda-server/src/tactical/dungeon_dto.rs:131` | HTTP JSON; ts-rs `bindings/ts/arda/DungeonExitDto.ts` | An exit: its kind and the floor square a token arrives on. |
 | SchemaIndex | `crates/arda-server/src/schema/mod.rs:153` | HTTP JSON; ts-rs `bindings/ts/arda/SchemaIndex.ts` | `GET /v1/schema`: the catalogue of published schemas (`index.json`). |
-| SchemaIndexEntry | `crates/arda-server/src/schema/mod.rs:169` | HTTP JSON; ts-rs `bindings/ts/arda/SchemaIndexEntry.ts` | One schema in `SchemaIndex`: name, URL and routes. |
+| SchemaIndexEntry | `crates/arda-server/src/schema/mod.rs:169` | HTTP JSON; ts-rs `bindings/ts/arda/SchemaIndexEntry.ts` | One schema in `SchemaIndex`: name, URL, version family, stability and routes. |
 
 ## Fields and types
 
@@ -5492,8 +5494,8 @@ Required `no` marks an `Option` field, a serde default, a field omitted when emp
 | contract_version | `u32` | yes | Cell contract version. |
 | api_version | `String` | yes | HTTP API version. |
 | seed | `String` | yes | World seed as a decimal string (u64 does not fit a JS number). |
-| arda_version | `String` | yes | Generator version that wrote the world. |
-| format_version | `u32` | yes | Stored format major. |
+| arda_version | `String` | yes | Generator version that wrote the world (the manifest's). |
+| format_version | `u32` | yes | The world's on-disk format major (`world.json`), not a body version. |
 | size_km | `SizeKmDto` | yes | Nominal continent extent. |
 | latitude | `LatitudeDto` | yes | Latitude belt. |
 | areas_wide | `i32` | yes | Area tiles per row. |
@@ -5504,6 +5506,28 @@ Required `no` marks an `Option` field, a serde default, a field omitted when emp
 | cells_high | `u32` | yes | Global cell rows (`areas_high × 512`). |
 | fine_terrain | `Option<FineTerrainDto>` | no | Fine terrain, when the world has it. |
 | tiles | `TilePyramidDto` | yes | Overview tile pyramid. |
+| server_version | `String` | yes | The `arda-server` build serving the world (Cargo package version). |
+| versions | `VersionsDto` | yes | Current version of every family. |
+
+### VersionsDto
+
+| Field | Type | Required | Notes |
+|---|---|---|---|
+| contract_version | `u32` | yes | Cell contract (3). |
+| tactical_format | `u32` | yes | Tactical envelopes, dungeon, library and prefetch bodies (1). |
+| layout_schema | `u32` | yes | `TacticalLayoutDto` (1). |
+| scene_format | `u32` | yes | `arda-scene` scene (1). |
+| rules_sidecar_format | `u32` | yes | `arda-scene` rules sidecar (2). |
+| bake_format | `u32` | yes | Bake bodies (1). |
+| npc_format | `u32` | yes | `Npc` and the bodies built from it (1). |
+| npc_page_format | `u32` | yes | `NpcPage` (1). |
+| settlement_format | `u32` | yes | Settlement bodies (1). |
+| realm_format | `u32` | yes | Realm bodies (1). |
+| gazetteer_format | `u32` | yes | `Gazetteer` (1). |
+| schema_index_format | `u32` | yes | `SchemaIndex` (1). |
+| columnar_layout_version | `u32` | yes | Binary `ARDACOLS` area layout (2). |
+| library_catalogue_format | `u32` | yes | Tactical `catalog.json` format this server loads (1). |
+| sheet_mapping_format | `u32` | yes | `--sheet-mapping` file version this server reads (1). |
 
 ### Health
 
@@ -5512,6 +5536,7 @@ Required `no` marks an `Option` field, a serde default, a field omitted when emp
 | status | `String` | yes | Always `"ok"` when the service answers. |
 | contract_version | `u32` | yes | Cell contract version. |
 | seed | `String` | yes | Seed of the served world, decimal string. |
+| server_version | `String` | yes | The `arda-server` build answering. |
 
 ### TerminusDto
 
@@ -6661,6 +6686,8 @@ Required `no` marks an `Option` field, a serde default, a field omitted when emp
 |---|---|---|---|
 | name | `String` | yes | File stem and TypeScript type name. |
 | url | `String` | yes | Where it is served: `/v1/schema/{name}.json`. |
+| family | `String` | yes | Its version family: a `WorldInfo.versions` key, or `api_version`. |
+| stability | `Stability` | yes | `stable`, `unstable` or `debug`. |
 | routes | `String[]` | yes | The routes (or body parts, such as `TacticalBlockDto.scene`) it describes. |
 
 

@@ -35,9 +35,25 @@ docker run --rm -p 8787:8787 -v /abs/world:/worlds/world:ro arda:local
 
 ## Conventions
 
-- **Versioning.** Every route lives under `/v1`. Cell-bearing bodies carry
-  `contract_version` (currently **3**). Clients must reject a version they don't know. A
-  change of meaning, unit or presence of any field bumps it.
+- **Versioning.** Every route lives under `/v1`; the policy is
+  [`docs/capstone/versioning.md`](../../docs/capstone/versioning.md). Cell-bearing bodies carry
+  `contract_version` (currently **3**); every other body belongs to a version family, and
+  `GET /v1/world` lists all of them in `versions` (`index.ts` exports the same numbers).
+  Clients must reject a version they don't know and ignore fields they don't know. Removing,
+  renaming, re-typing or re-meaning a field, or a new value of a closed enum, bumps the
+  family; additions bump nothing.
+  - `format_version` means three things: on `WorldInfo` the world's **on-disk format** major
+    (4); on `SettlementList`, `RealmList`, `NpcPage`, `Gazetteer`, `SchemaIndex` and the bake
+    bodies that **body's** version; on `SceneDto`, `RulesSidecarDto` and the library catalogue
+    the `arda-scene` scene or sidecar format and the catalogue file format.
+  - `arda_version` is the generator that wrote the world; `server_version` is the
+    `arda-server` build serving it, which generates every tactical, NPC and image body.
+    Pin both.
+- **Stability.** Every route below is **stable** (frozen for 1.x) unless its section says
+  **Stability: unstable** (may change shape in a minor release) or **Stability: debug**
+  (samples and test seams; may change or go in any release). The `demo_overlays` and
+  `demo_at` options and the `meta` keys of tactical bodies are debug; the `501` with
+  `planned_source` comes only from a test seam.
 - **Determinism.** The same request against the same world always returns identical bytes,
   whether it's served cold or from cache.
 - **Coordinates.** x runs east and y runs south from the modeled world's north-west corner.
@@ -54,7 +70,7 @@ docker run --rm -p 8787:8787 -v /abs/world:/worlds/world:ro arda:local
   - Valid global cells are `0 ≤ gx < areas_wide·512` and `0 ≤ gy < areas_high·512`.
 - **Big integers.** u64 identities (`seed`, reach and basin ids) are **decimal strings**,
   because they don't fit a JS number.
-- **CORS.** `GET`, `HEAD`, `POST` and `OPTIONS`, with the `Content-Type` and
+- **CORS.** `GET`, `HEAD`, `POST`, `DELETE` and `OPTIONS`, with the `Content-Type` and
   `If-None-Match` request headers, are allowed from `http(s)://localhost`, `127.0.0.1` and
   `[::1]` on any port. `ETag` and `X-Arda-Cache` are exposed. Other origins get no CORS
   headers.
@@ -102,11 +118,12 @@ Every error is JSON with the right HTTP status:
 | 500 | `resource_limit` | An allocation or window limit refused the work |
 | 500 | `sheet_mapping` | The `--sheet-mapping` could not reshape a served NPC (a strict table lacks one of its values); the message names the rule |
 | 500 | `internal` | Anything else |
-| 501 | `not_implemented` | `/v1/tactical/cell/{gx}/{gy}` served by the `PendingBlocks` source (body adds `planned_source`); the default server uses `RefineBlocks` |
+| 501 | `not_implemented` | `/v1/tactical/cell/{gx}/{gy}` served by the `PendingBlocks` source (body adds `planned_source`); the default server uses `RefineBlocks`. Debug: a test seam only |
 | 501 | `not_implemented` | `POST /v1/tactical/bake` on a server started with `--bake-workers 0` (no `planned_source`) |
 | 503 | `busy` | `POST /v1/tactical/bake` while 8 bake jobs already wait; retry later |
 
-The `message` is for humans and isn't stable. Match on `code`. Absolute filesystem paths in a message are shortened to `…/` and the file name, so a
+The `message` is for humans and isn't stable. Match on `code`. The set of codes is closed for 1.x
+(versioning.md). Absolute filesystem paths in a message are shortened to `…/` and the file name, so a
 response never discloses where the server keeps its world; 5xx errors are logged in full on
 stderr. TS type: `ApiError`; the 501
 body is `NotYetError`, which adds `planned_source`.
@@ -120,12 +137,23 @@ curl http://127.0.0.1:8787/v1/health
 ```
 
 ```json
-{"status":"ok","contract_version":3,"seed":"42"}
+{"status":"ok","contract_version":3,"seed":"42","server_version":"0.8.1"}
 ```
+
+`server_version` is the `arda-server` build answering (its Cargo package version). TS type: `Health`.
 
 ### `GET /v1/world`
 
-Returns the seed, the size and grids from the manifest, and the tile pyramid. TS type: `WorldInfo`.
+Returns the seed, the size and grids from the manifest, the tile pyramid, the serving build and
+every version family. TS type: `WorldInfo`.
+
+- `arda_version` and `format_version` come from the world's manifest: the generator release
+  that wrote the world and its on-disk format major. `server_version` is this server's build.
+- `versions` holds the current version of every family (`contract_version`, `tactical_format`,
+  `layout_schema`, `scene_format`, `rules_sidecar_format`, `bake_format`, `npc_format`,
+  `npc_page_format`, `settlement_format`, `realm_format`, `gazetteer_format`,
+  `schema_index_format`, `columnar_layout_version`, `library_catalogue_format`,
+  `sheet_mapping_format`; TS type `VersionsDto`). A client checks them once at start.
 
 ```sh
 curl http://127.0.0.1:8787/v1/world
@@ -136,7 +164,11 @@ curl http://127.0.0.1:8787/v1/world
  "size_km":{"width":102,"height":204},"latitude":{"south_deg":35,"north_deg":55},
  "areas_wide":2,"areas_high":4,"area_cells":512,"cell_size_m":100,"cells_wide":1024,"cells_high":2048,
  "fine_terrain":{"recipe_version":7,"spacing_m":39.0625},
- "tiles":{"tile_px":256,"max_zoom":4,"base_px":4096,"image_width_px":2048,"image_height_px":4096,"relief_max_zoom":12}}
+ "tiles":{"tile_px":256,"max_zoom":4,"base_px":4096,"image_width_px":2048,"image_height_px":4096,"relief_max_zoom":12},
+ "server_version":"0.8.1",
+ "versions":{"contract_version":3,"tactical_format":1,"layout_schema":1,"scene_format":1,"rules_sidecar_format":2,
+   "bake_format":1,"npc_format":1,"npc_page_format":1,"settlement_format":1,"realm_format":1,"gazetteer_format":1,
+   "schema_index_format":1,"columnar_layout_version":2,"library_catalogue_format":1,"sheet_mapping_format":1}}
 ```
 
 ### `GET /v1/cell/{gx}/{gy}`
@@ -538,6 +570,8 @@ The examples assume `B=http://localhost:8787/v1/tactical`.
 
 ### `GET /v1/tactical/layouts`
 
+**Stability: debug** (built-in sample layouts, as are the three routes below).
+
 Lists the built-in test layouts in name order, with their size in squares and their tile
 pyramid at the default ppsq. TS type: `TacticalLayouts`.
 
@@ -595,6 +629,9 @@ curl -s -o whole.webp "$B/layout/riverside/tiles/0/0/0.webp"
 ```
 
 ### `POST /v1/tactical/render[?ppsq=&grid=&origin=X,Y]`
+
+**Stability: unstable** (tooling; it shares the interactive render lane and cache, so per-campaign
+maps use `POST /v1/tactical/bake`).
 
 Renders a client-supplied `TacticalLayout` JSON body and returns the PNG.
 
@@ -1067,6 +1104,8 @@ curl -s -X POST -H 'content-type: application/json' \
 
 ### `GET /v1/npc/demo`
 
+**Stability: debug** (as is `/v1/npc/demo/{npc_id}` below).
+
 The market-town example of `arda-npc` (`sample::market_town`, the `town` example): Wendlebrook,
 1,500 people. Response `NpcDemo`: `world_seed`, `settlement`, `buildings` and `population`.
 Built once per process and then served from memory.
@@ -1087,8 +1126,11 @@ Rust types as the TypeScript bindings, so a game in any language can validate wh
 describe the same JSON.
 
 - `GET /v1/schema`: the index (TS type and schema `SchemaIndex`), `{format_version: 1,
-  api_version, dialect, note, schemas: [{name, url, routes}]}`, where `routes` lists the
-  routes (or the body parts, such as `TacticalBlockDto.scene`) each schema describes.
+  api_version, dialect, note, schemas: [{name, url, family, stability, routes}]}`, where
+  `family` is the schema's version family (a `/v1/world` `versions` key, or `api_version` for
+  the error bodies), `stability` is `stable`, `unstable` or `debug` (`NpcDemo`,
+  `TacticalLayouts` and `NotYetError` are `debug`), and `routes` lists the routes (or the body
+  parts, such as `TacticalBlockDto.scene`) each schema describes.
 - `GET /v1/schema/{Name}.json`: one schema, `Content-Type: application/schema+json`. An
   unknown name is **404**.
 
@@ -1114,7 +1156,9 @@ The files are committed in `bindings/schema/` and the server serves them byte fo
 `cargo test -p arda-server schema` fails when they are stale, and `ARDA_BLESS_BINDINGS=1`
 rewrites them together with the TypeScript bindings. The world tests
 (`tests/world_api/schemas.rs`) validate real MICRO seed-42 responses of every route against
-the served schemas with the `jsonschema` crate.
+the served schemas with the `jsonschema` crate. The freeze guard compares them with the
+committed baseline `bindings/schema-baseline/v1/` and fails on a breaking change no family bump
+excuses (versioning.md § Freeze guard; re-baseline with `ARDA_BLESS_SCHEMA_BASELINE=1`).
 
 The schemas describe Arda's own NPC shape. A server started with `--sheet-mapping` sends
 the mapped shape instead (next section), and the `Npc` parts of these schemas no longer
@@ -1297,7 +1341,11 @@ HTTP as `/v1/point`.
 
 The bindings are generated from the Rust DTOs by ts-rs into `bindings/ts/arda/` at the
 workspace root, which is committed. `index.ts` re-exports every type, along with
-`CONTRACT_VERSION` and `API_VERSION`. The NPC types (`Npc`, `Sheet`, `Population`,
+`API_VERSION` and one constant per version family (`CONTRACT_VERSION`, `TACTICAL_FORMAT`,
+`LAYOUT_SCHEMA`, `SCENE_FORMAT`, `RULES_SIDECAR_FORMAT`, `BAKE_FORMAT`, `NPC_FORMAT`,
+`NPC_PAGE_FORMAT`, `SETTLEMENT_FORMAT`, `REALM_FORMAT`, `GAZETTEER_FORMAT`,
+`SCHEMA_INDEX_FORMAT`, `COLUMNAR_LAYOUT_VERSION`, `LIBRARY_CATALOGUE_FORMAT`,
+`SHEET_MAPPING_FORMAT`), the same numbers as `/v1/world` `versions`. The NPC types (`Npc`, `Sheet`, `Population`,
 `SettlementProfile`, `BuildingSpec`, …) are mirrors owned by the server (`src/npc_dto/`),
 because `arda-npc` stays free of ts-rs; a test per mirror proves it reads and writes the
 domain JSON unchanged.

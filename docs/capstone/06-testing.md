@@ -90,6 +90,7 @@ Root `[[test]]` targets are declared explicitly (`Cargo.toml:104`–`126`):
 | Golden world bless | `ARDA_BLESS=1 cargo test --test golden_world` | `tests/golden_world.rs:4` |
 | Recipe goldens bless | `ARDA_BLESS=1 cargo test --test golden_recipes` | `tests/golden_recipes.rs:10` |
 | Bindings/schema freshness | `cargo test -p arda-server bindings` / `schema`; bless with `ARDA_BLESS_BINDINGS=1` | `crates/arda-server/src/bindings.rs:4`, `crates/arda-server/src/schema/mod.rs:9` |
+| Schema freeze baseline | `ARDA_BLESS_SCHEMA_BASELINE=1 cargo test -p arda-server --lib frozen_schemas` rewrites `bindings/schema-baseline/v1/` (schemas plus `versions.json`); an explicit step, committed on its own, after a family bump or to adopt additions ([versioning.md](versioning.md) § Freeze guard) | `crates/arda-server/src/schema/tests.rs:161` |
 | Dungeon render bless | `ARDA_BLESS_DUNGEON=1 cargo test -p arda-dungeon` | `crates/arda-dungeon/tests/levels.rs:193` |
 | Release gates (ignored; all wall-clock budgets, one receipt) | `tools/release-gates.sh` (add `--with-benches` for the `arda-gen` benches; exit 0 on pass) | `tools/release-gates.sh`, receipt `target/release-gates/receipt-<commit>.md` |
 | One gate crate by hand | e.g. `cargo test --release -p arda-server --test world_api -- --ignored --nocapture --test-threads=1` | `crates/arda-server/tests/world_api/gates.rs` |
@@ -219,6 +220,13 @@ within 60 s (`crates/arda-gen/benches/continent_stage.rs:17`, `:37`).
 | `committed_schemas_are_fresh` | `crates/arda-server/src/schema/tests.rs:4` | schemars output equals `bindings/schema/` (31 files); same bless switch (`:7`) |
 | `rendering_is_deterministic_and_every_schema_is_2020_12` | `crates/arda-server/src/schema/tests.rs:37` | repeat render equality, `$schema` dialect |
 | `crates/arda-server/tests/world_api/schemas.rs` (7 tests) | `:27` | live responses validated against the served `/v1/schema/{name}.json` with `jsonschema::draft202012` |
+| `index_exports_every_version_family` | `crates/arda-server/src/bindings.rs:308` | `index.ts` exports `API_VERSION` and one constant per `VersionsDto` family |
+| `frozen_schemas_keep_their_shape_unless_their_family_is_bumped` | `crates/arda-server/src/schema/tests.rs:161` | freeze guard: every baseline schema in `bindings/schema-baseline/v1/` against the current one (`src/schema/compat.rs`): a removed property, a newly required one, a changed `type`/`format`/`const`/`$ref`, a removed enum value or variant, or a value added to a closed enum fails unless the owning family's version differs from the baseline's `versions.json`; `ARDA_BLESS_SCHEMA_BASELINE=1` re-baselines |
+| `every_schema_names_a_known_family` | `crates/arda-server/src/schema/tests.rs:215` | each catalogue entry's family is a `versions` key or `api_version` |
+| `every_open_enum_exists_and_the_policy_page_lists_it` | `crates/arda-server/src/schema/tests.rs:226` | `OPEN_ENUMS` are real `$defs` and `versioning.md` lists each with its fallback |
+| `schema::compat::tests` (9 tests) | `crates/arda-server/src/schema/compat.rs` | one synthetic schema pair per rule: removal, newly required, type/format change, enum removal, closed-enum addition fail; an added optional property and an open-enum addition pass; a family bump excuses; `$defs` ownership |
+| `every_stable_route_of_the_policy_answers` | `crates/arda-server/tests/world_api/inventory.rs` | route inventory: every **stable** row of `versioning.md` has a probe and answers on the MICRO society world with neither `404` (except an unknown bake id from the handler) nor `405` |
+| `world_and_health_name_the_server_build_and_every_version_family` | `crates/arda-server/tests/world_api/endpoints.rs` | `server_version` on `/v1/health` and `/v1/world`, `arda_version` from the manifest, and every `versions` entry equal to its constant |
 
 The viewer imports the committed bindings through the `@arda` alias
 (`apps/viewer/vite.config.ts:7`); it does not regenerate them.

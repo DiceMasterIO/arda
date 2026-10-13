@@ -88,7 +88,7 @@ Named regions for the overview (goal 40): each realm, each culture region of 08 
 
 ## State transitions
 
-`society/history.json` is staged and renamed into `society/`, like 08. It never touches the 08 files. Re-running 08 invalidates it: `history.json` records the BLAKE3 of the 08 files it read and the service refuses a stale one (16 §api-errors, `stale_society`).
+`society/history.json` is staged and renamed into `society/`, like 08. It never touches the 08 files. Re-running 08 invalidates it: `history.json` records the BLAKE3 of the 08 files it read and the service was to refuse a stale one with `409 stale_society`; that check is not implemented (21 Unhappy paths, stale-output detection) and the code was removed from 16 §api-errors at the 1.0 API freeze.
 
 ## Invariants
 
