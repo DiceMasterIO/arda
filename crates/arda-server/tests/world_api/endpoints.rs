@@ -346,3 +346,49 @@ async fn area_builds_wait_for_a_free_build_slot() {
         .unwrap();
     assert_eq!(reply.status, StatusCode::OK);
 }
+
+#[tokio::test]
+async fn world_and_health_name_the_server_build_and_every_version_family() {
+    let server = env!("CARGO_PKG_VERSION");
+    let health = get("/v1/health").await.json();
+    assert_eq!(health["server_version"], server);
+    let world = get("/v1/world").await.json();
+    assert_eq!(world["server_version"], server);
+    // `arda_version` stays the generator version recorded in the manifest.
+    let manifest = arda::World::load(crate::support::world_dir()).unwrap();
+    assert_eq!(world["arda_version"], manifest.manifest().arda_version);
+    let v = &world["versions"];
+    let expect = [
+        ("contract_version", arda_server::CONTRACT_VERSION),
+        (
+            "tactical_format",
+            arda_server::tactical::dto::TACTICAL_FORMAT,
+        ),
+        ("layout_schema", arda_server::tactical::dto::LAYOUT_SCHEMA),
+        ("scene_format", arda_scene::SCENE_FORMAT_VERSION),
+        ("rules_sidecar_format", arda_scene::SIDECAR_FORMAT_VERSION),
+        ("bake_format", arda_server::tactical::bake::BAKE_FORMAT),
+        ("npc_format", arda_server::npc_dto::NPC_FORMAT),
+        ("npc_page_format", arda_server::npcs::dto::NPC_PAGE_FORMAT),
+        ("settlement_format", arda_server::schema::SETTLEMENT_FORMAT),
+        ("realm_format", arda_server::schema::REALM_FORMAT),
+        ("gazetteer_format", arda_settle::gazetteer::FORMAT_VERSION),
+        ("schema_index_format", arda_server::schema::INDEX_FORMAT),
+        (
+            "columnar_layout_version",
+            arda_server::columnar::LAYOUT_VERSION,
+        ),
+        (
+            "library_catalogue_format",
+            arda_tactical::catalog::FORMAT_VERSION,
+        ),
+        (
+            "sheet_mapping_format",
+            arda_server::sheet_map::spec::VERSION,
+        ),
+    ];
+    assert_eq!(v.as_object().unwrap().len(), expect.len(), "{v}");
+    for (key, want) in expect {
+        assert_eq!(v[key].as_u64(), Some(u64::from(want)), "{key}: {v}");
+    }
+}

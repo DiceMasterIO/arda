@@ -80,7 +80,7 @@ pub(crate) async fn list(State(state): Shared) -> ServerResult<Response> {
             .map(|r| summary(r, politics_of(w, r.id)))
             .collect();
         Ok(RealmList {
-            format_version: 1,
+            format_version: crate::schema::REALM_FORMAT,
             realms,
         })
     })

@@ -62,7 +62,7 @@ pub(crate) async fn list(State(state): Shared, query: Params) -> ServerResult<Re
             .filter(|r| realm.as_deref().is_none_or(|t| r["realm_id"] == t))
             .take(MAX_LISTED)
             .collect();
-        Ok(json!({ "format_version": 1, "settlements": records }))
+        Ok(json!({ "format_version": crate::schema::SETTLEMENT_FORMAT, "settlements": records }))
     })
     .await?;
     Ok(Json(body).into_response())

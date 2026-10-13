@@ -7,10 +7,18 @@ use crate::npc_dto::Npc;
 use schemars::JsonSchema;
 use serde::Serialize;
 
+/// Version of the settlement bodies (`SettlementList.format_version`; it
+/// also covers the detail, plan and notables bodies).
+pub const SETTLEMENT_FORMAT: u32 = 1;
+
+/// Version of the realm bodies (`RealmList.format_version`; it also covers
+/// `RealmDetail`).
+pub const REALM_FORMAT: u32 = 1;
+
 /// `GET /v1/settlements[?tier=&realm=]`.
 #[derive(Debug, JsonSchema)]
 pub struct SettlementList {
-    /// Version of this body (1).
+    /// Version of this body ([`SETTLEMENT_FORMAT`]).
     pub format_version: u32,
     /// The `arda-settle` records, filtered.
     pub settlements: Vec<arda_settle::model::Settlement>,

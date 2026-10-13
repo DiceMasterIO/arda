@@ -18,8 +18,10 @@ use std::collections::{BTreeMap, BTreeSet};
 use std::sync::Arc;
 use ts_rs::TS;
 
-/// Envelope version of the scene body.
-pub const SCENE_FORMAT: u32 = 1;
+/// Envelope version of the scene body: the `tactical_format` family, shared
+/// with `TacticalBlockDto` (logic/16 §api-versioning), so it can never
+/// drift from [`super::dto::TACTICAL_FORMAT`].
+pub const SCENE_FORMAT: u32 = super::dto::TACTICAL_FORMAT;
 
 /// Time of day a scene's tokens are placed for.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, TS, JsonSchema)]

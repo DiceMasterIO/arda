@@ -11,14 +11,17 @@
 //! switch rewrites the TypeScript bindings).
 
 mod bodies;
+#[cfg(test)]
+pub(crate) mod compat;
 pub mod routes;
 
 pub use bodies::{
     RealmDetail, RealmList, RealmRuler, RealmSummary, SettlementDetail, SettlementList,
-    SettlementNpcs,
+    SettlementNpcs, REALM_FORMAT, SETTLEMENT_FORMAT,
 };
 
 use crate::error::{ServerError, ServerResult};
+use crate::versions::Stability;
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 use serde_json::{json, Value};
@@ -48,6 +51,11 @@ pub fn schema_dir() -> PathBuf {
 pub struct Entry {
     /// File stem and TypeScript type name.
     pub name: &'static str,
+    /// The version family that covers it (a `GET /v1/world` `versions` key,
+    /// or `api_version`).
+    pub family: &'static str,
+    /// Whether it is frozen (`docs/capstone/versioning.md`).
+    pub stability: Stability,
     /// The routes whose body (or part of whose body) it describes.
     pub routes: &'static [&'static str],
     /// The schema document.
@@ -70,7 +78,7 @@ fn doc<T: JsonSchema>(name: &str) -> ServerResult<Value> {
 }
 
 macro_rules! catalog {
-    ($( $name:literal => $t:ty, [$($route:literal),* $(,)?]; )*) => {
+    ($( $name:literal => $t:ty, $family:literal, $stability:ident, [$($route:literal),* $(,)?]; )*) => {
         /// Every published schema, in name order.
         ///
         /// # Errors
@@ -78,6 +86,8 @@ macro_rules! catalog {
         pub fn catalog() -> ServerResult<Vec<Entry>> {
             let mut out = vec![$( Entry {
                 name: $name,
+                family: $family,
+                stability: Stability::$stability,
                 routes: &[$($route),*],
                 schema: doc::<$t>($name)?,
             } ),*];
@@ -103,56 +113,56 @@ use crate::tactical::scene::TacticalScene;
 use crate::tactical::scene_dto::SceneDto;
 
 catalog! {
-    "Health" => Health, ["GET /v1/health"];
-    "WorldInfo" => WorldInfo, ["GET /v1/world"];
-    "CellSample" => CellSample, ["GET /v1/cell/{gx}/{gy}"];
-    "PointSample" => PointSample, ["GET /v1/point"];
-    "AreaCells" => AreaCells, ["GET /v1/area/{ax}/{ay}/cells?format=json"];
-    "AreaRivers" => AreaRivers, ["GET /v1/area/{ax}/{ay}/rivers"];
-    "AreaLakes" => AreaLakes, ["GET /v1/area/{ax}/{ay}/lakes"];
-    "ApiError" => ApiError, ["every 4xx and 5xx response"];
-    "NotYetError" => NotYetError, ["501 from /v1/tactical/cell and /window"];
-    "TacticalLayouts" => TacticalLayouts, ["GET /v1/tactical/layouts"];
-    "TacticalLayoutDto" => TacticalLayoutDto,
+    "Health" => Health, "contract_version", Stable, ["GET /v1/health"];
+    "WorldInfo" => WorldInfo, "contract_version", Stable, ["GET /v1/world"];
+    "CellSample" => CellSample, "contract_version", Stable, ["GET /v1/cell/{gx}/{gy}"];
+    "PointSample" => PointSample, "contract_version", Stable, ["GET /v1/point"];
+    "AreaCells" => AreaCells, "contract_version", Stable, ["GET /v1/area/{ax}/{ay}/cells?format=json"];
+    "AreaRivers" => AreaRivers, "contract_version", Stable, ["GET /v1/area/{ax}/{ay}/rivers"];
+    "AreaLakes" => AreaLakes, "contract_version", Stable, ["GET /v1/area/{ax}/{ay}/lakes"];
+    "ApiError" => ApiError, "api_version", Stable, ["every 4xx and 5xx response"];
+    "NotYetError" => NotYetError, "api_version", Debug, ["501 from /v1/tactical/cell and /window (PendingBlocks test seam only)"];
+    "TacticalLayouts" => TacticalLayouts, "tactical_format", Debug, ["GET /v1/tactical/layouts"];
+    "TacticalLayoutDto" => TacticalLayoutDto, "layout_schema", Stable,
         ["GET /v1/tactical/layout/{name}", "POST /v1/tactical/render (request)", "DungeonDto.layout"];
-    "TacticalBlockDto" => TacticalBlockDto,
+    "TacticalBlockDto" => TacticalBlockDto, "tactical_format", Stable,
         ["GET /v1/tactical/cell/{gx}/{gy}", "GET /v1/tactical/window"];
-    "RulesSidecarDto" => RulesSidecarDto, ["TacticalBlockDto.rules", "DungeonDto.rules"];
-    "SceneDto" => SceneDto,
+    "RulesSidecarDto" => RulesSidecarDto, "rules_sidecar_format", Stable, ["TacticalBlockDto.rules", "DungeonDto.rules"];
+    "SceneDto" => SceneDto, "scene_format", Stable,
         ["GET /v1/tactical/dungeon/scene", "TacticalBlockDto.scene", "TacticalScene.scene"];
-    "TacticalScene" => TacticalScene, ["GET /v1/tactical/cell/{gx}/{gy}/scene"];
-    "TacticalLibraryDto" => TacticalLibraryDto, ["GET /v1/tactical/library"];
-    "DungeonDto" => DungeonDto, ["GET /v1/tactical/dungeon"];
-    "PrefetchRequest" => PrefetchRequest, ["POST /v1/tactical/prefetch (request)"];
-    "PrefetchAccepted" => PrefetchAccepted, ["POST /v1/tactical/prefetch"];
-    "BakeRequest" => BakeRequest, ["POST /v1/tactical/bake (request)"];
-    "BakeAccepted" => BakeAccepted, ["POST /v1/tactical/bake"];
-    "BakeStatus" => BakeStatus, ["GET /v1/tactical/bake/{id}"];
-    "Npc" => Npc, ["GET /v1/npc/{id}", "GET /v1/npc/demo/{npc_id}", "POST /v1/npc/generate"];
-    "Sheet" => Sheet, ["Npc.sheet"];
-    "NpcPage" => NpcPage,
+    "TacticalScene" => TacticalScene, "tactical_format", Stable, ["GET /v1/tactical/cell/{gx}/{gy}/scene"];
+    "TacticalLibraryDto" => TacticalLibraryDto, "tactical_format", Stable, ["GET /v1/tactical/library"];
+    "DungeonDto" => DungeonDto, "tactical_format", Stable, ["GET /v1/tactical/dungeon"];
+    "PrefetchRequest" => PrefetchRequest, "tactical_format", Stable, ["POST /v1/tactical/prefetch (request)"];
+    "PrefetchAccepted" => PrefetchAccepted, "tactical_format", Stable, ["POST /v1/tactical/prefetch"];
+    "BakeRequest" => BakeRequest, "bake_format", Stable, ["POST /v1/tactical/bake (request)"];
+    "BakeAccepted" => BakeAccepted, "bake_format", Stable, ["POST /v1/tactical/bake"];
+    "BakeStatus" => BakeStatus, "bake_format", Stable, ["GET /v1/tactical/bake/{id}"];
+    "Npc" => Npc, "npc_format", Stable, ["GET /v1/npc/{id}", "GET /v1/npc/demo/{npc_id}", "POST /v1/npc/generate"];
+    "Sheet" => Sheet, "npc_format", Stable, ["Npc.sheet"];
+    "NpcPage" => NpcPage, "npc_page_format", Stable,
         ["GET /v1/npcs", "GET /v1/buildings/{building}/residents", "GET /v1/buildings/{building}/workers"];
-    "Population" => Population, ["POST /v1/npc/population"];
-    "PopulationRequest" => PopulationRequest, ["POST /v1/npc/population (request)"];
-    "GenerateNpcRequest" => GenerateNpcRequest, ["POST /v1/npc/generate (request)"];
-    "NpcDemo" => NpcDemo, ["GET /v1/npc/demo"];
-    "SettlementList" => SettlementList, ["GET /v1/settlements"];
-    "SettlementDetail" => SettlementDetail, ["GET /v1/settlements/{id}"];
-    "Settlement" => arda_settle::model::Settlement, ["SettlementList.settlements[]", "SettlementDetail.record"];
-    "SettlementSociety" => arda_society::SettlementSociety, ["SettlementDetail.society"];
-    "TownPlan" => arda_town::TownPlan, ["GET /v1/settlements/{id}/plan"];
-    "SettlementNpcs" => SettlementNpcs, ["GET /v1/settlements/{id}/npcs"];
-    "Realm" => arda_settle::realms::Realm, ["RealmDetail.record"];
-    "RealmList" => RealmList, ["GET /v1/realms"];
-    "RealmDetail" => RealmDetail, ["GET /v1/realms/{id}"];
-    "RealmSociety" => arda_society::RealmSociety, ["RealmDetail.politics"];
-    "Relation" => arda_society::politics::relations::Relation, ["RealmDetail.relations[]"];
-    "Event" => arda_society::history::Event, ["RealmDetail.events[]"];
-    "Gazetteer" => arda_settle::gazetteer::GazetteerList, ["GET /v1/gazetteer"];
-    "GazetteerFeature" => arda_settle::gazetteer::GazetteerFeature,
+    "Population" => Population, "npc_format", Stable, ["POST /v1/npc/population"];
+    "PopulationRequest" => PopulationRequest, "npc_format", Stable, ["POST /v1/npc/population (request)"];
+    "GenerateNpcRequest" => GenerateNpcRequest, "npc_format", Stable, ["POST /v1/npc/generate (request)"];
+    "NpcDemo" => NpcDemo, "npc_format", Debug, ["GET /v1/npc/demo"];
+    "SettlementList" => SettlementList, "settlement_format", Stable, ["GET /v1/settlements"];
+    "SettlementDetail" => SettlementDetail, "settlement_format", Stable, ["GET /v1/settlements/{id}"];
+    "Settlement" => arda_settle::model::Settlement, "settlement_format", Stable, ["SettlementList.settlements[]", "SettlementDetail.record"];
+    "SettlementSociety" => arda_society::SettlementSociety, "settlement_format", Stable, ["SettlementDetail.society"];
+    "TownPlan" => arda_town::TownPlan, "settlement_format", Stable, ["GET /v1/settlements/{id}/plan"];
+    "SettlementNpcs" => SettlementNpcs, "settlement_format", Stable, ["GET /v1/settlements/{id}/npcs"];
+    "Realm" => arda_settle::realms::Realm, "realm_format", Stable, ["RealmDetail.record"];
+    "RealmList" => RealmList, "realm_format", Stable, ["GET /v1/realms"];
+    "RealmDetail" => RealmDetail, "realm_format", Stable, ["GET /v1/realms/{id}"];
+    "RealmSociety" => arda_society::RealmSociety, "realm_format", Stable, ["RealmDetail.politics"];
+    "Relation" => arda_society::politics::relations::Relation, "realm_format", Stable, ["RealmDetail.relations[]"];
+    "Event" => arda_society::history::Event, "realm_format", Stable, ["RealmDetail.events[]"];
+    "Gazetteer" => arda_settle::gazetteer::GazetteerList, "gazetteer_format", Stable, ["GET /v1/gazetteer"];
+    "GazetteerFeature" => arda_settle::gazetteer::GazetteerFeature, "gazetteer_format", Stable,
         ["Gazetteer.features[]", "society/gazetteer.json"];
-    "GazetteerPoint" => arda_settle::gazetteer::GazetteerPoint, ["Gazetteer.features[]"];
-    "SchemaIndex" => SchemaIndex, ["GET /v1/schema"];
+    "GazetteerPoint" => arda_settle::gazetteer::GazetteerPoint, "gazetteer_format", Stable, ["Gazetteer.features[]"];
+    "SchemaIndex" => SchemaIndex, "schema_index_format", Stable, ["GET /v1/schema"];
 }
 
 fn pretty(v: &Value) -> ServerResult<String> {
@@ -189,6 +199,11 @@ pub struct SchemaIndexEntry {
     pub name: String,
     /// Where it is served: `/v1/schema/{name}.json`.
     pub url: String,
+    /// Its version family: a `GET /v1/world` `versions` key, or
+    /// `api_version` for the error bodies.
+    pub family: String,
+    /// `stable` (frozen), `unstable` or `debug` (outside the freeze).
+    pub stability: Stability,
     /// The routes (or body parts, such as `TacticalBlockDto.scene`) it describes.
     pub routes: Vec<String>,
 }
@@ -206,6 +221,8 @@ pub fn index(entries: &[Entry]) -> Value {
             .map(|e| SchemaIndexEntry {
                 name: e.name.to_owned(),
                 url: format!("/v1/schema/{}.json", e.name),
+                family: e.family.to_owned(),
+                stability: e.stability,
                 routes: e.routes.iter().map(|r| (*r).to_owned()).collect(),
             })
             .collect(),

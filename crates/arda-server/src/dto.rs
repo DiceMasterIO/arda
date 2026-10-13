@@ -65,9 +65,12 @@ pub struct WorldInfo {
     pub api_version: String,
     /// World seed as a decimal string (u64 does not fit a JS number).
     pub seed: String,
-    /// Generator version that wrote the world.
+    /// Generator version that wrote the world (the manifest's
+    /// `arda_version`). Tactical, NPC and image bodies come from the serving
+    /// build instead: see `server_version`.
     pub arda_version: String,
-    /// Stored format major.
+    /// The world's on-disk format major (`world.json` `format_version`), not
+    /// a body version; the server loads only its own major.
     pub format_version: u32,
     /// Nominal continent extent.
     pub size_km: SizeKmDto,
@@ -89,6 +92,12 @@ pub struct WorldInfo {
     pub fine_terrain: Option<FineTerrainDto>,
     /// Overview tile pyramid.
     pub tiles: TilePyramidDto,
+    /// Version of the `arda-server` build serving the world (its Cargo
+    /// package version, e.g. `1.0.0`); tactical, NPC and image bodies come
+    /// from this build.
+    pub server_version: String,
+    /// Current version of every family (`docs/capstone/versioning.md`).
+    pub versions: crate::versions::VersionsDto,
 }
 
 impl WorldInfo {
@@ -124,6 +133,8 @@ impl WorldInfo {
                 spacing_m: 39.0625,
             }),
             tiles,
+            server_version: crate::versions::SERVER_VERSION.to_owned(),
+            versions: crate::versions::VersionsDto::current(),
         }
     }
 }
@@ -137,6 +148,9 @@ pub struct Health {
     pub contract_version: u32,
     /// Seed of the served world, decimal string.
     pub seed: String,
+    /// Version of the `arda-server` build answering (its Cargo package
+    /// version).
+    pub server_version: String,
 }
 
 /// How a river segment ends.

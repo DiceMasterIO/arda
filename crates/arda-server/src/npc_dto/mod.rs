@@ -22,6 +22,11 @@ use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 use ts_rs::TS;
 
+/// Version of the `Npc` shape and the bodies built from it (`Sheet`,
+/// `Population`, `GenerateNpcRequest`, `NpcDemo`); `Npc` carries no version
+/// field, so clients read it from `GET /v1/world` `versions.npc_format`.
+pub const NPC_FORMAT: u32 = 1;
+
 /// An inhabitant's id: the `arda-ids` u64 as a decimal string.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, TS, JsonSchema)]
 pub struct NpcId(pub String);

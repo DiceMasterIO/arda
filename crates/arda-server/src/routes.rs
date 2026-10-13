@@ -201,6 +201,7 @@ async fn health(State(state): Shared) -> Json<Health> {
         status: "ok".into(),
         contract_version: crate::contract::CONTRACT_VERSION,
         seed: state.query.world().seed().to_string(),
+        server_version: crate::versions::SERVER_VERSION.to_owned(),
     })
 }
 

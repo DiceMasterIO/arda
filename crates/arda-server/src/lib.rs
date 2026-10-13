@@ -34,6 +34,7 @@ pub mod sheet_map;
 pub mod society_cells;
 pub mod tactical;
 pub mod tiles;
+pub mod versions;
 
 pub use contract::{CellSample, PointSample, CONTRACT_VERSION};
 pub use error::{ServerError, ServerResult};
