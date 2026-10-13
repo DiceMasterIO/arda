@@ -3,6 +3,7 @@ name = "arda-blocks"
 version.workspace = true
 edition.workspace = true
 license.workspace = true
+publish = false
 repository.workspace = true
 description = "World-derived tactical blocks for arda: arda-refine terrain composed with ways, fields and town overlays"
 

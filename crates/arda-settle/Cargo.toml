@@ -3,6 +3,7 @@ name = "arda-settle"
 version.workspace = true
 edition.workspace = true
 license.workspace = true
+publish = false
 repository.workspace = true
 description = "Settlements, roads, realms and names for generated arda worlds"
 

@@ -3,6 +3,7 @@ name = "arda-dungeon"
 version.workspace = true
 edition.workspace = true
 license.workspace = true
+publish = false
 repository.workspace = true
 description = "Deterministic dungeon and cave battle maps for arda: rooms and corridors, cellular-automaton caverns, as tactical layouts plus SRD rules sidecars"
 
