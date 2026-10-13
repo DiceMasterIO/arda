@@ -922,7 +922,46 @@ curl -s -X DELETE $B/bake/$ID -o /dev/null -w '%{http_code}\n'   # 204
 The loaded catalogue for layout editors: `grounds` (`key`, texture `variants`, `water`),
 `wall_kits` (`kit`, `roles`) and placeable `assets` (`id`, `class`, `layer`, `footprint`,
 `rotations`, `tags` as `key:value` strings, `cover`, `blocks_sight`, `blocks_movement`,
-`difficult_terrain`). TS type: `TacticalLibraryDto`.
+`difficult_terrain`), and `effects` (`id`, `kind`, `footprint`, `tags`, `variants`): the
+transparent effect art listed under "Effect and damage art" below. Damage props
+(`prop.rubble_heap`, `prop.broken_deck`, `prop.charred_floor`) are ordinary `assets`, tagged
+`free:damage`. TS type: `TacticalLibraryDto`.
+
+### `GET /v1/tactical/library/asset/{id}.png`
+
+The PNG of any asset in the loaded, stacked library (leftmost library wins): `prop.barrel`,
+`ground.grass.0`, `effect.frost.0`. Opaque images (ground and water textures) come back as RGB
+and everything with transparency as RGBA, straight (not premultiplied) alpha. The bytes are
+the library image at its own pixels per square (`pixels_per_square` of the listing). Carries a
+strong `ETag` and `Cache-Control: no-cache`, like every tactical body, so a client revalidates
+with `If-None-Match` and gets `304`. An id that is not a well-formed asset id (lowercase
+letters, digits, `_` and `.`, no empty part, at most 96 bytes, then `.png`) is 400
+`bad_request`; a well-formed id the library lacks is 404 `not_found`.
+
+```sh
+curl -s $B/library | jq '.effects | length'
+curl -s $B/library/asset/effect.frost.0.png -o frost0.png
+```
+
+### Effect and damage art
+
+DiceMaster draws spell effects and lasting changes over Arda's tiles; Arda ships the art and
+metadata only, and never places or draws it (no layout puts an effect, and the compositor
+ignores the class; the render is byte-identical with or without effect art).
+
+- `effects[]` has one entry per set. `id` is the set (`effect.frost`), not an image: the
+  images are `{id}.{n}.png` for `n` in `0..variants` (`effect.frost.0.png`). `kind` is
+  `texture` (a 2 x 2 square tileable pattern: tile it, clip it to the affected squares) or
+  `decal` (one patch, not tileable: centre it on the area). `footprint` is `[w, h]` squares,
+  the same for every variant. `tags` carries `free:effect:texture` or `free:effect:decal`.
+- The effect sets are `effect.frost`, `effect.fire`, `effect.acid`, `effect.ash`, `effect.web`,
+  `effect.grease`, `effect.fog`, `effect.water` (textures) and `effect.scorch_mark` (decal),
+  three variants each in the placeholder library.
+- Every pixel is partly transparent somewhere (never fully opaque, never fully empty), so an
+  overlay can be alpha-blended over the tile image with no matte.
+- Damage props are normal props: `prop.rubble_heap` (2 x 2, difficult terrain),
+  `prop.broken_deck` (1 x 2, floor layer) and `prop.charred_floor` (2 x 2, floor layer), each
+  `free:damage`. Fetch their images from the asset route like any other.
 
 ### `GET /v1/tactical/dungeon?seed=|gx=&gy=[&kind=dungeon|cave&w=&h=]`
 
