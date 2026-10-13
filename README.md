@@ -182,8 +182,7 @@ to reproduce an older world; changes to generation can change its output.
 ### Native world data: BIN
 
 `arda generate` automatically writes the native saved world. Its `.bin`
-files carry terrain, climate, cells, and water records; sampled tactical
-blocks use `.tiles.zst` archives. No separate `--format bin` export is
+files carry terrain, climate, cells, and water records. No separate `--format bin` export is
 needed.
 
 ```text
@@ -196,8 +195,10 @@ worlds/w42/
 │   ├── cells.bin              # Full saved area cell records
 │   └── objects.bin            # Local objects and shared water context
 ├── hydrology/                 # Global .bin tables: lakes, reaches, basins, ...
-└── blocks/<ax>_<ay>.tiles.zst  # Compressed sampled tactical blocks
 ```
+
+Worlds written before 1.0 also contain a `blocks/` folder of sampled
+tiles; nothing reads it any more and it may be deleted.
 
 `World::load` opens this directory through the Rust API. Preserve the
 directory structure when moving a world between a desktop, container,
@@ -212,7 +213,6 @@ or backend server.
 | Small area preview | `--area 0,0 --quality 512` | `area_00_00.png`, 512 × 512 |
 | High-resolution area | `--area 0,0 --quality 32k` | `area_00_00.png`, 32768 × 32768 |
 | Area data | `--area 0,0 --format json` | `area_00_00.json`, versioned cell and object data |
-| Sampled block | `--block AX,AY,CX,CY --format png` or `json` | One saved experimental tactical block, if present |
 
 Each row uses `arda export --world WORLD_DIR ... --out EXPORT_DIR`.
 PNG and JSON are separate exports. `--quality` applies to area and overview
@@ -271,20 +271,6 @@ It cannot be combined with `--quality`. The preview command also retains
 
 </details>
 
-<details>
-<summary>Read an experimental tactical block</summary>
-
-`--block` takes four coordinates: area X, area Y, cell X, cell Y.
-Blocks are saved only at land cells whose local X and Y are multiples of
-64, from 0 through 448. A coordinate such as `0,0,64,128` is a valid
-request shape, but a block exists there only if that sampled cell is land.
-
-The current tile vocabulary and adjacency rules are preliminary. These
-exports do not yet provide finished maps with detailed assets, movement
-rules, collision geometry, or NPCs.
-
-</details>
-
 ## Rust library
 
 The `arda` crate is the public entry point for generation, loading,
@@ -336,7 +322,7 @@ docker run --rm -v /absolute/path/to/worlds:/worlds --entrypoint arda arda-local
 ```
 
 The container runs as UID 10001; the mounted directory must be writable by
-that user. Native `.bin` layers, block archives, and exported files remain
+that user. Native `.bin` layers and exported files remain
 on the mounted volume after the container exits.
 
 The CLI is also the entry for one-off jobs (`--entrypoint arda`, above); the HTTP server is
@@ -389,14 +375,14 @@ Status updated on 2026-09-22 against source commit `342d03e55120`.
 | Persistence and loading | Format-4 saved worlds, manifest-first loading, requested area/archive caches and bounded owned area reads for exports |
 | Maps and interchange | Classic and shaded Atlas PNGs; per-output-pixel Atlas colour/light interpolation; versioned JSON; area/world image quality 512–32K, default 8K, with streamed quality PNG publication |
 | Developer tools | `generate`, `preview` and `export` CLI commands, a reusable Rust API, Docker execution and regression/CI infrastructure |
-| Tactical prototype | Seeded, persisted 64×64 blocks with a preliminary 24-tile WFC vocabulary and symbolic exports |
+| Tactical maps | On-demand 64×64-square blocks per 100 m cell from `arda-refine`/`arda-blocks`, served by `arda-server` |
 
 | Remaining work or model boundary | Current boundary |
 | --- | --- |
 | Terrain realism | First Atlas comparison shows smoother relief; straight/parallel drainage shapes and 100 m shoreline steps remain visible. Wider terrain acceptance and historical rectangular-basin diagnosis remain open |
 | Water model scope | Annual water is implemented; seasonal storage, groundwater, snowpack and dynamic floods are outside the current model |
 | Rich vegetation and human geography | Full vegetation/forest density, soil moisture, settlements, roads, buildings, naming, realms and NPC generation remain deferred |
-| Tactical maps | Sparse sampled blocks with a preliminary WFC tile set; detailed assets and gameplay geometry remain deferred |
+| Tactical maps | On-demand refined blocks; detailed assets and gameplay geometry remain deferred |
 | Serving and integration | No `arda serve` command or browser application; consumers use saved exports or the Rust API |
 
 The Atlas first pass passed **648 workspace tests** on Linux (8 ignored),
@@ -433,7 +419,7 @@ CLI:
 | Crate | Responsibility |
 | --- | --- |
 | [`arda-core`](crates/arda-core) | Coordinates, domain types, deterministic RNG, and storage formats |
-| [`arda-gen`](crates/arda-gen) | Continent, terrain, water, area, and block generation |
+| [`arda-gen`](crates/arda-gen) | Continent, terrain, water, and area generation |
 | [`arda-render`](crates/arda-render) | PNG rendering and JSON serialization |
 | [`arda`](crates/arda) | Public generation, loading, query, and export API |
 | [`arda-cli`](crates/arda-cli) | The `arda` command |

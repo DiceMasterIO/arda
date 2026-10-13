@@ -16,17 +16,16 @@ The implemented read path in `crates/arda/src/world.rs`, also used by [export](0
 
 ## Steps
 
-1. Read and version-gate only `world.json`. Revalidate its configuration and area dimensions, derive the fine domain as the union of requested kilometre extent and exported 512-cell areas, and allocate empty, separate area and block cache slots for the exported coordinates. No area, continent layer, global hydrology table or block archive is decoded at this point.
+1. Read and version-gate only `world.json`. Revalidate its configuration and area dimensions, derive the fine domain as the union of requested kilometre extent and exported 512-cell areas, and allocate empty area cache slots for the exported coordinates. No area, continent layer, global hydrology table or block archive is decoded at this point.
 2. Answer `seed()`, `size_km()`, `areas()`, `dir()`, `manifest()` and row-major `area_coords()` from this manifest state.
 3. `area(ax, ay)` loads the requested tile's `cells.bin` and `objects.bin` on first successful access, stores the resulting `Area` in its `OnceLock`, and returns a stable borrowed reference. `read_area(ax, ay)` reads the same files into an owned `Area` without consulting or populating the cache; the caller releases its payload by dropping it.
 4. Before allocating area input buffers, bound cells by their exact 512²×39-byte format size and objects by the codec's current 128 MiB default limit. Decode the layers, validate the copied annual water context against the manifest-derived domain, and reject channel endpoints outside that domain. Each area carries local rivers/lakes, saved channel geometry and the relevant global hydrology context, so reading it does not open neighboring areas or global tables.
 5. `Area::cell(x,y)` returns a checked borrowed `Cell`; `cells()` exposes the grid, `rivers()` and `lakes()` expose local fragments, and `objects()` exposes saved geometry and copied hydrology context. Hydrology model revision 2 describes representative annual support and mean annual flow with stable global identities. Stored `Cell` fields can be read through Rust even where area JSON omits them; the presence of a stored field does not establish a future society or vegetation simulation.
-6. `block(ax,ay,cx,cy)` uses an independent `OnceLock` for that area's block archive. The first request reads and decompresses the entire `.tiles.zst` archive, then returns the requested saved block. It does not load area cells/objects. Further block requests in that area reuse the archive. Blocks exist only for materialized cells, currently a 64-cell stride over land. Their 64×64 tile IDs and the existing 24-tile tactical vocabulary are unchanged.
+6. Retired in 1.0: `World::block` and the `blocks/` archive no longer exist. Tactical blocks are derived on demand by `arda-refine`/`arda-blocks` and served by `arda-server` (logic/09). A `blocks/` folder in an older world is ignored.
 
 ## Branches
 
 - Borrowed area access retains each successfully queried area until `World` is dropped; owned area reads have caller-controlled lifetime and are used for area/overview export passes.
-- Block queries retain entire queried area archives, not just individual requested blocks. Area and block caches are independent.
 - Cached queries reuse saved in-memory data. Owned reads perform fresh file reads; callers must not modify a world beneath either access mode.
 
 ## Unhappy paths
@@ -39,13 +38,13 @@ The implemented read path in `crates/arda/src/world.rs`, also used by [export](0
 
 ## State transitions
 
-On disk, none: queries create no lock files and write no metadata or layers. In memory, an area or block-archive cache slot changes from empty to populated after a successful read and remains populated until the `World` is dropped. Concurrent borrowed accesses converge on a stable cached value; racing first accesses may each read/decode before one value is retained. An owned `read_area` has no cache transition.
+On disk, none: queries create no lock files and write no metadata or layers. In memory, an area cache slot changes from empty to populated after a successful read and remains populated until the `World` is dropped. Concurrent borrowed accesses converge on a stable cached value; racing first accesses may each read/decode before one value is retained. An owned `read_area` has no cache transition.
 
 ## Invariants
 
 - Loading and queries do not recompute terrain, water, annual state or tactical generation.
 - With unchanged stored files, decoded fields and identities reproduce generation's saved decisions. Area context supplies its own relevant water authorities without recursive neighbor loads.
-- Manifest loading retains empty slots proportional to exported areas. Payload memory additionally includes cached requested areas and whole block archives for requested areas. Owned export reads can release one area's cells/objects before reading the next; repeatedly calling the borrowed accessor intentionally retains those areas.
+- Manifest loading retains empty slots proportional to exported areas. Payload memory additionally includes cached requested areas. Owned export reads can release one area's cells/objects before reading the next; repeatedly calling the borrowed accessor intentionally retains those areas.
 - Successful manifest loading is not a promise that future reads are infallible. The requested layer must still pass I/O, format, geometry and resource checks.
 
 ## Outcomes & side effects

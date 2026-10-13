@@ -14,7 +14,7 @@ Renders PNG and serializes JSON from saved world data on demand. The current CLI
 
 ## Trigger & preconditions
 
-- Trigger: `arda export`, or the public `export_area_with_quality_and_style`, `export_overview_with_quality_and_style`, `export_area_with_quality`, `export_overview_with_quality`, `export_area`, `export_area_with_scale`, `export_overview` and `export_block` functions. The older entry points retain Classic behavior (`crates/arda/src/export_quality.rs:20`, `crates/arda/src/export_quality.rs:94`, `crates/arda/src/lib.rs:98`).
+- Trigger: `arda export`, or the public `export_area_with_quality_and_style`, `export_overview_with_quality_and_style`, `export_area_with_quality`, `export_overview_with_quality`, `export_area`, `export_area_with_scale`, `export_overview` functions. The older entry points retain Classic behavior (`crates/arda/src/export_quality.rs:20`, `crates/arda/src/export_quality.rs:94`, `crates/arda/src/lib.rs:98`).
 - The CLI requires `--world <dir>` and `--out <dir>`. The library receives a loaded `World` and an existing output directory; the CLI creates its output directory after loading the manifest.
 - `world.json` must parse, have format major 4 and contain a valid configuration with matching area dimensions. Its presence is the generator's completion stamp, not proof that every lazily read layer is accessible or valid. Other majors, including preserved format-3 worlds, are refused; no migration runs during export.
 
@@ -35,12 +35,12 @@ For Linear×Linear output, Atlas reconstructs displayed land/sea ownership from 
 - Area: quality PNG (default 8K), Classic legacy PNG Detail, Atlas `--detail` at 4096 through the standard quality filename, or combined JSON. Request PNG and JSON in separate calls. The library retains `AreaImageScale::Preview` (512), `Detail` (4096) and `Custom(ImageQuality)`; Custom shows physical coverage only, while the quality facade maps 512 to Preview for compatibility.
 - Overview: PNG at the selected quality, defaulting to an 8K long edge. `--area` does not change this branch. With no explicit quality, the legacy behavior of ignoring `--format` remains; explicit quality combined with JSON is rejected. If both `--block` and `--overview` are supplied, the block branch takes precedence.
 - Exact-size overview: streaming `write_overview_png` and `write_atlas_overview_png_with_channels` support 1–78 areas per axis and up to 32,768 pixels per axis, including square 32K output. The connected API requires an `OverviewChannelContext` for each area; `OverviewRaster::push_atlas_with_channels` provides the buffered equivalent. The legacy `write_atlas_overview_png` and `OverviewRaster::push_atlas` continue to render the older Atlas symbol profile when called directly. Buffered `OverviewRaster::new_exact` retains its 134,217,728-pixel total cap and at least one output pixel per area per axis; its regular constructor retains 1–512 pixels per area and the 64-million-pixel cap (`crates/arda-render/src/overview/streaming.rs:75`, `crates/arda-render/src/overview.rs:338`, `crates/arda-render/src/overview.rs:267`).
-- Block: symbolic PNG or JSON for a materialized cell. Generation currently saves blocks only at a 64-cell stride over land; a valid in-range cell need not have a block.
+- Block: removed in 1.0. `arda export --block` fails with a pointer to `arda-refine render --world <dir> --cell <gx>,<gy>` and `GET /v1/tactical/cell/{gx}/{gy}.png`.
 
 ## Unhappy paths
 
 - Malformed selectors, invalid quality values or image-option combinations, absent/unreadable manifests and incompatible format majors produce CLI failure or the corresponding typed library error.
-- Out-of-range area/cell coordinates or an unmaterialized block return a typed range error. CLI block failures add the sampled-land-block explanation.
+- Out-of-range area coordinates return a typed range error. `--block` is refused with the removal message.
 - Missing, inaccessible, corrupt or truncated saved layers can fail after manifest loading. Area codecs bound cell/object input bytes before allocation and validate copied water geometry against the manifest-derived fine domain.
 - Atlas also requires valid saved layers for each in-bounds neighboring area. Incomplete, duplicate or contradictory halo directions and absent in-bounds context fail with `RenderError::AtlasContext`; an outer-world boundary is handled explicitly (`crates/arda/src/atlas.rs:43`, `crates/arda-render/src/atlas.rs:176`).
 - Invalid lake/channel geometry, incomplete or conflicting Atlas overview channel context, bounded pixel-union work/depth, PNG encoding and area JSON serialization failures propagate through `ExportError::Render`. An unknown symbolic tile ID produces `UnmappedTile` (`crates/arda-render/src/overview/channel_overlay.rs:131`, `crates/arda-render/src/channel_geometry.rs:439`, `crates/arda/src/export_quality.rs:125`).
@@ -48,7 +48,7 @@ For Linear×Linear output, Atlas reconstructs displayed land/sea ownership from 
 
 ## State transitions
 
-Saved world layers remain unchanged. Area and overview export reads do not populate retained area caches; a block export can populate its area's block-archive cache. The output artifact is created or overwritten. No terrain or hydrology generation runs during export.
+Saved world layers remain unchanged. Area and overview export reads do not populate retained area caches; The output artifact is created or overwritten. No terrain or hydrology generation runs during export.
 
 ## Invariants
 

@@ -40,7 +40,6 @@ The pipeline has two halves. Three offline CLI batches write files under one wor
 | Hydrology tables | `hydrology/*.bin` (`crates/arda-gen/src/orchestrator/global_output.rs:52`) | — |
 | Continent | `continent/overview.bin`, `continent/objects.bin` (`crates/arda-gen/src/orchestrator.rs:424`, `crates/arda-gen/src/orchestrator.rs:430`) | — |
 | Fine terrain | `terrain/fine.bin`, copied from the staged source (`crates/arda-core/src/formats/manifest.rs:43`, `crates/arda-gen/src/orchestrator.rs:198`) | Per-area windows in `WorldQuery.windows` (`crates/arda-server/src/query.rs:206`) |
-| Skeleton blocks | `blocks/<ax>_<ay>.tiles.zst`, land cells at stride `SKELETON_BLOCK_STRIDE` (`crates/arda-gen/src/orchestrator/final_writes.rs:144`) | Read only by `arda export --block` (`crates/arda/src/lib.rs:224`). The server never reads them. |
 | Settlements, roads, realms, names, land use | `society/settlements.json`, `roads.json`, `realms.json`, `names.json`, `landuse.bin`, `realms.bin`, `roads.bin`, `stats.json` (`crates/arda-settle/src/lib.rs:61`) | Rasters decoded once at server start (`crates/arda-server/src/society_cells.rs:47`) |
 | Society simulation | `society/society.json` (`crates/arda-people/src/build.rs:48`) | Loaded once at server start (`crates/arda-people/src/people.rs:79`) |
 | Notables | `society/notables.json`, notables only (`crates/arda-people/src/build.rs:49`) | Indexed by `NpcId` at start (`crates/arda-people/src/people.rs:98`) |
@@ -53,7 +52,7 @@ The pipeline has two halves. Three offline CLI batches write files under one wor
 | Mid-zoom relief tiles | Not stored | `Relief.tiles` (`crates/arda-server/src/relief.rs:114`) |
 | Tactical asset library | `catalog.json` plus images, from `arda tactical import` (`crates/arda-art-import/src/lib.rs:97`) or the placeholder generator | Loaded and pre-scaled at start (`crates/arda-server/src/tactical/mod.rs:188`) |
 
-### 1. `arda generate` (continent → areas → blocks)
+### 1. `arda generate` (continent → areas → terrain)
 
 1. CLI `run_generate` picks the source. `--terrain` defaults to `Legacy` (`crates/arda-cli/src/main.rs:51`). Legacy calls `arda::generate` and fine calls `generate_from_fine_recipe`, default recipe 7 (`crates/arda-cli/src/generate.rs:85`, `crates/arda-cli/src/generate.rs:95`, `crates/arda-core/src/formats/manifest.rs:58`).
 2. The fine path admits resources and refuses an occupied output (`crates/arda-gen/src/orchestrator/fine_delivery.rs:280`). It then loops over up to `CONTINENT_ATTEMPTS` candidates (`crates/arda-gen/src/orchestrator/fine_delivery.rs:286`). Each candidate is either formed (`fine_formation::generate`, `:294`) or spectral then valley-carved (`fine_source::generate`, `:307`; `fine_valleys::carve`, `:330`). A candidate must pass the land gate and the river gate (`:369`). The accepted file goes to `generate_world_from_formed_terrain` or `generate_world_from_fine_terrain` (`:382`, `:391`). The private source stage is removed either way (`:400`, `:408`).
@@ -63,7 +62,7 @@ The pipeline has two halves. Three offline CLI batches write files under one wor
    - runs the continent attempt loop with climate/hydrology/river gate (`:218`)
    - builds `SharedTerrain` (`:281`, `:290`) and writes prepared tiles per area to scratch (`:294`)
    - runs the shared water solve (`:302`) and builds the final index (`:321`)
-4. Per area, the orchestrator composes cells and objects (`area_output::compose`, `:337`), applies ground ecology (`fine_materials::apply`, `:351`), then calls `write_area` (`:353`). `write_area` writes `cells.bin` and `objects.bin` and fills the skeleton block archive: `constraints_for`/`fill_block` at stride 64 on land cells (`crates/arda-gen/src/orchestrator/final_writes.rs:127`).
+4. Per area, the orchestrator composes cells and objects (`area_output::compose`, `:337`), applies ground ecology (`fine_materials::apply`, `:351`), then calls `write_area` (`:353`). `write_area` writes `cells.bin` and `objects.bin`. No block archive is written (retired in 1.0, OI-43); tactical blocks are built on demand by the server.
 5. Next come water forms (`crates/arda-gen/src/orchestrator.rs:368`), global hydrology tables (`:380`), and the continent overview and objects (`:424`, `:430`).
 6. `output.commit` renames the manifest last (`crates/arda-gen/src/orchestrator.rs:451`, `crates/arda-gen/src/orchestrator/publication.rs:122`). The manifest's `settlement_count` is written as 0 (`crates/arda-gen/src/orchestrator.rs:446`), and no later stage rewrites `world.json`.
 

@@ -33,15 +33,12 @@ Storage values: `HTTP JSON; ts-rs bindings/ts/arda/<Name>.ts` means the type is 
 | ContinentObjects | `crates/arda-core/src/continent.rs:87` | continent/objects.bin | Every object stored in `continent/objects.bin`. |
 | AreaCoord | `crates/arda-core/src/coords.rs:17` | in-memory | Index of a 51.2 km area tile within the continent. |
 | CellCoord | `crates/arda-core/src/coords.rs:40` | in-memory | Index of a 100 m cell within one area tile. |
-| SquareCoord | `crates/arda-core/src/coords.rs:77` | in-memory | Index of a five-foot square within one block. |
 | KmCoord | `crates/arda-core/src/coords.rs:119` | in-memory | Index of a 1 km cell within the continent working grid. |
 | GlobalCell | `crates/arda-core/src/coords.rs:169` | global hydrology and area geometry | Absolute coordinate on the shared 100 m terrain grid. |
 | HeightMm | `crates/arda-core/src/fixed.rs:9` | in-memory | Elevation in millimetres above sea level; negative below. |
 | TempCentiC | `crates/arda-core/src/fixed.rs:36` | in-memory | Temperature in hundredths of a degree Celsius. |
 | RainfallMm | `crates/arda-core/src/fixed.rs:60` | in-memory | Annual rainfall in millimetres. |
 | DischargeMilli | `crates/arda-core/src/fixed.rs:78` | in-memory | River discharge in thousandths of a cubic metre per second. |
-| Block | `crates/arda-core/src/formats/blocks.rs:24` | blocks/*.tiles.zst | One 64x64 tactical block. |
-| BlockArchive | `crates/arda-core/src/formats/blocks.rs:67` | blocks/*.tiles.zst | Every block generated for one area tile. |
 | AreaCells (arda-core) | `crates/arda-core/src/formats/cells.rs:24` | areas/*/cells.bin | One area tile's full cell grid, row-major. |
 | TableSpan | `crates/arda-core/src/formats/hydrology.rs:350` | hydrology/basins.bin | Range measured in records, not byte offsets. |
 | BasinNodeRow | `crates/arda-core/src/formats/hydrology.rs:372` | hydrology/basins.bin | Fixed basin row; its children remain in a separately streamed ID table. |
@@ -86,9 +83,6 @@ Storage values: `HTTP JSON; ts-rs bindings/ts/arda/<Name>.ts` means the type is 
 | SeedKey | `crates/arda-core/src/rng.rs:50` | in-memory | The full key for one random stream. |
 | TerrainPoint | `crates/arda-core/src/terrain.rs:11` | in-memory; canonical fine-field diagnostic | A physical position in absolute micrometres. |
 | TerrainField | `crates/arda-core/src/terrain.rs:73` | in-memory; canonical fine-field diagnostic | Owned lattice heights with closed first-to-last coverage on each axis. |
-| TileId | `crates/arda-core/src/tiles.rs:9` | in-memory | A tile identifier, two bytes on disk (`02-models.md`). |
-| TileGroup | `crates/arda-core/src/tiles.rs:27` | in-memory | Broad tile family; adjacency is decided between groups. |
-| TileDef | `crates/arda-core/src/tiles.rs:44` | in-memory | One entry in the vocabulary. |
 | ChannelPattern | `crates/arda-core/src/water.rs:275` | `areas/AX_AY/water.bin` | Planform of a river segment. |
 | LakeOrigin | `crates/arda-core/src/water.rs:301` | `areas/AX_AY/water.bin` | Geological origin of a lake basin. |
 | SegmentForm | `crates/arda-core/src/water.rs:337` | `areas/AX_AY/water.bin` | Stored form of one area river segment, in the order of the area's rivers. |
@@ -103,7 +97,6 @@ Storage values: `HTTP JSON; ts-rs bindings/ts/arda/<Name>.ts` means the type is 
 | ReliefGrid | `crates/arda-gen/src/area/relief.rs:12` | in-memory; local diagnostic helper | One tile's elevation field, in millimetres. |
 | SolvedCell | `crates/arda-gen/src/area/shared_compose.rs:15` | in-memory composition handoff | Immutable final flow/occupancy fields for one 100 m cell. |
 | WaterGrid | `crates/arda-gen/src/area/water.rs:35` | in-memory; local diagnostic path | Drainage directions, accumulation, discharge, and Strahler order for one tile. |
-| BlockConstraints | `crates/arda-gen/src/block/constraints.rs:8` | in-memory | What a block may be built from, derived from its cell and the eight neighbours around it. |
 | EnteringRiver | `crates/arda-gen/src/continent/bundles.rs:116` | in-memory; local diagnostic path | One watercourse crossing into the tile (logic/01 step 10). |
 | TileBundle | `crates/arda-gen/src/continent/bundles.rs:142` | in-memory | One area tile's inputs, computed from coarse data and the seed only. |
 | ContinentClimate | `crates/arda-gen/src/continent/climate.rs:12` | in-memory | Per-cell climate fields, row-major over the 1 km grid. |
@@ -133,8 +126,6 @@ Storage values: `HTTP JSON; ts-rs bindings/ts/arda/<Name>.ts` means the type is 
 | LakeOut | `crates/arda-render/src/json.rs:45` | export JSON | Local area lake DTO and module-scoped copied global lake DTO |
 | AreaOut | `crates/arda-render/src/json.rs:66` | export JSON | Versioned area JSON payload |
 | ChannelEdgeOut | `crates/arda-render/src/json.rs:81` | export JSON | Global centerline endpoints, widths and mean discharge |
-| LegendEntry | `crates/arda-render/src/json.rs:90` | export JSON | Block JSON tile legend |
-| BlockOut | `crates/arda-render/src/json.rs:96` | export JSON | Versioned block JSON payload |
 | OverviewRaster | `crates/arda-render/src/overview.rs:44` | in-memory buffered renderer | Overview-sized buffer that never retains an area's cell grid. |
 | RasterBand | `crates/arda-render/src/overview/streaming.rs:343` | in-memory streaming helper | 256 output rows plus at most 14 halo rows on each side for RGB and feature classifications |
 | ImageQuality | `crates/arda-render/src/quality.rs:7` | in-memory render request | PNG edge length: an area's side or an overview's longest edge. |
@@ -791,13 +782,6 @@ Required `no` marks an `Option` field, a serde default, a field omitted when emp
 | x | `u16` | yes | — |
 | y | `u16` | yes | — |
 
-### SquareCoord
-
-| Field | Type | Required | Notes |
-|---|---|---|---|
-| x | `u8` | yes | — |
-| y | `u8` | yes | — |
-
 ### KmCoord
 
 | Field | Type | Required | Notes |
@@ -835,19 +819,6 @@ Required `no` marks an `Option` field, a serde default, a field omitted when emp
 | Field | Type | Required | Notes |
 |---|---|---|---|
 | 0 | `u64` | yes | Whole L/s, equivalent to thousandths of a cubic metre per second |
-
-### Block
-
-| Field | Type | Required | Notes |
-|---|---|---|---|
-| tiles | `TileId[]` | yes | — |
-| relaxed | `bool` | yes | — |
-
-### BlockArchive
-
-| Field | Type | Required | Notes |
-|---|---|---|---|
-| blocks | `BTreeMap<(u16, u16), Block>` | yes | — |
 
 ### AreaCells (arda-core)
 
@@ -1242,26 +1213,6 @@ Required `no` marks an `Option` field, a serde default, a field omitted when emp
 | height | `u32` | yes | — |
 | heights | `HeightMm[]` | yes | — |
 
-### TileId
-
-| Field | Type | Required | Notes |
-|---|---|---|---|
-| 0 | `u16` | yes | — |
-
-### TileGroup
-
-| Field | Type | Required | Notes |
-|---|---|---|---|
-| value | enum | yes | accepted: Water, Shore, Ground, Vegetation, Rock, Structure |
-
-### TileDef
-
-| Field | Type | Required | Notes |
-|---|---|---|---|
-| id | `TileId` | yes | Stable identifier. |
-| name | `&'static str` | yes | Stable snake_case name, used by the export legend (`logic/04`). |
-| group | `TileGroup` | yes | accepted: Water, Shore, Ground, Vegetation, Rock, Structure |
-
 ### ChannelPattern
 
 | Field | Type | Required | Notes |
@@ -1376,13 +1327,6 @@ Required `no` marks an `Option` field, a serde default, a field omitted when emp
 | order | `u8[]` | yes | — |
 | downstream | `Option<u32>[]` | yes | — |
 | outlets | `bool[]` | yes | — |
-
-### BlockConstraints
-
-| Field | Type | Required | Notes |
-|---|---|---|---|
-| allowed | `TileId[]` | yes | Tiles permitted in this block. |
-| wet_fraction | `u8` | yes | How wet the surroundings are, 0-255; drives the water-to-land mix. |
 
 ### EnteringRiver
 
@@ -1727,25 +1671,6 @@ Required `no` marks an `Option` field, a serde default, a field omitted when emp
 | to_width_dm | `u32` | yes | — |
 | discharge_milli_cumecs | `u64` | yes | — |
 
-### LegendEntry
-
-| Field | Type | Required | Notes |
-|---|---|---|---|
-| id | `u16` | yes | — |
-| name | `&'static str` | yes | — |
-
-### BlockOut
-
-| Field | Type | Required | Notes |
-|---|---|---|---|
-| schema_version | `u32` | yes | 2; block keys and tactical semantics are retained |
-| format_version | `u32` | yes | — |
-| seed | `u64` | yes | — |
-| squares_per_side | `u8` | yes | — |
-| relaxed | `bool` | yes | — |
-| legend | `LegendEntry[]` | yes | — |
-| squares | `u16[]` | yes | — |
-
 ### OverviewRaster
 
 | Field | Type | Required | Notes |
@@ -1802,7 +1727,6 @@ Required `no` marks an `Option` field, a serde default, a field omitted when emp
 | manifest | `Manifest` | yes | — |
 | domain | `arda_core::hydrology::HydrologyDomain` | yes | Reconstructed from validated manifest configuration and exported dimensions |
 | areas | `BTreeMap<AreaCoord, OnceLock<Area>>` | yes | Empty OnceLock slots at load; area() retains only successfully requested areas |
-| blocks | `BTreeMap<AreaCoord, OnceLock<arda_core::BlockArchive>>` | yes | Independent requested-area archive cache; first block query decodes that whole archive |
 
 ### Area
 
@@ -6744,7 +6668,7 @@ Required `no` marks an `Option` field, a serde default, a field omitted when emp
 
 ### Saved world (arda-core, arda-gen, arda-render, arda)
 
-`World` (`crates/arda/src/world.rs:19`) owns its `Manifest`, a derived `HydrologyDomain` and two independent `BTreeMap<AreaCoord, OnceLock<…>>` caches. `World::load` (`crates/arda/src/world.rs:34`) fills empty slots only; `area()` caches a requested `Area` (`crates/arda/src/world.rs:210`), `read_area()` returns owned uncached data (`crates/arda/src/world.rs:226`), and the first `block()` request decodes that area's whole `BlockArchive` (`crates/arda/src/world.rs:364`). Each `Area` owns cells, objects and the optional `AreaWater` forms (`crates/arda/src/world/area.rs:6`); `World::shore` reads the optional `ShoreLayer` (`crates/arda/src/world.rs:183`) and `World::fine_terrain` the canonical fine lattice (`crates/arda/src/world.rs:139`).
+`World` (`crates/arda/src/world.rs:19`) owns its `Manifest`, a derived `HydrologyDomain` and one `BTreeMap<AreaCoord, OnceLock<Area>>` cache. `World::load` (`crates/arda/src/world.rs:34`) fills empty slots only; `area()` caches a requested `Area` (`crates/arda/src/world.rs:210`), `read_area()` returns owned uncached data (`crates/arda/src/world.rs:226`). Each `Area` owns cells, objects and the optional `AreaWater` forms (`crates/arda/src/world/area.rs:6`); `World::shore` reads the optional `ShoreLayer` (`crates/arda/src/world.rs:183`) and `World::fine_terrain` the canonical fine lattice (`crates/arda/src/world.rs:139`).
 
 `AreaWater.segments` and `.lakes` are positional: one `SegmentForm` per `RiverSegment` and one `LakeForm` per `Lake`, in the area's object order (`crates/arda-core/src/water.rs:390`).
 
@@ -6794,10 +6718,10 @@ The society's `NpcRole` becomes an `arda-npc` `NotableSlot` in `arda_people::slo
 
 | Representation | Produced by | Consumed by | Conversion site |
 |---|---|---|---|
-| Binary world (`world.json`, `areas/`, `continent/`, `hydrology/`, `blocks/`, `terrain/`) | `arda-gen` writers | `arda` `World` | codecs in `crates/arda-core/src/formats/`; `World::load` `crates/arda/src/world.rs:34` |
+| Binary world (`world.json`, `areas/`, `continent/`, `hydrology/`, `terrain/`; a `blocks/` folder in a pre-1.0 world is ignored) | `arda-gen` writers | `arda` `World` | codecs in `crates/arda-core/src/formats/`; `World::load` `crates/arda/src/world.rs:34` |
 | `CellSample` / `PointSample` (contract 3) | `arda-server` | HTTP clients, viewer | `cell_sample` `crates/arda-server/src/contract/convert.rs:187`; society overlay `crates/arda-server/src/contract/convert.rs:169`, rasters `crates/arda-server/src/society_cells.rs:47` |
 | `AreaCells` JSON / `ARDACOLS` v2 binary | `arda-server` | viewer | `build` `crates/arda-server/src/columnar.rs:262`, `encode` `crates/arda-server/src/columnar.rs:287` |
-| Export JSON (`AreaOut` schema 2, `BlockOut`) | `arda-render` | `arda export` files | `crates/arda-render/src/json.rs:66`, `crates/arda-render/src/hydrology_json.rs:145` |
+| Export JSON (`AreaOut` schema 2) | `arda-render` | `arda export` files | `crates/arda-render/src/json.rs:66`, `crates/arda-render/src/hydrology_json.rs:145` |
 | `society/settlements.json`, `roads.json`, `realms.json`, `names.json`, `stats.json`, three rasters | `arda-settle` domain types | readers below | `encode` `crates/arda-settle/src/lib.rs:61`, `write` `crates/arda-settle/src/lib.rs:145` |
 | `arda-society` input view of `society/*.json` | `WorldSettlements::read_dir` | `simulate_society` | `crates/arda-society/src/read.rs:75`, `crates/arda-society/src/lib.rs:134` |
 | `SocietyFiles` (typed + raw JSON records) | `arda-people` | town, NPC, server routes | `crates/arda-people/src/files.rs:45`; raw record → `TownSite` `crates/arda-people/src/town.rs:33`; raw record → `SettlementProfile` `crates/arda-people/src/people.rs:201` |
@@ -6828,7 +6752,6 @@ Core codecs write explicit little-endian fields; Rust padding is never persisted
 | Hydrology rows | each `structure!` row carries its invariant (canonical crossing pair, spill consistency, annual/mean pairing, model revision 2) | `crates/arda-core/src/formats/hydrology.rs:248`–`crates/arda-core/src/formats/hydrology.rs:386` |
 | Continent acceptance | land fraction 250–900 per mille | `crates/arda-gen/src/orchestrator.rs:71` |
 | `ImageQuality`, overview sizes | 512–32,768 px; `k`/`K` suffix; exact overview axes 1–32,768 and ≤ 134,217,728 px buffered | `crates/arda-render/src/quality.rs:21`, `crates/arda-render/src/quality.rs:71`, `crates/arda-render/src/overview.rs:87`, `crates/arda-render/src/overview.rs:294` |
-| Block archive | decodes any `u16` `TileId`; symbolic rendering refuses unknown vocabulary ids | `crates/arda-core/src/formats/blocks.rs:133`, `crates/arda-render/src/symbolic.rs:11` |
 | `society/*.bin` rasters | magic, format version 1, `0 < w·h ≤ 2^28` before allocation, exact decompressed length | `crates/arda-settle/src/output.rs:189` |
 | `society/*.json` for society | `format_version` must equal 1 | `crates/arda-society/src/read.rs:56` |
 | Server rasters | `landuse.bin`, `realms.bin`, `roads.bin` must match the world's cell dimensions | `crates/arda-server/src/society_cells.rs:47` |
@@ -6860,7 +6783,6 @@ No database or migration layer exists. Version authorities are separate: world f
 | areas/AX_AY/water.bin (optional) | `ARDAWTR\0`; v1: four counts, segment 19 B, lake 2 B, delta 12 B, doline 8 B; v2 (recipe 7): five counts, lake 3 B, pan 7 B | `crates/arda-core/src/formats/water.rs:1` |
 | continent/overview.bin | `ARDAOVR\0`, width, height, 22-byte `ContinentCell` rows | `crates/arda-core/src/formats/overview.rs:18` |
 | continent/objects.bin | `ARDACOB\0` plus tagged continent-river section | `crates/arda-core/src/formats/objects.rs:34` |
-| blocks/AX_AY.tiles.zst | zstd frame: `ARDABLK\0`, count; per block cx, cy u16, relaxed u8, 4,096 u16 tile IDs | `crates/arda-core/src/formats/blocks.rs:14` |
 | terrain/fine.bin (optional) | 88-byte header (`ARDATERR`, major/minor, finalized, origin µm, spacing/width/height, payload length, BLAKE3) then row-major i32 mm | `crates/arda-core/src/formats/terrain.rs:1` |
 | terrain/shore.bin (optional) | `ARDASHOR`, major/minor, spacing, width, height, run/island/landform counts; runs 11 B, islands 23 B, landforms 24 B; trailing BLAKE3 | `crates/arda-core/src/formats/shore.rs:1` |
 

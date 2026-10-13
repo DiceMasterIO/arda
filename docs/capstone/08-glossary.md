@@ -28,7 +28,6 @@ Terms are grouped by layer. Each row gives the meaning in this system and its de
 | MICRO | The small fixed generation config (102 × 204 km, latitude 35–55°) used by tests and examples; "MICRO 42" is that config with seed 42. | `crates/arda-core/src/config.rs:63` |
 | Square (tactical) | One 5-ft square of the tactical layer: a 100 m cell is 64 × 64 squares, so a square is exactly 1.5625 m (a binary fraction, exact in floating point). | `crates/arda-refine/src/context.rs:36`, `crates/arda-blocks/src/pipeline.rs:15`, `crates/arda-ways/src/input.rs:10` |
 | Square (legacy block) | The legacy block stage's square, 1,524 mm (five feet); 64 of them make 97.536 m, distinct from the 100 m cell. | `crates/arda-core/src/coords.rs:9`, `crates/arda-core/src/coords.rs:13` |
-| Block (legacy) | A 64 × 64 tile-ID fill of one cell from the legacy WFC stage, stored in per-area `BlockArchive`s. After `MAX_ATTEMPTS` (8) failed attempts the block is filled with a fallback and flagged `relaxed`. | `crates/arda-core/src/formats/blocks.rs:24`, `crates/arda-core/src/formats/blocks.rs:67`, `crates/arda-gen/src/block/wfc.rs:15` |
 | Block (refined) | One cell refined to 64 × 64 squares by `arda-refine`; the unit `arda-blocks` caches. | `crates/arda-refine/src/block.rs:35` |
 | Window | A rectangle of global squares that a tactical crate renders at once; `arda-blocks` caps it at 256 squares a side. | `crates/arda-blocks/src/pipeline.rs:17`, `crates/arda-town/src/block/mod.rs:43`, `crates/arda-ways/src/plan/mod.rs:22` |
 | Tactical | The 5-ft battle-map layer: `TacticalLayout` plus its art library and rules data. "Tactical zoom" is the client view of these maps. | `crates/arda-tactical/src/lib.rs:1` |
@@ -40,11 +39,11 @@ Terms are grouped by layer. Each row gives the meaning in this system and its de
 
 | Term | Meaning in Arda | Definition site |
 |---|---|---|
-| World | A saved directory: manifest, continent layers, shared hydrology, area layers and block archives. The facade's `World` loads the manifest first and fills per-area caches lazily. | `crates/arda/src/world.rs:19`, `crates/arda-core/src/formats/manifest.rs:67` |
+| World | A saved directory: manifest, continent layers, shared hydrology, area layers and terrain layers. A pre-1.0 `blocks/` folder is ignored. The facade's `World` loads the manifest first and fills per-area caches lazily. | `crates/arda/src/world.rs:19`, `crates/arda-core/src/formats/manifest.rs:67` |
 | `format_version` | The stored-world major, currently 4; loaders refuse any other major. Separate versions exist per document (water layer, render JSON schema, sidecars, scene, server contract). | `crates/arda-core/src/formats/mod.rs:20`, `crates/arda-core/src/formats/water.rs:28`, `crates/arda-render/src/json.rs:15` |
 | `SeedKey` / subseed | The core stream key `(tier, stage, x, y, attempt)`; BLAKE3 over seed and key gives a ChaCha8 key. `arda_ids::subseed` is the product layers' named sub-generator seed. | `crates/arda-core/src/rng.rs:50`, `crates/arda-core/src/rng.rs:84`, `crates/arda-ids/src/hash.rs:98` |
 | Stable hash | `arda_ids::hash(seed, tag, args)`: the SplitMix64 chain every tactical rule uses for picks that two crates or two blocks must agree on; `tag` is FNV-1a of the rule name. | `crates/arda-ids/src/hash.rs:56`, `crates/arda-ids/src/hash.rs:68` |
-| `TileId` | A u16 index into a tile vocabulary, not a coordinate. The legacy block stage and `arda-refine` each have their own. | `crates/arda-core/src/tiles.rs:9`, `crates/arda-refine/src/tiles.rs:20` |
+| `TileId` | A u16 index into a tile vocabulary, not a coordinate. `arda-refine` has its own corner-tile vocabulary (the 24-tile block vocabulary was retired in 1.0). | `crates/arda-refine/src/tiles.rs:20` |
 | `TileBundle` / `EnteringRiver` | Coarse-derived per-area inputs (pinned edge heights, entering rivers, climate patches) for the legacy area path; not the authority for published fine water. | `crates/arda-gen/src/continent/bundles.rs:142`, `crates/arda-gen/src/continent/bundles.rs:116` |
 | `PreparedTerrain` | Canonical heights, rainfall and temperature arrays that shared water consumes before final area composition. | `crates/arda-gen/src/hydrology/types.rs:31` |
 | Shared evolution | The whole-domain fine erosion that runs 160 iterations before areas are composed. | `crates/arda-gen/src/area/evolution.rs:20` |

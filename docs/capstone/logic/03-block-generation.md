@@ -8,6 +8,8 @@ capstone_version: 6.4
 
 # 03 — Block generation
 
+> **Retired in 1.0: superseded by [09-tactical-refinement](09-tactical-refinement.md).** `arda generate` no longer runs this stage or writes `blocks/<ax>_<ay>.tiles.zst`; `World::block`, `arda export --block`, the 24-tile vocabulary and the archive format were deleted (OI-43). The sampled archive covered a 64-cell stride, was read by nothing that serves maps, and its tile set contradicted the real tactical vocabulary. Tactical blocks are now built on demand by `arda-refine`/`arda-blocks` and served by `arda-server`; `arda-refine render --world <dir> --cell <gx>,<gy>` is the debug render. The text below is kept as design history only.
+
 > Retained design and dated implementation history. Current implementation: `../01-architecture.md`, `../04-data-flow.md`.
 
 Third batch stage: materializes the tactical layer as tile-IDs. Mechanism is the artifact's `Inside a cell: the D&D grid` section,

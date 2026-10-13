@@ -12,7 +12,7 @@ Deterministic offline tabletop world generator in a Rust 2021 Cargo workspace (2
 | arda-society | Realm politics, economy, factions, history, campaign hooks | `crates/arda-society/src/lib.rs:134` |
 | arda-tactical | Asset catalogue, validator, placeholders, `TacticalLayout`, compositor | `crates/arda-tactical/src/lib.rs:26` |
 | arda-wfc | Generic deterministic wave-function collapse | `crates/arda-wfc/src/lib.rs:22` |
-| arda-gen | Continent, area, block, formation and hydrology generation | `crates/arda-gen/src/lib.rs:21` |
+| arda-gen | Continent, area, formation and hydrology generation | `crates/arda-gen/src/lib.rs:21` |
 | arda-render | PNG/JSON export of stored worlds | `crates/arda-render/src/lib.rs:1` |
 | arda-npc | NPC populations with jobs, personalities, ranks, SRD 5.1 sheets | `crates/arda-npc/src/lib.rs:215` |
 | arda-scene | SRD movement/sight/cover/light scene from a `TacticalLayout` | `crates/arda-scene/src/lib.rs:51` |

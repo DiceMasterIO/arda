@@ -223,7 +223,7 @@ Constraints discovered by construction, binding on the steps named:
 
 ## Current disposition of the original skeleton ceilings
 
-- **Still present:** blocks are materialized at a 64-cell stride, not at every land cell. `crates/arda-gen/src/orchestrator.rs:300`.
+- **Retired in 1.0:** the sampled block archive (`blocks/`) is no longer written (OI-43).
 - **Resolved:** `World::load` reads the manifest and uses lazy requested-area/archive caches; owned area reads support exports. The planned `OnceLock` layer exists. `crates/arda/src/world.rs:93`, `crates/arda/src/world.rs:192`.
 - **Resolved:** `continent/overview.bin` contains real relief, climate and drainage records; continent river objects are stored too. `crates/arda-gen/src/orchestrator.rs:490`.
 - **Still present:** block access decompresses/caches the area's complete archive. Per-block frames and an offset index remain future work. `crates/arda/src/world.rs:274`.

@@ -53,7 +53,7 @@ Root `[[test]]` targets are declared explicitly (`Cargo.toml:104`–`126`):
 | `arda-art-import` | 30 | 12 | 0 | `holes.rs`, `import.rs`, `fixtures/mod.rs` |
 | `arda-blocks` | 4 | 7 | 0 | `compose.rs`, `settlements.rs` |
 | `arda-cli` | 15 | 18 | 0 | `cli.rs`, `tactical.rs` |
-| `arda-core` | 115 | 0 | 0 | none |
+| `arda-core` | 105 | 0 | 0 | none |
 | `arda-dungeon` | 0 | 9 | 0 | `levels.rs`, `golden/renders.txt` |
 | `arda-fields` | 20 | 24 | 0 | `complete.rs`, `cores.rs`, `landuse.rs`, `mines.rs`, `partition.rs`, `rules.rs`, `seams.rs`, `support/shape.rs` |
 | `arda-gen` | 557 | 29 | 9 | `anisotropy_probe.rs`, `coast_measurement.rs`, `continent_hydrology.rs`, `continent_measures.rs`, `cross_tile.rs` (+`oracles`, `seam_lakes`, `seams`), `drainage_invariants.rs` |
@@ -135,7 +135,7 @@ fingerprints every file as `<relative path>  <blake3 hex>`, sorted, with `\` →
 
 | Test | Line | Assertion |
 |---|---|---|
-| `micro_world_matches_the_golden_fingerprint` | `tests/golden_world.rs:79` | fingerprint equals `tests/golden/micro-42.txt` (34 entries); with `ARDA_BLESS` set it rewrites the file and returns (`:82`) |
+| `micro_world_matches_the_golden_fingerprint` | `tests/golden_world.rs:79` | fingerprint equals `tests/golden/micro-42.txt` (26 entries); with `ARDA_BLESS` set it rewrites the file and returns (`:82`) |
 | `regenerating_produces_the_same_fingerprint` | `tests/golden_world.rs:99` | a second, independent generation matches the first |
 
 `tests/golden_recipes.rs` pins the fine-terrain recipes: each `check(recipe)`
@@ -259,10 +259,10 @@ individual test bodies were not read (shallow).
 
 | Area | Tests | Shape |
 |---|---:|---|
-| `arda-gen` | 557 unit + 29 integration | `hydrology/` 159, `continent/` 100, `orchestrator/` 92, `area/` 84, `formation/` 80, spectral/noise files 34, `block/` 8; 9 of 29 ignored tests are measurement probes here |
+| `arda-gen` | 549 unit + 29 integration | `hydrology/` 159, `continent/` 100, `orchestrator/` 92, `area/` 84, `formation/` 80, spectral/noise files 34; 9 of 29 ignored tests are measurement probes here |
 | `arda-render` | 147 unit, 0 integration | `atlas/` 51, `overview/` 34, `carto/` 15, `channels/` 14, `channel_geometry/` 12 |
 | `arda-server` | 84 unit + 73 integration | `tactical/` 20, `contract/` 13, `sheet_map/` 9; `world_api/` endpoints 11, tactical 11, cells 8, schemas 7 |
-| `arda-core` | 115 unit, 0 integration | `formats/` 79 |
+| `arda-core` | 105 unit, 0 integration | `formats/` 71 |
 | `arda-tactical` | 109 unit + 1 ignored integration | `compose/` 60, `validate_tests.rs` 20 |
 | `arda-npc`, `arda-scene`, `arda-town`, `arda-refine`, `arda-society`, `arda-ways` | 29–48 integration each | mostly black-box through `tests/`, few unit tests (`arda-society` 4, `arda-ways` 5) |
 | `arda-dungeon` | 0 unit, 9 integration | `crates/arda-dungeon/src/` (7 files) has no `#[test]` |

@@ -26,7 +26,7 @@ Shared declarations sit in `[workspace.dependencies]` (`Cargo.toml:11`); the 21 
 | Package | Declared (site) | Locked | License | Used by / role |
 |---|---|---|---|---|
 | `ab_glyph` | 0.2 (`Cargo.toml:33`) | 0.2.32 | Apache-2.0 | `arda-settle` label rasterising over embedded Noto Serif fonts (`crates/arda-settle/src/render/font.rs:12`) |
-| `zstd` | 0.13 (`Cargo.toml:34`) | 0.13.3 | MIT | Block payload compression in `arda-core` (`crates/arda-core/src/formats/blocks.rs:116`) and settlement outputs in `arda-settle` (`crates/arda-settle/src/output.rs:175`) |
+| `zstd` | 0.13 (`Cargo.toml:34`) | 0.13.3 | MIT | Settlement outputs in `arda-settle` (`crates/arda-settle/src/output.rs:175`) |
 | `png` | 0.17 (`Cargo.toml:35`) | 0.17.16 | MIT OR Apache-2.0 | PNG encode/decode in `arda-render`, `arda-tactical`, `arda-scene`, `arda-settle`, `arda-refine`, `arda-midzoom`, `arda-art-import`, `arda-server` |
 | `flate2` | 1 (`Cargo.toml:36`) | 1.1.9 | MIT OR Apache-2.0 | Deflate in the server's tactical PNG encoder (`crates/arda-server/src/tactical/encode.rs:12`) |
 | `crc32fast` | 1 (`Cargo.toml:37`) | 1.5.1 | MIT OR Apache-2.0 | PNG chunk CRCs in the same encoder (`crates/arda-server/src/tactical/encode.rs:76`) |

@@ -235,4 +235,4 @@ Debug: `arda-refine render --world <dir> --cell gx,gy [--window 3x3] --out <png>
 - Interiors, buildings and streets: owned by 10-town-layout; refine only honours their reservations.
 - Painted art: owned by 11-tactical-art-compositor.
 - Dynamic state (weather, burning, frozen-now, time of day): the game's, not Arda's (logic/03 amendment).
-- Legacy `blocks/*.tiles.zst` archives and the 24-tile prototype: unchanged and still loadable.
+- Legacy `blocks/*.tiles.zst` archives and the 24-tile prototype: retired in 1.0 (OI-43). New worlds do not write them, and older worlds that contain the folder load unchanged because nothing reads it.

@@ -70,8 +70,7 @@ Defined in `crates/arda-cli/src/main.rs:34`.
 | | `--area ax,ay` | `0,0` | `crates/arda-cli/src/main.rs:103` |
 | | `--format png\|json` | `png` | `crates/arda-cli/src/main.rs:106` |
 | | `--overview` | off | `crates/arda-cli/src/main.rs:109` |
-| | `--block ax,ay,cx,cy` | absent | `crates/arda-cli/src/main.rs:113` |
-| | `--detail` (4096² area PNG) | off; conflicts with overview/block/quality | `crates/arda-cli/src/main.rs:116` |
+| | `--detail` (4096² area PNG) | off; conflicts with overview/quality | `crates/arda-cli/src/main.rs:116` |
 | | `--quality`, `--style` | `8k`, Classic; `atlas-oblique` overview only (`crates/arda-cli/src/main.rs:200`) | `crates/arda-cli/src/main.rs:119`, `crates/arda-cli/src/main.rs:122` |
 | `settle` | `--world` | required | `crates/arda-cli/src/main.rs:132` |
 | `society build` | `--world` | required | `crates/arda-cli/src/society.rs:23` |

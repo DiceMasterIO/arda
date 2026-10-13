@@ -11,7 +11,7 @@ The generation, export, loading and preview chapters (01–07) describe current 
 |---|---|
 | Continent terrain, climate and shared annual water | [01-continent-generation.md](01-continent-generation.md) |
 | Prepared terrain and immutable area composition | [02-area-generation.md](02-area-generation.md) |
-| Tactical generation and deferred richer tile rules (superseded for new output by 09) | [03-block-generation.md](03-block-generation.md) |
+| Retired in 1.0: the sampled WFC block archive, superseded by 09 | [03-block-generation.md](03-block-generation.md) |
 | Saved PNG and JSON export, including Classic/Atlas PNG style | [04-export.md](04-export.md) |
 | Lazy world loading and layer queries | [05-load-query.md](05-load-query.md) |
 | Deferred society generation (refined by 08, 13 and 14) | [06-society-generation.md](06-society-generation.md) |
