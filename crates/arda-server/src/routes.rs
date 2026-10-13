@@ -3,7 +3,7 @@
 use crate::columnar;
 use crate::dto::{self, AreaLakes, AreaRivers, Health, Origin, TilePyramidDto, WorldInfo};
 use crate::error::{ServerError, ServerResult};
-use crate::overview::{Style, TileFormat};
+use crate::overview::{Overview, Style, TileFormat};
 use crate::sheet_map::NpcAt;
 use crate::AppState;
 use axum::extract::rejection::JsonRejection;
@@ -330,8 +330,26 @@ async fn overview_png(
     let style = q
         .get("style")
         .map_or(Ok(Style::Atlas), |s| Style::parse(s))?;
-    let bytes = blocking(state, move |s| s.overview.png(&s.query, quality, style)).await?;
+    let society = Overview::society(&state.query, style, overlay_flag(&q)?)?;
+    let bytes = blocking(state, move |s| {
+        s.overview.png(&s.query, quality, (style, society))
+    })
+    .await?;
     Ok(png(&headers, &bytes))
+}
+
+/// `?overlay=society|none`: the society layer (land use, roads, settlements)
+/// on overview renders and tiles; absent, it follows the world (on when it
+/// has `society/`).
+fn overlay_flag(q: &std::collections::BTreeMap<String, String>) -> ServerResult<Option<bool>> {
+    match q.get("overlay").map(String::as_str) {
+        None => Ok(None),
+        Some("society") => Ok(Some(true)),
+        Some("none") => Ok(Some(false)),
+        Some(other) => Err(ServerError::BadRequest(format!(
+            "overlay must be society or none, not {other:?}"
+        ))),
+    }
 }
 
 /// `?labels=0` leaves the gazetteer's names off a tile; they are on by
@@ -357,6 +375,15 @@ async fn overview_tile(
     let q = params(query)?;
     let oblique = crate::tactical::world_routes::flag(&q, "oblique")?;
     let labels = labels_flag(&q)?;
+    let society = Overview::society(
+        &state.query,
+        if oblique {
+            Style::AtlasOblique
+        } else {
+            Style::Atlas
+        },
+        overlay_flag(&q)?,
+    )?;
     let p = segments(path, 3)?;
     let (y_text, format) = TileFormat::split(&p[2]).ok_or_else(|| {
         ServerError::NotFound("overview tiles are served as {y}.webp or {y}.png".into())
@@ -373,7 +400,7 @@ async fn overview_tile(
     }
     let bytes = blocking(state, move |s| {
         s.overview
-            .tile(&s.query, (z, x, y), (format, oblique, labels))
+            .tile(&s.query, (z, x, y), (format, oblique, labels, society))
     })
     .await?;
     Ok(image(&headers, format.content_type(), &bytes))

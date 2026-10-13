@@ -16,6 +16,7 @@ mod looks;
 mod mapping;
 mod npc;
 mod npc_generate;
+mod overview_overlay;
 mod people;
 mod prefetch;
 mod realms;
