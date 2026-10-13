@@ -21,9 +21,16 @@ pub trait BandOverlay: Sync {
     /// # Errors
     /// An overlay-specific failure, usually [`RenderError::Overlay`].
     fn paint(&self, y0: u32, rows: &mut [u8], width: u32) -> Result<(), RenderError>;
+
+    /// Rows per [`Self::paint`] call the area exporter should hand over for
+    /// an image `width` pixels across (overviews always use 256-row bands).
+    /// The group is held in memory, so keep `rows * width` bounded.
+    fn area_rows(&self, _width: u32) -> usize {
+        AREA_OVERLAY_ROWS
+    }
 }
 
-/// Rows per group the area exporter hands to an overlay.
+/// Default rows per group the area exporter hands to an overlay.
 pub const AREA_OVERLAY_ROWS: usize = 64;
 
 #[cfg(test)]

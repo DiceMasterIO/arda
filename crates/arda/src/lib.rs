@@ -18,9 +18,11 @@ pub use arda_gen::{GenError, HydrologyLimits};
 pub use arda_render::{AreaImageScale, ImageQuality};
 mod atlas;
 mod export_quality;
+pub use arda_render::BandOverlay;
 pub use export_quality::{
-    export_area_with_quality, export_area_with_quality_and_style, export_overview_with_look,
-    export_overview_with_quality, export_overview_with_quality_and_style, OverviewLook,
+    export_area_with_overlay, export_area_with_quality, export_area_with_quality_and_style,
+    export_overview_with_look, export_overview_with_overlay, export_overview_with_quality,
+    export_overview_with_quality_and_style, OverviewLook,
 };
 mod world;
 pub use atlas::area_atlas_terrain;

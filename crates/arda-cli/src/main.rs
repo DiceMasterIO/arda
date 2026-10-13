@@ -2,10 +2,10 @@
 
 use anyhow::{bail, Context, Result};
 use arda::{
-    export_area_with_quality_and_style, export_area_with_scale, export_overview,
-    export_overview_with_look, generate, AreaImageScale, ExportFormat, GenerateConfig,
-    ImageQuality, LatitudeBand, MapStyle, OverviewLook, World,
+    export_area_with_scale, export_overview, generate, AreaImageScale, ExportFormat,
+    GenerateConfig, ImageQuality, LatitudeBand, MapStyle, OverviewLook, World,
 };
+use arda_midzoom::export::{export_area, export_overview as export_overview_society, SocietyMode};
 use clap::{Parser, Subcommand, ValueEnum};
 use std::path::{Path, PathBuf};
 
@@ -89,6 +89,10 @@ enum Command {
         /// Cartographic PNG presentation; omission preserves Classic.
         #[arg(long, value_enum, conflicts_with = "px")]
         style: Option<Style>,
+        /// Paint the society layer (land use, roads, settlements) when the
+        /// world has `society/`; a fresh preview world never does.
+        #[arg(long, value_enum, default_value_t = SocietyArg::Auto)]
+        society: SocietyArg,
         /// Directory to create; holds `world/` and `overview.png`.
         #[arg(long)]
         out: PathBuf,
@@ -119,6 +123,11 @@ enum Command {
         /// Cartographic PNG presentation; omission preserves Classic.
         #[arg(long, value_enum)]
         style: Option<Style>,
+        /// Society layer on PNG exports: `auto` paints land use, roads and
+        /// settlements when `<world>/society/` exists (run `arda settle`),
+        /// `off` writes the plain terrain.
+        #[arg(long, value_enum, default_value_t = SocietyArg::Auto)]
+        society: SocietyArg,
         /// Directory to write into.
         #[arg(long)]
         out: PathBuf,
@@ -152,6 +161,24 @@ enum Format {
     Json,
 }
 
+/// `--society`.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, ValueEnum)]
+enum SocietyArg {
+    /// With society files, paint them.
+    Auto,
+    /// Never.
+    Off,
+}
+
+impl From<SocietyArg> for SocietyMode {
+    fn from(value: SocietyArg) -> Self {
+        match value {
+            SocietyArg::Auto => Self::Auto,
+            SocietyArg::Off => Self::Off,
+        }
+    }
+}
+
 #[derive(Debug, Clone, Copy, ValueEnum)]
 enum Style {
     Classic,
@@ -180,6 +207,7 @@ struct ImageOptions {
     detail: bool,
     quality: Option<ImageQuality>,
     style: Option<Style>,
+    society: Option<SocietyArg>,
 }
 
 impl ImageOptions {
@@ -210,6 +238,10 @@ impl ImageOptions {
         self.style.map_or(MapStyle::Classic, Into::into)
     }
 
+    fn society(self) -> SocietyMode {
+        self.society.map_or(SocietyMode::Auto, Into::into)
+    }
+
     fn look(self) -> OverviewLook {
         OverviewLook {
             oblique: matches!(self.style, Some(Style::AtlasOblique)),
@@ -223,7 +255,7 @@ fn run_preview(
     micro: bool,
     px: Option<u32>,
     quality: Option<ImageQuality>,
-    style: Option<Style>,
+    (style, society): (Option<Style>, SocietyArg),
     out: &Path,
 ) -> Result<()> {
     let config = if micro {
@@ -250,16 +282,19 @@ fn run_preview(
     let world = World::load(&world_dir)?;
     let path = match px {
         Some(px) => export_overview(&world, out, px)?,
-        None => export_overview_with_look(
+        None => export_overview_society(
             &world,
             out,
             quality.unwrap_or_default(),
-            style.map_or(MapStyle::Classic, Into::into),
-            ImageOptions {
-                style,
-                ..ImageOptions::default()
-            }
-            .look(),
+            (
+                style.map_or(MapStyle::Classic, Into::into),
+                ImageOptions {
+                    style,
+                    ..ImageOptions::default()
+                }
+                .look(),
+            ),
+            society.into(),
         )?,
     };
     println!("wrote {}", path.display());
@@ -285,8 +320,13 @@ fn run_export(
     if overview {
         let world = World::load(world)?;
         std::fs::create_dir_all(out).context("cannot create the output directory")?;
-        let path =
-            export_overview_with_look(&world, out, image.quality(), image.style(), image.look())?;
+        let path = export_overview_society(
+            &world,
+            out,
+            image.quality(),
+            (image.style(), image.look()),
+            image.society(),
+        )?;
         println!("wrote {}", path.display());
         return Ok(());
     }
@@ -303,25 +343,45 @@ fn run_export(
         Format::Json => ExportFormat::Json,
     };
     let path = match (format, image.detail, image.style()) {
-        (ExportFormat::Png, true, MapStyle::Classic) => export_area_with_scale(
-            &world,
-            ax,
-            ay,
-            out,
-            ExportFormat::Png,
-            AreaImageScale::Detail,
-        )?,
-        (ExportFormat::Png, true, MapStyle::Atlas) => export_area_with_quality_and_style(
-            &world,
-            ax,
-            ay,
-            out,
-            ImageQuality::new(4096)?,
-            MapStyle::Atlas,
-        )?,
-        (ExportFormat::Png, false, style) => {
-            export_area_with_quality_and_style(&world, ax, ay, out, image.quality(), style)?
+        (ExportFormat::Png, true, MapStyle::Classic)
+            if image.society() == SocietyMode::Off
+                || !arda_midzoom::export::has_society(&world) =>
+        {
+            export_area_with_scale(
+                &world,
+                ax,
+                ay,
+                out,
+                ExportFormat::Png,
+                AreaImageScale::Detail,
+            )?
         }
+        (ExportFormat::Png, true, style) => {
+            let path = export_area(
+                &world,
+                (ax, ay),
+                out,
+                ImageQuality::new(4096)?,
+                style,
+                image.society(),
+            )?;
+            if style == MapStyle::Classic {
+                // Classic detail keeps its `_detail` name.
+                let detail = out.join(format!("area_{ax:02}_{ay:02}_detail.png"));
+                std::fs::rename(&path, &detail).context("cannot name the detail export")?;
+                detail
+            } else {
+                path
+            }
+        }
+        (ExportFormat::Png, false, style) => export_area(
+            &world,
+            (ax, ay),
+            out,
+            image.quality(),
+            style,
+            image.society(),
+        )?,
         (ExportFormat::Json, false, _) => export_area_with_scale(
             &world,
             ax,
@@ -372,8 +432,9 @@ fn main() -> Result<()> {
             px,
             quality,
             style,
+            society,
             out,
-        } => run_preview(seed, &size, micro, px, quality, style, &out),
+        } => run_preview(seed, &size, micro, px, quality, (style, society), &out),
         Command::Export {
             world,
             area,
@@ -384,6 +445,7 @@ fn main() -> Result<()> {
             detail,
             quality,
             style,
+            society,
         } => run_export(
             &world,
             &area,
@@ -395,6 +457,7 @@ fn main() -> Result<()> {
                 detail,
                 quality,
                 style,
+                society: Some(society),
             },
         ),
     }

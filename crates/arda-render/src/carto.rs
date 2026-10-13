@@ -259,10 +259,11 @@ fn render_area_png_to_inner<W: std::io::Write>(
             }
             return Ok(());
         };
-        let mut group: Vec<u8> = Vec::with_capacity(crate::AREA_OVERLAY_ROWS * side * 3);
+        let rows = overlay.area_rows(scale.side()).clamp(1, side);
+        let mut group: Vec<u8> = Vec::with_capacity(rows * side * 3);
         let mut y0 = 0;
         while y0 < side {
-            let y1 = (y0 + crate::AREA_OVERLAY_ROWS).min(side);
+            let y1 = (y0 + rows).min(side);
             group.clear();
             for y in y0..y1 {
                 group.extend_from_slice(raster.row(y)?);

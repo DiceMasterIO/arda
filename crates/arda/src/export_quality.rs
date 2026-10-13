@@ -43,6 +43,24 @@ pub fn export_area_with_quality_and_style(
     quality: ImageQuality,
     style: MapStyle,
 ) -> Result<PathBuf, ExportError> {
+    export_area_with_overlay(world, ax, ay, out, quality, (style, None))
+}
+
+/// [`export_area_with_quality_and_style`] with an optional overlay that
+/// paints each group of finished rows before encoding (the society layer of
+/// `arda-midzoom`). `None` writes exactly the bytes of the plain export;
+/// the overlay must be built for this area and this resolution.
+///
+/// # Errors
+/// As [`export_area_with_quality_and_style`], plus the overlay's failures.
+pub fn export_area_with_overlay(
+    world: &World,
+    ax: i32,
+    ay: i32,
+    out: &Path,
+    quality: ImageQuality,
+    (style, overlay): (MapStyle, Option<&dyn arda_render::BandOverlay>),
+) -> Result<PathBuf, ExportError> {
     let area = world.read_area(ax, ay)?;
     let coordinate = |value| {
         u32::try_from(value).map_err(|_| arda_render::RenderError::ChannelGeometry {
@@ -80,23 +98,14 @@ pub fn export_area_with_quality_and_style(
     };
     let path = out.join(format!("area_{ax:02}_{ay:02}.png"));
     publish_png(&path, |writer| {
-        match terrain.as_ref() {
-            None => arda_render::render_area_png_to(
-                area.cells(),
-                area.objects(),
-                origin,
-                scale,
-                writer,
-            )?,
-            Some(terrain) => arda_render::render_area_png_to_atlas(
-                area.cells(),
-                area.objects(),
-                origin,
-                scale,
-                terrain,
-                writer,
-            )?,
-        }
+        arda_render::render_area_png_to_with_overlay(
+            area.cells(),
+            area.objects(),
+            origin,
+            scale,
+            (terrain.as_ref(), overlay),
+            writer,
+        )?;
         Ok(())
     })?;
     Ok(path)
@@ -154,6 +163,31 @@ pub fn export_overview_with_look(
     style: MapStyle,
     look: OverviewLook,
 ) -> Result<PathBuf, ExportError> {
+    export_overview_with_overlay(world, out, quality, (style, look), None)
+}
+
+/// [`export_overview_with_look`] with an optional overlay that paints each
+/// streamed 256-row band before encoding (the society layer of
+/// `arda-settle`). `None` writes exactly the bytes of the plain export; the
+/// overlay must be built for this resolution
+/// ([`ImageQuality::overview_dimensions`]). The oblique look refuses an
+/// overlay (its ground is shifted).
+///
+/// # Errors
+/// As [`export_overview_with_look`], plus the overlay's failures.
+pub fn export_overview_with_overlay(
+    world: &World,
+    out: &Path,
+    quality: ImageQuality,
+    (style, look): (MapStyle, OverviewLook),
+    overlay: Option<&dyn arda_render::BandOverlay>,
+) -> Result<PathBuf, ExportError> {
+    if look.oblique && overlay.is_some() {
+        return Err(arda_render::RenderError::AtlasContext {
+            reason: "the oblique look cannot carry an overlay",
+        }
+        .into());
+    }
     let manifest = world.manifest();
     let formed = manifest
         .fine_terrain
@@ -180,12 +214,12 @@ pub fn export_overview_with_look(
     };
     let path = out.join("overview.png");
     publish_png(&path, |writer| match style {
-        MapStyle::Classic => arda_render::write_overview_png(
+        MapStyle::Classic => arda_render::write_overview_png_with_overlay(
             manifest.areas_wide,
             manifest.areas_high,
-            width,
-            height,
+            (width, height),
             writer,
+            overlay,
             |at| Ok(world.read_area(at.x, at.y)?.into_cells()),
         ),
         MapStyle::Atlas => {
@@ -239,31 +273,20 @@ pub fn export_overview_with_look(
                     relief,
                     load_area,
                 )
-            } else if formed {
-                arda_render::write_atlas_overview_png_with_channels_formed(
-                    manifest.areas_wide,
-                    manifest.areas_high,
-                    width,
-                    height,
-                    writer,
-                    load_area,
-                )
-            } else if recipe4 {
-                arda_render::write_atlas_overview_png_with_channels_recipe4(
-                    manifest.areas_wide,
-                    manifest.areas_high,
-                    width,
-                    height,
-                    writer,
-                    load_area,
-                )
             } else {
-                arda_render::write_atlas_overview_png_with_channels(
+                let channels = if formed {
+                    arda_render::AtlasChannelLook::Formed
+                } else if recipe4 {
+                    arda_render::AtlasChannelLook::Recipe4
+                } else {
+                    arda_render::AtlasChannelLook::Original
+                };
+                arda_render::write_atlas_overview_png_with_channels_overlay(
                     manifest.areas_wide,
                     manifest.areas_high,
-                    width,
-                    height,
+                    (width, height),
                     writer,
+                    (channels, overlay),
                     load_area,
                 )
             }

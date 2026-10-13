@@ -167,6 +167,7 @@ dependencies = [
  "arda",
  "arda-art-import",
  "arda-dungeon",
+ "arda-midzoom",
  "arda-people",
  "arda-scene",
  "arda-settle",

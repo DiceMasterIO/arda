@@ -17,6 +17,7 @@
 //! A world without `society/` has no [`Landscape`] and renders exactly as
 //! before.
 
+pub mod export;
 pub mod fields;
 pub mod roads;
 pub mod tone;
@@ -140,13 +141,21 @@ fn fields_tier(t: arda_settle::model::Tier) -> Tier {
 
 /// Everything one window's land layer reads.
 pub struct LandWindow {
+    low: LowRelief,
+    forest: CellField,
+    works: Works,
+}
+
+/// The worked land of a pixel window apart from the relief beneath it:
+/// parcels, coarse land-use tone, roads and settlement plans. Relief tiles
+/// ([`LandWindow`]) and area exports ([`export::AreaLandOverlay`]) both
+/// draw from it.
+pub struct Works {
     grid: PixelGrid,
     seed: u64,
-    low: LowRelief,
     parcels: Option<Parcels>,
     parcel_strength: i64,
     cells: Option<CellTones>,
-    forest: CellField,
     roads: Option<RoadRaster>,
     towns: Option<Towns>,
 }
@@ -154,7 +163,7 @@ pub struct LandWindow {
 impl std::fmt::Debug for LandWindow {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         f.debug_struct("LandWindow")
-            .field("grid", &self.grid)
+            .field("grid", &self.works.grid)
             .finish_non_exhaustive()
     }
 }
@@ -229,60 +238,27 @@ fn code_multiplier(code: u8) -> [i64; 3] {
     t.multiplier()
 }
 
-impl LandWindow {
-    /// Gathers the land layer of the pixel window at `origin` of `size` at
-    /// level `z`.
+/// The 100 m cell range `[c0, c1]` a window box reads, with a one-cell margin.
+fn cell_range(bbox: [f64; 4]) -> ((i64, i64), (i64, i64)) {
+    #[allow(clippy::cast_possible_truncation)]
+    let cell = |m: f64| (m / 100.0).floor() as i64;
+    (
+        (cell(bbox[0]) - 1, cell(bbox[1]) - 1),
+        (cell(bbox[2]) + 1, cell(bbox[3]) + 1),
+    )
+}
+
+impl Works {
+    /// Gathers parcels, tone, roads and plans for the window `grid`, whose
+    /// world-metre box (a pixel beyond each side) is `bbox`.
     ///
     /// # Errors
     /// A world or society read failed, or a plan could not be drawn.
-    pub fn gather(
-        rw: &ReliefWorld,
-        land: &Landscape,
-        pyramid: &Pyramid,
-        z: u32,
-        origin: (i64, i64),
-        size: (u32, u32),
-    ) -> Result<Self, MidzoomError> {
-        #[allow(clippy::cast_precision_loss)] // exact enough for metres
-        let pixel_m = pyramid.longest_um() as f64 / Pyramid::pixels(z) as f64 / 1e6;
-        let grid = PixelGrid {
-            origin,
-            size: (size.0 as usize, size.1 as usize),
-            pixel_m,
-        };
-        let (w, h) = (i64::from(size.0), i64::from(size.1));
-        let bbox = [
-            grid.centre_m(origin.0) - pixel_m,
-            grid.centre_m(origin.1) - pixel_m,
-            grid.centre_m(origin.0 + w - 1) + pixel_m,
-            grid.centre_m(origin.1 + h - 1) + pixel_m,
-        ];
+    pub fn gather(land: &Landscape, grid: PixelGrid, bbox: [f64; 4]) -> Result<Self, MidzoomError> {
+        let pixel_m = grid.pixel_m;
         let people = land.people();
         let seed = people.seed();
-        let fine = |m: f64| {
-            #[allow(clippy::cast_possible_truncation)]
-            let um = (m * 1e6) as i64;
-            um - arda_core::FINE_FRAME_OFFSET_UM
-        };
-        let low = LowRelief::gather(
-            rw.terrain(),
-            (fine(bbox[0]), fine(bbox[1]), fine(bbox[2]), fine(bbox[3])),
-        )?;
-        #[allow(clippy::cast_possible_truncation)]
-        let cell = |m: f64| (m / 100.0).floor() as i64;
-        let (c0, c1) = (
-            (cell(bbox[0]) - 1, cell(bbox[1]) - 1),
-            (cell(bbox[2]) + 1, cell(bbox[3]) + 1),
-        );
-        let terrain = rw.terrain();
-        let forest = CellField::build(c0, c1, |gx, gy| {
-            let f = if terrain.cell(gx, gy)?.cover == Cover::Forest {
-                ONE
-            } else {
-                0
-            };
-            Ok([f; 3])
-        })?;
+        let (c0, c1) = cell_range(bbox);
         let landuse = land.overlays.landuse();
         let cells = (pixel_m > PARCEL_MAX_M)
             .then(|| {
@@ -341,14 +317,30 @@ impl LandWindow {
         Ok(Self {
             grid,
             seed,
-            low,
             parcels,
             parcel_strength,
             cells,
-            forest,
             roads,
             towns,
         })
+    }
+
+    /// Roads and settlements over pixel `(px, py)`, after rivers.
+    #[must_use]
+    pub fn paint(&self, rgb: [u8; 3], (px, py): (usize, usize)) -> [u8; 3] {
+        let mut out = rgb;
+        if let Some(r) = &self.roads {
+            out = r.paint(out, px, py);
+        }
+        if let Some(t) = &self.towns {
+            let road = |_: i64, _: i64| {
+                self.roads
+                    .as_ref()
+                    .is_some_and(|r| r.class_at(px, py).is_some())
+            };
+            out = t.paint(out, self.centre(px, py), self.grid.pixel_m, &road);
+        }
+        out
     }
 
     /// World metres of window pixel `(px, py)`.
@@ -358,6 +350,68 @@ impl LandWindow {
             self.grid.centre_m(i(px, self.grid.origin.0)),
             self.grid.centre_m(i(py, self.grid.origin.1)),
         ]
+    }
+}
+
+impl LandWindow {
+    /// Gathers the land layer of the pixel window at `origin` of `size` at
+    /// level `z`.
+    ///
+    /// # Errors
+    /// A world or society read failed, or a plan could not be drawn.
+    pub fn gather(
+        rw: &ReliefWorld,
+        land: &Landscape,
+        pyramid: &Pyramid,
+        z: u32,
+        origin: (i64, i64),
+        size: (u32, u32),
+    ) -> Result<Self, MidzoomError> {
+        #[allow(clippy::cast_precision_loss)] // exact enough for metres
+        let pixel_m = pyramid.longest_um() as f64 / Pyramid::pixels(z) as f64 / 1e6;
+        let grid = PixelGrid {
+            origin,
+            size: (size.0 as usize, size.1 as usize),
+            pixel_m,
+        };
+        let (w, h) = (i64::from(size.0), i64::from(size.1));
+        let bbox = [
+            grid.centre_m(origin.0) - pixel_m,
+            grid.centre_m(origin.1) - pixel_m,
+            grid.centre_m(origin.0 + w - 1) + pixel_m,
+            grid.centre_m(origin.1 + h - 1) + pixel_m,
+        ];
+        let people = land.people();
+        let fine = |m: f64| {
+            #[allow(clippy::cast_possible_truncation)]
+            let um = (m * 1e6) as i64;
+            um - arda_core::FINE_FRAME_OFFSET_UM
+        };
+        let low = LowRelief::gather(
+            rw.terrain(),
+            (fine(bbox[0]), fine(bbox[1]), fine(bbox[2]), fine(bbox[3])),
+        )?;
+        let (c0, c1) = cell_range(bbox);
+        let terrain = rw.terrain();
+        let forest = CellField::build(c0, c1, |gx, gy| {
+            let f = if terrain.cell(gx, gy)?.cover == Cover::Forest {
+                ONE
+            } else {
+                0
+            };
+            Ok([f; 3])
+        })?;
+        let _ = people;
+        Ok(Self {
+            low,
+            forest,
+            works: Works::gather(land, grid, bbox)?,
+        })
+    }
+
+    /// World metres of window pixel `(px, py)`.
+    fn centre(&self, px: usize, py: usize) -> [f64; 2] {
+        self.works.centre(px, py)
     }
 
     /// The ground of a land pixel before rivers: low-relief drainage, land
@@ -375,30 +429,30 @@ impl LandWindow {
         let mut out = tone::tint(rgb, low);
         let m = self.centre(px, py);
         #[allow(clippy::cast_possible_truncation)] // pixel sizes are small
-        let pixel_um = (self.grid.pixel_m * 1e6) as i64;
+        let pixel_um = (self.works.grid.pixel_m * 1e6) as i64;
         let mut canopy = self.forest.at(m[0], m[1])[0];
-        if let Some(cells) = &self.cells {
+        if let Some(cells) = &self.works.cells {
             #[allow(clippy::cast_possible_truncation)]
             let s = CELL_TONE_Q12 * (ONE - smooth(70_000, 160_000, pixel_um / 1_000)) / ONE;
             out = tone::tint(out, tone::soften(cells.at(m[0], m[1]), s));
         }
-        if let Some(parcels) = &self.parcels {
+        if let Some(parcels) = &self.works.parcels {
             let q = [m[0] / SQUARE_M, m[1] / SQUARE_M];
             let sq = Sq::containing(q);
             // At about one pixel per square, decide at the square's centre
             // exactly as the tactical layer does.
-            let at = if self.grid.pixel_m <= 2.0 * SQUARE_M {
+            let at = if self.works.grid.pixel_m <= 2.0 * SQUARE_M {
                 sq.centre()
             } else {
                 q
             };
             match parcels.at(at) {
                 Some(hit) if parcels.worked(hit.site) => {
-                    let px_m = self.grid.pixel_m;
-                    out = parcels.paint_tone(out, hit, at, px_m, self.parcel_strength);
-                    out = parcels.paint_wall(out, hit, at, px_m, self.parcel_strength);
+                    let px_m = self.works.grid.pixel_m;
+                    out = parcels.paint_tone(out, hit, at, px_m, self.works.parcel_strength);
+                    out = parcels.paint_wall(out, hit, at, px_m, self.works.parcel_strength);
                     canopy = if parcels.woodland(hit.site) { ONE } else { 0 };
-                    let tree = parcels.orchard_tree(hit.site, at, self.grid.pixel_m);
+                    let tree = parcels.orchard_tree(hit.site, at, self.works.grid.pixel_m);
                     if tree > 0 {
                         out = tone::mix(out, [62, 84, 40], tree * 85 / 100);
                     }
@@ -407,17 +461,22 @@ impl LandWindow {
                     // Unworked valley floors: wet floodplain meadow.
                     if floor > 0 && canopy < ONE / 2 {
                         let t = Tone::Floodplain.multiplier();
-                        let s = floor * self.parcel_strength / ONE * 35 / 100;
+                        let s = floor * self.works.parcel_strength / ONE * 35 / 100;
                         out = tone::tint(out, tone::soften(t, s));
                     }
                     if let Some(h) = hit {
-                        out =
-                            parcels.paint_wall(out, h, at, self.grid.pixel_m, self.parcel_strength);
+                        out = parcels.paint_wall(
+                            out,
+                            h,
+                            at,
+                            self.works.grid.pixel_m,
+                            self.works.parcel_strength,
+                        );
                     }
                 }
             }
         }
-        let k = tone::canopy(self.seed, lx, ly, pixel_um, canopy);
+        let k = tone::canopy(self.works.seed, lx, ly, pixel_um, canopy);
         if k != ONE {
             out = tone::tint(out, [k; 3]);
         }
@@ -426,26 +485,14 @@ impl LandWindow {
 
     /// Roads and settlements over pixel `(px, py)`, after rivers.
     #[must_use]
-    pub fn works(&self, rgb: [u8; 3], (px, py): (usize, usize)) -> [u8; 3] {
-        let mut out = rgb;
-        if let Some(r) = &self.roads {
-            out = r.paint(out, px, py);
-        }
-        if let Some(t) = &self.towns {
-            let road = |_: i64, _: i64| {
-                self.roads
-                    .as_ref()
-                    .is_some_and(|r| r.class_at(px, py).is_some())
-            };
-            out = t.paint(out, self.centre(px, py), self.grid.pixel_m, &road);
-        }
-        out
+    pub fn works(&self, rgb: [u8; 3], at: (usize, usize)) -> [u8; 3] {
+        self.works.paint(rgb, at)
     }
 
     /// The road class drawn over at least half of pixel `(px, py)`.
     #[must_use]
     pub fn road_at(&self, px: usize, py: usize) -> Option<arda_ways::RoadClass> {
-        self.roads.as_ref()?.class_at(px, py)
+        self.works.roads.as_ref()?.class_at(px, py)
     }
 
     /// Whether pixel `(px, py)`'s centre square is a building.
@@ -453,6 +500,7 @@ impl LandWindow {
     pub fn building_at(&self, px: usize, py: usize) -> bool {
         let m = self.centre(px, py);
         let claim = self
+            .works
             .towns
             .as_ref()
             .and_then(|t| t.claim(square_of(m[0]), square_of(m[1])));
@@ -463,7 +511,7 @@ impl LandWindow {
     /// of pixel `(px, py)`'s centre.
     #[must_use]
     pub fn boundary_at(&self, px: usize, py: usize) -> bool {
-        let Some(parcels) = &self.parcels else {
+        let Some(parcels) = &self.works.parcels else {
             return false;
         };
         let m = self.centre(px, py);
