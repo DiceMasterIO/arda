@@ -4,7 +4,7 @@ use crate::cleanup::{defringe, kill_haze, remove_specks};
 use crate::fit::{fit_canvas, fit_cutout, fit_fill, fit_vegetation};
 use crate::holes::HolePolicy;
 use crate::image_io::RawImage;
-use crate::manifest::{HoleMode, ShadowMode};
+use crate::manifest::{AlphaMode, HoleMode, ShadowMode};
 use crate::naming::{role_name, Target};
 use crate::shadow;
 use crate::texture;
@@ -30,14 +30,14 @@ pub struct Processed {
 }
 
 /// Runs the class's pipeline on one raw image: `ppsq`, the shadow mode and
-/// the manifest's `holes` key (`None`: the class default).
+/// the manifest's `holes` and `alpha` keys (`None`: the class default).
 #[must_use]
 pub fn process(
     raw: &RawImage,
     asset: Asset,
     target: Target,
     file: String,
-    (ppsq, mode, holes): (u32, ShadowMode, Option<HoleMode>),
+    (ppsq, mode, holes, alpha): (u32, ShadowMode, Option<HoleMode>, Option<AlphaMode>),
 ) -> Processed {
     let mut p = Processed {
         img: Rgba::new(1, 1),
@@ -53,6 +53,13 @@ pub fn process(
         p.img = t.img;
         p.fixes.extend(t.fixes);
         p.flags.extend(t.flags);
+        return p;
+    }
+    if let Target::Effect { .. } = p.target {
+        let e = crate::effect::prepare(raw, p.asset.footprint, ppsq, p.asset.tileable, alpha);
+        p.img = e.img;
+        p.fixes.extend(e.fixes);
+        p.flags.extend(e.flags);
         return p;
     }
     let holes = HolePolicy::for_asset(&p.target, holes);

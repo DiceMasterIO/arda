@@ -23,6 +23,7 @@
 //! holes = "keep"                   # or "clear"; default by class
 //! rot_free = true                  # may be turned and mirrored by hash
 //! fixed_pose = true                # vegetation: no hashed scale or transpose
+//! alpha = "luminance"              # effects: light on black, alpha from brightness
 //! ```
 
 use crate::error::{ImportError, ImportResult};
@@ -130,6 +131,21 @@ pub struct AssetEntry {
     /// (never). Default: small leaf gaps for vegetation, only exact-backdrop
     /// specks for props and walls.
     pub holes: Option<HoleMode>,
+    /// Effect art only: where the transparency comes from. `source` keeps
+    /// the file's alpha; `luminance` derives alpha from brightness (light
+    /// on black: fire, fog, water). Default: the file's alpha, or luminance
+    /// when an opaque file has a black border.
+    pub alpha: Option<AlphaMode>,
+}
+
+/// Where an effect's transparency comes from.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub enum AlphaMode {
+    /// The file's alpha channel, as is.
+    Source,
+    /// Alpha from the brightest colour channel; colour divided by it.
+    Luminance,
 }
 
 /// What to do with backdrop-coloured pockets the border flood cannot reach.

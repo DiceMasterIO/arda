@@ -46,6 +46,7 @@ pub fn class_dir(t: &Target) -> &'static str {
         Target::Wall { .. } => "walls",
         Target::Prop { .. } => "props",
         Target::Vegetation { .. } => "vegetation",
+        Target::Effect { .. } => "effects",
     }
 }
 

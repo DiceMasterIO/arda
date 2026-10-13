@@ -399,7 +399,7 @@ fn effect_rules(
         return;
     }
     if a.tileable {
-        let ratio = seam_ratio_with(img, premul_diff);
+        let ratio = seam_ratio_alpha(img);
         if ratio > t.max_seam_ratio {
             let msg = format!(
                 "seam/interior difference ratio {ratio:.2} exceeds {:.2}",
@@ -415,6 +415,13 @@ fn effect_rules(
 #[must_use]
 pub fn seam_ratio(img: &Rgba) -> f32 {
     seam_ratio_with(img, rgb_diff)
+}
+
+/// [`seam_ratio`] for transparent art: differences are weighted by opacity
+/// and include the alpha channel, so invisible colour is not a seam.
+#[must_use]
+pub fn seam_ratio_alpha(img: &Rgba) -> f32 {
+    seam_ratio_with(img, premul_diff)
 }
 
 fn seam_ratio_with(img: &Rgba, diff: fn([u8; 4], [u8; 4]) -> u32) -> f32 {

@@ -171,7 +171,7 @@ fn run(raw: &RawImage, target: Target, holes: Option<HoleMode>) -> Processed {
         class_default(&target),
         target,
         "raw.png".into(),
-        (64, ShadowMode::Strip, holes),
+        (64, ShadowMode::Strip, holes, None),
     )
 }
 

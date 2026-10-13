@@ -24,7 +24,8 @@
 
 pub mod cleanup;
 pub mod contact;
-pub mod error;
+pub mod effect;
+mod error;
 pub mod fit;
 pub mod font;
 pub mod grade;
@@ -206,7 +207,7 @@ fn plan(
         let base_id = target.base_id();
         let n = counts.entry(base_id.clone()).or_insert(0);
         let id = match (&target, *n) {
-            (Target::Texture { .. }, k) => format!("{base_id}.{k}"),
+            (Target::Texture { .. } | Target::Effect { .. }, k) => format!("{base_id}.{k}"),
             (_, 0) => base_id.clone(),
             (_, k) => format!("{base_id}.alt{k}"),
         };
@@ -230,6 +231,14 @@ fn vocabulary_flag(t: &Target) -> Option<String> {
         Target::Wall { kit, .. } => (kit.as_str(), vocab::WALL_KITS, "wall kit"),
         Target::Prop { name } => (name.as_str(), vocab::PROPS, "prop"),
         Target::Vegetation { name } => (name.as_str(), vocab::VEGETATION, "vegetation"),
+        Target::Effect { name } => {
+            let known = if vocab::EFFECT_DECALS.contains(&name.as_str()) {
+                vocab::EFFECT_DECALS
+            } else {
+                vocab::EFFECT_TEXTURES
+            };
+            (name.as_str(), known, "effect")
+        }
     };
     if known.contains(&word) {
         return None;
@@ -276,12 +285,13 @@ fn process_one(
     asset.image = format!("{}/{}.png", output::class_dir(&p.target), p.id);
     let mode = entry.and_then(|e| e.shadow).unwrap_or_default();
     let holes = entry.and_then(|e| e.holes);
+    let alpha = entry.and_then(|e| e.alpha);
     let mut out = pipeline::process(
         &raw,
         asset,
         p.target.clone(),
         p.file.clone(),
-        (ppsq, mode, holes),
+        (ppsq, mode, holes, alpha),
     );
     if let Some(f) = &p.vocab_flag {
         out.flags.push(f.clone());

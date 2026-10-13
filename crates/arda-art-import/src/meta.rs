@@ -7,6 +7,7 @@ use crate::manifest::{AssetEntry, LibrarySection};
 use crate::naming::{is_water, Target};
 use arda_tactical::catalog::{
     Asset, AssetClass, Catalog, Cover, Footprint, Layer, PlacementRules, Tags, WallPiece,
+    EFFECT_DECAL_TAG, EFFECT_TEXTURE_TAG,
 };
 use arda_tactical::compose::{FIXED_POSE, ROT_FREE};
 
@@ -50,6 +51,12 @@ impl Base {
                     .as_ref()
                     .is_some_and(|w| &w.kit == kit && w.role == *role)
             }),
+            Target::Effect { .. } => {
+                let id = target.base_id();
+                self.assets.iter().find(|a| {
+                    a.class.is_effect() && arda_tactical::library::effect_base(&a.id) == id
+                })
+            }
             _ => {
                 let id = target.base_id();
                 self.assets.iter().find(|a| a.id == id)
@@ -68,6 +75,11 @@ impl Base {
                 .assets
                 .iter()
                 .any(|a| a.wall.as_ref().is_some_and(|w| w.kit == kit));
+        }
+        if slot.starts_with("effect.") {
+            return self.assets.iter().any(|a| {
+                a.class.is_effect() && arda_tactical::library::effect_base(&a.id) == slot
+            });
         }
         self.assets.iter().any(|a| a.id == slot)
     }
@@ -123,8 +135,31 @@ pub fn class_default(target: &Target) -> Asset {
         }
         Target::Prop { name } => prop_default(&mut a, name),
         Target::Vegetation { name } => veg_default(&mut a, name),
+        Target::Effect { name } => effect_default(&mut a, name),
     }
     a
+}
+
+/// Effects never block, cover, light or cast shadows (a consumer draws them
+/// over tiles); a texture tiles, a decal is one patch.
+fn effect_default(a: &mut Asset, name: &str) {
+    let decal = crate::vocab::EFFECT_DECALS.contains(&name);
+    a.class = AssetClass::Effect;
+    a.layer = Layer::Floor;
+    a.footprint = Footprint { w: 2, h: 2 };
+    a.rotations = vec![0, 90, 180, 270];
+    a.mirror = true;
+    a.tileable = !decal;
+    a.tags.biome.clear();
+    a.tags.culture.clear();
+    a.tags.free.push(
+        if decal {
+            EFFECT_DECAL_TAG
+        } else {
+            EFFECT_TEXTURE_TAG
+        }
+        .into(),
+    );
 }
 
 fn blank() -> Asset {
@@ -335,6 +370,21 @@ mod tests {
             name: "rug_large".into(),
         });
         assert_eq!(rug.layer, Layer::Floor);
+    }
+
+    #[test]
+    fn effects_default_to_inert_transparent_art() {
+        let frost = class_default(&Target::Effect {
+            name: "frost".into(),
+        });
+        assert_eq!(frost.class, AssetClass::Effect);
+        assert!(frost.tileable && frost.tags.free == [EFFECT_TEXTURE_TAG]);
+        assert!(!frost.blocks_movement && !frost.blocks_sight && !frost.casts_shadow);
+        assert_eq!((frost.cover, frost.light), (Cover::None, None));
+        let scorch = class_default(&Target::Effect {
+            name: "scorch_mark".into(),
+        });
+        assert!(!scorch.tileable && scorch.tags.free == [EFFECT_DECAL_TAG]);
     }
 
     #[test]

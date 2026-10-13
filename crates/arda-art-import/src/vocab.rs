@@ -199,16 +199,34 @@ pub const FUNCTIONS: &[&str] = &[
     "mine",
     "lumber_camp",
     "school",
+    "rubble_heap",
+    "broken_deck",
+    "charred_floor",
 ];
 
+/// Tileable effect textures (`effect.<name>.<n>`, 2 x 2 squares).
+pub const EFFECT_TEXTURES: &[&str] = &[
+    "frost", "fire", "acid", "ash", "web", "grease", "fog", "water",
+];
+
+/// Single-patch effect decals (`effect.<name>.<n>`, 2 x 2 squares).
+pub const EFFECT_DECALS: &[&str] = &["scorch_mark"];
+
 /// Every vocabulary slot, as the coverage report names them:
-/// `ground:<key>`, `wall:<kit>`, `prop.<name>` and `veg.<name>`.
+/// `ground:<key>`, `wall:<kit>`, `prop.<name>`, `veg.<name>` and
+/// `effect.<name>`.
 #[must_use]
 pub fn all_slots() -> Vec<String> {
     let mut out: Vec<String> = GROUND_KEYS.iter().map(|k| format!("ground:{k}")).collect();
     out.extend(WALL_KITS.iter().map(|k| format!("wall:{k}")));
     out.extend(PROPS.iter().map(|p| format!("prop.{p}")));
     out.extend(VEGETATION.iter().map(|v| format!("veg.{v}")));
+    out.extend(
+        EFFECT_TEXTURES
+            .iter()
+            .chain(EFFECT_DECALS)
+            .map(|e| format!("effect.{e}")),
+    );
     out
 }
 

@@ -10,6 +10,7 @@
 //! | `ground.grass.anything` | a `grass` texture variant |
 //! | `water.water_shallow.2` | a `water_shallow` texture variant |
 //! | `wall.stone.corner__take2` | the `corner` piece of kit `stone` |
+//! | `effect.frost.anything` | a transparent `effect.frost.<n>` variant |
 //!
 //! A manifest entry can map any file name to an id instead.
 
@@ -40,6 +41,11 @@ pub enum Target {
         /// The name after `veg.`.
         name: String,
     },
+    /// A transparent effect texture or decal, `effect.<name>`.
+    Effect {
+        /// The name after `effect.`.
+        name: String,
+    },
 }
 
 impl Target {
@@ -53,6 +59,7 @@ impl Target {
             Self::Wall { kit, role } => format!("wall.{kit}.{}", role_name(*role)),
             Self::Prop { name } => format!("prop.{name}"),
             Self::Vegetation { name } => format!("veg.{name}"),
+            Self::Effect { name } => format!("effect.{name}"),
         }
     }
 
@@ -90,6 +97,9 @@ pub fn parse(stem: &str) -> Result<Target, String> {
         Some("veg") => Ok(Target::Vegetation {
             name: need(1, "a vegetation name")?.to_string(),
         }),
+        Some("effect") => Ok(Target::Effect {
+            name: need(1, "an effect name")?.to_string(),
+        }),
         Some("wall") => {
             let kit = need(1, "a kit name")?.to_string();
             let role = parts
@@ -103,7 +113,7 @@ pub fn parse(stem: &str) -> Result<Target, String> {
             Ok(Target::Wall { kit, role })
         }
         _ => Err(format!(
-            "`{stem}`: name files `ground.<key>`, `water.<key>`, `wall.<kit>.<role>`, `prop.<name>` or `veg.<name>`, or map them in the manifest"
+            "`{stem}`: name files `ground.<key>`, `water.<key>`, `wall.<kit>.<role>`, `prop.<name>`, `veg.<name>` or `effect.<name>`, or map them in the manifest"
         )),
     }
 }
@@ -159,6 +169,16 @@ mod tests {
             }
         );
         assert_eq!(parse("veg.tree_oak.v3").unwrap().base_id(), "veg.tree_oak");
+        assert_eq!(
+            parse("effect.frost.take2").unwrap(),
+            Target::Effect {
+                name: "frost".into()
+            }
+        );
+        assert_eq!(
+            parse("effect.scorch_mark__x").unwrap().base_id(),
+            "effect.scorch_mark"
+        );
         assert_eq!(
             parse("ground.grass.whatever").unwrap().base_id(),
             "ground.grass"
