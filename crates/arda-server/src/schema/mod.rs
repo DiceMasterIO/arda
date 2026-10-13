@@ -91,7 +91,7 @@ use crate::columnar::AreaCells;
 use crate::contract::{CellSample, PointSample};
 use crate::dto::{AreaLakes, AreaRivers, Health, WorldInfo};
 use crate::error::{ApiError, NotYetError};
-use crate::npc_dto::{Npc, NpcDemo, Population, PopulationRequest, Sheet};
+use crate::npc_dto::{GenerateNpcRequest, Npc, NpcDemo, Population, PopulationRequest, Sheet};
 use crate::npcs::dto::NpcPage;
 use crate::tactical::dto::{TacticalBlockDto, TacticalLayoutDto, TacticalLayouts};
 use crate::tactical::dungeon_dto::DungeonDto;
@@ -124,12 +124,13 @@ catalog! {
     "DungeonDto" => DungeonDto, ["GET /v1/tactical/dungeon"];
     "PrefetchRequest" => PrefetchRequest, ["POST /v1/tactical/prefetch (request)"];
     "PrefetchAccepted" => PrefetchAccepted, ["POST /v1/tactical/prefetch"];
-    "Npc" => Npc, ["GET /v1/npc/{id}", "GET /v1/npc/demo/{npc_id}"];
+    "Npc" => Npc, ["GET /v1/npc/{id}", "GET /v1/npc/demo/{npc_id}", "POST /v1/npc/generate"];
     "Sheet" => Sheet, ["Npc.sheet"];
     "NpcPage" => NpcPage,
         ["GET /v1/npcs", "GET /v1/buildings/{building}/residents", "GET /v1/buildings/{building}/workers"];
     "Population" => Population, ["POST /v1/npc/population"];
     "PopulationRequest" => PopulationRequest, ["POST /v1/npc/population (request)"];
+    "GenerateNpcRequest" => GenerateNpcRequest, ["POST /v1/npc/generate (request)"];
     "NpcDemo" => NpcDemo, ["GET /v1/npc/demo"];
     "SettlementList" => SettlementList, ["GET /v1/settlements"];
     "SettlementDetail" => SettlementDetail, ["GET /v1/settlements/{id}"];

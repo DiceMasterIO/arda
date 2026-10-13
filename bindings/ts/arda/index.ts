@@ -39,6 +39,7 @@ export type { EdgeRuleDto } from "./EdgeRuleDto";
 export type { EntranceDto } from "./EntranceDto";
 export type { FineHeights } from "./FineHeights";
 export type { FineTerrainDto } from "./FineTerrainDto";
+export type { GenerateNpcRequest } from "./GenerateNpcRequest";
 export type { GroundKeyDto } from "./GroundKeyDto";
 export type { Health } from "./Health";
 export type { HeightSource } from "./HeightSource";

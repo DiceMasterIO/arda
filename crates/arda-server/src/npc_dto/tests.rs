@@ -74,3 +74,22 @@ fn ids_are_strings_in_the_mirrors() {
     let json = serde_json::to_value(&buildings[0]).unwrap();
     assert!(json["id"].is_string() && json["settlement_id"].is_string());
 }
+
+#[test]
+fn generate_requests_match_their_mirror() {
+    let full = crate::npc::GenerateNpcRequest {
+        seed: Some("7".into()),
+        job: Some("smith".into()),
+        office: Some("reeve".into()),
+        rank: Some(arda_npc::SocialRank::Tradesfolk),
+        ancestry: Some("dwarf".into()),
+        sex: Some(arda_npc::Sex::Female),
+        tier: Some(T::Village),
+        culture: Some("highland".into()),
+        settlement_id: Some("3".into()),
+        notable: Some(true),
+    };
+    let _: GenerateNpcRequest = same(&full);
+    let empty: GenerateNpcRequest = same(&crate::npc::GenerateNpcRequest::default());
+    assert_eq!(serde_json::to_string(&empty).unwrap(), "{}");
+}

@@ -130,6 +130,7 @@ exported!(
     npc::RosterEntry,
     npc::Population,
     npc::PopulationRequest,
+    npc::GenerateNpcRequest,
     npc::NpcDemo,
     npc::Tier,
     npc::SettlementFunction,

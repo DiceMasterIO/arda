@@ -54,6 +54,13 @@
       "url": "/v1/schema/Event.json"
     },
     {
+      "name": "GenerateNpcRequest",
+      "routes": [
+        "POST /v1/npc/generate (request)"
+      ],
+      "url": "/v1/schema/GenerateNpcRequest.json"
+    },
+    {
       "name": "Health",
       "routes": [
         "GET /v1/health"
@@ -71,7 +78,8 @@
       "name": "Npc",
       "routes": [
         "GET /v1/npc/{id}",
-        "GET /v1/npc/demo/{npc_id}"
+        "GET /v1/npc/demo/{npc_id}",
+        "POST /v1/npc/generate"
       ],
       "url": "/v1/schema/Npc.json"
     },

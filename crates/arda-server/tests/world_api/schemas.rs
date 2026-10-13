@@ -240,3 +240,29 @@ async fn contract_3_society_cells_validate_on_the_default_recipe() {
     )
     .await;
 }
+
+#[tokio::test]
+async fn generated_npc_bodies_validate() {
+    let request = serde_json::json!({
+        "seed": "7", "job": "smith", "ancestry": "dwarf", "rank": "tradesfolk",
+        "sex": "female", "tier": "village", "culture": "highland", "notable": true,
+    });
+    check("GenerateNpcRequest", "a generate request", &request).await;
+    for body in [serde_json::json!({}), request] {
+        let r = send(
+            society_state(),
+            Request::post("/v1/npc/generate")
+                .header("content-type", "application/json")
+                .body(Body::from(serde_json::to_vec(&body).unwrap()))
+                .unwrap(),
+        )
+        .await;
+        assert_eq!(
+            r.status,
+            StatusCode::OK,
+            "{}",
+            String::from_utf8_lossy(&r.body)
+        );
+        check("Npc", "a generated npc", &r.json()).await;
+    }
+}

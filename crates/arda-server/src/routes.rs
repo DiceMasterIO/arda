@@ -41,6 +41,11 @@ pub fn router(state: Arc<AppState>) -> Router {
             "/npc/population",
             post(npc_population).layer(DefaultBodyLimit::max(crate::npc::MAX_BODY_BYTES)),
         )
+        .route(
+            "/npc/generate",
+            post(crate::npc::generate_route)
+                .layer(DefaultBodyLimit::max(crate::npc::MAX_GENERATE_BODY_BYTES)),
+        )
         .route("/npc/demo", get(npc_demo))
         .route("/npc/demo/{npc_id}", get(npc_demo_one))
         .route("/npc/{npc_id}", get(crate::npcs::one))

@@ -328,6 +328,53 @@ pub struct PopulationRequest {
     pub buildings: Vec<BuildingSpec>,
 }
 
+/// Body of `POST /v1/npc/generate`: Arda's own inputs, every field
+/// optional (logic/13 §npc-generate-one).
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, TS, JsonSchema)]
+#[serde(deny_unknown_fields)]
+pub struct GenerateNpcRequest {
+    /// Caller's salt as a decimal u64 string; default `"0"`. The same body gives the same NPC.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[ts(optional)]
+    pub seed: Option<String>,
+    /// Occupation key (`occupations.json` `jobs`), e.g. `smith`.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[ts(optional)]
+    pub job: Option<String>,
+    /// Society office kind (`occupations.json` `offices`), e.g. `reeve`; the NPC holds it and is a notable.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[ts(optional)]
+    pub office: Option<String>,
+    /// Required social rank.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[ts(optional)]
+    pub rank: Option<SocialRank>,
+    /// SRD race key, e.g. `dwarf`.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[ts(optional)]
+    pub ancestry: Option<String>,
+    /// Required sex.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[ts(optional)]
+    pub sex: Option<Sex>,
+    /// Size class of the synthetic settlement; default the borrowed settlement's, else `village` when it has the job, else the smallest tier that does.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[ts(optional)]
+    pub tier: Option<Tier>,
+    /// Culture key (`cultures.json`), e.g. `highland`.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[ts(optional)]
+    pub culture: Option<String>,
+    /// A stored settlement (decimal id) whose tier, culture, biome, tongue and ancestry mix are borrowed; 404 when unknown.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[ts(optional)]
+    pub settlement_id: Option<String>,
+    /// Whether the NPC must (or must not) be a notable.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[ts(optional)]
+    pub notable: Option<bool>,
+}
+
 /// Body of `GET /v1/npc/demo`: the market-town example and its population.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, TS, JsonSchema)]
 #[serde(deny_unknown_fields)]

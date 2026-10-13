@@ -6,7 +6,8 @@
 export type ApiErrorBody = { 
 /**
  * Stable code: `bad_request`, `out_of_range`, `not_found`, `no_block`, `payload_too_large`,
- * `unsupported_media_type`, `invalid_layout`, `resource_limit`, `not_implemented` or `internal`.
+ * `unsupported_media_type`, `invalid_layout`, `unsatisfiable`, `resource_limit`,
+ * `not_implemented` or `internal`.
  */
 code: string, 
 /**

@@ -87,7 +87,8 @@ pub struct NotYetError {
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, TS, JsonSchema)]
 pub struct ApiErrorBody {
     /// Stable code: `bad_request`, `out_of_range`, `not_found`, `no_block`, `payload_too_large`,
-    /// `unsupported_media_type`, `invalid_layout`, `resource_limit`, `not_implemented` or `internal`.
+    /// `unsupported_media_type`, `invalid_layout`, `unsatisfiable`, `resource_limit`,
+    /// `not_implemented` or `internal`.
     pub code: String,
     /// HTTP status repeated in the body.
     pub status: u16,
@@ -121,6 +122,9 @@ impl ServerError {
             Self::Npc(arda_npc::NpcError::UnknownNpc(_)) => (StatusCode::NOT_FOUND, "not_found"),
             Self::Npc(arda_npc::NpcError::Data(_)) => {
                 (StatusCode::INTERNAL_SERVER_ERROR, "internal")
+            }
+            Self::Npc(arda_npc::NpcError::Unsatisfiable(_)) => {
+                (StatusCode::UNPROCESSABLE_ENTITY, "unsatisfiable")
             }
             Self::Npc(_) => (StatusCode::BAD_REQUEST, "bad_request"),
             Self::ResourceLimit(_) => (StatusCode::INTERNAL_SERVER_ERROR, "resource_limit"),

@@ -11,6 +11,7 @@ mod fixture_dir;
 mod looks;
 mod mapping;
 mod npc;
+mod npc_generate;
 mod people;
 mod prefetch;
 mod realms;
