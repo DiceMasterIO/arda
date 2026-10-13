@@ -9,6 +9,11 @@
 //! seed and the anchor ([`key::render_seed`]).
 
 pub mod admit;
+pub mod bake;
+pub mod bake_dto;
+pub mod bake_render;
+pub mod bake_routes;
+pub mod bake_store;
 pub mod block;
 pub mod cells;
 pub mod dto;
@@ -21,12 +26,12 @@ pub mod library_dto;
 pub mod prefetch;
 pub mod pyramid;
 mod raw;
-pub mod splice;
 pub mod refine_blocks;
 pub mod routes;
 pub mod rules_dto;
 pub mod scene;
 pub mod scene_dto;
+pub mod splice;
 pub mod tokens;
 pub mod world_grade;
 pub mod world_routes;

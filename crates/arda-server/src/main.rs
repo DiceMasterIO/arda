@@ -52,6 +52,14 @@ struct Args {
     /// Background threads warming prefetched tactical cells (0 disables).
     #[arg(long, default_value_t = arda_server::tactical::prefetch::DEFAULT_WORKERS)]
     prefetch_workers: usize,
+    /// Background threads baking posted cells (`POST /v1/tactical/bake`):
+    /// 0 disables baking, 1 (the default and most) bakes one at a time.
+    #[arg(long, default_value_t = arda_server::tactical::bake::DEFAULT_WORKERS)]
+    bake_workers: usize,
+    /// Budget for finished bake tile sets awaiting download, MiB; the
+    /// oldest finished set is evicted when a new one does not fit.
+    #[arg(long, default_value_t = arda_server::tactical::bake::DEFAULT_RESULT_MIB)]
+    bake_result_mib: usize,
     /// Sheet mapping file reshaping every served NPC into the game's schema
     /// (goal 69); checked at startup, a bad file refuses to start.
     #[arg(long)]
@@ -71,6 +79,8 @@ async fn run(args: Args) -> Result<(), String> {
         max_connections: args.max_connections,
     };
     config.prefetch_workers = args.prefetch_workers;
+    config.bake_workers = args.bake_workers;
+    config.bake_result_mib = args.bake_result_mib;
     config.sheet_mapping = args.sheet_mapping;
     let limits = config.serve;
     let state = tokio::task::spawn_blocking(move || AppState::open(&config))

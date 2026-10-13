@@ -289,7 +289,11 @@ mod tests {
                 assert_eq!(out.square(x, y).ground, want, "{x},{y}");
             }
         }
-        assert_eq!(out.square(4, 4).elevation_ft, 44, "the posted square is kept");
+        assert_eq!(
+            out.square(4, 4).elevation_ft,
+            44,
+            "the posted square is kept"
+        );
         assert_eq!((out.name.as_str(), out.origin), ("apron", Some([100, 200])));
     }
 

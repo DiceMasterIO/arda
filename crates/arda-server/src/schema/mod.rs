@@ -93,6 +93,7 @@ use crate::dto::{AreaLakes, AreaRivers, Health, WorldInfo};
 use crate::error::{ApiError, NotYetError};
 use crate::npc_dto::{GenerateNpcRequest, Npc, NpcDemo, Population, PopulationRequest, Sheet};
 use crate::npcs::dto::NpcPage;
+use crate::tactical::bake::{BakeAccepted, BakeRequest, BakeStatus};
 use crate::tactical::dto::{TacticalBlockDto, TacticalLayoutDto, TacticalLayouts};
 use crate::tactical::dungeon_dto::DungeonDto;
 use crate::tactical::library_dto::TacticalLibraryDto;
@@ -124,6 +125,9 @@ catalog! {
     "DungeonDto" => DungeonDto, ["GET /v1/tactical/dungeon"];
     "PrefetchRequest" => PrefetchRequest, ["POST /v1/tactical/prefetch (request)"];
     "PrefetchAccepted" => PrefetchAccepted, ["POST /v1/tactical/prefetch"];
+    "BakeRequest" => BakeRequest, ["POST /v1/tactical/bake (request)"];
+    "BakeAccepted" => BakeAccepted, ["POST /v1/tactical/bake"];
+    "BakeStatus" => BakeStatus, ["GET /v1/tactical/bake/{id}"];
     "Npc" => Npc, ["GET /v1/npc/{id}", "GET /v1/npc/demo/{npc_id}", "POST /v1/npc/generate"];
     "Sheet" => Sheet, ["Npc.sheet"];
     "NpcPage" => NpcPage,

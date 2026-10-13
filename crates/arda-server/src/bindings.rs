@@ -17,6 +17,7 @@ use crate::error::{ApiError, ApiErrorBody, NotYetError, ServerError, ServerResul
 use crate::npc_dto as npc;
 use crate::npcs::dto::{NpcEntry, NpcPage};
 use crate::schema::{SchemaIndex, SchemaIndexEntry};
+use crate::tactical::bake::{BakeAccepted, BakeRequest, BakeState, BakeStatus};
 use crate::tactical::dto::{
     AssetClassDto, AssetRefDto, EdgeAxisDto, LightSourceDto, PlacementDto, SquareDto,
     TacticalBlockDto, TacticalLayoutDto, TacticalLayoutSummary, TacticalLayouts, TacticalTilesDto,
@@ -180,6 +181,10 @@ exported!(
     PrefetchStatus,
     PrefetchCell,
     PrefetchAccepted,
+    BakeRequest,
+    BakeState,
+    BakeAccepted,
+    BakeStatus,
     Runs<u8>,
     SqDto,
     MovementDto,

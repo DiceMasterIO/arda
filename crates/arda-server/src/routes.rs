@@ -104,11 +104,18 @@ fn cors() -> CorsLayer {
         .allow_origin(AllowOrigin::predicate(|origin: &HeaderValue, _| {
             is_local_origin(origin.as_bytes())
         }))
-        .allow_methods([Method::GET, Method::HEAD, Method::POST, Method::OPTIONS])
+        .allow_methods([
+            Method::GET,
+            Method::HEAD,
+            Method::POST,
+            Method::DELETE,
+            Method::OPTIONS,
+        ])
         .allow_headers([CONTENT_TYPE, IF_NONE_MATCH])
         .expose_headers([
             ETAG,
             crate::tactical::routes::X_ARDA_CACHE,
+            axum::http::header::LOCATION,
             crate::sheet_map::X_ARDA_SHEET_MAPPING,
         ])
 }

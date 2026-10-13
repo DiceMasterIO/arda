@@ -69,6 +69,11 @@ pub struct ServerConfig {
     pub serve: serve::ServeLimits,
     /// Tactical prefetch worker threads (goal 67; 0 disables prefetch).
     pub prefetch_workers: usize,
+    /// Tactical bake worker threads (`--bake-workers`, 0 or 1; 0 disables
+    /// `POST /v1/tactical/bake`).
+    pub bake_workers: usize,
+    /// Budget for finished bake tile sets, MiB (`--bake-result-mib`).
+    pub bake_result_mib: usize,
     /// Sheet mapping file (`--sheet-mapping`, goal 69): reshapes every NPC
     /// the server sends; `None` serves Arda's own shape.
     pub sheet_mapping: Option<PathBuf>,
@@ -96,6 +101,8 @@ impl ServerConfig {
             area_builds: 2,
             serve: serve::ServeLimits::default(),
             prefetch_workers: tactical::prefetch::DEFAULT_WORKERS,
+            bake_workers: tactical::bake::DEFAULT_WORKERS,
+            bake_result_mib: tactical::bake::DEFAULT_RESULT_MIB,
             sheet_mapping: None,
         }
     }
@@ -105,7 +112,8 @@ impl ServerConfig {
     /// the 3 × 3 neighbourhood load for coast derivation), one buffered
     /// response body per open connection, and the tactical caches plus one
     /// transient render in the request lane and, with prefetch workers, one
-    /// in the prefetch lane.
+    /// in the prefetch lane, and, with bake workers, the bake lane
+    /// ([`tactical::bake::admitted_bytes`]).
     #[must_use]
     pub fn admitted_bytes(&self) -> u64 {
         let base = u64::from(self.overview.tile_base_px).pow(2) * 3;
@@ -123,13 +131,32 @@ impl ServerConfig {
                 0
             })
             .saturating_add(self.relief.cache_bytes as u64 + relief::RELIEF_WORKING_BYTES)
+            .saturating_add(tactical::bake::admitted_bytes(
+                &self.tactical,
+                self.bake_workers,
+                self.bake_result_bytes(),
+            ))
     }
 
-    /// Refuses configurations whose worst case exceeds [`MEMORY_CEILING_BYTES`].
+    /// The finished bake tile sets' budget, bytes.
+    #[must_use]
+    pub const fn bake_result_bytes(&self) -> u64 {
+        (self.bake_result_mib as u64).saturating_mul(1 << 20)
+    }
+
+    /// Refuses configurations whose worst case exceeds [`MEMORY_CEILING_BYTES`],
+    /// and a bake result budget too small for one worst-case cell set.
     ///
     /// # Errors
     /// [`ServerError::ResourceLimit`].
     pub fn admit(&self) -> ServerResult<()> {
+        let one_set = tactical::bake::worst_set_bytes();
+        if self.bake_workers > 0 && self.bake_result_bytes() < one_set {
+            return Err(ServerError::ResourceLimit(format!(
+                "--bake-result-mib {} cannot hold one baked cell ({one_set} bytes at worst)",
+                self.bake_result_mib
+            )));
+        }
         let need = self.admitted_bytes();
         if need > MEMORY_CEILING_BYTES {
             return Err(ServerError::ResourceLimit(format!(
@@ -160,6 +187,8 @@ pub struct AppState {
     pub people: Option<std::sync::Arc<arda_people::World>>,
     /// The tactical prefetch queue and workers.
     pub prefetch: tactical::prefetch::Prefetcher,
+    /// The tactical bake queue, worker and finished tile sets.
+    pub bake: tactical::bake::Baker,
     /// The checked `--sheet-mapping`, applied to every NPC served.
     pub sheet_mapping: Option<sheet_map::SheetMapping>,
 }
@@ -232,6 +261,7 @@ impl AppState {
             area_builds: tokio::sync::Semaphore::new(config.area_builds.max(1)),
             people,
             prefetch: tactical::prefetch::Prefetcher::new(config.prefetch_workers),
+            bake: tactical::bake::Baker::new(config.bake_workers, config.bake_result_bytes()),
             sheet_mapping,
         })
     }
@@ -275,8 +305,13 @@ mod tests {
         // the tactical caches sized for world cells at 128 px per square
         // (logic/16 §api-cache: renders and tiles within 4 GiB), one
         // transient render per lane (request and prefetch) and the one
-        // transient encode both lanes share (review round 2 #32).
-        assert!(config.admitted_bytes() < 15 << 30);
+        // transient encode both lanes share (review round 2 #32), within
+        // 15 GiB; the bake lane (1.0 task 04: one transient render, its
+        // queued bodies and the result budget) adds about 1.9 GiB.
+        let mut no_bake = config.clone();
+        no_bake.bake_workers = 0;
+        assert!(no_bake.admitted_bytes() < 15 << 30);
+        assert!(config.admitted_bytes() < MEMORY_CEILING_BYTES - (128 << 20));
         assert!(config.tactical.admitted_bytes() < 6 << 30);
         assert!(
             config.tactical.admitted_bytes()
@@ -298,6 +333,25 @@ mod tests {
             on.tactical.transient_render_bytes()
         );
         assert!(on.admit().is_ok());
+    }
+
+    #[test]
+    fn the_bake_lane_is_admitted_and_its_budget_bounded() {
+        let mut off = ServerConfig::new(PathBuf::from("unused"));
+        off.bake_workers = 0;
+        let on = ServerConfig::new(PathBuf::from("unused"));
+        assert!(on.admit().is_ok());
+        let lane = on.admitted_bytes() - off.admitted_bytes();
+        assert!(lane > on.tactical.transient_render_bytes() + on.bake_result_bytes());
+        // Too large for the ceiling, or too small for one cell set.
+        let mut big = on.clone();
+        big.bake_result_mib = 8 << 10;
+        assert!(matches!(big.admit(), Err(ServerError::ResourceLimit(_))));
+        let mut small = on.clone();
+        small.bake_result_mib = 64;
+        assert!(matches!(small.admit(), Err(ServerError::ResourceLimit(_))));
+        small.bake_workers = 0;
+        assert!(small.admit().is_ok());
     }
 
     #[test]
