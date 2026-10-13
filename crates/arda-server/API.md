@@ -934,6 +934,13 @@ and opaque, closed doors solid (`locked` ones flagged), secret doors as `kind: "
 | block PNG next to one already served | ~280 ms | ~10 ms |
 | quarter-block window PNG (32 × 32 squares) | ~95 ms | ~5 ms |
 | a WebP tile after the render | ~75 ms | ~1 ms |
+| cell JSON then `/scene`, fresh server (settled society fixture, river cell) | ~160 ms | - |
+| window PNG 32 × 32 at 128 ppsq, fresh server | ~500 ms | - |
+| `/v1/area/{ax}/{ay}/cells` JSON / `?format=bin`, fresh server | ~160 ms / ~110 ms | - |
+| overview tile, 256 px | - | ~0.2 ms |
+| `AppState::open` (society fixture) | ~1.2 s | - |
+
+The rows after the WebP tile are the 1.0 task 09 gates (`crates/arda-server/tests/world_api/gates.rs`, run by `tools/release-gates.sh`), measured 2026-10-13 on the same machine at a load average of 12 to 14, so an idle machine is faster. Budgets: cached tile < 20 ms, cell JSON plus scene < 500 ms, 128 ppsq window < 1 s, area JSON < 500 ms, bin < 250 ms, open < 2 s.
 
 A block image composes its window with a 6-square apron (up to 9 refined cells, cached), runs
 the ways, fields and town overlays at once, renders only the block's own pixels of the

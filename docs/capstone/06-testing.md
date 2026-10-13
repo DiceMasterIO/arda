@@ -91,8 +91,9 @@ Root `[[test]]` targets are declared explicitly (`Cargo.toml:104`–`126`):
 | Recipe goldens bless | `ARDA_BLESS=1 cargo test --test golden_recipes` | `tests/golden_recipes.rs:10` |
 | Bindings/schema freshness | `cargo test -p arda-server bindings` / `schema`; bless with `ARDA_BLESS_BINDINGS=1` | `crates/arda-server/src/bindings.rs:4`, `crates/arda-server/src/schema/mod.rs:9` |
 | Dungeon render bless | `ARDA_BLESS_DUNGEON=1 cargo test -p arda-dungeon` | `crates/arda-dungeon/tests/levels.rs:193` |
-| Release gates (ignored) | e.g. `cargo test --release --test e2e_village -- --ignored`; `cargo test --release -p arda-tactical --test timing -- --ignored --nocapture` | `tests/e2e_village.rs:296`, `crates/arda-tactical/tests/timing.rs:4` |
-| Bench budgets | `cargo bench -p arda-gen --bench area_erosion` / `continent_stage` | `crates/arda-gen/Cargo.toml:20` |
+| Release gates (ignored; all wall-clock budgets, one receipt) | `tools/release-gates.sh` (add `--with-benches` for the `arda-gen` benches; exit 0 on pass) | `tools/release-gates.sh`, receipt `target/release-gates/receipt-<commit>.md` |
+| One gate crate by hand | e.g. `cargo test --release -p arda-server --test world_api -- --ignored --nocapture --test-threads=1` | `crates/arda-server/tests/world_api/gates.rs` |
+| Bench budgets | `cargo bench -p arda-gen --bench area_erosion` / `continent_stage` (also run by `--with-benches`) | `crates/arda-gen/Cargo.toml:20` |
 | Viewer | `npm test` (`vitest run`) in `apps/viewer` | `apps/viewer/package.json` `scripts.test` |
 | Art tooling | `node --test tools/art-gen/test/` | `tools/art-gen/test/art-gen.test.mjs:3` |
 
@@ -193,9 +194,10 @@ The facade and CLI suites generate MICRO 42 once per test binary into a
 
 | Category | Tests |
 |---|---|
-| Wall-clock release gates (`"wall-clock timing; release gate"`) | `crates/arda-midzoom/tests/checks.rs:335`, `crates/arda-midzoom/tests/world.rs:166`, `crates/arda-names/tests/performance.rs:12`, `crates/arda-npc/tests/performance.rs:45`, `crates/arda-refine/tests/perf.rs:30`, `:43`, `crates/arda-server/tests/world_api/tactical_images.rs:122` |
-| Other timing | `crates/arda-tactical/tests/timing.rs:12` (64×64 squares at 128 px < 2 s), `crates/arda-society/tests/scale.rs:80` (4,000 settlements, `ARDA_SOCIETY_TILES`), `:113` (2,000 vs 8,000 linearity) |
-| Root release gates (generate worlds) | `tests/e2e_village.rs:296`, `tests/zoom_continuity.rs:162`, `:230`, `tests/zoom_land.rs:175`, `:212` |
+| Server release gates (new, `crates/arda-server/tests/world_api/gates.rs`; best of 3, society fixture) | cached cell WebP tile (< 20 ms), cold cell JSON plus scene (< 500 ms), cold 32×32 window PNG at 128 ppsq (< 1 s), `AppState::open` (< 2 s), `World::load` (< 100 ms), area cells JSON (< 500 ms) and bin (< 250 ms), warm overview tile (< 20 ms) |
+| Wall-clock release gates (`"wall-clock timing; release gate"`, each prints a `GATE name measured_ms budget_ms` line) | `tests/e2e_village.rs:296`, `crates/arda-tactical/tests/timing.rs:12`, `crates/arda-midzoom/tests/checks.rs:335`, `crates/arda-midzoom/tests/world.rs:166`, `crates/arda-names/tests/performance.rs:12`, `crates/arda-npc/tests/performance.rs:45`, `crates/arda-refine/tests/perf.rs:30`, `:43`, `crates/arda-server/tests/world_api/tactical_images.rs:122` |
+| Other timing | `crates/arda-society/tests/scale.rs:80` (4,000 settlements, `ARDA_SOCIETY_TILES`), `:113` (2,000 vs 8,000 linearity) |
+| Root release gates (generate worlds; not timing) | `tests/zoom_continuity.rs:162`, `:230`, `tests/zoom_land.rs:175`, `:212` |
 | Need an external world | `crates/arda-people/tests/town_wfc.rs:10` (`ARDA_WORLD`), `crates/arda-refine/tests/real_world.rs:22`, `:67` (`ARDA_REFINE_WORLD`, default `../../out/micro42`) |
 | Extra seeds | `crates/arda-settle/tests/realms_micro.rs:152` (seed 3), `:158` (seed 7) |
 | Measurement probes (arda-gen) | `crates/arda-gen/src/area/terrain_correction_probe.rs:15`, `src/area/lakes/tests/diagonal.rs:84`, `src/continent/tests.rs:128`, `tests/anisotropy_probe.rs:293`, `:308`, `tests/coast_measurement.rs:109`, `:158` (`ARDA_COAST_MEASUREMENT_OUT`), `tests/continent_measures.rs:22`, `:58` |

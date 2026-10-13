@@ -184,7 +184,7 @@ Releases v0.5.0 to v0.8.1 were hand-made `release: Arda v<version>` commits with
 
 1. Run `tools/release.sh <version>` on a clean branch. It bumps `[workspace.package] version` and the 21 path entries in `[workspace.dependencies]` (`Cargo.toml`), `apps/viewer/package.json` and its lockfile (`npm version --no-git-tag-version`), and the `arda_version` in `crates/arda-server/API.md`; runs `cargo update -w`; re-blesses `tests/golden/micro-42*.txt` with `ARDA_BLESS=1 cargo test --release --test golden_world --test golden_recipes` (the saved `world.json` embeds `arda_version`); checks that every version site agrees; and checks that `git diff` touches only those files. It prints the remaining commands.
 2. Add a `## <version> — <date>` section to `CHANGELOG.md`. `tools/release.sh --notes <version>` prints what the release page will show. The design ledger (`docs/capstone/changelog.md`, `changelog.d/`) is separate.
-3. Run the release gates (ignored wall-clock tests) locally; task 09's gate runner and receipt own that step. CI never runs them.
+3. Run `tools/release-gates.sh --with-benches` on the release machine (see "Release gates" below). CI never runs the gates. Its receipt is `target/release-gates/receipt-<commit>.md`; the script exits 0 when every gate is present and under budget, 1 otherwise (2 on a build error). Attach the receipt to the release notes or paste it under "Recorded measurements".
 4. Commit as `release: Arda v<version>`, tag `v<version>`, push the branch and the tag.
 5. The tag starts `.github/workflows/release.yml`: `verify` (tag equals the `Cargo.toml` version, `tools/release.sh --check`, a changelog section exists, fmt, clippy, `cargo test --workspace --locked`), then `binaries`, `image`, `release`. Review the **draft** release and publish it by hand.
 
@@ -201,6 +201,39 @@ Releases v0.5.0 to v0.8.1 were hand-made `release: Arda v<version>` commits with
 
 **Pins.** Every third-party action is pinned to a full commit SHA with the version in a comment. The release toolchain is Rust 1.98.1 (`RUST_TOOLCHAIN` in `release.yml`), matching the Dockerfile's `RUSTUP_TOOLCHAIN`; change both together.
 
+### Release gates
+
+`tools/release-gates.sh` is the one command for every wall-clock budget (1.0 task 09, OI-28). It builds the release test binaries once, runs each `#[ignore = "wall-clock timing; release gate"]` test with `--ignored --nocapture --test-threads=1`, and parses the `GATE <name> <measured_ms> <budget_ms>` line each gate prints before it asserts. A missing line, an over-budget gate or a failed cargo target is a failure. `--with-benches` adds the two `arda-gen` budget benches (about 6 minutes of criterion sampling, so they are opt-in; they also print `GATE` lines); `--from-log FILE` re-parses a saved log. The release hardware is the maintainer's workstation (Ryzen 9 9950X3D, 16 cores / 32 threads, about 91 GiB RAM, CachyOS); the receipt prints `lscpu`, `free`, the kernel, the commit and the load average before and after. Run it on an idle machine: gates take the best of 3 to 5 fresh measurements, but the numbers are only comparable at low load. GitHub-hosted runners are too small and noisy, so the gates stay out of `ci.yml`.
+
+The server gates (`crates/arda-server/tests/world_api/gates.rs`) run on the settled society fixture `target/arda-server-fixture/micro42-society` (recipe 7), the river cell (529, 812), in-process through the real router; `e2e_village` keeps its own recipe-6 world.
+
 ### Recorded measurements
 
 Dated timing receipts for terrain generation and Atlas export (2026-09-08 through 2026-09-29) are kept in `docs/capstone/features/2026-09-23-terrain-corrections/STUDY.md` and `EXPERIMENTS.md`, which are symlinks to a path outside the repository. They were not re-measured for this chapter and predate the crates added since v0.2.0.
+
+**2026-10-13 gate receipt (task 09).** Commit `2f94e3b39` (tree equal to the gated tree apart from a doc-only edit), run with `tools/release-gates.sh --with-benches`, rustc 1.98.1, release profile, Ryzen 9 9950X3D, 32 threads, 91 GiB, kernel 7.2.9-2-cachyos. The machine was shared with other agents: load average 12.3 / 16.1 / 18.8 before and 14.2 / 16.7 / 18.6 after, so every figure is an upper bound on an idle machine. All gates pass.
+
+| Gate | Measured ms | Budget ms | Result |
+|---|---:|---:|---|
+| refine_block | 32.675 | 250 | pass |
+| refine_quarter_block | 33.477 | 100 | pass |
+| tactical_64x64_128ppsq | 719.967 | 2000 | pass |
+| server_cached_layout_png | 0.801 | 5 | pass |
+| server_cached_cell_tile | 0.808 | 20 | pass |
+| server_cold_cell_json_scene | 159.394 | 500 | pass |
+| server_cold_window_128 | 501.693 | 1000 | pass |
+| server_open | 1194.168 | 2000 | pass |
+| world_load | 0.003 | 100 | pass |
+| server_area_cells_json | 160.414 | 500 | pass |
+| server_area_cells_bin | 108.900 | 250 | pass |
+| server_warm_overview_tile | 0.245 | 20 | pass |
+| midzoom_warm_tile_z7 | 14 | 150 | pass |
+| midzoom_refine_nodes | 10 | 150 | pass |
+| npc_city_20k | 78.964 | 1000 | pass |
+| names_100k | 281.939 | 1000 | pass |
+| e2e_cold_block_png_64 | 375.164 | 500 | pass |
+| e2e_cold_quarter_window_64 | 108.623 | 250 | pass |
+| gen_area_erosion | 2764.883 | 30000 | pass |
+| gen_continent_stage | 2091.886 | 60000 | pass |
+
+`world_load` is `World::load`, which reads the manifest and maps the layers lazily (about 3 µs); the first query pays the cost, which `server_open` and the cold gates include. `server_open` is `AppState::open` on the society fixture (ground textures for every ppsq, town and city plans drawn at open). The process peak RSS of the `world_api` gate binary was about 1.75 GiB (it includes the gates that ran before it); that is a process high-water mark, not the startup admission total, which has about 64 MiB of headroom under the 16 GiB ceiling after task 04 and is not measured by these gates.

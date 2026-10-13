@@ -167,6 +167,8 @@ scenes join, and supported vertical/crossing cases have explicit geometry.
 
 Browser frame-time and INP budgets are not measured in the repo.
 
+**Gates (2026-10-13, task 09):** `tools/release-gates.sh` runs every wall-clock gate above plus new server gates (cached cell tile, cold cell JSON and scene, cold 128 ppsq window, `AppState::open`, `World::load`, area cells JSON and bin, warm overview tile) and the two `arda-gen` benches, and writes a dated receipt; the first 1.0 receipt is in 07-operations "Recorded measurements", the budgets are ratified in logic/16 Invariant 7. Still open: browser frame-time, INP, play-code size, payload/decode/texture-memory measurements (steps 4-7) belong to DiceMaster; full-world generation (12 h), area export (60 s) and block export (5 s) targets are not gated; resource admission for population/geometry/WFC (step 3) is untouched.
+
 **Status (2026-09-25 record):** admission/streamed exports implemented; full-content and interactive
 budgets unproven. **Depends on:** representative output from each producer;
 measure throughout, then close after OI-24–OI-27. **Targets:** generation resource

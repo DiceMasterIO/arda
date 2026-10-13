@@ -177,7 +177,7 @@ In memory only: cache entries appear and are evicted; the prefetch queue fills a
 4. Tiles: every tile inside the pyramid decodes (PNG or WebP) to its documented size; tiles outside answer 404 [68].
 5. Seams: the east column of tactical tile pixels of block `(gx, gy)` and the west column of block `(gx+1, gy)` at full zoom differ by no more than the WebP lossless round trip (zero) from the same columns of a 2 × 1 window render [67].
 6. Budgets: the admitted worst case never exceeds 16 GiB; the server refuses to start rather than trim [goal-prompt §8].
-7. Performance (release, warm world): a cached tile in < 20 ms; a cold block layout plus scene in < 500 ms; a cold quarter-block window render at 128 px per square in < 1 s (assumed budgets consistent with goal 50).
+7. Performance (release, 1.0 task 09 gates `crates/arda-server/tests/world_api/gates.rs`, best of 3, society fixture, run by `tools/release-gates.sh`): a cached cell tile in < 20 ms (measured 0.8 ms); a cold block layout plus scene in < 500 ms (159 ms); a cold quarter-block window render at 128 px per square in < 1 s (502 ms); also `AppState::open` < 2 s (1.19 s), `World::load` < 100 ms, area cells < 500 ms JSON and < 250 ms bin (160 and 109 ms cold), a warm overview tile < 20 ms. Ratified as stated; figures from a shared 32-thread machine at load 12-14 (07-operations "Recorded measurements").
 8. Tokens: every token of every scene resolves through `/v1/npc/{id}` [57, 69].
 
 ## Outcomes & side effects
