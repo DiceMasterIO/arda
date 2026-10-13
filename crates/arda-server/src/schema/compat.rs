@@ -460,7 +460,7 @@ mod tests {
             Some("scene_format")
         );
         let mut new = old.clone();
-        for (_, v) in new.schemas.iter_mut() {
+        for v in new.schemas.values_mut() {
             v["$defs"]["Move"]["oneOf"] = json!([{"const": "walk"}, {"const": "fly"}]);
         }
         let open = |_: &str| false;
