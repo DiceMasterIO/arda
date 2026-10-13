@@ -36,8 +36,11 @@ pub const LAND_MAX_M: f32 = 400.0;
 pub const TRACK_MAX_M: f32 = 30.0;
 /// Pixels (metres) above which footpaths are not drawn.
 pub const FOOTPATH_MAX_M: f32 = 10.0;
-/// Columns per strip.
-const STRIP: usize = 1024;
+/// Columns per strip. Small on purpose: masks and canvases under the
+/// allocator's mapping threshold are reused in place instead of being
+/// retained as large freed blocks, which kept peak memory proportional to
+/// the strip width.
+const STRIP: usize = 128;
 /// Strips painted at once.
 const BATCH: usize = 8;
 
@@ -106,6 +109,10 @@ impl SocietyBandOverlay {
     /// Paints the window of the image whose top-left pixel is `origin` onto
     /// `c`: land tone, roads, then symbols.
     pub fn paint_window(&self, c: &mut Canvas, origin: (usize, usize)) {
+        self.paint_with(c, origin, &self.lines, &self.syms);
+    }
+
+    fn paint_with(&self, c: &mut Canvas, origin: (usize, usize), lines: &RoadLines, syms: &[Sym]) {
         let v = View {
             pw: c.width as f32,
             ph: c.height as f32,
@@ -117,8 +124,8 @@ impl SocietyBandOverlay {
             land_tone_sampled(c, &v, &self.codes, self.land_k);
         }
         let o = (origin.0 as i64, origin.1 as i64);
-        layers::paint_roads(c, &self.lines, v.s, o, &self.classes);
-        layers::paint_symbols(c, &self.syms, v.s, o);
+        layers::paint_roads(c, lines, v.s, o, &self.classes);
+        layers::paint_symbols(c, syms, v.s, o);
     }
 }
 
@@ -176,6 +183,25 @@ impl BandOverlay for SocietyBandOverlay {
             });
         }
         let h = rows.len() / (w * 3);
+        // Only what meets these rows goes on to the strips.
+        let (top, bottom) = (y0 as f32, (y0 as usize + h) as f32);
+        let pad = 8.0 * self.view.s + 2.0;
+        let lines = RoadLines {
+            by_class: std::array::from_fn(|k| {
+                self.lines.by_class[k]
+                    .iter()
+                    .filter(|l| l.bbox[1] <= bottom + pad && l.bbox[3] >= top - pad)
+                    .cloned()
+                    .collect()
+            }),
+        };
+        let syms: Vec<Sym> = self
+            .syms
+            .iter()
+            .filter(|x| x.at.1 + 14.0 * self.view.s >= top && x.at.1 - 14.0 * self.view.s <= bottom)
+            .copied()
+            .collect();
+        let (lines, syms) = (&lines, &syms);
         let starts: Vec<usize> = (0..w).step_by(STRIP).collect();
         for batch in starts.chunks(BATCH) {
             let done: Vec<(usize, Canvas)> = std::thread::scope(|scope| {
@@ -196,7 +222,7 @@ impl BandOverlay for SocietyBandOverlay {
                                 height: h,
                                 rgb,
                             };
-                            self.paint_window(&mut c, (x0, y0 as usize));
+                            self.paint_with(&mut c, (x0, y0 as usize), lines, syms);
                             (x0, c)
                         })
                     })

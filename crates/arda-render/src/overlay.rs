@@ -180,4 +180,26 @@ mod tests {
         let (_, _, rgb) = decode(&painted);
         assert_eq!(&rgb[(700 * 1024 + 700) * 3..][..3], &[255, 0, 0]);
     }
+
+    #[test]
+    fn the_overlay_row_buffer_does_not_grow_with_the_image_height() {
+        let cells = land();
+        let widest = |height: u32| {
+            let overlay = Diagonal::new();
+            write_overview_png_with_overlay(
+                1,
+                1,
+                (300, height),
+                std::io::sink(),
+                Some(&overlay),
+                |_| Ok::<_, RenderError>(cells.clone()),
+            )
+            .unwrap();
+            let calls = overlay.calls.lock().unwrap();
+            calls.iter().map(|c| c.1).max().unwrap()
+        };
+        let (short, tall) = (widest(600), widest(5000));
+        assert_eq!(short, tall);
+        assert_eq!(tall, 256 * 300 * 3);
+    }
 }
