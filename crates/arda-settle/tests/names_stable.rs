@@ -13,7 +13,7 @@ fn fnv(bytes: &[u8]) -> u64 {
     })
 }
 
-const NAMES_JSON: u64 = 0x6e87212e1145193f;
+const NAMES_JSON: u64 = 5_887_000_593_182_667_959;
 const OTHER_NAMES: u64 = 5_113_561_676_284_192_723;
 
 #[test]
