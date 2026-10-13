@@ -2,6 +2,15 @@
 generated_date: 2026-08-24
 ---
 
+## 2026-10-12 - Performance budgets as one release gate
+- **tools**: `tools/release-gates.sh` builds the release tests once, runs every wall-clock gate with `--ignored --nocapture --test-threads=1`, parses one `GATE <name> <measured_ms> <budget_ms>` line per gate and writes a Markdown receipt (commit, date, `lscpu`/`free`/kernel, load average, table, result) to stdout and `target/release-gates/receipt-<commit>.md`. Exit 0 on pass, 1 on an over-budget, missing or failed gate, 2 on a build error. `--with-benches` adds the `arda-gen` benches; `--from-log` re-parses a log.
+- **arda-server**: new `tests/world_api/gates.rs` with eight ignored gates (cached cell WebP tile, cold cell JSON plus scene, cold 32×32 window at 128 ppsq, `AppState::open`, `World::load`, area cells JSON and bin, warm overview tile), best of 3 through the real router on the settled society fixture. They print the `X-Arda-Cache` state.
+- **arda-refine, arda-tactical, arda-midzoom, arda-npc, arda-names, arda, arda-gen**: every existing timing gate prints its `GATE` line before it asserts; `timing.rs` and `e2e_village` now use the `"wall-clock timing; release gate"` ignore reason. Names, budgets and response bytes are unchanged.
+- **Budgets**: ratified as stated, none loosened. New: `AppState::open` < 2 s, `World::load` < 100 ms, area cells < 500 ms JSON and < 250 ms bin, warm overview tile < 20 ms. Measured 2026-10-13 at load 12-14: cached tile 0.8 ms, cell plus scene 159 ms, 128 ppsq window 502 ms, open 1.19 s, area 160 / 109 ms, overview 0.25 ms. `World::load` reads the manifest lazily (3 µs).
+- **Docs**: logic/16 Invariant 7, OI-28 (browser and DiceMaster budgets stay open), 06-testing, 07-operations (release gates and the dated receipt), `API.md` timing table.
+- **Why**: the budgets were scattered `#[ignore]` tests with their own commands, none recorded against a declared machine, and logic/16 promised server budgets nothing checked. DiceMaster sizes its prefetch and loading UX on these numbers.
+- **Tests**: the gates are the tests. Each new gate was first run with a 0.001 ms budget and failed with its measured value; the parser fails a log with a missing `GATE` line (exit 1); `cargo test -p arda-server --test world_api` runs none of them.
+
 ## 2026-10-13 - Retire the sampled block archive
 - **arda-gen**: `arda generate` no longer writes `blocks/<ax>_<ay>.tiles.zst`. Removed `SKELETON_BLOCK_STRIDE`, the `block` module (24-tile WFC filler, constraints) and the `seed` argument of `write_area`.
 - **arda-core**: deleted `formats/blocks.rs` (`Block`, `BlockArchive`, `encode_blocks`, `decode_blocks`, `ZSTD_LEVEL`), `tiles.rs` (the 24-tile vocabulary), `SquareCoord` and `BLOCK_SQUARES`, and the `zstd` dependency.
