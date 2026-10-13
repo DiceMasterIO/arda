@@ -1,6 +1,6 @@
 # art-gen: Arda's tactical art through Slopify
 
-This folder holds a prompt pack for Arda's tactical art library, and a script that has a local Slopify generate it. The pack has 1,516 assets: the first 225 from the checklist, then 1,291 more in `expansion.mjs`. The expansion holds variants of every asset, building-function props, biome sets, culture sets, two wall kits and three thin partition kits. `plan.md` gives the order, tiers and commands for generating them. The output is a folder that `arda tactical import` reads directly.
+This folder holds a prompt pack for Arda's tactical art library, and a script that has a local Slopify generate it. The pack has 1,553 assets: the first 225 from the checklist, then 1,328 more in `expansion.mjs`. The expansion holds variants of every asset, building-function props, biome sets, culture sets, two wall kits and three thin partition kits. `plan.md` gives the order, tiers and commands for generating them. The output is a folder that `arda tactical import` reads directly.
 
 | file | what it is |
 |---|---|
@@ -20,8 +20,8 @@ Everything uses Node 26 and its standard library. There's nothing to install.
 
 Slopify draws an image from a **Library image prompt**, filling its `{{keywords}}` with per-run values. It caps each value at 200 characters on a single line, which is too short for a whole prompt. The pack is therefore split into two parts:
 
-- **Five Library prompts**, `arda-ground`, `arda-water`, `arda-wall`, `arda-prop` and `arda-vegetation`. Each holds the shared style preamble and its class's rules. Their text is in `prompts.json` under `templates`. The script creates them in Slopify's Library the first time you submit.
-- **Per-asset keywords** fill each Library prompt: `Subject`, `Shape` and `Detail`, plus `Variant` for ground and water.
+- **Six Library prompts**, `arda-ground`, `arda-water`, `arda-wall`, `arda-prop`, `arda-vegetation` and `arda-effect`. Each holds the shared style preamble and its class's rules. Their text is in `prompts.json` under `templates`. The script creates them in Slopify's Library the first time you submit.
+- **Per-asset keywords** fill each Library prompt: `Subject`, `Shape` and `Detail`, plus `Variant` for ground, water and effects.
 
 Every asset's fully rendered prompt is also stored in `prompts.json` as `prompt`. The tests check that it matches what Slopify renders.
 
@@ -37,6 +37,7 @@ Each class then adds its own rules:
 - **Ground and water:** "seamless tileable texture, even lighting, no large light or dark patches", filling the whole frame edge to edge.
 - **Props and vegetation:** one subject, centred, filling about 70% of the frame's shorter side, on a fully transparent background (Codex and gpt-image return a real alpha channel).
 - **Walls:** a band of even thickness on a transparent background. The junction sits at the image centre, and each arm runs straight to the image edge it reaches.
+- **Effects:** a flat overlay for a grid map, 2 x 2 squares: a seamless texture or a single patch fading out before the edges. The `Variant` keyword says where the transparency comes from: bright light on pure black (the importer derives alpha from brightness, `alpha = "luminance"` in `import.toml`) or a real alpha channel (`alpha = "source"`).
 
 A batch is one Slopify draft plus up to 50 items. Each item has a title, the asset id, and its keyword values. In the draft, Images is set to Generate and every other stage, Article included, is Off, so these are image-only runs. Slopify makes only 16:9 or 9:16 images, so the script groups assets by Library prompt and frame:
 
@@ -123,7 +124,7 @@ cargo run --release -p arda-cli -- tactical render --layout all \
 
 ### 5. Generate the rest
 
-Every asset has a `tier`: 0 is the first 225, 1 is their variants, 2 the building-function and biome sets, 3 the culture sets and rare dressing, 4 the underground set for `arda-dungeon` (cave and bedrock ground, the `cave` wall kit, stairs down, torch sconces and stalagmites; until it is generated those slots fall back to the placeholder art), 5 the thin interior partition kits `timber_partition`, `wattle_partition` and `adobe_partition` (until they are generated, the compositor draws a partition as its kit's own piece squeezed to half thickness). Within a tier, `prompts.json` lists the assets by visual impact, so `--tier 1 --limit 200` takes the 200 that change maps the most. `plan.md` has the exact commands per tier. They include the reference runs that structured ground variants and wall alts need.
+Every asset has a `tier`: 0 is the first 225, 1 is their variants, 2 the building-function and biome sets, 3 the culture sets and rare dressing, 4 the underground set for `arda-dungeon` (cave and bedrock ground, the `cave` wall kit, stairs down, torch sconces and stalagmites; until it is generated those slots fall back to the placeholder art), 5 the thin interior partition kits `timber_partition`, `wattle_partition` and `adobe_partition` (until they are generated, the compositor draws a partition as its kit's own piece squeezed to half thickness), 6 effect and damage art for DiceMaster's overlays: nine transparent `effect.*` sets (frost, fire, acid, ash, web, grease, fog, water, scorch mark) and the damage props `prop.rubble_heap`, `prop.broken_deck` and `prop.charred_floor` (37 images; until they are generated, the placeholder's procedural effects stand in). Within a tier, `prompts.json` lists the assets by visual impact, so `--tier 1 --limit 200` takes the 200 that change maps the most. `plan.md` has the exact commands per tier. They include the reference runs that structured ground variants and wall alts need.
 
 ```sh
 node tools/art-gen/generate.mjs --tier 1 --limit 200 --resume --yes

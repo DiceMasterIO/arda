@@ -15,7 +15,7 @@
 import { readFileSync, writeFileSync } from "node:fs";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
-import { entries as expansion, groundTargets, newGround, newKits, wallVariants } from "./expansion.mjs";
+import { effectSets, entries as expansion, groundTargets, newGround, newKits, wallVariants } from "./expansion.mjs";
 import { pair, readChecklist, render, slotsOf } from "./lib.mjs";
 
 const here = dirname(fileURLToPath(import.meta.url));
@@ -84,6 +84,15 @@ const classes = {
     template: "arda-vegetation",
     rules: `${cutoutRules} No grass, soil or other plants around it.`,
     subject: "Subject: {{Subject}}, seen from directly above.",
+  },
+  effect: {
+    template: "arda-effect",
+    textured: true,
+    rules:
+      "A flat overlay effect that is drawn over a grid map, not a scene: no ground, floor, terrain, " +
+      "walls, objects, creatures or people in or under it, no border, frame or vignette, and no cast " +
+      "shadow. Strictly top-down: no perspective.",
+    subject: "Subject: a flat overlay effect for a grid map, {{Subject}}.",
   },
 };
 
@@ -852,7 +861,7 @@ const sharedMeta = (base) => ({
   ...blockingOf(base),
 });
 
-const dirOf = { ground: "ground", water: "ground", wall: "walls", prop: "props", vegetation: "vegetation" };
+const dirOf = { ground: "ground", water: "ground", wall: "walls", prop: "props", vegetation: "vegetation", effect: "effects" };
 
 // Every entry in prompts.json goes through here: one trimmed line per keyword, at most 200
 // characters, every template slot filled, and the prompt rendered the way Slopify renders it.
@@ -1079,6 +1088,57 @@ function wallExpansion() {
   return out;
 }
 
+// Effect and damage art (expansion.mjs effectSets, tier 6): one entry per take of each effect,
+// `effect.<name>.<n>`. The importer reads the numbers in file order, like ground variants.
+const effectBackdrop = {
+  luminance:
+    "Painted as bright light on a pure black background (#000000): the brighter, the more visible, and nothing grey, coloured or dark behind it.",
+  source:
+    "On a fully transparent background (a PNG with a real alpha channel, background: transparent): partly transparent where the effect is thin; no white or coloured backdrop.",
+};
+
+function effectExpansion() {
+  const out = [];
+  for (const [name, set] of Object.entries(effectSets)) {
+    const texture = set.kind === "texture";
+    if (!texture && set.kind !== "decal") throw new Error(`effect ${name}: kind ${set.kind}`);
+    if (effectBackdrop[set.alpha] === undefined) throw new Error(`effect ${name}: alpha ${set.alpha}`);
+    set.takes.forEach((detail, variant) => {
+      const id = `effect.${name}.${variant}`;
+      const footprint = [2, 2];
+      const entry = {
+        class: "effect",
+        template: classes.effect.template,
+        format: "1:1",
+        footprint,
+        pixels: footprint.map((n) => n * 128),
+        layer: "floor",
+        height_ft: 0,
+        functions: [],
+        tags: { biome: [], culture: [], wealth: [], function: [], free: [texture ? "effect:texture" : "effect:decal"] },
+        ...blocking.clear,
+        file: `effects/${id}.png`,
+        status: "new",
+        tier: 6,
+        effect: name,
+        kind: set.kind,
+        alpha: set.alpha,
+        variant,
+        values: {
+          Subject: set.subject,
+          Shape: texture
+            ? `Seamless tileable pattern that fills the whole frame edge to edge with no border or empty margin; the frame spans about ${footprint[0] * 5} feet.`
+            : "A single irregular patch, centred, filling about 70% of the frame's shorter side and fading softly to nothing well before every edge.",
+          Detail: detail,
+          Variant: effectBackdrop[set.alpha],
+        },
+      };
+      out.push([id, finish(id, entry)]);
+    });
+  }
+  return out;
+}
+
 function cutoutExpansion() {
   const out = [];
   for (const e of expansion) {
@@ -1138,6 +1198,7 @@ const frequent = new Set(
 );
 function impact(id, a) {
   if (a.class === "ground" || a.class === "water") return 0;
+  if (a.class === "effect") return 1;
   if (a.class === "vegetation") return a.layer === "canopy" ? 1 : 4;
   if (a.class === "wall") return a.role === "run" ? 2 : 5;
   return frequent.has(a.variant_of ?? id) ? 3 : 6;
@@ -1164,7 +1225,7 @@ for (const id of originals) {
   const g = assets[id].ground;
   if (g !== undefined) originalVariants[g] = (originalVariants[g] ?? 0) + 1;
 }
-const added = [...groundExpansion(), ...newGroundExpansion(), ...wallExpansion(), ...cutoutExpansion()];
+const added = [...groundExpansion(), ...newGroundExpansion(), ...wallExpansion(), ...cutoutExpansion(), ...effectExpansion()];
 const seen = new Set(originals);
 for (const [id] of added) {
   if (seen.has(id)) throw new Error(`duplicate id ${id}`);
@@ -1191,7 +1252,7 @@ const pack = {
     "Arda tactical art prompts for Slopify. Built by build-prompts.mjs from checklist.csv (the first 225) and expansion.mjs (the rest); edit those, not this file.",
   checklist: "checklist.csv",
   expansion: "expansion.mjs",
-  keywords: ["Subject", "Shape", "Detail", "Variant (ground and water only)"],
+  keywords: ["Subject", "Shape", "Detail", "Variant (ground, water and effect only)"],
   keyword_max_chars: valueMax,
   style,
   classes: Object.fromEntries(
@@ -1201,7 +1262,7 @@ const pack = {
   tiers: {
     counts: tierCounts,
     about:
-      "0: the first 225 (already generated). 1: every variant of those 225, which fixes repetition on every map. 2: building-function and biome sets. 3: culture sets, rare dressing and the new wall kits. 4: the underground set for arda-dungeon (cave and bedrock ground, the cave wall kit, stairs down, torch sconces, stalagmites). Within a tier, assets run in order of visual impact.",
+      "0: the first 225 (already generated). 1: every variant of those 225, which fixes repetition on every map. 2: building-function and biome sets. 3: culture sets, rare dressing and the new wall kits. 4: the underground set for arda-dungeon (cave and bedrock ground, the cave wall kit, stairs down, torch sconces, stalagmites). 6: effect and damage art: transparent effect textures and decals (frost, fire, acid, ash, web, grease, fog, water, scorch mark) and the damage props (rubble heap, broken deck, charred floor). Within a tier, assets run in order of visual impact.",
   },
   notes: {
     structured:

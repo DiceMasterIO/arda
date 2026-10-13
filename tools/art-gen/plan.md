@@ -1,6 +1,6 @@
 # Art library expansion: batching plan
 
-The prompt pack now holds **1,425 assets**: the first 225 (tier 0, already generated on Codex) and 1,200 new ones in three tiers. This plan says what to generate in which order, how long it takes, and the exact commands. Nothing here has been submitted.
+The prompt pack now holds **1,425 assets**: the first 225 (tier 0, already generated on Codex) and 1,200 new ones in three tiers. This plan says what to generate in which order, how long it takes, and the exact commands. Tiers 4 to 6 (underground, interior partitions, effect and damage art) are described in their own sections below and are not in the table. Nothing here has been submitted.
 
 The new assets come from `expansion.mjs`. `build-prompts.mjs` merges them with the checklist and writes `prompts.json`, where every entry carries a `tier` and its catalogue metadata (footprint, layer, height, cover, blocking and tags).
 
@@ -168,10 +168,35 @@ for k in timber_partition wattle_partition adobe_partition; do
 done
 ```
 
+### Tier 6: effect and damage art
+
+37 images: transparent effect art that DiceMaster draws over Arda's tiles, and the damage props. Nine effect sets, three takes each, 2 x 2 squares: tileable textures `effect.frost`, `effect.fire`, `effect.acid`, `effect.ash`, `effect.web`, `effect.grease`, `effect.fog` and `effect.water`, and the single-patch decal `effect.scorch_mark` (saved `effect.<name>.0` to `.2`). Then three damage props with three or four takes each: `prop.rubble_heap`, `prop.broken_deck` and `prop.charred_floor`. The effect set uses its own Library prompt, `arda-effect`.
+
+Where the transparency comes from is per set (`alpha` in `prompts.json`, copied into `import.toml`):
+
+- `luminance` (frost, fire, acid, web, fog, water): the model draws bright light on pure black and the importer turns brightness into alpha. Image models give clean alpha only for opaque-ish subjects, so soft glows are better made this way.
+- `source` (ash, grease, scorch mark): dark material that brightness cannot carry, so the model is asked for a real alpha channel, as for props.
+
+Until tier 6 is generated, every slot falls back to the placeholder's procedural effects. The effect ids are not placed by layouts; the server lists them (`GET /v1/tactical/library`, `effects`) and serves the images (`GET /v1/tactical/library/asset/effect.frost.0.png`).
+
+```sh
+# the exact tier-6 run; the dry run needs no Slopify and sends nothing
+export ART_GEN_MAX_SPEND=12
+gen --tier 6 --parallel 5 --price-per-image 0.10 --max-images 37 --dry-run
+gen --tier 6 --parallel 5 --price-per-image 0.10 --max-images 37 --yes
+```
+
+Import into a scratch folder, never over `out/art-gen/lib`, and look at the contact sheet before curating:
+
+```sh
+arda tactical import out/art-gen/raw --out out/art-gen/lib-effects --manifest out/art-gen/raw/import.toml \
+    --base assets/tactical/placeholder --contact-sheet out/art-gen/effects-sheet.png
+```
+
 ## How variants reach the library
 
 - **Cut-outs and wall pieces:** `<id>.altN` in `prompts.json`. `generate.mjs` saves it as `<id>__altN.png`. `arda tactical import` ignores what follows `__` and numbers the takes of one id in sorted file order. Because `.` sorts before `_`, `<id>.png` stays `<id>`, and `__alt1`, `__alt2`, … become `<id>.alt1`, `<id>.alt2`, …, the same ids as the prompts. The exception is a missing take: the importer numbers the files it has, so after a gap the later takes shift down.
-- **Ground:** `ground.<key>.<n>` continues the series (`.0` to `.3`); the importer numbers the variants in file order.
+- **Ground and effects:** `ground.<key>.<n>` continues the series (`.0` to `.3`), and `effect.<name>.<n>` runs `.0` to `.2`; the importer numbers the variants in file order.
 - **Alts are interchangeable.** They share their base's footprint, layer, height, cover, blocking and tags exactly (a test checks this). So the compositor can pick any take wherever the base fits. A piece that suits only one wealth level, culture or biome has its own id instead (`prop.table_wealthy`, `prop.bed_dwarf`, `prop.well_desert`).
 - **Metadata:** `import.toml` now carries each asset's `layer`, `height_ft`, `cover`, blocking flags and `tags` from `prompts.json`, besides the footprint. New ids therefore import with their real metadata, not the importer's class defaults. For the first 225, the values equal the placeholder library's records.
 

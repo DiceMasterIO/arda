@@ -71,6 +71,9 @@ test("prompts carry the art conventions and no artist names", () => {
     if (asset.class === "ground" || asset.class === "water") {
       assert.match(p, /Seamless tileable texture, even lighting, no large light or dark patches/, id);
       assert.match(p, /fills the whole frame edge to edge/, id);
+    } else if (asset.class === "effect") {
+      assert.match(p, asset.alpha === "luminance" ? /bright light on a pure black background/ : /real alpha channel/, id);
+      assert.match(p, /flat overlay effect/, id);
     } else {
       assert.match(p, /real alpha channel/, id);
     }
@@ -117,6 +120,7 @@ const idGrammar = {
   wall: new RegExp(`^wall\\.[a-z0-9_]+\\.(${roles.join("|")})(\\.alt[1-9])?$`),
   prop: /^prop\.[a-z0-9_]+(\.alt[1-9])?$/,
   vegetation: /^veg\.[a-z0-9_]+(\.alt[1-9])?$/,
+  effect: /^effect\.[a-z0-9_]+\.\d$/,
 };
 const layers = ["ground", "water", "floor", "prop", "wall", "canopy"];
 const covers = ["none", "half", "three_quarters", "total"];
@@ -128,6 +132,7 @@ test("every id uses a known class and arda-art-import's naming", () => {
     assert.equal(a.template, pack.classes[a.class].template, id);
     if (a.class === "wall") assert.equal(id.split(".").slice(1, 3).join("."), `${a.kit}.${a.role}`, id);
     if (a.ground !== undefined) assert.equal(id, `${a.class}.${a.ground}.${a.variant}`, id);
+    if (a.class === "effect") assert.equal(id, `effect.${a.effect}.${a.variant}`, id);
   }
 });
 
@@ -138,7 +143,7 @@ test("every asset carries valid catalogue metadata and tags", () => {
     assert.ok(Number.isInteger(a.height_ft) && a.height_ft >= 0, `${id}: height_ft ${a.height_ft}`);
     for (const flag of ["blocks_movement", "blocks_sight", "difficult_terrain"]) assert.equal(typeof a[flag], "boolean", `${id} ${flag}`);
     assert.ok(a.footprint.every((n) => Number.isInteger(n) && n >= 1 && n <= 16), `${id}: footprint`);
-    assert.ok([0, 1, 2, 3, 4, 5].includes(a.tier), `${id}: tier ${a.tier}`);
+    assert.ok([0, 1, 2, 3, 4, 5, 6].includes(a.tier), `${id}: tier ${a.tier}`);
     assert.deepEqual(Object.keys(a.tags).sort(), ["biome", "culture", "free", "function", "wealth"], id);
     for (const list of ["biome", "culture", "wealth", "function"])
       for (const tag of a.tags[list]) assert.ok(vocabulary[list].includes(tag), `${id}: ${list} "${tag}" is not in the catalogue vocabulary`);
@@ -174,13 +179,13 @@ test("alts are interchangeable with their base: same footprint, layer, tags and 
 test("every cut-out has at least three takes, every wall piece two, every ground key three", () => {
   const takes = {};
   for (const [id, a] of Object.entries(pack.assets)) {
-    const key = a.ground !== undefined ? `ground:${a.ground}` : (a.variant_of ?? id);
+    const key = a.ground !== undefined ? `ground:${a.ground}` : a.effect !== undefined ? `effect:${a.effect}` : (a.variant_of ?? id);
     takes[key] = (takes[key] ?? 0) + 1;
   }
   for (const [key, n] of Object.entries(takes)) {
     const min = key.startsWith("wall.") ? 2 : 3;
     assert.ok(n >= min, `${key} has ${n} takes, want at least ${min}`);
-    assert.ok(n <= (key.startsWith("ground:") ? 10 : 9), `${key} has ${n} takes; the importer numbers at most nine alts or ten variants in order`);
+    assert.ok(n <= (key.startsWith("ground:") || key.startsWith("effect:") ? 10 : 9), `${key} has ${n} takes; the importer numbers at most nine alts or ten variants in order`);
   }
   for (const freq of ["prop.barrel", "prop.crate", "prop.table", "prop.chair", "prop.bed", "prop.chest", "veg.tree_oak", "veg.tree_pine", "veg.tree_spruce"])
     assert.ok(takes[freq] >= 5, `${freq} has ${takes[freq]} takes`);
@@ -495,4 +500,45 @@ test("square vegetation gets an uneven outline and a size that differs between t
 test("AI takes never inherit the placeholder's fixed_pose tag", () => {
   for (const [id, asset] of Object.entries(pack.assets))
     assert.ok(!(asset.tags?.free ?? []).includes("fixed_pose"), id);
+});
+
+// --- effect and damage art (tier 6, 1.0 task 05) ---------------------------------------------
+
+test("tier 6 holds the effect sets and the damage props, three or more takes each", () => {
+  const tier = Object.entries(pack.assets).filter(([, a]) => a.tier === 6);
+  assert.equal(pack.tiers.counts[6], tier.length);
+  const effects = tier.filter(([, a]) => a.class === "effect");
+  const names = new Set(effects.map(([, a]) => a.effect));
+  for (const name of ["frost", "fire", "acid", "ash", "web", "grease", "fog", "water", "scorch_mark"])
+    assert.ok(names.has(name), `effect ${name}`);
+  for (const name of names) {
+    const takes = effects.filter(([, a]) => a.effect === name);
+    assert.ok(takes.length >= 3, `${name}: ${takes.length} takes`);
+    assert.deepEqual(takes.map(([id]) => id).sort(), takes.map((_, i) => `effect.${name}.${i}`), name);
+  }
+  for (const [id, a] of effects) {
+    assert.deepEqual(a.footprint, [2, 2], id);
+    assert.equal(a.template, "arda-effect", id);
+    assert.ok(["texture", "decal"].includes(a.kind), id);
+    assert.ok(["luminance", "source"].includes(a.alpha), id);
+    assert.deepEqual(a.tags.free, [`effect:${a.kind}`], id);
+    assert.equal(a.layer, "floor", id);
+    assert.equal(a.blocks_movement || a.blocks_sight || a.difficult_terrain, false, id);
+  }
+  const props = tier.filter(([, a]) => a.class === "prop");
+  const bases = new Set(props.map(([id, a]) => a.variant_of ?? id));
+  assert.deepEqual([...bases].sort(), ["prop.broken_deck", "prop.charred_floor", "prop.rubble_heap"]);
+  for (const [id, a] of props) assert.ok(a.tags.free.includes("damage"), id);
+  assert.equal(tier.length, effects.length + props.length);
+});
+
+test("effect prompts are generated only by their own Library prompt, and import.toml says how to get alpha", () => {
+  const sel = select(pack, parseOptions(["--tier", "6", "--class", "effect"]));
+  assert.ok(sel.length >= 27 && sel.every((a) => a.class === "effect"));
+  const toml = importToml(
+    sel.slice(0, 1).map((a) => ({ ...a, file: `${a.id}.png`, projectId: "p", template: a.template, at: "t", prompt: a.prompt, provider: "x", model: "m", footprint: a.footprint, meta: a })),
+    { licence: "CC0-1.0" },
+  );
+  assert.match(toml, /alpha = "(luminance|source)"/);
+  assert.match(toml, /free = \["effect:(texture|decal)"\]/);
 });

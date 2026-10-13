@@ -58,7 +58,7 @@ export const reviewInstruction = [
   "Fail it when any of these hold:",
   "1. View: it is not strictly top-down orthographic (any perspective, horizon, tilted, isometric or side-on view; visible vertical faces of walls or objects beyond a thin edge; a fence or railing drawn as an upright panel of pickets or planks instead of a thin line of post tops and rail tops).",
   "2. Geometry: it does not match the layout the brief states. Walls must run exactly where the brief says (which edges they touch, through the centre line, nothing extra). A door or gate must sit in a gap in the wall line, its leaf lying ALONG the wall's length between two jambs, with the wall top, parapet or crenellations stopping at the gap; fail a door drawn across the wall's thickness, a door lying on top of the wall-walk, or a door that cannot be told apart from the wall.",
-  "3. Background: for a cut-out (prop, vegetation, wall piece), anything other than the subject is not transparent (a solid, white, checkerboard or coloured backdrop, a ground patch or a frame); for a ground or water tile, it does not fill the whole frame edge to edge as a texture.",
+  "3. Background: for a cut-out (prop, vegetation, wall piece), anything other than the subject is not transparent (a solid, white, checkerboard or coloured backdrop, a ground patch or a frame); for a ground or water tile, it does not fill the whole frame edge to edge as a texture; for an effect overlay, the backdrop is neither fully transparent nor (when the brief says light on pure black) pure black, or it contains ground, objects or creatures.",
   "4. Shading: it shows a cast shadow or drop shadow on the ground.",
   "5. Clutter: stray text, letters, numbers, grid lines, watermarks, borders, or extra objects the brief did not ask for; or several copies of the subject when the brief asks for one.",
   "6. Scale and build: parts are implausibly sized for the stated footprint (e.g. bridge planks much wider than a foot, a door wider than its wall run), or a structure has nothing holding it together.",
@@ -70,7 +70,7 @@ export const reviewInstruction = [
 const usage = `Usage: node tools/art-gen/generate.mjs [options]
 
 Selection
-  --class LIST          ground, water, wall, prop, vegetation (comma-separated)
+  --class LIST          ground, water, wall, prop, vegetation, effect (comma-separated)
   --tier LIST           generation tiers, e.g. 1 or 1,2 (see plan.md); 0 is the first 225
   --only GLOB           asset ids, e.g. "ground.grass.*" or "wall.stone.*,prop.barrel"
   --limit N             at most N assets (after the other filters)
@@ -402,6 +402,7 @@ export function importToml(records, options) {
       `footprint = [${r.footprint.join(", ")}]`,
     );
     if (r.structured) lines.push("structured = true");
+    if (r.meta?.alpha) lines.push(`alpha = ${tomlString(r.meta.alpha)}`);
     const m = r.meta;
     if (m !== undefined) {
       if (m.layer) lines.push(`layer = ${tomlString(m.layer)}`);

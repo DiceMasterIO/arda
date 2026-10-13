@@ -7,7 +7,7 @@
     "Subject",
     "Shape",
     "Detail",
-    "Variant (ground and water only)"
+    "Variant (ground, water and effect only)"
   ],
   "keyword_max_chars": 200,
   "style": "Top-down battle-map asset for a tabletop fantasy grid map, in a rich hand-painted style: confident painterly brushwork, fine dark ink outlines, crisp small detail and a muted, earthy, slightly warm palette. Strictly orthographic view from directly overhead: no perspective, no horizon, no tilted or isometric angle. Soft light from the top-left, so upper-left edges catch highlights and lower-right edges fall into gentle form shading; no cast shadow and no drop shadow anywhere. No text, no letters, no numbers, no grid lines, no frame, no border, no vignette, no watermark, no signature.",
@@ -31,6 +31,10 @@
     "vegetation": {
       "template": "arda-vegetation",
       "rules": "Exactly one subject, centred, filling about 70% of the frame's shorter side, on a fully transparent background (a PNG with a real alpha channel, background: transparent; no white or colour behind the subject); nothing else in the image: no floor, no ground patch, no base or rug under it, no other objects, no shadow. No grass, soil or other plants around it."
+    },
+    "effect": {
+      "template": "arda-effect",
+      "rules": "A flat overlay effect that is drawn over a grid map, not a scene: no ground, floor, terrain, walls, objects, creatures or people in or under it, no border, frame or vignette, and no cast shadow. Strictly top-down: no perspective."
     }
   },
   "templates": {
@@ -68,6 +72,13 @@
         "vegetation"
       ],
       "body": "Top-down battle-map asset for a tabletop fantasy grid map, in a rich hand-painted style: confident painterly brushwork, fine dark ink outlines, crisp small detail and a muted, earthy, slightly warm palette. Strictly orthographic view from directly overhead: no perspective, no horizon, no tilted or isometric angle. Soft light from the top-left, so upper-left edges catch highlights and lower-right edges fall into gentle form shading; no cast shadow and no drop shadow anywhere. No text, no letters, no numbers, no grid lines, no frame, no border, no vignette, no watermark, no signature. Subject: {{Subject}}, seen from directly above. {{Shape}} {{Detail}} Exactly one subject, centred, filling about 70% of the frame's shorter side, on a fully transparent background (a PNG with a real alpha channel, background: transparent; no white or colour behind the subject); nothing else in the image: no floor, no ground patch, no base or rug under it, no other objects, no shadow. No grass, soil or other plants around it."
+    },
+    "arda-effect": {
+      "kind": "image",
+      "classes": [
+        "effect"
+      ],
+      "body": "Top-down battle-map asset for a tabletop fantasy grid map, in a rich hand-painted style: confident painterly brushwork, fine dark ink outlines, crisp small detail and a muted, earthy, slightly warm palette. Strictly orthographic view from directly overhead: no perspective, no horizon, no tilted or isometric angle. Soft light from the top-left, so upper-left edges catch highlights and lower-right edges fall into gentle form shading; no cast shadow and no drop shadow anywhere. No text, no letters, no numbers, no grid lines, no frame, no border, no vignette, no watermark, no signature. Subject: a flat overlay effect for a grid map, {{Subject}}. {{Shape}} {{Detail}} {{Variant}} A flat overlay effect that is drawn over a grid map, not a scene: no ground, floor, terrain, walls, objects, creatures or people in or under it, no border, frame or vignette, and no cast shadow. Strictly top-down: no perspective."
     }
   },
   "tiers": {
@@ -77,9 +88,10 @@
       "2": 467,
       "3": 318,
       "4": 34,
-      "5": 57
+      "5": 57,
+      "6": 37
     },
-    "about": "0: the first 225 (already generated). 1: every variant of those 225, which fixes repetition on every map. 2: building-function and biome sets. 3: culture sets, rare dressing and the new wall kits. 4: the underground set for arda-dungeon (cave and bedrock ground, the cave wall kit, stairs down, torch sconces, stalagmites). Within a tier, assets run in order of visual impact."
+    "about": "0: the first 225 (already generated). 1: every variant of those 225, which fixes repetition on every map. 2: building-function and biome sets. 3: culture sets, rare dressing and the new wall kits. 4: the underground set for arda-dungeon (cave and bedrock ground, the cave wall kit, stairs down, torch sconces, stalagmites). 6: effect and damage art: transparent effect textures and decals (frost, fire, acid, ash, web, grease, fog, water, scorch mark) and the damage props (rubble heap, broken deck, charred floor). Within a tier, assets run in order of visual impact."
   },
   "notes": {
     "structured": "Structured ground variants must share one layout. A model cannot be relied on to repeat a layout, so generate variant .0 first and either derive the others from it by hand (tint, wear and stains in an image editor) or generate them with --reference pointing at the accepted .0.",
@@ -79206,6 +79218,1634 @@
         "Detail": "The same thin ochre-plastered adobe partition as the plain run, a chipped corner showing mud brick. The wall band is about one tenth of the image height thick."
       },
       "prompt": "Top-down battle-map asset for a tabletop fantasy grid map, in a rich hand-painted style: confident painterly brushwork, fine dark ink outlines, crisp small detail and a muted, earthy, slightly warm palette. Strictly orthographic view from directly overhead: no perspective, no horizon, no tilted or isometric angle. Soft light from the top-left, so upper-left edges catch highlights and lower-right edges fall into gentle form shading; no cast shadow and no drop shadow anywhere. No text, no letters, no numbers, no grid lines, no frame, no border, no vignette, no watermark, no signature. Subject: one modular wall piece from a grid-map wall kit, a 5-foot section of thin interior adobe partition, a single course of mud brick under smooth plaster, seen from directly above. A wall end: one arm runs in from the right edge and stops at the centre with a finished, capped end; nothing left of, above or below the centre. The same thin ochre-plastered adobe partition as the plain run, a chipped corner showing mud brick. The wall band is about one tenth of the image height thick. Wall pieces join into long walls on a square grid, so the top of the wall is seen as a straight band of even thickness, every arm runs perfectly straight along the image's horizontal or vertical centre line and is cut off square exactly at the image edge it reaches. The junction is exactly at the centre of the image. Everything that is not wall is fully transparent (a PNG with a real alpha channel, background: transparent): no ground, no grass, no floor, no shadow."
+    },
+    "effect.frost.0": {
+      "class": "effect",
+      "template": "arda-effect",
+      "format": "1:1",
+      "footprint": [
+        2,
+        2
+      ],
+      "pixels": [
+        256,
+        256
+      ],
+      "layer": "floor",
+      "height_ft": 0,
+      "functions": [],
+      "tags": {
+        "biome": [],
+        "culture": [],
+        "wealth": [],
+        "function": [],
+        "free": [
+          "effect:texture"
+        ]
+      },
+      "blocks_movement": false,
+      "blocks_sight": false,
+      "difficult_terrain": false,
+      "cover": "none",
+      "file": "effects/effect.frost.0.png",
+      "status": "new",
+      "tier": 6,
+      "effect": "frost",
+      "kind": "texture",
+      "alpha": "luminance",
+      "variant": 0,
+      "values": {
+        "Subject": "a layer of frost and rime ice",
+        "Shape": "Seamless tileable pattern that fills the whole frame edge to edge with no border or empty margin; the frame spans about 10 feet.",
+        "Detail": "Branching white and pale blue ice crystals in a loose lattice, with small frosted gaps where the black shows through.",
+        "Variant": "Painted as bright light on a pure black background (#000000): the brighter, the more visible, and nothing grey, coloured or dark behind it."
+      },
+      "prompt": "Top-down battle-map asset for a tabletop fantasy grid map, in a rich hand-painted style: confident painterly brushwork, fine dark ink outlines, crisp small detail and a muted, earthy, slightly warm palette. Strictly orthographic view from directly overhead: no perspective, no horizon, no tilted or isometric angle. Soft light from the top-left, so upper-left edges catch highlights and lower-right edges fall into gentle form shading; no cast shadow and no drop shadow anywhere. No text, no letters, no numbers, no grid lines, no frame, no border, no vignette, no watermark, no signature. Subject: a flat overlay effect for a grid map, a layer of frost and rime ice. Seamless tileable pattern that fills the whole frame edge to edge with no border or empty margin; the frame spans about 10 feet. Branching white and pale blue ice crystals in a loose lattice, with small frosted gaps where the black shows through. Painted as bright light on a pure black background (#000000): the brighter, the more visible, and nothing grey, coloured or dark behind it. A flat overlay effect that is drawn over a grid map, not a scene: no ground, floor, terrain, walls, objects, creatures or people in or under it, no border, frame or vignette, and no cast shadow. Strictly top-down: no perspective."
+    },
+    "effect.frost.1": {
+      "class": "effect",
+      "template": "arda-effect",
+      "format": "1:1",
+      "footprint": [
+        2,
+        2
+      ],
+      "pixels": [
+        256,
+        256
+      ],
+      "layer": "floor",
+      "height_ft": 0,
+      "functions": [],
+      "tags": {
+        "biome": [],
+        "culture": [],
+        "wealth": [],
+        "function": [],
+        "free": [
+          "effect:texture"
+        ]
+      },
+      "blocks_movement": false,
+      "blocks_sight": false,
+      "difficult_terrain": false,
+      "cover": "none",
+      "file": "effects/effect.frost.1.png",
+      "status": "new",
+      "tier": 6,
+      "effect": "frost",
+      "kind": "texture",
+      "alpha": "luminance",
+      "variant": 1,
+      "values": {
+        "Subject": "a layer of frost and rime ice",
+        "Shape": "Seamless tileable pattern that fills the whole frame edge to edge with no border or empty margin; the frame spans about 10 feet.",
+        "Detail": "A fine frost bloom: feathery ice ferns spreading from several points, brightest at their tips.",
+        "Variant": "Painted as bright light on a pure black background (#000000): the brighter, the more visible, and nothing grey, coloured or dark behind it."
+      },
+      "prompt": "Top-down battle-map asset for a tabletop fantasy grid map, in a rich hand-painted style: confident painterly brushwork, fine dark ink outlines, crisp small detail and a muted, earthy, slightly warm palette. Strictly orthographic view from directly overhead: no perspective, no horizon, no tilted or isometric angle. Soft light from the top-left, so upper-left edges catch highlights and lower-right edges fall into gentle form shading; no cast shadow and no drop shadow anywhere. No text, no letters, no numbers, no grid lines, no frame, no border, no vignette, no watermark, no signature. Subject: a flat overlay effect for a grid map, a layer of frost and rime ice. Seamless tileable pattern that fills the whole frame edge to edge with no border or empty margin; the frame spans about 10 feet. A fine frost bloom: feathery ice ferns spreading from several points, brightest at their tips. Painted as bright light on a pure black background (#000000): the brighter, the more visible, and nothing grey, coloured or dark behind it. A flat overlay effect that is drawn over a grid map, not a scene: no ground, floor, terrain, walls, objects, creatures or people in or under it, no border, frame or vignette, and no cast shadow. Strictly top-down: no perspective."
+    },
+    "effect.frost.2": {
+      "class": "effect",
+      "template": "arda-effect",
+      "format": "1:1",
+      "footprint": [
+        2,
+        2
+      ],
+      "pixels": [
+        256,
+        256
+      ],
+      "layer": "floor",
+      "height_ft": 0,
+      "functions": [],
+      "tags": {
+        "biome": [],
+        "culture": [],
+        "wealth": [],
+        "function": [],
+        "free": [
+          "effect:texture"
+        ]
+      },
+      "blocks_movement": false,
+      "blocks_sight": false,
+      "difficult_terrain": false,
+      "cover": "none",
+      "file": "effects/effect.frost.2.png",
+      "status": "new",
+      "tier": 6,
+      "effect": "frost",
+      "kind": "texture",
+      "alpha": "luminance",
+      "variant": 2,
+      "values": {
+        "Subject": "a layer of frost and rime ice",
+        "Shape": "Seamless tileable pattern that fills the whole frame edge to edge with no border or empty margin; the frame spans about 10 feet.",
+        "Detail": "Thin glassy ice sheets with hairline cracks and tiny air bubbles, patchy and uneven.",
+        "Variant": "Painted as bright light on a pure black background (#000000): the brighter, the more visible, and nothing grey, coloured or dark behind it."
+      },
+      "prompt": "Top-down battle-map asset for a tabletop fantasy grid map, in a rich hand-painted style: confident painterly brushwork, fine dark ink outlines, crisp small detail and a muted, earthy, slightly warm palette. Strictly orthographic view from directly overhead: no perspective, no horizon, no tilted or isometric angle. Soft light from the top-left, so upper-left edges catch highlights and lower-right edges fall into gentle form shading; no cast shadow and no drop shadow anywhere. No text, no letters, no numbers, no grid lines, no frame, no border, no vignette, no watermark, no signature. Subject: a flat overlay effect for a grid map, a layer of frost and rime ice. Seamless tileable pattern that fills the whole frame edge to edge with no border or empty margin; the frame spans about 10 feet. Thin glassy ice sheets with hairline cracks and tiny air bubbles, patchy and uneven. Painted as bright light on a pure black background (#000000): the brighter, the more visible, and nothing grey, coloured or dark behind it. A flat overlay effect that is drawn over a grid map, not a scene: no ground, floor, terrain, walls, objects, creatures or people in or under it, no border, frame or vignette, and no cast shadow. Strictly top-down: no perspective."
+    },
+    "effect.fire.0": {
+      "class": "effect",
+      "template": "arda-effect",
+      "format": "1:1",
+      "footprint": [
+        2,
+        2
+      ],
+      "pixels": [
+        256,
+        256
+      ],
+      "layer": "floor",
+      "height_ft": 0,
+      "functions": [],
+      "tags": {
+        "biome": [],
+        "culture": [],
+        "wealth": [],
+        "function": [],
+        "free": [
+          "effect:texture"
+        ]
+      },
+      "blocks_movement": false,
+      "blocks_sight": false,
+      "difficult_terrain": false,
+      "cover": "none",
+      "file": "effects/effect.fire.0.png",
+      "status": "new",
+      "tier": 6,
+      "effect": "fire",
+      "kind": "texture",
+      "alpha": "luminance",
+      "variant": 0,
+      "values": {
+        "Subject": "burning flames seen from above",
+        "Shape": "Seamless tileable pattern that fills the whole frame edge to edge with no border or empty margin; the frame spans about 10 feet.",
+        "Detail": "Roiling orange and yellow flames with white-hot cores, licking tongues of fire in every direction.",
+        "Variant": "Painted as bright light on a pure black background (#000000): the brighter, the more visible, and nothing grey, coloured or dark behind it."
+      },
+      "prompt": "Top-down battle-map asset for a tabletop fantasy grid map, in a rich hand-painted style: confident painterly brushwork, fine dark ink outlines, crisp small detail and a muted, earthy, slightly warm palette. Strictly orthographic view from directly overhead: no perspective, no horizon, no tilted or isometric angle. Soft light from the top-left, so upper-left edges catch highlights and lower-right edges fall into gentle form shading; no cast shadow and no drop shadow anywhere. No text, no letters, no numbers, no grid lines, no frame, no border, no vignette, no watermark, no signature. Subject: a flat overlay effect for a grid map, burning flames seen from above. Seamless tileable pattern that fills the whole frame edge to edge with no border or empty margin; the frame spans about 10 feet. Roiling orange and yellow flames with white-hot cores, licking tongues of fire in every direction. Painted as bright light on a pure black background (#000000): the brighter, the more visible, and nothing grey, coloured or dark behind it. A flat overlay effect that is drawn over a grid map, not a scene: no ground, floor, terrain, walls, objects, creatures or people in or under it, no border, frame or vignette, and no cast shadow. Strictly top-down: no perspective."
+    },
+    "effect.fire.1": {
+      "class": "effect",
+      "template": "arda-effect",
+      "format": "1:1",
+      "footprint": [
+        2,
+        2
+      ],
+      "pixels": [
+        256,
+        256
+      ],
+      "layer": "floor",
+      "height_ft": 0,
+      "functions": [],
+      "tags": {
+        "biome": [],
+        "culture": [],
+        "wealth": [],
+        "function": [],
+        "free": [
+          "effect:texture"
+        ]
+      },
+      "blocks_movement": false,
+      "blocks_sight": false,
+      "difficult_terrain": false,
+      "cover": "none",
+      "file": "effects/effect.fire.1.png",
+      "status": "new",
+      "tier": 6,
+      "effect": "fire",
+      "kind": "texture",
+      "alpha": "luminance",
+      "variant": 1,
+      "values": {
+        "Subject": "burning flames seen from above",
+        "Shape": "Seamless tileable pattern that fills the whole frame edge to edge with no border or empty margin; the frame spans about 10 feet.",
+        "Detail": "A bed of glowing embers and low flames, red and orange, with brighter yellow flickers.",
+        "Variant": "Painted as bright light on a pure black background (#000000): the brighter, the more visible, and nothing grey, coloured or dark behind it."
+      },
+      "prompt": "Top-down battle-map asset for a tabletop fantasy grid map, in a rich hand-painted style: confident painterly brushwork, fine dark ink outlines, crisp small detail and a muted, earthy, slightly warm palette. Strictly orthographic view from directly overhead: no perspective, no horizon, no tilted or isometric angle. Soft light from the top-left, so upper-left edges catch highlights and lower-right edges fall into gentle form shading; no cast shadow and no drop shadow anywhere. No text, no letters, no numbers, no grid lines, no frame, no border, no vignette, no watermark, no signature. Subject: a flat overlay effect for a grid map, burning flames seen from above. Seamless tileable pattern that fills the whole frame edge to edge with no border or empty margin; the frame spans about 10 feet. A bed of glowing embers and low flames, red and orange, with brighter yellow flickers. Painted as bright light on a pure black background (#000000): the brighter, the more visible, and nothing grey, coloured or dark behind it. A flat overlay effect that is drawn over a grid map, not a scene: no ground, floor, terrain, walls, objects, creatures or people in or under it, no border, frame or vignette, and no cast shadow. Strictly top-down: no perspective."
+    },
+    "effect.fire.2": {
+      "class": "effect",
+      "template": "arda-effect",
+      "format": "1:1",
+      "footprint": [
+        2,
+        2
+      ],
+      "pixels": [
+        256,
+        256
+      ],
+      "layer": "floor",
+      "height_ft": 0,
+      "functions": [],
+      "tags": {
+        "biome": [],
+        "culture": [],
+        "wealth": [],
+        "function": [],
+        "free": [
+          "effect:texture"
+        ]
+      },
+      "blocks_movement": false,
+      "blocks_sight": false,
+      "difficult_terrain": false,
+      "cover": "none",
+      "file": "effects/effect.fire.2.png",
+      "status": "new",
+      "tier": 6,
+      "effect": "fire",
+      "kind": "texture",
+      "alpha": "luminance",
+      "variant": 2,
+      "values": {
+        "Subject": "burning flames seen from above",
+        "Shape": "Seamless tileable pattern that fills the whole frame edge to edge with no border or empty margin; the frame spans about 10 feet.",
+        "Detail": "Tall swirling flame tips, deep red at the edges and bright yellow in the middle, with a few sparks.",
+        "Variant": "Painted as bright light on a pure black background (#000000): the brighter, the more visible, and nothing grey, coloured or dark behind it."
+      },
+      "prompt": "Top-down battle-map asset for a tabletop fantasy grid map, in a rich hand-painted style: confident painterly brushwork, fine dark ink outlines, crisp small detail and a muted, earthy, slightly warm palette. Strictly orthographic view from directly overhead: no perspective, no horizon, no tilted or isometric angle. Soft light from the top-left, so upper-left edges catch highlights and lower-right edges fall into gentle form shading; no cast shadow and no drop shadow anywhere. No text, no letters, no numbers, no grid lines, no frame, no border, no vignette, no watermark, no signature. Subject: a flat overlay effect for a grid map, burning flames seen from above. Seamless tileable pattern that fills the whole frame edge to edge with no border or empty margin; the frame spans about 10 feet. Tall swirling flame tips, deep red at the edges and bright yellow in the middle, with a few sparks. Painted as bright light on a pure black background (#000000): the brighter, the more visible, and nothing grey, coloured or dark behind it. A flat overlay effect that is drawn over a grid map, not a scene: no ground, floor, terrain, walls, objects, creatures or people in or under it, no border, frame or vignette, and no cast shadow. Strictly top-down: no perspective."
+    },
+    "effect.acid.0": {
+      "class": "effect",
+      "template": "arda-effect",
+      "format": "1:1",
+      "footprint": [
+        2,
+        2
+      ],
+      "pixels": [
+        256,
+        256
+      ],
+      "layer": "floor",
+      "height_ft": 0,
+      "functions": [],
+      "tags": {
+        "biome": [],
+        "culture": [],
+        "wealth": [],
+        "function": [],
+        "free": [
+          "effect:texture"
+        ]
+      },
+      "blocks_movement": false,
+      "blocks_sight": false,
+      "difficult_terrain": false,
+      "cover": "none",
+      "file": "effects/effect.acid.0.png",
+      "status": "new",
+      "tier": 6,
+      "effect": "acid",
+      "kind": "texture",
+      "alpha": "luminance",
+      "variant": 0,
+      "values": {
+        "Subject": "a pool of caustic green acid",
+        "Shape": "Seamless tileable pattern that fills the whole frame edge to edge with no border or empty margin; the frame spans about 10 feet.",
+        "Detail": "Glowing lime green liquid with small rising bubbles and a bright wet sheen.",
+        "Variant": "Painted as bright light on a pure black background (#000000): the brighter, the more visible, and nothing grey, coloured or dark behind it."
+      },
+      "prompt": "Top-down battle-map asset for a tabletop fantasy grid map, in a rich hand-painted style: confident painterly brushwork, fine dark ink outlines, crisp small detail and a muted, earthy, slightly warm palette. Strictly orthographic view from directly overhead: no perspective, no horizon, no tilted or isometric angle. Soft light from the top-left, so upper-left edges catch highlights and lower-right edges fall into gentle form shading; no cast shadow and no drop shadow anywhere. No text, no letters, no numbers, no grid lines, no frame, no border, no vignette, no watermark, no signature. Subject: a flat overlay effect for a grid map, a pool of caustic green acid. Seamless tileable pattern that fills the whole frame edge to edge with no border or empty margin; the frame spans about 10 feet. Glowing lime green liquid with small rising bubbles and a bright wet sheen. Painted as bright light on a pure black background (#000000): the brighter, the more visible, and nothing grey, coloured or dark behind it. A flat overlay effect that is drawn over a grid map, not a scene: no ground, floor, terrain, walls, objects, creatures or people in or under it, no border, frame or vignette, and no cast shadow. Strictly top-down: no perspective."
+    },
+    "effect.acid.1": {
+      "class": "effect",
+      "template": "arda-effect",
+      "format": "1:1",
+      "footprint": [
+        2,
+        2
+      ],
+      "pixels": [
+        256,
+        256
+      ],
+      "layer": "floor",
+      "height_ft": 0,
+      "functions": [],
+      "tags": {
+        "biome": [],
+        "culture": [],
+        "wealth": [],
+        "function": [],
+        "free": [
+          "effect:texture"
+        ]
+      },
+      "blocks_movement": false,
+      "blocks_sight": false,
+      "difficult_terrain": false,
+      "cover": "none",
+      "file": "effects/effect.acid.1.png",
+      "status": "new",
+      "tier": 6,
+      "effect": "acid",
+      "kind": "texture",
+      "alpha": "luminance",
+      "variant": 1,
+      "values": {
+        "Subject": "a pool of caustic green acid",
+        "Shape": "Seamless tileable pattern that fills the whole frame edge to edge with no border or empty margin; the frame spans about 10 feet.",
+        "Detail": "Splashed acid in bright green droplets and streaks, thin and uneven, with a faint yellow glow.",
+        "Variant": "Painted as bright light on a pure black background (#000000): the brighter, the more visible, and nothing grey, coloured or dark behind it."
+      },
+      "prompt": "Top-down battle-map asset for a tabletop fantasy grid map, in a rich hand-painted style: confident painterly brushwork, fine dark ink outlines, crisp small detail and a muted, earthy, slightly warm palette. Strictly orthographic view from directly overhead: no perspective, no horizon, no tilted or isometric angle. Soft light from the top-left, so upper-left edges catch highlights and lower-right edges fall into gentle form shading; no cast shadow and no drop shadow anywhere. No text, no letters, no numbers, no grid lines, no frame, no border, no vignette, no watermark, no signature. Subject: a flat overlay effect for a grid map, a pool of caustic green acid. Seamless tileable pattern that fills the whole frame edge to edge with no border or empty margin; the frame spans about 10 feet. Splashed acid in bright green droplets and streaks, thin and uneven, with a faint yellow glow. Painted as bright light on a pure black background (#000000): the brighter, the more visible, and nothing grey, coloured or dark behind it. A flat overlay effect that is drawn over a grid map, not a scene: no ground, floor, terrain, walls, objects, creatures or people in or under it, no border, frame or vignette, and no cast shadow. Strictly top-down: no perspective."
+    },
+    "effect.acid.2": {
+      "class": "effect",
+      "template": "arda-effect",
+      "format": "1:1",
+      "footprint": [
+        2,
+        2
+      ],
+      "pixels": [
+        256,
+        256
+      ],
+      "layer": "floor",
+      "height_ft": 0,
+      "functions": [],
+      "tags": {
+        "biome": [],
+        "culture": [],
+        "wealth": [],
+        "function": [],
+        "free": [
+          "effect:texture"
+        ]
+      },
+      "blocks_movement": false,
+      "blocks_sight": false,
+      "difficult_terrain": false,
+      "cover": "none",
+      "file": "effects/effect.acid.2.png",
+      "status": "new",
+      "tier": 6,
+      "effect": "acid",
+      "kind": "texture",
+      "alpha": "luminance",
+      "variant": 2,
+      "values": {
+        "Subject": "a pool of caustic green acid",
+        "Shape": "Seamless tileable pattern that fills the whole frame edge to edge with no border or empty margin; the frame spans about 10 feet.",
+        "Detail": "A bubbling pool surface, sickly yellow-green, with ripples and tiny popping bubbles.",
+        "Variant": "Painted as bright light on a pure black background (#000000): the brighter, the more visible, and nothing grey, coloured or dark behind it."
+      },
+      "prompt": "Top-down battle-map asset for a tabletop fantasy grid map, in a rich hand-painted style: confident painterly brushwork, fine dark ink outlines, crisp small detail and a muted, earthy, slightly warm palette. Strictly orthographic view from directly overhead: no perspective, no horizon, no tilted or isometric angle. Soft light from the top-left, so upper-left edges catch highlights and lower-right edges fall into gentle form shading; no cast shadow and no drop shadow anywhere. No text, no letters, no numbers, no grid lines, no frame, no border, no vignette, no watermark, no signature. Subject: a flat overlay effect for a grid map, a pool of caustic green acid. Seamless tileable pattern that fills the whole frame edge to edge with no border or empty margin; the frame spans about 10 feet. A bubbling pool surface, sickly yellow-green, with ripples and tiny popping bubbles. Painted as bright light on a pure black background (#000000): the brighter, the more visible, and nothing grey, coloured or dark behind it. A flat overlay effect that is drawn over a grid map, not a scene: no ground, floor, terrain, walls, objects, creatures or people in or under it, no border, frame or vignette, and no cast shadow. Strictly top-down: no perspective."
+    },
+    "effect.ash.0": {
+      "class": "effect",
+      "template": "arda-effect",
+      "format": "1:1",
+      "footprint": [
+        2,
+        2
+      ],
+      "pixels": [
+        256,
+        256
+      ],
+      "layer": "floor",
+      "height_ft": 0,
+      "functions": [],
+      "tags": {
+        "biome": [],
+        "culture": [],
+        "wealth": [],
+        "function": [],
+        "free": [
+          "effect:texture"
+        ]
+      },
+      "blocks_movement": false,
+      "blocks_sight": false,
+      "difficult_terrain": false,
+      "cover": "none",
+      "file": "effects/effect.ash.0.png",
+      "status": "new",
+      "tier": 6,
+      "effect": "ash",
+      "kind": "texture",
+      "alpha": "source",
+      "variant": 0,
+      "values": {
+        "Subject": "a layer of grey ash and cinders",
+        "Shape": "Seamless tileable pattern that fills the whole frame edge to edge with no border or empty margin; the frame spans about 10 feet.",
+        "Detail": "Soft grey and charcoal ash in drifts, scattered with tiny black cinders, thin enough to leave gaps.",
+        "Variant": "On a fully transparent background (a PNG with a real alpha channel, background: transparent): partly transparent where the effect is thin; no white or coloured backdrop."
+      },
+      "prompt": "Top-down battle-map asset for a tabletop fantasy grid map, in a rich hand-painted style: confident painterly brushwork, fine dark ink outlines, crisp small detail and a muted, earthy, slightly warm palette. Strictly orthographic view from directly overhead: no perspective, no horizon, no tilted or isometric angle. Soft light from the top-left, so upper-left edges catch highlights and lower-right edges fall into gentle form shading; no cast shadow and no drop shadow anywhere. No text, no letters, no numbers, no grid lines, no frame, no border, no vignette, no watermark, no signature. Subject: a flat overlay effect for a grid map, a layer of grey ash and cinders. Seamless tileable pattern that fills the whole frame edge to edge with no border or empty margin; the frame spans about 10 feet. Soft grey and charcoal ash in drifts, scattered with tiny black cinders, thin enough to leave gaps. On a fully transparent background (a PNG with a real alpha channel, background: transparent): partly transparent where the effect is thin; no white or coloured backdrop. A flat overlay effect that is drawn over a grid map, not a scene: no ground, floor, terrain, walls, objects, creatures or people in or under it, no border, frame or vignette, and no cast shadow. Strictly top-down: no perspective."
+    },
+    "effect.ash.1": {
+      "class": "effect",
+      "template": "arda-effect",
+      "format": "1:1",
+      "footprint": [
+        2,
+        2
+      ],
+      "pixels": [
+        256,
+        256
+      ],
+      "layer": "floor",
+      "height_ft": 0,
+      "functions": [],
+      "tags": {
+        "biome": [],
+        "culture": [],
+        "wealth": [],
+        "function": [],
+        "free": [
+          "effect:texture"
+        ]
+      },
+      "blocks_movement": false,
+      "blocks_sight": false,
+      "difficult_terrain": false,
+      "cover": "none",
+      "file": "effects/effect.ash.1.png",
+      "status": "new",
+      "tier": 6,
+      "effect": "ash",
+      "kind": "texture",
+      "alpha": "source",
+      "variant": 1,
+      "values": {
+        "Subject": "a layer of grey ash and cinders",
+        "Shape": "Seamless tileable pattern that fills the whole frame edge to edge with no border or empty margin; the frame spans about 10 feet.",
+        "Detail": "Fine pale ash dust with a few glowing orange embers and scorched flecks.",
+        "Variant": "On a fully transparent background (a PNG with a real alpha channel, background: transparent): partly transparent where the effect is thin; no white or coloured backdrop."
+      },
+      "prompt": "Top-down battle-map asset for a tabletop fantasy grid map, in a rich hand-painted style: confident painterly brushwork, fine dark ink outlines, crisp small detail and a muted, earthy, slightly warm palette. Strictly orthographic view from directly overhead: no perspective, no horizon, no tilted or isometric angle. Soft light from the top-left, so upper-left edges catch highlights and lower-right edges fall into gentle form shading; no cast shadow and no drop shadow anywhere. No text, no letters, no numbers, no grid lines, no frame, no border, no vignette, no watermark, no signature. Subject: a flat overlay effect for a grid map, a layer of grey ash and cinders. Seamless tileable pattern that fills the whole frame edge to edge with no border or empty margin; the frame spans about 10 feet. Fine pale ash dust with a few glowing orange embers and scorched flecks. On a fully transparent background (a PNG with a real alpha channel, background: transparent): partly transparent where the effect is thin; no white or coloured backdrop. A flat overlay effect that is drawn over a grid map, not a scene: no ground, floor, terrain, walls, objects, creatures or people in or under it, no border, frame or vignette, and no cast shadow. Strictly top-down: no perspective."
+    },
+    "effect.ash.2": {
+      "class": "effect",
+      "template": "arda-effect",
+      "format": "1:1",
+      "footprint": [
+        2,
+        2
+      ],
+      "pixels": [
+        256,
+        256
+      ],
+      "layer": "floor",
+      "height_ft": 0,
+      "functions": [],
+      "tags": {
+        "biome": [],
+        "culture": [],
+        "wealth": [],
+        "function": [],
+        "free": [
+          "effect:texture"
+        ]
+      },
+      "blocks_movement": false,
+      "blocks_sight": false,
+      "difficult_terrain": false,
+      "cover": "none",
+      "file": "effects/effect.ash.2.png",
+      "status": "new",
+      "tier": 6,
+      "effect": "ash",
+      "kind": "texture",
+      "alpha": "source",
+      "variant": 2,
+      "values": {
+        "Subject": "a layer of grey ash and cinders",
+        "Shape": "Seamless tileable pattern that fills the whole frame edge to edge with no border or empty margin; the frame spans about 10 feet.",
+        "Detail": "Clumped dark ash flakes and soot specks in uneven patches.",
+        "Variant": "On a fully transparent background (a PNG with a real alpha channel, background: transparent): partly transparent where the effect is thin; no white or coloured backdrop."
+      },
+      "prompt": "Top-down battle-map asset for a tabletop fantasy grid map, in a rich hand-painted style: confident painterly brushwork, fine dark ink outlines, crisp small detail and a muted, earthy, slightly warm palette. Strictly orthographic view from directly overhead: no perspective, no horizon, no tilted or isometric angle. Soft light from the top-left, so upper-left edges catch highlights and lower-right edges fall into gentle form shading; no cast shadow and no drop shadow anywhere. No text, no letters, no numbers, no grid lines, no frame, no border, no vignette, no watermark, no signature. Subject: a flat overlay effect for a grid map, a layer of grey ash and cinders. Seamless tileable pattern that fills the whole frame edge to edge with no border or empty margin; the frame spans about 10 feet. Clumped dark ash flakes and soot specks in uneven patches. On a fully transparent background (a PNG with a real alpha channel, background: transparent): partly transparent where the effect is thin; no white or coloured backdrop. A flat overlay effect that is drawn over a grid map, not a scene: no ground, floor, terrain, walls, objects, creatures or people in or under it, no border, frame or vignette, and no cast shadow. Strictly top-down: no perspective."
+    },
+    "effect.web.0": {
+      "class": "effect",
+      "template": "arda-effect",
+      "format": "1:1",
+      "footprint": [
+        2,
+        2
+      ],
+      "pixels": [
+        256,
+        256
+      ],
+      "layer": "floor",
+      "height_ft": 0,
+      "functions": [],
+      "tags": {
+        "biome": [],
+        "culture": [],
+        "wealth": [],
+        "function": [],
+        "free": [
+          "effect:texture"
+        ]
+      },
+      "blocks_movement": false,
+      "blocks_sight": false,
+      "difficult_terrain": false,
+      "cover": "none",
+      "file": "effects/effect.web.0.png",
+      "status": "new",
+      "tier": 6,
+      "effect": "web",
+      "kind": "texture",
+      "alpha": "luminance",
+      "variant": 0,
+      "values": {
+        "Subject": "thick spider webbing",
+        "Shape": "Seamless tileable pattern that fills the whole frame edge to edge with no border or empty margin; the frame spans about 10 feet.",
+        "Detail": "Bright white silk threads in a tangle of crossing strands, with a few thicker cables and open gaps.",
+        "Variant": "Painted as bright light on a pure black background (#000000): the brighter, the more visible, and nothing grey, coloured or dark behind it."
+      },
+      "prompt": "Top-down battle-map asset for a tabletop fantasy grid map, in a rich hand-painted style: confident painterly brushwork, fine dark ink outlines, crisp small detail and a muted, earthy, slightly warm palette. Strictly orthographic view from directly overhead: no perspective, no horizon, no tilted or isometric angle. Soft light from the top-left, so upper-left edges catch highlights and lower-right edges fall into gentle form shading; no cast shadow and no drop shadow anywhere. No text, no letters, no numbers, no grid lines, no frame, no border, no vignette, no watermark, no signature. Subject: a flat overlay effect for a grid map, thick spider webbing. Seamless tileable pattern that fills the whole frame edge to edge with no border or empty margin; the frame spans about 10 feet. Bright white silk threads in a tangle of crossing strands, with a few thicker cables and open gaps. Painted as bright light on a pure black background (#000000): the brighter, the more visible, and nothing grey, coloured or dark behind it. A flat overlay effect that is drawn over a grid map, not a scene: no ground, floor, terrain, walls, objects, creatures or people in or under it, no border, frame or vignette, and no cast shadow. Strictly top-down: no perspective."
+    },
+    "effect.web.1": {
+      "class": "effect",
+      "template": "arda-effect",
+      "format": "1:1",
+      "footprint": [
+        2,
+        2
+      ],
+      "pixels": [
+        256,
+        256
+      ],
+      "layer": "floor",
+      "height_ft": 0,
+      "functions": [],
+      "tags": {
+        "biome": [],
+        "culture": [],
+        "wealth": [],
+        "function": [],
+        "free": [
+          "effect:texture"
+        ]
+      },
+      "blocks_movement": false,
+      "blocks_sight": false,
+      "difficult_terrain": false,
+      "cover": "none",
+      "file": "effects/effect.web.1.png",
+      "status": "new",
+      "tier": 6,
+      "effect": "web",
+      "kind": "texture",
+      "alpha": "luminance",
+      "variant": 1,
+      "values": {
+        "Subject": "thick spider webbing",
+        "Shape": "Seamless tileable pattern that fills the whole frame edge to edge with no border or empty margin; the frame spans about 10 feet.",
+        "Detail": "Fine sticky webbing in layered sheets, pale grey-white, with dew drops on the threads.",
+        "Variant": "Painted as bright light on a pure black background (#000000): the brighter, the more visible, and nothing grey, coloured or dark behind it."
+      },
+      "prompt": "Top-down battle-map asset for a tabletop fantasy grid map, in a rich hand-painted style: confident painterly brushwork, fine dark ink outlines, crisp small detail and a muted, earthy, slightly warm palette. Strictly orthographic view from directly overhead: no perspective, no horizon, no tilted or isometric angle. Soft light from the top-left, so upper-left edges catch highlights and lower-right edges fall into gentle form shading; no cast shadow and no drop shadow anywhere. No text, no letters, no numbers, no grid lines, no frame, no border, no vignette, no watermark, no signature. Subject: a flat overlay effect for a grid map, thick spider webbing. Seamless tileable pattern that fills the whole frame edge to edge with no border or empty margin; the frame spans about 10 feet. Fine sticky webbing in layered sheets, pale grey-white, with dew drops on the threads. Painted as bright light on a pure black background (#000000): the brighter, the more visible, and nothing grey, coloured or dark behind it. A flat overlay effect that is drawn over a grid map, not a scene: no ground, floor, terrain, walls, objects, creatures or people in or under it, no border, frame or vignette, and no cast shadow. Strictly top-down: no perspective."
+    },
+    "effect.web.2": {
+      "class": "effect",
+      "template": "arda-effect",
+      "format": "1:1",
+      "footprint": [
+        2,
+        2
+      ],
+      "pixels": [
+        256,
+        256
+      ],
+      "layer": "floor",
+      "height_ft": 0,
+      "functions": [],
+      "tags": {
+        "biome": [],
+        "culture": [],
+        "wealth": [],
+        "function": [],
+        "free": [
+          "effect:texture"
+        ]
+      },
+      "blocks_movement": false,
+      "blocks_sight": false,
+      "difficult_terrain": false,
+      "cover": "none",
+      "file": "effects/effect.web.2.png",
+      "status": "new",
+      "tier": 6,
+      "effect": "web",
+      "kind": "texture",
+      "alpha": "luminance",
+      "variant": 2,
+      "values": {
+        "Subject": "thick spider webbing",
+        "Shape": "Seamless tileable pattern that fills the whole frame edge to edge with no border or empty margin; the frame spans about 10 feet.",
+        "Detail": "A loose mesh of white silk strands pulled into tight knots at the crossings.",
+        "Variant": "Painted as bright light on a pure black background (#000000): the brighter, the more visible, and nothing grey, coloured or dark behind it."
+      },
+      "prompt": "Top-down battle-map asset for a tabletop fantasy grid map, in a rich hand-painted style: confident painterly brushwork, fine dark ink outlines, crisp small detail and a muted, earthy, slightly warm palette. Strictly orthographic view from directly overhead: no perspective, no horizon, no tilted or isometric angle. Soft light from the top-left, so upper-left edges catch highlights and lower-right edges fall into gentle form shading; no cast shadow and no drop shadow anywhere. No text, no letters, no numbers, no grid lines, no frame, no border, no vignette, no watermark, no signature. Subject: a flat overlay effect for a grid map, thick spider webbing. Seamless tileable pattern that fills the whole frame edge to edge with no border or empty margin; the frame spans about 10 feet. A loose mesh of white silk strands pulled into tight knots at the crossings. Painted as bright light on a pure black background (#000000): the brighter, the more visible, and nothing grey, coloured or dark behind it. A flat overlay effect that is drawn over a grid map, not a scene: no ground, floor, terrain, walls, objects, creatures or people in or under it, no border, frame or vignette, and no cast shadow. Strictly top-down: no perspective."
+    },
+    "effect.grease.0": {
+      "class": "effect",
+      "template": "arda-effect",
+      "format": "1:1",
+      "footprint": [
+        2,
+        2
+      ],
+      "pixels": [
+        256,
+        256
+      ],
+      "layer": "floor",
+      "height_ft": 0,
+      "functions": [],
+      "tags": {
+        "biome": [],
+        "culture": [],
+        "wealth": [],
+        "function": [],
+        "free": [
+          "effect:texture"
+        ]
+      },
+      "blocks_movement": false,
+      "blocks_sight": false,
+      "difficult_terrain": false,
+      "cover": "none",
+      "file": "effects/effect.grease.0.png",
+      "status": "new",
+      "tier": 6,
+      "effect": "grease",
+      "kind": "texture",
+      "alpha": "source",
+      "variant": 0,
+      "values": {
+        "Subject": "a slick of dark grease and oil",
+        "Shape": "Seamless tileable pattern that fills the whole frame edge to edge with no border or empty margin; the frame spans about 10 feet.",
+        "Detail": "Glossy dark brown oil in a thin film with rainbow-tinted highlights and uneven edges.",
+        "Variant": "On a fully transparent background (a PNG with a real alpha channel, background: transparent): partly transparent where the effect is thin; no white or coloured backdrop."
+      },
+      "prompt": "Top-down battle-map asset for a tabletop fantasy grid map, in a rich hand-painted style: confident painterly brushwork, fine dark ink outlines, crisp small detail and a muted, earthy, slightly warm palette. Strictly orthographic view from directly overhead: no perspective, no horizon, no tilted or isometric angle. Soft light from the top-left, so upper-left edges catch highlights and lower-right edges fall into gentle form shading; no cast shadow and no drop shadow anywhere. No text, no letters, no numbers, no grid lines, no frame, no border, no vignette, no watermark, no signature. Subject: a flat overlay effect for a grid map, a slick of dark grease and oil. Seamless tileable pattern that fills the whole frame edge to edge with no border or empty margin; the frame spans about 10 feet. Glossy dark brown oil in a thin film with rainbow-tinted highlights and uneven edges. On a fully transparent background (a PNG with a real alpha channel, background: transparent): partly transparent where the effect is thin; no white or coloured backdrop. A flat overlay effect that is drawn over a grid map, not a scene: no ground, floor, terrain, walls, objects, creatures or people in or under it, no border, frame or vignette, and no cast shadow. Strictly top-down: no perspective."
+    },
+    "effect.grease.1": {
+      "class": "effect",
+      "template": "arda-effect",
+      "format": "1:1",
+      "footprint": [
+        2,
+        2
+      ],
+      "pixels": [
+        256,
+        256
+      ],
+      "layer": "floor",
+      "height_ft": 0,
+      "functions": [],
+      "tags": {
+        "biome": [],
+        "culture": [],
+        "wealth": [],
+        "function": [],
+        "free": [
+          "effect:texture"
+        ]
+      },
+      "blocks_movement": false,
+      "blocks_sight": false,
+      "difficult_terrain": false,
+      "cover": "none",
+      "file": "effects/effect.grease.1.png",
+      "status": "new",
+      "tier": 6,
+      "effect": "grease",
+      "kind": "texture",
+      "alpha": "source",
+      "variant": 1,
+      "values": {
+        "Subject": "a slick of dark grease and oil",
+        "Shape": "Seamless tileable pattern that fills the whole frame edge to edge with no border or empty margin; the frame spans about 10 feet.",
+        "Detail": "Thick black grease smears and puddles, shiny, with a few bright reflections.",
+        "Variant": "On a fully transparent background (a PNG with a real alpha channel, background: transparent): partly transparent where the effect is thin; no white or coloured backdrop."
+      },
+      "prompt": "Top-down battle-map asset for a tabletop fantasy grid map, in a rich hand-painted style: confident painterly brushwork, fine dark ink outlines, crisp small detail and a muted, earthy, slightly warm palette. Strictly orthographic view from directly overhead: no perspective, no horizon, no tilted or isometric angle. Soft light from the top-left, so upper-left edges catch highlights and lower-right edges fall into gentle form shading; no cast shadow and no drop shadow anywhere. No text, no letters, no numbers, no grid lines, no frame, no border, no vignette, no watermark, no signature. Subject: a flat overlay effect for a grid map, a slick of dark grease and oil. Seamless tileable pattern that fills the whole frame edge to edge with no border or empty margin; the frame spans about 10 feet. Thick black grease smears and puddles, shiny, with a few bright reflections. On a fully transparent background (a PNG with a real alpha channel, background: transparent): partly transparent where the effect is thin; no white or coloured backdrop. A flat overlay effect that is drawn over a grid map, not a scene: no ground, floor, terrain, walls, objects, creatures or people in or under it, no border, frame or vignette, and no cast shadow. Strictly top-down: no perspective."
+    },
+    "effect.grease.2": {
+      "class": "effect",
+      "template": "arda-effect",
+      "format": "1:1",
+      "footprint": [
+        2,
+        2
+      ],
+      "pixels": [
+        256,
+        256
+      ],
+      "layer": "floor",
+      "height_ft": 0,
+      "functions": [],
+      "tags": {
+        "biome": [],
+        "culture": [],
+        "wealth": [],
+        "function": [],
+        "free": [
+          "effect:texture"
+        ]
+      },
+      "blocks_movement": false,
+      "blocks_sight": false,
+      "difficult_terrain": false,
+      "cover": "none",
+      "file": "effects/effect.grease.2.png",
+      "status": "new",
+      "tier": 6,
+      "effect": "grease",
+      "kind": "texture",
+      "alpha": "source",
+      "variant": 2,
+      "values": {
+        "Subject": "a slick of dark grease and oil",
+        "Shape": "Seamless tileable pattern that fills the whole frame edge to edge with no border or empty margin; the frame spans about 10 feet.",
+        "Detail": "A translucent amber oil slick with swirled sheen and tiny droplets at its edges.",
+        "Variant": "On a fully transparent background (a PNG with a real alpha channel, background: transparent): partly transparent where the effect is thin; no white or coloured backdrop."
+      },
+      "prompt": "Top-down battle-map asset for a tabletop fantasy grid map, in a rich hand-painted style: confident painterly brushwork, fine dark ink outlines, crisp small detail and a muted, earthy, slightly warm palette. Strictly orthographic view from directly overhead: no perspective, no horizon, no tilted or isometric angle. Soft light from the top-left, so upper-left edges catch highlights and lower-right edges fall into gentle form shading; no cast shadow and no drop shadow anywhere. No text, no letters, no numbers, no grid lines, no frame, no border, no vignette, no watermark, no signature. Subject: a flat overlay effect for a grid map, a slick of dark grease and oil. Seamless tileable pattern that fills the whole frame edge to edge with no border or empty margin; the frame spans about 10 feet. A translucent amber oil slick with swirled sheen and tiny droplets at its edges. On a fully transparent background (a PNG with a real alpha channel, background: transparent): partly transparent where the effect is thin; no white or coloured backdrop. A flat overlay effect that is drawn over a grid map, not a scene: no ground, floor, terrain, walls, objects, creatures or people in or under it, no border, frame or vignette, and no cast shadow. Strictly top-down: no perspective."
+    },
+    "effect.fog.0": {
+      "class": "effect",
+      "template": "arda-effect",
+      "format": "1:1",
+      "footprint": [
+        2,
+        2
+      ],
+      "pixels": [
+        256,
+        256
+      ],
+      "layer": "floor",
+      "height_ft": 0,
+      "functions": [],
+      "tags": {
+        "biome": [],
+        "culture": [],
+        "wealth": [],
+        "function": [],
+        "free": [
+          "effect:texture"
+        ]
+      },
+      "blocks_movement": false,
+      "blocks_sight": false,
+      "difficult_terrain": false,
+      "cover": "none",
+      "file": "effects/effect.fog.0.png",
+      "status": "new",
+      "tier": 6,
+      "effect": "fog",
+      "kind": "texture",
+      "alpha": "luminance",
+      "variant": 0,
+      "values": {
+        "Subject": "drifting fog or cloud vapour",
+        "Shape": "Seamless tileable pattern that fills the whole frame edge to edge with no border or empty margin; the frame spans about 10 feet.",
+        "Detail": "Soft billowing white-grey fog in large puffs, bright in the middle of each puff, fading to black between them.",
+        "Variant": "Painted as bright light on a pure black background (#000000): the brighter, the more visible, and nothing grey, coloured or dark behind it."
+      },
+      "prompt": "Top-down battle-map asset for a tabletop fantasy grid map, in a rich hand-painted style: confident painterly brushwork, fine dark ink outlines, crisp small detail and a muted, earthy, slightly warm palette. Strictly orthographic view from directly overhead: no perspective, no horizon, no tilted or isometric angle. Soft light from the top-left, so upper-left edges catch highlights and lower-right edges fall into gentle form shading; no cast shadow and no drop shadow anywhere. No text, no letters, no numbers, no grid lines, no frame, no border, no vignette, no watermark, no signature. Subject: a flat overlay effect for a grid map, drifting fog or cloud vapour. Seamless tileable pattern that fills the whole frame edge to edge with no border or empty margin; the frame spans about 10 feet. Soft billowing white-grey fog in large puffs, bright in the middle of each puff, fading to black between them. Painted as bright light on a pure black background (#000000): the brighter, the more visible, and nothing grey, coloured or dark behind it. A flat overlay effect that is drawn over a grid map, not a scene: no ground, floor, terrain, walls, objects, creatures or people in or under it, no border, frame or vignette, and no cast shadow. Strictly top-down: no perspective."
+    },
+    "effect.fog.1": {
+      "class": "effect",
+      "template": "arda-effect",
+      "format": "1:1",
+      "footprint": [
+        2,
+        2
+      ],
+      "pixels": [
+        256,
+        256
+      ],
+      "layer": "floor",
+      "height_ft": 0,
+      "functions": [],
+      "tags": {
+        "biome": [],
+        "culture": [],
+        "wealth": [],
+        "function": [],
+        "free": [
+          "effect:texture"
+        ]
+      },
+      "blocks_movement": false,
+      "blocks_sight": false,
+      "difficult_terrain": false,
+      "cover": "none",
+      "file": "effects/effect.fog.1.png",
+      "status": "new",
+      "tier": 6,
+      "effect": "fog",
+      "kind": "texture",
+      "alpha": "luminance",
+      "variant": 1,
+      "values": {
+        "Subject": "drifting fog or cloud vapour",
+        "Shape": "Seamless tileable pattern that fills the whole frame edge to edge with no border or empty margin; the frame spans about 10 feet.",
+        "Detail": "Wispy mist in long curling streamers, pale and thin, with a few denser clouds.",
+        "Variant": "Painted as bright light on a pure black background (#000000): the brighter, the more visible, and nothing grey, coloured or dark behind it."
+      },
+      "prompt": "Top-down battle-map asset for a tabletop fantasy grid map, in a rich hand-painted style: confident painterly brushwork, fine dark ink outlines, crisp small detail and a muted, earthy, slightly warm palette. Strictly orthographic view from directly overhead: no perspective, no horizon, no tilted or isometric angle. Soft light from the top-left, so upper-left edges catch highlights and lower-right edges fall into gentle form shading; no cast shadow and no drop shadow anywhere. No text, no letters, no numbers, no grid lines, no frame, no border, no vignette, no watermark, no signature. Subject: a flat overlay effect for a grid map, drifting fog or cloud vapour. Seamless tileable pattern that fills the whole frame edge to edge with no border or empty margin; the frame spans about 10 feet. Wispy mist in long curling streamers, pale and thin, with a few denser clouds. Painted as bright light on a pure black background (#000000): the brighter, the more visible, and nothing grey, coloured or dark behind it. A flat overlay effect that is drawn over a grid map, not a scene: no ground, floor, terrain, walls, objects, creatures or people in or under it, no border, frame or vignette, and no cast shadow. Strictly top-down: no perspective."
+    },
+    "effect.fog.2": {
+      "class": "effect",
+      "template": "arda-effect",
+      "format": "1:1",
+      "footprint": [
+        2,
+        2
+      ],
+      "pixels": [
+        256,
+        256
+      ],
+      "layer": "floor",
+      "height_ft": 0,
+      "functions": [],
+      "tags": {
+        "biome": [],
+        "culture": [],
+        "wealth": [],
+        "function": [],
+        "free": [
+          "effect:texture"
+        ]
+      },
+      "blocks_movement": false,
+      "blocks_sight": false,
+      "difficult_terrain": false,
+      "cover": "none",
+      "file": "effects/effect.fog.2.png",
+      "status": "new",
+      "tier": 6,
+      "effect": "fog",
+      "kind": "texture",
+      "alpha": "luminance",
+      "variant": 2,
+      "values": {
+        "Subject": "drifting fog or cloud vapour",
+        "Shape": "Seamless tileable pattern that fills the whole frame edge to edge with no border or empty margin; the frame spans about 10 feet.",
+        "Detail": "Dense low cloud, smooth and cottony, lit evenly, with soft irregular gaps.",
+        "Variant": "Painted as bright light on a pure black background (#000000): the brighter, the more visible, and nothing grey, coloured or dark behind it."
+      },
+      "prompt": "Top-down battle-map asset for a tabletop fantasy grid map, in a rich hand-painted style: confident painterly brushwork, fine dark ink outlines, crisp small detail and a muted, earthy, slightly warm palette. Strictly orthographic view from directly overhead: no perspective, no horizon, no tilted or isometric angle. Soft light from the top-left, so upper-left edges catch highlights and lower-right edges fall into gentle form shading; no cast shadow and no drop shadow anywhere. No text, no letters, no numbers, no grid lines, no frame, no border, no vignette, no watermark, no signature. Subject: a flat overlay effect for a grid map, drifting fog or cloud vapour. Seamless tileable pattern that fills the whole frame edge to edge with no border or empty margin; the frame spans about 10 feet. Dense low cloud, smooth and cottony, lit evenly, with soft irregular gaps. Painted as bright light on a pure black background (#000000): the brighter, the more visible, and nothing grey, coloured or dark behind it. A flat overlay effect that is drawn over a grid map, not a scene: no ground, floor, terrain, walls, objects, creatures or people in or under it, no border, frame or vignette, and no cast shadow. Strictly top-down: no perspective."
+    },
+    "effect.water.0": {
+      "class": "effect",
+      "template": "arda-effect",
+      "format": "1:1",
+      "footprint": [
+        2,
+        2
+      ],
+      "pixels": [
+        256,
+        256
+      ],
+      "layer": "floor",
+      "height_ft": 0,
+      "functions": [],
+      "tags": {
+        "biome": [],
+        "culture": [],
+        "wealth": [],
+        "function": [],
+        "free": [
+          "effect:texture"
+        ]
+      },
+      "blocks_movement": false,
+      "blocks_sight": false,
+      "difficult_terrain": false,
+      "cover": "none",
+      "file": "effects/effect.water.0.png",
+      "status": "new",
+      "tier": 6,
+      "effect": "water",
+      "kind": "texture",
+      "alpha": "luminance",
+      "variant": 0,
+      "values": {
+        "Subject": "a shallow sheet of clear water",
+        "Shape": "Seamless tileable pattern that fills the whole frame edge to edge with no border or empty margin; the frame spans about 10 feet.",
+        "Detail": "Bright blue and white ripples with caustic light lines, gently rolling, seen from above.",
+        "Variant": "Painted as bright light on a pure black background (#000000): the brighter, the more visible, and nothing grey, coloured or dark behind it."
+      },
+      "prompt": "Top-down battle-map asset for a tabletop fantasy grid map, in a rich hand-painted style: confident painterly brushwork, fine dark ink outlines, crisp small detail and a muted, earthy, slightly warm palette. Strictly orthographic view from directly overhead: no perspective, no horizon, no tilted or isometric angle. Soft light from the top-left, so upper-left edges catch highlights and lower-right edges fall into gentle form shading; no cast shadow and no drop shadow anywhere. No text, no letters, no numbers, no grid lines, no frame, no border, no vignette, no watermark, no signature. Subject: a flat overlay effect for a grid map, a shallow sheet of clear water. Seamless tileable pattern that fills the whole frame edge to edge with no border or empty margin; the frame spans about 10 feet. Bright blue and white ripples with caustic light lines, gently rolling, seen from above. Painted as bright light on a pure black background (#000000): the brighter, the more visible, and nothing grey, coloured or dark behind it. A flat overlay effect that is drawn over a grid map, not a scene: no ground, floor, terrain, walls, objects, creatures or people in or under it, no border, frame or vignette, and no cast shadow. Strictly top-down: no perspective."
+    },
+    "effect.water.1": {
+      "class": "effect",
+      "template": "arda-effect",
+      "format": "1:1",
+      "footprint": [
+        2,
+        2
+      ],
+      "pixels": [
+        256,
+        256
+      ],
+      "layer": "floor",
+      "height_ft": 0,
+      "functions": [],
+      "tags": {
+        "biome": [],
+        "culture": [],
+        "wealth": [],
+        "function": [],
+        "free": [
+          "effect:texture"
+        ]
+      },
+      "blocks_movement": false,
+      "blocks_sight": false,
+      "difficult_terrain": false,
+      "cover": "none",
+      "file": "effects/effect.water.1.png",
+      "status": "new",
+      "tier": 6,
+      "effect": "water",
+      "kind": "texture",
+      "alpha": "luminance",
+      "variant": 1,
+      "values": {
+        "Subject": "a shallow sheet of clear water",
+        "Shape": "Seamless tileable pattern that fills the whole frame edge to edge with no border or empty margin; the frame spans about 10 feet.",
+        "Detail": "Rippling water with small curling wavelets and sparkles of light, pale blue and white.",
+        "Variant": "Painted as bright light on a pure black background (#000000): the brighter, the more visible, and nothing grey, coloured or dark behind it."
+      },
+      "prompt": "Top-down battle-map asset for a tabletop fantasy grid map, in a rich hand-painted style: confident painterly brushwork, fine dark ink outlines, crisp small detail and a muted, earthy, slightly warm palette. Strictly orthographic view from directly overhead: no perspective, no horizon, no tilted or isometric angle. Soft light from the top-left, so upper-left edges catch highlights and lower-right edges fall into gentle form shading; no cast shadow and no drop shadow anywhere. No text, no letters, no numbers, no grid lines, no frame, no border, no vignette, no watermark, no signature. Subject: a flat overlay effect for a grid map, a shallow sheet of clear water. Seamless tileable pattern that fills the whole frame edge to edge with no border or empty margin; the frame spans about 10 feet. Rippling water with small curling wavelets and sparkles of light, pale blue and white. Painted as bright light on a pure black background (#000000): the brighter, the more visible, and nothing grey, coloured or dark behind it. A flat overlay effect that is drawn over a grid map, not a scene: no ground, floor, terrain, walls, objects, creatures or people in or under it, no border, frame or vignette, and no cast shadow. Strictly top-down: no perspective."
+    },
+    "effect.water.2": {
+      "class": "effect",
+      "template": "arda-effect",
+      "format": "1:1",
+      "footprint": [
+        2,
+        2
+      ],
+      "pixels": [
+        256,
+        256
+      ],
+      "layer": "floor",
+      "height_ft": 0,
+      "functions": [],
+      "tags": {
+        "biome": [],
+        "culture": [],
+        "wealth": [],
+        "function": [],
+        "free": [
+          "effect:texture"
+        ]
+      },
+      "blocks_movement": false,
+      "blocks_sight": false,
+      "difficult_terrain": false,
+      "cover": "none",
+      "file": "effects/effect.water.2.png",
+      "status": "new",
+      "tier": 6,
+      "effect": "water",
+      "kind": "texture",
+      "alpha": "luminance",
+      "variant": 2,
+      "values": {
+        "Subject": "a shallow sheet of clear water",
+        "Shape": "Seamless tileable pattern that fills the whole frame edge to edge with no border or empty margin; the frame spans about 10 feet.",
+        "Detail": "A thin film of water with concentric ripple rings and glints, light blue.",
+        "Variant": "Painted as bright light on a pure black background (#000000): the brighter, the more visible, and nothing grey, coloured or dark behind it."
+      },
+      "prompt": "Top-down battle-map asset for a tabletop fantasy grid map, in a rich hand-painted style: confident painterly brushwork, fine dark ink outlines, crisp small detail and a muted, earthy, slightly warm palette. Strictly orthographic view from directly overhead: no perspective, no horizon, no tilted or isometric angle. Soft light from the top-left, so upper-left edges catch highlights and lower-right edges fall into gentle form shading; no cast shadow and no drop shadow anywhere. No text, no letters, no numbers, no grid lines, no frame, no border, no vignette, no watermark, no signature. Subject: a flat overlay effect for a grid map, a shallow sheet of clear water. Seamless tileable pattern that fills the whole frame edge to edge with no border or empty margin; the frame spans about 10 feet. A thin film of water with concentric ripple rings and glints, light blue. Painted as bright light on a pure black background (#000000): the brighter, the more visible, and nothing grey, coloured or dark behind it. A flat overlay effect that is drawn over a grid map, not a scene: no ground, floor, terrain, walls, objects, creatures or people in or under it, no border, frame or vignette, and no cast shadow. Strictly top-down: no perspective."
+    },
+    "effect.scorch_mark.0": {
+      "class": "effect",
+      "template": "arda-effect",
+      "format": "1:1",
+      "footprint": [
+        2,
+        2
+      ],
+      "pixels": [
+        256,
+        256
+      ],
+      "layer": "floor",
+      "height_ft": 0,
+      "functions": [],
+      "tags": {
+        "biome": [],
+        "culture": [],
+        "wealth": [],
+        "function": [],
+        "free": [
+          "effect:decal"
+        ]
+      },
+      "blocks_movement": false,
+      "blocks_sight": false,
+      "difficult_terrain": false,
+      "cover": "none",
+      "file": "effects/effect.scorch_mark.0.png",
+      "status": "new",
+      "tier": 6,
+      "effect": "scorch_mark",
+      "kind": "decal",
+      "alpha": "source",
+      "variant": 0,
+      "values": {
+        "Subject": "a scorch mark burned into the ground",
+        "Shape": "A single irregular patch, centred, filling about 70% of the frame's shorter side and fading softly to nothing well before every edge.",
+        "Detail": "A dark black and brown ragged scorch patch, darkest in the middle, with feathered soot streaks fading outwards.",
+        "Variant": "On a fully transparent background (a PNG with a real alpha channel, background: transparent): partly transparent where the effect is thin; no white or coloured backdrop."
+      },
+      "prompt": "Top-down battle-map asset for a tabletop fantasy grid map, in a rich hand-painted style: confident painterly brushwork, fine dark ink outlines, crisp small detail and a muted, earthy, slightly warm palette. Strictly orthographic view from directly overhead: no perspective, no horizon, no tilted or isometric angle. Soft light from the top-left, so upper-left edges catch highlights and lower-right edges fall into gentle form shading; no cast shadow and no drop shadow anywhere. No text, no letters, no numbers, no grid lines, no frame, no border, no vignette, no watermark, no signature. Subject: a flat overlay effect for a grid map, a scorch mark burned into the ground. A single irregular patch, centred, filling about 70% of the frame's shorter side and fading softly to nothing well before every edge. A dark black and brown ragged scorch patch, darkest in the middle, with feathered soot streaks fading outwards. On a fully transparent background (a PNG with a real alpha channel, background: transparent): partly transparent where the effect is thin; no white or coloured backdrop. A flat overlay effect that is drawn over a grid map, not a scene: no ground, floor, terrain, walls, objects, creatures or people in or under it, no border, frame or vignette, and no cast shadow. Strictly top-down: no perspective."
+    },
+    "effect.scorch_mark.1": {
+      "class": "effect",
+      "template": "arda-effect",
+      "format": "1:1",
+      "footprint": [
+        2,
+        2
+      ],
+      "pixels": [
+        256,
+        256
+      ],
+      "layer": "floor",
+      "height_ft": 0,
+      "functions": [],
+      "tags": {
+        "biome": [],
+        "culture": [],
+        "wealth": [],
+        "function": [],
+        "free": [
+          "effect:decal"
+        ]
+      },
+      "blocks_movement": false,
+      "blocks_sight": false,
+      "difficult_terrain": false,
+      "cover": "none",
+      "file": "effects/effect.scorch_mark.1.png",
+      "status": "new",
+      "tier": 6,
+      "effect": "scorch_mark",
+      "kind": "decal",
+      "alpha": "source",
+      "variant": 1,
+      "values": {
+        "Subject": "a scorch mark burned into the ground",
+        "Shape": "A single irregular patch, centred, filling about 70% of the frame's shorter side and fading softly to nothing well before every edge.",
+        "Detail": "A charred circular blast mark with radiating soot rays and a few tiny glowing cinders.",
+        "Variant": "On a fully transparent background (a PNG with a real alpha channel, background: transparent): partly transparent where the effect is thin; no white or coloured backdrop."
+      },
+      "prompt": "Top-down battle-map asset for a tabletop fantasy grid map, in a rich hand-painted style: confident painterly brushwork, fine dark ink outlines, crisp small detail and a muted, earthy, slightly warm palette. Strictly orthographic view from directly overhead: no perspective, no horizon, no tilted or isometric angle. Soft light from the top-left, so upper-left edges catch highlights and lower-right edges fall into gentle form shading; no cast shadow and no drop shadow anywhere. No text, no letters, no numbers, no grid lines, no frame, no border, no vignette, no watermark, no signature. Subject: a flat overlay effect for a grid map, a scorch mark burned into the ground. A single irregular patch, centred, filling about 70% of the frame's shorter side and fading softly to nothing well before every edge. A charred circular blast mark with radiating soot rays and a few tiny glowing cinders. On a fully transparent background (a PNG with a real alpha channel, background: transparent): partly transparent where the effect is thin; no white or coloured backdrop. A flat overlay effect that is drawn over a grid map, not a scene: no ground, floor, terrain, walls, objects, creatures or people in or under it, no border, frame or vignette, and no cast shadow. Strictly top-down: no perspective."
+    },
+    "effect.scorch_mark.2": {
+      "class": "effect",
+      "template": "arda-effect",
+      "format": "1:1",
+      "footprint": [
+        2,
+        2
+      ],
+      "pixels": [
+        256,
+        256
+      ],
+      "layer": "floor",
+      "height_ft": 0,
+      "functions": [],
+      "tags": {
+        "biome": [],
+        "culture": [],
+        "wealth": [],
+        "function": [],
+        "free": [
+          "effect:decal"
+        ]
+      },
+      "blocks_movement": false,
+      "blocks_sight": false,
+      "difficult_terrain": false,
+      "cover": "none",
+      "file": "effects/effect.scorch_mark.2.png",
+      "status": "new",
+      "tier": 6,
+      "effect": "scorch_mark",
+      "kind": "decal",
+      "alpha": "source",
+      "variant": 2,
+      "values": {
+        "Subject": "a scorch mark burned into the ground",
+        "Shape": "A single irregular patch, centred, filling about 70% of the frame's shorter side and fading softly to nothing well before every edge.",
+        "Detail": "An uneven burn scar of black char and grey ash, cracked at the centre, fading softly at the edge.",
+        "Variant": "On a fully transparent background (a PNG with a real alpha channel, background: transparent): partly transparent where the effect is thin; no white or coloured backdrop."
+      },
+      "prompt": "Top-down battle-map asset for a tabletop fantasy grid map, in a rich hand-painted style: confident painterly brushwork, fine dark ink outlines, crisp small detail and a muted, earthy, slightly warm palette. Strictly orthographic view from directly overhead: no perspective, no horizon, no tilted or isometric angle. Soft light from the top-left, so upper-left edges catch highlights and lower-right edges fall into gentle form shading; no cast shadow and no drop shadow anywhere. No text, no letters, no numbers, no grid lines, no frame, no border, no vignette, no watermark, no signature. Subject: a flat overlay effect for a grid map, a scorch mark burned into the ground. A single irregular patch, centred, filling about 70% of the frame's shorter side and fading softly to nothing well before every edge. An uneven burn scar of black char and grey ash, cracked at the centre, fading softly at the edge. On a fully transparent background (a PNG with a real alpha channel, background: transparent): partly transparent where the effect is thin; no white or coloured backdrop. A flat overlay effect that is drawn over a grid map, not a scene: no ground, floor, terrain, walls, objects, creatures or people in or under it, no border, frame or vignette, and no cast shadow. Strictly top-down: no perspective."
+    },
+    "prop.rubble_heap": {
+      "class": "prop",
+      "template": "arda-prop",
+      "format": "1:1",
+      "footprint": [
+        2,
+        2
+      ],
+      "pixels": [
+        256,
+        256
+      ],
+      "layer": "prop",
+      "height_ft": 2,
+      "functions": [],
+      "tags": {
+        "biome": [
+          "temperate"
+        ],
+        "culture": [
+          "human"
+        ],
+        "wealth": [
+          "poor",
+          "modest"
+        ],
+        "function": [],
+        "free": [
+          "damage",
+          "rubble"
+        ]
+      },
+      "blocks_movement": false,
+      "blocks_sight": false,
+      "difficult_terrain": true,
+      "cover": "none",
+      "file": "props/prop.rubble_heap.png",
+      "status": "new",
+      "tier": 6,
+      "values": {
+        "Subject": "a heap of rubble from a collapsed wall, seen from directly above",
+        "Shape": "Its outline is roughly round or square, about 10 feet across.",
+        "Detail": "Broken grey stone blocks, chunks and grit piled in a low mound, with a few splintered timber beams sticking out."
+      },
+      "prompt": "Top-down battle-map asset for a tabletop fantasy grid map, in a rich hand-painted style: confident painterly brushwork, fine dark ink outlines, crisp small detail and a muted, earthy, slightly warm palette. Strictly orthographic view from directly overhead: no perspective, no horizon, no tilted or isometric angle. Soft light from the top-left, so upper-left edges catch highlights and lower-right edges fall into gentle form shading; no cast shadow and no drop shadow anywhere. No text, no letters, no numbers, no grid lines, no frame, no border, no vignette, no watermark, no signature. Subject: a heap of rubble from a collapsed wall, seen from directly above, seen from directly above. Its outline is roughly round or square, about 10 feet across. Broken grey stone blocks, chunks and grit piled in a low mound, with a few splintered timber beams sticking out. Exactly one subject, centred, filling about 70% of the frame's shorter side, on a fully transparent background (a PNG with a real alpha channel, background: transparent; no white or colour behind the subject); nothing else in the image: no floor, no ground patch, no base or rug under it, no other objects, no shadow."
+    },
+    "prop.broken_deck": {
+      "class": "prop",
+      "template": "arda-prop",
+      "format": "9:16",
+      "footprint": [
+        1,
+        2
+      ],
+      "pixels": [
+        128,
+        256
+      ],
+      "layer": "floor",
+      "height_ft": 0,
+      "functions": [],
+      "tags": {
+        "biome": [
+          "temperate"
+        ],
+        "culture": [
+          "human"
+        ],
+        "wealth": [
+          "poor",
+          "modest"
+        ],
+        "function": [],
+        "free": [
+          "damage",
+          "floor"
+        ]
+      },
+      "blocks_movement": false,
+      "blocks_sight": false,
+      "difficult_terrain": false,
+      "cover": "none",
+      "file": "props/prop.broken_deck.png",
+      "status": "new",
+      "tier": 6,
+      "values": {
+        "Subject": "a broken wooden deck or bridge floor, seen from directly above",
+        "Shape": "Its outline is about twice as long as it is wide (5 by 10 feet), its long axis running top to bottom.",
+        "Detail": "Weathered planks running across the frame, some snapped short, a ragged gap through the middle, splinters and loose boards."
+      },
+      "prompt": "Top-down battle-map asset for a tabletop fantasy grid map, in a rich hand-painted style: confident painterly brushwork, fine dark ink outlines, crisp small detail and a muted, earthy, slightly warm palette. Strictly orthographic view from directly overhead: no perspective, no horizon, no tilted or isometric angle. Soft light from the top-left, so upper-left edges catch highlights and lower-right edges fall into gentle form shading; no cast shadow and no drop shadow anywhere. No text, no letters, no numbers, no grid lines, no frame, no border, no vignette, no watermark, no signature. Subject: a broken wooden deck or bridge floor, seen from directly above, seen from directly above. Its outline is about twice as long as it is wide (5 by 10 feet), its long axis running top to bottom. Weathered planks running across the frame, some snapped short, a ragged gap through the middle, splinters and loose boards. Exactly one subject, centred, filling about 70% of the frame's shorter side, on a fully transparent background (a PNG with a real alpha channel, background: transparent; no white or colour behind the subject); nothing else in the image: no floor, no ground patch, no base or rug under it, no other objects, no shadow."
+    },
+    "prop.charred_floor": {
+      "class": "prop",
+      "template": "arda-prop",
+      "format": "1:1",
+      "footprint": [
+        2,
+        2
+      ],
+      "pixels": [
+        256,
+        256
+      ],
+      "layer": "floor",
+      "height_ft": 0,
+      "functions": [],
+      "tags": {
+        "biome": [
+          "temperate"
+        ],
+        "culture": [
+          "human"
+        ],
+        "wealth": [
+          "poor",
+          "modest"
+        ],
+        "function": [],
+        "free": [
+          "damage",
+          "floor"
+        ]
+      },
+      "blocks_movement": false,
+      "blocks_sight": false,
+      "difficult_terrain": false,
+      "cover": "none",
+      "file": "props/prop.charred_floor.png",
+      "status": "new",
+      "tier": 6,
+      "values": {
+        "Subject": "a patch of floor burned black, seen from directly above",
+        "Shape": "Its outline is roughly round or square, about 10 feet across.",
+        "Detail": "Scorched charcoal-black boards or ground with cracked char, grey ash flecks and a few dull orange embers."
+      },
+      "prompt": "Top-down battle-map asset for a tabletop fantasy grid map, in a rich hand-painted style: confident painterly brushwork, fine dark ink outlines, crisp small detail and a muted, earthy, slightly warm palette. Strictly orthographic view from directly overhead: no perspective, no horizon, no tilted or isometric angle. Soft light from the top-left, so upper-left edges catch highlights and lower-right edges fall into gentle form shading; no cast shadow and no drop shadow anywhere. No text, no letters, no numbers, no grid lines, no frame, no border, no vignette, no watermark, no signature. Subject: a patch of floor burned black, seen from directly above, seen from directly above. Its outline is roughly round or square, about 10 feet across. Scorched charcoal-black boards or ground with cracked char, grey ash flecks and a few dull orange embers. Exactly one subject, centred, filling about 70% of the frame's shorter side, on a fully transparent background (a PNG with a real alpha channel, background: transparent; no white or colour behind the subject); nothing else in the image: no floor, no ground patch, no base or rug under it, no other objects, no shadow."
+    },
+    "prop.rubble_heap.alt1": {
+      "class": "prop",
+      "template": "arda-prop",
+      "format": "1:1",
+      "footprint": [
+        2,
+        2
+      ],
+      "pixels": [
+        256,
+        256
+      ],
+      "layer": "prop",
+      "height_ft": 2,
+      "functions": [],
+      "tags": {
+        "biome": [
+          "temperate"
+        ],
+        "culture": [
+          "human"
+        ],
+        "wealth": [
+          "poor",
+          "modest"
+        ],
+        "function": [],
+        "free": [
+          "damage",
+          "rubble"
+        ]
+      },
+      "blocks_movement": false,
+      "blocks_sight": false,
+      "difficult_terrain": true,
+      "cover": "none",
+      "file": "props/prop.rubble_heap.alt1.png",
+      "status": "new",
+      "tier": 6,
+      "variant_of": "prop.rubble_heap",
+      "values": {
+        "Subject": "a rubble heap of shattered masonry and roof tiles",
+        "Shape": "Its outline is roughly round or square, about 10 feet across.",
+        "Detail": "Pale and ochre stone fragments, curved red clay tile shards and dust, heaped untidily."
+      },
+      "prompt": "Top-down battle-map asset for a tabletop fantasy grid map, in a rich hand-painted style: confident painterly brushwork, fine dark ink outlines, crisp small detail and a muted, earthy, slightly warm palette. Strictly orthographic view from directly overhead: no perspective, no horizon, no tilted or isometric angle. Soft light from the top-left, so upper-left edges catch highlights and lower-right edges fall into gentle form shading; no cast shadow and no drop shadow anywhere. No text, no letters, no numbers, no grid lines, no frame, no border, no vignette, no watermark, no signature. Subject: a rubble heap of shattered masonry and roof tiles, seen from directly above. Its outline is roughly round or square, about 10 feet across. Pale and ochre stone fragments, curved red clay tile shards and dust, heaped untidily. Exactly one subject, centred, filling about 70% of the frame's shorter side, on a fully transparent background (a PNG with a real alpha channel, background: transparent; no white or colour behind the subject); nothing else in the image: no floor, no ground patch, no base or rug under it, no other objects, no shadow."
+    },
+    "prop.broken_deck.alt1": {
+      "class": "prop",
+      "template": "arda-prop",
+      "format": "9:16",
+      "footprint": [
+        1,
+        2
+      ],
+      "pixels": [
+        128,
+        256
+      ],
+      "layer": "floor",
+      "height_ft": 0,
+      "functions": [],
+      "tags": {
+        "biome": [
+          "temperate"
+        ],
+        "culture": [
+          "human"
+        ],
+        "wealth": [
+          "poor",
+          "modest"
+        ],
+        "function": [],
+        "free": [
+          "damage",
+          "floor"
+        ]
+      },
+      "blocks_movement": false,
+      "blocks_sight": false,
+      "difficult_terrain": false,
+      "cover": "none",
+      "file": "props/prop.broken_deck.alt1.png",
+      "status": "new",
+      "tier": 6,
+      "variant_of": "prop.broken_deck",
+      "values": {
+        "Subject": "a smashed section of plank walkway with a hole torn in it",
+        "Shape": "Its outline is about twice as long as it is wide (5 by 10 feet), its long axis running top to bottom.",
+        "Detail": "Pale boards splintered inwards around a dark hole, two bent nails, one hanging plank."
+      },
+      "prompt": "Top-down battle-map asset for a tabletop fantasy grid map, in a rich hand-painted style: confident painterly brushwork, fine dark ink outlines, crisp small detail and a muted, earthy, slightly warm palette. Strictly orthographic view from directly overhead: no perspective, no horizon, no tilted or isometric angle. Soft light from the top-left, so upper-left edges catch highlights and lower-right edges fall into gentle form shading; no cast shadow and no drop shadow anywhere. No text, no letters, no numbers, no grid lines, no frame, no border, no vignette, no watermark, no signature. Subject: a smashed section of plank walkway with a hole torn in it, seen from directly above. Its outline is about twice as long as it is wide (5 by 10 feet), its long axis running top to bottom. Pale boards splintered inwards around a dark hole, two bent nails, one hanging plank. Exactly one subject, centred, filling about 70% of the frame's shorter side, on a fully transparent background (a PNG with a real alpha channel, background: transparent; no white or colour behind the subject); nothing else in the image: no floor, no ground patch, no base or rug under it, no other objects, no shadow."
+    },
+    "prop.charred_floor.alt1": {
+      "class": "prop",
+      "template": "arda-prop",
+      "format": "1:1",
+      "footprint": [
+        2,
+        2
+      ],
+      "pixels": [
+        256,
+        256
+      ],
+      "layer": "floor",
+      "height_ft": 0,
+      "functions": [],
+      "tags": {
+        "biome": [
+          "temperate"
+        ],
+        "culture": [
+          "human"
+        ],
+        "wealth": [
+          "poor",
+          "modest"
+        ],
+        "function": [],
+        "free": [
+          "damage",
+          "floor"
+        ]
+      },
+      "blocks_movement": false,
+      "blocks_sight": false,
+      "difficult_terrain": false,
+      "cover": "none",
+      "file": "props/prop.charred_floor.alt1.png",
+      "status": "new",
+      "tier": 6,
+      "variant_of": "prop.charred_floor",
+      "values": {
+        "Subject": "a charred floor patch with a ragged burnt edge",
+        "Shape": "Its outline is roughly round or square, about 10 feet across.",
+        "Detail": "Blackened planks eaten away at the edges, ash drifts and soot streaks."
+      },
+      "prompt": "Top-down battle-map asset for a tabletop fantasy grid map, in a rich hand-painted style: confident painterly brushwork, fine dark ink outlines, crisp small detail and a muted, earthy, slightly warm palette. Strictly orthographic view from directly overhead: no perspective, no horizon, no tilted or isometric angle. Soft light from the top-left, so upper-left edges catch highlights and lower-right edges fall into gentle form shading; no cast shadow and no drop shadow anywhere. No text, no letters, no numbers, no grid lines, no frame, no border, no vignette, no watermark, no signature. Subject: a charred floor patch with a ragged burnt edge, seen from directly above. Its outline is roughly round or square, about 10 feet across. Blackened planks eaten away at the edges, ash drifts and soot streaks. Exactly one subject, centred, filling about 70% of the frame's shorter side, on a fully transparent background (a PNG with a real alpha channel, background: transparent; no white or colour behind the subject); nothing else in the image: no floor, no ground patch, no base or rug under it, no other objects, no shadow."
+    },
+    "prop.rubble_heap.alt2": {
+      "class": "prop",
+      "template": "arda-prop",
+      "format": "1:1",
+      "footprint": [
+        2,
+        2
+      ],
+      "pixels": [
+        256,
+        256
+      ],
+      "layer": "prop",
+      "height_ft": 2,
+      "functions": [],
+      "tags": {
+        "biome": [
+          "temperate"
+        ],
+        "culture": [
+          "human"
+        ],
+        "wealth": [
+          "poor",
+          "modest"
+        ],
+        "function": [],
+        "free": [
+          "damage",
+          "rubble"
+        ]
+      },
+      "blocks_movement": false,
+      "blocks_sight": false,
+      "difficult_terrain": true,
+      "cover": "none",
+      "file": "props/prop.rubble_heap.alt2.png",
+      "status": "new",
+      "tier": 6,
+      "variant_of": "prop.rubble_heap",
+      "values": {
+        "Subject": "a pile of burnt rubble and charred beams",
+        "Shape": "Its outline is roughly round or square, about 10 feet across.",
+        "Detail": "Blackened stone chunks, charcoal timbers and ash between them."
+      },
+      "prompt": "Top-down battle-map asset for a tabletop fantasy grid map, in a rich hand-painted style: confident painterly brushwork, fine dark ink outlines, crisp small detail and a muted, earthy, slightly warm palette. Strictly orthographic view from directly overhead: no perspective, no horizon, no tilted or isometric angle. Soft light from the top-left, so upper-left edges catch highlights and lower-right edges fall into gentle form shading; no cast shadow and no drop shadow anywhere. No text, no letters, no numbers, no grid lines, no frame, no border, no vignette, no watermark, no signature. Subject: a pile of burnt rubble and charred beams, seen from directly above. Its outline is roughly round or square, about 10 feet across. Blackened stone chunks, charcoal timbers and ash between them. Exactly one subject, centred, filling about 70% of the frame's shorter side, on a fully transparent background (a PNG with a real alpha channel, background: transparent; no white or colour behind the subject); nothing else in the image: no floor, no ground patch, no base or rug under it, no other objects, no shadow."
+    },
+    "prop.broken_deck.alt2": {
+      "class": "prop",
+      "template": "arda-prop",
+      "format": "9:16",
+      "footprint": [
+        1,
+        2
+      ],
+      "pixels": [
+        128,
+        256
+      ],
+      "layer": "floor",
+      "height_ft": 0,
+      "functions": [],
+      "tags": {
+        "biome": [
+          "temperate"
+        ],
+        "culture": [
+          "human"
+        ],
+        "wealth": [
+          "poor",
+          "modest"
+        ],
+        "function": [],
+        "free": [
+          "damage",
+          "floor"
+        ]
+      },
+      "blocks_movement": false,
+      "blocks_sight": false,
+      "difficult_terrain": false,
+      "cover": "none",
+      "file": "props/prop.broken_deck.alt2.png",
+      "status": "new",
+      "tier": 6,
+      "variant_of": "prop.broken_deck",
+      "values": {
+        "Subject": "a collapsed dock deck with missing boards",
+        "Shape": "Its outline is about twice as long as it is wide (5 by 10 feet), its long axis running top to bottom.",
+        "Detail": "Grey salt-bleached planks, several gaps showing nothing but darkness, broken ends."
+      },
+      "prompt": "Top-down battle-map asset for a tabletop fantasy grid map, in a rich hand-painted style: confident painterly brushwork, fine dark ink outlines, crisp small detail and a muted, earthy, slightly warm palette. Strictly orthographic view from directly overhead: no perspective, no horizon, no tilted or isometric angle. Soft light from the top-left, so upper-left edges catch highlights and lower-right edges fall into gentle form shading; no cast shadow and no drop shadow anywhere. No text, no letters, no numbers, no grid lines, no frame, no border, no vignette, no watermark, no signature. Subject: a collapsed dock deck with missing boards, seen from directly above. Its outline is about twice as long as it is wide (5 by 10 feet), its long axis running top to bottom. Grey salt-bleached planks, several gaps showing nothing but darkness, broken ends. Exactly one subject, centred, filling about 70% of the frame's shorter side, on a fully transparent background (a PNG with a real alpha channel, background: transparent; no white or colour behind the subject); nothing else in the image: no floor, no ground patch, no base or rug under it, no other objects, no shadow."
+    },
+    "prop.charred_floor.alt2": {
+      "class": "prop",
+      "template": "arda-prop",
+      "format": "1:1",
+      "footprint": [
+        2,
+        2
+      ],
+      "pixels": [
+        256,
+        256
+      ],
+      "layer": "floor",
+      "height_ft": 0,
+      "functions": [],
+      "tags": {
+        "biome": [
+          "temperate"
+        ],
+        "culture": [
+          "human"
+        ],
+        "wealth": [
+          "poor",
+          "modest"
+        ],
+        "function": [],
+        "free": [
+          "damage",
+          "floor"
+        ]
+      },
+      "blocks_movement": false,
+      "blocks_sight": false,
+      "difficult_terrain": false,
+      "cover": "none",
+      "file": "props/prop.charred_floor.alt2.png",
+      "status": "new",
+      "tier": 6,
+      "variant_of": "prop.charred_floor",
+      "values": {
+        "Subject": "a burnt patch of stone floor, blackened by fire",
+        "Shape": "Its outline is roughly round or square, about 10 feet across.",
+        "Detail": "Soot-stained flagstones, cracked from heat, a smear of grey ash, a few scorch streaks."
+      },
+      "prompt": "Top-down battle-map asset for a tabletop fantasy grid map, in a rich hand-painted style: confident painterly brushwork, fine dark ink outlines, crisp small detail and a muted, earthy, slightly warm palette. Strictly orthographic view from directly overhead: no perspective, no horizon, no tilted or isometric angle. Soft light from the top-left, so upper-left edges catch highlights and lower-right edges fall into gentle form shading; no cast shadow and no drop shadow anywhere. No text, no letters, no numbers, no grid lines, no frame, no border, no vignette, no watermark, no signature. Subject: a burnt patch of stone floor, blackened by fire, seen from directly above. Its outline is roughly round or square, about 10 feet across. Soot-stained flagstones, cracked from heat, a smear of grey ash, a few scorch streaks. Exactly one subject, centred, filling about 70% of the frame's shorter side, on a fully transparent background (a PNG with a real alpha channel, background: transparent; no white or colour behind the subject); nothing else in the image: no floor, no ground patch, no base or rug under it, no other objects, no shadow."
+    },
+    "prop.rubble_heap.alt3": {
+      "class": "prop",
+      "template": "arda-prop",
+      "format": "1:1",
+      "footprint": [
+        2,
+        2
+      ],
+      "pixels": [
+        256,
+        256
+      ],
+      "layer": "prop",
+      "height_ft": 2,
+      "functions": [],
+      "tags": {
+        "biome": [
+          "temperate"
+        ],
+        "culture": [
+          "human"
+        ],
+        "wealth": [
+          "poor",
+          "modest"
+        ],
+        "function": [],
+        "free": [
+          "damage",
+          "rubble"
+        ]
+      },
+      "blocks_movement": false,
+      "blocks_sight": false,
+      "difficult_terrain": true,
+      "cover": "none",
+      "file": "props/prop.rubble_heap.alt3.png",
+      "status": "new",
+      "tier": 6,
+      "variant_of": "prop.rubble_heap",
+      "values": {
+        "Subject": "a heap of collapsed brick and plaster",
+        "Shape": "Its outline is roughly round or square, about 10 feet across.",
+        "Detail": "Red-brown brick pieces, white plaster lumps and powder spilled around the pile."
+      },
+      "prompt": "Top-down battle-map asset for a tabletop fantasy grid map, in a rich hand-painted style: confident painterly brushwork, fine dark ink outlines, crisp small detail and a muted, earthy, slightly warm palette. Strictly orthographic view from directly overhead: no perspective, no horizon, no tilted or isometric angle. Soft light from the top-left, so upper-left edges catch highlights and lower-right edges fall into gentle form shading; no cast shadow and no drop shadow anywhere. No text, no letters, no numbers, no grid lines, no frame, no border, no vignette, no watermark, no signature. Subject: a heap of collapsed brick and plaster, seen from directly above. Its outline is roughly round or square, about 10 feet across. Red-brown brick pieces, white plaster lumps and powder spilled around the pile. Exactly one subject, centred, filling about 70% of the frame's shorter side, on a fully transparent background (a PNG with a real alpha channel, background: transparent; no white or colour behind the subject); nothing else in the image: no floor, no ground patch, no base or rug under it, no other objects, no shadow."
     }
   }
 }

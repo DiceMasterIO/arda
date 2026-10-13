@@ -27,7 +27,8 @@
 // Tiers: 1 is every variant of the original 225 (they fix repetition on every map at once), 2 the
 // building-function and biome sets, 3 the culture sets, rare dressing and the new wall kits, 4 the
 // underground set (arda-dungeon): cave and bedrock ground, the cave wall kit, stairs down, torch
-// sconces and stalagmites.
+// sconces and stalagmites, 6 effect and damage art: transparent
+// effect textures and decals and the damage props (see the end of this file).
 
 export const entries = [];
 
@@ -2131,4 +2132,125 @@ fam("veg.stalagmite", plant([1, 1], 6, "tall", [], ["cave", "stalagmite"]), 4, [
   ["a cluster of limestone stalagmites rising from a cave floor, seen from directly above", "Tapering pale cream and grey cones, the largest in the middle, each with a lighter wet tip."],
   ["a single thick stalagmite with a ring of smaller ones", "Rounded ridged pale stone, glistening tips."],
   ["a pair of stalagmites joined at the base, crusted with minerals", "Pale yellow-grey limestone with white mineral flow lines."],
+]);
+
+// ---------------------------------------------------------------------------------------------
+// Effect and damage art (tier 6, 1.0 task 05). DiceMaster draws spell effects and lasting damage
+// over Arda's tiles; this art makes them match in style and scale.
+//
+// Effects (`effect.<name>.<n>`, class `effect`, never placed by layouts) are 2 x 2 squares, three
+// takes each. `kind` texture tiles; `kind` decal is one patch. `alpha` says where the transparency
+// comes from: `luminance` asks the model for bright light on pure black, which the importer turns
+// into alpha (fire, frost, fog, water, acid and web read as light); `source` asks for a real alpha
+// channel (ash, grease and soot are dark, so brightness cannot carry them).
+
+export const effectSets = {
+  frost: {
+    kind: "texture",
+    alpha: "luminance",
+    subject: "a layer of frost and rime ice",
+    takes: [
+      "Branching white and pale blue ice crystals in a loose lattice, with small frosted gaps where the black shows through.",
+      "A fine frost bloom: feathery ice ferns spreading from several points, brightest at their tips.",
+      "Thin glassy ice sheets with hairline cracks and tiny air bubbles, patchy and uneven.",
+    ],
+  },
+  fire: {
+    kind: "texture",
+    alpha: "luminance",
+    subject: "burning flames seen from above",
+    takes: [
+      "Roiling orange and yellow flames with white-hot cores, licking tongues of fire in every direction.",
+      "A bed of glowing embers and low flames, red and orange, with brighter yellow flickers.",
+      "Tall swirling flame tips, deep red at the edges and bright yellow in the middle, with a few sparks.",
+    ],
+  },
+  acid: {
+    kind: "texture",
+    alpha: "luminance",
+    subject: "a pool of caustic green acid",
+    takes: [
+      "Glowing lime green liquid with small rising bubbles and a bright wet sheen.",
+      "Splashed acid in bright green droplets and streaks, thin and uneven, with a faint yellow glow.",
+      "A bubbling pool surface, sickly yellow-green, with ripples and tiny popping bubbles.",
+    ],
+  },
+  ash: {
+    kind: "texture",
+    alpha: "source",
+    subject: "a layer of grey ash and cinders",
+    takes: [
+      "Soft grey and charcoal ash in drifts, scattered with tiny black cinders, thin enough to leave gaps.",
+      "Fine pale ash dust with a few glowing orange embers and scorched flecks.",
+      "Clumped dark ash flakes and soot specks in uneven patches.",
+    ],
+  },
+  web: {
+    kind: "texture",
+    alpha: "luminance",
+    subject: "thick spider webbing",
+    takes: [
+      "Bright white silk threads in a tangle of crossing strands, with a few thicker cables and open gaps.",
+      "Fine sticky webbing in layered sheets, pale grey-white, with dew drops on the threads.",
+      "A loose mesh of white silk strands pulled into tight knots at the crossings.",
+    ],
+  },
+  grease: {
+    kind: "texture",
+    alpha: "source",
+    subject: "a slick of dark grease and oil",
+    takes: [
+      "Glossy dark brown oil in a thin film with rainbow-tinted highlights and uneven edges.",
+      "Thick black grease smears and puddles, shiny, with a few bright reflections.",
+      "A translucent amber oil slick with swirled sheen and tiny droplets at its edges.",
+    ],
+  },
+  fog: {
+    kind: "texture",
+    alpha: "luminance",
+    subject: "drifting fog or cloud vapour",
+    takes: [
+      "Soft billowing white-grey fog in large puffs, bright in the middle of each puff, fading to black between them.",
+      "Wispy mist in long curling streamers, pale and thin, with a few denser clouds.",
+      "Dense low cloud, smooth and cottony, lit evenly, with soft irregular gaps.",
+    ],
+  },
+  water: {
+    kind: "texture",
+    alpha: "luminance",
+    subject: "a shallow sheet of clear water",
+    takes: [
+      "Bright blue and white ripples with caustic light lines, gently rolling, seen from above.",
+      "Rippling water with small curling wavelets and sparkles of light, pale blue and white.",
+      "A thin film of water with concentric ripple rings and glints, light blue.",
+    ],
+  },
+  scorch_mark: {
+    kind: "decal",
+    alpha: "source",
+    subject: "a scorch mark burned into the ground",
+    takes: [
+      "A dark black and brown ragged scorch patch, darkest in the middle, with feathered soot streaks fading outwards.",
+      "A charred circular blast mark with radiating soot rays and a few tiny glowing cinders.",
+      "An uneven burn scar of black char and grey ash, cracked at the centre, fading softly at the edge.",
+    ],
+  },
+};
+
+// Damage props: ordinary props (layouts and bakes may place them), tagged `damage`.
+fam("prop.rubble_heap", M([2, 2], 2, "rough", [], { free: ["damage", "rubble"] }), 6, [
+  ["a heap of rubble from a collapsed wall, seen from directly above", "Broken grey stone blocks, chunks and grit piled in a low mound, with a few splintered timber beams sticking out."],
+  ["a rubble heap of shattered masonry and roof tiles", "Pale and ochre stone fragments, curved red clay tile shards and dust, heaped untidily."],
+  ["a pile of burnt rubble and charred beams", "Blackened stone chunks, charcoal timbers and ash between them."],
+  ["a heap of collapsed brick and plaster", "Red-brown brick pieces, white plaster lumps and powder spilled around the pile."],
+]);
+fam("prop.broken_deck", M([1, 2], 0, "clear", [], { layer: "floor", free: ["damage", "floor"] }), 6, [
+  ["a broken wooden deck or bridge floor, seen from directly above", "Weathered planks running across the frame, some snapped short, a ragged gap through the middle, splinters and loose boards."],
+  ["a smashed section of plank walkway with a hole torn in it", "Pale boards splintered inwards around a dark hole, two bent nails, one hanging plank."],
+  ["a collapsed dock deck with missing boards", "Grey salt-bleached planks, several gaps showing nothing but darkness, broken ends."],
+]);
+fam("prop.charred_floor", M([2, 2], 0, "clear", [], { layer: "floor", free: ["damage", "floor"] }), 6, [
+  ["a patch of floor burned black, seen from directly above", "Scorched charcoal-black boards or ground with cracked char, grey ash flecks and a few dull orange embers."],
+  ["a charred floor patch with a ragged burnt edge", "Blackened planks eaten away at the edges, ash drifts and soot streaks."],
+  ["a burnt patch of stone floor, blackened by fire", "Soot-stained flagstones, cracked from heat, a smear of grey ash, a few scorch streaks."],
 ]);
