@@ -29,11 +29,14 @@ impl Default for ReliefLimits {
 /// chunks, area facts and one render in flight per worker, rounded up.
 pub const RELIEF_WORKING_BYTES: u64 = 768 << 20;
 
+/// Cache identity of a relief tile: `(z, x, y, labelled)`.
+type TileKey = (u32, u32, u32, bool);
+
 /// Relief levels of one served world.
 pub struct Relief {
     world: Option<Arc<ReliefWorld>>,
     pyramid: Pyramid,
-    tiles: Mutex<ByteLru<(u32, u32, u32, bool), Vec<u8>>>,
+    tiles: Mutex<ByteLru<TileKey, Vec<u8>>>,
     labels: OnceLock<Arc<Labeler>>,
 }
 

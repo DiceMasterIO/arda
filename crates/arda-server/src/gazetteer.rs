@@ -39,9 +39,7 @@ fn filter(q: &BTreeMap<String, String>) -> ServerResult<Filter> {
                 .split(',')
                 .map(|v| v.trim().parse::<i64>())
                 .collect::<Result<_, _>>()
-                .map_err(|_| {
-                    ServerError::BadRequest("`bbox` is x0,y0,x1,y1 in metres".into())
-                })?;
+                .map_err(|_| ServerError::BadRequest("`bbox` is x0,y0,x1,y1 in metres".into()))?;
             match n.as_slice() {
                 [x0, y0, x1, y1] if x0 <= x1 && y0 <= y1 => Ok([*x0, *y0, *x1, *y1]),
                 _ => Err(ServerError::BadRequest(

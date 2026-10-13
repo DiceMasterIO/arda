@@ -125,6 +125,11 @@ Grassland reference (111, 119, 62); targets: ploughed (120, 108, 74), stubble (1
 
 Sites: `crates/arda-midzoom/src/land/tone.rs:55-172`.
 
+### §labels
+Relief and overview tiles carry the gazetteer's names (logic/15 §name-what-is-named), drawn after the relief and its worked land (`crates/arda-midzoom/src/labels.rs`, `crates/arda-settle/src/render/tilelabels.rs`). A level's layout is made once, for the whole level, from the gazetteer, the settlements and the zoom, then clipped to each tile, so labels never differ between neighbours and a name crossing a tile edge is cut, not re-placed; glyph coverage depends only on global pixels, so tiles join exactly. Items show from their `min_zoom` (features: rank minus 1; city 1, town 2, village 4, hamlet 6). Placement is greedy, rank first: settlement symbols are reserved, a settlement name takes the first free of eight positions beside its symbol, an area name is letter-spaced to fill about 70% of its path (curved text) or of its extent (centred on the anchor, nudged up or down), and a name that does not fit is left out. Water names are pale italic on a deep-blue halo, ranges small capitals, forests green italic, other names dark on a paper halo; type sizes are constant in pixels (12.5 to 27). Tiles take `?labels=0` to leave them off (default on; cache keys include the flag); worlds without `society/gazetteer.json` and the oblique pyramid carry none.
+
+Sites: `crates/arda-settle/src/render/tilelabels.rs`, `crates/arda-midzoom/src/labels.rs`, `crates/arda-server/src/relief.rs`, `crates/arda-server/src/overview.rs`.
+
 ### §pyramid
 Relief levels continue the overview pyramid: level `z ∈ (max_zoom, max_zoom + 8]` has `max(areas) × 51.2 km / (256 · 2^z)` metres per pixel; pixel `p` covers world `[p·m, (p+1)·m)`. Subdivision: n = 4 at ≤ 16 m/px, n = 2 at ≤ 32 m/px, else 1. Pixels outside the world are transparent. The viewer switches to these tiles past native zoom and offers the tactical map (logic/09) at ≤ 2 m/px.
 

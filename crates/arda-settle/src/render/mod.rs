@@ -94,6 +94,8 @@ pub struct Society {
     pub realms: RealmsFile,
     /// Rivers, mountains and regions.
     pub names: NamesFile,
+    /// Natural features (`gazetteer.json`), when the world has them.
+    pub gazetteer: Option<crate::gazetteer::GazetteerFile>,
     /// Land-use codes.
     pub codes: Vec<u8>,
     /// Realm per cell.
@@ -122,6 +124,11 @@ impl Society {
             roads: output::read_json(&soc.join("roads.json"))?,
             realms: output::read_json(&soc.join("realms.json"))?,
             names: output::read_json(&soc.join("names.json"))?,
+            gazetteer: soc
+                .join("gazetteer.json")
+                .is_file()
+                .then(|| output::read_json(&soc.join("gazetteer.json")))
+                .transpose()?,
             codes,
             realm_map,
             size: (gw, gh),
@@ -241,6 +248,7 @@ pub fn draw(c: &mut Canvas, soc: &Society, seed: u64, full: bool) -> Result<(), 
     layers::features(c, &v, &soc.codes, &soc.roads, &peak_px, &mut pl);
     let inks = text::labels(&v, soc, &anchors, &peaks, &mut pl);
     labels::paint(c, &inks, layers::PAPER, 0.82);
+    text::features(c, &v, soc, &pl);
     let title = text::title(soc, seed, &v);
     furniture::draw(c, &v, &fonts, at, &title);
     Ok(())

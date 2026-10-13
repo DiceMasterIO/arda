@@ -371,7 +371,8 @@ async fn overview_tile(
         )));
     }
     let bytes = blocking(state, move |s| {
-        s.overview.tile(&s.query, (z, x, y), (format, oblique, labels))
+        s.overview
+            .tile(&s.query, (z, x, y), (format, oblique, labels))
     })
     .await?;
     Ok(image(&headers, format.content_type(), &bytes))

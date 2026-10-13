@@ -63,6 +63,12 @@ Resolution is deterministic: entities are named in ascending id order within a s
 - Rivers: every river with order ≥ 3 and ≥ 30 cells of main stem, named by the culture at its mouth (thresholds from `arda-settle`; assumed, tunable).
 - Peaks: summits rising ≥ 150 m above everything within 2.5 km, at most 60 per world (from `arda-settle`; assumed); ranges from 14 §soc-regions.
 - Passes and crossings: passes get their own name; crossings are named after their river ("<river> Ford").
+- Natural features (`society/gazetteer.json`, `crates/arda-settle/src/gazetteer/`), named last, after regions, in this order and biggest first within a kind: seas, bays, lakes, islands, capes, forests, marshes, mountain ranges; each in the dialect at its anchor, unique in the world scope, so no name above changes. Detection runs on a 400 m coarse raster and uses no randomness. Thresholds (assumed, tunable; `Thresholds::default`):
+  - Sea (`PlaceKind::Sea`, keys `sea`, `gulf`): connected sea of at least 2,000 km²; inside it, every core of water farther than 3.2 km from land (the sea cut by narrow mouths) other than the largest is a bay (at least 30 km²), or a gulf (a `sea`) if itself at least 2,000 km².
+  - Lake: at least 5 km². Island: land (lakes included) other than the largest body, at least 4 km². Cape: land too narrow for a 3.2 km disc, joined to land that is not, at least 5 km², anchored at its tip. Forest: connected canopy of at least 150/255 over 100 km². Marsh: connected marsh cover over 20 km².
+  - Mountain range: summits (the peaks above) within 40 km of each other whose ridge never drops more than 1,300 m below the lower of the two; at least three; named once, each peak keeping its own name.
+  - Bays, capes, islands, lakes and marshes are sometimes named for a founder ("Haldor's Bay"); other kinds use the coast, water, wood, fen or high-ground pools.
+  - Rivers appear in the gazetteer from `names.json` (at least 8 km), with their courses as label paths.
 - Realms and regions: 08 §realm-seats, 14 §soc-regions, in the seat's culture.
 - People: given, family and optional byname (12 % of adults, `arda-npc` value; assumed).
 - Inns and taverns: an original two-part pattern ("The <adjective> <noun>") from culture data.

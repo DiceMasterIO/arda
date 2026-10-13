@@ -190,6 +190,10 @@ Storage values: `HTTP JSON; ts-rs bindings/ts/arda/<Name>.ts` means the type is 
 | NamedPeak | `crates/arda-settle/src/output.rs:87` | `society/names.json` | A named mountain. |
 | NamedRegion | `crates/arda-settle/src/output.rs:100` | `society/names.json` | A named culture region. |
 | NamesFile | `crates/arda-settle/src/output.rs:116` | `society/names.json` | `names.json`. |
+| GazetteerFeature | `crates/arda-settle/src/gazetteer/mod.rs` | `society/gazetteer.json` | A named natural feature with anchor, label path, extent, rank and first zoom. |
+| GazetteerFile | `crates/arda-settle/src/gazetteer/mod.rs` | `society/gazetteer.json` | `gazetteer.json`. |
+| GazetteerPoint | `crates/arda-settle/src/gazetteer/list.rs` | `GET /v1/gazetteer` | A settlement as a map point (`kind` hamlet to city, `at_m`, `rank` 2 to 5). |
+| GazetteerList | `crates/arda-settle/src/gazetteer/list.rs` | `GET /v1/gazetteer` | `{format_version, features: [GazetteerFeature or GazetteerPoint]}`. |
 | RealmStats | `crates/arda-settle/src/realm_stats.rs:15` | `society/stats.json` | The realm summary written into `stats.json`. |
 | Realm | `crates/arda-settle/src/realms.rs:38` | `society/realms.json` | One realm, as written to `society/realms.json`. |
 | Road | `crates/arda-settle/src/roads.rs:27` | `society/roads.json` | One road object: the new cells a route added to the network. |
@@ -6881,6 +6885,7 @@ Written by `arda settle` except the last two rows, which `arda society build` ad
 | settlements.json | `SettlementsFile` { format_version, seed (decimal string), width_cells, height_cells, `Settlement[]` } | `crates/arda-settle/src/output.rs:28` |
 | roads.json | `RoadsFile` { format_version, `Road[]`, `Crossing[]`, `Pass[]` } | `crates/arda-settle/src/output.rs:45` |
 | realms.json | `RealmsFile` { format_version, `Realm[]` } | `crates/arda-settle/src/output.rs:58` |
+| gazetteer.json | `GazetteerFile` { format_version, `GazetteerFeature[]` } | `crates/arda-settle/src/gazetteer/mod.rs` |
 | names.json | `NamesFile` { format_version, `NamedRiver[]`, `NamedPeak[]`, `NamedRegion[]` } | `crates/arda-settle/src/output.rs:116` |
 | stats.json | `Stats` with nested `RealmStats` | `crates/arda-settle/src/stats.rs:52` |
 | landuse.bin | `ARDALND\0`, version u32 = 1, width u32, height u32, then zstd level 9 of u8 code per cell followed by u32 LE owner per cell | `crates/arda-settle/src/output.rs:17`, `crates/arda-settle/src/output.rs:245` |

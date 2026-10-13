@@ -117,6 +117,7 @@ mod tests {
                 mountains: vec![],
                 regions: vec![],
             },
+            gazetteer: None,
             codes: vec![0; size.0 * size.1],
             realm_map: vec![0; realm_cells],
             size,

@@ -3,11 +3,14 @@
 
 use super::font::{Case, Face, Style};
 use super::furniture::Title;
+use super::labels::Rect;
 use super::labels::{Ink, Line, Placer};
 use super::layers::{realm_colour, shade, symbol_r, INK};
 use super::mask::chaikin;
+use super::tilelabels::{Labeler, HALO_OPACITY};
 use super::{Society, View};
 use crate::canvas::Rgb;
+use crate::gazetteer::PlaceKind;
 use crate::model::Tier;
 use crate::output::NamesFile;
 
@@ -174,6 +177,49 @@ pub fn labels(
         }
     }
     inks
+}
+
+/// The gazetteer's natural features (seas, lakes, forests, ranges, ...),
+/// laid out around the labels already placed and painted over the page.
+/// Rivers and settlements keep the labels above.
+pub fn features(c: &mut crate::canvas::Canvas, v: &View, soc: &Society, pl: &Placer<'_>) {
+    let Some(file) = &soc.gazetteer else {
+        return;
+    };
+    let world = [v.gw as f64 * 100.0, v.gh as f64 * 100.0];
+    let Ok(l) = Labeler::new(file, &[], world, world[0].max(world[1])) else {
+        return;
+    };
+    let px_per_m = f64::from(v.fw) / world[0];
+    // The placed boxes are page pixels; the layout works in the full image.
+    let blocked: Vec<_> = pl
+        .taken()
+        .iter()
+        .map(|r| Rect {
+            x0: r.x0 + v.ox,
+            y0: r.y0 + v.oy,
+            x1: r.x1 + v.ox,
+            y1: r.y1 + v.oy,
+        })
+        .collect();
+    let level = l.level_at(px_per_m, v.s, &blocked, |i| {
+        i.kind != PlaceKind::River && !i.kind.is_settlement()
+    });
+    let origin = (v.ox as i64, v.oy as i64);
+    let size = (v.pw as usize, v.ph as usize);
+    let inks = l.inks(&level, origin, size);
+    for i in &inks {
+        let mut m = i.halo.clone();
+        m.x0 -= origin.0;
+        m.y0 -= origin.1;
+        c.paint(&m, i.halo_colour, HALO_OPACITY);
+    }
+    for i in &inks {
+        let mut m = i.text.clone();
+        m.x0 -= origin.0;
+        m.y0 -= origin.1;
+        c.paint(&m, i.colour, 1.0);
+    }
 }
 
 /// The cartouche's words.

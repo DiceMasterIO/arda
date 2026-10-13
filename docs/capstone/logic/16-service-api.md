@@ -66,6 +66,7 @@ Added by this spec (goals 57, 65, 67, 70):
 | `GET /v1/settlements/{id}/npcs[?building=&job=&notable=&cursor=]` | `NpcPage` (`Npc` records; commoners generated on demand) | 13 |
 | `GET /v1/npc/{npc_id}` | `Npc` with its sheet | 13 |
 | `POST /v1/npc/generate` | `Npc` (implemented): one new NPC from optional `GenerateNpcRequest` inputs (Arda's own: `seed`, `job`, `office`, `rank`, `ancestry`, `sex`, `tier`, `culture`, `settlement_id`, `notable`), stored nowhere, synthetic ids; body ≤ 16 KiB, JSON only (415); 422 `unsatisfiable` | 13 §npc-generate-one |
+| `GET /v1/gazetteer[?kind=&bbox=&min_rank=]` | `Gazetteer` (implemented, §api-gazetteer): natural features then settlement points in one list; `kind` is a comma list of kind keys, `bbox=x0,y0,x1,y1` metres keeps what meets the box, `min_rank=N` keeps rank N or more important; 400 on a bad value, 404 without `society/` or `gazetteer.json` | 08, 15 |
 | `GET /v1/realms` | `RealmList` (implemented): `{format_version, realms: [RealmSummary]}`, the `realms.json` records without `borders` plus `style`, `rank`, `government_label`, `ruler` when `society.json` exists | 08, 14 |
 | `GET /v1/realms/{id}` | `RealmDetail` (implemented): `{record (with borders), politics, relations, events, reigns}`; 404 unknown id, 400 non-numeric | 08, 14 |
 | `GET /v1/roads[?bbox=]` | roads, crossings and passes clipped to the box | 08 |

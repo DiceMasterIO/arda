@@ -1,13 +1,26 @@
 //! Tile labels: placed once per level and cut into tiles, so a label that
 //! crosses a tile edge is the same pixels either way.
-#![allow(clippy::unwrap_used, clippy::expect_used, missing_docs)]
+#![allow(
+    clippy::unwrap_used,
+    clippy::expect_used,
+    clippy::cast_possible_wrap,
+    clippy::cast_possible_truncation,
+    missing_docs
+)]
 
 use arda_settle::gazetteer::{GazetteerFeature, GazetteerFile, PlaceKind};
 use arda_settle::render::tilelabels::Labeler;
 
 const WORLD: f64 = 100_000.0;
 
-fn feature(id: u64, kind: PlaceKind, name: &str, anchor: [i64; 2], rank: u8, zoom: u8) -> GazetteerFeature {
+fn feature(
+    id: u64,
+    kind: PlaceKind,
+    name: &str,
+    anchor: [i64; 2],
+    rank: u8,
+    zoom: u8,
+) -> GazetteerFeature {
     GazetteerFeature {
         id,
         kind,
@@ -37,12 +50,23 @@ fn blank(w: usize, h: usize) -> Vec<u8> {
 }
 
 fn changed(buf: &[u8]) -> usize {
-    buf.chunks_exact(4).filter(|p| p[..3] != [90, 120, 90]).count()
+    buf.as_chunks::<4>()
+        .0
+        .iter()
+        .filter(|p| p[..3] != [90, 120, 90])
+        .count()
 }
 
 #[test]
 fn a_label_across_a_tile_edge_joins_exactly() {
-    let l = labeler(vec![feature(1, PlaceKind::Sea, "Dawnsea", [50_000, 50_000], 1, 0)]);
+    let l = labeler(vec![feature(
+        1,
+        PlaceKind::Sea,
+        "Dawnsea",
+        [50_000, 50_000],
+        1,
+        0,
+    )]);
     let z = 4;
     let level = l.level(z);
     // The anchor is at pixel (2048, 2048): the corner of four tiles.
@@ -81,7 +105,14 @@ fn labels_hide_below_their_zoom_and_never_overlap() {
     assert!(tile(4) > 100, "shown from min_zoom");
     // The lake's name would sit on the sea's: only one of them is placed.
     let both = tile(4);
-    let one = labeler(vec![feature(1, PlaceKind::Sea, "Dawnsea", [50_000, 50_000], 1, 3)]);
+    let one = labeler(vec![feature(
+        1,
+        PlaceKind::Sea,
+        "Dawnsea",
+        [50_000, 50_000],
+        1,
+        3,
+    )]);
     let mut b = blank(256, 256);
     let n = 1_i64 << 4;
     let c = n / 2 * 256 - 128;

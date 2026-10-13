@@ -33,7 +33,9 @@ pub const HALO_OPACITY: f32 = 0.8;
 const HALO_R: f32 = 1.7;
 /// Pixels a window grows by so halos join across its edge.
 const PAD: i64 = 6;
-const WATER: Rgb = [28, 68, 128];
+/// Water names are pale on a deep blue halo: they sit on sea and lake.
+const WATER: Rgb = [226, 238, 250];
+const WATER_HALO: Rgb = [18, 52, 100];
 const INK: Rgb = [38, 28, 22];
 const EARTH: Rgb = [92, 60, 40];
 const WOOD: Rgb = [38, 82, 44];
@@ -74,6 +76,7 @@ struct Glyph {
 struct Label {
     face: Face,
     colour: Rgb,
+    halo: Rgb,
     glyphs: Vec<Glyph>,
     /// Box of everything drawn, halo included.
     bounds: Rect,
@@ -93,6 +96,8 @@ pub struct Ink {
     pub text: Mask,
     /// Text colour.
     pub colour: Rgb,
+    /// Halo colour.
+    pub halo_colour: Rgb,
 }
 
 /// The labels of one world and their layouts, per zoom.
@@ -229,7 +234,7 @@ impl Labeler {
     pub fn level(&self, z: u8) -> Arc<Level> {
         let mut levels = self.levels.lock().unwrap_or_else(PoisonError::into_inner);
         Arc::clone(levels.entry(z).or_insert_with(|| {
-            Arc::new(self.lay_out(1.0 / self.metres_per_px(z), z, &[], |_| true))
+            Arc::new(self.lay_out(1.0 / self.metres_per_px(z), 1.0, z, &[], |_| true))
         }))
     }
 
@@ -238,10 +243,11 @@ impl Labeler {
     pub fn level_at(
         &self,
         px_per_m: f64,
+        unit: f32,
         blocked: &[Rect],
         keep: impl Fn(&Item) -> bool,
     ) -> Level {
-        self.lay_out(px_per_m, u8::MAX, blocked, keep)
+        self.lay_out(px_per_m, unit, u8::MAX, blocked, keep)
     }
 
     /// The coverage of `level` inside the window at `origin` of `size`
@@ -289,6 +295,7 @@ impl Labeler {
                 halo: m.dilate(HALO_R),
                 text: m,
                 colour: l.colour,
+                halo_colour: l.halo,
             });
         }
         out
@@ -305,7 +312,7 @@ impl Labeler {
     ) {
         let inks = self.inks(level, origin, size);
         for i in &inks {
-            blend(rgba, origin, size, &i.halo, PAPER, HALO_OPACITY);
+            blend(rgba, origin, size, &i.halo, i.halo_colour, HALO_OPACITY);
         }
         for i in &inks {
             blend(rgba, origin, size, &i.text, i.colour, 1.0);
@@ -348,13 +355,13 @@ struct Look {
     spread: f32,
 }
 
-fn look(kind: PlaceKind, rank: u8) -> Look {
+fn look(kind: PlaceKind, rank: u8, unit: f32) -> Look {
     let big = [27.0, 22.0, 18.0, 15.0, 12.5][usize::from(rank.clamp(1, 5)) - 1];
     let l = |face, case, colour, size, spread| Look {
         face,
         case,
         colour,
-        size,
+        size: size * unit,
         spread,
     };
     match kind {
@@ -398,6 +405,7 @@ impl Labeler {
     fn lay_out(
         &self,
         px_per_m: f64,
+        unit: f32,
         z: u8,
         blocked: &[Rect],
         keep: impl Fn(&Item) -> bool,
@@ -421,7 +429,12 @@ impl Labeler {
             .filter(|i| i.min_zoom <= z && keep(i))
             .collect();
         shown.sort_by_key(|i| (i.rank, order_of(i.kind), i.order));
-        let px = |p: [i64; 2]| ((p[0] as f64 * px_per_m) as f32, (p[1] as f64 * px_per_m) as f32);
+        let px = |p: [i64; 2]| {
+            (
+                (p[0] as f64 * px_per_m) as f32,
+                (p[1] as f64 * px_per_m) as f32,
+            )
+        };
         for i in shown.iter().filter(|i| i.kind.is_settlement()) {
             let (x, y) = px(i.anchor);
             taken.reserve(Rect::around((x, y), symbol_r(i.kind)));
@@ -429,17 +442,17 @@ impl Labeler {
         let mut labels = Vec::new();
         for i in shown {
             let placed = if i.kind.is_settlement() || i.kind == PlaceKind::Cape {
-                self.beside(i, px(i.anchor), &mut taken)
+                self.beside(i, px(i.anchor), unit, &mut taken)
             } else {
-                self.spread(i, &px, px_per_m, &mut taken)
+                self.spread(i, &px, (px_per_m, unit), &mut taken)
             };
             labels.extend(placed);
         }
         Level { labels }
     }
 
-    fn style(&self, i: &Item, size: f32, tracking: f32) -> (Style, Look) {
-        let lk = look(i.kind, i.rank);
+    fn style(&self, i: &Item, size: f32, tracking: f32, unit: f32) -> (Style, Look) {
+        let lk = look(i.kind, i.rank, unit);
         (
             Style::new(lk.face, size).tracked(tracking).cased(lk.case),
             lk,
@@ -447,8 +460,8 @@ impl Labeler {
     }
 
     /// A name beside a point: the eight positions around it.
-    fn beside(&self, i: &Item, at_px: (f32, f32), taken: &mut Taken) -> Option<Label> {
-        let lk = look(i.kind, i.rank);
+    fn beside(&self, i: &Item, at_px: (f32, f32), unit: f32, taken: &mut Taken) -> Option<Label> {
+        let lk = look(i.kind, i.rank, unit);
         let style = Style::new(lk.face, lk.size).cased(lk.case);
         let (glyphs, w) = self.fonts.layout(&style, &i.name);
         let cap = self.fonts.cap_height(&style);
@@ -469,9 +482,9 @@ impl Labeler {
             (ax - w / 2.0, ay + g),
         ];
         let pad = HALO_R * 0.6;
-        let (x, y) = spots
-            .into_iter()
-            .find(|&(x, y)| taken.free(&Rect::at(x - pad, y - pad, w + 2.0 * pad, h + 2.0 * pad)))?;
+        let (x, y) = spots.into_iter().find(|&(x, y)| {
+            taken.free(&Rect::at(x - pad, y - pad, w + 2.0 * pad, h + 2.0 * pad))
+        })?;
         taken.reserve(Rect::at(x - pad, y - pad, w + 2.0 * pad, h + 2.0 * pad));
         let baseline = y + cap + lk.size * 0.06;
         let run: Vec<Glyph> = glyphs
@@ -490,15 +503,18 @@ impl Labeler {
         &self,
         i: &Item,
         px: &dyn Fn([i64; 2]) -> (f32, f32),
-        px_per_m: f64,
+        (px_per_m, unit): (f64, f32),
         taken: &mut Taken,
     ) -> Option<Label> {
-        let lk = look(i.kind, i.rank);
+        let lk = look(i.kind, i.rank, unit);
         let ext = (
             (i.extent[2] - i.extent[0]) as f64 * px_per_m,
             (i.extent[3] - i.extent[1]) as f64 * px_per_m,
         );
-        let natural = |size: f32| self.fonts.width(&Style::new(lk.face, size).cased(lk.case), &i.name);
+        let natural = |size: f32| {
+            self.fonts
+                .width(&Style::new(lk.face, size).cased(lk.case), &i.name)
+        };
         let n = i.name.chars().count().max(2) as f32;
         let path: Option<Vec<(f32, f32)>> = i.path.as_ref().map(|p| {
             let pts: Vec<(f32, f32)> = p.iter().map(|&m| px(m)).collect();
@@ -523,9 +539,14 @@ impl Labeler {
         if let Some(path) = path.filter(|p| p.len() >= 2) {
             let (cum, total) = cumulative(&path);
             if let Some((size, tracking)) = reach(total) {
-                let lift = if i.kind == PlaceKind::River { size * 0.55 } else { 0.0 };
-                let (style, _) = self.style(i, size, tracking);
-                if let Some(l) = self.along(&style, &lk, &i.name, (&path, &cum, total), lift, taken) {
+                let lift = if i.kind == PlaceKind::River {
+                    size * 0.55
+                } else {
+                    0.0
+                };
+                let (style, _) = self.style(i, size, tracking, unit);
+                if let Some(l) = self.along(&style, &lk, &i.name, (&path, &cum, total), lift, taken)
+                {
                     return Some(l);
                 }
             }
@@ -539,9 +560,9 @@ impl Labeler {
         let fit = reach(width.max(1.0));
         let (size, tracking) = match fit {
             Some(f) => f,
-            None => return self.beside(i, (ax, ay), taken),
+            None => return self.beside(i, (ax, ay), unit, taken),
         };
-        let (style, _) = self.style(i, size, tracking);
+        let (style, _) = self.style(i, size, tracking, unit);
         let (glyphs, w) = self.fonts.layout(&style, &i.name);
         let cap = self.fonts.cap_height(&style);
         for k in [0.0_f32, -1.0, 1.0, -2.0, 2.0] {
@@ -550,7 +571,14 @@ impl Labeler {
             let x = ax - w / 2.0;
             let boxes: Vec<Rect> = glyphs
                 .iter()
-                .map(|p| Rect::at(x + p.x, baseline - cap, p.advance.max(size * 0.3), cap * 1.3))
+                .map(|p| {
+                    Rect::at(
+                        x + p.x,
+                        baseline - cap,
+                        p.advance.max(size * 0.3),
+                        cap * 1.3,
+                    )
+                })
                 .collect();
             if boxes.iter().all(|b| taken.free(b)) {
                 for b in &boxes {
@@ -634,10 +662,12 @@ impl Labeler {
 }
 
 fn label(face: Face, colour: Rgb, glyphs: Vec<Glyph>, b: Rect) -> Label {
+    let halo = if colour == WATER { WATER_HALO } else { PAPER };
     let m = HALO_R + 4.0;
     Label {
         face,
         colour,
+        halo,
         glyphs,
         bounds: Rect {
             x0: b.x0 - m - 8.0,

@@ -100,6 +100,12 @@ impl<'f> Placer<'f> {
         }
     }
 
+    /// The boxes already taken.
+    #[must_use]
+    pub fn taken(&self) -> &[Rect] {
+        &self.taken
+    }
+
     /// Marks a box as occupied.
     pub fn reserve(&mut self, r: Rect) {
         self.taken.push(r);

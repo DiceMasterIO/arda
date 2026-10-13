@@ -334,6 +334,11 @@ is 4.
   show where the content ends.
 - `z > max_zoom`, `x ≥ 2^z`, `y ≥ 2^z` and a suffix other than `.webp` or `.png` all
   return **404 `not_found`**.
+- Worlds with `society/gazetteer.json` draw the gazetteer's names on the tile (seas, lakes,
+  forests, ranges, rivers, settlements; logic/17 §labels), placed once per zoom level and cut
+  to the tile, so a name crossing an edge is the same on both tiles. `?labels=0` leaves them
+  off; the default is on, and cache keys include the flag, so the two never mix. Worlds without
+  a gazetteer, and `?oblique=1`, carry none.
 - `?oblique=1` (goal 24, opt-in) cuts the tile from the `atlas-oblique` render instead;
   `?oblique=0` or no parameter is the default pyramid, byte for byte. The relief levels
   past `max_zoom` are always top-down, so a client showing the oblique pyramid should not
@@ -360,6 +365,8 @@ is `max(areas_wide, areas_high) × 51.2 km`. At the default 4096 px base on MICR
   `/v1/tactical/cell` and the reverse (logic/17 §water).
 - Each pixel is a pure function of its global position: tiles are deterministic, cached
   (128 MiB by default) and join pixel-exactly. Pixels outside the world are transparent.
+- `?labels=0` omits the gazetteer's names, as on the overview tiles (default on, part of the
+  cache key).
 - A cold tile renders in about 10–50 ms.
 - `z ≤ max_zoom`, `z > relief_max_zoom`, `x ≥ 2^z`, `y ≥ 2^z`, a non-`.webp` suffix or a
   world without formed (recipe-5) fine terrain return **404 `not_found`**.
@@ -391,6 +398,26 @@ the rest are described by the schemas.
 ```sh
 curl -s "http://localhost:8787/v1/settlements?tier=village" | jq '.settlements | length'
 curl -s http://localhost:8787/v1/settlements/118/npcs | jq '.npcs[].job.title'
+```
+
+### Gazetteer
+
+- `GET /v1/gazetteer[?kind=&bbox=&min_rank=]`: `{format_version: 1, features: [...]}`, the world's
+  named natural features from `society/gazetteer.json` (kinds `sea`, `bay`, `lake`, `island`,
+  `cape`, `forest`, `marsh`, `mountain` for a range, `river`), then every settlement as a point
+  (kind `hamlet`..`city`), in one list. A feature has `id`, `kind`, `name`, `name_gloss`,
+  `culture`, `anchor_m` (pole of inaccessibility, metres), `path_m` (null, or at most 24 points
+  to set the name along, reading left to right; a river's course from its mouth), `extent_m`
+  (`x0,y0,x1,y1`), `area_ha`, `length_m`, `rank` (1 largest to 5) and `min_zoom` (zoom from
+  which a map shows it, on the pyramid of `/v1/tiles/...`). A settlement point has `id`, `kind`,
+  `name`, `name_gloss`, `culture`, `at_m`, `rank` (city 2, town 3, village 4, hamlet 5) and
+  `min_zoom`. `kind` is a comma list of kind keys (`range` means `mountain`); `bbox` keeps what
+  meets the box; `min_rank=N` keeps rank N or more important. Bad values are 400 `bad_request`;
+  a world without `society/`, or one settled before the gazetteer existed, is 404 `not_found`.
+  Same bytes every time.
+
+```sh
+curl -s 'http://localhost:8787/v1/gazetteer?min_rank=2' | jq '.features[] | {kind, name, rank}'
 ```
 
 ### Realms
@@ -1072,6 +1099,7 @@ describe the same JSON.
 | `GenerateNpcRequest` | the `POST /v1/npc/generate` body |
 | `Population`, `PopulationRequest`, `NpcDemo` | `POST /v1/npc/population` and its body; `/v1/npc/demo` |
 | `SettlementList`, `SettlementDetail`, `Settlement`, `SettlementSociety`, `TownPlan`, `SettlementNpcs` | the settlement routes |
+| `Gazetteer`, `GazetteerFeature`, `GazetteerPoint` | `/v1/gazetteer` and its entries |
 | `RealmList`, `RealmDetail`, `Realm`, `RealmSociety`, `Relation`, `Event` | `/v1/realms` and `/v1/realms/{id}`; the realm record, its politics, relations and history events |
 | `SchemaIndex` | `/v1/schema` itself |
 

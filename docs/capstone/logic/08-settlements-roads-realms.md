@@ -244,6 +244,7 @@ Each is a test (goal numbers in brackets):
 | `roads.json` | `{format_version, roads: [Road], crossings: [Crossing], passes: [Pass], unreachable: [id]}` | ways, server |
 | `realms.json` | `{format_version, realms: [Realm]}` | society, server |
 | `features.json` | named rivers, peaks and regions (`{id, name, kind, anchor_m, …}`) | names, server |
+| `gazetteer.json` | `{format_version: 1, features: [GazetteerFeature]}`: seas, bays, lakes, islands, capes, forests, marshes, mountain ranges and rivers with `id`, `kind`, `name`, `name_gloss`, `culture`, `anchor_m`, `path_m` (at most 24 points), `extent_m`, `area_ha`, `length_m`, `rank` (1 largest to 5) and `min_zoom` (logic/15 §name-what-is-named) | server, tile labels, render |
 | `landuse.bin` | magic `ARDALND\0`, u32 version, u32 width, u32 height, then zstd(level 9) of `width·height` u8 codes followed by `width·height` u32 LE owner settlement ids (0 = none) | fields, town, server |
 | `roads.bin` | magic `ARDARDS\0`, same header, zstd of u8 society raster codes (§roads) | ways, refine, server |
 | `realms.bin` | magic `ARDARLM\0`, same header, zstd of u16 LE realm ids | society, server |

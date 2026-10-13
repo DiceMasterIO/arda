@@ -142,7 +142,11 @@ impl Filter {
         if self.max_rank.is_some_and(|m| item.rank() > m) {
             return false;
         }
-        if self.kinds.as_ref().is_some_and(|k| !k.contains(&item.kind())) {
+        if self
+            .kinds
+            .as_ref()
+            .is_some_and(|k| !k.contains(&item.kind()))
+        {
             return false;
         }
         self.bbox.is_none_or(|b| {

@@ -35,6 +35,7 @@ edges:
     - { kind: http, name: "GET /v1/settlements/{id}", site: crates/arda-server/src/people.rs }
     - { kind: http, name: "GET /v1/settlements/{id}/plan", site: crates/arda-server/src/people.rs }
     - { kind: http, name: "GET /v1/settlements/{id}/npcs", site: crates/arda-server/src/people.rs, schema: SettlementNpcs }
+    - { kind: http, name: "GET /v1/gazetteer", site: crates/arda-server/src/gazetteer.rs, schema: Gazetteer }
     - { kind: http, name: "GET /v1/realms", site: crates/arda-server/src/realms.rs, schema: RealmList }
     - { kind: http, name: "GET /v1/realms/{id}", site: crates/arda-server/src/realms.rs, schema: RealmDetail }
     - { kind: http, name: "GET /v1/schema", site: crates/arda-server/src/schema/routes.rs, schema: SchemaIndex }
@@ -96,6 +97,7 @@ The only cross-repo surface is `arda-server`'s HTTP API under `/v1` (consumed by
 | http | GET /v1/settlements/{id} | - | `crates/arda-server/src/people.rs` |
 | http | GET /v1/settlements/{id}/plan | - | `crates/arda-server/src/people.rs` |
 | http | GET /v1/settlements/{id}/npcs | - | `crates/arda-server/src/people.rs` |
+| http | GET /v1/gazetteer | - | `crates/arda-server/src/gazetteer.rs` |
 | http | GET /v1/realms | - | `crates/arda-server/src/realms.rs` |
 | http | GET /v1/realms/{id} | - | `crates/arda-server/src/realms.rs` |
 | http | GET /v1/schema | - | `crates/arda-server/src/schema/routes.rs` |
@@ -342,6 +344,12 @@ Type `arda_town::TownPlan` (`crates/arda-town/src/plan/types.rs:293`), serialise
 ### GET /v1/settlements/{id}/npcs
 
 Model: SettlementNpcs
+
+### GET /v1/gazetteer
+
+Model: Gazetteer
+
+Typed `GazetteerList { format_version: 1, features: [GazetteerFeature | GazetteerPoint] }`: the natural features of `society/gazetteer.json` in file order, then the settlements by id as points (`kind` `hamlet`..`city`, `at_m`, `rank` 5..2). Query: `kind` (comma list, `sea`, `lake`, `range`, `city`, ...), `bbox` (`x0,y0,x1,y1`, metres), `min_rank` (1-5, keeps rank at most this). 404 `not_found` without `society/` or `gazetteer.json`.
 
 ### GET /v1/realms
 
