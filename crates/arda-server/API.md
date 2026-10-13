@@ -329,7 +329,7 @@ curl http://127.0.0.1:8787/v1/area/0/0/lakes
  {"id":1,"global_id":"123","surface_m":412.5,"max_depth_m":8.25,"outlet":[100,200],"cells":[[100,201],[101,201]]}]}
 ```
 
-### `GET /v1/overview.png[?quality=&style=]`
+### `GET /v1/overview.png[?quality=&style=&overlay=]`
 
 Returns the whole-world overview as PNG. It's the same bytes as
 `arda export --overview --quality <q> --style <style>`.
@@ -343,7 +343,13 @@ Returns the whole-world overview as PNG. It's the same bytes as
   north by half its height (coasts and sea stay exactly put), with gentle aerial
   perspective, valley occlusion and sky light. It is `arda export --style atlas-oblique`.
 
-Renders are cached per `(quality, style)`, and only one render runs at a time.
+- `overlay` is `society` or `none`. `society` paints land-use tone, roads by class and
+  settlement symbols from `<world>/society/` over the terrain (logic/04 §overlay); `none` is
+  the plain terrain. Absent, it is `society` when the world has society files and `none`
+  otherwise or with `atlas-oblique`. Asking for `society` of a world without society files, or
+  with `atlas-oblique`, is `400 bad_request`. No names are drawn on the overview itself.
+
+Renders are cached per `(quality, style, overlay)`, and only one render runs at a time.
 
 ```sh
 curl -o overview.png 'http://127.0.0.1:8787/v1/overview.png?quality=2K&style=atlas'
@@ -371,6 +377,8 @@ is 4.
   to the tile, so a name crossing an edge is the same on both tiles. `?labels=0` leaves them
   off; the default is on, and cache keys include the flag, so the two never mix. Worlds without
   a gazetteer, and `?oblique=1`, carry none.
+- `?overlay=society|none` picks the pyramid the tile is cut from, as on `/v1/overview.png`
+  (default `society` when the world has it); cache keys include it, so the two never mix.
 - `?oblique=1` (goal 24, opt-in) cuts the tile from the `atlas-oblique` render instead;
   `?oblique=0` or no parameter is the default pyramid, byte for byte. The relief levels
   past `max_zoom` are always top-down, so a client showing the oblique pyramid should not

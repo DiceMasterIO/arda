@@ -216,6 +216,7 @@ Response `image/png` (`crates/arda-server/src/routes.rs:302-316`). Query paramet
 |---|---|---|---|
 | quality | u32 | no | long edge in px, 512 doubling up to `--max-overview-px` (`crates/arda-server/src/overview.rs:168-188`) |
 | style | String | no | `atlas` (default), `classic`, `atlas-oblique` (`crates/arda-server/src/overview.rs:42-64`) |
+| overlay | String | no | `society` or `none`; default `society` when the world has `society/` (never with `atlas-oblique`); `society` without society files or with oblique is 400 |
 
 ### GET /v1/tiles/overview/{z}/{x}/{y}.webp
 
@@ -224,6 +225,7 @@ Response `image/webp`; `z` above 31 is 404 (`crates/arda-server/src/routes.rs:32
 | Field | Type | Required | Notes |
 |---|---|---|---|
 | oblique | 0 or 1 | no | serves the oblique pyramid |
+| overlay | String | no | `society` or `none`; as on `/v1/overview.png` |
 
 ### GET /v1/tiles/overview/{z}/{x}/{y}.png
 
@@ -232,6 +234,7 @@ Response `image/png`; same handler and parameters as the `.webp` form (`crates/a
 | Field | Type | Required | Notes |
 |---|---|---|---|
 | oblique | 0 or 1 | no | serves the oblique pyramid |
+| overlay | String | no | `society` or `none`; as on `/v1/overview.png` |
 
 ### GET /v1/tiles/relief/{z}/{x}/{y}.webp
 

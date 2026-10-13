@@ -66,12 +66,14 @@ Defined in `crates/arda-cli/src/main.rs:34`.
 | | `--px 1..=512` | absent; conflicts with `--quality`, `--style` | `crates/arda-cli/src/main.rs:84` |
 | | `--quality` | `8k` (512–32768 px or `1k`–`32k`) | `crates/arda-cli/src/main.rs:87` |
 | | `--style classic\|atlas\|atlas-oblique` | Classic | `crates/arda-cli/src/main.rs:91`, `crates/arda-cli/src/main.rs:157` |
+| | `--society auto\|off` | `auto` (a fresh preview world has no society) | `crates/arda-cli/src/main.rs` |
 | `export` | `--world`, `--out` | required | `crates/arda-cli/src/main.rs:100`, `crates/arda-cli/src/main.rs:125` |
 | | `--area ax,ay` | `0,0` | `crates/arda-cli/src/main.rs:103` |
 | | `--format png\|json` | `png` | `crates/arda-cli/src/main.rs:106` |
 | | `--overview` | off | `crates/arda-cli/src/main.rs:109` |
 | | `--detail` (4096² area PNG) | off; conflicts with overview/quality | `crates/arda-cli/src/main.rs:116` |
 | | `--quality`, `--style` | `8k`, Classic; `atlas-oblique` overview only (`crates/arda-cli/src/main.rs:200`) | `crates/arda-cli/src/main.rs:119`, `crates/arda-cli/src/main.rs:122` |
+| | `--society auto\|off` | `auto`: land use, roads and settlements on overview and area PNGs when `<world>/society/` exists (logic/04 §overlay); `off` is the plain terrain | `crates/arda-cli/src/main.rs` |
 | `settle` | `--world` | required | `crates/arda-cli/src/main.rs:132` |
 | `society build` | `--world` | required | `crates/arda-cli/src/society.rs:23` |
 | `tactical validate` | `<dir>` (library or `top:…:bottom` stack) | required | `crates/arda-cli/src/tactical.rs:16` |

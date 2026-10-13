@@ -196,3 +196,25 @@ Formed rivers have a minimum on-screen width that grows with log2 discharge, the
 ### §atlas-formed detail
 
 Below the field's own resolution the light gets sub-grid relief, never height, ownership or drainage. Four octaves (160, 96, 48 and 24 m across the fall line) each fade in once the wavelength spans three pixels and are full at six, so no export aliases or is supersampled. On slopes the relief is gradient noise stretched 3:1 along the smooth 312 m fall line, blended from four fixed orientations (12°, 57°, 102°, 147°) so it never swims; its slope amplitude rises from turf to bare rock, and only rugged faces are strongly directed. Runnel troughs darken the ambient term by up to a quarter. Turf, canopy and scree also get a 40 m and 20 m tonal texture (±4 % turf, ±7 % rock) under the same fade.
+
+## Society overlay on exports (§overlay)
+
+Overview and area PNGs can carry the human layer of a settled world (`<world>/society/`, `arda settle`). It is opt-in at the library level and a default at the surfaces: `arda::export_*` and `arda_render::render_*` keep their exact bytes (the goldens do not change), while `arda export`/`preview` take `--society auto|off` (auto: on when `society/settlements.json` exists, the default) and the server takes `?overlay=society|none` (§overlay-server).
+
+**Hook.** `arda_render::BandOverlay` has one method, `paint(y0, rows, width)`, called on finished RGB rows just before PNG encoding: once per 256-row band of a streamed overview (and of `OverviewRaster::finish_with_overlay`), once per row group of an area (`BandOverlay::area_rows`, default 64). Rows arrive in increasing `y0`, each once; an overlay paints pixels as a pure function of their place in the full image, so any grouping gives the same image. `None` is exactly the old path. Memory is one band or group; the row buffer does not grow with the image height. The oblique look refuses an overlay (its ground is shifted). `arda::export_overview_with_overlay` and `export_area_with_overlay` take `Option<&dyn BandOverlay>` and publish atomically like the plain exports. Text is never drawn here: names are the gazetteer's (task 13), painted after the overlay on tiles.
+
+**Overview layer** (`arda_settle::render::band::SocietyBandOverlay`, loaded once from `society/*.json|bin`, painted in strips of 128 columns so memory is flat). Order: land-use tone, roads, settlement symbols. All geometry stays in whole-image pixel coordinates (masks are placed in them), so strips, bands and the whole image give identical pixels (`crates/arda-settle/tests/band.rs`). Symbol and stroke scale is `s = clamp(width / 2048, 0.5, 2)` (the offline page's `s = 1` at 2,048 px, bounded); positions are the saved metres, symbols keep the offline renderer's tier shapes (`layers::symbol_r`) and never enlarge a saved extent. By metres per pixel `m`:
+
+| Layer | Drawn when |
+|---|---|
+| Land-use tone (arable, orchard, fallow, meadow, built), averaged over up to 4 × 4 cells under a pixel | `m` ≤ 400 |
+| Highways and roads, casings then fills | always |
+| Tracks | `m` ≤ 30 |
+| Footpaths (dashed) | `m` ≤ 10 |
+| Tier symbols (hamlet dot, village, red town disc, walled city, realm-seat ring) | always |
+
+**Area layer** (`arda_midzoom::land::export::AreaLandOverlay`): the worked land of relief tiles (`Works`: parcels and hedgerows, the 100 m tone, `arda-ways` roads, `arda-town` plans), at the relief thresholds (logic/17 §land): tone above 45 m/px; parcels and roads at or below 45 m (roads up to 128 m); building outlines, streets, yards and gardens at or below 20 m. Rows are cut into chunks about 3.2 km wide and gathered in parallel, each from society data only. A pixel is a function of its world position and the pixel size, so a building or street crossing into the neighbouring area paints the same pixels on both sides (`crates/arda-midzoom/tests/export.rs`); plans are canonical per settlement (logic/08). Not drawn on area exports: relief shading under woodland and low-relief drainage (relief-tile-only), and labels.
+
+**Server.** §overlay-server: `overlay` defaults to `society` when the world has it (never for the oblique look), `none` is the plain render; renders and decoded pyramid bases are keyed by it, tiles are cut from the matching base, `ETag` is still the BLAKE3 of the bytes.
+
+Cost on the verification host (seed-42 MICRO, Atlas, formed recipe): 32K overview peak RSS 94 MiB plain, 103 MiB with the overlay; 4K 67 and 79 MiB. An 8K area (6.25 m/px) with parcels, roads and plans peaks at about 1.1 GiB on 32 threads (576 MiB single-threaded, 48 MiB plain): the society files, the people world and one chunk gather per thread, independent of the output height.

@@ -96,6 +96,8 @@ Sites: `crates/arda-midzoom/src/lowrelief.rs:24-32`, `crates/arda-midzoom/src/lo
 ### §land
 Relief tiles of a world with `society/` (`arda settle`, `arda society build`) draw worked land from the geometry the tactical overlays compose (arda-blocks `SocietyOverlays`, shared with the server's blocks), so parcels, roads and buildings stay in place across the relief → tactical hand-off as water does (§water). Order per land pixel: shader colour → §low-relief → land use and canopy → channels (§rivers) → roads → settlements. Detail by pixel size: > 45 m the 100 m land-use raster as a bilinear tone; ≤ 45 m parcels, hedgerows and roads; ≤ 20 m settlement plans; ≤ 6 m strips, furrows, orchard rows, crowns, roof pitches and shadows. A world without `society/` renders byte-identically to before.
 
+Area PNG exports reuse this worked land without the relief beneath (`Works`, logic/04 §overlay): the same thresholds and geometry, no low-relief drainage or canopy.
+
 Sites: `crates/arda-midzoom/src/land/mod.rs:12-13`, `crates/arda-midzoom/src/land/mod.rs:43`, `crates/arda-midzoom/src/land/mod.rs:76-85`, `crates/arda-midzoom/src/land/mod.rs:367-446`, `crates/arda-server/src/lib.rs:206-219`.
 
 ### §land-fields

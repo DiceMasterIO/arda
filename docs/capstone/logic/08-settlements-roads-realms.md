@@ -236,6 +236,8 @@ Each is a test (goal numbers in brackets):
 
 ## Outcomes & side effects
 
+Export consumption (logic/04 §overlay): overview PNGs read `landuse.bin`, `settlements.json`, `realms.json` (seats) and `roads.json` through `Society::read` (centrelines as saved, smoothed by Chaikin; classes by metres per pixel); area PNGs read the same files through `arda-people` and the tactical overlays (plans, `arda-ways` roads, field partition), so exports draw nothing the tactical layer would not.
+
 `<world>/society/`, each JSON file with `"format_version": 1` and the world `seed` as a decimal string:
 
 | File | Content | Consumers |

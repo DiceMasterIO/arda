@@ -111,6 +111,8 @@ inputs; OI-13 to finalize published settlement extents; the closed OI-02 panel (
 7. **Delivered for Atlas terrain:** bounded neighboring context and streamed rows/256-row bands, with preserved publication and quality limits. Repeat 32K exports peaked at about 43 MiB (area) and 65 MiB (overview) on the verification host. Future overlays must preserve these bounded structures.
 8. Review matched-scale before/after outputs with and without human overlays, including multiple seeds and seams. Record visible improvement, resource cost and unresolved generation limits.
 
+**Task 15 (2026-10-13):** steps 4–6 delivered for the society layer: overview PNGs and tiles carry land-use tone, roads by class and tier symbols (`arda export --society`, `?overlay=`), streamed in the existing 256-row bands (32K overview peak 103 MiB against 94 MiB plain). Forest and ecological layers, realm tints and borders, and matched multi-seed review (step 8) remain; labels belong to the gazetteer.
+
 **Done when:** world views are substantially richer in geographical detail,
 settlement outlines/main roads are readable and correctly placed, and progress
 is demonstrably more than a larger image or extra road lines.
@@ -129,6 +131,8 @@ quality exports and public area queries; view-window/crop support is **proposed*
 4. Expose building/route shapes through the versioned area JSON/object contract. Never require the consumer to trace an exported PNG to recover geometry.
 5. Handle buildings/paths crossing areas and streamed bands without duplicates, gaps or clipped entrances. Reuse the canonical ownership rules.
 6. Check representative village/town/dense-site crops and compare them with world and tactical views. Export successfully before interiors/furniture exist.
+
+**Task 15 (2026-10-13):** steps 1, 2 and 5 delivered: area PNGs draw parcels, roads, building footprints and streets from the relief tiles' own geometry at ≤ 20 m/px (`export_area_with_overlay`, `arda export --area --society`), identical across area borders. Step 4 confirmed: `/v1/settlements/{id}/plan` carries building footprints and `/v1/area/.../cells` carries `road_class` and `land_use`; area JSON itself still has no building shapes (not widened). Remaining: step 3 crop window (proposal: `arda export --area ax,ay --crop x0,y0,x1,y1` in metres, rendering only that window at its own pixel size, reusing `AreaLandOverlay::paint_window`), vector building outlines below 20 m/px, and the representative-crop comparison with tactical views (step 6).
 
 **Done when:** building outlines and local routes are legible at the declared
 view scale and exactly match the shared plan later consumed by tactical generation.
