@@ -2,6 +2,13 @@
 generated_date: 2026-08-24
 ---
 
+## 2026-10-13 - Tier-5 partition art prepared
+- **Request**: 1.0 task 06, OI-32. Interior walls inside one building are tagged `partition`; until `timber_partition`, `wattle_partition` and `adobe_partition` art exists the compositor squeezes the kit's own piece to half thickness.
+- **Importer**: `WALL_KITS` gains `log`, `adobe` and the three partition kits, so `wall.<kit>_partition.<role>` files are no longer flagged "not in the vocabulary"; coverage slots grow by five. A partition kit with missing roles is reported, not rejected (test `partition_kits_are_in_the_vocabulary`).
+- **Compositor**: test that a library holding thin `timber_partition` pieces draws them as painted (thinner than the exterior piece) and that without them the half-thickness fallback stays.
+- **art-gen**: `tiers.about` and the `expansion.mjs` header now describe tier 5 (57 images); plan.md has the tier-5 dry-run command and the thin-band redo rule. The images are not generated yet; the fallback stays until they are.
+- **Closed**: OI-32 (code and prompt side; generation and import follow with the maintainer's approval).
+
 ## 2026-10-13 - Effect and damage art tier
 - **Request**: 1.0 task 05, OI-45. DiceMaster draws spell effects and lasting damage over Arda's tiles itself; Arda now lists and serves matching art.
 - **Catalogue**: new `AssetClass::Effect` (`effect.<name>.<n>`, free tag `effect:texture` or `effect:decal`, layer `floor`). Effects may be semi-transparent but not empty or opaque (`effect_alpha`); tileable ones must wrap in colour and opacity. `FORMAT_VERSION` stays 1. Layouts never place effects and the compositor ignores the class (test: layouts render byte-identical with the effects removed). Stacked libraries replace an effect set by name.
