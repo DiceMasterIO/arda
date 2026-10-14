@@ -1,7 +1,11 @@
 //! The farmstead's kitchen-garden plot (1.0 task 17): beds, poles, a cold
 //! frame and clutter on its farmland, all known to the placeholder library.
 
-#![allow(clippy::unwrap_used)]
+#![allow(
+    clippy::unwrap_used,
+    clippy::cast_possible_truncation,
+    clippy::cast_sign_loss
+)]
 
 use arda_fields::generate;
 use arda_fields::supplement::supplemented_library;
