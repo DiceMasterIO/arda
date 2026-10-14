@@ -46,3 +46,25 @@ fn ways_rules_are_scene_sidecar_format_2() {
     let json = serde_json::to_string(r).unwrap();
     assert_eq!(arda_scene::RulesSidecar::from_json(&json).unwrap(), *r);
 }
+
+/// The rules contract (logic/12 §scene-sidecar, review 3.5-1 and 3.5-5):
+/// a way states a flag only when it holds and no cover of its own, so a
+/// verge never wipes the canopy or rough ground beneath it, and props keep
+/// their catalogue blocking.
+#[test]
+fn ways_cells_state_flags_only_when_they_hold() {
+    let (roads, crossings, t) = bridge_scene();
+    let (_, out) = window([0.0, 0.0], 64, 64, &roads, &crossings, &t);
+    let mut stated = 0;
+    for c in &out.rules.squares {
+        if c.ext.is_none() {
+            continue;
+        }
+        stated += 1;
+        assert_ne!(c.blocks_sight, Some(false), "{c:?}");
+        assert_ne!(c.blocks_movement, Some(false), "{c:?}");
+        assert_ne!(c.difficult, Some(false), "{c:?}");
+        assert_ne!(c.cover, Some(arda_scene::CoverLevel::None), "{c:?}");
+    }
+    assert!(stated > 0);
+}

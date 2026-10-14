@@ -491,7 +491,8 @@ impl From<Cover> for arda_scene::CoverLevel {
 
 impl TownBlock {
     /// The `arda-scene` `RulesSidecar` format 2 of this block (adapter A8,
-    /// I9): owned squares state their rules in full, with the water depth
+    /// I9): owned squares state what their ground implies (flags only when
+    /// they hold), with the water depth
     /// under a deck kept and `deck` set; a square inside a plan building
     /// carries its id as `ext.building` (a string, I5). Other squares state
     /// nothing, so the layers beneath keep theirs.
@@ -506,11 +507,15 @@ impl TownBlock {
             let (Some(sr), Some(sq)) = (self.rules.get(i), self.layout.squares.get(i)) else {
                 continue;
             };
-            cell.difficult = Some(sr.difficult);
+            // The rules contract (logic/12 §scene-sidecar): the town states
+            // what its ground implies, each flag only when it holds; its
+            // props' blocking and cover are their catalogue entries', folded
+            // in by the scene, never cleared here.
+            cell.difficult = arda_scene::RulesCell::flag(sr.difficult);
             cell.water_depth_ft = Some(sq.water_depth_ft);
-            cell.cover = Some(sr.cover.into());
-            cell.blocks_sight = Some(sr.blocks_sight);
-            cell.blocks_movement = Some(sr.blocks_movement);
+            cell.cover = arda_scene::RulesCell::stated_cover(sr.cover.into());
+            cell.blocks_sight = arda_scene::RulesCell::flag(sr.blocks_sight);
+            cell.blocks_movement = arda_scene::RulesCell::flag(sr.blocks_movement);
             cell.deck = Some(sr.deck);
         }
         let wi = i64::from(w);

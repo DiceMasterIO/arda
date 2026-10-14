@@ -40,7 +40,17 @@ fn a_cell_window_is_the_refined_block_with_its_origin() {
     let want = refine_block(&synthetic::world(42), RIVER_CELL).unwrap();
     assert_eq!(got.layout.squares, want.layout.squares);
     assert_eq!(got.layout.placements, want.layout.placements);
-    assert_eq!(got.rules, want.rules);
+    // The pipeline folds the placements' catalogue rules into refine's
+    // (logic/12 §scene-sidecar, the rules contract).
+    let mut folded = want.rules.clone();
+    let placed = arda_scene::squares::resolve_known(&want.layout, lib(), p.seed());
+    arda_scene::squares::fold_placements(&mut folded, &placed);
+    assert_eq!(got.rules, folded);
+    assert!(got
+        .rules
+        .squares
+        .iter()
+        .any(|c| c.blocks_movement == Some(true)));
     assert_eq!(
         got.layout.origin,
         Some([RIVER_CELL.x * 64, RIVER_CELL.y * 64])

@@ -179,11 +179,13 @@ impl Sidecar {
             if !own {
                 continue;
             }
-            cell.difficult = Some(sq.difficult);
+            // The rules contract (logic/12 §scene-sidecar): flags only
+            // when they hold.
+            cell.difficult = arda_scene::RulesCell::flag(sq.difficult);
             cell.water_depth_ft = Some(sq.water_depth_ft);
-            cell.cover = Some(sq.cover.into());
-            cell.blocks_sight = Some(sq.blocks_sight);
-            cell.blocks_movement = Some(sq.blocks_movement);
+            cell.cover = arda_scene::RulesCell::stated_cover(sq.cover.into());
+            cell.blocks_sight = arda_scene::RulesCell::flag(sq.blocks_sight);
+            cell.blocks_movement = arda_scene::RulesCell::flag(sq.blocks_movement);
             cell.deck = Some(sq.deck);
             if let Some(v) = sq.crop.and_then(|c| serde_json::to_value(c).ok()) {
                 cell.set_ext("crop", v);

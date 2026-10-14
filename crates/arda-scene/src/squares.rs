@@ -14,6 +14,11 @@ use arda_tactical::Library;
 pub const SWIM_DEPTH_FT: u8 = 5;
 /// An elevation step this high or higher between neighbours needs climbing.
 pub const CLIMB_STEP_FT: i32 = 10;
+/// Ground key of a cliff face (logic/09 §linear-features): refine draws it
+/// where the slope exceeds 48°, steeper than one 5-ft step per square.
+pub const CLIFF_GROUND: &str = "cliff";
+/// An elevation step this high or higher touching cliff ground is a climb.
+pub const CLIFF_STEP_FT: i32 = 5;
 
 /// Neighbour offsets in climb-mask bit order: N, NE, E, SE, S, SW, W, NW.
 pub const DIRS: [(i64, i64); 8] = [
@@ -54,9 +59,8 @@ pub fn resolve_all<'a>(
     lib: &'a Library,
     seed: u64,
 ) -> Result<Vec<Placed<'a>>, SceneError> {
-    let s = art_seed(lib, seed);
+    let all = compose::resolve_all(lib, layout, art_seed(lib, seed));
     let mut out = Vec::with_capacity(layout.placements.len());
-    let all = compose::resolve_all(lib, layout, s);
     for (i, (p, r)) in layout.placements.iter().zip(all).enumerate() {
         let r = r.ok_or_else(|| {
             SceneError::Tactical(arda_tactical::TacticalError::Layout {
@@ -64,28 +68,47 @@ pub fn resolve_all<'a>(
                 message: format!("placement {i} matches no asset"),
             })
         })?;
-        // The take, turn and mirror the compositor draws.
-        let (a, turns) = (r.asset, r.turns % 4);
-        let anchor = a.anchor_or_centre();
-        let (mut ax, mut ay) = (anchor.x, anchor.y);
-        #[allow(clippy::cast_precision_loss)] // footprints are a few squares
-        let (mut w, mut h) = (a.footprint.w as f32, a.footprint.h as f32);
-        if r.mirror {
-            ax = w - ax;
-        }
-        for _ in 0..turns {
-            // Same turn as `compose::anchor_origin`: (x, y) -> (h - y, x).
-            (ax, ay) = (h - ay, ax);
-            (w, h) = (h, w);
-        }
-        let (x0, y0) = (p.x - ax, p.y - ay);
-        out.push(Placed {
-            asset: a,
-            rect: [x0, y0, x0 + w, y0 + h],
-            at: (p.x, p.y),
-        });
+        out.push(place(p, &r));
     }
     Ok(out)
+}
+
+/// Resolves the placements that match an asset, in layout order, skipping
+/// any that match none (for folding rules into a sidecar before the layout
+/// is checked against the library).
+#[must_use]
+pub fn resolve_known<'a>(layout: &TacticalLayout, lib: &'a Library, seed: u64) -> Vec<Placed<'a>> {
+    let all = compose::resolve_all(lib, layout, art_seed(lib, seed));
+    layout
+        .placements
+        .iter()
+        .zip(all)
+        .filter_map(|(p, r)| r.map(|r| place(p, &r)))
+        .collect()
+}
+
+/// The take, turn and mirror the compositor draws: the asset's footprint
+/// rectangle around the placement's anchor.
+fn place<'a>(p: &arda_tactical::layout::Placement, r: &compose::Resolved<'a>) -> Placed<'a> {
+    let (a, turns) = (r.asset, r.turns % 4);
+    let anchor = a.anchor_or_centre();
+    let (mut ax, mut ay) = (anchor.x, anchor.y);
+    #[allow(clippy::cast_precision_loss)] // footprints are a few squares
+    let (mut w, mut h) = (a.footprint.w as f32, a.footprint.h as f32);
+    if r.mirror {
+        ax = w - ax;
+    }
+    for _ in 0..turns {
+        // Same turn as `compose::anchor_origin`: (x, y) -> (h - y, x).
+        (ax, ay) = (h - ay, ax);
+        (w, h) = (h, w);
+    }
+    let (x0, y0) = (p.x - ax, p.y - ay);
+    Placed {
+        asset: a,
+        rect: [x0, y0, x0 + w, y0 + h],
+        at: (p.x, p.y),
+    }
 }
 
 /// Squares whose centre lies inside `rect`, clamped to the map.
@@ -121,7 +144,95 @@ pub struct Layers {
     pub bridged: Vec<bool>,
 }
 
+/// What the placements alone imply per square, by their catalogue entries.
+struct Stamped {
+    blocked: Vec<bool>,
+    difficult: Vec<bool>,
+    bridged: Vec<bool>,
+    cover: Vec<CoverLevel>,
+    obscured: Vec<Obscurement>,
+}
+
+/// Stamps every placement's catalogue rules onto a `w × h` map.
+fn stamp(placed: &[Placed<'_>], w: u32, h: u32) -> Stamped {
+    let n = w as usize * h as usize;
+    let idx = |x: u32, y: u32| y as usize * w as usize + x as usize;
+    let mut s = Stamped {
+        blocked: vec![false; n],
+        difficult: vec![false; n],
+        bridged: vec![false; n],
+        cover: vec![CoverLevel::None; n],
+        obscured: vec![Obscurement::Clear; n],
+    };
+    for p in placed {
+        let a = p.asset;
+        let sight = if a.blocks_sight {
+            Obscurement::Heavy
+        } else {
+            Obscurement::Light
+        };
+        for (x, y) in covered(p.rect, w, h) {
+            let i = idx(x, y);
+            s.difficult[i] |= a.difficult_terrain;
+            match a.layer {
+                // A canopy overhangs: it obscures its whole footprint but
+                // only the trunk square stops movement or grants cover.
+                Layer::Canopy => s.obscured[i] = s.obscured[i].max(sight),
+                Layer::Floor => s.bridged[i] = true,
+                _ => {
+                    s.blocked[i] |= a.blocks_movement;
+                    s.cover[i] = s.cover[i].max(a.cover.into());
+                    if a.blocks_sight {
+                        s.obscured[i] = Obscurement::Heavy;
+                    }
+                }
+            }
+        }
+        if a.layer == Layer::Canopy {
+            if let Some(i) = trunk(p.at, w, h).map(|(x, y)| idx(x, y)) {
+                s.blocked[i] |= a.blocks_movement;
+                s.cover[i] = s.cover[i].max(a.cover.into());
+            }
+        }
+    }
+    s
+}
+
+/// Folds the catalogue rules of `placed` into `rules` (logic/12
+/// §scene-sidecar, the rules contract): a square a blocking asset covers
+/// states `blocks_movement`, a sight-blocking one `blocks_sight`, a
+/// difficult one `difficult`, and `cover` takes the stronger of the cell's
+/// and the assets'. Only `true`
+/// and stronger values are written, so the fold never erases what a layer
+/// stated, and folding twice changes nothing.
+pub fn fold_placements(rules: &mut RulesSidecar, placed: &[Placed<'_>]) {
+    let (w, h) = (rules.width, rules.height);
+    let s = stamp(placed, w, h);
+    for (i, c) in rules.squares.iter_mut().enumerate() {
+        if s.blocked.get(i).copied().unwrap_or(false) {
+            c.blocks_movement = Some(true);
+        }
+        if s.obscured.get(i) == Some(&Obscurement::Heavy) {
+            c.blocks_sight = Some(true);
+        }
+        if s.difficult.get(i).copied().unwrap_or(false) {
+            c.difficult = Some(true);
+        }
+        let cv = s.cover.get(i).copied().unwrap_or(CoverLevel::None);
+        if cv > CoverLevel::None {
+            c.cover = Some(c.cover.map_or(cv, |m| m.max(cv)));
+        }
+    }
+}
+
 /// Derives every per-square layer.
+///
+/// The sidecar merges with what the placements imply (logic/12
+/// §scene-sidecar, the rules contract): it may add difficulty, blocking,
+/// sight blocking, light obscurement and cover, and states water depth and
+/// decks, but a `false` never clears what an asset's catalogue entry
+/// implies, so every blocking asset is impassable and every sight-blocking
+/// one opaque whatever the layers above it say.
 ///
 /// # Errors
 /// [`SceneError::Schema`] when the layout's square list is not
@@ -144,78 +255,30 @@ pub fn derive(
     if let Some(r) = rules {
         r.check(w, h)?;
     }
-    let idx = |x: u32, y: u32| y as usize * w as usize + x as usize;
-    let mut blocked = vec![false; n];
-    let mut difficult = vec![false; n];
-    let mut bridged = vec![false; n];
-    let mut cover = vec![CoverLevel::None; n];
-    let mut obscured = vec![Obscurement::Clear; n];
-    // Squares under a canopy: a sidecar that clears their heavy obscurement
-    // leaves the foliage's light obscurement (review round 2 #39).
-    let mut foliage = vec![false; n];
-    for p in placed {
-        let a = p.asset;
-        let sight = if a.blocks_sight {
-            Obscurement::Heavy
-        } else {
-            Obscurement::Light
-        };
-        for (x, y) in covered(p.rect, w, h) {
-            let i = idx(x, y);
-            difficult[i] |= a.difficult_terrain;
-            match a.layer {
-                // A canopy overhangs: it obscures its whole footprint but
-                // only the trunk square stops movement or grants cover.
-                Layer::Canopy => {
-                    obscured[i] = obscured[i].max(sight);
-                    foliage[i] = true;
-                }
-                Layer::Floor => bridged[i] = true,
-                _ => {
-                    blocked[i] |= a.blocks_movement;
-                    cover[i] = cover[i].max(a.cover.into());
-                    if a.blocks_sight {
-                        obscured[i] = Obscurement::Heavy;
-                    }
-                }
-            }
-        }
-        if a.layer == Layer::Canopy {
-            if let Some(i) = trunk(p.at, w, h).map(|(x, y)| idx(x, y)) {
-                blocked[i] |= a.blocks_movement;
-                cover[i] = cover[i].max(a.cover.into());
-            }
-        }
-    }
+    let Stamped {
+        mut blocked,
+        mut difficult,
+        mut bridged,
+        mut cover,
+        mut obscured,
+    } = stamp(placed, w, h);
     let mut water: Vec<u8> = layout.squares.iter().map(|s| s.water_depth_ft).collect();
     if let Some(r) = rules {
         for (i, c) in r.squares.iter().enumerate().take(n) {
-            if let Some(d) = c.difficult {
-                difficult[i] = d;
-            }
+            difficult[i] |= c.difficult == Some(true);
             if let Some(d) = c.water_depth_ft {
                 water[i] = d;
             }
             if let Some(cv) = c.cover {
                 cover[i] = cover[i].max(cv);
             }
-            match c.blocks_sight {
-                Some(true) => obscured[i] = Obscurement::Heavy,
-                Some(false) if obscured[i] == Obscurement::Heavy => {
-                    obscured[i] = if foliage[i] {
-                        Obscurement::Light
-                    } else {
-                        Obscurement::Clear
-                    };
-                }
-                _ => {}
+            if c.blocks_sight == Some(true) {
+                obscured[i] = Obscurement::Heavy;
             }
             if c.lightly_obscured == Some(true) && obscured[i] == Obscurement::Clear {
                 obscured[i] = Obscurement::Light;
             }
-            if let Some(b) = c.blocks_movement {
-                blocked[i] = b;
-            }
+            blocked[i] |= c.blocks_movement == Some(true);
             if let Some(d) = c.deck {
                 bridged[i] = d;
             }
@@ -237,9 +300,14 @@ pub fn derive(
         })
         .collect();
     let elevation: Vec<i16> = layout.squares.iter().map(|s| s.elevation_ft).collect();
+    let cliff: Vec<bool> = layout
+        .squares
+        .iter()
+        .map(|s| s.ground == CLIFF_GROUND)
+        .collect();
     Ok(Layers {
         movement: Grid(movement),
-        climb: Grid(climb_masks(&elevation, w, h)),
+        climb: Grid(climb_masks(&elevation, &cliff, w, h)),
         cover: Grid(cover),
         obscured: Grid(obscured),
         elevation_ft: Grid(elevation),
@@ -256,26 +324,37 @@ fn trunk(at: (f32, f32), w: u32, h: u32) -> Option<(u32, u32)> {
     inside.then_some((x as u32, y as u32))
 }
 
-fn climb_masks(elev: &[i16], w: u32, h: u32) -> Vec<u8> {
+/// Whether the step from a square at `e` to a neighbour at `ne` is a climb:
+/// 10 ft or more, or 5 ft or more where either square is cliff ground
+/// (logic/12 §scene-climb).
+fn is_climb(e: i16, ne: i16, cliff: bool) -> bool {
+    let dz = (i32::from(ne) - i32::from(e)).abs();
+    dz >= CLIMB_STEP_FT || (cliff && dz >= CLIFF_STEP_FT)
+}
+
+fn climb_masks(elev: &[i16], cliff: &[bool], w: u32, h: u32) -> Vec<u8> {
     let (wi, hi) = (i64::from(w), i64::from(h));
-    let at = |x: i64, y: i64| elev.get(usize::try_from(y * wi + x).unwrap_or(usize::MAX));
+    let at = |x: i64, y: i64| usize::try_from(y * wi + x).ok();
     let mut out = vec![0u8; elev.len()];
     for y in 0..hi {
         for x in 0..wi {
-            let Some(&e) = at(x, y) else { continue };
+            let Some(k) = at(x, y) else { continue };
+            let Some(&e) = elev.get(k) else { continue };
+            let here = cliff.get(k).copied().unwrap_or(false);
             let mut m = 0u8;
             for (bit, (dx, dy)) in DIRS.iter().enumerate() {
                 let (nx, ny) = (x + dx, y + dy);
                 if nx < 0 || ny < 0 || nx >= wi || ny >= hi {
                     continue;
                 }
-                if let Some(&ne) = at(nx, ny) {
-                    if (i32::from(ne) - i32::from(e)).abs() >= CLIMB_STEP_FT {
+                let Some(j) = at(nx, ny) else { continue };
+                if let Some(&ne) = elev.get(j) {
+                    if is_climb(e, ne, here || cliff.get(j).copied().unwrap_or(false)) {
                         m |= 1 << bit;
                     }
                 }
             }
-            if let Some(slot) = out.get_mut(usize::try_from(y * wi + x).unwrap_or(usize::MAX)) {
+            if let Some(slot) = out.get_mut(k) {
                 *slot = m;
             }
         }
@@ -343,7 +422,7 @@ mod tests {
 
     #[test]
     fn climb_masks_flag_ten_foot_steps_both_ways() {
-        let m = climb_masks(&[0, 10, 5], 3, 1);
+        let m = climb_masks(&[0, 10, 5], &[false; 3], 3, 1);
         assert_eq!(m[0], 1 << 2);
         assert_eq!(m[1], 1 << 6);
         assert_eq!(m[2], 0);

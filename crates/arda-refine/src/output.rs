@@ -30,40 +30,25 @@ pub fn rules_of(it: &Item) -> (CoverRule, bool) {
     (cover, difficult || it.tag == "rock:scree")
 }
 
-fn floor_i(v: f64) -> i64 {
-    #[allow(clippy::cast_possible_truncation)]
-    let i = v.floor() as i64;
-    i
-}
-
 /// Rules for every square of `b`; `items` includes the halo so canopy
-/// counts near the edge match the neighbour's.
+/// counts near the edge match the neighbour's. Ground, water, canopy and
+/// the cover of the item anchored on each square; an item's blocking and
+/// difficulty are its catalogue entry's (logic/12 §scene-sidecar).
 #[must_use]
 pub fn square_rules(b: &Block, items: &[Item], illegal: &BTreeSet<usize>) -> Vec<SquareRules> {
     let mut out = Vec::with_capacity(SIDE * SIDE);
     let mut cover = vec![CoverRule::None; SIDE * SIDE];
-    let mut hard = vec![false; SIDE * SIDE];
-    let mut wall = vec![false; SIDE * SIDE];
     for it in items {
-        // An outcrop fills the 3 × 3 squares around its anchor.
-        let r = if it.kind == Kind::Outcrop { 1 } else { 0 };
-        for dy in -r..=r {
-            for dx in -r..=r {
-                let (i, j) = (
-                    floor_i(it.x) + dx - b.origin.0,
-                    floor_i(it.y) + dy - b.origin.1,
-                );
-                let (Ok(i), Ok(j)) = (usize::try_from(i), usize::try_from(j)) else {
-                    continue;
-                };
-                if i >= SIDE || j >= SIDE {
-                    continue;
-                }
-                let (c, d) = rules_of(it);
-                cover[j * SIDE + i] = cover[j * SIDE + i].max(c);
-                hard[j * SIDE + i] |= d;
-                wall[j * SIDE + i] |= r > 0;
-            }
+        #[allow(clippy::cast_possible_truncation)]
+        let (i, j) = (
+            it.x.floor() as i64 - b.origin.0,
+            it.y.floor() as i64 - b.origin.1,
+        );
+        let (Ok(i), Ok(j)) = (usize::try_from(i), usize::try_from(j)) else {
+            continue;
+        };
+        if i < SIDE && j < SIDE {
+            cover[j * SIDE + i] = cover[j * SIDE + i].max(rules_of(it).0);
         }
     }
     let trunks: Vec<&Item> = items
@@ -83,13 +68,12 @@ pub fn square_rules(b: &Block, items: &[Item], illegal: &BTreeSet<usize>) -> Vec
                 .count();
             let depth = b.depth_ft[k];
             out.push(SquareRules {
-                difficult: hard[k] || difficult_ground(b.ground[k], depth),
+                difficult: difficult_ground(b.ground[k], depth),
                 water_depth_ft: depth,
                 cover: cover[k],
                 blocks_sight: canopy >= CANOPY_BLOCKS && depth == 0,
                 lightly_obscured: ((CANOPY_LIGHT..CANOPY_BLOCKS).contains(&canopy) && depth == 0)
                     || b.ground[k] == "reed_bed",
-                blocks_movement: wall[k],
                 review: b.relaxed && illegal.contains(&k),
             });
         }
@@ -162,7 +146,6 @@ pub fn assemble<B: std::borrow::Borrow<Block>>(
         cover: CoverRule::None,
         blocks_sight: false,
         lightly_obscured: false,
-        blocks_movement: false,
         review: false,
     };
     let mut rules = vec![blank; wu * hu];

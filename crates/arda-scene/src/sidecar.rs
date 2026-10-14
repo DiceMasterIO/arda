@@ -89,11 +89,18 @@ pub struct EdgeRule {
 }
 
 /// One square's rules. `None` (or an absent field) means "no opinion".
+///
+/// The rules contract (logic/12 §scene-sidecar): a layer states only the
+/// fields it knows, and states the flags `difficult`, `blocks_sight`,
+/// `lightly_obscured` and `blocks_movement` only when they hold (see
+/// [`RulesCell::flag`]). The scene merges a cell with the catalogue rules of
+/// the placements covering the square: flags are unioned, `cover` takes the
+/// stronger; only `water_depth_ft` and `deck` replace.
 #[derive(Debug, Clone, Default, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(deny_unknown_fields)]
 pub struct RulesCell {
-    /// Overrides difficult terrain: `true` sets it (undergrowth, scree, mud),
-    /// `false` clears what props implied.
+    /// Difficult terrain: `true` adds it (undergrowth, scree, mud); `false`
+    /// states nothing more and never clears an asset's `difficult_terrain`.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub difficult: Option<bool>,
     /// Overrides the layout's water depth in feet (0 is dry, 1–4 wading,
@@ -104,17 +111,19 @@ pub struct RulesCell {
     /// the stronger: the SRD applies only the most protective degree.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub cover: Option<CoverLevel>,
-    /// Overrides whether the square blocks sight (dense canopy clusters).
-    /// `true` makes it heavily obscured; `false` clears asset-derived heavy
-    /// obscurement (light canopy obscurement stays).
+    /// Whether the square blocks sight (dense canopy clusters, a
+    /// sight-blocking asset). `true` makes it heavily obscured; `false`
+    /// never clears what a sight-blocking asset implies (the rules contract,
+    /// logic/12 §scene-sidecar).
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub blocks_sight: Option<bool>,
     /// Lightly obscured (moderate foliage, reeds), logic/09 §rules-sidecar.
     /// Never downgrades a heavily obscured square.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub lightly_obscured: Option<bool>,
-    /// Overrides whether the square blocks movement: `true` makes it
-    /// impassable (cliff face, thicket), `false` clears prop blocking.
+    /// Whether the square blocks movement: `true` makes it impassable
+    /// (thicket, a blocking asset folded in); `false` never clears what a
+    /// blocking asset implies (the rules contract, logic/12 §scene-sidecar).
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub blocks_movement: Option<bool>,
     /// Overrides whether a walkable deck (bridge, jetty) spans the square:
@@ -151,6 +160,23 @@ impl RulesCell {
                 mine.insert(k.clone(), v.clone());
             }
         }
+    }
+
+    /// A flag as a layer states it under the rules contract: `Some(true)`
+    /// when it holds, else nothing (`None`).
+    #[must_use]
+    pub const fn flag(on: bool) -> Option<bool> {
+        if on {
+            Some(true)
+        } else {
+            None
+        }
+    }
+
+    /// A cover degree as a layer states it: nothing for `none`.
+    #[must_use]
+    pub fn stated_cover(c: CoverLevel) -> Option<CoverLevel> {
+        (c > CoverLevel::None).then_some(c)
     }
 
     /// Sets one `ext` key.

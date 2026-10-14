@@ -23,7 +23,8 @@ pub const DEFAULT_BLOCK_CACHE: usize = 256;
 pub struct Composed {
     /// The layout, with `origin` set to the window's world square (I10).
     pub layout: TacticalLayout,
-    /// The merged rules, `arda-scene` format 2 (I9).
+    /// The merged rules, `arda-scene` format 2 (I9), with the placements'
+    /// catalogue rules folded in.
     pub rules: RulesSidecar,
     /// arda-refine's review record: relaxed fills, WFC attempts, tags.
     pub meta: MapMeta,
@@ -223,6 +224,12 @@ impl Pipeline {
             None => crate::overlays::Applied::default(),
         };
         layout.origin = Some([gsx0, gsy0]);
+        // The rules contract (logic/12 §scene-sidecar): every placement's
+        // catalogue blocking, sight blocking and cover join the sidecar, so
+        // a reader of the rules alone (tokens, the rules endpoint) sees what
+        // the scene sees. Resolved with the world seed, as `/scene` is.
+        let placed = arda_scene::squares::resolve_known(&layout, library, self.seed());
+        arda_scene::squares::fold_placements(&mut rules, &placed);
         // Relaxed overlay fills (the town WFC's) join the refiner's review
         // record (goal 47).
         let mut meta = map.meta;

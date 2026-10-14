@@ -138,36 +138,82 @@ fn lights_carry_srd_bright_and_dim_radii() {
 }
 
 #[test]
-fn the_sidecar_overrides_and_merges() {
+fn the_sidecar_adds_to_what_the_placements_imply() {
     let l = L::new(6, 3)
         .put("veg.bush", 0, 0)
         .put("veg.boulder", 1, 0)
         .put("prop.crate", 2, 0);
     let mut r = RulesSidecar::empty(6, 3);
     let mut set = |x, y, f: &dyn Fn(&mut arda_scene::RulesCell)| f(r.cell_mut(x, y).unwrap());
-    set(0, 0, &|c| c.difficult = Some(false));
     set(1, 0, &|c| c.cover = Some(CoverLevel::Half));
     set(2, 0, &|c| c.cover = Some(CoverLevel::Total));
     set(3, 0, &|c| c.difficult = Some(true));
     set(4, 0, &|c| c.water_depth_ft = Some(6));
     set(5, 0, &|c| c.blocks_movement = Some(true));
-    set(2, 0, &|c| c.blocks_movement = Some(false));
     set(3, 1, &|c| c.blocks_sight = Some(true));
     let s = l.scene_with(&r);
-    assert_eq!(s.movement_at(Sq(0, 0)), Movement::Normal);
+    assert_eq!(s.movement_at(Sq(0, 0)), Movement::Difficult);
     assert_eq!(s.cover_at(Sq(1, 0)), CoverLevel::ThreeQuarters);
     assert_eq!(s.cover_at(Sq(2, 0)), CoverLevel::Total);
     assert_eq!(s.movement_at(Sq(3, 0)), Movement::Difficult);
     assert_eq!(s.movement_at(Sq(4, 0)), Movement::Swim);
     assert_eq!(s.water_depth_ft.0[4], 6);
     assert_eq!(s.movement_at(Sq(5, 0)), Movement::Impassable);
-    assert_eq!(s.movement_at(Sq(2, 0)), Movement::Normal);
+    assert_eq!(s.movement_at(Sq(2, 0)), Movement::Impassable);
     assert_eq!(s.obscured.0[6 + 3], Obscurement::Heavy);
     assert!(!s.line_of_sight(Sq(2, 1), Sq(4, 1)));
-    // Without the sidecar the bush is difficult and the lane is clear.
     let plain = l.scene();
-    assert_eq!(plain.movement_at(Sq(0, 0)), Movement::Difficult);
     assert!(plain.line_of_sight(Sq(2, 1), Sq(4, 1)));
+}
+
+/// The rules contract (review 3.4-1, 3.5-1): a layer's `false` is no
+/// opinion about the props on the square; it never makes a blocking asset
+/// walkable or a sight-blocking one transparent.
+#[test]
+fn a_sidecar_false_never_clears_catalogue_blocking() {
+    let l = L::new(4, 3)
+        .put("veg.bush", 0, 1)
+        .put("veg.boulder", 1, 1)
+        .put("prop.crate", 2, 1)
+        .put("veg.rock_large", 2, 0);
+    let mut r = RulesSidecar::empty(4, 3);
+    for c in &mut r.squares {
+        c.difficult = Some(false);
+        c.blocks_movement = Some(false);
+        c.blocks_sight = Some(false);
+        c.cover = Some(CoverLevel::None);
+    }
+    let s = l.scene_with(&r);
+    assert_eq!(s.movement_at(Sq(0, 1)), Movement::Difficult);
+    assert_eq!(s.movement_at(Sq(1, 1)), Movement::Impassable);
+    assert_eq!(s.movement_at(Sq(2, 1)), Movement::Impassable);
+    assert_eq!(s.obscured.0[4 + 1], Obscurement::Heavy);
+    assert_eq!(s.cover_at(Sq(1, 1)), CoverLevel::ThreeQuarters);
+    // The large rock's 2 x 2 footprint, centred on (2.5, 0.5), covers the
+    // squares whose centres it contains.
+    let rock: Vec<usize> = (0..12)
+        .filter(|&i| s.movement.0[i] == Movement::Impassable)
+        .collect();
+    assert!(rock.contains(&2) || rock.contains(&3), "{rock:?}");
+}
+
+/// Cliff ground is a climb wherever it steps (review 3.4-4): a 5-ft step
+/// touching a cliff square needs climbing, the same step on open ground
+/// does not, and a level edge along the cliff never does.
+#[test]
+fn a_step_onto_cliff_ground_is_a_climb() {
+    let mut l = L::new(4, 1)
+        .elevation(1, 0, 5)
+        .elevation(2, 0, 5)
+        .elevation(3, 0, 10);
+    l.0.square_mut(1, 0).unwrap().ground = "cliff".into();
+    let s = l.scene();
+    // East of (0, 0) is the cliff square, 5 ft up.
+    assert_eq!(s.climb.0[0], 1 << 2);
+    assert_eq!(s.climb.0[1], 1 << 6);
+    // (1, 0) and (2, 0) are level; (2, 0) to (3, 0) is 5 ft on grass.
+    assert_eq!(s.climb.0[2], 0);
+    assert_eq!(s.climb.0[3], 0);
 }
 
 #[test]

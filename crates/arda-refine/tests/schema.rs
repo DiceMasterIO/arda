@@ -142,6 +142,13 @@ fn layout_rules_and_meta_parse_into_the_consumer_schemas() {
             assert_eq!(r.difficult, Some(true), "wading is difficult terrain");
         }
     }
+    // The rules contract (logic/12 §scene-sidecar): refine states ground,
+    // water, canopy and trunk cover, flags only when they hold; blocking is
+    // the catalogue's.
+    assert!(rules.squares.iter().all(|r| r.blocks_movement.is_none()
+        && r.cover != Some(scene::CoverLevel::None)
+        && r.difficult != Some(false)
+        && r.blocks_sight != Some(false)));
     assert!(rules
         .squares
         .iter()

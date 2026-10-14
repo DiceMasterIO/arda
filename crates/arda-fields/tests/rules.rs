@@ -305,7 +305,11 @@ fn fields_rules_are_scene_sidecar_format_2() {
     assert_eq!((r.format_version, r.width, r.height), (2, 96, 96));
     assert!(win.owned.iter().any(|o| *o));
     for ((cell, own), fringe) in r.squares.iter().zip(&win.owned).zip(&win.fringe) {
-        assert_eq!(cell.difficult.is_some(), *own || fringe.is_some());
+        // Stated squares always state their depth; flags only when they
+        // hold (the rules contract, logic/12 §scene-sidecar).
+        assert_eq!(cell.water_depth_ft.is_some(), *own || fringe.is_some());
+        assert_ne!(cell.difficult, Some(false));
+        assert_ne!(cell.blocks_movement, Some(false));
         assert!(
             !(*own && fringe.is_some()),
             "a fringe square is never owned"

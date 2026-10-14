@@ -63,36 +63,42 @@ pub struct MapMeta {
     pub placements: Vec<PlacementMeta>,
 }
 
-/// Full per-square rules as the refiner computes them.
+/// Per-square rules as the refiner knows them: the ground and water it
+/// laid, the canopy its trees close overhead and the SRD cover of its
+/// trunks and rocks. Blocking and the difficulty of undergrowth are the
+/// catalogue's to say: the scene folds them in from the placements
+/// (logic/12 §scene-sidecar, the rules contract), so refine never states
+/// them.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub struct SquareRules {
-    /// Difficult terrain.
+    /// Difficult ground (scree, mud, marsh, shallow water).
     pub difficult: bool,
     /// Water depth, feet.
     pub water_depth_ft: u8,
-    /// Cover.
+    /// Cover of the trunk or rock on the square (SRD: a thick trunk gives
+    /// three-quarters); merged with the catalogue's by taking the stronger.
     pub cover: CoverRule,
     /// Heavily obscured by canopy.
     pub blocks_sight: bool,
     /// Lightly obscured: a thinner canopy or reeds.
     pub lightly_obscured: bool,
-    /// Impassable.
-    pub blocks_movement: bool,
     /// Relaxed-fill square needing review.
     pub review: bool,
 }
 
 impl SquareRules {
-    /// The sidecar cell: every field stated explicitly.
+    /// The sidecar cell under the rules contract: water depth always (the
+    /// refiner laid it), each flag and cover only when they hold, and no
+    /// blocking, which comes from the catalogue.
     #[must_use]
     pub fn cell(&self) -> RulesCell {
         RulesCell {
-            difficult: Some(self.difficult),
+            difficult: RulesCell::flag(self.difficult),
             water_depth_ft: Some(self.water_depth_ft),
-            cover: Some(self.cover),
-            blocks_sight: Some(self.blocks_sight),
-            lightly_obscured: Some(self.lightly_obscured),
-            blocks_movement: Some(self.blocks_movement),
+            cover: RulesCell::stated_cover(self.cover),
+            blocks_sight: RulesCell::flag(self.blocks_sight),
+            lightly_obscured: RulesCell::flag(self.lightly_obscured),
+            blocks_movement: None,
             deck: None,
             ext: None,
         }

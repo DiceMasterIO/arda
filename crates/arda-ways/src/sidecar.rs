@@ -199,7 +199,7 @@ impl From<EdgeRole> for arda_scene::EdgeRole {
 
 impl SquareRules {
     /// This square as a format-2 rules cell: only squares a way touches
-    /// (`feature != none`) state anything, so the refine rules underneath
+    /// (`feature != none`) state anything, and flags only when they hold, so the refine rules underneath
     /// stay in force elsewhere (logic/09 §reservations).
     #[must_use]
     pub fn to_cell(&self) -> arda_scene::RulesCell {
@@ -207,11 +207,14 @@ impl SquareRules {
         if self.feature == Feature::None {
             return c;
         }
-        c.difficult = Some(self.difficult);
+        // The rules contract (logic/12 §scene-sidecar): flags only when
+        // they hold, so a verge never wipes the canopy or rough ground it
+        // keeps, and props keep their catalogue blocking.
+        c.difficult = arda_scene::RulesCell::flag(self.difficult);
         c.water_depth_ft = Some(self.water_depth_ft);
-        c.cover = Some(self.cover.into());
-        c.blocks_sight = Some(self.blocks_sight);
-        c.blocks_movement = Some(self.blocks_movement);
+        c.cover = arda_scene::RulesCell::stated_cover(self.cover.into());
+        c.blocks_sight = arda_scene::RulesCell::flag(self.blocks_sight);
+        c.blocks_movement = arda_scene::RulesCell::flag(self.blocks_movement);
         c.deck = Some(self.deck);
         if let Ok(v) = serde_json::to_value(self.feature) {
             c.set_ext("feature", v);
