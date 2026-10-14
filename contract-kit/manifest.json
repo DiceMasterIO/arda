@@ -206,12 +206,12 @@
       "content_type": "image/webp",
       "headers": {
         "cache-control": "no-cache",
-        "etag": "\"ca62eb95641c0f959fb4a4d8016c2593f79773cf2f93ef75a6b6a4e61238ac3b\""
+        "etag": "\"6fe6f4d0b5fbaace172dadec24c98c20eef815f3bec4ced275b721f225e40abc\""
       },
       "schema": null,
       "body": {
-        "sha256": "f0b14db1f33ad249cbd3c82a6c558cc65bcef966c859a64c6ac71269da999220",
-        "bytes": 82962
+        "sha256": "3e14d805b2206db2aa0dae7771e960325de024325d669278fb885447178a6eec",
+        "bytes": 82830
       }
     },
     {
@@ -404,8 +404,8 @@
       },
       "schema": "TacticalBlockDto",
       "body": {
-        "sha256": "b6f65ef9288de7932e3ba6ba565ecac92fcf40909900341cfde36f237a30ccd1",
-        "bytes": 2078793
+        "sha256": "047c3b061bda1031eba78131d87cf3356567ee19cb7fda87b7f8e4d9caa0710d",
+        "bytes": 1475941
       }
     },
     {
