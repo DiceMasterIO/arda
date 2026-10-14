@@ -52,12 +52,12 @@ Rivers, streams, lake and sea shores, roads, field boundaries and walls are plac
 - **Width at the edge.** `(w_A + w_B) / 2` for rivers (cell watercourse widths); the class band width of 08 §roads for roads. The width is a symmetric function of A and B, so both sides agree.
 - **Inside the block.** The centreline is a cubic Hermite curve from entry to exit, tangent to the edge normal at both ends, with a lateral midpoint offset of up to ±12 squares keyed by `(seed, kind, gx, gy)` and scaled by `max(0, 1 − slope/5°)` (lowland meanders, goal 9 at 5-ft scale). Confluences inside a block join tributary curves to the trunk curve at its nearest centreline point. Width varies linearly along the curve between entry and exit widths. Sub-square channels (width < 1.5625 m) are one square wide, `water_depth_ft = 1`.
 - **Cross-section.** Thalweg depth `d = clamp(0.1·w + 0.2, 0.2, 6)` m (assumed, tunable; the artifact gives only "depth a little slower than width"); depth at lateral offset `u` is `d·(1 − (2u/w)²)`; `water_depth_ft = round(depth_m / 0.3048)`, at least 1 on wet squares. Bank squares (dry, within 1 square of water) get `mud` or `gravel` (order ≥ 3 or slope ≥ 3°), or `reed_bed` where wetness ≥ 0.7 and slope < 2° (assumed).
-- **Shores.** A square is sea when `E(p) < 0` and at least one of its four surrounding cell nodes is sea; lake when `E(p) < surface_m` and one of the four nodes is that lake's cell (lake records). Depth is `surface − E` (sea surface 0). A dry square touching sea or lake is `sand` where the square-scale slope is < 8° and the node cover is not rock, else `rock` (artifact beach/cliff rule at 5-ft scale; slope assumed).
-- **Cliffs.** A square whose `elevation_ft` exceeds a 4-neighbour's by ≥ 10 ft gets ground `cliff` (the upper square), matching the climb threshold of [12](12-scene-data.md) §scene-climb.
+- **Shores.** A square is sea when `E(p) < 0` and at least one of its four surrounding cell nodes is sea; lake when `E(p) < surface_m` and one of the four nodes is that lake's cell (lake records). Sea depth is `clamp(level − land_m, 0.3, 40)` m per square (sea level 0, `land_m` the square's own land height), in the block and region paths alike, so deep water runs on across cell and block edges (review 3.4-3; it was the nearest sea cell's depth, constant per cell); a lake keeps its record's depth, one body per lake. A dry square touching sea or lake is `sand` where the square-scale slope is < 8° and the node cover is not rock, else `rock` (artifact beach/cliff rule at 5-ft scale; slope assumed).
+- **Cliffs.** Dry ground steeper than 48° (`fixed::CLIFF_DEG`, one 5-ft step per square or more) is fixed to cliff, rock or scree before the WFC; where it is drawn `cliff`, every step of 5 ft or more touching it is a climb in the scene ([12](12-scene-data.md) §scene-climb), so the ground and the climb rule agree (review 3.4-4).
 - **Contours** need no edge rule: they are level sets of the global `E`.
 - **Relief.** The shore, channel and pool rules are point functions of global position, so `arda_refine::region::WaterRegion` answers them for any window; mid-zoom relief draws its water from it ([17](17-midzoom-relief.md) §water), and a region's water at a square centre is the block's.
 
-Roads (bands, bridges, fords, ferry landings, switchbacks) are reserved by feat/tactical-ways with these same rules; farmland parcels, hedges and field walls by feat/tactical-fields (§reservations). A ford is a road band over water whose depth is capped at 2 ft; a bridge is a `floor`-layer deck placement plus `planks` squares with `water_depth_ft` unchanged beneath (goal 43).
+Roads (bands, bridges, fords, ferry landings, switchbacks) are reserved by feat/tactical-ways with these same rules; farmland parcels, hedges and field walls by feat/tactical-fields (§reservations). A ford is a road band over water whose depth is capped at 2 ft where the water is wadeable; water 5 ft or deeper keeps its depth under a ford (its squares are swum, review 3.5-7); a bridge is a `floor`-layer deck placement plus `planks` squares with `water_depth_ft` unchanged beneath (goal 43).
 
 ### §reservations
 
@@ -77,7 +77,7 @@ A road over water is a bridge or ford (ways wins over water); a building never s
 Two claims are soft, ranked between the rows above (arda-blocks `Owner`):
 
 - **Crofts** (town, between water and fields): the open ground of a settlement's built-up footprint (10 §town-crofts), which fields run up to but never enter, gives way to water and roads.
-- **Verges** (ways, below fields): a verge or shoulder that kept the natural ground; fields may take it, and over forest it is cleared to grass.
+- **Verges** (ways, below fields): a verge or shoulder that kept the natural ground; fields may take it, and over forest it is cleared to grass. A verge keeps the natural rules too: its rules cell merges onto the natural one (canopy obscurement and rough ground stay, review 3.5-5; the natural cover goes with the props the way clears, and kept trees bring theirs from the catalogue), where every other claim replaces it (arda-blocks `Owner::keeps_natural`).
 
 Where a world road comes within a town plan's reach of its market (the length of its longest main street, less 2 squares), the town's streets replace the road; ways' river channels and banks only guide crossings, since the refined river is the real one. Fields claim only worked ground: a field site with no land use (kind `wild`) stays natural, so its ecology, rocks, copses and trails come from the refiner rather than a heath-and-scrub paint. Fields also mark a noise-shaped **fringe** of 1.5–6 squares of rough grass and scrub on wild ground beside worked land, applied only over wooded natural ground, so forest edges are organic.
 
@@ -157,15 +157,16 @@ What moved: marsh counts from wetness 0.6 (the lowland's wetness is 6.7 % at 0.5
 
 ### §rules-sidecar
 
-Per-square SRD rules are written into the `arda-scene` `RulesSidecar` (format 2, [12](12-scene-data.md) §scene-sidecar), never into `Square` (which denies unknown fields):
+Per-square SRD rules are written into the `arda-scene` `RulesSidecar` (format 2, [12](12-scene-data.md) §scene-sidecar), never into `Square` (which denies unknown fields). Under the rules contract (12 §scene-sidecar) refine states only what it knows, and a flag only when it holds; a placement's blocking and the difficulty of undergrowth or a log are its catalogue entry's, which the scene and the arda-blocks pipeline fold in from the placements:
 
 | Field | Refine sets it when | Source |
 |---|---|---|
-| `difficult` | ground is `scrub`, `heath` (undergrowth), `scree`, `mud`, `mudflat`, `marsh`, `reed_bed`, `snow` or `ice`; or a bush or fallen log stands in the square | SRD 5.1 difficult terrain examples (undergrowth, snow, shallow bogs, rubble); the key mapping is assumed |
-| `water_depth_ft` | always on water squares (equal to the layout's) | §linear-features |
-| `cover` | trunk of a large tree or a large boulder → `three_quarters`; small tree, bush or small rock → `half` | SRD 5.1 cover ("a narrow tree trunk" half, "a thick tree trunk" three-quarters); boulder mapping assumed |
-| `blocks_sight` | canopy covers ≥ 7 of the 9 squares of its 3 × 3 neighbourhood (dense foliage, heavily obscured) | SRD 5.1 obscurement; threshold assumed |
-| `lightly_obscured` | canopy covers 4–6 of 9, or `reed_bed` | SRD 5.1 "moderate foliage"; threshold assumed |
+| `difficult` | `true` where the ground is `scrub`, `heath` (undergrowth), `scree`, `mud`, `mudflat`, `marsh`, `reed_bed`, `snow`, `ice` or `cliff`, or the water is wadeable | SRD 5.1 difficult terrain examples (undergrowth, snow, shallow bogs, rubble); the key mapping is assumed |
+| `water_depth_ft` | always (equal to the layout's) | §linear-features |
+| `cover` | on the square an item is anchored in: trunk of a large tree or a boulder → `three_quarters`; an outcrop → `total`; small tree, rock or log → `half`; the scene takes the stronger of this and the catalogue's | SRD 5.1 cover ("a narrow tree trunk" half, "a thick tree trunk" three-quarters); boulder mapping assumed |
+| `blocks_sight` | `true` where 4 or more large trunks stand within 2.4 squares (dense foliage, heavily obscured) | SRD 5.1 obscurement; threshold assumed |
+| `lightly_obscured` | `true` for 2–3 trunks within 2.4 squares, or `reed_bed` | SRD 5.1 "moderate foliage"; threshold assumed |
+| `blocks_movement` | never: a boulder, large rock or outcrop blocks by its catalogue footprint (review 3.4-1, which also ends refine's own 3 × 3 outcrop walls drawn from items anchored next door) | 12 §scene-movement |
 
 Wading and swimming are derived by the scene from depth (12 §scene-movement), not set here.
 

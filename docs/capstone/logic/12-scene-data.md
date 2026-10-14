@@ -29,16 +29,16 @@ Per-square `movement` (SRD 5.1 "Movement" and "Special Types of Movement"):
 | Value | When | Cost |
 |---|---|---|
 | `normal` | ordinary ground | 5 ft per square |
-| `difficult` | sidecar `difficult = true`, or an asset with `difficult_terrain` covers the square | +1 ft per ft (SRD) |
+| `difficult` | sidecar `difficult = true`, or an asset with `difficult_terrain` covers the square (a sidecar `false` never clears it) | +1 ft per ft (SRD) |
 | `wade` | water depth 1–4 ft | +1 ft per ft; treated as difficult terrain (assumed: SRD gives no depth threshold) |
 | `swim` | water depth ≥ 5 ft | +1 ft per ft (SRD swimming) |
-| `impassable` | an asset with `blocks_movement` covers the square | cannot be entered |
+| `impassable` | an asset with `blocks_movement` covers the square, or the sidecar says `blocks_movement = true`; a sidecar `false` never clears an asset's blocking | cannot be entered |
 
 The sidecar's `water_depth_ft`, when present, overrides the layout's depth. The wade/swim threshold (5 ft) is the one source for depth semantics; the compositor's visual shallow/deep blend (11 §ground-blend) is presentation only.
 
 ### §scene-climb
 
-`climb` is a per-square 8-bit mask (bit order N, NE, E, SE, S, SW, W, NW). A bit is set when the neighbour's `elevation_ft` differs by ≥ 10 ft; that step is a climb, +1 ft per ft (SRD climbing). The 10-ft threshold is assumed; it matches the cliff rule of 09 §linear-features. Extra costs add: climbing out of a wade costs 15 ft per square.
+`climb` is a per-square 8-bit mask (bit order N, NE, E, SE, S, SW, W, NW). A bit is set when the neighbour's `elevation_ft` differs by ≥ 10 ft, or by ≥ 5 ft where either square's ground is `cliff`; that step is a climb, +1 ft per ft (SRD climbing). The 10-ft threshold is assumed. Refine draws `cliff` where the slope exceeds 48° (09 §linear-features), more than one 5-ft step per square, so every step on a cliff face is a climb and a level edge along it is not (review 3.4-4: before, only the 10-ft steps were, about a third of the stepped edges touching a cliff). Extra costs add: climbing out of a wade costs 15 ft per square.
 
 ### §scene-diagonal
 
@@ -60,7 +60,7 @@ Per-square `cover` is the strongest of the sidecar's cover and the cover of asse
 | `gate` | when closed | when closed (solid) | when closed | yes | closed |
 | `secret` | when closed | yes | yes | yes | closed, drawn as wall |
 
-- `obscured` per square: `heavy` where the sidecar says `blocks_sight` or a `blocks_sight` asset covers it; `light` where the sidecar says `lightly_obscured`, or a canopy covers it without blocking sight (SRD "lightly obscured: … moderate foliage"; "heavily obscured: … dense foliage"). Canopy and sight-blocking props also appear as `vision_blockers` polygons for the game's renderer.
+- `obscured` per square: `heavy` where the sidecar says `blocks_sight = true` or a `blocks_sight` asset covers it (a sidecar `false` never clears it); `light` where the sidecar says `lightly_obscured`, or a canopy covers it without blocking sight (SRD "lightly obscured: … moderate foliage"; "heavily obscured: … dense foliage"). Canopy and sight-blocking props also appear as `vision_blockers` polygons for the game's renderer.
 - Line of sight runs in integers at 8 units per square (square centre `8x + 4`), walking every grid-line crossing: a sight-blocking wall edge blocks; entering a heavily obscured square other than the target blocks; passing exactly through a vertex blocks only if blockers lie on both sides (a line may graze a wall end but not slip through a closed corner).
 
 ### §scene-lights
@@ -81,7 +81,13 @@ The rules sidecar is the one channel for per-square and per-edge rules that `Tac
 
 - per square, added: `deck_elevation_ft` (i16, optional): a walkable deck (bridge, landing stage, dock) over the square; creatures on it stand at that elevation and the square's movement is `normal` whatever the water below; `feature` (optional string from the ways `Feature` set, informational for the game's overlay).
 - top level, added: `edges: [{x, y, axis, role, blocks_movement, blocks_sight, cover}]` for low edge features that are not wall-kit walls (bridge parapets and retaining walls: block movement, not sight, grant `half` cover; assumed from SRD "low wall").
-- Merge of several owners' sidecars: per field, the owner with the higher reservation precedence of 09 §reservations wins; `cover` takes the stronger; `difficult` is true if any owner sets it.
+- Merge of several owners' sidecars: per field, the owner with the higher reservation precedence of 09 §reservations wins; `cover` takes the stronger; `difficult` is true if any owner sets it. A claim replaces the cell beneath it, except a verge, which keeps the natural ground and merges onto the natural cell (09 §reservations).
+
+**The rules contract** (review 3.4-1, 3.5-1, 3.5-5). The sidecar and the catalogue are two sources for one square, and neither erases the other:
+
+- A layer states only what it knows. Flags (`difficult`, `blocks_sight`, `lightly_obscured`, `blocks_movement`) are stated only when they hold (`RulesCell::flag`), `cover` only above `none` (`RulesCell::stated_cover`); an absent field is "no opinion". Refine states ground difficulty, water, canopy obscurement and trunk and rock cover (09 §rules-sidecar); town, ways and fields state what their ground implies (water, wading, mud, decks) and never the blocking of the props they place.
+- What a placement implies is its catalogue entry's: `blocks_movement`, `blocks_sight`, `difficult_terrain` and `cover` over its rotated footprint (a canopy's movement and cover on its trunk square only). The scene unions these with the sidecar: flags are or-ed, cover is the stronger, so every blocking asset is impassable and every sight-blocking asset opaque in the built scene, whichever layer owns the square. Only `water_depth_ft` and `deck` replace what the layout implies.
+- The arda-blocks pipeline folds the placements' catalogue blocking, sight blocking, difficulty and cover into the composed sidecar (`arda_scene::squares::fold_placements`, placements resolved with the world seed as `/scene` resolves them), so a reader of the rules alone (token placement, the `rules` of the tactical response) sees the same blockers as the scene. The fold only adds, so folding twice changes nothing.
 
 Format 1 sidecars stay readable (the new fields default to absent).
 
