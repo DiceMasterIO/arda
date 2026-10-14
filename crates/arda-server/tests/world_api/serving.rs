@@ -121,3 +121,102 @@ async fn an_abandoned_request_does_not_delay_a_live_one() {
     let b = fetch(fresh(), tile_uri(OTHER, (0, 0))).await;
     assert_eq!((a.status, &a.body), (StatusCode::OK, &b.body));
 }
+
+async fn post(state: &Arc<AppState>, uri: &str, body: &serde_json::Value) -> Reply {
+    let request = Request::post(uri)
+        .header("content-type", "application/json")
+        .body(Body::from(serde_json::to_vec(body).unwrap()))
+        .unwrap();
+    send(Arc::clone(state), request).await
+}
+
+async fn idle(state: &Arc<AppState>, what: fn(&AppState) -> bool) -> bool {
+    let s = Arc::clone(state);
+    tokio::task::spawn_blocking(move || what(&s)).await.unwrap()
+}
+
+/// 3.6-7: a panicking bake fails its job with `internal` and the worker
+/// keeps baking (the review saw 503 `busy` until a restart).
+#[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+async fn a_panicking_bake_fails_its_job_and_the_worker_survives() {
+    let mut c = config();
+    c.prefetch_workers = 0;
+    c.bake_workers = 1;
+    let s = Arc::new(AppState::open(&c).unwrap());
+    let (gx, gy) = CELL;
+    let cell = fetch(Arc::clone(&s), format!("/v1/tactical/cell/{gx}/{gy}")).await;
+    let layout = cell.json()["layout"].clone();
+    let body = |elevation: i64| {
+        let mut l = layout.clone();
+        l["squares"][0]["elevation_ft"] = serde_json::json!(elevation);
+        serde_json::json!({"gx": gx, "gy": gy, "ppsq": PPSQ, "layout": l})
+    };
+    s.bake.inject_panic(true);
+    let r = post(&s, "/v1/tactical/bake", &body(1001)).await;
+    assert_eq!(r.status, StatusCode::ACCEPTED);
+    let id = r.json()["job_id"].as_str().unwrap().to_owned();
+    let w = Arc::clone(&s);
+    let i = id.clone();
+    assert!(
+        tokio::task::spawn_blocking(move || {
+            w.bake.wait_state(
+                &i,
+                arda_server::tactical::bake::BakeState::Failed,
+                Duration::from_secs(60),
+            )
+        })
+        .await
+        .unwrap(),
+        "the panicked job never failed"
+    );
+    let status = fetch(Arc::clone(&s), format!("/v1/tactical/bake/{id}")).await;
+    assert_eq!(status.json()["error"]["code"], "internal");
+    s.bake.inject_panic(false);
+    let r = post(&s, "/v1/tactical/bake", &body(1002)).await;
+    assert_eq!(r.status, StatusCode::ACCEPTED);
+    assert!(idle(&s, |s| s.bake.wait_idle(WAIT)).await);
+    let id = r.json()["job_id"].as_str().unwrap().to_owned();
+    let status = fetch(Arc::clone(&s), format!("/v1/tactical/bake/{id}")).await;
+    assert_eq!(status.json()["state"], "done");
+}
+
+/// 3.6-7: a panicking prefetch job is dropped and its worker keeps
+/// warming (the queue went idle never again before).
+#[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+async fn a_panicking_prefetch_job_leaves_the_worker_alive() {
+    let mut c = config();
+    c.prefetch_workers = 1;
+    c.bake_workers = 0;
+    let s = Arc::new(AppState::open(&c).unwrap());
+    let (gx, gy) = CELL;
+    s.prefetch.inject_panic(true);
+    let r = post(
+        &s,
+        "/v1/tactical/prefetch",
+        &serde_json::json!({"gx": gx, "gy": gy, "ppsq": 16}),
+    )
+    .await;
+    assert_eq!(r.status, StatusCode::ACCEPTED);
+    assert!(
+        idle(&s, |s| s.prefetch.wait_idle(Duration::from_secs(60))).await,
+        "the queue never drained"
+    );
+    s.prefetch.inject_panic(false);
+    let r = post(
+        &s,
+        "/v1/tactical/prefetch",
+        &serde_json::json!({"gx": gx, "gy": gy, "ppsq": 16}),
+    )
+    .await;
+    assert_eq!(r.status, StatusCode::ACCEPTED);
+    let cells = r.json()["cells"].as_array().unwrap().clone();
+    assert!(cells.iter().all(|c| c["status"] == "queued"), "{cells:?}");
+    assert!(idle(&s, |s| s.prefetch.wait_idle(WAIT)).await);
+    // The worker warmed the neighbours' bodies this time.
+    let r = fetch(
+        Arc::clone(&s),
+        format!("/v1/tactical/cell/{}/{gy}?ppsq=16", gx - 1),
+    )
+    .await;
+    assert_eq!(r.headers["x-arda-cache"], "hit");
+}

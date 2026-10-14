@@ -110,6 +110,22 @@ pub fn check() -> ServerResult<()> {
     }
 }
 
+/// Runs `work`, turning a panic into [`ServerError::Internal`] naming
+/// `what`, so a background worker survives a bug in one job (review 3.6-7).
+///
+/// # Errors
+/// `work`'s errors, or `internal` when it panicked.
+pub fn isolate<T>(what: &str, work: impl FnOnce() -> ServerResult<T>) -> ServerResult<T> {
+    std::panic::catch_unwind(std::panic::AssertUnwindSafe(work)).unwrap_or_else(|payload| {
+        let detail = payload
+            .downcast_ref::<&str>()
+            .map(|s| (*s).to_owned())
+            .or_else(|| payload.downcast_ref::<String>().cloned())
+            .unwrap_or_else(|| "unknown panic".into());
+        Err(ServerError::Internal(format!("{what} panicked: {detail}")))
+    })
+}
+
 fn relock<T>(m: &Mutex<T>) -> MutexGuard<'_, T> {
     m.lock().unwrap_or_else(PoisonError::into_inner)
 }

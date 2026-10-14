@@ -95,6 +95,8 @@ struct Inner {
     started: bool,
     /// Tests: a running job waits here, holding the bake lane.
     hold: bool,
+    /// Tests: the next jobs panic instead of baking.
+    panic: bool,
 }
 
 #[derive(Debug)]
@@ -167,6 +169,7 @@ impl Baker {
                     closed: false,
                     started: false,
                     hold: false,
+                    panic: false,
                 }),
                 wake: Condvar::new(),
                 changed: Condvar::new(),
@@ -305,6 +308,13 @@ impl Baker {
         self.shared.changed.notify_all();
     }
 
+    /// Tests: while `on`, jobs panic where they would bake (the worker
+    /// must survive, review 3.6-7).
+    #[doc(hidden)]
+    pub fn inject_panic(&self, on: bool) {
+        self.shared.lock().panic = on;
+    }
+
     /// Tests: waits until job `id` is in `state`, up to `timeout`.
     #[doc(hidden)]
     #[must_use]
@@ -376,7 +386,15 @@ fn work(shared: &Shared, state: &Weak<AppState>) {
             }
         };
         shared.changed.notify_all();
-        let outcome = state.upgrade().map(|s| run(shared, &s, &id, &req));
+        // A panicking job fails with `internal`; the worker lives on.
+        let outcome = state.upgrade().map(|s| {
+            crate::flight::isolate("bake job", || Ok(run(shared, &s, &id, &req))).unwrap_or_else(
+                |e| {
+                    eprintln!("arda-server tactical bake job {id} {e}");
+                    Slot::Failed(e.body().error)
+                },
+            )
+        });
         let mut q = shared.lock();
         if let Some(outcome) = outcome {
             let too_big = ServerError::ResourceLimit(format!(
@@ -409,6 +427,9 @@ fn run(shared: &Shared, s: &AppState, id: &str, req: &BakeRequestParsed) -> Slot
         }
         !q.closed && matches!(q.store.get(id).map(|e| &e.slot), Some(Slot::Running(_)))
     };
+    if shared.lock().panic {
+        panic!("injected bake panic (tests)");
+    }
     // A job deleted before its render started is not rendered.
     let result = if wanted {
         s.tactical.bake(req, world)

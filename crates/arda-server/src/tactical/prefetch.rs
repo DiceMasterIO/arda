@@ -152,6 +152,8 @@ struct Queue {
     active: usize,
     closed: bool,
     started: bool,
+    /// Tests: the next jobs panic instead of warming.
+    panic: bool,
 }
 
 #[derive(Debug, Default)]
@@ -281,6 +283,13 @@ impl Prefetcher {
         Ok(())
     }
 
+    /// Tests: while `on`, jobs panic where they would warm (the worker
+    /// must survive, review 3.6-7).
+    #[doc(hidden)]
+    pub fn inject_panic(&self, on: bool) {
+        self.shared.lock().panic = on;
+    }
+
     /// Waits until the queue is empty and no cell is warming, up to
     /// `timeout`; whether it became idle.
     #[must_use]
@@ -330,9 +339,18 @@ fn work(shared: &Shared, state: &Weak<AppState>) {
                     .0;
             }
         };
+        let panic = shared.lock().panic;
         if let Some(s) = state.upgrade() {
             let start = Instant::now();
-            let outcome = match s.tactical.warm(&job.req, job.world, job.ppsq, job.image) {
+            // A panicking job is dropped like a failed one; the worker
+            // lives on (review 3.6-7).
+            let outcome = crate::flight::isolate("prefetch job", || {
+                if panic {
+                    panic!("injected prefetch panic (tests)");
+                }
+                s.tactical.warm(&job.req, job.world, job.ppsq, job.image)
+            });
+            let outcome = match outcome {
                 Ok(()) => "warm".to_owned(),
                 Err(e) => e.to_string(),
             };
