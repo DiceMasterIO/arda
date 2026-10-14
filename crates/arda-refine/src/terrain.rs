@@ -189,12 +189,20 @@ pub struct Standing {
     pub full: f64,
     /// Indicator: positive is water, the bank shaping runs above -0.6.
     pub v: f64,
+    /// Land (sea-floor) height under the point, metres.
+    pub land: f64,
 }
 
 impl Standing {
-    /// Water depth where the indicator is positive, metres.
+    /// Water depth where the indicator is positive, metres. The sea is
+    /// as deep as its floor lies below the surface, square by square
+    /// (`clamp(level − land, 0.3, 40)`), so depth runs on across cell and
+    /// block edges; a lake keeps its record's depth, one body per lake.
     #[must_use]
     pub fn depth_m(&self) -> f64 {
+        if self.kind == Water::Sea {
+            return (self.level - self.land).clamp(0.3, 40.0);
+        }
         (self.full * smoothstep(0.0, 0.7, self.v)).max(0.3)
     }
 
@@ -211,12 +219,14 @@ impl Standing {
 #[must_use]
 pub fn standing_water(ctx: &Ctx, u: f64, v: f64, land: impl FnOnce() -> f64) -> Option<Standing> {
     let (kind, level, full) = nearest_standing(ctx, u, v)?;
-    let sv = standing(ctx, u, v, level, land());
+    let land = land();
+    let sv = standing(ctx, u, v, level, land);
     (sv > -0.6).then_some(Standing {
         kind,
         level,
         full,
         v: sv,
+        land,
     })
 }
 
