@@ -204,7 +204,7 @@ The script refuses any FLUX.1 [dev]-family model, such as `black-forest-labs/flu
 
 **Keep your outputs.** Slopify doesn't take a seed, and the same prompt gives a different image every time. A file you like can't be regenerated, so keep the raw folder and Slopify's projects. `import.toml` records the prompt and model for provenance, not for reproduction.
 
-**Use a reference image for consistency.** `--reference out/target.jpg` uploads one image and sends it as Slopify's establishing image. Every image in the run is then drawn with it as a reference for style and palette. A crop of one of the target battle maps works well. It needs a model that takes a reference image: OpenAI, Google and the fal models listed with `reference`, but not the Replicate FLUX models.
+**Use a reference image for consistency.** `--reference out/target.jpg` uploads one image and sends it as Slopify's establishing image. Slopify uses up a staged upload with the project or batch that takes it, so the tool uploads the reference again for every project (`--parallel N`) and every batch; `--parallel` therefore works with `--reference`. Every image in the run is then drawn with it as a reference for style and palette. A crop of one of the target battle maps works well. It needs a model that takes a reference image: OpenAI, Google and the fal models listed with `reference`, but not the Replicate FLUX models.
 
 **Structured ground variants.** Cobbles, flagstone, planks, rug, farmland, stone floor and cliff variants must share one layout, differing only in wear and stains. Otherwise the compositor's cross-fades show doubled grout lines. A model won't reliably repeat a layout. So generate variant `.0` first, curate it, and then do one of the following:
 

@@ -17,6 +17,14 @@ export function fakeSlopify() {
   // Failure switches for the tests: titles whose first POST /api/projects drops the connection,
   // either after the project was created or before; `listStatus` makes GET /api/projects fail.
   const switches = { dropAfterCreate: new Set(), dropBeforeCreate: new Set(), listStatus: 200 };
+  // Staged files are single-use, as in Slopify: the first project or batch that names one consumes it.
+  const staged = { issued: new Set(), used: new Set() };
+  const consume = (id) => {
+    if (id === undefined) return true;
+    if (!staged.issued.has(id) || staged.used.has(id)) return false;
+    staged.used.add(id);
+    return true;
+  };
   let next = 1;
   let clock = 0;
   const server = createServer(async (req, res) => {
@@ -42,9 +50,14 @@ export function fakeSlopify() {
       prompts.push(p);
       return json(201, p);
     }
-    if (url.pathname === "/api/staging/images") return json(201, { id: "staged1", stageKind: "images", state: "staged" });
+    if (url.pathname === "/api/staging/images") {
+      const id = `staged${staged.issued.size + 1}`;
+      staged.issued.add(id);
+      return json(201, { id, stageKind: "images", state: "staged" });
+    }
     if (url.pathname === "/api/projects/batch") {
       if (batches.has(body.requestId)) return json(200, { queue: batches.get(body.requestId) });
+      if (!consume(body.draft?.provided?.reference)) return json(400, { title: "Bad Request", detail: "That upload is no longer available" });
       const queue = body.items.map((item, at) => {
         const id = `PRJ${next++}`;
         projects.set(id, { title: item.title, polls: 0, prompt: item.values.Subject, createdAt: new Date().toISOString() });
@@ -59,6 +72,7 @@ export function fakeSlopify() {
     }
     if (url.pathname === "/api/projects" && req.method === "POST") {
       if (switches.dropBeforeCreate.delete(body.title)) return req.socket.destroy();
+      if (!consume(body.draft?.provided?.reference)) return json(400, { title: "Bad Request", detail: "That upload is no longer available" });
       const id = `PRJ${next++}`;
       projects.set(id, { title: body.title, polls: 0, prompt: body.values.Subject, single: true, createdAt: new Date(Date.now() + clock++).toISOString() });
       if (switches.dropAfterCreate.delete(body.title)) return req.socket.destroy();
@@ -90,7 +104,7 @@ export function fakeSlopify() {
     json(404, { title: "Not Found", detail: url.pathname });
   });
   return new Promise((ok) =>
-    server.listen(0, "127.0.0.1", () => ok({ server, url: `http://127.0.0.1:${server.address().port}`, calls, prompts, running, projects, switches })),
+    server.listen(0, "127.0.0.1", () => ok({ server, url: `http://127.0.0.1:${server.address().port}`, calls, prompts, running, projects, switches, staged })),
   );
 }
 

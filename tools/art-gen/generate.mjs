@@ -772,9 +772,8 @@ async function run(argv, io) {
       log,
     );
   }
-  const referenceId =
-    options.reference !== undefined && limited.length > 0 ? await uploadReference(api, options.reference) : undefined;
-  if (referenceId !== undefined) log(`uploaded the reference as staged file ${referenceId}`);
+  // Slopify consumes a staged file when a project or batch uses it, so every project (--parallel)
+  // and every batch uploads its own copy of the reference just before it is posted.
 
   if (options.overwrite)
     for (const a of limited) {
@@ -823,7 +822,8 @@ async function run(argv, io) {
           break;
         }
         const asset = waiting.shift();
-        const body = projectBody(asset, options, { referenceId });
+        const ownReferenceId = options.reference !== undefined ? await uploadReference(api, options.reference) : undefined;
+        const body = projectBody(asset, options, { referenceId: ownReferenceId });
         const record = {
           template: asset.template,
           provider: body.images.provider,
@@ -883,6 +883,7 @@ async function run(argv, io) {
     }
     if (!resend) {
       spent.take(batch.length);
+      const referenceId = options.reference !== undefined ? await uploadReference(api, options.reference) : undefined;
       body = batchBody(batch, options, { referenceId });
     }
     // Saved before sending: Slopify treats a repeated requestId as the same batch, so a retry

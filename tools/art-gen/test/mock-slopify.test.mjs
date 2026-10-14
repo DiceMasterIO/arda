@@ -2,12 +2,12 @@
 // poll, download, resume and import.toml paths, without Slopify or any provider.
 
 import assert from "node:assert/strict";
-import { existsSync, mkdtempSync, readFileSync, rmSync } from "node:fs";
+import { existsSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { test } from "node:test";
 import { main } from "../generate.mjs";
-import { fakeSlopify, sink } from "./fake-slopify.mjs";
+import { fakeSlopify, png, sink } from "./fake-slopify.mjs";
 
 test("submits, polls, downloads and writes import.toml; --resume skips what is done", async () => {
   const fake = await fakeSlopify();
@@ -69,6 +69,30 @@ test("--parallel posts each asset as its own project, keeping N going at once", 
   } finally {
     fake.server.close();
     rmSync(out, { recursive: true, force: true });
+  }
+});
+
+test("--parallel with --reference uploads a staged file per project; each batch uploads one", async () => {
+  const ref = join(tmpdir(), `art-gen-ref-${process.pid}.png`);
+  writeFileSync(ref, png);
+  try {
+    for (const [parallel, uploads] of [["2", 3], ["0", 2]]) {
+      const fake = await fakeSlopify();
+      const out = mkdtempSync(join(tmpdir(), "art-gen-"));
+      try {
+        const err = sink();
+        const args = ["--server", fake.url, "--out", out, "--only", "prop.crate,prop.bed,prop.chest", "--poll", "1", "--parallel", parallel, "--reference", ref, "--price-per-image", "0.05", "--yes"];
+        const code = await main(args, { out: sink(), err });
+        assert.equal(code, 0, err.text);
+        assert.equal(fake.calls.filter((c) => c === "POST /api/staging/images").length, uploads);
+        for (const id of ["prop.crate", "prop.bed", "prop.chest"]) assert.ok(existsSync(join(out, `${id}.png`)), id);
+      } finally {
+        fake.server.close();
+        rmSync(out, { recursive: true, force: true });
+      }
+    }
+  } finally {
+    rmSync(ref, { force: true });
   }
 });
 
