@@ -153,7 +153,7 @@ pub enum Hit {
     Miss,
 }
 
-type TileKey = (RenderKey, u32, u32, u32);
+pub(crate) type TileKey = (RenderKey, u32, u32, u32);
 
 /// The loaded library, built-in layouts, render caches and block source.
 pub struct Tactical {
@@ -376,14 +376,21 @@ impl Tactical {
         if let Some(hit) = cached(&self.pngs, key)? {
             return Ok((hit, Hit::Hit));
         }
-        let img = self.raw(key, layout)?;
-        let slot = self.lanes.encode_slot();
-        let start = Instant::now();
-        let encoded = Encoded::new(encode::encode_png(img.width, img.height, &img.data)?);
-        drop(slot);
-        stage("png encode", &img, start);
-        let bytes = encoded.bytes.len();
-        let value = lock(&self.pngs)?.insert(key.clone(), Arc::new(encoded), bytes);
+        let value = self.lanes.pngs.run(
+            key,
+            || cached(&self.pngs, key),
+            || {
+                let img = self.raw(key, layout)?;
+                crate::flight::check()?;
+                let slot = self.lanes.encode_slot()?;
+                let start = Instant::now();
+                let encoded = Encoded::new(encode::encode_png(img.width, img.height, &img.data)?);
+                drop(slot);
+                stage("png encode", &img, start);
+                let bytes = encoded.bytes.len();
+                Ok(lock(&self.pngs)?.insert(key.clone(), Arc::new(encoded), bytes))
+            },
+        )?;
         Ok((value, Hit::Miss))
     }
 
@@ -397,17 +404,22 @@ impl Tactical {
         key: &RenderKey,
         lane: raw::Lane,
     ) -> ServerResult<Arc<Pyramid>> {
-        if let Some(hit) = cached(&self.pyramids, key)? {
-            return Ok(hit);
-        }
-        let img = self.raw_in(key, layout, lane)?;
-        let slot = self.lanes.encode_slot();
-        let start = Instant::now();
-        let p = Pyramid::build(Rgba::clone(&img));
-        drop(slot);
-        stage("pyramid", &img, start);
-        let bytes = p.bytes();
-        Ok(lock(&self.pyramids)?.insert(key.clone(), Arc::new(p), bytes))
+        self.lanes.pyramids.run(
+            key,
+            || cached(&self.pyramids, key),
+            || {
+                let img = self.raw_in(key, layout, lane)?;
+                crate::flight::check()?;
+                let slot = self.lanes.encode_slot()?;
+                let start = Instant::now();
+                self.lanes.count_pyramid();
+                let p = Pyramid::build(Rgba::clone(&img));
+                drop(slot);
+                stage("pyramid", &img, start);
+                let bytes = p.bytes();
+                Ok(lock(&self.pyramids)?.insert(key.clone(), Arc::new(p), bytes))
+            },
+        )
     }
 
     /// Tile `(z, x, y)` of `layout` as lossless WebP.
@@ -435,10 +447,17 @@ impl Tactical {
                 "tile {z}/{x}/{y} is outside the pyramid (zoom 0..={top})"
             )));
         }
-        let rgba = self.pyramid(layout, key)?.tile(z, x, y)?;
-        let encoded = Encoded::new(encode_webp(&rgba, TACTICAL_TILE_PX)?);
-        let bytes = encoded.bytes.len();
-        let value = lock(&self.tiles)?.insert(tkey, Arc::new(encoded), bytes);
+        let value = self.lanes.tiles.run(
+            &tkey,
+            || cached(&self.tiles, &tkey),
+            || {
+                let rgba = self.pyramid(layout, key)?.tile(z, x, y)?;
+                crate::flight::check()?;
+                let encoded = Encoded::new(encode_webp(&rgba, TACTICAL_TILE_PX)?);
+                let bytes = encoded.bytes.len();
+                Ok(lock(&self.tiles)?.insert(tkey.clone(), Arc::new(encoded), bytes))
+            },
+        )?;
         Ok((value, Hit::Miss))
     }
 }

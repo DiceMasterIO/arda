@@ -96,7 +96,7 @@ impl Tactical {
         drop(layout);
         let (w, h) = (img.width, img.height);
         let p = {
-            let _slot = self.lanes.encode_slot();
+            let _slot = self.lanes.encode_slot_uncancelled();
             Pyramid::build(img)
         };
         let top = p.max_zoom();
@@ -108,7 +108,7 @@ impl Tactical {
                 for x in 0..cols {
                     let rgba = p.tile(z, x, y)?;
                     let tile = {
-                        let _slot = self.lanes.encode_slot();
+                        let _slot = self.lanes.encode_slot_uncancelled();
                         Encoded::new(encode_webp(&rgba, TACTICAL_TILE_PX)?)
                     };
                     bytes += tile.bytes.len() as u64;
@@ -134,5 +134,28 @@ impl Tactical {
             n(self.pngs.lock().ok().map(|c| c.len())),
             n(self.tiles.lock().ok().map(|c| c.len())),
         ]
+    }
+
+    /// Full-resolution renders and tile pyramids built so far (tests:
+    /// concurrent requests for one key build it once).
+    #[doc(hidden)]
+    #[must_use]
+    pub fn build_counts(&self) -> [u64; 2] {
+        self.lanes.built()
+    }
+
+    /// Tests: while `on`, no render enters the request lane, so requests
+    /// line up behind it.
+    #[doc(hidden)]
+    pub fn hold_request_lane(&self, on: bool) {
+        self.lanes.request_gate().hold(on);
+    }
+
+    /// Tests: requests parked at the request lane, the encode slot or
+    /// another request's render, pyramid, tile or PNG.
+    #[doc(hidden)]
+    #[must_use]
+    pub fn parked(&self) -> usize {
+        self.lanes.parked()
     }
 }

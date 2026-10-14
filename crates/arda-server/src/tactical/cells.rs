@@ -45,7 +45,16 @@ impl Tactical {
     /// # Errors
     /// The source's [`super::block::BlockError`].
     pub fn world_block(&self, req: &BlockRequest) -> ServerResult<Block> {
-        Ok(self.blocks.block(req, &self.library)?)
+        // One composition per window at a time: the source caches what it
+        // composes, so a waiter's own call is a cache hit (review 3.6-1).
+        self.lanes.blocks.run(
+            req,
+            || Ok(None),
+            || {
+                crate::flight::check()?;
+                Ok(self.blocks.block(req, &self.library)?)
+            },
+        )
     }
 
     /// The compositor seed of every world-anchored render of this world.
@@ -163,6 +172,15 @@ impl Tactical {
         if let Some(hit) = cached(&self.bodies, &key)? {
             return Ok((hit, Hit::Hit));
         }
+        let value = self.lanes.bodies.run(
+            &key,
+            || cached(&self.bodies, &key),
+            || self.build_body(req, key),
+        )?;
+        Ok((value, Hit::Miss))
+    }
+
+    fn build_body(&self, req: &BlockRequest, key: BodyKey) -> ServerResult<Arc<Encoded>> {
         let block = self.world_block(req)?;
         let seed = self.world_render_seed();
         let scene =
@@ -185,13 +203,12 @@ impl Tactical {
             rules: block.rules.as_ref().map(json).transpose()?,
             meta: block.meta.clone(),
             scene: Some(scene),
-            tiles: tiles_dto_sized(block.layout.width, block.layout.height, ppsq),
+            tiles: tiles_dto_sized(block.layout.width, block.layout.height, key.ppsq),
         };
         let bytes =
             serde_json::to_vec(&dto).map_err(|e| ServerError::Internal(format!("json: {e}")))?;
         let encoded = Encoded::new(bytes);
         let n = encoded.bytes.len();
-        let value = lock(&self.bodies)?.insert(key, Arc::new(encoded), n);
-        Ok((value, Hit::Miss))
+        Ok(lock(&self.bodies)?.insert(key, Arc::new(encoded), n))
     }
 }

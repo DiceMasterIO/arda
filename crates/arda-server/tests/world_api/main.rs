@@ -23,6 +23,7 @@ mod prefetch;
 mod realms;
 mod relief;
 mod schemas;
+mod serving;
 mod society_cells;
 mod support;
 mod tactical;

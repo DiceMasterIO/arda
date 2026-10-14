@@ -125,9 +125,13 @@ pub(crate) async fn blocking<T: Send + 'static>(
     state: Arc<AppState>,
     work: impl FnOnce(&AppState) -> ServerResult<T> + Send + 'static,
 ) -> ServerResult<T> {
-    tokio::task::spawn_blocking(move || work(&state))
-        .await
-        .map_err(|e| ServerError::Internal(format!("worker: {e}")))?
+    // Dropping this future (the client went away) cancels the work's
+    // queued stages (review 3.6-2; `crate::flight`).
+    let cancel = crate::flight::Cancel::default();
+    let armed = cancel.on_drop();
+    let out = tokio::task::spawn_blocking(move || cancel.scope(|| work(&state))).await;
+    armed.disarm();
+    out.map_err(|e| ServerError::Internal(format!("worker: {e}")))?
 }
 
 pub(crate) fn segments(path: Segments, count: usize) -> ServerResult<Vec<String>> {

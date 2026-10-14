@@ -17,6 +17,7 @@ pub mod derived;
 pub mod dto;
 pub mod error;
 pub mod fine;
+pub mod flight;
 pub mod gazetteer;
 pub mod npc;
 pub mod npc_dto;

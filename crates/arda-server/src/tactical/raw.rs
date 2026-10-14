@@ -4,9 +4,13 @@
 //! Requests render one at a time in the request lane; the prefetch workers
 //! render one at a time in their own lane, so warming neighbours never
 //! queues a request behind a speculative render (admission counts one
-//! transient render per lane). A key renders at most once at a time: a
-//! request for a key already rendering, in either lane, waits for that
-//! render and takes its result instead of starting a second one.
+//! transient render per lane). Every build is single-flight
+//! ([`crate::flight::Flights`]): a request for a render, pyramid, PNG,
+//! tile, body or block already building, in either lane, waits for that
+//! build and takes its result instead of starting a second one (review
+//! 3.6-1). A request whose client went away leaves the lane's queue and
+//! starts no further stage (review 3.6-2), so live requests are not
+//! queued behind abandoned ones.
 //!
 //! The bake lane (`POST /v1/tactical/bake`) renders a client-edited cell
 //! one job at a time and never touches the render cache: its own lock, no
@@ -14,11 +18,12 @@
 
 use super::{cached, stage, RenderKey, Tactical};
 use crate::error::{lock, ServerResult};
+use crate::flight::{Flights, Gate, Pass};
 use arda_tactical::{
     render, render_region, render_region_tinted, RenderOptions, Rgba, TacticalLayout,
 };
-use std::collections::BTreeSet;
-use std::sync::{Arc, Condvar, Mutex, PoisonError};
+use std::sync::atomic::{AtomicU64, Ordering};
+use std::sync::{Arc, Mutex, PoisonError};
 use std::time::Instant;
 
 /// Which lane a render runs in.
@@ -30,45 +35,76 @@ pub(crate) enum Lane {
     Prefetch,
 }
 
-/// The lane locks and the keys rendering now.
+/// The lane gates, the keys building now and the build counters.
 #[derive(Debug, Default)]
 pub(crate) struct Lanes {
-    request: Mutex<()>,
-    prefetch: Mutex<()>,
+    request: Gate,
+    prefetch: Gate,
     /// `POST /bake` jobs: one render, pyramid and tile encode at a time.
     bake: Mutex<()>,
     /// PNG encoding and pyramid building after a render: one at a time
     /// across both lanes, so admission counts one transient encode (review
     /// round 2 #32: they ran outside the render locks, unbounded).
-    encode: Mutex<()>,
-    inflight: Mutex<BTreeSet<RenderKey>>,
-    done: Condvar,
-}
-
-/// Clears an in-flight key and wakes its waiters, even on a panic.
-struct InFlight<'a> {
-    lanes: &'a Lanes,
-    key: RenderKey,
-}
-
-impl Drop for InFlight<'_> {
-    fn drop(&mut self) {
-        let mut set = self
-            .lanes
-            .inflight
-            .lock()
-            .unwrap_or_else(PoisonError::into_inner);
-        set.remove(&self.key);
-        drop(set);
-        self.lanes.done.notify_all();
-    }
+    encode: Gate,
+    /// Full-resolution renders building now.
+    pub(crate) renders: Flights<RenderKey>,
+    /// Tile pyramids building now.
+    pub(crate) pyramids: Flights<RenderKey>,
+    /// PNGs encoding now.
+    pub(crate) pngs: Flights<RenderKey>,
+    /// Tiles encoding now.
+    pub(crate) tiles: Flights<super::TileKey>,
+    /// JSON bodies building now.
+    pub(crate) bodies: Flights<super::cells::BodyKey>,
+    /// Blocks composing now (the source keeps the composed cache).
+    pub(crate) blocks: Flights<super::block::BlockRequest>,
+    /// Renders and pyramid builds run (tests).
+    built: [AtomicU64; 2],
 }
 
 impl Lanes {
-    /// Holds the single encode slot until the guard drops; waits for it
-    /// when another encode runs. Poisoning is ignored: the lock guards no data.
-    pub(crate) fn encode_slot(&self) -> std::sync::MutexGuard<'_, ()> {
-        self.encode.lock().unwrap_or_else(PoisonError::into_inner)
+    /// Holds the single encode slot until the pass drops; waits for it
+    /// when another encode runs.
+    ///
+    /// # Errors
+    /// The current request was abandoned while it waited.
+    pub(crate) fn encode_slot(&self) -> ServerResult<Pass<'_>> {
+        self.encode.enter()
+    }
+
+    /// As [`Self::encode_slot`], for the bake worker (never cancelled).
+    pub(crate) fn encode_slot_uncancelled(&self) -> Pass<'_> {
+        self.encode.enter_uncancelled()
+    }
+
+    /// Counts one pyramid build.
+    pub(crate) fn count_pyramid(&self) {
+        self.built[1].fetch_add(1, Ordering::SeqCst);
+    }
+
+    /// Renders and pyramid builds run so far.
+    pub(crate) fn built(&self) -> [u64; 2] {
+        [
+            self.built[0].load(Ordering::SeqCst),
+            self.built[1].load(Ordering::SeqCst),
+        ]
+    }
+
+    /// The request lane's gate (tests hold it shut).
+    pub(crate) const fn request_gate(&self) -> &Gate {
+        &self.request
+    }
+
+    /// Callers parked at the request lane, the encode slot or a render.
+    pub(crate) fn parked(&self) -> usize {
+        self.request.parked()
+            + self.encode.parked()
+            + self.renders.parked()
+            + self.pyramids.parked()
+            + self.pngs.parked()
+            + self.tiles.parked()
+            + self.bodies.parked()
+            + self.blocks.parked()
     }
 }
 
@@ -86,41 +122,27 @@ impl Tactical {
         layout: &TacticalLayout,
         lane: Lane,
     ) -> ServerResult<Arc<Rgba>> {
-        if let Some(hit) = cached(&self.renders, key)? {
-            return Ok(hit);
-        }
         let lanes = &self.lanes;
-        let _marker = {
-            let mut set = lanes
-                .inflight
-                .lock()
-                .unwrap_or_else(PoisonError::into_inner);
-            while set.contains(key) {
-                set = lanes.done.wait(set).unwrap_or_else(PoisonError::into_inner);
-            }
-            if let Some(hit) = cached(&self.renders, key)? {
-                return Ok(hit);
-            }
-            set.insert(key.clone());
-            InFlight {
-                lanes,
-                key: key.clone(),
-            }
-        };
-        // The lane guards protect no data, so a panicked render must not
-        // wedge every later one behind a poisoned lock.
-        let _one = match lane {
-            Lane::Request => &lanes.request,
-            Lane::Prefetch => &lanes.prefetch,
-        }
-        .lock()
-        .unwrap_or_else(PoisonError::into_inner);
-        if let Some(hit) = cached(&self.renders, key)? {
-            return Ok(hit);
-        }
-        let img = self.render_key(key, layout)?;
-        let bytes = img.data.len();
-        Ok(lock(&self.renders)?.insert(key.clone(), Arc::new(img), bytes))
+        lanes.renders.run(
+            key,
+            || cached(&self.renders, key),
+            || {
+                // An abandoned request leaves the lane's queue here, and
+                // checks once more after entering (logic/16 §api-cache).
+                let _lane = match lane {
+                    Lane::Request => lanes.request.enter()?,
+                    Lane::Prefetch => lanes.prefetch.enter()?,
+                };
+                if let Some(hit) = cached(&self.renders, key)? {
+                    return Ok(hit);
+                }
+                crate::flight::check()?;
+                lanes.built[0].fetch_add(1, Ordering::SeqCst);
+                let img = self.render_key(key, layout)?;
+                let bytes = img.data.len();
+                Ok(lock(&self.renders)?.insert(key.clone(), Arc::new(img), bytes))
+            },
+        )
     }
 
     /// Holds the bake lane until the guard drops: one bake renders at a
@@ -186,7 +208,7 @@ mod tests {
             .map(|_| {
                 let (lanes, running) = (Arc::clone(&lanes), Arc::clone(&running));
                 std::thread::spawn(move || {
-                    let _slot = lanes.encode_slot();
+                    let _slot = lanes.encode_slot().unwrap();
                     {
                         let mut r = running.lock().unwrap();
                         r.0 += 1;
@@ -202,9 +224,9 @@ mod tests {
         }
         assert_eq!(running.lock().unwrap().1, 1);
         // A slot held elsewhere makes the next encode wait.
-        let held = lanes.encode_slot();
-        assert!(lanes.encode.try_lock().is_err());
+        let held = lanes.encode_slot().unwrap();
+        assert_eq!(lanes.encode.inside(), 1);
         drop(held);
-        assert!(lanes.encode.try_lock().is_ok());
+        assert_eq!(lanes.encode.inside(), 0);
     }
 }
