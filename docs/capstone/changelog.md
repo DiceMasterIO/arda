@@ -2,6 +2,13 @@
 generated_date: 2026-08-24
 ---
 
+## 2026-10-14 - Kitchen-garden art and dressing
+- **Request**: 1.0 task 17, OI-33. Croft kitchen gardens and the farmstead plot drew as bare furrowed `farmland`.
+- **Placeholder library 0.3.0**: seven new pieces (`veg.vegetable_bed`, `veg.herb_bed`, `veg.bean_poles`, `prop.cold_frame`, `prop.compost_heap`, `prop.rain_barrel`, `prop.garden_tools`, free tag `garden`), 292 assets (was 285); existing images byte-identical. `library_version` 0.2.0 to 0.3.0 changes render seeds: dungeon render hashes, contract-kit goldens and three tactical test pins were re-blessed.
+- **Dressing**: `block/garden.rs` lays rows of beds in kitchen parcels (both fills); WFC kitchen palette gains clutter with per-chunk caps for compost and cold frame; the farmstead plot gets a laid-out garden. No new ground key. Town goldens: none pinned a croft kitchen.
+- **art-gen / importer**: tier 7 (27 images), vocabulary additions. Generated 27 images (Codex gpt-6-astra, thinking high, $0 counted; `veg.bean_poles` and `prop.rain_barrel.alt2` were retried after a Slopify collect error) and imported into a scratch library (27 imported, 0 rejected, 5 flagged for a possible baked shadow); a village croft and the farmstead plot render with them over the placeholder. The art is not committed; the redo list is in the task report.
+- **Closed**: OI-33 (code and prompt side; curation of the redo ids follows).
+
 ## 2026-10-13 - Tier-5 partition art prepared
 - **Request**: 1.0 task 06, OI-32. Interior walls inside one building are tagged `partition`; until `timber_partition`, `wattle_partition` and `adobe_partition` art exists the compositor squeezes the kit's own piece to half thickness.
 - **Importer**: `WALL_KITS` gains `log`, `adobe` and the three partition kits, so `wall.<kit>_partition.<role>` files are no longer flagged "not in the vocabulary"; coverage slots grow by five. A partition kit with missing roles is reported, not rejected (test `partition_kits_are_in_the_vocabulary`).
