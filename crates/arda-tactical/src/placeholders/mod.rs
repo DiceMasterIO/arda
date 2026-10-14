@@ -252,7 +252,7 @@ pub fn generate(seed: u64) -> (Catalog, BTreeMap<String, Rgba>) {
     let catalog = Catalog {
         format_version: FORMAT_VERSION,
         library: "placeholder".into(),
-        library_version: format!("0.2.0+seed{seed}"),
+        library_version: format!("0.3.0+seed{seed}"),
         pixels_per_square: PPSQ,
         vocabulary: TagVocabulary {
             biome: words(&["temperate", "boreal", "alpine", "wetland"]),

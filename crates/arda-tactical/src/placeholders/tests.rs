@@ -91,3 +91,29 @@ fn compositor_ignores_effect_art() {
         }
     }
 }
+
+/// The kitchen-garden pieces (1.0 task 17) are in the library, tagged
+/// `garden`, and the croft and farmstead dressing may use them.
+#[test]
+fn kitchen_garden_pieces_are_in_the_library() {
+    let (catalog, images) = generate(DEFAULT_SEED);
+    let ids = [
+        "veg.vegetable_bed",
+        "veg.herb_bed",
+        "veg.bean_poles",
+        "prop.cold_frame",
+        "prop.compost_heap",
+        "prop.rain_barrel",
+        "prop.garden_tools",
+    ];
+    for id in ids {
+        let a = catalog.assets.iter().find(|a| a.id == id);
+        assert!(
+            a.is_some_and(|a| a.tags.free.iter().any(|t| t == "garden")),
+            "{id}"
+        );
+        assert!(images.contains_key(id), "{id} image");
+    }
+    let frame = catalog.assets.iter().find(|a| a.id == "prop.cold_frame");
+    assert_eq!(frame.map(|a| (a.footprint.w, a.footprint.h)), Some((2, 1)));
+}

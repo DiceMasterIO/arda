@@ -3,8 +3,8 @@
 //! or `function:smithy` use to find furniture.
 
 use super::props::{
-    civic, damage as dm, dungeon as dg, farm, fire, furniture as fur, river, storage as st, work,
-    yard,
+    civic, damage as dm, dungeon as dg, farm, fire, furniture as fur, garden as gd, river,
+    storage as st, work, yard,
 };
 use super::relief::Relief;
 use super::{base, PPSQ};
@@ -49,6 +49,9 @@ const fn p(
     }
 }
 
+/// Buildings whose kitchen garden the garden pieces dress.
+const KITCHEN: &[&str] = &["farm", "farmhouse", "cottage"];
+
 const SEATS: &[&str] = &[
     "house",
     "farmhouse",
@@ -82,7 +85,7 @@ use Cover::{Half, None as Open, ThreeQuarters as Most};
 
 /// Every placeholder prop.
 #[rustfmt::skip]
-pub const PROPS: [PropSpec; 70] = [
+pub const PROPS: [PropSpec; 74] = [
     p("prop.barrel", (1, 1), st::barrel, 4, Half, &["warehouse", "dock", "inn", "tavern", "brewery", "market", "boathouse", "market_hall", "mine"], &["container"]),
     p("prop.crate", (1, 1), st::crate_box, 3, Half, STORES, &["container"]),
     p("prop.sacks", (1, 1), st::sacks, 2, Half, &["warehouse", "farm", "market", "mill", "bakery", "barn", "stall", "market_hall"], &["container"]),
@@ -156,6 +159,12 @@ pub const PROPS: [PropSpec; 70] = [
     p("prop.rubble_heap", (2, 2), dm::rubble_heap, 2, Half, &[], &["damage", "rubble"]),
     p("prop.broken_deck", (1, 2), dm::broken_deck, 0, Open, &[], &["damage", "floor"]),
     p("prop.charred_floor", (2, 2), dm::charred_floor, 0, Open, &[], &["damage", "floor"]),
+    // Kitchen-garden pieces (1.0 task 17). Appended, so earlier records and
+    // images stay byte for byte.
+    p("prop.cold_frame", (2, 1), gd::cold_frame, 2, Half, KITCHEN, &["garden", "frame"]),
+    p("prop.compost_heap", (1, 1), gd::compost_heap, 2, Half, KITCHEN, &["garden", "compost"]),
+    p("prop.rain_barrel", (1, 1), gd::rain_barrel, 3, Half, KITCHEN, &["garden", "water"]),
+    p("prop.garden_tools", (1, 1), gd::garden_tools, 0, Open, KITCHEN, &["garden", "tool"]),
 ];
 
 /// Lights by prop id: radius in feet and colour.

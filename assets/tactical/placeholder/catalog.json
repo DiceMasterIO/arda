@@ -1,7 +1,7 @@
 {
   "format_version": 1,
   "library": "placeholder",
-  "library_version": "0.2.0+seed58",
+  "library_version": "0.3.0+seed58",
   "pixels_per_square": 128,
   "vocabulary": {
     "biome": [
@@ -11973,6 +11973,242 @@
       "licence": "Apache-2.0 (generated placeholder)"
     },
     {
+      "id": "prop.cold_frame",
+      "class": "prop",
+      "image": "props/prop.cold_frame.png",
+      "footprint": {
+        "w": 2,
+        "h": 1
+      },
+      "anchor": null,
+      "rotations": [
+        0,
+        90,
+        180,
+        270
+      ],
+      "mirror": true,
+      "tags": {
+        "biome": [
+          "temperate"
+        ],
+        "culture": [
+          "human"
+        ],
+        "wealth": [
+          "poor",
+          "modest"
+        ],
+        "function": [
+          "farm",
+          "farmhouse",
+          "cottage"
+        ],
+        "free": [
+          "garden",
+          "frame"
+        ]
+      },
+      "placement": {
+        "on_water": false,
+        "against_wall": false,
+        "near_road": false,
+        "clearance_squares": 0,
+        "ground": []
+      },
+      "blocks_sight": false,
+      "blocks_movement": false,
+      "difficult_terrain": true,
+      "cover": "half",
+      "light": null,
+      "layer": "prop",
+      "z": 0,
+      "casts_shadow": true,
+      "height_ft": 2,
+      "tileable": false,
+      "ground": null,
+      "wall": null,
+      "provenance": "arda-tactical placeholder generator, seed 58",
+      "licence": "Apache-2.0 (generated placeholder)"
+    },
+    {
+      "id": "prop.compost_heap",
+      "class": "prop",
+      "image": "props/prop.compost_heap.png",
+      "footprint": {
+        "w": 1,
+        "h": 1
+      },
+      "anchor": null,
+      "rotations": [
+        0,
+        90,
+        180,
+        270
+      ],
+      "mirror": true,
+      "tags": {
+        "biome": [
+          "temperate"
+        ],
+        "culture": [
+          "human"
+        ],
+        "wealth": [
+          "poor",
+          "modest"
+        ],
+        "function": [
+          "farm",
+          "farmhouse",
+          "cottage"
+        ],
+        "free": [
+          "garden",
+          "compost"
+        ]
+      },
+      "placement": {
+        "on_water": false,
+        "against_wall": false,
+        "near_road": false,
+        "clearance_squares": 0,
+        "ground": []
+      },
+      "blocks_sight": false,
+      "blocks_movement": false,
+      "difficult_terrain": true,
+      "cover": "half",
+      "light": null,
+      "layer": "prop",
+      "z": 0,
+      "casts_shadow": true,
+      "height_ft": 2,
+      "tileable": false,
+      "ground": null,
+      "wall": null,
+      "provenance": "arda-tactical placeholder generator, seed 58",
+      "licence": "Apache-2.0 (generated placeholder)"
+    },
+    {
+      "id": "prop.rain_barrel",
+      "class": "prop",
+      "image": "props/prop.rain_barrel.png",
+      "footprint": {
+        "w": 1,
+        "h": 1
+      },
+      "anchor": null,
+      "rotations": [
+        0,
+        90,
+        180,
+        270
+      ],
+      "mirror": true,
+      "tags": {
+        "biome": [
+          "temperate"
+        ],
+        "culture": [
+          "human"
+        ],
+        "wealth": [
+          "poor",
+          "modest"
+        ],
+        "function": [
+          "farm",
+          "farmhouse",
+          "cottage"
+        ],
+        "free": [
+          "garden",
+          "water"
+        ]
+      },
+      "placement": {
+        "on_water": false,
+        "against_wall": false,
+        "near_road": false,
+        "clearance_squares": 0,
+        "ground": []
+      },
+      "blocks_sight": false,
+      "blocks_movement": true,
+      "difficult_terrain": false,
+      "cover": "half",
+      "light": null,
+      "layer": "prop",
+      "z": 0,
+      "casts_shadow": true,
+      "height_ft": 3,
+      "tileable": false,
+      "ground": null,
+      "wall": null,
+      "provenance": "arda-tactical placeholder generator, seed 58",
+      "licence": "Apache-2.0 (generated placeholder)"
+    },
+    {
+      "id": "prop.garden_tools",
+      "class": "prop",
+      "image": "props/prop.garden_tools.png",
+      "footprint": {
+        "w": 1,
+        "h": 1
+      },
+      "anchor": null,
+      "rotations": [
+        0,
+        90,
+        180,
+        270
+      ],
+      "mirror": true,
+      "tags": {
+        "biome": [
+          "temperate"
+        ],
+        "culture": [
+          "human"
+        ],
+        "wealth": [
+          "poor",
+          "modest"
+        ],
+        "function": [
+          "farm",
+          "farmhouse",
+          "cottage"
+        ],
+        "free": [
+          "garden",
+          "tool"
+        ]
+      },
+      "placement": {
+        "on_water": false,
+        "against_wall": false,
+        "near_road": false,
+        "clearance_squares": 0,
+        "ground": []
+      },
+      "blocks_sight": false,
+      "blocks_movement": false,
+      "difficult_terrain": false,
+      "cover": "none",
+      "light": null,
+      "layer": "prop",
+      "z": 0,
+      "casts_shadow": false,
+      "height_ft": 0,
+      "tileable": false,
+      "ground": null,
+      "wall": null,
+      "provenance": "arda-tactical placeholder generator, seed 58",
+      "licence": "Apache-2.0 (generated placeholder)"
+    },
+    {
       "id": "veg.tree_oak",
       "class": "vegetation",
       "image": "vegetation/veg.tree_oak.png",
@@ -14284,6 +14520,165 @@
       "blocks_movement": true,
       "difficult_terrain": false,
       "cover": "three_quarters",
+      "light": null,
+      "layer": "prop",
+      "z": 0,
+      "casts_shadow": true,
+      "height_ft": 6,
+      "tileable": false,
+      "ground": null,
+      "wall": null,
+      "provenance": "arda-tactical placeholder generator, seed 58",
+      "licence": "Apache-2.0 (generated placeholder)"
+    },
+    {
+      "id": "veg.vegetable_bed",
+      "class": "vegetation",
+      "image": "vegetation/veg.vegetable_bed.png",
+      "footprint": {
+        "w": 1,
+        "h": 1
+      },
+      "anchor": null,
+      "rotations": [
+        0,
+        90,
+        180,
+        270
+      ],
+      "mirror": true,
+      "tags": {
+        "biome": [
+          "temperate"
+        ],
+        "culture": [
+          "human"
+        ],
+        "wealth": [],
+        "function": [],
+        "free": [
+          "garden",
+          "vegetable",
+          "fixed_pose"
+        ]
+      },
+      "placement": {
+        "on_water": false,
+        "against_wall": false,
+        "near_road": false,
+        "clearance_squares": 0,
+        "ground": []
+      },
+      "blocks_sight": false,
+      "blocks_movement": false,
+      "difficult_terrain": true,
+      "cover": "none",
+      "light": null,
+      "layer": "prop",
+      "z": 0,
+      "casts_shadow": true,
+      "height_ft": 1,
+      "tileable": false,
+      "ground": null,
+      "wall": null,
+      "provenance": "arda-tactical placeholder generator, seed 58",
+      "licence": "Apache-2.0 (generated placeholder)"
+    },
+    {
+      "id": "veg.herb_bed",
+      "class": "vegetation",
+      "image": "vegetation/veg.herb_bed.png",
+      "footprint": {
+        "w": 1,
+        "h": 1
+      },
+      "anchor": null,
+      "rotations": [
+        0,
+        90,
+        180,
+        270
+      ],
+      "mirror": true,
+      "tags": {
+        "biome": [
+          "temperate"
+        ],
+        "culture": [
+          "human"
+        ],
+        "wealth": [],
+        "function": [],
+        "free": [
+          "garden",
+          "herb",
+          "fixed_pose"
+        ]
+      },
+      "placement": {
+        "on_water": false,
+        "against_wall": false,
+        "near_road": false,
+        "clearance_squares": 0,
+        "ground": []
+      },
+      "blocks_sight": false,
+      "blocks_movement": false,
+      "difficult_terrain": true,
+      "cover": "none",
+      "light": null,
+      "layer": "prop",
+      "z": 0,
+      "casts_shadow": true,
+      "height_ft": 1,
+      "tileable": false,
+      "ground": null,
+      "wall": null,
+      "provenance": "arda-tactical placeholder generator, seed 58",
+      "licence": "Apache-2.0 (generated placeholder)"
+    },
+    {
+      "id": "veg.bean_poles",
+      "class": "vegetation",
+      "image": "vegetation/veg.bean_poles.png",
+      "footprint": {
+        "w": 1,
+        "h": 1
+      },
+      "anchor": null,
+      "rotations": [
+        0,
+        90,
+        180,
+        270
+      ],
+      "mirror": true,
+      "tags": {
+        "biome": [
+          "temperate"
+        ],
+        "culture": [
+          "human"
+        ],
+        "wealth": [],
+        "function": [],
+        "free": [
+          "garden",
+          "trellis",
+          "fixed_pose"
+        ]
+      },
+      "placement": {
+        "on_water": false,
+        "against_wall": false,
+        "near_road": false,
+        "clearance_squares": 0,
+        "ground": []
+      },
+      "blocks_sight": false,
+      "blocks_movement": false,
+      "difficult_terrain": true,
+      "cover": "half",
       "light": null,
       "layer": "prop",
       "z": 0,

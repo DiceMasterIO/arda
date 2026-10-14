@@ -37,6 +37,9 @@ enum Look {
     Juniper,
     Outcrop,
     Stalagmite,
+    VegBed,
+    HerbBed,
+    BeanPoles,
 }
 
 /// A vegetation description: id, size in squares, look, height, cover,
@@ -83,7 +86,7 @@ const WET: &[&str] = &["wetland"];
 const HILL: &[&str] = &["alpine"];
 
 #[rustfmt::skip]
-const VEGETATION: [VegSpec; 43] = [
+const VEGETATION: [VegSpec; 46] = [
     v("veg.tree_oak", (3, 3), Broadleaf([78, 112, 44], false, None), 30, Half, false, &["tree", "forest", "broadleaf"], &[]),
     v("veg.tree_elm", (3, 3), Broadleaf([62, 98, 50], false, None), 35, Half, false, &["tree", "forest", "broadleaf"], &[]),
     v("veg.tree_birch", (2, 2), Broadleaf([124, 152, 62], true, None), 25, Half, false, &["tree", "forest", "broadleaf"], &[]),
@@ -131,6 +134,10 @@ const VEGETATION: [VegSpec; 43] = [
     // Cave dressing (arda-dungeon); deliberately not tagged `rock`, so the
     // field and wild dressing queries never pick it.
     v("veg.stalagmite", (1, 1), Look::Stalagmite, 6, Most, true, &["cave", "stalagmite"], &[]),
+    // Kitchen-garden beds (1.0 task 17): crops on farmland, free tag `garden`.
+    v("veg.vegetable_bed", (1, 1), Look::VegBed, 1, Open, false, &["garden", "vegetable"], &[]),
+    v("veg.herb_bed", (1, 1), Look::HerbBed, 1, Open, false, &["garden", "herb"], &[]),
+    v("veg.bean_poles", (1, 1), Look::BeanPoles, 6, Half, false, &["garden", "trellis"], &[]),
 ];
 
 fn paint(look: Look, r: &mut Relief, seed: u64) {
@@ -166,6 +173,9 @@ fn paint(look: Look, r: &mut Relief, seed: u64) {
         Look::Juniper => plants::bush(r, seed, [66, 100, 72], false),
         Look::Outcrop => rocks::outcrop(r, seed),
         Look::Stalagmite => super::props::dungeon::stalagmite(r, seed),
+        Look::VegBed => super::props::garden::vegetable_bed(r, seed, r.width as f32),
+        Look::HerbBed => super::props::garden::herb_bed(r, seed, r.width as f32),
+        Look::BeanPoles => super::props::garden::bean_poles(r, seed, r.width as f32),
     }
 }
 

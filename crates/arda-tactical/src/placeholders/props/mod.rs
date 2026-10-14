@@ -19,6 +19,7 @@ pub mod dungeon;
 pub mod farm;
 pub mod fire;
 pub mod furniture;
+pub mod garden;
 pub mod river;
 pub mod storage;
 pub mod work;
