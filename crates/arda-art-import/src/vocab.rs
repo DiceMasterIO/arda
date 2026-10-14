@@ -132,6 +132,11 @@ pub const PROPS: &[&str] = &[
     "chest_treasure",
     "stairs_down",
     "torch_sconce",
+    // Kitchen-garden pieces (tier 7, 1.0 task 17).
+    "cold_frame",
+    "compost_heap",
+    "rain_barrel",
+    "garden_tools",
 ];
 
 /// Vegetation names (`veg.<name>`).
@@ -166,6 +171,10 @@ pub const VEGETATION: &[&str] = &[
     "juniper",
     "rock_outcrop",
     "stalagmite",
+    // Kitchen-garden beds (tier 7, 1.0 task 17).
+    "vegetable_bed",
+    "herb_bed",
+    "bean_poles",
 ];
 
 /// Building functions (`function` tags).
