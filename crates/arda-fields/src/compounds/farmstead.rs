@@ -129,6 +129,7 @@ fn plan(l: &mut Local, st: &Style, h: u64) {
     l.ground(19, 13, 24, 18, "farmland");
     l.rect_walls(19, 13, 24, 18, "wattle");
     l.opening(H, 21, 13, WallRole::Gate, "wattle");
+    kitchen_garden(l);
     // Yard dressing.
     l.id("prop.well", 13.5, 12.5, 0);
     l.id("prop.trough", 16.0, 12.5, 0);
@@ -141,6 +142,30 @@ fn plan(l: &mut Local, st: &Style, h: u64) {
     l.id("prop.sacks", 13.5, 9.5, 0);
     l.query(AssetClass::Prop, &["livestock:poultry"], 16.5, 16.5, 0);
     l.query(AssetClass::Prop, &["livestock:poultry"], 17.5, 15.5, 90);
+}
+
+/// The plot's beds: a path runs down column 21 from the gate, beds and bean
+/// poles on either side, clutter along the far row.
+fn kitchen_garden(l: &mut Local) {
+    for (id, x, y) in [
+        ("veg.vegetable_bed", 19.5, 14.5),
+        ("veg.vegetable_bed", 20.5, 14.5),
+        ("veg.vegetable_bed", 19.5, 15.5),
+        ("veg.vegetable_bed", 20.5, 15.5),
+        ("veg.herb_bed", 19.5, 16.5),
+        ("veg.herb_bed", 20.5, 16.5),
+        ("veg.bean_poles", 22.5, 14.5),
+        ("veg.bean_poles", 23.5, 14.5),
+        ("veg.vegetable_bed", 22.5, 15.5),
+        ("veg.vegetable_bed", 23.5, 15.5),
+        ("veg.vegetable_bed", 22.5, 16.5),
+        ("prop.rain_barrel", 23.5, 16.5),
+        ("prop.compost_heap", 22.5, 17.5),
+        ("prop.garden_tools", 23.5, 17.5),
+    ] {
+        l.id(id, x, y, 0);
+    }
+    l.id("prop.cold_frame", 20.0, 17.5, 0);
 }
 
 fn farmhouse(l: &mut Local, st: &Style) {

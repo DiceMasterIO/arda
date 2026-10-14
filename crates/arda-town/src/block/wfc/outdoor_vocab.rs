@@ -108,6 +108,11 @@ pub const PIECES: &[Piece] = &[
         light: None,
         weight: 1,
     },
+    // Kitchen-garden clutter (1.0 task 17), appended so earlier tile ids stay.
+    loose("prop.rain_barrel"),
+    loose("prop.garden_tools"),
+    loose("prop.compost_heap"),
+    Piece::prop("prop.cold_frame", 2, 1, [Any; 4], 1).orients(TWO),
 ];
 
 /// The pieces a class may hold, with weights (plain ground first).
@@ -189,7 +194,17 @@ pub fn palette(c: Class) -> &'static [(&'static str, u32)] {
             ("veg.tree_fruit", 10),
             ("veg.tall_grass", 3),
         ],
-        Class::Kitchen => &[("ground", 300), ("prop.bucket", 2), ("prop.wheelbarrow", 1)],
+        // The rows of beds come after the solve (`block::garden`), on the
+        // ground squares it leaves; the palette holds the clutter.
+        Class::Kitchen => &[
+            ("ground", 300),
+            ("prop.bucket", 2),
+            ("prop.wheelbarrow", 1),
+            ("prop.rain_barrel", 2),
+            ("prop.garden_tools", 3),
+            ("prop.compost_heap", 2),
+            ("prop.cold_frame", 2),
+        ],
         Class::Meadow => &[
             ("ground", 200),
             ("veg.flower_patch", 10),
@@ -246,4 +261,6 @@ pub const CAPS: &[(&str, u32)] = &[
     ("veg.tree_oak", 2),
     ("veg.tree_elm", 2),
     ("prop.signpost", 1),
+    ("prop.compost_heap", 1),
+    ("prop.cold_frame", 1),
 ];

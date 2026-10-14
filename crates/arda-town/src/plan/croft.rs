@@ -158,6 +158,15 @@ pub fn parcel(seed: u64, gx: i64, gy: i64) -> u64 {
     hash_i(seed ^ 0xC20F_7A12, run, band)
 }
 
+/// A global square's place in its parcel: `(column, row)`, from the parcel's
+/// west and north edges (columns `0..17`, rows `0..12`).
+#[must_use]
+pub fn local(seed: u64, gx: i64, gy: i64) -> (i64, i64) {
+    let band = gy.div_euclid(BAND);
+    let shift = i64::try_from(hash_i(seed ^ 0xC20F_7A11, band, 0) % 1024).unwrap_or(0);
+    ((gx + shift).rem_euclid(RUN), gy.rem_euclid(BAND))
+}
+
 /// The use of a parcel.
 #[must_use]
 pub fn use_of(parcel: u64) -> Use {

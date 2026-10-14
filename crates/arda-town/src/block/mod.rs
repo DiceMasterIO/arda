@@ -13,6 +13,7 @@
 pub mod exterior;
 pub mod fallback;
 pub mod frame;
+pub mod garden;
 pub mod ground;
 pub mod interior;
 pub mod kits;

@@ -386,7 +386,12 @@ pub fn croft(plan: &TownPlan, x: i64, y: i64, pick: u64, out: &mut Vec<GProp>) {
             }
         }
         Use::Kitchen => {
-            if pick < t(5) && own(1, 1) {
+            // A birch on the rim covers two squares each way: no bed under it.
+            let bare = |a: i64, b: i64| !rim(s, |u, v| kind(plan, u, v) == Kind::Open, a, b);
+            let clear = bare(x, y) && bare(x - 1, y) && bare(x, y - 1) && bare(x - 1, y - 1);
+            if let Some(id) = super::garden::bed(s, x, y).filter(|_| clear) {
+                out.push(prop(id, x, y, 0));
+            } else if pick < t(5) && own(1, 1) {
                 out.push(prop("prop.bucket", x, y, 0));
             } else if (100..100 + t(3)).contains(&pick) && own(1, 1) {
                 out.push(prop("prop.wheelbarrow", x, y, rot));

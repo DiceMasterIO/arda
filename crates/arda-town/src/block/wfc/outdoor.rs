@@ -358,6 +358,20 @@ fn decode(
                 .push(((x, y), if plaza_flag { "cobbles" } else { "flagstone" })),
             _ => {}
         }
+        // Kitchen gardens: beds in rows on the squares the solve left bare.
+        if classes[i] == Class::Kitchen && t == 0 {
+            if let Some(id) = crate::block::garden::bed(plan.seed, x, y) {
+                #[allow(clippy::cast_precision_loss)]
+                let e = [x as f64, y as f64, (x + 1) as f64, (y + 1) as f64];
+                out.props.push(GProp {
+                    want: Want::Id(id),
+                    x: (e[0] + e[2]) * 0.5,
+                    y: (e[1] + e[3]) * 0.5,
+                    rot: 0,
+                    extent: e,
+                });
+            }
+        }
         let t = usize::from(t);
         let (Some(tile), Some(piece)) = (v.tiles.get(t), v.piece_of(t)) else {
             continue;
