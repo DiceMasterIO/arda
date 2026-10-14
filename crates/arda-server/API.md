@@ -24,8 +24,8 @@ docker run --rm -p 8787:8787 -v /abs/world:/worlds/world:ro arda:local
 | `--world <dir>` | required | World directory (holds `world.json`) |
 | `--port` | `8787` | TCP port |
 | `--host` | `127.0.0.1` | Bind address |
-| `--area-cache-mib` | `1024` | Decoded-area cache budget |
-| `--fine-cache-mib` | `512` | Fine-terrain window cache budget |
+| `--area-cache-mib` | `384` | Decoded-area cache budget (1024 before the serving-concurrency fix, review 3.6-8) |
+| `--fine-cache-mib` | `256` | Fine-terrain window cache budget (512 before review 3.6-8) |
 | `--max-overview-px` | `8192` | Largest `overview.png` long edge clients may request |
 | `--tile-base-px` | `4096` | Tile-pyramid base edge; `256 · 2^max_zoom`, at least 512 |
 | `--library <dir>` | `assets/tactical/placeholder` | Tactical asset library (holds `catalog.json`), relative to the working directory. It is loaded once and validated with the arda-tactical loader; any validation issue stops startup |
@@ -92,6 +92,18 @@ docker run --rm -p 8787:8787 -v /abs/world:/worlds/world:ro arda:local
     same way, together with one transient render at the pixel limit per lane and one
     transient encode: full-size PNG encodes and tile-pyramid builds run one at a time across
     both lanes (10 bytes a pixel at the pixel limit).
+  - So is the tactical pipeline (review 3.6-8): two concurrent block compositions (192 MiB
+    each; further compositions wait), the 256 refined blocks (512 KiB each), two generations of
+    the refine source's decoded areas (it decodes at most 6 areas, then reopens the world, so
+    a long session never holds every area) and the 64 town plans (4 MiB each). Composed blocks
+    are charged with their per-square `ext` maps (a town block about 3 MB). Once the world and
+    library are open, the server adds what they hold (decoded library and scaled textures,
+    parsed `society/` files at twice their size, the shore layer, a town plan larger than
+    4 MiB) and refuses to start above 16 GiB, naming each term; lower `--area-cache-mib` or
+    `--fine-cache-mib` then. The startup line prints the admitted total. Defaults: about
+    16.0 GiB of budgets plus 0.15 GiB for the MICRO society world. The query caches (areas
+    384 MiB, derived layers 128 MiB, fine windows 256 MiB) and the encoded PNG, tile and
+    body caches (160 MiB each) were trimmed to make room.
 
 ## Errors
 
@@ -554,8 +566,12 @@ the `--library` catalogue, with lighting on.
   ppsq)`, and composed blocks and refined 64 × 64 blocks in their own LRUs. Identical
   requests return identical bytes, cold or cached. Requests render one at a time, and
   prefetch workers render one at a time in their own lane (see
-  [prefetch](#post-v1tacticalprefetch)); a key never renders twice at once, since a request
-  for a key already rendering waits for that render.
+  [prefetch](#post-v1tacticalprefetch)). Every build is single-flight: a render, pyramid,
+  PNG, tile, JSON body or block composition already in progress for the same key is waited
+  for, never started twice (16 concurrent tile requests on a cold cell build one pyramid).
+  A request whose client disconnects leaves the queue: it gives up its wait at the lane, the
+  encode slot or another request's build, and starts no further stage, so live requests are
+  not held behind abandoned ones. A stage already running finishes and caches its result.
 - **Goal 67 check.** The key carries the world seed (`world_seed`), the coordinates (the
   `Origin` anchor, in world squares, and the `crop`) and the catalogue version
   (`library_version`); `tests/world_api/prefetch.rs` asserts all three for two neighbouring
@@ -807,14 +823,17 @@ rejected):
 - `radius` is 1 (the 8 neighbours, the default) or 2 (the 24 cells of two rings); anything
   else is 400. `ppsq` takes the cell route's values (default 128). The centre must lie inside
   the world (400 `out_of_range`); rings are clipped at the world edge.
-- Cells are queued nearest ring first, row-major within a ring. The queue holds at most 64
-  cells, deduplicated; a cell already queued or warming is `pending`, and a full queue
-  `dropped` the rest. Nothing is ever trimmed silently: every cell is listed with its outcome.
+- Cells are listed nearest ring first, row-major within a ring, and warm nearest ring first,
+  the four cardinal neighbours before the diagonals. The queue holds at most 64 cells,
+  deduplicated; a cell already queued or warming is `pending`. A full queue lets its oldest
+  waiting cells (an earlier view's) go to take the fresh ones; with `--prefetch-workers 0`
+  every cell is `dropped`. Every cell of the request is listed with its outcome.
 - `--prefetch-workers` threads (default 2) take cells from the queue. Each builds the cell's
-  composed block and JSON body at `ppsq` and, for the nearest cells whose render and tile
-  pyramid fit the render and pyramid caches beside the open cell (`image: true`; about 10 at
-  64 px per square and 1 at 128 with the default budgets), renders its image (grid off) and
-  builds the pyramid. Open-sea cells have nothing to warm (`no_block`).
+  composed block and JSON body at `ppsq` and, for the first cells in warming order whose
+  render and tile pyramid fit the render and pyramid caches beside the open cell (`image:
+  true`; about 10 at 64 px per square and 1, a cardinal neighbour, at 128 with the default
+  budgets), renders its image (grid off) and builds the pyramid. Open-sea cells have nothing
+  to warm (`no_block`). A job that panics is dropped and logged; its worker carries on.
 - Prefetching never blocks a request: the handler only touches the queue, and workers render
   in their own lane. It never changes a response's bytes; it only turns later misses into
   hits (`X-Arda-Cache: hit` on the JSON, and tiles cut from a cached pyramid).
@@ -897,7 +916,8 @@ Body (TS `BakeRequest`, `Content-Type: application/json`, unknown fields rejecte
 
 `state` is `queued`, `running`, `done` or `failed`; `tiles`, `tile_count` and `total_bytes`
 are set once `done`, `error` (an `ApiErrorBody`) once `failed`. A job that failed stays failed
-for the same body until it is deleted or evicted.
+for the same body until it is deleted or evicted. A job whose bake panics fails with
+`internal`; the worker carries on with the next job.
 
 `GET /v1/tactical/bake/{id}/tiles/{z}/{x}/{y}.webp` returns one 512 px lossless WebP tile of
 the pyramid `tiles` describes (as the cell route's tiles), with a strong `ETag` and
