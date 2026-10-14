@@ -10393,9 +10393,9 @@
           "rock"
         ]
       },
-      "blocks_movement": true,
+      "blocks_movement": false,
       "blocks_sight": false,
-      "difficult_terrain": false,
+      "difficult_terrain": true,
       "cover": "half",
       "values": {
         "Subject": "a small rock",
@@ -10480,10 +10480,10 @@
           "rock"
         ]
       },
-      "blocks_movement": true,
+      "blocks_movement": false,
       "blocks_sight": false,
-      "difficult_terrain": false,
-      "cover": "half",
+      "difficult_terrain": true,
+      "cover": "none",
       "values": {
         "Subject": "a small cluster of four or five stones",
         "Shape": "Its outline is irregular and uneven, never a neat circle or star; it bulges or reaches out on one or two sides. It fills about 80% of the frame, 5 feet at most.",
@@ -22394,9 +22394,9 @@
           "rock"
         ]
       },
-      "blocks_movement": true,
+      "blocks_movement": false,
       "blocks_sight": false,
-      "difficult_terrain": false,
+      "difficult_terrain": true,
       "cover": "half",
       "file": "vegetation/veg.rock_small.alt1.png",
       "status": "new",
@@ -22527,10 +22527,10 @@
           "rock"
         ]
       },
-      "blocks_movement": true,
+      "blocks_movement": false,
       "blocks_sight": false,
-      "difficult_terrain": false,
-      "cover": "half",
+      "difficult_terrain": true,
+      "cover": "none",
       "file": "vegetation/veg.stones.alt1.png",
       "status": "new",
       "tier": 1,
@@ -23237,9 +23237,9 @@
           "rock"
         ]
       },
-      "blocks_movement": true,
+      "blocks_movement": false,
       "blocks_sight": false,
-      "difficult_terrain": false,
+      "difficult_terrain": true,
       "cover": "half",
       "file": "vegetation/veg.rock_small.alt2.png",
       "status": "new",
@@ -23370,10 +23370,10 @@
           "rock"
         ]
       },
-      "blocks_movement": true,
+      "blocks_movement": false,
       "blocks_sight": false,
-      "difficult_terrain": false,
-      "cover": "half",
+      "difficult_terrain": true,
+      "cover": "none",
       "file": "vegetation/veg.stones.alt2.png",
       "status": "new",
       "tier": 1,
@@ -24080,9 +24080,9 @@
           "rock"
         ]
       },
-      "blocks_movement": true,
+      "blocks_movement": false,
       "blocks_sight": false,
-      "difficult_terrain": false,
+      "difficult_terrain": true,
       "cover": "half",
       "file": "vegetation/veg.rock_small.alt3.png",
       "status": "new",
@@ -24213,10 +24213,10 @@
           "rock"
         ]
       },
-      "blocks_movement": true,
+      "blocks_movement": false,
       "blocks_sight": false,
-      "difficult_terrain": false,
-      "cover": "half",
+      "difficult_terrain": true,
+      "cover": "none",
       "file": "vegetation/veg.stones.alt3.png",
       "status": "new",
       "tier": 1,
@@ -24521,9 +24521,9 @@
           "rock"
         ]
       },
-      "blocks_movement": true,
+      "blocks_movement": false,
       "blocks_sight": false,
-      "difficult_terrain": false,
+      "difficult_terrain": true,
       "cover": "half",
       "file": "vegetation/veg.rock_small.alt4.png",
       "status": "new",
@@ -58616,9 +58616,9 @@
           "rock"
         ]
       },
-      "blocks_movement": true,
+      "blocks_movement": false,
       "blocks_sight": false,
-      "difficult_terrain": false,
+      "difficult_terrain": true,
       "cover": "half",
       "file": "vegetation/veg.lichen_rock.png",
       "status": "new",
@@ -58956,9 +58956,9 @@
           "rock"
         ]
       },
-      "blocks_movement": true,
+      "blocks_movement": false,
       "blocks_sight": false,
-      "difficult_terrain": false,
+      "difficult_terrain": true,
       "cover": "half",
       "file": "vegetation/veg.lichen_rock.alt1.png",
       "status": "new",
@@ -59298,9 +59298,9 @@
           "rock"
         ]
       },
-      "blocks_movement": true,
+      "blocks_movement": false,
       "blocks_sight": false,
-      "difficult_terrain": false,
+      "difficult_terrain": true,
       "cover": "half",
       "file": "vegetation/veg.lichen_rock.alt2.png",
       "status": "new",

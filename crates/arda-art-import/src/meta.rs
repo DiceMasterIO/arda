@@ -229,6 +229,19 @@ fn veg_default(a: &mut Asset, name: &str) {
         a.height_ft = 30;
         a.placement.clearance_squares = 1;
         a.tags.free = vec!["tree".into()];
+    } else if has(&["stones", "pebble", "scree", "rock_small", "lichen_rock"]) {
+        // Small scattered rocks are stepped over: difficult terrain, never
+        // an obstacle (the rules contract, logic/12 §scene-sidecar); a lone
+        // small rock still gives half cover.
+        a.difficult_terrain = true;
+        a.cover = if has(&["rock_small", "lichen_rock"]) {
+            Cover::Half
+        } else {
+            Cover::None
+        };
+        a.casts_shadow = true;
+        a.height_ft = 2;
+        a.tags.free = vec!["rock".into()];
     } else if has(&["rock", "boulder", "stone"]) {
         a.blocks_movement = true;
         a.cover = Cover::Half;
@@ -370,6 +383,26 @@ mod tests {
             name: "rug_large".into(),
         });
         assert_eq!(rug.layer, Layer::Floor);
+    }
+
+    #[test]
+    fn small_scattered_rocks_default_to_difficult_terrain() {
+        for (name, cover) in [
+            ("stones", Cover::None),
+            ("pebbles", Cover::None),
+            ("scree_pieces", Cover::None),
+            ("rock_small", Cover::Half),
+            ("lichen_rock", Cover::Half),
+        ] {
+            let a = class_default(&Target::Vegetation { name: name.into() });
+            assert!(!a.blocks_movement && !a.blocks_sight, "{name}");
+            assert!(a.difficult_terrain, "{name}");
+            assert_eq!(a.cover, cover, "{name}");
+        }
+        let boulder = class_default(&Target::Vegetation {
+            name: "boulder".into(),
+        });
+        assert!(boulder.blocks_movement && !boulder.difficult_terrain);
     }
 
     #[test]

@@ -2097,7 +2097,7 @@ fam("veg.berry_bush", plant([1, 1], 2, "rough", ["boreal", "alpine", "temperate"
   ["a low lingonberry patch", "Glossy small leaves, bright red berries."],
   ["a low bilberry bush in autumn", "Red and purple small leaves, a few berries."],
 ]);
-fam("veg.lichen_rock", plant([1, 1], 2, "solid", ["boreal", "alpine"], ["rock"]), 3, [
+fam("veg.lichen_rock", plant([1, 1], 2, "low", ["boreal", "alpine"], ["rock"]), 3, [
   ["a flat rock covered in grey and orange lichen", "Rosettes of orange, grey-green and black lichen."],
   ["a rock with pale reindeer moss around it", "A grey stone ringed by spongy white-green lichen."],
   ["a cracked rock with a cushion of moss campion", "Pink tiny flowers in a moss cushion in a crack."],

@@ -111,8 +111,10 @@ const VEGETATION: [VegSpec; 46] = [
     v("veg.fallen_log", (2, 1), Look::Log, 2, Half, false, &["forest", "log"], &[]),
     v("veg.stump", (1, 1), Look::Stump, 2, Half, false, &["forest", "stump"], &[]),
     v("veg.boulder", (1, 1), Boulders(1), 4, Most, true, &["rock"], HILL),
-    v("veg.stones", (1, 1), Boulders(3), 2, Half, true, &["rock"], HILL),
-    v("veg.rock_small", (1, 1), Boulders(1), 3, Half, true, &["rock"], HILL),
+    // Small scattered rocks are difficult terrain, not obstacles (maintainer
+    // decision, rules contract): they step over, so they never block.
+    v("veg.stones", (1, 1), Boulders(3), 2, Open, false, &["rock"], HILL),
+    v("veg.rock_small", (1, 1), Boulders(1), 3, Half, false, &["rock"], HILL),
     v("veg.rock_large", (2, 2), Look::RockLarge, 8, Cover::Full, true, &["rock"], HILL),
     v("veg.scree_patch", (2, 2), Look::Scree, 1, Open, false, &["rock", "scree"], HILL),
     v("veg.rock_outcrop", (3, 3), Look::Outcrop, 10, Cover::Full, true, &["rock", "outcrop"], HILL),
@@ -122,7 +124,7 @@ const VEGETATION: [VegSpec; 46] = [
     v("veg.sea_rock", (1, 1), Boulders(2), 5, Most, true, &["sea_rock", "coast"], &[]),
     v("veg.tide_pool", (2, 2), Look::Scree, 0, Open, false, &["coast", "tide_pool"], &[]),
     v("veg.dune_grass", (1, 1), Look::TallGrass, 2, Open, false, &["coast", "dune"], &[]),
-    v("veg.lichen_rock", (1, 1), Boulders(1), 3, Half, true, &["stone", "lichen"], HILL),
+    v("veg.lichen_rock", (1, 1), Boulders(1), 3, Half, false, &["stone", "lichen"], HILL),
     v("veg.rock_snow", (1, 1), Boulders(1), 4, Most, true, &["stone", "snow"], HILL),
     v("veg.alpine_flowers", (1, 1), Look::Heather, 1, Open, false, &["alpine_plant", "flower"], HILL),
     v("veg.tussock", (1, 1), Look::TallGrass, 2, Open, false, &["tussock", "steppe"], &[]),

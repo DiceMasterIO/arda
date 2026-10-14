@@ -360,3 +360,22 @@ fn line_of_sight_is_symmetric_including_obscured_endpoints() {
         }
     }
 }
+
+/// Maintainer decision (rules contract follow-up): small scattered rocks are
+/// difficult terrain, not obstacles. `veg.stones` gives no cover,
+/// `veg.rock_small` and its alpine variant `veg.lichen_rock` half; none
+/// blocks sight.
+#[test]
+fn small_scattered_rocks_are_difficult_and_passable() {
+    for (id, cover) in [
+        ("veg.stones", CoverLevel::None),
+        ("veg.rock_small", CoverLevel::Half),
+        ("veg.lichen_rock", CoverLevel::Half),
+    ] {
+        let s = L::new(3, 1).put(id, 1, 0).scene();
+        assert_eq!(s.movement_at(Sq(1, 0)), Movement::Difficult, "{id}");
+        assert_eq!(s.cover_at(Sq(1, 0)), cover, "{id}");
+        assert_eq!(s.obscured.0[1], Obscurement::Clear, "{id}");
+        assert_eq!(s.path_cost(Sq(0, 0), Sq(2, 0)), Some(10 + 5), "{id}");
+    }
+}
