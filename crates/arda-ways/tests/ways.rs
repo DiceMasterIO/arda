@@ -213,7 +213,9 @@ fn a_ford_is_shallow_gravel_and_difficult() {
         id: 2,
         centreline: vec![[-200.0, 40.0], [0.0, 41.0], [100.0, 39.0], [300.0, 40.0]],
         width_m: 12.0,
-        depth_m: 1.6,
+        // Wadeable (4 ft at the thalweg): a ford keeps swimming water deep
+        // (review 3.5-7, tests/wet.rs).
+        depth_m: 1.3,
     };
     let t = terrain(flat, vec![river]);
     let (l, out) = window([0.0, 0.0], 64, 48, &roads, &crossings, &t);

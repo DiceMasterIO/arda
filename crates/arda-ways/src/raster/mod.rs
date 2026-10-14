@@ -27,6 +27,9 @@ pub struct Cell {
     pub ground: Option<&'static str>,
     /// Water depth override, feet.
     pub water_ft: Option<u8>,
+    /// Water depth of the input layout's square, feet (0 outside the
+    /// window or on dry ground).
+    pub base_ft: u8,
     /// Elevation override, feet.
     pub elev_ft: Option<i16>,
     /// Terrain height, feet.
@@ -268,9 +271,21 @@ pub fn apply(
     standing: &crate::standing::Standing,
 ) -> Sidecar {
     let mut g = Grid::new(plan.window, terrain, seed);
+    let win = plan.window;
     for (gx, gy) in g.squares().collect::<Vec<_>>() {
-        if standing.at(gx, gy) {
-            if let Some(c) = g.get_mut(gx, gy) {
+        let (x, y) = (gx - win.gx0, gy - win.gy0);
+        let inside = (0..i64::from(layout.width)).contains(&x)
+            && (0..i64::from(layout.height)).contains(&y)
+            && layout.squares.len() == layout.width as usize * layout.height as usize;
+        let base_ft = if inside {
+            layout.square(x, y).water_depth_ft
+        } else {
+            0
+        };
+        let wet = standing.at(gx, gy);
+        if let Some(c) = g.get_mut(gx, gy) {
+            c.base_ft = base_ft;
+            if wet {
                 c.water = true;
                 c.standing = true;
             }

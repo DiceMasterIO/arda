@@ -237,3 +237,57 @@ fn ditches_hold_pools_only_on_wet_ground() {
     assert_eq!(pools(false), 0);
     assert!(pools(true) > 0);
 }
+
+/// Review 3.5-7: a ford never fills in a river deep enough to swim. Where
+/// the caller's water is 5 ft or more the ford's squares keep that depth
+/// (and are swum); shallower water is still capped at the ford's 1–2 ft.
+#[test]
+fn a_ford_keeps_swimming_depth() {
+    let t = Raster::new(false);
+    // Two tracks meet the river where no record is: both are forded.
+    let tracks = [
+        road(3, RoadClass::Track, 90, &[[50, -300], [52, 100], [55, 500]]),
+        road(
+            2,
+            RoadClass::Track,
+            90,
+            &[[150, -300], [155, 100], [160, 500]],
+        ),
+    ];
+    let side = 160u32;
+    let mut l = TacticalLayout::new("wet", side, side, "grass");
+    let w = i64::from(side);
+    // The caller's raster: the river 6 ft deep in its west half, 3 ft in
+    // its east half, as refine lays it.
+    for y in 0..w {
+        for x in 0..w {
+            if water(x, y) {
+                let sq = l
+                    .square_mut(u32::try_from(x).unwrap(), u32::try_from(y).unwrap())
+                    .unwrap();
+                sq.water_depth_ft = if x < 64 { 6 } else { 3 };
+                sq.ground = "water_shallow".into();
+            }
+        }
+    }
+    let out = apply_ways(&mut l, [0.0, 0.0], &tracks, &[], &t, 7).unwrap();
+    let (mut deep, mut shallow) = (0, 0);
+    for y in 0..w {
+        for x in 0..w {
+            let i = usize::try_from(y * w + x).unwrap();
+            if out.sidecar.squares[i].feature != Feature::Ford {
+                continue;
+            }
+            let d = l.squares[i].water_depth_ft;
+            if x < 64 {
+                deep += 1;
+                assert!(d >= 5, "ford at {x},{y} filled 6 ft of water to {d} ft");
+            } else {
+                shallow += 1;
+                assert!((1..=2).contains(&d), "ford at {x},{y}: {d} ft");
+            }
+        }
+    }
+    println!("{deep} deep ford squares, {shallow} shallow");
+    assert!(deep > 0 && shallow > 0, "{deep} deep, {shallow} shallow");
+}

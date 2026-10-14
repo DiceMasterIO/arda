@@ -1,7 +1,7 @@
 //! Bridges, fords and ferries at 5-ft scale.
 
 use super::Grid;
-use crate::input::{CrossingKind, Terrain};
+use crate::input::{CrossingKind, Terrain, SWIM_FT};
 use crate::plan::crossing::{CrossingPlan, LANDING_SQ};
 use crate::plan::Plan;
 use crate::sidecar::{EdgeRole, Feature};
@@ -129,14 +129,24 @@ fn ford(g: &mut Grid, c: &CrossingPlan, plan: &Plan, terrain: &dyn Terrain) {
                 }
                 continue;
             }
+            // Water already deep enough to swim stays so: a ford never fills
+            // in a channel (review 3.5-7); its road squares there are swum.
+            let have = cell.water_ft.unwrap_or(cell.base_ft);
+            let deep = have >= SWIM_FT;
             if in_road {
                 let centre = (r as f64 - mid).abs() < 1.0;
                 let depth = if centre { 2 } else { 1 };
-                cell.water_ft = Some(cell.water_ft.unwrap_or(depth).min(depth).max(1));
-                cell.ground = Some("gravel");
+                if deep {
+                    cell.water_ft = Some(have);
+                } else {
+                    cell.water_ft = Some(cell.water_ft.unwrap_or(depth).min(depth).max(1));
+                    cell.ground = Some("gravel");
+                }
                 cell.feature = Feature::Ford;
                 cell.class = Some(c.class);
                 cell.difficult = true;
+            } else if deep {
+                continue;
             } else if (r - c.rows.0).abs().min((r - c.rows.1).abs()) <= 3 && near_bank && bar {
                 cell.water_ft = Some(0);
                 cell.ground = Some("gravel");
