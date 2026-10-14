@@ -675,7 +675,7 @@ server derives the scene from the same layout (goal 48). The cell must lie insid
  "render_seed":"1234…","layout":{"name":"cell_530_810","width":64,"height":64,
  "squares":[{"ground":"grass","elevation_ft":35,"water_depth_ft":0},…],"walls":[],
  "placements":[…],"lights":[],"origin":[33920,51840]},
- "rules":{"format_version":2,"width":64,"height":64,"squares":[{"difficult":false,…},…],"edges":[]},
+ "rules":{"format_version":2,"width":64,"height":64,"squares":[{"water_depth_ft":0},{"water_depth_ft":0,"cover":"three_quarters","blocks_sight":true,"blocks_movement":true},…],"edges":[]},
  "meta":{"source":"arda-refine","relaxed":"false","review_squares":"0","overlays":"",…},
  "scene":{"format_version":1,"seed":"1234…","origin_gs":[33920,51840],"movement":[[4096,"normal"]],…},
  "tiles":{"tile_px":512,"ppsq":128,"image_width_px":8192,"image_height_px":8192,"max_zoom":4,"format":"webp"}}
