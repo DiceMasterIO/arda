@@ -8,9 +8,13 @@
 //!   never holding the request lane. A request for a cell a worker is
 //!   rendering waits for that render instead of starting a second one.
 //! - **Bounded.** At most [`QUEUE_CELLS`] cells wait, deduplicated; a full
-//!   queue drops the rest (reported as `dropped`). Images warm only for the
-//!   nearest cells whose renders and pyramids fit the configured caches
-//!   beside the open cell's; farther cells warm their JSON and blocks.
+//!   queue lets its oldest waiting cells (an earlier view's) go for the
+//!   fresh ones. Cells warm nearest ring first, cardinal neighbours before
+//!   diagonals ([`warm_order`]); images warm only for the first cells in
+//!   that order whose renders and pyramids fit the configured caches beside
+//!   the open cell's; the rest warm their JSON and blocks (review 3.6-5).
+//! - **Isolated.** A job that panics is dropped; its worker carries on
+//!   (review 3.6-7).
 //! - **Invisible.** Warming fills the same caches under the same keys, so
 //!   prefetching never changes any response's bytes; open-sea cells simply
 //!   have nothing to warm, and the world edge clips the rings.
@@ -123,6 +127,23 @@ pub fn rings(gx: u32, gy: u32, radius: u32, (w, h): (u32, u32)) -> Vec<(u32, u32
     out
 }
 
+/// The order neighbours warm in (indices into `cells`, which [`rings`]
+/// lists row-major): nearest ring first, and within a ring the four
+/// cardinal neighbours (straight steps, the likeliest next cell) before
+/// the diagonals, so the image slots never all go to the north-west
+/// diagonal (review 3.6-5).
+#[must_use]
+pub fn warm_order(gx: u32, gy: u32, cells: &[(u32, u32)]) -> Vec<usize> {
+    let mut order: Vec<usize> = (0..cells.len()).collect();
+    order.sort_by_key(|&i| {
+        let (x, y) = cells[i];
+        let dx = i64::from(x).abs_diff(i64::from(gx));
+        let dy = i64::from(y).abs_diff(i64::from(gy));
+        (dx.max(dy), dx.min(dy), i)
+    });
+    order
+}
+
 /// How many neighbours may warm images at `ppsq` without evicting the open
 /// cell: the renders and pyramids of that many cells, plus one, must fit
 /// their caches.
@@ -161,6 +182,28 @@ struct Shared {
     queue: Mutex<Queue>,
     wake: Condvar,
     idle: Condvar,
+}
+
+impl Queue {
+    /// Queues `job` unless known; when the queue is full the oldest
+    /// waiting job (from an earlier view) gives way, so fresh cells are
+    /// never dropped for stale ones (review 3.6-5). Whether it was queued.
+    fn push_fresh(&mut self, job: Job) -> bool {
+        if self.known.contains(&(job.req, job.ppsq)) {
+            return false;
+        }
+        while self.jobs.len() >= QUEUE_CELLS {
+            match self.jobs.pop_front() {
+                Some(old) => {
+                    self.known.remove(&(old.req, old.ppsq));
+                }
+                None => break,
+            }
+        }
+        self.known.insert((job.req, job.ppsq));
+        self.jobs.push_back(job);
+        true
+    }
 }
 
 impl Shared {
@@ -233,31 +276,40 @@ impl Prefetcher {
             self.start(state)?;
             q.started = true;
         }
-        for (i, (x, y)) in rings(gx, gy, radius, (w, h)).into_iter().enumerate() {
+        let ring = rings(gx, gy, radius, (w, h));
+        let order = warm_order(gx, gy, &ring);
+        let mut rank = vec![0; ring.len()];
+        for (r, &i) in order.iter().enumerate() {
+            rank[i] = r;
+        }
+        let mut statuses = vec![PrefetchStatus::Dropped; ring.len()];
+        for &i in &order {
+            let (x, y) = ring[i];
             let mut req = BlockRequest::cell(x, y);
             if demo {
                 req.demo_at = Some([i64::from(x), i64::from(y)]);
             }
-            let image = i < slots;
-            let status = if q.known.contains(&(req, ppsq)) {
+            statuses[i] = if q.known.contains(&(req, ppsq)) {
                 PrefetchStatus::Pending
-            } else if self.workers == 0 || q.jobs.len() >= QUEUE_CELLS {
+            } else if self.workers == 0 {
                 PrefetchStatus::Dropped
-            } else {
-                q.known.insert((req, ppsq));
-                q.jobs.push_back(Job {
-                    req,
-                    ppsq,
-                    image,
-                    world,
-                });
+            } else if q.push_fresh(Job {
+                req,
+                ppsq,
+                image: rank[i] < slots,
+                world,
+            }) {
                 PrefetchStatus::Queued
+            } else {
+                PrefetchStatus::Pending
             };
+        }
+        for (i, &(x, y)) in ring.iter().enumerate() {
             cells.push(PrefetchCell {
                 gx: x,
                 gy: y,
-                status,
-                image,
+                status: statuses[i],
+                image: rank[i] < slots,
             });
         }
         let queue_len = u32::try_from(q.jobs.len()).unwrap_or(u32::MAX);
@@ -434,6 +486,39 @@ mod tests {
         assert_eq!(rings(0, 0, 1, (10, 10)), vec![(1, 0), (0, 1), (1, 1)]);
         assert_eq!(rings(9, 9, 2, (10, 10)).len(), 8);
         assert!(rings(0, 0, 1, (1, 1)).is_empty());
+    }
+
+    /// Review 3.6-5: one image slot goes to a cardinal neighbour, not the
+    /// north-west diagonal that row-major order put first.
+    #[test]
+    fn cardinal_neighbours_warm_before_diagonals() {
+        let ring = rings(5, 5, 2, (10, 10));
+        let order = warm_order(5, 5, &ring);
+        let first: Vec<_> = order[..4].iter().map(|&i| ring[i]).collect();
+        assert_eq!(first, vec![(5, 4), (4, 5), (6, 5), (5, 6)]);
+        assert!(order[..8].iter().all(|&i| i < 8), "nearest ring first");
+        assert_eq!(ring[order[8]], (5, 3));
+    }
+
+    /// Review 3.6-5: a full queue lets its oldest job go for a fresh one.
+    #[test]
+    fn a_full_queue_drops_stale_jobs_not_fresh_ones() {
+        let job = |x| Job {
+            req: BlockRequest::cell(x, 0),
+            ppsq: 64,
+            image: false,
+            world: (1 << 20, 1 << 20),
+        };
+        let mut q = Queue::default();
+        for x in 0..QUEUE_CELLS {
+            assert!(q.push_fresh(job(u32::try_from(x).unwrap())));
+        }
+        assert!(!q.push_fresh(job(3)), "already known");
+        assert!(q.push_fresh(job(1000)));
+        assert_eq!(q.jobs.len(), QUEUE_CELLS);
+        assert_eq!(q.jobs.back().map(|j| j.req.gsx0), Some(1000 * 64));
+        assert!(!q.known.contains(&(BlockRequest::cell(0, 0), 64)));
+        assert_eq!(q.known.len(), QUEUE_CELLS);
     }
 
     #[test]
