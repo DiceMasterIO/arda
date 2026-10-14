@@ -30,7 +30,8 @@
 // sconces and stalagmites, 5 the thin interior partition kits (`timber_partition`,
 // `wattle_partition`, `adobe_partition`: nine pieces each with alts, drawn for wall edges inside one
 // building), 6 effect and damage art: transparent
-// effect textures and decals and the damage props (see the end of this file).
+// effect textures and decals and the damage props, 7 the kitchen-garden pieces (beds, bean poles,
+// cold frame, compost heap, rain barrel, tools; see the end of this file).
 
 export const entries = [];
 
@@ -2255,4 +2256,52 @@ fam("prop.charred_floor", M([2, 2], 0, "clear", [], { layer: "floor", free: ["da
   ["a patch of floor burned black, seen from directly above", "Scorched charcoal-black boards or ground with cracked char, grey ash flecks and a few dull orange embers."],
   ["a charred floor patch with a ragged burnt edge", "Blackened planks eaten away at the edges, ash drifts and soot streaks."],
   ["a burnt patch of stone floor, blackened by fire", "Soot-stained flagstones, cracked from heat, a smear of grey ash, a few scorch streaks."],
+]);
+
+// ---------------------------------------------------------------------------------------------
+// Kitchen-garden art (tier 7, 1.0 task 17). Croft kitchen gardens and the farmstead plot are laid
+// out in rows of dug beds on `farmland`: beds are 1 x 1 cut-outs (difficult terrain, no cover),
+// bean poles and the cold frame give half cover, and the clutter (compost, rain barrel, tools)
+// stands at the parcel's edge. All carry the free tag `garden`; no new ground key.
+const garden = ["farm", "farmhouse", "cottage"];
+fam("veg.vegetable_bed", plant([1, 1], 1, "rough", ["temperate"], ["garden", "vegetable"]), 7, [
+  ["a dug vegetable bed of cabbages, leeks and onions, seen from directly above", "A square of dark turned soil with three tidy rows: round blue-green cabbages, upright leek fans and onion tops, a low plank edge."],
+  ["a vegetable bed of carrots, beetroot and lettuces", "Dark soil in neat rows: feathery carrot tops, red-veined beetroot leaves and pale green lettuce rosettes."],
+  ["a vegetable bed of turnips and kale just coming up", "Brown soil with rows of small turnip leaves, curly dark kale and a few bare gaps."],
+  ["a vegetable bed of potatoes, ridged and earthed up", "Raised soil ridges with bushy green potato plants along each ridge, a few white flowers."],
+]);
+fam("veg.herb_bed", plant([1, 1], 1, "rough", ["temperate"], ["garden", "herb"]), 7, [
+  ["a dug herb bed of sage, thyme and parsley, seen from directly above", "A square of dark soil with small separate clumps: grey-green sage, low thyme mats and curly parsley, a low plank edge."],
+  ["a herb bed of mint, chives and fennel", "Dense bright mint, upright chive spikes with purple pom-pom flowers, feathery fennel fronds."],
+  ["a herb bed of rosemary, lavender and marjoram", "Needle-leaved rosemary bushes, grey lavender with violet spikes, round marjoram cushions."],
+  ["a herb bed of borage, calendula and dill", "Hairy borage with blue star flowers, orange calendula blooms and pale yellow dill umbels."],
+]);
+fam("veg.bean_poles", plant([1, 1], 6, "low", ["temperate"], ["garden", "trellis"]), 7, [
+  ["a bed of bean poles with climbing runner beans, seen from directly above", "Two rows of tall crossed canes bound at the top with a ridge pole, covered in green bean vines with red flowers."],
+  ["a wigwam of hazel poles with climbing beans", "Five hazel poles meeting at the centre, green bean leaves spiralling up them, a few long green pods."],
+  ["a row of bean poles with climbing peas", "A single line of tall poles with twine between, light green pea vines and white blossom."],
+  ["a bean bed on tall poles lashed with twine", "Straight ash poles leaning in pairs, dense vines of broad beans, dark green leaves and black-green pods."],
+]);
+fam("prop.cold_frame", M([2, 1], 2, "low", garden, { free: ["garden", "frame"] }), 7, [
+  ["a wooden cold frame with a glass lid, seen from directly above", "A low plank box with a lid of glass panes in a timber frame, seedlings faintly visible beneath."],
+  ["a cold frame with the glass lid propped open", "A weathered plank box, the glazed lid tilted open on a stick, rows of young green seedlings inside."],
+  ["a brick cold frame with a mossy glass lid", "Low red brick sides, a sagging timber lid with cloudy glass, a few green shoots showing."],
+  ["a cold frame of old window sashes laid over a box", "Two mismatched white-painted window sashes over a rough plank box, one cracked pane."],
+]);
+fam("prop.compost_heap", M([1, 1], 2, "low", garden, { free: ["garden", "compost"] }), 7, [
+  ["a compost heap of rotting vegetable waste, seen from directly above", "A dark brown mound of rotted greens, straw and eggshell, with a few bright cabbage leaves on top."],
+  ["a compost heap in a three-sided plank bin", "Rough plank sides around a steaming heap of dark crumbly compost and fresh grass cuttings."],
+  ["a heap of compost and straw with a pitchfork stuck in it", "A dark mound of rotted waste and yellow straw, a wooden-handled fork standing in the top."],
+]);
+fam("prop.rain_barrel", M([1, 1], 3, "solid", garden, { free: ["garden", "water"] }), 7, [
+  ["an open oak rain barrel full of water, seen from directly above", "A round staved barrel with two iron hoops, dark still water filling the top, a few leaves floating."],
+  ["a rain barrel with a wooden lid half slid off", "A round barrel, pale lid slid aside to show black water, rust-stained hoops."],
+  ["a rain barrel with a downpipe running into it", "A round oak barrel, a short tin or wooden spout entering at the top edge, clear water inside."],
+  ["a mossy half-barrel water butt", "A squat round staved tub green with moss, iron hoops, calm water with a few floating petals."],
+]);
+fam("prop.garden_tools", M([1, 1], 0, "clear", garden, { free: ["garden", "tool"] }), 7, [
+  ["a spade, a hoe and a rake lying side by side on the ground, seen from directly above", "Three long wooden handles with a steel spade blade, a flat hoe blade and a toothed rake head."],
+  ["a digging fork and a trowel left on the ground", "A long-handled four-tined fork and a small wooden-handled trowel crossed over it."],
+  ["a pair of shears, a dibber and a ball of twine on the ground", "Iron shears with red handles, a short pointed wooden dibber and a coil of brown twine."],
+  ["a watering can lying on its side with a hand hoe", "A tin can with a long spout and a hoe with a worn handle beside it."],
 ]);

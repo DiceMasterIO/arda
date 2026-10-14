@@ -1,6 +1,6 @@
 # Art library expansion: batching plan
 
-The prompt pack now holds **1,425 assets**: the first 225 (tier 0, already generated on Codex) and 1,200 new ones in three tiers. This plan says what to generate in which order, how long it takes, and the exact commands. Tiers 4 to 6 (underground, interior partitions, effect and damage art) are described in their own sections below and are not in the table. Nothing here has been submitted.
+The prompt pack now holds **1,425 assets**: the first 225 (tier 0, already generated on Codex) and 1,200 new ones in three tiers. This plan says what to generate in which order, how long it takes, and the exact commands. Tiers 4 to 7 (underground, interior partitions, effect and damage art, kitchen garden) are described in their own sections below and are not in the table. Nothing here has been submitted.
 
 The new assets come from `expansion.mjs`. `build-prompts.mjs` merges them with the checklist and writes `prompts.json`, where every entry carries a `tier` and its catalogue metadata (footprint, layer, height, cover, blocking and tags).
 
@@ -197,6 +197,26 @@ Import into a scratch folder, never over `out/art-gen/lib`, and look at the cont
 ```sh
 arda tactical import out/art-gen/raw --out out/art-gen/lib-effects --manifest out/art-gen/raw/import.toml \
     --base assets/tactical/placeholder --contact-sheet out/art-gen/effects-sheet.png
+```
+
+### Tier 7: kitchen garden
+
+27 images: the pieces that make croft kitchen gardens and the farmstead plot read as gardens at tactical zoom. Four takes each (three for the compost heap) of `veg.vegetable_bed`, `veg.herb_bed` and `veg.bean_poles` (1 x 1), `prop.cold_frame` (2 x 1), `prop.compost_heap`, `prop.rain_barrel` and `prop.garden_tools` (1 x 1). All carry the free tag `garden` and stand on `farmland`; there is no new ground key. Beds are difficult terrain with no cover, bean poles, cold frame and compost heap difficult terrain with half cover, the rain barrel blocks movement with half cover, and the tools are floor clutter. Plain cut-outs: no reference-first step is needed.
+
+Settings (maintainer decision D11): provider `codex`, model `gpt-6-astra`, `--thinking high`, no `--price-per-image` (Codex counts $0), `--max-images` equal to the planned count. The cap also counts reviewer remakes, so a run that remakes an image stops with exit 3 at 27; finish with `--resume --max-images N` for the rest.
+
+```sh
+# the exact tier-7 dry run; it needs no Slopify and sends nothing
+gen --tier 7 --provider codex --model gpt-6-astra --thinking high --parallel 5 --max-images 27 --resume --out /home/gent/code/arda/out/art-gen/raw --dry-run
+# the real run: the same command with --yes instead of --dry-run, only after the maintainer approves
+gen --tier 7 --provider codex --model gpt-6-astra --thinking high --parallel 5 --max-images 27 --resume --out /home/gent/code/arda/out/art-gen/raw --yes
+```
+
+Import into a scratch folder, never over `out/art-gen/lib`:
+
+```sh
+arda tactical import out/art-gen/raw --out out/art-gen/lib-garden --manifest out/art-gen/raw/import.toml \
+    --base assets/tactical/placeholder --contact-sheet out/art-gen/garden-sheet.png
 ```
 
 ## How variants reach the library

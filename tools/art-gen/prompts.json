@@ -89,9 +89,10 @@
       "3": 318,
       "4": 34,
       "5": 57,
-      "6": 37
+      "6": 37,
+      "7": 27
     },
-    "about": "0: the first 225 (already generated). 1: every variant of those 225, which fixes repetition on every map. 2: building-function and biome sets. 3: culture sets, rare dressing and the new wall kits. 4: the underground set for arda-dungeon (cave and bedrock ground, the cave wall kit, stairs down, torch sconces, stalagmites). 5: the thin interior partition kits timber_partition, wattle_partition and adobe_partition (nine pieces each with alts; the compositor draws every wall edge inside one building with them, and squeezes the kit's own piece to half thickness until they exist). 6: effect and damage art: transparent effect textures and decals (frost, fire, acid, ash, web, grease, fog, water, scorch mark) and the damage props (rubble heap, broken deck, charred floor). Within a tier, assets run in order of visual impact."
+    "about": "0: the first 225 (already generated). 1: every variant of those 225, which fixes repetition on every map. 2: building-function and biome sets. 3: culture sets, rare dressing and the new wall kits. 4: the underground set for arda-dungeon (cave and bedrock ground, the cave wall kit, stairs down, torch sconces, stalagmites). 5: the thin interior partition kits timber_partition, wattle_partition and adobe_partition (nine pieces each with alts; the compositor draws every wall edge inside one building with them, and squeezes the kit's own piece to half thickness until they exist). 6: effect and damage art: transparent effect textures and decals (frost, fire, acid, ash, web, grease, fog, water, scorch mark) and the damage props (rubble heap, broken deck, charred floor). 7: kitchen-garden art: vegetable and herb beds, bean poles, a cold frame, a compost heap, a rain barrel and garden tools (tag `garden`; croft kitchen gardens and the farmstead plot place them on farmland). Within a tier, assets run in order of visual impact."
   },
   "notes": {
     "structured": "Structured ground variants must share one layout. A model cannot be relied on to repeat a layout, so generate variant .0 first and either derive the others from it by hand (tint, wear and stains in an image editor) or generate them with --reference pointing at the accepted .0.",
@@ -80846,6 +80847,1352 @@
         "Detail": "Red-brown brick pieces, white plaster lumps and powder spilled around the pile."
       },
       "prompt": "Top-down battle-map asset for a tabletop fantasy grid map, in a rich hand-painted style: confident painterly brushwork, fine dark ink outlines, crisp small detail and a muted, earthy, slightly warm palette. Strictly orthographic view from directly overhead: no perspective, no horizon, no tilted or isometric angle. Soft light from the top-left, so upper-left edges catch highlights and lower-right edges fall into gentle form shading; no cast shadow and no drop shadow anywhere. No text, no letters, no numbers, no grid lines, no frame, no border, no vignette, no watermark, no signature. Subject: a heap of collapsed brick and plaster, seen from directly above. Its outline is roughly round or square, about 10 feet across. Red-brown brick pieces, white plaster lumps and powder spilled around the pile. Exactly one subject, centred, filling about 70% of the frame's shorter side, on a fully transparent background (a PNG with a real alpha channel, background: transparent; no white or colour behind the subject); nothing else in the image: no floor, no ground patch, no base or rug under it, no other objects, no shadow."
+    },
+    "veg.vegetable_bed": {
+      "class": "vegetation",
+      "template": "arda-vegetation",
+      "format": "1:1",
+      "footprint": [
+        1,
+        1
+      ],
+      "pixels": [
+        128,
+        128
+      ],
+      "layer": "prop",
+      "height_ft": 1,
+      "functions": [],
+      "tags": {
+        "biome": [
+          "temperate"
+        ],
+        "culture": [
+          "human"
+        ],
+        "wealth": [],
+        "function": [],
+        "free": [
+          "garden",
+          "vegetable"
+        ]
+      },
+      "blocks_movement": false,
+      "blocks_sight": false,
+      "difficult_terrain": true,
+      "cover": "none",
+      "file": "vegetation/veg.vegetable_bed.png",
+      "status": "new",
+      "tier": 7,
+      "values": {
+        "Subject": "a dug vegetable bed of cabbages, leeks and onions, seen from directly above",
+        "Shape": "Its outline is irregular and uneven, never a neat circle or star; it bulges or reaches out on one or two sides. It fills about 70% of the frame, 5 feet at most.",
+        "Detail": "A square of dark turned soil with three tidy rows: round blue-green cabbages, upright leek fans and onion tops, a low plank edge."
+      },
+      "prompt": "Top-down battle-map asset for a tabletop fantasy grid map, in a rich hand-painted style: confident painterly brushwork, fine dark ink outlines, crisp small detail and a muted, earthy, slightly warm palette. Strictly orthographic view from directly overhead: no perspective, no horizon, no tilted or isometric angle. Soft light from the top-left, so upper-left edges catch highlights and lower-right edges fall into gentle form shading; no cast shadow and no drop shadow anywhere. No text, no letters, no numbers, no grid lines, no frame, no border, no vignette, no watermark, no signature. Subject: a dug vegetable bed of cabbages, leeks and onions, seen from directly above, seen from directly above. Its outline is irregular and uneven, never a neat circle or star; it bulges or reaches out on one or two sides. It fills about 70% of the frame, 5 feet at most. A square of dark turned soil with three tidy rows: round blue-green cabbages, upright leek fans and onion tops, a low plank edge. Exactly one subject, centred, filling about 70% of the frame's shorter side, on a fully transparent background (a PNG with a real alpha channel, background: transparent; no white or colour behind the subject); nothing else in the image: no floor, no ground patch, no base or rug under it, no other objects, no shadow. No grass, soil or other plants around it."
+    },
+    "veg.herb_bed": {
+      "class": "vegetation",
+      "template": "arda-vegetation",
+      "format": "1:1",
+      "footprint": [
+        1,
+        1
+      ],
+      "pixels": [
+        128,
+        128
+      ],
+      "layer": "prop",
+      "height_ft": 1,
+      "functions": [],
+      "tags": {
+        "biome": [
+          "temperate"
+        ],
+        "culture": [
+          "human"
+        ],
+        "wealth": [],
+        "function": [],
+        "free": [
+          "garden",
+          "herb"
+        ]
+      },
+      "blocks_movement": false,
+      "blocks_sight": false,
+      "difficult_terrain": true,
+      "cover": "none",
+      "file": "vegetation/veg.herb_bed.png",
+      "status": "new",
+      "tier": 7,
+      "values": {
+        "Subject": "a dug herb bed of sage, thyme and parsley, seen from directly above",
+        "Shape": "Its outline is irregular and uneven, never a neat circle or star; it bulges or reaches out on one or two sides. It fills about 70% of the frame, 5 feet at most.",
+        "Detail": "A square of dark soil with small separate clumps: grey-green sage, low thyme mats and curly parsley, a low plank edge."
+      },
+      "prompt": "Top-down battle-map asset for a tabletop fantasy grid map, in a rich hand-painted style: confident painterly brushwork, fine dark ink outlines, crisp small detail and a muted, earthy, slightly warm palette. Strictly orthographic view from directly overhead: no perspective, no horizon, no tilted or isometric angle. Soft light from the top-left, so upper-left edges catch highlights and lower-right edges fall into gentle form shading; no cast shadow and no drop shadow anywhere. No text, no letters, no numbers, no grid lines, no frame, no border, no vignette, no watermark, no signature. Subject: a dug herb bed of sage, thyme and parsley, seen from directly above, seen from directly above. Its outline is irregular and uneven, never a neat circle or star; it bulges or reaches out on one or two sides. It fills about 70% of the frame, 5 feet at most. A square of dark soil with small separate clumps: grey-green sage, low thyme mats and curly parsley, a low plank edge. Exactly one subject, centred, filling about 70% of the frame's shorter side, on a fully transparent background (a PNG with a real alpha channel, background: transparent; no white or colour behind the subject); nothing else in the image: no floor, no ground patch, no base or rug under it, no other objects, no shadow. No grass, soil or other plants around it."
+    },
+    "veg.bean_poles": {
+      "class": "vegetation",
+      "template": "arda-vegetation",
+      "format": "1:1",
+      "footprint": [
+        1,
+        1
+      ],
+      "pixels": [
+        128,
+        128
+      ],
+      "layer": "prop",
+      "height_ft": 6,
+      "functions": [],
+      "tags": {
+        "biome": [
+          "temperate"
+        ],
+        "culture": [
+          "human"
+        ],
+        "wealth": [],
+        "function": [],
+        "free": [
+          "garden",
+          "trellis"
+        ]
+      },
+      "blocks_movement": false,
+      "blocks_sight": false,
+      "difficult_terrain": true,
+      "cover": "half",
+      "file": "vegetation/veg.bean_poles.png",
+      "status": "new",
+      "tier": 7,
+      "values": {
+        "Subject": "a bed of bean poles with climbing runner beans, seen from directly above",
+        "Shape": "Its outline is irregular and uneven, never a neat circle or star; it bulges or reaches out on one or two sides. It fills about 80% of the frame, 5 feet at most.",
+        "Detail": "Two rows of tall crossed canes bound at the top with a ridge pole, covered in green bean vines with red flowers."
+      },
+      "prompt": "Top-down battle-map asset for a tabletop fantasy grid map, in a rich hand-painted style: confident painterly brushwork, fine dark ink outlines, crisp small detail and a muted, earthy, slightly warm palette. Strictly orthographic view from directly overhead: no perspective, no horizon, no tilted or isometric angle. Soft light from the top-left, so upper-left edges catch highlights and lower-right edges fall into gentle form shading; no cast shadow and no drop shadow anywhere. No text, no letters, no numbers, no grid lines, no frame, no border, no vignette, no watermark, no signature. Subject: a bed of bean poles with climbing runner beans, seen from directly above, seen from directly above. Its outline is irregular and uneven, never a neat circle or star; it bulges or reaches out on one or two sides. It fills about 80% of the frame, 5 feet at most. Two rows of tall crossed canes bound at the top with a ridge pole, covered in green bean vines with red flowers. Exactly one subject, centred, filling about 70% of the frame's shorter side, on a fully transparent background (a PNG with a real alpha channel, background: transparent; no white or colour behind the subject); nothing else in the image: no floor, no ground patch, no base or rug under it, no other objects, no shadow. No grass, soil or other plants around it."
+    },
+    "veg.vegetable_bed.alt1": {
+      "class": "vegetation",
+      "template": "arda-vegetation",
+      "format": "1:1",
+      "footprint": [
+        1,
+        1
+      ],
+      "pixels": [
+        128,
+        128
+      ],
+      "layer": "prop",
+      "height_ft": 1,
+      "functions": [],
+      "tags": {
+        "biome": [
+          "temperate"
+        ],
+        "culture": [
+          "human"
+        ],
+        "wealth": [],
+        "function": [],
+        "free": [
+          "garden",
+          "vegetable"
+        ]
+      },
+      "blocks_movement": false,
+      "blocks_sight": false,
+      "difficult_terrain": true,
+      "cover": "none",
+      "file": "vegetation/veg.vegetable_bed.alt1.png",
+      "status": "new",
+      "tier": 7,
+      "variant_of": "veg.vegetable_bed",
+      "values": {
+        "Subject": "a vegetable bed of carrots, beetroot and lettuces",
+        "Shape": "Its outline is irregular and uneven, never a neat circle or star; it bulges or reaches out on one or two sides. It fills about 90% of the frame, 5 feet at most.",
+        "Detail": "Dark soil in neat rows: feathery carrot tops, red-veined beetroot leaves and pale green lettuce rosettes."
+      },
+      "prompt": "Top-down battle-map asset for a tabletop fantasy grid map, in a rich hand-painted style: confident painterly brushwork, fine dark ink outlines, crisp small detail and a muted, earthy, slightly warm palette. Strictly orthographic view from directly overhead: no perspective, no horizon, no tilted or isometric angle. Soft light from the top-left, so upper-left edges catch highlights and lower-right edges fall into gentle form shading; no cast shadow and no drop shadow anywhere. No text, no letters, no numbers, no grid lines, no frame, no border, no vignette, no watermark, no signature. Subject: a vegetable bed of carrots, beetroot and lettuces, seen from directly above. Its outline is irregular and uneven, never a neat circle or star; it bulges or reaches out on one or two sides. It fills about 90% of the frame, 5 feet at most. Dark soil in neat rows: feathery carrot tops, red-veined beetroot leaves and pale green lettuce rosettes. Exactly one subject, centred, filling about 70% of the frame's shorter side, on a fully transparent background (a PNG with a real alpha channel, background: transparent; no white or colour behind the subject); nothing else in the image: no floor, no ground patch, no base or rug under it, no other objects, no shadow. No grass, soil or other plants around it."
+    },
+    "veg.herb_bed.alt1": {
+      "class": "vegetation",
+      "template": "arda-vegetation",
+      "format": "1:1",
+      "footprint": [
+        1,
+        1
+      ],
+      "pixels": [
+        128,
+        128
+      ],
+      "layer": "prop",
+      "height_ft": 1,
+      "functions": [],
+      "tags": {
+        "biome": [
+          "temperate"
+        ],
+        "culture": [
+          "human"
+        ],
+        "wealth": [],
+        "function": [],
+        "free": [
+          "garden",
+          "herb"
+        ]
+      },
+      "blocks_movement": false,
+      "blocks_sight": false,
+      "difficult_terrain": true,
+      "cover": "none",
+      "file": "vegetation/veg.herb_bed.alt1.png",
+      "status": "new",
+      "tier": 7,
+      "variant_of": "veg.herb_bed",
+      "values": {
+        "Subject": "a herb bed of mint, chives and fennel",
+        "Shape": "Its outline is irregular and uneven, never a neat circle or star; it bulges or reaches out on one or two sides. It fills about 80% of the frame, 5 feet at most.",
+        "Detail": "Dense bright mint, upright chive spikes with purple pom-pom flowers, feathery fennel fronds."
+      },
+      "prompt": "Top-down battle-map asset for a tabletop fantasy grid map, in a rich hand-painted style: confident painterly brushwork, fine dark ink outlines, crisp small detail and a muted, earthy, slightly warm palette. Strictly orthographic view from directly overhead: no perspective, no horizon, no tilted or isometric angle. Soft light from the top-left, so upper-left edges catch highlights and lower-right edges fall into gentle form shading; no cast shadow and no drop shadow anywhere. No text, no letters, no numbers, no grid lines, no frame, no border, no vignette, no watermark, no signature. Subject: a herb bed of mint, chives and fennel, seen from directly above. Its outline is irregular and uneven, never a neat circle or star; it bulges or reaches out on one or two sides. It fills about 80% of the frame, 5 feet at most. Dense bright mint, upright chive spikes with purple pom-pom flowers, feathery fennel fronds. Exactly one subject, centred, filling about 70% of the frame's shorter side, on a fully transparent background (a PNG with a real alpha channel, background: transparent; no white or colour behind the subject); nothing else in the image: no floor, no ground patch, no base or rug under it, no other objects, no shadow. No grass, soil or other plants around it."
+    },
+    "veg.bean_poles.alt1": {
+      "class": "vegetation",
+      "template": "arda-vegetation",
+      "format": "1:1",
+      "footprint": [
+        1,
+        1
+      ],
+      "pixels": [
+        128,
+        128
+      ],
+      "layer": "prop",
+      "height_ft": 6,
+      "functions": [],
+      "tags": {
+        "biome": [
+          "temperate"
+        ],
+        "culture": [
+          "human"
+        ],
+        "wealth": [],
+        "function": [],
+        "free": [
+          "garden",
+          "trellis"
+        ]
+      },
+      "blocks_movement": false,
+      "blocks_sight": false,
+      "difficult_terrain": true,
+      "cover": "half",
+      "file": "vegetation/veg.bean_poles.alt1.png",
+      "status": "new",
+      "tier": 7,
+      "variant_of": "veg.bean_poles",
+      "values": {
+        "Subject": "a wigwam of hazel poles with climbing beans",
+        "Shape": "Its outline is irregular and uneven, never a neat circle or star; it bulges or reaches out on one or two sides. It fills about 80% of the frame, 5 feet at most.",
+        "Detail": "Five hazel poles meeting at the centre, green bean leaves spiralling up them, a few long green pods."
+      },
+      "prompt": "Top-down battle-map asset for a tabletop fantasy grid map, in a rich hand-painted style: confident painterly brushwork, fine dark ink outlines, crisp small detail and a muted, earthy, slightly warm palette. Strictly orthographic view from directly overhead: no perspective, no horizon, no tilted or isometric angle. Soft light from the top-left, so upper-left edges catch highlights and lower-right edges fall into gentle form shading; no cast shadow and no drop shadow anywhere. No text, no letters, no numbers, no grid lines, no frame, no border, no vignette, no watermark, no signature. Subject: a wigwam of hazel poles with climbing beans, seen from directly above. Its outline is irregular and uneven, never a neat circle or star; it bulges or reaches out on one or two sides. It fills about 80% of the frame, 5 feet at most. Five hazel poles meeting at the centre, green bean leaves spiralling up them, a few long green pods. Exactly one subject, centred, filling about 70% of the frame's shorter side, on a fully transparent background (a PNG with a real alpha channel, background: transparent; no white or colour behind the subject); nothing else in the image: no floor, no ground patch, no base or rug under it, no other objects, no shadow. No grass, soil or other plants around it."
+    },
+    "veg.vegetable_bed.alt2": {
+      "class": "vegetation",
+      "template": "arda-vegetation",
+      "format": "1:1",
+      "footprint": [
+        1,
+        1
+      ],
+      "pixels": [
+        128,
+        128
+      ],
+      "layer": "prop",
+      "height_ft": 1,
+      "functions": [],
+      "tags": {
+        "biome": [
+          "temperate"
+        ],
+        "culture": [
+          "human"
+        ],
+        "wealth": [],
+        "function": [],
+        "free": [
+          "garden",
+          "vegetable"
+        ]
+      },
+      "blocks_movement": false,
+      "blocks_sight": false,
+      "difficult_terrain": true,
+      "cover": "none",
+      "file": "vegetation/veg.vegetable_bed.alt2.png",
+      "status": "new",
+      "tier": 7,
+      "variant_of": "veg.vegetable_bed",
+      "values": {
+        "Subject": "a vegetable bed of turnips and kale just coming up",
+        "Shape": "Its outline is irregular and uneven, never a neat circle or star; it bulges or reaches out on one or two sides. It fills nearly all of the frame, 5 feet at most.",
+        "Detail": "Brown soil with rows of small turnip leaves, curly dark kale and a few bare gaps."
+      },
+      "prompt": "Top-down battle-map asset for a tabletop fantasy grid map, in a rich hand-painted style: confident painterly brushwork, fine dark ink outlines, crisp small detail and a muted, earthy, slightly warm palette. Strictly orthographic view from directly overhead: no perspective, no horizon, no tilted or isometric angle. Soft light from the top-left, so upper-left edges catch highlights and lower-right edges fall into gentle form shading; no cast shadow and no drop shadow anywhere. No text, no letters, no numbers, no grid lines, no frame, no border, no vignette, no watermark, no signature. Subject: a vegetable bed of turnips and kale just coming up, seen from directly above. Its outline is irregular and uneven, never a neat circle or star; it bulges or reaches out on one or two sides. It fills nearly all of the frame, 5 feet at most. Brown soil with rows of small turnip leaves, curly dark kale and a few bare gaps. Exactly one subject, centred, filling about 70% of the frame's shorter side, on a fully transparent background (a PNG with a real alpha channel, background: transparent; no white or colour behind the subject); nothing else in the image: no floor, no ground patch, no base or rug under it, no other objects, no shadow. No grass, soil or other plants around it."
+    },
+    "veg.herb_bed.alt2": {
+      "class": "vegetation",
+      "template": "arda-vegetation",
+      "format": "1:1",
+      "footprint": [
+        1,
+        1
+      ],
+      "pixels": [
+        128,
+        128
+      ],
+      "layer": "prop",
+      "height_ft": 1,
+      "functions": [],
+      "tags": {
+        "biome": [
+          "temperate"
+        ],
+        "culture": [
+          "human"
+        ],
+        "wealth": [],
+        "function": [],
+        "free": [
+          "garden",
+          "herb"
+        ]
+      },
+      "blocks_movement": false,
+      "blocks_sight": false,
+      "difficult_terrain": true,
+      "cover": "none",
+      "file": "vegetation/veg.herb_bed.alt2.png",
+      "status": "new",
+      "tier": 7,
+      "variant_of": "veg.herb_bed",
+      "values": {
+        "Subject": "a herb bed of rosemary, lavender and marjoram",
+        "Shape": "Its outline is irregular and uneven, never a neat circle or star; it bulges or reaches out on one or two sides. It fills about 90% of the frame, 5 feet at most.",
+        "Detail": "Needle-leaved rosemary bushes, grey lavender with violet spikes, round marjoram cushions."
+      },
+      "prompt": "Top-down battle-map asset for a tabletop fantasy grid map, in a rich hand-painted style: confident painterly brushwork, fine dark ink outlines, crisp small detail and a muted, earthy, slightly warm palette. Strictly orthographic view from directly overhead: no perspective, no horizon, no tilted or isometric angle. Soft light from the top-left, so upper-left edges catch highlights and lower-right edges fall into gentle form shading; no cast shadow and no drop shadow anywhere. No text, no letters, no numbers, no grid lines, no frame, no border, no vignette, no watermark, no signature. Subject: a herb bed of rosemary, lavender and marjoram, seen from directly above. Its outline is irregular and uneven, never a neat circle or star; it bulges or reaches out on one or two sides. It fills about 90% of the frame, 5 feet at most. Needle-leaved rosemary bushes, grey lavender with violet spikes, round marjoram cushions. Exactly one subject, centred, filling about 70% of the frame's shorter side, on a fully transparent background (a PNG with a real alpha channel, background: transparent; no white or colour behind the subject); nothing else in the image: no floor, no ground patch, no base or rug under it, no other objects, no shadow. No grass, soil or other plants around it."
+    },
+    "veg.bean_poles.alt2": {
+      "class": "vegetation",
+      "template": "arda-vegetation",
+      "format": "1:1",
+      "footprint": [
+        1,
+        1
+      ],
+      "pixels": [
+        128,
+        128
+      ],
+      "layer": "prop",
+      "height_ft": 6,
+      "functions": [],
+      "tags": {
+        "biome": [
+          "temperate"
+        ],
+        "culture": [
+          "human"
+        ],
+        "wealth": [],
+        "function": [],
+        "free": [
+          "garden",
+          "trellis"
+        ]
+      },
+      "blocks_movement": false,
+      "blocks_sight": false,
+      "difficult_terrain": true,
+      "cover": "half",
+      "file": "vegetation/veg.bean_poles.alt2.png",
+      "status": "new",
+      "tier": 7,
+      "variant_of": "veg.bean_poles",
+      "values": {
+        "Subject": "a row of bean poles with climbing peas",
+        "Shape": "Its outline is irregular and uneven, never a neat circle or star; it bulges or reaches out on one or two sides. It fills about 90% of the frame, 5 feet at most.",
+        "Detail": "A single line of tall poles with twine between, light green pea vines and white blossom."
+      },
+      "prompt": "Top-down battle-map asset for a tabletop fantasy grid map, in a rich hand-painted style: confident painterly brushwork, fine dark ink outlines, crisp small detail and a muted, earthy, slightly warm palette. Strictly orthographic view from directly overhead: no perspective, no horizon, no tilted or isometric angle. Soft light from the top-left, so upper-left edges catch highlights and lower-right edges fall into gentle form shading; no cast shadow and no drop shadow anywhere. No text, no letters, no numbers, no grid lines, no frame, no border, no vignette, no watermark, no signature. Subject: a row of bean poles with climbing peas, seen from directly above. Its outline is irregular and uneven, never a neat circle or star; it bulges or reaches out on one or two sides. It fills about 90% of the frame, 5 feet at most. A single line of tall poles with twine between, light green pea vines and white blossom. Exactly one subject, centred, filling about 70% of the frame's shorter side, on a fully transparent background (a PNG with a real alpha channel, background: transparent; no white or colour behind the subject); nothing else in the image: no floor, no ground patch, no base or rug under it, no other objects, no shadow. No grass, soil or other plants around it."
+    },
+    "veg.vegetable_bed.alt3": {
+      "class": "vegetation",
+      "template": "arda-vegetation",
+      "format": "1:1",
+      "footprint": [
+        1,
+        1
+      ],
+      "pixels": [
+        128,
+        128
+      ],
+      "layer": "prop",
+      "height_ft": 1,
+      "functions": [],
+      "tags": {
+        "biome": [
+          "temperate"
+        ],
+        "culture": [
+          "human"
+        ],
+        "wealth": [],
+        "function": [],
+        "free": [
+          "garden",
+          "vegetable"
+        ]
+      },
+      "blocks_movement": false,
+      "blocks_sight": false,
+      "difficult_terrain": true,
+      "cover": "none",
+      "file": "vegetation/veg.vegetable_bed.alt3.png",
+      "status": "new",
+      "tier": 7,
+      "variant_of": "veg.vegetable_bed",
+      "values": {
+        "Subject": "a vegetable bed of potatoes, ridged and earthed up",
+        "Shape": "Its outline is irregular and uneven, never a neat circle or star; it bulges or reaches out on one or two sides. It fills about 60% of the frame, 5 feet at most.",
+        "Detail": "Raised soil ridges with bushy green potato plants along each ridge, a few white flowers."
+      },
+      "prompt": "Top-down battle-map asset for a tabletop fantasy grid map, in a rich hand-painted style: confident painterly brushwork, fine dark ink outlines, crisp small detail and a muted, earthy, slightly warm palette. Strictly orthographic view from directly overhead: no perspective, no horizon, no tilted or isometric angle. Soft light from the top-left, so upper-left edges catch highlights and lower-right edges fall into gentle form shading; no cast shadow and no drop shadow anywhere. No text, no letters, no numbers, no grid lines, no frame, no border, no vignette, no watermark, no signature. Subject: a vegetable bed of potatoes, ridged and earthed up, seen from directly above. Its outline is irregular and uneven, never a neat circle or star; it bulges or reaches out on one or two sides. It fills about 60% of the frame, 5 feet at most. Raised soil ridges with bushy green potato plants along each ridge, a few white flowers. Exactly one subject, centred, filling about 70% of the frame's shorter side, on a fully transparent background (a PNG with a real alpha channel, background: transparent; no white or colour behind the subject); nothing else in the image: no floor, no ground patch, no base or rug under it, no other objects, no shadow. No grass, soil or other plants around it."
+    },
+    "veg.herb_bed.alt3": {
+      "class": "vegetation",
+      "template": "arda-vegetation",
+      "format": "1:1",
+      "footprint": [
+        1,
+        1
+      ],
+      "pixels": [
+        128,
+        128
+      ],
+      "layer": "prop",
+      "height_ft": 1,
+      "functions": [],
+      "tags": {
+        "biome": [
+          "temperate"
+        ],
+        "culture": [
+          "human"
+        ],
+        "wealth": [],
+        "function": [],
+        "free": [
+          "garden",
+          "herb"
+        ]
+      },
+      "blocks_movement": false,
+      "blocks_sight": false,
+      "difficult_terrain": true,
+      "cover": "none",
+      "file": "vegetation/veg.herb_bed.alt3.png",
+      "status": "new",
+      "tier": 7,
+      "variant_of": "veg.herb_bed",
+      "values": {
+        "Subject": "a herb bed of borage, calendula and dill",
+        "Shape": "Its outline is irregular and uneven, never a neat circle or star; it bulges or reaches out on one or two sides. It fills nearly all of the frame, 5 feet at most.",
+        "Detail": "Hairy borage with blue star flowers, orange calendula blooms and pale yellow dill umbels."
+      },
+      "prompt": "Top-down battle-map asset for a tabletop fantasy grid map, in a rich hand-painted style: confident painterly brushwork, fine dark ink outlines, crisp small detail and a muted, earthy, slightly warm palette. Strictly orthographic view from directly overhead: no perspective, no horizon, no tilted or isometric angle. Soft light from the top-left, so upper-left edges catch highlights and lower-right edges fall into gentle form shading; no cast shadow and no drop shadow anywhere. No text, no letters, no numbers, no grid lines, no frame, no border, no vignette, no watermark, no signature. Subject: a herb bed of borage, calendula and dill, seen from directly above. Its outline is irregular and uneven, never a neat circle or star; it bulges or reaches out on one or two sides. It fills nearly all of the frame, 5 feet at most. Hairy borage with blue star flowers, orange calendula blooms and pale yellow dill umbels. Exactly one subject, centred, filling about 70% of the frame's shorter side, on a fully transparent background (a PNG with a real alpha channel, background: transparent; no white or colour behind the subject); nothing else in the image: no floor, no ground patch, no base or rug under it, no other objects, no shadow. No grass, soil or other plants around it."
+    },
+    "veg.bean_poles.alt3": {
+      "class": "vegetation",
+      "template": "arda-vegetation",
+      "format": "1:1",
+      "footprint": [
+        1,
+        1
+      ],
+      "pixels": [
+        128,
+        128
+      ],
+      "layer": "prop",
+      "height_ft": 6,
+      "functions": [],
+      "tags": {
+        "biome": [
+          "temperate"
+        ],
+        "culture": [
+          "human"
+        ],
+        "wealth": [],
+        "function": [],
+        "free": [
+          "garden",
+          "trellis"
+        ]
+      },
+      "blocks_movement": false,
+      "blocks_sight": false,
+      "difficult_terrain": true,
+      "cover": "half",
+      "file": "vegetation/veg.bean_poles.alt3.png",
+      "status": "new",
+      "tier": 7,
+      "variant_of": "veg.bean_poles",
+      "values": {
+        "Subject": "a bean bed on tall poles lashed with twine",
+        "Shape": "Its outline is irregular and uneven, never a neat circle or star; it bulges or reaches out on one or two sides. It fills nearly all of the frame, 5 feet at most.",
+        "Detail": "Straight ash poles leaning in pairs, dense vines of broad beans, dark green leaves and black-green pods."
+      },
+      "prompt": "Top-down battle-map asset for a tabletop fantasy grid map, in a rich hand-painted style: confident painterly brushwork, fine dark ink outlines, crisp small detail and a muted, earthy, slightly warm palette. Strictly orthographic view from directly overhead: no perspective, no horizon, no tilted or isometric angle. Soft light from the top-left, so upper-left edges catch highlights and lower-right edges fall into gentle form shading; no cast shadow and no drop shadow anywhere. No text, no letters, no numbers, no grid lines, no frame, no border, no vignette, no watermark, no signature. Subject: a bean bed on tall poles lashed with twine, seen from directly above. Its outline is irregular and uneven, never a neat circle or star; it bulges or reaches out on one or two sides. It fills nearly all of the frame, 5 feet at most. Straight ash poles leaning in pairs, dense vines of broad beans, dark green leaves and black-green pods. Exactly one subject, centred, filling about 70% of the frame's shorter side, on a fully transparent background (a PNG with a real alpha channel, background: transparent; no white or colour behind the subject); nothing else in the image: no floor, no ground patch, no base or rug under it, no other objects, no shadow. No grass, soil or other plants around it."
+    },
+    "prop.cold_frame": {
+      "class": "prop",
+      "template": "arda-prop",
+      "format": "16:9",
+      "footprint": [
+        2,
+        1
+      ],
+      "pixels": [
+        256,
+        128
+      ],
+      "layer": "prop",
+      "height_ft": 2,
+      "functions": [
+        "farm",
+        "farmhouse",
+        "cottage"
+      ],
+      "tags": {
+        "biome": [
+          "temperate"
+        ],
+        "culture": [
+          "human"
+        ],
+        "wealth": [
+          "poor",
+          "modest"
+        ],
+        "function": [
+          "farm",
+          "farmhouse",
+          "cottage"
+        ],
+        "free": [
+          "garden",
+          "frame"
+        ]
+      },
+      "blocks_movement": false,
+      "blocks_sight": false,
+      "difficult_terrain": true,
+      "cover": "half",
+      "file": "props/prop.cold_frame.png",
+      "status": "new",
+      "tier": 7,
+      "values": {
+        "Subject": "a wooden cold frame with a glass lid, seen from directly above",
+        "Shape": "Its outline is about twice as long as it is wide (10 by 5 feet), lying horizontally across the frame.",
+        "Detail": "A low plank box with a lid of glass panes in a timber frame, seedlings faintly visible beneath."
+      },
+      "prompt": "Top-down battle-map asset for a tabletop fantasy grid map, in a rich hand-painted style: confident painterly brushwork, fine dark ink outlines, crisp small detail and a muted, earthy, slightly warm palette. Strictly orthographic view from directly overhead: no perspective, no horizon, no tilted or isometric angle. Soft light from the top-left, so upper-left edges catch highlights and lower-right edges fall into gentle form shading; no cast shadow and no drop shadow anywhere. No text, no letters, no numbers, no grid lines, no frame, no border, no vignette, no watermark, no signature. Subject: a wooden cold frame with a glass lid, seen from directly above, seen from directly above. Its outline is about twice as long as it is wide (10 by 5 feet), lying horizontally across the frame. A low plank box with a lid of glass panes in a timber frame, seedlings faintly visible beneath. Exactly one subject, centred, filling about 70% of the frame's shorter side, on a fully transparent background (a PNG with a real alpha channel, background: transparent; no white or colour behind the subject); nothing else in the image: no floor, no ground patch, no base or rug under it, no other objects, no shadow."
+    },
+    "prop.compost_heap": {
+      "class": "prop",
+      "template": "arda-prop",
+      "format": "1:1",
+      "footprint": [
+        1,
+        1
+      ],
+      "pixels": [
+        128,
+        128
+      ],
+      "layer": "prop",
+      "height_ft": 2,
+      "functions": [
+        "farm",
+        "farmhouse",
+        "cottage"
+      ],
+      "tags": {
+        "biome": [
+          "temperate"
+        ],
+        "culture": [
+          "human"
+        ],
+        "wealth": [
+          "poor",
+          "modest"
+        ],
+        "function": [
+          "farm",
+          "farmhouse",
+          "cottage"
+        ],
+        "free": [
+          "garden",
+          "compost"
+        ]
+      },
+      "blocks_movement": false,
+      "blocks_sight": false,
+      "difficult_terrain": true,
+      "cover": "half",
+      "file": "props/prop.compost_heap.png",
+      "status": "new",
+      "tier": 7,
+      "values": {
+        "Subject": "a compost heap of rotting vegetable waste, seen from directly above",
+        "Shape": "Its outline is compact and about as wide as it is long, fitting one 5-foot square.",
+        "Detail": "A dark brown mound of rotted greens, straw and eggshell, with a few bright cabbage leaves on top."
+      },
+      "prompt": "Top-down battle-map asset for a tabletop fantasy grid map, in a rich hand-painted style: confident painterly brushwork, fine dark ink outlines, crisp small detail and a muted, earthy, slightly warm palette. Strictly orthographic view from directly overhead: no perspective, no horizon, no tilted or isometric angle. Soft light from the top-left, so upper-left edges catch highlights and lower-right edges fall into gentle form shading; no cast shadow and no drop shadow anywhere. No text, no letters, no numbers, no grid lines, no frame, no border, no vignette, no watermark, no signature. Subject: a compost heap of rotting vegetable waste, seen from directly above, seen from directly above. Its outline is compact and about as wide as it is long, fitting one 5-foot square. A dark brown mound of rotted greens, straw and eggshell, with a few bright cabbage leaves on top. Exactly one subject, centred, filling about 70% of the frame's shorter side, on a fully transparent background (a PNG with a real alpha channel, background: transparent; no white or colour behind the subject); nothing else in the image: no floor, no ground patch, no base or rug under it, no other objects, no shadow."
+    },
+    "prop.rain_barrel": {
+      "class": "prop",
+      "template": "arda-prop",
+      "format": "1:1",
+      "footprint": [
+        1,
+        1
+      ],
+      "pixels": [
+        128,
+        128
+      ],
+      "layer": "prop",
+      "height_ft": 3,
+      "functions": [
+        "farm",
+        "farmhouse",
+        "cottage"
+      ],
+      "tags": {
+        "biome": [
+          "temperate"
+        ],
+        "culture": [
+          "human"
+        ],
+        "wealth": [
+          "poor",
+          "modest"
+        ],
+        "function": [
+          "farm",
+          "farmhouse",
+          "cottage"
+        ],
+        "free": [
+          "garden",
+          "water"
+        ]
+      },
+      "blocks_movement": true,
+      "blocks_sight": false,
+      "difficult_terrain": false,
+      "cover": "half",
+      "file": "props/prop.rain_barrel.png",
+      "status": "new",
+      "tier": 7,
+      "values": {
+        "Subject": "an open oak rain barrel full of water, seen from directly above",
+        "Shape": "Its outline is compact and about as wide as it is long, fitting one 5-foot square.",
+        "Detail": "A round staved barrel with two iron hoops, dark still water filling the top, a few leaves floating."
+      },
+      "prompt": "Top-down battle-map asset for a tabletop fantasy grid map, in a rich hand-painted style: confident painterly brushwork, fine dark ink outlines, crisp small detail and a muted, earthy, slightly warm palette. Strictly orthographic view from directly overhead: no perspective, no horizon, no tilted or isometric angle. Soft light from the top-left, so upper-left edges catch highlights and lower-right edges fall into gentle form shading; no cast shadow and no drop shadow anywhere. No text, no letters, no numbers, no grid lines, no frame, no border, no vignette, no watermark, no signature. Subject: an open oak rain barrel full of water, seen from directly above, seen from directly above. Its outline is compact and about as wide as it is long, fitting one 5-foot square. A round staved barrel with two iron hoops, dark still water filling the top, a few leaves floating. Exactly one subject, centred, filling about 70% of the frame's shorter side, on a fully transparent background (a PNG with a real alpha channel, background: transparent; no white or colour behind the subject); nothing else in the image: no floor, no ground patch, no base or rug under it, no other objects, no shadow."
+    },
+    "prop.garden_tools": {
+      "class": "prop",
+      "template": "arda-prop",
+      "format": "1:1",
+      "footprint": [
+        1,
+        1
+      ],
+      "pixels": [
+        128,
+        128
+      ],
+      "layer": "prop",
+      "height_ft": 0,
+      "functions": [
+        "farm",
+        "farmhouse",
+        "cottage"
+      ],
+      "tags": {
+        "biome": [
+          "temperate"
+        ],
+        "culture": [
+          "human"
+        ],
+        "wealth": [
+          "poor",
+          "modest"
+        ],
+        "function": [
+          "farm",
+          "farmhouse",
+          "cottage"
+        ],
+        "free": [
+          "garden",
+          "tool"
+        ]
+      },
+      "blocks_movement": false,
+      "blocks_sight": false,
+      "difficult_terrain": false,
+      "cover": "none",
+      "file": "props/prop.garden_tools.png",
+      "status": "new",
+      "tier": 7,
+      "values": {
+        "Subject": "a spade, a hoe and a rake lying side by side on the ground, seen from directly above",
+        "Shape": "Its outline is compact and about as wide as it is long, fitting one 5-foot square.",
+        "Detail": "Three long wooden handles with a steel spade blade, a flat hoe blade and a toothed rake head."
+      },
+      "prompt": "Top-down battle-map asset for a tabletop fantasy grid map, in a rich hand-painted style: confident painterly brushwork, fine dark ink outlines, crisp small detail and a muted, earthy, slightly warm palette. Strictly orthographic view from directly overhead: no perspective, no horizon, no tilted or isometric angle. Soft light from the top-left, so upper-left edges catch highlights and lower-right edges fall into gentle form shading; no cast shadow and no drop shadow anywhere. No text, no letters, no numbers, no grid lines, no frame, no border, no vignette, no watermark, no signature. Subject: a spade, a hoe and a rake lying side by side on the ground, seen from directly above, seen from directly above. Its outline is compact and about as wide as it is long, fitting one 5-foot square. Three long wooden handles with a steel spade blade, a flat hoe blade and a toothed rake head. Exactly one subject, centred, filling about 70% of the frame's shorter side, on a fully transparent background (a PNG with a real alpha channel, background: transparent; no white or colour behind the subject); nothing else in the image: no floor, no ground patch, no base or rug under it, no other objects, no shadow."
+    },
+    "prop.cold_frame.alt1": {
+      "class": "prop",
+      "template": "arda-prop",
+      "format": "16:9",
+      "footprint": [
+        2,
+        1
+      ],
+      "pixels": [
+        256,
+        128
+      ],
+      "layer": "prop",
+      "height_ft": 2,
+      "functions": [
+        "farm",
+        "farmhouse",
+        "cottage"
+      ],
+      "tags": {
+        "biome": [
+          "temperate"
+        ],
+        "culture": [
+          "human"
+        ],
+        "wealth": [
+          "poor",
+          "modest"
+        ],
+        "function": [
+          "farm",
+          "farmhouse",
+          "cottage"
+        ],
+        "free": [
+          "garden",
+          "frame"
+        ]
+      },
+      "blocks_movement": false,
+      "blocks_sight": false,
+      "difficult_terrain": true,
+      "cover": "half",
+      "file": "props/prop.cold_frame.alt1.png",
+      "status": "new",
+      "tier": 7,
+      "variant_of": "prop.cold_frame",
+      "values": {
+        "Subject": "a cold frame with the glass lid propped open",
+        "Shape": "Its outline is about twice as long as it is wide (10 by 5 feet), lying horizontally across the frame.",
+        "Detail": "A weathered plank box, the glazed lid tilted open on a stick, rows of young green seedlings inside."
+      },
+      "prompt": "Top-down battle-map asset for a tabletop fantasy grid map, in a rich hand-painted style: confident painterly brushwork, fine dark ink outlines, crisp small detail and a muted, earthy, slightly warm palette. Strictly orthographic view from directly overhead: no perspective, no horizon, no tilted or isometric angle. Soft light from the top-left, so upper-left edges catch highlights and lower-right edges fall into gentle form shading; no cast shadow and no drop shadow anywhere. No text, no letters, no numbers, no grid lines, no frame, no border, no vignette, no watermark, no signature. Subject: a cold frame with the glass lid propped open, seen from directly above. Its outline is about twice as long as it is wide (10 by 5 feet), lying horizontally across the frame. A weathered plank box, the glazed lid tilted open on a stick, rows of young green seedlings inside. Exactly one subject, centred, filling about 70% of the frame's shorter side, on a fully transparent background (a PNG with a real alpha channel, background: transparent; no white or colour behind the subject); nothing else in the image: no floor, no ground patch, no base or rug under it, no other objects, no shadow."
+    },
+    "prop.compost_heap.alt1": {
+      "class": "prop",
+      "template": "arda-prop",
+      "format": "1:1",
+      "footprint": [
+        1,
+        1
+      ],
+      "pixels": [
+        128,
+        128
+      ],
+      "layer": "prop",
+      "height_ft": 2,
+      "functions": [
+        "farm",
+        "farmhouse",
+        "cottage"
+      ],
+      "tags": {
+        "biome": [
+          "temperate"
+        ],
+        "culture": [
+          "human"
+        ],
+        "wealth": [
+          "poor",
+          "modest"
+        ],
+        "function": [
+          "farm",
+          "farmhouse",
+          "cottage"
+        ],
+        "free": [
+          "garden",
+          "compost"
+        ]
+      },
+      "blocks_movement": false,
+      "blocks_sight": false,
+      "difficult_terrain": true,
+      "cover": "half",
+      "file": "props/prop.compost_heap.alt1.png",
+      "status": "new",
+      "tier": 7,
+      "variant_of": "prop.compost_heap",
+      "values": {
+        "Subject": "a compost heap in a three-sided plank bin",
+        "Shape": "Its outline is compact and about as wide as it is long, fitting one 5-foot square.",
+        "Detail": "Rough plank sides around a steaming heap of dark crumbly compost and fresh grass cuttings."
+      },
+      "prompt": "Top-down battle-map asset for a tabletop fantasy grid map, in a rich hand-painted style: confident painterly brushwork, fine dark ink outlines, crisp small detail and a muted, earthy, slightly warm palette. Strictly orthographic view from directly overhead: no perspective, no horizon, no tilted or isometric angle. Soft light from the top-left, so upper-left edges catch highlights and lower-right edges fall into gentle form shading; no cast shadow and no drop shadow anywhere. No text, no letters, no numbers, no grid lines, no frame, no border, no vignette, no watermark, no signature. Subject: a compost heap in a three-sided plank bin, seen from directly above. Its outline is compact and about as wide as it is long, fitting one 5-foot square. Rough plank sides around a steaming heap of dark crumbly compost and fresh grass cuttings. Exactly one subject, centred, filling about 70% of the frame's shorter side, on a fully transparent background (a PNG with a real alpha channel, background: transparent; no white or colour behind the subject); nothing else in the image: no floor, no ground patch, no base or rug under it, no other objects, no shadow."
+    },
+    "prop.rain_barrel.alt1": {
+      "class": "prop",
+      "template": "arda-prop",
+      "format": "1:1",
+      "footprint": [
+        1,
+        1
+      ],
+      "pixels": [
+        128,
+        128
+      ],
+      "layer": "prop",
+      "height_ft": 3,
+      "functions": [
+        "farm",
+        "farmhouse",
+        "cottage"
+      ],
+      "tags": {
+        "biome": [
+          "temperate"
+        ],
+        "culture": [
+          "human"
+        ],
+        "wealth": [
+          "poor",
+          "modest"
+        ],
+        "function": [
+          "farm",
+          "farmhouse",
+          "cottage"
+        ],
+        "free": [
+          "garden",
+          "water"
+        ]
+      },
+      "blocks_movement": true,
+      "blocks_sight": false,
+      "difficult_terrain": false,
+      "cover": "half",
+      "file": "props/prop.rain_barrel.alt1.png",
+      "status": "new",
+      "tier": 7,
+      "variant_of": "prop.rain_barrel",
+      "values": {
+        "Subject": "a rain barrel with a wooden lid half slid off",
+        "Shape": "Its outline is compact and about as wide as it is long, fitting one 5-foot square.",
+        "Detail": "A round barrel, pale lid slid aside to show black water, rust-stained hoops."
+      },
+      "prompt": "Top-down battle-map asset for a tabletop fantasy grid map, in a rich hand-painted style: confident painterly brushwork, fine dark ink outlines, crisp small detail and a muted, earthy, slightly warm palette. Strictly orthographic view from directly overhead: no perspective, no horizon, no tilted or isometric angle. Soft light from the top-left, so upper-left edges catch highlights and lower-right edges fall into gentle form shading; no cast shadow and no drop shadow anywhere. No text, no letters, no numbers, no grid lines, no frame, no border, no vignette, no watermark, no signature. Subject: a rain barrel with a wooden lid half slid off, seen from directly above. Its outline is compact and about as wide as it is long, fitting one 5-foot square. A round barrel, pale lid slid aside to show black water, rust-stained hoops. Exactly one subject, centred, filling about 70% of the frame's shorter side, on a fully transparent background (a PNG with a real alpha channel, background: transparent; no white or colour behind the subject); nothing else in the image: no floor, no ground patch, no base or rug under it, no other objects, no shadow."
+    },
+    "prop.garden_tools.alt1": {
+      "class": "prop",
+      "template": "arda-prop",
+      "format": "1:1",
+      "footprint": [
+        1,
+        1
+      ],
+      "pixels": [
+        128,
+        128
+      ],
+      "layer": "prop",
+      "height_ft": 0,
+      "functions": [
+        "farm",
+        "farmhouse",
+        "cottage"
+      ],
+      "tags": {
+        "biome": [
+          "temperate"
+        ],
+        "culture": [
+          "human"
+        ],
+        "wealth": [
+          "poor",
+          "modest"
+        ],
+        "function": [
+          "farm",
+          "farmhouse",
+          "cottage"
+        ],
+        "free": [
+          "garden",
+          "tool"
+        ]
+      },
+      "blocks_movement": false,
+      "blocks_sight": false,
+      "difficult_terrain": false,
+      "cover": "none",
+      "file": "props/prop.garden_tools.alt1.png",
+      "status": "new",
+      "tier": 7,
+      "variant_of": "prop.garden_tools",
+      "values": {
+        "Subject": "a digging fork and a trowel left on the ground",
+        "Shape": "Its outline is compact and about as wide as it is long, fitting one 5-foot square.",
+        "Detail": "A long-handled four-tined fork and a small wooden-handled trowel crossed over it."
+      },
+      "prompt": "Top-down battle-map asset for a tabletop fantasy grid map, in a rich hand-painted style: confident painterly brushwork, fine dark ink outlines, crisp small detail and a muted, earthy, slightly warm palette. Strictly orthographic view from directly overhead: no perspective, no horizon, no tilted or isometric angle. Soft light from the top-left, so upper-left edges catch highlights and lower-right edges fall into gentle form shading; no cast shadow and no drop shadow anywhere. No text, no letters, no numbers, no grid lines, no frame, no border, no vignette, no watermark, no signature. Subject: a digging fork and a trowel left on the ground, seen from directly above. Its outline is compact and about as wide as it is long, fitting one 5-foot square. A long-handled four-tined fork and a small wooden-handled trowel crossed over it. Exactly one subject, centred, filling about 70% of the frame's shorter side, on a fully transparent background (a PNG with a real alpha channel, background: transparent; no white or colour behind the subject); nothing else in the image: no floor, no ground patch, no base or rug under it, no other objects, no shadow."
+    },
+    "prop.cold_frame.alt2": {
+      "class": "prop",
+      "template": "arda-prop",
+      "format": "16:9",
+      "footprint": [
+        2,
+        1
+      ],
+      "pixels": [
+        256,
+        128
+      ],
+      "layer": "prop",
+      "height_ft": 2,
+      "functions": [
+        "farm",
+        "farmhouse",
+        "cottage"
+      ],
+      "tags": {
+        "biome": [
+          "temperate"
+        ],
+        "culture": [
+          "human"
+        ],
+        "wealth": [
+          "poor",
+          "modest"
+        ],
+        "function": [
+          "farm",
+          "farmhouse",
+          "cottage"
+        ],
+        "free": [
+          "garden",
+          "frame"
+        ]
+      },
+      "blocks_movement": false,
+      "blocks_sight": false,
+      "difficult_terrain": true,
+      "cover": "half",
+      "file": "props/prop.cold_frame.alt2.png",
+      "status": "new",
+      "tier": 7,
+      "variant_of": "prop.cold_frame",
+      "values": {
+        "Subject": "a brick cold frame with a mossy glass lid",
+        "Shape": "Its outline is about twice as long as it is wide (10 by 5 feet), lying horizontally across the frame.",
+        "Detail": "Low red brick sides, a sagging timber lid with cloudy glass, a few green shoots showing."
+      },
+      "prompt": "Top-down battle-map asset for a tabletop fantasy grid map, in a rich hand-painted style: confident painterly brushwork, fine dark ink outlines, crisp small detail and a muted, earthy, slightly warm palette. Strictly orthographic view from directly overhead: no perspective, no horizon, no tilted or isometric angle. Soft light from the top-left, so upper-left edges catch highlights and lower-right edges fall into gentle form shading; no cast shadow and no drop shadow anywhere. No text, no letters, no numbers, no grid lines, no frame, no border, no vignette, no watermark, no signature. Subject: a brick cold frame with a mossy glass lid, seen from directly above. Its outline is about twice as long as it is wide (10 by 5 feet), lying horizontally across the frame. Low red brick sides, a sagging timber lid with cloudy glass, a few green shoots showing. Exactly one subject, centred, filling about 70% of the frame's shorter side, on a fully transparent background (a PNG with a real alpha channel, background: transparent; no white or colour behind the subject); nothing else in the image: no floor, no ground patch, no base or rug under it, no other objects, no shadow."
+    },
+    "prop.compost_heap.alt2": {
+      "class": "prop",
+      "template": "arda-prop",
+      "format": "1:1",
+      "footprint": [
+        1,
+        1
+      ],
+      "pixels": [
+        128,
+        128
+      ],
+      "layer": "prop",
+      "height_ft": 2,
+      "functions": [
+        "farm",
+        "farmhouse",
+        "cottage"
+      ],
+      "tags": {
+        "biome": [
+          "temperate"
+        ],
+        "culture": [
+          "human"
+        ],
+        "wealth": [
+          "poor",
+          "modest"
+        ],
+        "function": [
+          "farm",
+          "farmhouse",
+          "cottage"
+        ],
+        "free": [
+          "garden",
+          "compost"
+        ]
+      },
+      "blocks_movement": false,
+      "blocks_sight": false,
+      "difficult_terrain": true,
+      "cover": "half",
+      "file": "props/prop.compost_heap.alt2.png",
+      "status": "new",
+      "tier": 7,
+      "variant_of": "prop.compost_heap",
+      "values": {
+        "Subject": "a heap of compost and straw with a pitchfork stuck in it",
+        "Shape": "Its outline is compact and about as wide as it is long, fitting one 5-foot square.",
+        "Detail": "A dark mound of rotted waste and yellow straw, a wooden-handled fork standing in the top."
+      },
+      "prompt": "Top-down battle-map asset for a tabletop fantasy grid map, in a rich hand-painted style: confident painterly brushwork, fine dark ink outlines, crisp small detail and a muted, earthy, slightly warm palette. Strictly orthographic view from directly overhead: no perspective, no horizon, no tilted or isometric angle. Soft light from the top-left, so upper-left edges catch highlights and lower-right edges fall into gentle form shading; no cast shadow and no drop shadow anywhere. No text, no letters, no numbers, no grid lines, no frame, no border, no vignette, no watermark, no signature. Subject: a heap of compost and straw with a pitchfork stuck in it, seen from directly above. Its outline is compact and about as wide as it is long, fitting one 5-foot square. A dark mound of rotted waste and yellow straw, a wooden-handled fork standing in the top. Exactly one subject, centred, filling about 70% of the frame's shorter side, on a fully transparent background (a PNG with a real alpha channel, background: transparent; no white or colour behind the subject); nothing else in the image: no floor, no ground patch, no base or rug under it, no other objects, no shadow."
+    },
+    "prop.rain_barrel.alt2": {
+      "class": "prop",
+      "template": "arda-prop",
+      "format": "1:1",
+      "footprint": [
+        1,
+        1
+      ],
+      "pixels": [
+        128,
+        128
+      ],
+      "layer": "prop",
+      "height_ft": 3,
+      "functions": [
+        "farm",
+        "farmhouse",
+        "cottage"
+      ],
+      "tags": {
+        "biome": [
+          "temperate"
+        ],
+        "culture": [
+          "human"
+        ],
+        "wealth": [
+          "poor",
+          "modest"
+        ],
+        "function": [
+          "farm",
+          "farmhouse",
+          "cottage"
+        ],
+        "free": [
+          "garden",
+          "water"
+        ]
+      },
+      "blocks_movement": true,
+      "blocks_sight": false,
+      "difficult_terrain": false,
+      "cover": "half",
+      "file": "props/prop.rain_barrel.alt2.png",
+      "status": "new",
+      "tier": 7,
+      "variant_of": "prop.rain_barrel",
+      "values": {
+        "Subject": "a rain barrel with a downpipe running into it",
+        "Shape": "Its outline is compact and about as wide as it is long, fitting one 5-foot square.",
+        "Detail": "A round oak barrel, a short tin or wooden spout entering at the top edge, clear water inside."
+      },
+      "prompt": "Top-down battle-map asset for a tabletop fantasy grid map, in a rich hand-painted style: confident painterly brushwork, fine dark ink outlines, crisp small detail and a muted, earthy, slightly warm palette. Strictly orthographic view from directly overhead: no perspective, no horizon, no tilted or isometric angle. Soft light from the top-left, so upper-left edges catch highlights and lower-right edges fall into gentle form shading; no cast shadow and no drop shadow anywhere. No text, no letters, no numbers, no grid lines, no frame, no border, no vignette, no watermark, no signature. Subject: a rain barrel with a downpipe running into it, seen from directly above. Its outline is compact and about as wide as it is long, fitting one 5-foot square. A round oak barrel, a short tin or wooden spout entering at the top edge, clear water inside. Exactly one subject, centred, filling about 70% of the frame's shorter side, on a fully transparent background (a PNG with a real alpha channel, background: transparent; no white or colour behind the subject); nothing else in the image: no floor, no ground patch, no base or rug under it, no other objects, no shadow."
+    },
+    "prop.garden_tools.alt2": {
+      "class": "prop",
+      "template": "arda-prop",
+      "format": "1:1",
+      "footprint": [
+        1,
+        1
+      ],
+      "pixels": [
+        128,
+        128
+      ],
+      "layer": "prop",
+      "height_ft": 0,
+      "functions": [
+        "farm",
+        "farmhouse",
+        "cottage"
+      ],
+      "tags": {
+        "biome": [
+          "temperate"
+        ],
+        "culture": [
+          "human"
+        ],
+        "wealth": [
+          "poor",
+          "modest"
+        ],
+        "function": [
+          "farm",
+          "farmhouse",
+          "cottage"
+        ],
+        "free": [
+          "garden",
+          "tool"
+        ]
+      },
+      "blocks_movement": false,
+      "blocks_sight": false,
+      "difficult_terrain": false,
+      "cover": "none",
+      "file": "props/prop.garden_tools.alt2.png",
+      "status": "new",
+      "tier": 7,
+      "variant_of": "prop.garden_tools",
+      "values": {
+        "Subject": "a pair of shears, a dibber and a ball of twine on the ground",
+        "Shape": "Its outline is compact and about as wide as it is long, fitting one 5-foot square.",
+        "Detail": "Iron shears with red handles, a short pointed wooden dibber and a coil of brown twine."
+      },
+      "prompt": "Top-down battle-map asset for a tabletop fantasy grid map, in a rich hand-painted style: confident painterly brushwork, fine dark ink outlines, crisp small detail and a muted, earthy, slightly warm palette. Strictly orthographic view from directly overhead: no perspective, no horizon, no tilted or isometric angle. Soft light from the top-left, so upper-left edges catch highlights and lower-right edges fall into gentle form shading; no cast shadow and no drop shadow anywhere. No text, no letters, no numbers, no grid lines, no frame, no border, no vignette, no watermark, no signature. Subject: a pair of shears, a dibber and a ball of twine on the ground, seen from directly above. Its outline is compact and about as wide as it is long, fitting one 5-foot square. Iron shears with red handles, a short pointed wooden dibber and a coil of brown twine. Exactly one subject, centred, filling about 70% of the frame's shorter side, on a fully transparent background (a PNG with a real alpha channel, background: transparent; no white or colour behind the subject); nothing else in the image: no floor, no ground patch, no base or rug under it, no other objects, no shadow."
+    },
+    "prop.cold_frame.alt3": {
+      "class": "prop",
+      "template": "arda-prop",
+      "format": "16:9",
+      "footprint": [
+        2,
+        1
+      ],
+      "pixels": [
+        256,
+        128
+      ],
+      "layer": "prop",
+      "height_ft": 2,
+      "functions": [
+        "farm",
+        "farmhouse",
+        "cottage"
+      ],
+      "tags": {
+        "biome": [
+          "temperate"
+        ],
+        "culture": [
+          "human"
+        ],
+        "wealth": [
+          "poor",
+          "modest"
+        ],
+        "function": [
+          "farm",
+          "farmhouse",
+          "cottage"
+        ],
+        "free": [
+          "garden",
+          "frame"
+        ]
+      },
+      "blocks_movement": false,
+      "blocks_sight": false,
+      "difficult_terrain": true,
+      "cover": "half",
+      "file": "props/prop.cold_frame.alt3.png",
+      "status": "new",
+      "tier": 7,
+      "variant_of": "prop.cold_frame",
+      "values": {
+        "Subject": "a cold frame of old window sashes laid over a box",
+        "Shape": "Its outline is about twice as long as it is wide (10 by 5 feet), lying horizontally across the frame.",
+        "Detail": "Two mismatched white-painted window sashes over a rough plank box, one cracked pane."
+      },
+      "prompt": "Top-down battle-map asset for a tabletop fantasy grid map, in a rich hand-painted style: confident painterly brushwork, fine dark ink outlines, crisp small detail and a muted, earthy, slightly warm palette. Strictly orthographic view from directly overhead: no perspective, no horizon, no tilted or isometric angle. Soft light from the top-left, so upper-left edges catch highlights and lower-right edges fall into gentle form shading; no cast shadow and no drop shadow anywhere. No text, no letters, no numbers, no grid lines, no frame, no border, no vignette, no watermark, no signature. Subject: a cold frame of old window sashes laid over a box, seen from directly above. Its outline is about twice as long as it is wide (10 by 5 feet), lying horizontally across the frame. Two mismatched white-painted window sashes over a rough plank box, one cracked pane. Exactly one subject, centred, filling about 70% of the frame's shorter side, on a fully transparent background (a PNG with a real alpha channel, background: transparent; no white or colour behind the subject); nothing else in the image: no floor, no ground patch, no base or rug under it, no other objects, no shadow."
+    },
+    "prop.rain_barrel.alt3": {
+      "class": "prop",
+      "template": "arda-prop",
+      "format": "1:1",
+      "footprint": [
+        1,
+        1
+      ],
+      "pixels": [
+        128,
+        128
+      ],
+      "layer": "prop",
+      "height_ft": 3,
+      "functions": [
+        "farm",
+        "farmhouse",
+        "cottage"
+      ],
+      "tags": {
+        "biome": [
+          "temperate"
+        ],
+        "culture": [
+          "human"
+        ],
+        "wealth": [
+          "poor",
+          "modest"
+        ],
+        "function": [
+          "farm",
+          "farmhouse",
+          "cottage"
+        ],
+        "free": [
+          "garden",
+          "water"
+        ]
+      },
+      "blocks_movement": true,
+      "blocks_sight": false,
+      "difficult_terrain": false,
+      "cover": "half",
+      "file": "props/prop.rain_barrel.alt3.png",
+      "status": "new",
+      "tier": 7,
+      "variant_of": "prop.rain_barrel",
+      "values": {
+        "Subject": "a mossy half-barrel water butt",
+        "Shape": "Its outline is compact and about as wide as it is long, fitting one 5-foot square.",
+        "Detail": "A squat round staved tub green with moss, iron hoops, calm water with a few floating petals."
+      },
+      "prompt": "Top-down battle-map asset for a tabletop fantasy grid map, in a rich hand-painted style: confident painterly brushwork, fine dark ink outlines, crisp small detail and a muted, earthy, slightly warm palette. Strictly orthographic view from directly overhead: no perspective, no horizon, no tilted or isometric angle. Soft light from the top-left, so upper-left edges catch highlights and lower-right edges fall into gentle form shading; no cast shadow and no drop shadow anywhere. No text, no letters, no numbers, no grid lines, no frame, no border, no vignette, no watermark, no signature. Subject: a mossy half-barrel water butt, seen from directly above. Its outline is compact and about as wide as it is long, fitting one 5-foot square. A squat round staved tub green with moss, iron hoops, calm water with a few floating petals. Exactly one subject, centred, filling about 70% of the frame's shorter side, on a fully transparent background (a PNG with a real alpha channel, background: transparent; no white or colour behind the subject); nothing else in the image: no floor, no ground patch, no base or rug under it, no other objects, no shadow."
+    },
+    "prop.garden_tools.alt3": {
+      "class": "prop",
+      "template": "arda-prop",
+      "format": "1:1",
+      "footprint": [
+        1,
+        1
+      ],
+      "pixels": [
+        128,
+        128
+      ],
+      "layer": "prop",
+      "height_ft": 0,
+      "functions": [
+        "farm",
+        "farmhouse",
+        "cottage"
+      ],
+      "tags": {
+        "biome": [
+          "temperate"
+        ],
+        "culture": [
+          "human"
+        ],
+        "wealth": [
+          "poor",
+          "modest"
+        ],
+        "function": [
+          "farm",
+          "farmhouse",
+          "cottage"
+        ],
+        "free": [
+          "garden",
+          "tool"
+        ]
+      },
+      "blocks_movement": false,
+      "blocks_sight": false,
+      "difficult_terrain": false,
+      "cover": "none",
+      "file": "props/prop.garden_tools.alt3.png",
+      "status": "new",
+      "tier": 7,
+      "variant_of": "prop.garden_tools",
+      "values": {
+        "Subject": "a watering can lying on its side with a hand hoe",
+        "Shape": "Its outline is compact and about as wide as it is long, fitting one 5-foot square.",
+        "Detail": "A tin can with a long spout and a hoe with a worn handle beside it."
+      },
+      "prompt": "Top-down battle-map asset for a tabletop fantasy grid map, in a rich hand-painted style: confident painterly brushwork, fine dark ink outlines, crisp small detail and a muted, earthy, slightly warm palette. Strictly orthographic view from directly overhead: no perspective, no horizon, no tilted or isometric angle. Soft light from the top-left, so upper-left edges catch highlights and lower-right edges fall into gentle form shading; no cast shadow and no drop shadow anywhere. No text, no letters, no numbers, no grid lines, no frame, no border, no vignette, no watermark, no signature. Subject: a watering can lying on its side with a hand hoe, seen from directly above. Its outline is compact and about as wide as it is long, fitting one 5-foot square. A tin can with a long spout and a hoe with a worn handle beside it. Exactly one subject, centred, filling about 70% of the frame's shorter side, on a fully transparent background (a PNG with a real alpha channel, background: transparent; no white or colour behind the subject); nothing else in the image: no floor, no ground patch, no base or rug under it, no other objects, no shadow."
     }
   }
 }
