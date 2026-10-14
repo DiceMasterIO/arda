@@ -36,7 +36,7 @@ type Shared = State<Arc<AppState>>;
 
 /// Extra ppsq values world images may use: overview renders of cells and
 /// windows (a 3 × 3 window at 128 would exceed the render limit).
-pub(super) const WINDOW_PPSQ: [u32; 2] = [16, 32];
+pub(crate) const WINDOW_PPSQ: [u32; 2] = [16, 32];
 /// Default ppsq of `/window.png`.
 const WINDOW_DEFAULT_PPSQ: u32 = 32;
 

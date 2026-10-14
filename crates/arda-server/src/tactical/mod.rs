@@ -87,7 +87,10 @@ impl Default for TacticalLimits {
             max_render_px: 96 << 20,
             render_cache_bytes: 768 << 20,
             pyramid_cache_bytes: 1 << 30,
-            encoded_cache_bytes: 256 << 20,
+            // 160 MiB each since review 3.6-8 (256 before), to admit the
+            // tactical pipeline: still about three 128-ppsq cells of tiles,
+            // a few cell PNGs and a hundred town JSON bodies.
+            encoded_cache_bytes: 160 << 20,
         }
     }
 }

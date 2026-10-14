@@ -32,10 +32,13 @@ pub struct QueryLimits {
 
 impl Default for QueryLimits {
     fn default() -> Self {
+        // Trimmed in 0.8.1+ (review 3.6-8) to admit the tactical
+        // pipeline's holders: still 29 areas, 38 derived layers and 36
+        // fine windows, against 1 GiB, 256 MiB and 512 MiB before.
         Self {
-            area_bytes: 1 << 30,
-            derived_bytes: 256 << 20,
-            fine_bytes: 512 << 20,
+            area_bytes: 384 << 20,
+            derived_bytes: 128 << 20,
+            fine_bytes: 256 << 20,
         }
     }
 }
@@ -50,7 +53,7 @@ impl QueryLimits {
 
 /// Read-only contract queries over one stored world.
 pub struct WorldQuery {
-    world: World,
+    world: Arc<World>,
     cells_wide: u32,
     cells_high: u32,
     fine: Option<Mutex<TerrainFileReader<File>>>,
@@ -76,7 +79,7 @@ impl WorldQuery {
     /// # Errors
     /// Manifest, layer or fine-terrain verification failures.
     pub fn open(dir: &Path, limits: QueryLimits) -> ServerResult<Self> {
-        let world = World::load(dir)?;
+        let world = Arc::new(World::load(dir)?);
         let fine = world.fine_terrain(fine::FINE_READER_BYTES)?.map(Mutex::new);
         let m = world.manifest();
         let span = |areas: i32| {
@@ -107,8 +110,16 @@ impl WorldQuery {
 
     /// The stored world.
     #[must_use]
-    pub const fn world(&self) -> &World {
+    pub fn world(&self) -> &World {
         &self.world
+    }
+
+    /// The stored world, shared with the relief tiles so the server holds
+    /// one base `World` (review 3.6-8). Its own area cache stays empty:
+    /// queries and relief read areas into their bounded caches.
+    #[must_use]
+    pub fn shared_world(&self) -> Arc<World> {
+        Arc::clone(&self.world)
     }
 
     /// Global cell grid size `(columns, rows)`.

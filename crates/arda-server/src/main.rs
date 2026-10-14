@@ -28,10 +28,10 @@ struct Args {
     #[arg(long, default_value = "127.0.0.1")]
     host: std::net::IpAddr,
     /// Decoded-area cache budget, MiB.
-    #[arg(long, default_value_t = 1024)]
+    #[arg(long, default_value_t = arda_server::QueryLimits::default().area_bytes >> 20)]
     area_cache_mib: usize,
     /// Fine-terrain window cache budget, MiB.
-    #[arg(long, default_value_t = 512)]
+    #[arg(long, default_value_t = arda_server::QueryLimits::default().fine_bytes >> 20)]
     fine_cache_mib: usize,
     /// Largest `/overview.png` long edge clients may request, pixels.
     #[arg(long, default_value_t = 8192)]
@@ -83,6 +83,7 @@ async fn run(args: Args) -> Result<(), String> {
     config.bake_result_mib = args.bake_result_mib;
     config.sheet_mapping = args.sheet_mapping;
     let limits = config.serve;
+    let admitted = config.admitted_bytes();
     let state = tokio::task::spawn_blocking(move || AppState::open(&config))
         .await
         .map_err(|e| e.to_string())?
@@ -92,11 +93,14 @@ async fn run(args: Args) -> Result<(), String> {
         .await
         .map_err(|e| format!("binding {addr}: {e}"))?;
     println!(
-        "arda-server {} serving seed {} on http://{addr}/v1 (tactical library {}, sheet mapping {})",
+        "arda-server {} serving seed {} on http://{addr}/v1 (tactical library {}, sheet mapping {}, \
+         admitted {} MiB of {} MiB)",
         env!("CARGO_PKG_VERSION"),
         state.query.world().seed(),
         state.tactical.library_version(),
-        state.sheet_mapping.as_ref().map_or("none", |m| m.name())
+        state.sheet_mapping.as_ref().map_or("none", |m| m.name()),
+        (admitted + state.resident.total()) >> 20,
+        arda_server::MEMORY_CEILING_BYTES >> 20
     );
     serve(listener, router(Arc::new(state)), limits, shutdown_signal())
         .await

@@ -2,6 +2,7 @@
 //! seed-42 MICRO fine world (no mocks of arda).
 #![allow(clippy::unwrap_used, clippy::expect_used, missing_docs)]
 
+mod admission;
 mod bake;
 mod cells;
 mod contract;

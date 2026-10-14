@@ -9,6 +9,7 @@
 // `code-prefs.md` §Q1 bans unwrap/expect *outside* `#[cfg(test)]`.
 #![cfg_attr(test, allow(clippy::unwrap_used, clippy::expect_used))]
 
+pub mod admission;
 pub mod bindings;
 pub mod cache;
 pub mod columnar;
@@ -27,6 +28,7 @@ pub mod people;
 pub mod probe;
 pub mod query;
 pub mod realms;
+pub mod refine_source;
 pub mod relief;
 pub mod routes;
 pub mod schema;
@@ -139,6 +141,7 @@ impl ServerConfig {
                 self.bake_workers,
                 self.bake_result_bytes(),
             ))
+            .saturating_add(admission::pipeline_bytes())
     }
 
     /// The finished bake tile sets' budget, bytes.
@@ -168,6 +171,42 @@ impl ServerConfig {
         }
         Ok(())
     }
+
+    /// Admits the configuration together with what the opened world and
+    /// library hold (review 3.6-8).
+    ///
+    /// # Errors
+    /// [`ServerError::ResourceLimit`] naming each resident term.
+    pub fn admit_resident(&self, resident: &admission::Resident) -> ServerResult<()> {
+        let need = self.admitted_bytes().saturating_add(resident.total());
+        if need > MEMORY_CEILING_BYTES {
+            return Err(ServerError::ResourceLimit(format!(
+                "configured budgets ({} bytes) plus this world and library ({} bytes: library {}, \
+                 society {}, shore {}, plans {}) need {need} bytes, above the \
+                 {MEMORY_CEILING_BYTES}-byte ceiling; lower --area-cache-mib or --fine-cache-mib",
+                self.admitted_bytes(),
+                resident.total(),
+                resident.library,
+                resident.society,
+                resident.shore,
+                resident.plans
+            )));
+        }
+        Ok(())
+    }
+}
+
+/// Serialised bytes of the most populous settlement's town plan.
+fn largest_plan_bytes(w: &arda_people::World) -> Option<u64> {
+    let s = w
+        .files
+        .settlements
+        .settlements
+        .iter()
+        .max_by_key(|s| (s.population, std::cmp::Reverse(s.id.get())))?;
+    let plan = w.plan(s.id.get()).ok()?;
+    let plan = plan.as_ref().as_ref()?;
+    serde_json::to_vec(plan).ok().map(|v| v.len() as u64)
 }
 
 /// Shared service state.
@@ -194,6 +233,9 @@ pub struct AppState {
     pub bake: tactical::bake::Baker,
     /// The checked `--sheet-mapping`, applied to every NPC served.
     pub sheet_mapping: Option<sheet_map::SheetMapping>,
+    /// What the opened world and library hold beyond the configured
+    /// budgets, admitted at startup ([`admission::Resident`]).
+    pub resident: admission::Resident,
 }
 
 impl AppState {
@@ -215,8 +257,12 @@ impl AppState {
         // Adapter A9: world-derived blocks from arda-refine composed with the
         // world's society overlays (logic/16 §api-tactical);
         // `with_block_source` can replace them.
-        let src = arda_people::shared::SharedSource::open(&config.world)
-            .map_err(|e| ServerError::Internal(e.to_string()))?;
+        // One source for blocks, plans and overlays, its decoded areas
+        // bounded (review 3.6-8; `refine_source`).
+        let src = arda_people::shared::SharedSource(std::sync::Arc::new(
+            refine_source::BoundedSource::open(&config.world)
+                .map_err(|e| ServerError::Internal(e.to_string()))?,
+        ));
         let society_dir = config.world.join("society");
         let people = if society_dir.join("settlements.json").exists() {
             Some(std::sync::Arc::new(
@@ -246,8 +292,8 @@ impl AppState {
             tactical::refine_blocks::RefineBlocks::with_society(src, overlays),
         ));
         let overview = overview::Overview::new(&query, config.overview)?;
-        let relief = relief::Relief::open(
-            &config.world,
+        let relief = relief::Relief::open_with(
+            query.shared_world(),
             overview.pyramid().max_zoom,
             config.relief,
             land,
@@ -262,7 +308,15 @@ impl AppState {
                 overview.set_labels(labels);
             }
         }
+        let resident = admission::Resident::measure(
+            tactical.library(),
+            &config.world,
+            query.cells(),
+            people.as_deref().and_then(largest_plan_bytes),
+        );
+        config.admit_resident(&resident)?;
         Ok(Self {
+            resident,
             query,
             overview,
             relief,

@@ -10,6 +10,7 @@
 
 use super::block::{Block, BlockError, BlockRequest, BlockSource};
 use crate::cache::ByteLru;
+use crate::flight::Gate;
 use arda_blocks::demo::DemoOverlays;
 use arda_blocks::society::SocietyOverlays;
 use arda_blocks::{BlocksError, Overlays, Pipeline};
@@ -24,6 +25,21 @@ use std::sync::{Arc, Mutex};
 pub const REFINED_BLOCKS: usize = 256;
 /// Bytes of composed blocks kept.
 pub const COMPOSED_CACHE_BYTES: usize = 256 << 20;
+/// Compositions running at once (review 3.6-8): requests and prefetch
+/// workers queue for these, so admission counts this many transient
+/// compositions ([`COMPOSE_TRANSIENT_BYTES`] each).
+pub const COMPOSE_SLOTS: usize = 2;
+/// Worst-case transient bytes of one composition: a 3 × 3-cell window
+/// with its apron (204 × 204 squares), its sixteen refined blocks, the
+/// overlay plans' working sets and the composed result. A town window on
+/// the MICRO fixture peaks near 132 MiB.
+pub const COMPOSE_TRANSIENT_BYTES: u64 = 192 << 20;
+/// Bound on one refined block in the pipeline's cache: 4,096 squares of
+/// ground, height, depth, dryness, fixed choice and rules, 65² corners,
+/// the halo and its placements. The MICRO city and forest blocks measure
+/// about 210 KB (1,352 and 1,079 placements); the bound keeps 2.5x that
+/// (`tests/world_api/admission.rs`).
+pub const REFINED_BLOCK_BYTES: u64 = 512 << 10;
 /// Demo anchors kept (each holds one generated town plan).
 const DEMO_ANCHORS: usize = 16;
 
@@ -31,6 +47,8 @@ const DEMO_ANCHORS: usize = 16;
 pub struct RefineBlocks {
     pipeline: Pipeline,
     composed: Mutex<ByteLru<BlockRequest, Block>>,
+    /// At most [`COMPOSE_SLOTS`] compositions at a time.
+    slots: Gate,
     demos: Mutex<BTreeMap<[i64; 2], Arc<DemoOverlays>>>,
     society: Option<Arc<SocietyOverlays>>,
 }
@@ -64,6 +82,7 @@ impl RefineBlocks {
         Self {
             pipeline,
             composed: Mutex::new(ByteLru::new(COMPOSED_CACHE_BYTES)),
+            slots: Gate::new(COMPOSE_SLOTS),
             demos: Mutex::new(BTreeMap::new()),
             society: None,
         }
@@ -157,14 +176,82 @@ fn blocks_error(e: BlocksError) -> BlockError {
     }
 }
 
-/// Approximate resident bytes of a composed block.
-fn block_bytes(b: &Block) -> usize {
-    let squares = b.layout.squares.len();
-    squares * (40 + 48) + (b.layout.placements.len() + b.layout.walls.len()) * 64 + 1024
+/// Entries a `BTreeMap` leaf node holds (std's `B = 6`: `2B - 1`).
+const MAP_NODE_ENTRIES: usize = 11;
+/// Bytes of one `BTreeMap<String, serde_json::Value>` leaf node: eleven
+/// keys and values plus the node header.
+const MAP_NODE_BYTES: usize = MAP_NODE_ENTRIES * (24 + 32) + 16;
+/// Allocator overhead per heap allocation (header and rounding).
+const ALLOC_OVERHEAD: usize = 16;
+
+fn vec_bytes<T>(v: &[T], capacity: usize) -> usize {
+    capacity.max(v.len()) * std::mem::size_of::<T>() + ALLOC_OVERHEAD
+}
+
+/// Heap bytes of a JSON map beyond its string payloads (counted by the
+/// caller through the serialised length): its nodes, one allocation per
+/// key and the nested containers.
+fn map_overhead<'a>(len: usize, values: impl Iterator<Item = &'a serde_json::Value>) -> usize {
+    len.div_ceil(MAP_NODE_ENTRIES) * MAP_NODE_BYTES
+        + len * ALLOC_OVERHEAD
+        + values.map(value_overhead).sum::<usize>()
+}
+
+fn value_overhead(v: &serde_json::Value) -> usize {
+    match v {
+        serde_json::Value::String(_) => ALLOC_OVERHEAD,
+        serde_json::Value::Array(a) => {
+            a.capacity() * 32 + ALLOC_OVERHEAD + a.iter().map(value_overhead).sum::<usize>()
+        }
+        serde_json::Value::Object(m) => map_overhead(m.len(), m.values()),
+        _ => 0,
+    }
+}
+
+/// Resident bytes charged for a composed block (review 3.6-8): every
+/// vector at its capacity, the string payloads (bounded by the layout's
+/// and rules' JSON length), and each square's `ext` map with its nodes
+/// and allocations, which in towns outweigh the squares themselves.
+#[must_use]
+pub fn block_bytes(b: &Block) -> usize {
+    let l = &b.layout;
+    let mut bytes = vec_bytes(&l.squares, l.squares.capacity())
+        + vec_bytes(&l.walls, l.walls.capacity())
+        + vec_bytes(&l.placements, l.placements.capacity())
+        + vec_bytes(&l.lights, l.lights.capacity())
+        + json_len(l)
+        + l.squares.len() * ALLOC_OVERHEAD
+        + b.meta
+            .iter()
+            .map(|(k, v)| k.len() + v.len() + 2 * ALLOC_OVERHEAD + 64)
+            .sum::<usize>()
+        + 1024;
+    if let Some(r) = &b.rules {
+        bytes += vec_bytes(&r.squares, r.squares.capacity())
+            + vec_bytes(&r.edges, r.edges.capacity())
+            + json_len(r)
+            + r.squares
+                .iter()
+                .filter_map(|c| c.ext.as_ref())
+                .map(|e| map_overhead(e.len(), e.values()))
+                .sum::<usize>();
+    }
+    bytes
+}
+
+/// Serialised length: a bound on the string payloads a value holds. A
+/// failed serialisation charges nothing extra (the vectors still count).
+fn json_len<T: serde::Serialize>(v: &T) -> usize {
+    serde_json::to_vec(v).map_or(0, |v| v.len())
 }
 
 impl BlockSource for RefineBlocks {
     fn block(&self, req: &BlockRequest, library: &Library) -> Result<Block, BlockError> {
+        if let Some(hit) = self.composed.lock().map_err(failed)?.get(req) {
+            return Ok(Block::clone(&hit));
+        }
+        // An abandoned request gives up its wait for a slot.
+        let _slot = self.slots.enter().map_err(failed)?;
         if let Some(hit) = self.composed.lock().map_err(failed)?.get(req) {
             return Ok(Block::clone(&hit));
         }

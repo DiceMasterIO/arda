@@ -72,7 +72,20 @@ impl Relief {
         limits: ReliefLimits,
         land: Option<Landscape>,
     ) -> ServerResult<Self> {
-        let world = Arc::new(arda::World::load(dir)?);
+        Self::open_with(Arc::new(arda::World::load(dir)?), max_zoom, limits, land)
+    }
+
+    /// As [`Self::open`], over an already loaded world (the server shares
+    /// the query's).
+    ///
+    /// # Errors
+    /// The world's fine layer failed to load.
+    pub fn open_with(
+        world: Arc<arda::World>,
+        max_zoom: u32,
+        limits: ReliefLimits,
+        land: Option<Landscape>,
+    ) -> ServerResult<Self> {
         let m = world.manifest();
         let pyramid = Pyramid {
             max_zoom,
