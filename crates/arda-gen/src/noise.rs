@@ -92,6 +92,80 @@ pub fn fbm(seed: u64, x: i32, y: i32, period: i32, octaves: u8) -> i32 {
     }
 }
 
+/// Rotations of the octaves of [`rotated_noise`], `(cos, sin)` in Q12:
+/// 19°, 41°, 64°, 30°, 53°, 75°, 24° and 47°. Each lies at least 15° from
+/// the world axes, and successive octaves differ by at least 22°, so no
+/// two octaves share lattice axes and none lines up with the world's.
+const ROTATIONS_Q12: [(i64, i64); 8] = [
+    (3_873, 1_334),
+    (3_091, 2_687),
+    (1_796, 3_681),
+    (3_547, 2_048),
+    (2_465, 3_271),
+    (1_060, 3_956),
+    (3_742, 1_666),
+    (2_793, 2_996),
+];
+
+/// Value noise on a lattice rotated and shifted per `octave` (recipe 9,
+/// review 3.1-4). Plain [`value_noise`] octaves share an origin and the
+/// world axes, so their lattice lines coincide and their gradients lean to
+/// the axes; this rotates each octave by its own angle and offsets it by a
+/// seeded fraction of many periods, so octaves neither share axes nor
+/// origins. `x`, `y` are world units (metres in formation).
+#[must_use]
+pub fn rotated_noise(seed: u64, x: i64, y: i64, period: i32, octave: usize) -> i32 {
+    let (c, s) = ROTATIONS_Q12[octave % ROTATIONS_Q12.len()];
+    let span = i64::from(period.max(1)) * 64;
+    let ox = i64::from(hash_2d(
+        seed ^ 0x0FF5_E701,
+        i32::try_from(octave).unwrap_or(0),
+        1,
+    )) % span;
+    let oy = i64::from(hash_2d(
+        seed ^ 0x0FF5_E702,
+        i32::try_from(octave).unwrap_or(0),
+        2,
+    )) % span;
+    let rx = (x * c - y * s).div_euclid(4_096) + ox;
+    let ry = (x * s + y * c).div_euclid(4_096) + oy;
+    #[allow(clippy::cast_possible_truncation)]
+    value_noise(seed, rx as i32, ry as i32, period)
+}
+
+/// [`fbm`] built from [`rotated_noise`] octaves: each octave halves the
+/// period and amplitude and turns to its own angle and origin.
+#[must_use]
+pub fn rotated_fbm(seed: u64, x: i64, y: i64, period: i32, octaves: u8) -> i32 {
+    let mut total: i64 = 0;
+    let mut amplitude: i64 = 65_536;
+    let mut normaliser: i64 = 0;
+    let mut p = period.max(1);
+    for octave in 0..octaves.max(1) {
+        let sample = i64::from(rotated_noise(
+            seed ^ (u64::from(octave) << 40),
+            x,
+            y,
+            p,
+            usize::from(octave),
+        ));
+        total += (sample * amplitude) >> 16;
+        normaliser += amplitude;
+        amplitude /= 2;
+        p = (p / 2).max(1);
+        if amplitude == 0 {
+            break;
+        }
+    }
+    if normaliser == 0 {
+        return 0;
+    }
+    #[allow(clippy::cast_possible_truncation)]
+    {
+        (total * 65_536 / normaliser).clamp(-32_768, 32_767) as i32
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;

@@ -16,12 +16,12 @@ use super::incision::{self, LevelFields, LevelParams, Scratch};
 use super::lattice::{alloc, Lattice};
 use super::macro_view::MacroView;
 use super::{
-    coastal, floodplain, surface, FormationError, FormationPlan, BASE_NOISE_MM, CHANNEL_AREA_Q8,
-    CHANNEL_AREA_Q8_V5, COARSE_KAPPA_Q16, FINE_SPACING_UM, HILL_KAPPA_Q16, ITERATIONS, K_Q16,
-    LAMBDA_Q16, LEVELS, LEVEL_NOISE_Q16, LOWLAND_CREEP_Q16, LOWLAND_RELIEF_M, LOWSTAND_MM,
-    RELIEF_FULL_M, STOCHASTIC_Q16, TALUS_Q16, UPLIFT_FRACTION_Q16,
+    coastal, floodplain, level_noise, surface, FormationError, FormationPlan, BASE_NOISE_MM,
+    CHANNEL_AREA_Q8, CHANNEL_AREA_Q8_V5, COARSE_KAPPA_Q16, FINE_SPACING_UM, HILL_KAPPA_Q16,
+    ITERATIONS, K_Q16, LAMBDA_Q16, LEVELS, LEVEL_NOISE_Q16, LOWLAND_CREEP_Q16, LOWLAND_RELIEF_M,
+    LOWSTAND_MM, RELIEF_FULL_M, STOCHASTIC_Q16, TALUS_Q16, UPLIFT_FRACTION_Q16,
 };
-use crate::noise::{fbm, value_noise};
+use crate::noise::value_noise;
 
 /// Runs every level, coarse to fine, and returns the finest lattice.
 /// `is_basin` marks the fixed endorheic sink discs.
@@ -35,6 +35,7 @@ pub(super) fn run(
     is_basin: &(dyn Fn(i64, i64) -> bool + Sync),
 ) -> Result<Lattice, FormationError> {
     let v6 = view.v6;
+    let v9 = view.recipe >= super::Recipe::V9;
     let mut prev: Option<Lattice> = None;
     for k in 0..LEVELS {
         let (w, h) = plan.dims[k];
@@ -68,23 +69,16 @@ pub(super) fn run(
             .for_each(|(i, ((u, e), l))| {
                 let (xm, ym) = xy_m(i);
                 let rel = view.belt_m(xm * 1_000_000, ym * 1_000_000);
-                let (xi, yi) = (xm as i32, ym as i32);
-                // Along-range variation of uplift (0.2..1.6) and erodibility.
-                let md = 36_045
-                    + (i64::from(value_noise(base_seed ^ 0x4242, xi, yi, 45_000))
-                        + i64::from(value_noise(base_seed ^ 0x4243, xi, yi, 18_000)) / 2)
-                        * 29_491
-                        / 32_768;
+                // Along-range variation of uplift (0.2..1.6) and erodibility;
+                // recipe 9 rotates every octave (review 3.1-4).
+                let md = level_noise::uplift_variation(base_seed, xm, ym, v9);
                 // Low relative uplift on flat macro terrain (2% floor, ramping
                 // smoothly with relief): plains keep gentle drainage relief
                 // without being built up into talus-steep gullies.
                 let mask = 1_311 + 64_225 * rel.min(RELIEF_FULL_M) / RELIEF_FULL_M;
                 let um = (mask * md.clamp(13_107, 104_858) / 65_536) * 128 / 65_536;
                 *u = um.clamp(0, 255) as u8;
-                let ev = 64
-                    + (i64::from(value_noise(base_seed ^ 0x9191, xi, yi, 14_000)) * 32
-                        + i64::from(value_noise(base_seed ^ 0x9192, xi, yi, 5_000)) * 16)
-                        / 32_768;
+                let ev = level_noise::erodibility(base_seed, xm, ym, v9);
                 *e = ev.clamp(16, 160) as u8;
                 *l = (256 - 256 * rel.min(LOWLAND_RELIEF_M) / LOWLAND_RELIEF_M).clamp(0, 255) as u8;
             });
@@ -189,16 +183,16 @@ pub(super) fn run(
                     return;
                 }
                 let rel = view.belt_m(xm * 1_000_000, ym * 1_000_000);
-                let (xi, yi) = (xm as i32, ym as i32);
                 let dz = if k == 0 {
                     let mask = 9_830 + 55_706 * rel.min(RELIEF_FULL_M) / RELIEF_FULL_M;
                     BASE_NOISE_MM * mask / 65_536
-                        * i64::from(fbm(base_seed ^ 77, xi, yi, 24_000, 4))
+                        * i64::from(level_noise::base(base_seed ^ 77, xm, ym, v9))
                         / 32_768
                 } else {
                     let mask = 6_554 + 58_982 * rel.min(RELIEF_FULL_M) / RELIEF_FULL_M;
                     let period = ((d * 27 / 10) / 1_000_000).max(2) as i32;
-                    level_amp * mask / 65_536 * i64::from(value_noise(level_seed, xi, yi, period))
+                    level_amp * mask / 65_536
+                        * i64::from(level_noise::level(level_seed, xm, ym, period, v9))
                         / 32_768
                 };
                 *z = i32::try_from(i64::from(*z) + dz).unwrap_or(*z);
@@ -234,7 +228,7 @@ pub(super) fn run(
                 (true, false) => CHANNEL_AREA_Q8_V5,
             },
             convergent_area: k >= 3,
-            v9: view.recipe >= super::Recipe::V9,
+            v9,
         };
         let fields = LevelFields {
             flags: &flags,

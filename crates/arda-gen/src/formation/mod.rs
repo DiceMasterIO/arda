@@ -49,6 +49,7 @@ pub mod glacial;
 pub mod grading;
 pub mod incision;
 pub mod lattice;
+pub mod level_noise;
 mod levels;
 pub mod littoral;
 mod macro_view;
