@@ -8,7 +8,12 @@
 //! field itself rather than from 100 m saved cells, so colour follows
 //! landforms without blocks.
 
+mod seafloor;
 mod v5;
+
+pub(super) use seafloor::{
+    relief_weight, sea_soft, shore_water_soft, wants_relief, wants_smoothing,
+};
 
 use arda_core::biome::{climate, Lines};
 
@@ -408,6 +413,13 @@ pub(super) fn sea(depth_mm: i64, broad: (i64, i64)) -> [u8; 3] {
     let l = soft_q12(relief_term(broad.0, broad.1, 2_560) * 2);
     let k = ONE + 614 * l / ONE;
     std::array::from_fn(|ch| u8::try_from((c[ch] * k / ONE).clamp(0, 255)).unwrap_or(255))
+}
+
+/// Share of a stored shore class on water from its bilinear Q12 weight `w`:
+/// the weight itself, boosted by half so a flat or estuary cell reads at
+/// full strength at its centre and feathers across the next 100 m.
+fn shore_share(w: i64) -> i64 {
+    (w * 3 / 2).min(ONE)
 }
 
 /// Stored shore classes on land (logic/04 §atlas-formed shore): `w` are

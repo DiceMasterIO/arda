@@ -2,6 +2,7 @@
 
 use arda_core::{AreaCoord, TerrainField, TerrainKind, TerrainPoint};
 
+mod coast;
 mod relief;
 mod saved;
 mod shading;

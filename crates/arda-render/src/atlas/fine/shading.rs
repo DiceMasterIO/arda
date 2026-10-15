@@ -3,7 +3,7 @@
 //! §atlas-formed).
 
 use super::{
-    arid_near, axis_positions, lake_surface_near, position, relief, shore_near, FineAtlas,
+    arid_near, axis_positions, coast, lake_surface_near, position, relief, shore_near, FineAtlas,
     SavedFields, SavedMaterial, BROAD_STEPS, CELL_UM, KM_UM, RING_STEPS,
 };
 use crate::atlas::{invalid, AxisKernel};
@@ -15,7 +15,7 @@ impl FineAtlas {
     /// bilinear heights give piecewise-constant slopes whose facets, and the
     /// field's own 39 m channel staircases, show at large exports; the
     /// smoothing spline is C2 and stays within the local node range.
-    fn cubic(&self, x: i128, y: i128) -> Result<(i64, i64, i64), RenderError> {
+    pub(super) fn cubic(&self, x: i128, y: i128) -> Result<(i64, i64, i64), RenderError> {
         let p = self.clamp_source(x, y)?;
         let o = self.field.origin();
         let s = i128::from(self.field.spacing_um());
@@ -231,7 +231,14 @@ impl FineAtlas {
                 let surface =
                     lake_surface_near(px, py, (self.origin_x, self.origin_y), lake_surface)?;
                 let arid = arid_near(px, py, (self.origin_x, self.origin_y), saved)?;
-                let color = if surface.is_some_and(|s| height < s) {
+                let coast = self.v9
+                    && surface.is_none()
+                    && !arid.is_some_and(|a| a.inland)
+                    && coast::near_waterline(i64::from(height), footprint);
+                let color = if coast {
+                    let share = self.coast_share((qx, qy), footprint)?;
+                    self.coast_colour(share, (px, py, qx, qy), (height, footprint), saved)?
+                } else if surface.is_some_and(|s| height < s) {
                     let depth = i64::from(surface.unwrap_or(height)) - i64::from(height);
                     match arid {
                         Some(a) if a.saline > 0 => crate::atlas::formed::saline_lake(depth),
@@ -247,7 +254,11 @@ impl FineAtlas {
                     }
                 } else {
                     let shore_mix = shore_near(px, py, (self.origin_x, self.origin_y), shore)?;
-                    self.sea_colour(qx, qy, height, &shore_mix)?
+                    if self.v9 {
+                        self.sea_colour_soft((qx, qy), height, &shore_mix)?
+                    } else {
+                        self.sea_colour(qx, qy, height, &shore_mix)?
+                    }
                 };
                 for (sum, c) in color_sum.iter_mut().zip(color) {
                     *sum += u128::from(c);
