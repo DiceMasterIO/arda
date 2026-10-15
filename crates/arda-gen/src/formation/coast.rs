@@ -86,6 +86,31 @@ pub fn infill(
     macro_mm: &[i32],
     relief_q8: &[u8],
 ) -> Result<usize, FormationError> {
+    infill_recipe(g, macro_mm, relief_q8, false)
+}
+
+/// Recipe-9 infill gradient, mm per km (review 3.1-11): 3.9 mm per 39 m
+/// cardinal step and 5.5 mm per diagonal step, both inside the flats'
+/// [`super::flats::FLAT_DROP_MM`]. At 150 mm per km a diagonal step drops
+/// 8.3 mm, so on coasts at 45° a quarter of the infill was not flagged as
+/// flat and never regraded.
+const INFILL_MM_PER_KM_V9: i64 = 100;
+
+/// [`infill`] with the recipe-9 gradient when `v9`.
+///
+/// # Errors
+/// Allocation failure.
+pub fn infill_recipe(
+    g: &mut Lattice,
+    macro_mm: &[i32],
+    relief_q8: &[u8],
+    v9: bool,
+) -> Result<usize, FormationError> {
+    let per_km = if v9 {
+        INFILL_MM_PER_KM_V9
+    } else {
+        INFILL_MM_PER_KM
+    };
     let (w, h) = (g.width, g.height);
     let d_m = g.spacing_um / 1_000_000;
     let dist = coast_distance_m(macro_mm, w, h, d_m.max(1))?;
@@ -101,7 +126,7 @@ pub fn infill(
                 if d <= reach {
                     return 0;
                 }
-                let nz = INFILL_BASE_MM + (d - reach) * INFILL_MM_PER_KM / 1000;
+                let nz = INFILL_BASE_MM + (d - reach) * per_km / 1000;
                 *z = i32::try_from(nz).unwrap_or(i32::MAX);
                 1
             })
@@ -392,6 +417,46 @@ mod tests {
     }
 
     const LOWSTAND: i32 = super::super::LOWSTAND_MM;
+
+    /// Review 3.1-11: on a coast at 45° the recipe-7 infill steps 8.3 mm
+    /// per diagonal, beyond the flats' 8 mm, so part of it is never
+    /// regraded. Recipe 9's gradient keeps every step a flat.
+    #[test]
+    fn recipe_9_infill_on_a_diagonal_coast_is_all_flat() {
+        // Sea where x + y < 40; the drowned valley floor everywhere else.
+        let (w, h) = (256, 256);
+        let macro_mm: Vec<i32> = (0..w * h)
+            .map(|i| if i % w + i / w < 40 { -50_000 } else { 20_000 })
+            .collect();
+        let flat_share = |v9: bool| {
+            let mut g = Lattice::new(w, h, 39_062_500).unwrap();
+            for (z, &m) in g.z.iter_mut().zip(&macro_mm) {
+                *z = if m < 0 { m } else { -5_000 };
+            }
+            infill_recipe(&mut g, &macro_mm, &vec![0; w * h], v9).unwrap();
+            let (mut flat, mut land) = (0, 0);
+            for y in 1..h - 1 {
+                for x in 1..w - 1 {
+                    let i = y * w + x;
+                    if g.z[i] <= 0 || x + y < 120 {
+                        continue;
+                    }
+                    let drop = (0..8)
+                        .filter_map(|k| super::super::drainage::neighbour(i, w, h, k))
+                        .map(|j| g.z[i] - g.z[j])
+                        .max()
+                        .unwrap();
+                    land += 1;
+                    flat += usize::from(drop > 0 && drop <= super::super::flats::FLAT_DROP_MM);
+                }
+            }
+            flat * 1_000 / land.max(1)
+        };
+        let (v7, v9) = (flat_share(false), flat_share(true));
+        eprintln!("infill flagged flat: recipe 7 {v7}‰, recipe 9 {v9}‰");
+        assert!(v7 < 900, "recipe 7 leaves infill unflagged: {v7}‰");
+        assert!(v9 >= 990, "recipe 9 flags it all: {v9}‰");
+    }
 
     #[test]
     fn long_drowned_valleys_fill_and_short_rias_stay_open() {

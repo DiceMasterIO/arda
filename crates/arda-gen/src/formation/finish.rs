@@ -68,7 +68,12 @@ pub(super) fn run(mut g: Lattice, ctx: Context<'_>) -> Result<Formed, FormationE
                 let rel = view.relief_m(x_um, y_um).min(RELIEF_FULL_M);
                 *r = (rel * 255 / RELIEF_FULL_M) as u8;
             });
-        coast::infill(&mut g, &macro_fine, &relief_q8)?;
+        coast::infill_recipe(
+            &mut g,
+            &macro_fine,
+            &relief_q8,
+            view.recipe >= super::Recipe::V9,
+        )?;
         drop(macro_fine);
         // Recipe 9 reworks the shore band only near the open sea, and
         // before the terraces, which would otherwise be smoothed with it
