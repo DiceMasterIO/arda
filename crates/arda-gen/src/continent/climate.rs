@@ -26,13 +26,13 @@ pub struct ContinentClimate {
 
 /// Continentality cap: −1 centi-°C per km inland up to 300 km
 /// (feature 02 §Q5).
-const CONTINENTALITY_CAP_KM: u32 = 300;
+pub(super) const CONTINENTALITY_CAP_KM: u32 = 300;
 
 /// Km distance to the nearest sea cell; 4-connected BFS from every
 /// sea cell. Deterministic: BFS level order fixes each cell's value
 /// regardless of intra-level ordering.
 /// Latitude of a row in millidegrees; row 0 is the band's north edge.
-fn latitude_millideg(band: LatitudeBand, y: i32, height: i32) -> i64 {
+pub(super) fn latitude_millideg(band: LatitudeBand, y: i32, height: i32) -> i64 {
     let north = i64::from(band.north_deg) * 1_000;
     let south = i64::from(band.south_deg) * 1_000;
     let span = north - south;
@@ -41,7 +41,7 @@ fn latitude_millideg(band: LatitudeBand, y: i32, height: i32) -> i64 {
 
 /// Sea-level mean annual temperature, centi-°C: 18 °C at 35°N to
 /// 6 °C at 55°N, linear, extrapolated outside (feature 02 §Q5).
-fn sea_level_centi(lat_mdeg: i64) -> i64 {
+pub(super) fn sea_level_centi(lat_mdeg: i64) -> i64 {
     let a = lat_mdeg.abs();
     if a <= 35_000 {
         1800 + (35_000 - a) * 979 / 35_000
@@ -81,7 +81,7 @@ pub(crate) fn ocean_mask(grid: &ContinentGrid) -> Vec<bool> {
 }
 
 #[allow(clippy::cast_sign_loss)] // Same validated grid dimensions as ocean_mask.
-fn distance_to_sea_km(grid: &ContinentGrid, ocean: &[bool]) -> Vec<u32> {
+pub(super) fn distance_to_sea_km(grid: &ContinentGrid, ocean: &[bool]) -> Vec<u32> {
     let w = grid.width as usize;
     let h = grid.height as usize;
     let mut dist = vec![u32::MAX; grid.height_mm.len()];
@@ -112,8 +112,19 @@ fn distance_to_sea_km(grid: &ContinentGrid, ocean: &[bool]) -> Vec<u32> {
     dist
 }
 
-fn exchange(m: u64, climb_mm: u64, ocean: bool) -> (u64, u64, u64) {
-    let factor = (F_BASE + F_ORO * climb_mm / 100_000).min(F_MAX);
+pub(super) fn exchange(m: u64, climb_mm: u64, ocean: bool) -> (u64, u64, u64) {
+    exchange_capped(m, climb_mm, ocean, F_MAX)
+}
+
+/// Release factor (1/65,536 units) for `climb_mm` of climb, capped at
+/// `f_max`.
+pub(super) fn release_factor(climb_mm: u64, f_max: u64) -> u64 {
+    (F_BASE + F_ORO * climb_mm / 100_000).min(f_max)
+}
+
+/// [`exchange`] with release cap `f_max` (1/65,536 units).
+pub(super) fn exchange_capped(m: u64, climb_mm: u64, ocean: bool, f_max: u64) -> (u64, u64, u64) {
+    let factor = release_factor(climb_mm, f_max);
     let rain = (m * factor) >> 16;
     let remaining = m - rain;
     let recharge = if ocean {
@@ -125,7 +136,7 @@ fn exchange(m: u64, climb_mm: u64, ocean: bool) -> (u64, u64, u64) {
 }
 
 /// Moisture-store saturation, dimensionless fixed point (§Q4 table).
-const M_SAT: u64 = 32_768;
+pub(super) const M_SAT: u64 = 32_768;
 /// Sea recharge: 1/8 of the deficit per pass.
 const RECHARGE_DIV: u64 = 8;
 /// Base land release, in 1/65,536 units (1/512).
@@ -133,15 +144,15 @@ const F_BASE: u64 = 128;
 /// Orographic release per 100 m of climb, in 1/65,536 units (1/64).
 const F_ORO: u64 = 1_024;
 /// Release clamp (1/16).
-const F_MAX: u64 = 4_096;
+pub(super) const F_MAX: u64 = 4_096;
 /// Lateral diffusion divisor: 1/8 blend with the 4-neighbour mean.
-const DIFFUSE_DIV: u64 = 8;
+pub(super) const DIFFUSE_DIV: u64 = 8;
 /// Per-pass rainfall scale; calibrated on seed 42 at default size so
 /// the land mean lands near 800 mm/yr (feature 02 §Q3, R8 probe).
 /// The accumulator is divided by the pass count before scaling, so the
 /// magnitude is independent of grid width and one calibration serves
 /// unit-test grids, MICRO, and the default world alike.
-const C_NORM: u64 = 153;
+pub(super) const C_NORM: u64 = 153;
 
 /// One pass advects due west→east by one cell, diffuses, then
 /// exchanges with the surface (feature 02 §Q4). Pass count is fixed at
@@ -207,7 +218,7 @@ fn rainfall_field(grid: &ContinentGrid, ocean: &[bool]) -> (Vec<u16>, Vec<u16>) 
 }
 
 #[allow(clippy::cast_possible_truncation)]
-fn capped_distance(d: u32) -> u16 {
+pub(super) fn capped_distance(d: u32) -> u16 {
     d.min(300) as u16
 }
 
@@ -230,7 +241,7 @@ pub fn climate_smoothed_rain(grid: &ContinentGrid, band: LatitudeBand) -> Contin
 
 /// Box-blurs land heights (radius `r` cells, `passes` times); sea cells
 /// keep their height so the ocean mask and coastline are unchanged.
-fn smoothed_land(grid: &ContinentGrid, r: i32, passes: u32) -> ContinentGrid {
+pub(super) fn smoothed_land(grid: &ContinentGrid, r: i32, passes: u32) -> ContinentGrid {
     let (w, h) = (grid.width(), grid.height());
     let n = usize::try_from(w * h).unwrap_or(0);
     let idx = |x: i32, y: i32| usize::try_from(y * w + x).unwrap_or(0);

@@ -97,9 +97,10 @@ pub fn water_balance(grid: &ContinentGrid, band: LatitudeBand) -> WaterBalance {
     water_balance_recipe(grid, band, false)
 }
 
-/// [`water_balance`]; with `v9` (recipe 9) the land loss follows Fu's
-/// Budyko curve ([`crate::hydrology::budyko`], review 3.2-1), as the shared
-/// annual solve takes it.
+/// [`water_balance`]; with `v9` (recipe 9) the climate is recipe 9's
+/// ([`super::climate9`]) and the land loss follows Fu's Budyko curve
+/// ([`crate::hydrology::budyko`], review 3.2-1), as the shared annual
+/// solve takes them.
 #[must_use]
 pub fn water_balance_recipe(grid: &ContinentGrid, band: LatitudeBand, v9: bool) -> WaterBalance {
     let model = if v9 {
@@ -107,7 +108,11 @@ pub fn water_balance_recipe(grid: &ContinentGrid, band: LatitudeBand, v9: bool) 
     } else {
         RunoffModel::HalfRain
     };
-    let c = climate_recipe7(grid, band);
+    let c = if v9 {
+        super::climate9::climate_recipe9(grid, band)
+    } else {
+        climate_recipe7(grid, band)
+    };
     let (w, h) = (grid.width(), grid.height());
     let n = usize::try_from(w * h).unwrap_or(0);
     let (mut runoff_mm, mut deficit_mm) = (vec![0; n], vec![0; n]);

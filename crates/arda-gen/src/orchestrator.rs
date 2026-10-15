@@ -229,7 +229,10 @@ fn generate_world_inner(
         }
 
         let recipe = fine.map_or(0, |(_, d)| d.recipe_version);
-        let clim = if recipe >= 7 {
+        let clim = if recipe >= 9 {
+            // logic/01 §recipe-9 climate: steady-state rain sweeps.
+            crate::continent::climate9::climate_recipe9(&candidate, config.latitude_band())
+        } else if recipe >= 7 {
             // logic/01 §Q6 subtropical highs (recipe 7): the dry Hadley belt.
             crate::continent::aridity::climate_recipe7(&candidate, config.latitude_band())
         } else if recipe >= 5 {

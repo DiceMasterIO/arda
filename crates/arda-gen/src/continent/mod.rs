@@ -8,6 +8,7 @@ mod area_detail;
 pub mod aridity;
 pub mod bundles;
 pub mod climate;
+pub mod climate9;
 pub mod coast;
 pub mod erode;
 pub mod hydrology;
