@@ -17,6 +17,7 @@ pub mod sample;
 mod shadows;
 pub mod snow;
 pub mod stamp;
+pub mod strata;
 pub mod terrain;
 pub mod variants;
 pub mod walls;
@@ -615,6 +616,8 @@ mod tests_look;
 mod tests_pose;
 #[cfg(test)]
 mod tests_snow;
+#[cfg(test)]
+mod tests_strata;
 #[cfg(test)]
 mod tests_structures;
 #[cfg(test)]

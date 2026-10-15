@@ -244,10 +244,12 @@ impl<'a> Terrain<'a> {
     }
 
     /// The shading multiplier at a pixel, hillshade times ledge shading,
-    /// read from precomputed [`Terrain::heights`].
+    /// read from precomputed [`Terrain::heights`]. `ledges` (`0..=1`)
+    /// scales the 5-ft ledges: vegetation covers them, bare ground shows
+    /// them in full.
     #[must_use]
     #[allow(clippy::cast_precision_loss)]
-    pub fn shade(&self, heights: &[i32], width: u32, px: u32, py: u32) -> f32 {
+    pub fn shade(&self, heights: &[i32], width: u32, px: u32, py: u32, ledges: f32) -> f32 {
         if self.is_flat(px, py) {
             return 1.0;
         }
@@ -300,8 +302,8 @@ impl<'a> Terrain<'a> {
                 hill *= 1.0 - 0.22 * rim * ((upv / slope - 1.25) * 2.0).min(1.0);
             }
         }
-        let strength =
-            super::field::smooth(((slope - LEDGE_SLOPE.0) / LEDGE_SLOPE.1).clamp(0.0, 1.0));
+        let strength = ledges.clamp(0.0, 1.0)
+            * super::field::smooth(((slope - LEDGE_SLOPE.0) / LEDGE_SLOPE.1).clamp(0.0, 1.0));
         if strength <= 0.0 {
             return hill;
         }

@@ -179,7 +179,7 @@ fn stepped_slopes_shade_smoothly_and_cliffs_get_ledges() {
         let hs = t.heights(w, h);
         let col = 6 * ppsq;
         let shades: Vec<f32> = (3 * ppsq..13 * ppsq)
-            .map(|y| t.shade(&hs, w, col, y))
+            .map(|y| t.shade(&hs, w, col, y, 1.0))
             .collect();
         let (lo, hi) = shades
             .iter()

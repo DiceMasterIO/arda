@@ -132,7 +132,7 @@ fn mean_of(variants: &[Rgba]) -> [f32; 3] {
 }
 
 impl KeyTextures {
-    fn new(key: &str, variants: Vec<Rgba>, structured: bool) -> Self {
+    pub(super) fn new(key: &str, variants: Vec<Rgba>, structured: bool) -> Self {
         let variants = if structured {
             variants
         } else {
@@ -296,7 +296,7 @@ impl CellTable {
         }
     }
 
-    fn get(&self, tex: &KeyTextures, ci: i64, cj: i64) -> (usize, i64, i64) {
+    pub(super) fn get(&self, tex: &KeyTextures, ci: i64, cj: i64) -> (usize, i64, i64) {
         let (i, j) = (ci - self.ci0, cj - self.cj0);
         if (0..self.nw).contains(&i) && (0..self.nh).contains(&j) {
             self.picks[usize::try_from(j * self.nw + i).unwrap_or(0)]
@@ -306,7 +306,7 @@ impl CellTable {
     }
 }
 
-fn fetch(tex: &KeyTextures, v: usize, x: i64, y: i64) -> [f32; 3] {
+pub(super) fn fetch(tex: &KeyTextures, v: usize, x: i64, y: i64) -> [f32; 3] {
     let img = &tex.variants[v];
     let (w, h) = (i64::from(img.width), i64::from(img.height));
     // Power-of-two textures (the usual case) wrap with a mask, which is
@@ -322,7 +322,7 @@ fn fetch(tex: &KeyTextures, v: usize, x: i64, y: i64) -> [f32; 3] {
 }
 
 /// Weights of the own cell and its neighbour along one axis.
-fn axis_weights(f: f32) -> [(i64, f32); 2] {
+pub(super) fn axis_weights(f: f32) -> [(i64, f32); 2] {
     let g = f.min(1.0 - f);
     let side = if f < 0.5 { -1 } else { 1 };
     if g >= BAND / 2.0 {

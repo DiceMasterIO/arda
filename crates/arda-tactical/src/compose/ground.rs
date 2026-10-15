@@ -108,6 +108,8 @@ struct Key<'a> {
     dry: f32,
     salt: u64,
     crisp: bool,
+    /// A stratified face drawn along the contours ([`super::strata`]).
+    banded: bool,
 }
 
 /// Everything the per-pixel ground function needs.
@@ -165,6 +167,7 @@ impl<'a> Ground<'a> {
                     dry: dry_share(&sq.ground),
                     salt,
                     crisp: crisp_edge(&sq.ground),
+                    banded: super::strata::banded(&sq.ground),
                 });
                 keys.len() - 1
             };
@@ -435,7 +438,18 @@ impl<'a> Ground<'a> {
         for (i, e) in w.k[..w.n].iter().enumerate() {
             let key = &self.keys[e.0];
             let finish = self.finish(key, px, py);
-            samples[i] = sample_finish(key.tex, &key.cells, &self.frame, (px, py), cw, finish);
+            let along = key
+                .banded
+                .then_some((self.heights, self.layout.width * self.frame.ppsq));
+            samples[i] = super::strata::sample(
+                key.tex,
+                &key.cells,
+                &self.frame,
+                (px, py),
+                cw,
+                finish,
+                along,
+            );
         }
         if w.n > 1 {
             self.height_blend(w, &samples)
@@ -507,9 +521,15 @@ impl<'a> Ground<'a> {
         };
         let c = self.dry_tint(c, w, fx, fy);
         let (m1, m2) = (f[4], f[5]);
-        let shade = self
-            .terrain
-            .shade(self.heights, self.layout.width * self.frame.ppsq, px, py);
+        // Turf, litter and undergrowth cover the 5-ft ledges of a slope.
+        let ledges = w.share(|k| self.keys[k].class < 2.0);
+        let shade = self.terrain.shade(
+            self.heights,
+            self.layout.width * self.frame.ppsq,
+            px,
+            py,
+            ledges,
+        );
         let k = (1.0 + 0.07 * m1) * shade;
         (
             [

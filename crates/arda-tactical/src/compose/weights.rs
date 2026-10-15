@@ -15,6 +15,18 @@ impl Weights {
         }
     }
 
+    /// The share of the weight on keys for which `pick` holds.
+    pub(super) fn share(&self, pick: impl Fn(usize) -> bool) -> f32 {
+        let (mut on, mut all) = (0.0, 0.0);
+        for e in &self.k[..self.n] {
+            all += e.1;
+            if pick(e.0) {
+                on += e.1;
+            }
+        }
+        on / all.max(1e-6)
+    }
+
     pub(super) fn add(&mut self, key: usize, w: f32) {
         for e in &mut self.k[..self.n] {
             if e.0 == key {
