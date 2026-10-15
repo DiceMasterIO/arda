@@ -116,7 +116,8 @@ pub struct TownBlock {
     /// Per-square rules, row-major.
     pub rules: Vec<SquareRules>,
     /// Row-major: whether the town reserves the square (every plan kind
-    /// but open country and water; logic/09 §reservations precedence 1).
+    /// but open country and water, and a dock's deck over water; logic/09
+    /// §reservations precedence 1).
     pub owned: Vec<bool>,
     /// For each light, the placement that emits it (dropped when the
     /// resolved asset carries its own light).
@@ -206,13 +207,24 @@ pub fn generate_with(plan: &TownPlan, win: Window, fill: TownFill) -> Result<Tow
     let mut grounds = Vec::with_capacity(usize::try_from(win.w * win.h).unwrap_or(0));
     let mut owned = Vec::with_capacity(grounds.capacity());
     let poor = ground::poor(plan);
+    // A dock is a deck over the water it stands in (logic/10
+    // §town-footprints): the town owns its squares though the grid keeps
+    // them water (review 3.5-2).
+    let docks: Vec<SquareRect> = plan
+        .buildings
+        .iter()
+        .filter(|b| b.function == BuildingFunction::Dock)
+        .map(|b| b.rect)
+        .collect();
     for y in y0..y1 {
         for x in x0..x1 {
             grounds.push(ground::at(plan, poor, x, y));
-            owned.push(!matches!(
-                ground::kind(plan, x, y),
-                crate::plan::grid::Kind::Open | crate::plan::grid::Kind::Water
-            ));
+            owned.push(
+                !matches!(
+                    ground::kind(plan, x, y),
+                    crate::plan::grid::Kind::Open | crate::plan::grid::Kind::Water
+                ) || docks.iter().any(|r| r.contains(x, y)),
+            );
         }
     }
     let lin = |x: i64, y: i64| usize::try_from((y - y0) * win.w + (x - x0)).ok();
@@ -492,8 +504,8 @@ impl From<Cover> for arda_scene::CoverLevel {
 impl TownBlock {
     /// The `arda-scene` `RulesSidecar` format 2 of this block (adapter A8,
     /// I9): owned squares state what their ground implies (flags only when
-    /// they hold), with the water depth
-    /// under a deck kept and `deck` set; a square inside a plan building
+    /// they hold) and their water depth, except under a deck, which sets
+    /// `deck` and leaves the water beneath to the layers below; a square inside a plan building
     /// carries its id as `ext.building` (a string, I5). Other squares state
     /// nothing, so the layers beneath keep theirs.
     #[must_use]
@@ -512,7 +524,9 @@ impl TownBlock {
             // props' blocking and cover are their catalogue entries', folded
             // in by the scene, never cleared here.
             cell.difficult = arda_scene::RulesCell::flag(sr.difficult);
-            cell.water_depth_ft = Some(sq.water_depth_ft);
+            // A deck states the deck, not the water under it: the refined
+            // water beneath stands (the rules contract).
+            cell.water_depth_ft = (!sr.deck).then_some(sq.water_depth_ft);
             cell.cover = arda_scene::RulesCell::stated_cover(sr.cover.into());
             cell.blocks_sight = arda_scene::RulesCell::flag(sr.blocks_sight);
             cell.blocks_movement = arda_scene::RulesCell::flag(sr.blocks_movement);

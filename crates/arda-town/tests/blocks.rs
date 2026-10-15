@@ -569,3 +569,42 @@ fn party_walls_and_partitions_are_told_apart() {
         );
     }
 }
+
+/// Review 3.5-2: a dock is a deck over water the town owns, so a composed
+/// block draws it: every square of its footprint is owned, states a deck
+/// and its building id, and leaves the water beneath to the refined map
+/// (no stated depth).
+#[test]
+fn docks_are_owned_decks_over_water() {
+    let mut docks = 0;
+    for p in plans() {
+        for b in p
+            .buildings
+            .iter()
+            .filter(|b| b.function == arda_town::BuildingFunction::Dock)
+        {
+            docks += 1;
+            let r = b.rect;
+            let win = Window {
+                x: r.x0 - 2,
+                y: r.y0 - 2,
+                w: r.x1 - r.x0 + 4,
+                h: r.y1 - r.y0 + 4,
+            };
+            let blk = block::generate(p, win).unwrap();
+            let rules = blk.to_rules();
+            for y in r.y0..r.y1 {
+                for x in r.x0..r.x1 {
+                    let i = usize::try_from((y - win.y) * win.w + (x - win.x)).unwrap();
+                    assert!(blk.owned[i], "{}: dock {} square {x},{y}", p.name, b.id.0);
+                    let c = &rules.squares[i];
+                    assert_eq!(c.deck, Some(true), "{}: {x},{y}", p.name);
+                    assert_eq!(c.water_depth_ft, None, "{}: {x},{y}", p.name);
+                    let id = c.ext.as_ref().and_then(|e| e.get("building"));
+                    assert_eq!(id, Some(&serde_json::json!(b.id.0.to_string())));
+                }
+            }
+        }
+    }
+    assert!(docks > 0, "no sample plan has a dock");
+}
