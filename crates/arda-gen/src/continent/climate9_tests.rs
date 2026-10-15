@@ -89,3 +89,47 @@ fn recipe_9_west_coasts_have_no_rain_spike() {
     assert!(s9.0 <= 2.0, "recipe 9 spike {s9:.2?}");
     assert!(s9.1 * 3.0 < s7.1, "recipe 9 peak {s9:.2?} vs {s7:.2?}");
 }
+
+/// A 300 km continent with a 1,500 m north-south range in the middle.
+fn ridge(w: i32, h: i32) -> ContinentGrid {
+    let heights = (0..w * h)
+        .map(|i| {
+            let x = i % w;
+            if x < 20 || x >= w - 20 {
+                -1_000_000
+            } else {
+                let d = (x - w / 2).abs();
+                (1_500_000 - d * 30_000).max(100_000)
+            }
+        })
+        .collect();
+    ContinentGrid::from_heights(w, h, heights).unwrap()
+}
+
+/// Mean rain over the east flank minus the west flank, middle row, mm.
+fn east_minus_west(c: &ContinentClimate, w: i32, h: i32) -> f64 {
+    let flank =
+        |a: i32, b: i32| (a..b).map(|x| rain_at(c, w, h, x)).sum::<f64>() / f64::from(b - a);
+    flank(w / 2 + 5, w / 2 + 45) - flank(w / 2 - 45, w / 2 - 5)
+}
+
+/// Review 3.2-3: recipe 7 blows from the west at every latitude. In the
+/// trade-wind belt recipe 9's wind is easterly, so the east flank of a
+/// range is the wet one there, and the west flank stays wet at 45°.
+#[test]
+fn recipe_9_trade_winds_put_the_rain_shadow_on_the_west() {
+    let (w, h) = (300, 9);
+    let g = ridge(w, h);
+    let trades = LatitudeBand::new(18, 22);
+    let (t7, t9) = (
+        east_minus_west(&climate_recipe7(&g, trades), w, h),
+        east_minus_west(&climate_recipe9(&g, trades), w, h),
+    );
+    let m9 = east_minus_west(&climate_recipe9(&g, MID), w, h);
+    eprintln!("east minus west flank rain: trades recipe 7 {t7:.0}, recipe 9 {t9:.0}; 45° recipe 9 {m9:.0}");
+    assert!(t7 < 0.0, "recipe 7 wets the west flank in the trades");
+    assert!(t9 > 0.0, "recipe 9 wets the east flank in the trades");
+    assert!(m9 < 0.0, "westerlies still wet the west flank at 45°");
+    assert!(easterly(20_000) && easterly(-20_000) && easterly(70_000));
+    assert!(!easterly(45_000) && !easterly(-35_000));
+}

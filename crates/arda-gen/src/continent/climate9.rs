@@ -107,8 +107,8 @@ fn rain_relief(grid: &ContinentGrid) -> ContinentGrid {
     out
 }
 
-/// Steady-state rainfall and moisture: one sweep per row in the wind
-/// direction, with the recipe-7 exchange and 1/8 mixing with the rows
+/// Steady-state rainfall and moisture: one sweep per row in its wind
+/// direction ([`easterly`]), with the recipe-7 exchange and 1/8 mixing with the rows
 /// above and below. The rain released at a cell in the steady state is the
 /// per-pass rain recipe 7's average converges to, so the same conversion
 /// (`× C_NORM / 16`) applies, here to the unfloored release. Rows are scaled by the subtropical-high
@@ -124,23 +124,36 @@ fn steady_rainfall(
         usize::try_from(h).unwrap_or(0),
     );
     let height = |x: i32, y: i32| i64::from(relief.get(x, y).raw()).max(0);
+    // Prevailing wind by latitude (review 3.2-3): easterly trades within
+    // 30° of the equator and polar easterlies beyond 60°, westerlies
+    // between. Recipe 7 blew from the west at every latitude, so rain
+    // shadows in the trade-wind belt fell on the wrong side of ranges.
+    let east: Vec<bool> = (0..h)
+        .map(|y| easterly(latitude_millideg(band, y, h)))
+        .collect();
     let mut rain = vec![0_u64; wu * hu];
     let mut moisture = vec![0_u64; wu * hu];
-    // The air arriving at the current column, per row.
+    // The air arriving at each row's current column.
     let mut air = vec![M_SAT; hu];
     let mut mixed = vec![0_u64; hu];
-    for x in 0..w {
-        let xu = usize::try_from(x).unwrap_or(0);
+    for t in 0..w {
         for y in 0..hu {
+            // Rows mix only with neighbours under the same wind.
             let a = air[y];
-            let (n, s) = (air[y.saturating_sub(1)], air[(y + 1).min(hu - 1)]);
+            let same = |k: usize| if east[k] == east[y] { air[k] } else { a };
+            let (n, s) = (same(y.saturating_sub(1)), same((y + 1).min(hu - 1)));
             let mean4 = (n + s + 2 * a) / 4;
             mixed[y] = a - a / DIFFUSE_DIV + mean4 / DIFFUSE_DIV;
         }
         for (y, m) in mixed.iter().enumerate() {
             let yi = i32::try_from(y).unwrap_or(0);
-            let i = y * wu + xu;
-            let upwind = if x == 0 { 0 } else { height(x - 1, yi) };
+            let (x, upwind_x) = if east[y] {
+                (w - 1 - t, (t > 0).then_some(w - t))
+            } else {
+                (t, (t > 0).then(|| t - 1))
+            };
+            let i = y * wu + usize::try_from(x).unwrap_or(0);
+            let upwind = upwind_x.map_or(0, |u| height(u, yi));
             let climb = (height(x, yi) - upwind).max(0).unsigned_abs();
             let (after, _, _) = exchange_capped(*m, climb, ocean[i], F_MAX_V9);
             // The release in Q16, unfloored: recipe 7's per-pass floor
@@ -165,6 +178,14 @@ fn steady_rainfall(
         .map(|v| u16::try_from(v).unwrap_or(u16::MAX))
         .collect();
     (rainfall, moisture)
+}
+
+/// Whether the prevailing wind at `lat_mdeg` blows from the east: the
+/// trades within 30° of the equator and the polar easterlies beyond 60°.
+#[must_use]
+pub fn easterly(lat_mdeg: i64) -> bool {
+    let a = lat_mdeg.abs();
+    !(30_000..=60_000).contains(&a)
 }
 
 #[cfg(test)]
