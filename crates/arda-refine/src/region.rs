@@ -14,7 +14,7 @@
 use crate::context::{Ctx, EDGE_R};
 use crate::error::RefineError;
 use crate::pools::pool;
-use crate::rivers::{bank_distance, cell_pieces, Piece};
+use crate::rivers::{bank_distance, cell_pieces, river_cells, Piece};
 use crate::source::{CellKey, Source};
 use crate::terrain::{land_height, standing_water, Water};
 use std::collections::HashMap;
@@ -92,14 +92,12 @@ impl WaterRegion {
         let (sx0, sy0, sx1, sy1) = squares;
         let lo = Ctx::cell_of(sx0 as f64, sy0 as f64).offset(-EDGE_R, -EDGE_R);
         let hi = Ctx::cell_of(sx1 as f64, sy1 as f64).offset(EDGE_R, EDGE_R);
-        let mut cells: Vec<CellKey> = ctx
-            .edges
-            .iter()
-            .flat_map(|e| [e.from, e.to])
+        // Every cell that draws a piece: the edges' cells and the via cells
+        // of diagonal steps (`rivers::river_cells`).
+        let cells: Vec<CellKey> = river_cells(&ctx)
+            .into_iter()
             .filter(|c| c.x >= lo.x && c.x <= hi.x && c.y >= lo.y && c.y <= hi.y)
             .collect();
-        cells.sort();
-        cells.dedup();
         let (w, h) = src.cells_wide_high();
         let mut pieces = Vec::new();
         for c in cells {

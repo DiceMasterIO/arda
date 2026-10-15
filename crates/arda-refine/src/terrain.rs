@@ -233,8 +233,14 @@ pub fn standing_water(ctx: &Ctx, u: f64, v: f64, land: impl FnOnce() -> f64) -> 
     })
 }
 
-/// How far beyond the bank the valley is shaped, squares.
-const CARVE_REACH: f64 = 20.0;
+/// How far beyond the bank the valley is shaped, squares (review 3.4-8:
+/// 20 squares reshaped every channel's valley).
+const CARVE_REACH: f64 = 8.0;
+/// Squares beyond the bank kept at least at bank level, so no dry square
+/// beside the water lies below it.
+const BANK_KEEP: f64 = 2.0;
+/// Deepest cut the bank ramp makes into higher ground, metres.
+const MAX_CUT: f64 = 2.5;
 /// Bank rise per square away from the water, metres (about 18 degrees).
 const BANK_RISE: f64 = 0.5;
 
@@ -246,6 +252,9 @@ struct Hit {
     half: f64,
     surface: f64,
     depth: f64,
+    /// Highest water surface of any channel whose water comes within
+    /// [`BANK_KEEP`] squares of this square (`-inf` when none does).
+    top: f64,
 }
 
 fn rasterise(pieces: &[Piece], grid: &mut Grid<Option<Hit>>) {
@@ -265,16 +274,34 @@ fn rasterise(pieces: &[Piece], grid: &mut Grid<Option<Hit>>) {
                     let (d, t) =
                         crate::rivers::bank_distance(p, i, (x as f64 + 0.5, y as f64 + 0.5));
                     let half = p.half[i - 1] + (p.half[i] - p.half[i - 1]) * t;
+                    let surface = p.surface[i - 1] + (p.surface[i] - p.surface[i - 1]) * t;
+                    // Water within BANK_KEEP squares: its edge is within
+                    // that distance of the square's centre, plus the half
+                    // diagonal of a square.
+                    let top = if d <= BANK_KEEP + 0.75 {
+                        surface
+                    } else {
+                        f64::NEG_INFINITY
+                    };
                     let hit = Hit {
                         d,
                         half,
-                        surface: p.surface[i - 1] + (p.surface[i] - p.surface[i - 1]) * t,
+                        surface,
                         depth: p.depth[i - 1] + (p.depth[i] - p.depth[i - 1]) * t,
+                        top,
                     };
                     if let Some(slot) = grid.get_mut(x, y) {
-                        if slot.is_none_or(|h| hit.d < h.d) {
-                            *slot = Some(hit);
-                        }
+                        *slot = Some(match *slot {
+                            None => hit,
+                            Some(h) if hit.d < h.d => Hit {
+                                top: h.top.max(top),
+                                ..hit
+                            },
+                            Some(h) => Hit {
+                                top: h.top.max(top),
+                                ..h
+                            },
+                        });
                     }
                 }
             }
@@ -328,16 +355,24 @@ pub fn physical(ctx: &Ctx, pieces: &[Piece], x0: i64, y0: i64, side: usize) -> G
                 } else {
                     // Banks: lower the terrain onto a ramp rising from the
                     // water surface, so a channel never sits in a trench
-                    // with cliff walls; raise it to bank level right at the
-                    // edge; fade the shaping out smoothly.
+                    // with cliff walls, fading out within CARVE_REACH;
+                    // raise lower ground onto the ramp up to BANK_KEEP
+                    // squares out, fading by the bank's width, so water
+                    // never stands above the land beside it.
                     let ramp = h.surface + 0.25 + BANK_RISE * h.d;
-                    let fade = 1.0 - smoothstep(CARVE_REACH * 0.6, CARVE_REACH, h.d);
-                    let shaped = if p.elev_m > ramp {
-                        smooth_min(p.elev_m, ramp, 1.5)
+                    if p.elev_m > ramp {
+                        let fade = 1.0 - smoothstep(CARVE_REACH * 0.6, CARVE_REACH, h.d);
+                        // A gorge keeps its walls: the ramp cuts at most
+                        // MAX_CUT into the ground (review 3.4-8).
+                        let cut = smooth_min(p.elev_m, ramp, 1.5).max(p.elev_m - MAX_CUT);
+                        p.elev_m += (cut - p.elev_m) * fade;
                     } else {
-                        p.elev_m + (ramp - p.elev_m) * (1.0 - smoothstep(0.0, bank, h.d))
-                    };
-                    p.elev_m += (shaped - p.elev_m) * fade;
+                        let keep = 1.0 - smoothstep(BANK_KEEP, BANK_KEEP + bank, h.d);
+                        p.elev_m += (ramp - p.elev_m) * keep;
+                    }
+                    // No dry square beside the water lies below it, whichever
+                    // channel's water that is (review 3.4-8).
+                    p.elev_m = p.elev_m.max(h.top + 0.05);
                 }
             }
         }

@@ -51,9 +51,10 @@ pub struct Ctx {
     rect: (CellKey, i64, i64),
     cells: Vec<Cell>,
     lakes: Vec<Option<LakeInfo>>,
+    thalwegs: Vec<Option<(i16, i16)>>,
     pans: Vec<Option<arda_core::water::PanKind>>,
     coasts: Vec<crate::biome::Coast>,
-    /// Channel edges touching cells within [`EDGE_R`], sorted, unique.
+    /// Channel edges touching cells within [`EDGE_R`] + 1, sorted, unique.
     pub edges: Vec<Edge>,
     fine: Option<(i64, i64, i64, Vec<f64>)>,
     frame: Frame,
@@ -86,9 +87,12 @@ impl Ctx {
     /// A world layer failed to read.
     pub fn gather(src: &dyn Source, cell: CellKey) -> Result<Self, RefineError> {
         let side = 2 * R + 1;
+        // Edges touching one ring beyond the drawn cells: a diagonal step
+        // between two such cells runs through a drawn via cell
+        // (`rivers::via`).
         let mut edges = Vec::new();
-        for dy in -EDGE_R..=EDGE_R {
-            for dx in -EDGE_R..=EDGE_R {
+        for dy in -EDGE_R - 1..=EDGE_R + 1 {
+            for dx in -EDGE_R - 1..=EDGE_R + 1 {
                 edges.extend(src.edges_touching(cell.offset(dx, dy))?);
             }
         }
@@ -130,8 +134,8 @@ impl Ctx {
             c1.y - c0.y + 1 + 2 * REGION_MARGIN,
         );
         let mut edges = Vec::new();
-        for cy in c0.y - EDGE_R..=c1.y + EDGE_R {
-            for cx in c0.x - EDGE_R..=c1.x + EDGE_R {
+        for cy in c0.y - EDGE_R - 1..=c1.y + EDGE_R + 1 {
+            for cx in c0.x - EDGE_R - 1..=c1.x + EDGE_R + 1 {
                 edges.extend(src.edges_touching(CellKey::new(cx, cy))?);
             }
         }
@@ -156,6 +160,7 @@ impl Ctx {
         let count = usize::try_from(w * h).unwrap_or(0);
         let mut cells = Vec::with_capacity(count);
         let mut lakes = Vec::with_capacity(count);
+        let mut thalwegs = Vec::with_capacity(count);
         let mut pans = Vec::with_capacity(count);
         let mut coasts = Vec::with_capacity(count);
         // The sea distance of a gathered cell reads the cells around it, so
@@ -177,6 +182,11 @@ impl Ctx {
                 let k = src.clamp(nw.offset(dx, dy));
                 cells.push(src.cell(k)?);
                 lakes.push(src.lake(k)?);
+                thalwegs.push(if k == nw.offset(dx, dy) {
+                    src.thalweg(k)?
+                } else {
+                    None
+                });
                 pans.push(src.pan(k)?);
                 coasts.push(crate::biome::coast_facts(
                     |ox, oy| {
@@ -212,6 +222,7 @@ impl Ctx {
             rect,
             cells,
             lakes,
+            thalwegs,
             pans,
             coasts,
             edges,
@@ -244,6 +255,27 @@ impl Ctx {
     #[must_use]
     pub fn lake_at(&self, c: CellKey) -> Option<LakeInfo> {
         self.lakes.get(self.slot(c)).copied().flatten()
+    }
+
+    /// The formed thalweg of river cell `c` in global square units
+    /// (`water.bin` layout 3), or `None` off a river, outside the gathered
+    /// cells, or on a world that stores no thalwegs.
+    #[must_use]
+    pub fn thalweg_at(&self, c: CellKey) -> Option<(f64, f64)> {
+        let (nw, w, h) = self.rect;
+        let (dx, dy) = (c.x - nw.x, c.y - nw.y);
+        if dx < 0 || dy < 0 || dx >= w || dy >= h {
+            return None;
+        }
+        let (ox, oy) = self
+            .thalwegs
+            .get(usize::try_from(dy * w + dx).ok()?)
+            .copied()??;
+        let sq = |dm: i16| f64::from(dm) / 10.0 / SQUARE_M;
+        Some((
+            c.x as f64 * N as f64 + 32.0 + sq(ox),
+            c.y as f64 * N as f64 + 32.0 + sq(oy),
+        ))
     }
 
     /// The dry playa surface at global square position `(u, v)` (recipe-7

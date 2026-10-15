@@ -20,7 +20,19 @@ use std::collections::HashMap;
 /// A world layer failed to read.
 pub fn cell_channels(src: &dyn Source, c: CellKey) -> Result<Vec<Piece>, RefineError> {
     let (w, h) = src.cells_wide_high();
-    if c.x < 0 || c.y < 0 || c.x >= w || c.y >= h || src.edges_touching(c)?.is_empty() {
+    if c.x < 0 || c.y < 0 || c.x >= w || c.y >= h {
+        return Ok(Vec::new());
+    }
+    // A cell draws a piece when an edge touches it, or as the via cell of a
+    // diagonal step between two of its orthogonal neighbours.
+    let mut touched = !src.edges_touching(c)?.is_empty();
+    for (dx, dy) in [(1, 0), (-1, 0), (0, 1), (0, -1)] {
+        if touched {
+            break;
+        }
+        touched = !src.edges_touching(c.offset(dx, dy))?.is_empty();
+    }
+    if !touched {
         return Ok(Vec::new());
     }
     let ctx = Ctx::gather(src, c)?;
