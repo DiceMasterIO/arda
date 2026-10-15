@@ -24,21 +24,99 @@ pub(super) fn macro_lattices(grid: &ContinentGrid) -> Result<(Lattice, Lattice),
             m.z[y * w + x] = grid.get(x as i32, y as i32).raw();
         }
     }
-    // logic/02 §fine-formation masks: local standard deviation of land
-    // height over a ~25 km window measures tectonic relief.
+    let rel = local_relief(&m)?;
+    Ok((m, rel))
+}
+
+/// Radius of the local-relief window, macro cells.
+const RELIEF_RADIUS: usize = 12;
+
+/// logic/02 §fine-formation masks: local standard deviation (m) of land
+/// height over a ~25 km window measures tectonic relief.
+fn local_relief(m: &Lattice) -> Result<Lattice, FormationError> {
+    let (w, h) = (m.width, m.height);
     let land_m: Vec<i32> = m.z.iter().map(|&v| v.max(0) / 1000).collect();
     let sq: Vec<i32> = land_m.iter().map(|&v| v * v).collect();
     let mut tmp = alloc(w * h)?;
     let mut mean = alloc(w * h)?;
     let mut mean_sq = alloc(w * h)?;
-    blur_into(&land_m, w, h, 12, &mut tmp, &mut mean);
-    blur_into(&sq, w, h, 12, &mut tmp, &mut mean_sq);
-    let mut rel = Lattice::new(w, h, 1_000_000_000)?;
+    blur_into(&land_m, w, h, RELIEF_RADIUS, &mut tmp, &mut mean);
+    blur_into(&sq, w, h, RELIEF_RADIUS, &mut tmp, &mut mean_sq);
+    let mut rel = Lattice::new(w, h, m.spacing_um)?;
     for i in 0..w * h {
         let var = i64::from(mean_sq[i]) - i64::from(mean[i]) * i64::from(mean[i]);
         rel.z[i] = incision::isqrt(var.max(0) as u64) as i32;
     }
-    Ok((m, rel))
+    Ok(rel)
+}
+
+/// Recipe 9 (review 3.1-10): after the basin audit fills unexplained
+/// basins on `after` (`before` is the macro surface it audited), the local
+/// relief of every macro cell within the relief window of a filled cell is
+/// recomputed from the filled surface. Elsewhere `relief` keeps its values,
+/// including the volcanic cones' full relief. Returns the cells updated.
+///
+/// # Errors
+/// Allocation failure.
+pub(super) fn refresh_relief(
+    before: &[i32],
+    after: &Lattice,
+    relief: &mut Lattice,
+) -> Result<usize, FormationError> {
+    let (w, h) = (after.width, after.height);
+    let changed: Vec<i32> = before
+        .iter()
+        .zip(&after.z)
+        .map(|(a, b)| i32::from(a != b) * 1_000)
+        .collect();
+    if changed.iter().all(|&c| c == 0) {
+        return Ok(0);
+    }
+    let (mut tmp, mut near) = (alloc(w * h)?, alloc(w * h)?);
+    blur_into(&changed, w, h, RELIEF_RADIUS, &mut tmp, &mut near);
+    let fresh = local_relief(after)?;
+    let mut updated = 0;
+    for (i, &k) in near.iter().enumerate() {
+        if k > 0 && relief.z[i] != fresh.z[i] {
+            relief.z[i] = fresh.z[i];
+            updated += 1;
+        }
+    }
+    Ok(updated)
+}
+
+#[cfg(test)]
+mod relief_tests {
+    use super::*;
+
+    /// Review 3.1-10: the basin audit fills an unexplained 300 m bowl, but
+    /// the level masks kept reading the relief of the unfilled bowl. Recipe
+    /// 9 recomputes it around the fill.
+    #[test]
+    fn filled_basins_lose_their_relief() {
+        let (w, h) = (80, 80);
+        let mut m = Lattice::new(w, h, 1_000_000_000).unwrap();
+        for y in 0..h {
+            for x in 0..w {
+                let (dx, dy) = (x as i64 - 40, y as i64 - 40);
+                m.z[y * w + x] = if dx * dx + dy * dy < 15 * 15 {
+                    100_000
+                } else {
+                    400_000
+                };
+            }
+        }
+        let mut relief = local_relief(&m).unwrap();
+        let rim = 40 * w + 40 + 15;
+        let stale = relief.z[rim];
+        assert!(stale >= 100, "the bowl's rim reads {stale} m of relief");
+        let before = m.z.clone();
+        m.z.fill(400_000);
+        assert!(refresh_relief(&before, &m, &mut relief).unwrap() > 0);
+        assert_eq!(relief.z[rim], 0, "a filled bowl is flat");
+        // Far from the fill nothing changes.
+        assert_eq!(refresh_relief(&m.z.clone(), &m, &mut relief).unwrap(), 0);
+    }
 }
 
 /// The macro surface and its relief as formation sees them: domain-warped

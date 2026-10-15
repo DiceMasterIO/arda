@@ -411,7 +411,13 @@ pub fn form_world(
     )?;
     // logic/02 §fine-formation basin audit: every large closed basin and
     // plateau gets a tectonic cause; unexplained basins are filled.
-    let (landforms, _filled) = basins::audit(&mut macro_mm, &relief_m, &margins, LOWSTAND_MM)?;
+    let audited = (recipe >= Recipe::V9).then(|| macro_mm.z.clone());
+    let (landforms, filled) = basins::audit(&mut macro_mm, &relief_m, &margins, LOWSTAND_MM)?;
+    // Recipe 9: the masks read the relief of the filled surface (review
+    // 3.1-10); earlier recipes kept the relief of the unfilled basins.
+    if let (Some(before), true) = (audited, filled > 0) {
+        macro_view::refresh_relief(&before, &macro_mm, &mut relief_m)?;
+    }
     // Masks read the macro surface after the tectonic margin stages, so
     // volcanic arc cones count as high relief too.
     // logic/02 §fine-formation masks: level masks read belt relief, so
