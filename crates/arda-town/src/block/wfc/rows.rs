@@ -26,6 +26,14 @@ pub enum Order {
         /// Free squares between neighbours along the wall.
         gap: i64,
     },
+    /// Along all four walls, backs to the wall, `gap` squares apart: the
+    /// long walls as [`Order::Walls`], then the end walls short of the
+    /// corners by two squares, so each corner square stays open onto the
+    /// room (library bookshelves).
+    Around {
+        /// Free squares between neighbours along the wall.
+        gap: i64,
+    },
     /// Free-standing rows along the room with a walk between rows and
     /// `gap` squares between pieces in a row (warehouse racks, stall
     /// tables).
@@ -107,6 +115,14 @@ fn spots(order: Order, v: &Vocab, p: usize, rect: [i64; 4], reserve: i64) -> Vec
             }
             vec![rows]
         }
+        Order::Around { gap } => {
+            let mut runs = spots(Order::Walls { gap }, v, p, rect, reserve)
+                .into_iter()
+                .flatten()
+                .collect::<Vec<_>>();
+            runs.extend(end_walls(v, p, rect, gap));
+            vec![runs]
+        }
         Order::Walls { gap } => {
             let long_x = w >= d;
             let sides: [u8; 2] = if long_x { [0, 2] } else { [3, 1] };
@@ -162,6 +178,37 @@ fn spots(order: Order, v: &Vocab, p: usize, rect: [i64; 4], reserve: i64) -> Vec
             all
         }
     }
+}
+
+/// Spots along the two end walls of `rect` (the short walls; the west
+/// and east walls of a square room), two squares short of each corner.
+fn end_walls(v: &Vocab, p: usize, rect: [i64; 4], gap: i64) -> Vec<Spot> {
+    let [x0, y0, x1, y1] = rect;
+    let long_x = x1 - x0 >= y1 - y0;
+    let sides: [u8; 2] = if long_x { [3, 1] } else { [0, 2] };
+    let mut run = Vec::new();
+    for o in sides
+        .into_iter()
+        .filter(|o| v.pieces[p].orients.contains(o))
+    {
+        let (rw, rh) = dims(v, p, o);
+        if long_x {
+            let x = if o == 3 { x0 } else { x1 - rw };
+            let mut y = y0 + 2;
+            while y + rh <= y1 - 2 {
+                run.push((x, y, o));
+                y += rh + gap;
+            }
+        } else {
+            let y = if o == 0 { y0 } else { y1 - rh };
+            let mut x = x0 + 2;
+            while x + rw <= x1 - 2 {
+                run.push((x, y, o));
+                x += rw + gap;
+            }
+        }
+    }
+    run
 }
 
 struct Ctx<'a, 'b> {

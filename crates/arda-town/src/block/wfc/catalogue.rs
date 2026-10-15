@@ -66,6 +66,10 @@ pub const SHELF: Piece = against("prop.shelf", 2, 5);
 pub const RACK: Piece = Piece::prop("prop.cask_rack", 2, 1, [Walk, Any, Any, Any], 5).named("rack");
 /// A bookshelf against a wall.
 pub const BOOKSHELF: Piece = against("prop.bookshelf", 2, 6);
+/// A scroll rack against a wall.
+pub const SCROLL_RACK: Piece = against("prop.scroll_rack", 2, 3);
+/// A lectern, read from its front.
+pub const LECTERN: Piece = Piece::prop("prop.lectern", 1, 1, [Any, Any, Walk, Any], 3);
 /// A cupboard against a wall.
 pub const CUPBOARD: Piece = against("prop.cupboard", 1, 4);
 /// A weapon rack against a wall.

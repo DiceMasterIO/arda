@@ -84,6 +84,8 @@ pub fn prop_chain(id: &str) -> Option<&'static [&'static str]> {
         "prop.cupboard" => &["prop.shelf", "prop.chest"],
         "prop.shelf" => &["prop.bookshelf", "prop.cupboard", "prop.table"],
         "prop.bookshelf" => &["prop.shelf", "prop.table"],
+        "prop.scroll_rack" => &["prop.bookshelf", "prop.shelf"],
+        "prop.lectern" => &["prop.stool", "prop.chair"],
         "prop.hearth" | "prop.forge" => &["prop.oven", "prop.brazier"],
         "prop.oven" => &["prop.hearth", "prop.brazier"],
         "prop.bar_counter" | "prop.altar" | "prop.workbench" => &["prop.table"],

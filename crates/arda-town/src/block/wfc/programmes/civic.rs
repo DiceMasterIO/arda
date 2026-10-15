@@ -12,20 +12,27 @@ pub(crate) fn temple(b: &Building) -> Programme {
     crate::block::wfc::programme::temple(b.function == F::Temple && big(100))
 }
 
-/// The `library` programme.
+/// The `library` programme: bookshelves around every wall, and in a large
+/// reading room reading tables, lecterns and candles by its size.
 pub(crate) fn library() -> Programme {
     star(
-        vec![zone(
-            "reading_room",
-            true,
-            10,
-            0,
-            vec![
-                ordered(need(c::BOOKSHELF, 2), Order::Walls { gap: 0 }),
-                capped(c::TABLE, 0, 1),
-                item(c::CHAIR),
-                capped(c::CANDLES, 0, 2),
-            ],
+        vec![packed(
+            zone(
+                "reading_room",
+                true,
+                10,
+                0,
+                vec![
+                    ordered(need(c::BOOKSHELF, 2), Order::Around { gap: 0 }),
+                    per(capped(c::TABLE, 0, 1), 30),
+                    item(c::CHAIR),
+                    from(per(capped(c::LECTERN, 0, 1), 60), 48),
+                    capped(c::SCROLL_RACK, 0, 1),
+                    per(capped(c::CANDLES, 0, 2), 36),
+                ],
+            ),
+            40,
+            45,
         )],
         100,
         1,

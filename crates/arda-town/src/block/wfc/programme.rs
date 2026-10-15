@@ -23,6 +23,32 @@ pub struct Item {
     pub min_room: i64,
     /// Laid out by rule in aligned rows before the WFC (`super::rows`).
     pub order: Option<Order>,
+    /// Squares of room per piece needed (0: `need` whatever the room's
+    /// size), so a great hall seats more tables than a small one.
+    pub per: i64,
+}
+
+impl Item {
+    /// How many a room of `area` squares must hold: `need`, raised to one
+    /// per [`Item::per`] squares, and none below [`Item::min_room`].
+    #[must_use]
+    pub fn need_in(&self, area: i64) -> u32 {
+        if area < self.min_room {
+            return 0;
+        }
+        let scaled = if self.per > 0 { area / self.per } else { 0 };
+        u32::from(self.need).max(u32::try_from(scaled).unwrap_or(u32::MAX))
+    }
+
+    /// How many a room of `area` squares may hold (0: no cap); a cap
+    /// never falls below the room's need.
+    #[must_use]
+    pub fn cap_in(&self, area: i64) -> u32 {
+        if self.cap == 0 {
+            return 0;
+        }
+        u32::from(self.cap).max(self.need_in(area))
+    }
 }
 
 /// A room kind of a programme.
@@ -79,6 +105,7 @@ pub(super) const fn item(piece: Piece) -> Item {
         cap: 0,
         min_room: 0,
         order: None,
+        per: 0,
     }
 }
 
@@ -89,6 +116,7 @@ pub(super) const fn need(piece: Piece, n: u8) -> Item {
         cap: 0,
         min_room: 0,
         order: None,
+        per: 0,
     }
 }
 
@@ -99,12 +127,20 @@ pub(super) const fn capped(piece: Piece, n: u8, cap: u8) -> Item {
         cap,
         min_room: 0,
         order: None,
+        per: 0,
     }
 }
 
 /// The same item, laid out by rule in aligned rows (`super::rows`).
 pub(super) const fn ordered(mut it: Item, order: Order) -> Item {
     it.order = Some(order);
+    it
+}
+
+/// The same item, needed once per `per` squares of room (at least its
+/// `need`).
+pub(super) const fn per(mut it: Item, per: i64) -> Item {
+    it.per = per;
     it
 }
 
@@ -334,6 +370,7 @@ pub fn fit(mut p: Programme, w: i64, d: i64) -> Programme {
                 cap: it.cap.max(1),
                 min_room: it.min_room,
                 order: it.order,
+                per: 0,
             });
         }
         p.doors = p

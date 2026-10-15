@@ -148,20 +148,31 @@ pub(crate) fn farmhouse(plan: &TownPlan, b: &Building) -> Programme {
 
 /// The `manor` programme.
 pub(crate) fn manor(b: &Building) -> Programme {
+    // A great hall seats the household: a table per 18 squares with
+    // benches and chairs, banners and candles along the walls, and a rug
+    // before the hearth in any hall of 40 squares or more.
     let mut hall = vec![
         capped(c::HEARTH, 1, 1),
-        capped(c::TABLE, 2, 4),
+        per(capped(c::TABLE, 2, 4), 18),
+        item(c::BENCH),
         item(c::CHAIR),
-        item(c::BANNER),
+        per(item(c::BANNER), 30),
         capped(c::STAIRS, 1, 1),
-        capped(c::CANDLES, 0, 2),
+        per(capped(c::CANDLES, 0, 2), 30),
+        capped(c::ARMOUR_STAND, 0, 2),
     ];
-    rugs(b, &mut hall);
+    if b.rect.w() * b.rect.h() >= 40 {
+        hall.push(from(capped(c::RUG, 1, 2), 40));
+    } else {
+        rugs(b, &mut hall);
+    }
     let mut solar = vec![
         need(c::BED, 1),
-        item(c::CHEST),
+        per(item(c::CHEST), 20),
         item(c::BOOKSHELF),
-        capped(c::RUG_SMALL, 0, 1),
+        capped(c::TABLE, 0, 1),
+        item(c::CHAIR),
+        from(capped(c::RUG_SMALL, 1, 1), 20),
     ];
     hh::everyday(&mut solar, WealthLevel::Wealthy);
     star(

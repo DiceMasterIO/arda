@@ -248,9 +248,15 @@ pub fn material(
     }
 }
 
-/// The partition kit inside a building of material `m`.
+/// The partition kit inside a building of function `f` and material `m`.
+/// Civic and great buildings of masonry (a manor, a library, a keep) are
+/// divided by masonry walls of their own kit, drawn as thin stone walls,
+/// not by the timber screens of a house.
 #[must_use]
-pub fn partition_kit(m: Material, wealth: WealthLevel) -> &'static str {
+pub fn partition_kit(f: F, m: Material, wealth: WealthLevel) -> &'static str {
+    if civic(f) && m.is_stone() {
+        return m.kit();
+    }
     match (m, wealth) {
         (Material::Adobe, _) => "adobe",
         (Material::Wattle, _) | (_, WealthLevel::Poor) => "wattle",
@@ -385,7 +391,7 @@ pub fn looks(plan: &TownPlan) -> Vec<Look> {
         out.push(Look {
             material: m,
             shell: m.kit(),
-            partition: partition_kit(m, b.wealth_level),
+            partition: partition_kit(b.function, m, b.wealth_level),
             floor,
         });
     }
@@ -412,7 +418,7 @@ pub fn look(plan: &TownPlan, b: &Building) -> Look {
             Look {
                 material: m,
                 shell: m.kit(),
-                partition: partition_kit(m, b.wealth_level),
+                partition: partition_kit(b.function, m, b.wealth_level),
                 floor: fixed_floor(b.function)
                     .unwrap_or_else(|| floor_palette(m, b.wealth_level)[0]),
             }

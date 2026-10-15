@@ -73,7 +73,7 @@ pub fn size(id: &str) -> (i64, i64) {
         "prop.table" | "prop.bench" | "prop.shelf" | "prop.bookshelf" | "prop.hearth"
         | "prop.oven" | "prop.bar_counter" | "prop.cask_rack" | "prop.forge" | "prop.workbench"
         | "prop.loom" | "prop.weapon_rack" | "prop.altar" | "prop.pew" | "prop.trough"
-        | "prop.rug_small" | "prop.cold_frame" => (2, 1),
+        | "prop.rug_small" | "prop.cold_frame" | "prop.scroll_rack" => (2, 1),
         "prop.bed" | "prop.cart" | "prop.rowboat" | "prop.bridge_deck" | "prop.stairs"
         | "prop.haycart" => (1, 2),
         "prop.market_stall" | "prop.tent" | "prop.crane" | "prop.millstone" => (2, 2),

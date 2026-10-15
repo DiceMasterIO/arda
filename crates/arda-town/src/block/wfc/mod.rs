@@ -19,6 +19,7 @@ pub mod outdoor_vocab;
 pub mod piece;
 pub mod programme;
 pub mod programmes;
+pub mod review;
 pub mod rooms;
 pub mod rows;
 pub mod shell;

@@ -237,25 +237,26 @@ pub fn setup(prog: &Programme, v: &Vocab, f: &Frame<'_>) -> Setup {
                 continue;
             };
             let heads = v.anchors_of(p);
-            if it.need > 0 && room.area() >= it.min_room {
+            let need = it.need_in(room.area());
+            if need > 0 {
                 anchors.push(Anchor {
                     options: cells.iter().map(|&i| (i, heads)).collect(),
-                    count: u32::from(it.need),
+                    count: need,
                 });
             }
             if it.cap > 0 {
                 limits.push(Limit {
                     tiles: heads,
                     cells: cells.clone(),
-                    max: u32::from(it.cap),
+                    max: it.cap_in(room.area()),
                 });
             }
         }
         let needed: i64 = z
             .items
             .iter()
-            .filter(|it| it.piece.blocking && room.area() >= it.min_room)
-            .map(|it| i64::from(it.need) * it.piece.w * it.piece.h)
+            .filter(|it| it.piece.blocking)
+            .map(|it| i64::from(it.need_in(room.area())) * it.piece.w * it.piece.h)
             .sum();
         let needed = usize::try_from(needed).unwrap_or(0);
         limits.push(Limit {

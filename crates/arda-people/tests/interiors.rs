@@ -161,3 +161,58 @@ fn city_homes_have_varied_interiors() {
         100.0 * d.repeated_fraction()
     );
 }
+
+/// Large halls are furnished for their function (logic/10 §town-wfc): a
+/// manor's great hall seats the household at a table per 18 squares
+/// under banners, before a hearth and a rug; a library's reading room
+/// is lined with shelves on three walls or more, with a reading table per
+/// 30 squares and a lectern in a room of 60 squares or more.
+#[test]
+fn city_great_halls_and_reading_rooms_are_furnished() {
+    use arda_town::block::wfc::{indoor, review};
+    use arda_town::BuildingFunction as F;
+    let (name, plan) = city_plan();
+    let (mut halls, mut reading) = (0, 0);
+    for b in &plan.buildings {
+        let Ok(Some(p)) = indoor::solve(&plan, b) else {
+            continue;
+        };
+        for r in review::rooms(&p) {
+            let id = b.id.0;
+            match (b.function, r.tag) {
+                (F::Manor, "great_hall") if r.area >= 48 => {
+                    let tables = r.count("prop.table");
+                    assert!(
+                        i64::try_from(tables).unwrap() >= r.area / 18,
+                        "{name} manor {id}: {tables} tables in {} squares",
+                        r.area
+                    );
+                    assert_eq!(r.count("prop.hearth"), 1, "{name} manor {id}: hearth");
+                    assert!(r.count("prop.banner") >= 1, "{name} manor {id}: banners");
+                    assert!(r.count("rug") >= 1, "{name} manor {id}: rug");
+                    halls += 1;
+                }
+                (F::Library, "reading_room")
+                    if r.rect[2] - r.rect[0] >= 8 && r.rect[3] - r.rect[1] >= 8 =>
+                {
+                    let walls = r.walls_lined("prop.bookshelf");
+                    assert!(walls >= 3, "{name} library {id}: shelves on {walls} walls");
+                    let tables = r.count("prop.table");
+                    assert!(
+                        i64::try_from(tables).unwrap() >= r.area / 30,
+                        "{name} library {id}: {tables} tables in {} squares",
+                        r.area
+                    );
+                    assert!(r.count("prop.lectern") >= 1, "{name} library {id}: lectern");
+                    reading += 1;
+                }
+                _ => {}
+            }
+        }
+    }
+    println!("{name}: {halls} great halls, {reading} large reading rooms");
+    assert!(
+        halls > 0 && reading > 0,
+        "{name}: {halls} halls, {reading} reading rooms"
+    );
+}
