@@ -75,7 +75,7 @@ pub fn woods(ctx: &Ctx, e: &Eco, x: f64, y: f64) -> Woods {
 /// rock, so trees stand on as steep ground as the world's forest holds soil
 /// on (review 3.4-2; the old rule cut every trunk off at 38°).
 fn firm(p: &Phys, e: &Eco) -> bool {
-    p.water == Water::Dry && e.rock < 0.5 && p.river_d > 0.6 && p.stand_v < -0.34
+    p.water == Water::Dry && e.rock < 0.5 && p.river_d > 0.6 && p.stand_v < -0.34 && e.strand <= 0.0
 }
 
 /// Density of a layer at a point, `0..=1`.

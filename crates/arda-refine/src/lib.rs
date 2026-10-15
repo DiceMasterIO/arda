@@ -45,6 +45,7 @@ pub mod rules;
 pub mod scatter;
 pub mod shape;
 pub mod source;
+pub mod square_signals;
 pub mod synthetic;
 pub mod terrain;
 pub mod tiles;

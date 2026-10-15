@@ -116,7 +116,19 @@ fn vertex_scores(
         .iter()
         .map(|p| p.river_d)
         .fold(f64::INFINITY, f64::min);
-    let mut s = prior.scores(ctx, x as f64, y as f64, slope, north, river, form);
+    let local = if crate::square_signals::applies(ctx) {
+        let e = crate::ecology::eco(ctx, &around[3], forms[3], x as f64, y as f64);
+        crate::square_signals::Local {
+            strand: around
+                .iter()
+                .map(|p| crate::square_signals::strand(ctx, p))
+                .fold(0.0, f64::max),
+            canopy: crate::density::woods(ctx, &e, x as f64, y as f64).canopy,
+        }
+    } else {
+        crate::square_signals::Local::CELL
+    };
+    let mut s = prior.scores(ctx, x as f64, y as f64, slope, north, river, form, local);
     let water = Class::Water.bit();
     if mask & water != 0 && mask != water {
         // A bank corner: favour the bank classes so the margin shows.

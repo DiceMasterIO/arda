@@ -72,8 +72,15 @@ pub struct Eco {
     pub crag: f64,
     /// Bare-rock exposure of this square (the shared
     /// `arda_core::biome::ground::rock` of its slope under the cells' forest
-    /// density), `0..=1`: trunks need it under one half.
+    /// density, the slope held under forest by
+    /// [`crate::square_signals::held_slope`]), `0..=1`: trunks need it
+    /// under one half.
     pub rock: f64,
+    /// 1 where the square lies on the sea's strand or within
+    /// [`crate::square_signals::TRUNK_MARGIN`] of it, else 0 (always 0 on
+    /// older recipes, see [`crate::square_signals::off_strand`]): trunks
+    /// stand off it, so no tree grows on beach sand.
+    pub strand: f64,
 }
 
 fn share(ctx: &Ctx, u: f64, v: f64, f: impl Fn(Cover) -> f64) -> f64 {
@@ -148,10 +155,15 @@ pub fn eco(ctx: &Ctx, p: &Phys, s: Shape, u: f64, v: f64) -> Eco {
         in_sea: p.water == Water::Sea,
         crag: ctx.bilinear(u, v, |c, k| crate::biome::craggy(c, ctx.lines_of(k))),
         rock: arda_core::biome::ground::rock(
-            p.slope_deg,
+            crate::square_signals::held_slope(ctx, u, v, p.slope_deg),
             ctx.bilinear(u, v, |c, _| f64::from(c.forest_density) / 255.0),
             lines.growth(cell_temp),
         ),
+        strand: if crate::square_signals::off_strand(ctx, p) {
+            0.0
+        } else {
+            1.0
+        },
     }
 }
 

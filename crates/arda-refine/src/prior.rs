@@ -196,7 +196,9 @@ fn biome_weights(c: &Cell, coast: crate::biome::Coast, open: f64, lines: Lines, 
 /// Precomputed cell weights for a block's neighbourhood.
 #[derive(Debug, Clone)]
 pub struct Prior {
-    cells: Vec<(crate::source::CellKey, Weights)>,
+    /// Per gathered cell: its weights with the shoreline signal, and
+    /// without it (inland of the strand, [`crate::square_signals::strand`]).
+    cells: Vec<(crate::source::CellKey, Weights, Weights)>,
 }
 
 impl Prior {
@@ -208,25 +210,48 @@ impl Prior {
         for dy in -r..=r {
             for dx in -r..=r {
                 let k = ctx.cell.offset(dx, dy);
-                cells.push((
-                    k,
-                    cell_weights(ctx.cell_at(k), ctx.coast_at(k), ctx.lines_of(k)),
-                ));
+                let (c, coast, lines) = (ctx.cell_at(k), ctx.coast_at(k), ctx.lines_of(k));
+                let shore = cell_weights(c, coast, lines);
+                let inland = if !crate::square_signals::applies(ctx) {
+                    shore
+                } else if c.terrain == TerrainKind::Land {
+                    // Out of the shoreline's reach: the cell's own ground.
+                    let far = crate::biome::Coast {
+                        dist: u8::try_from(crate::biome::COAST_REACH + 1).unwrap_or(u8::MAX),
+                        shore: arda::ShoreClass::None,
+                        layer: coast.layer,
+                    };
+                    cell_weights(c, far, lines)
+                } else {
+                    // A sea or lake node lends its strand ground (sand,
+                    // shingle) only to the strand.
+                    [0.0; COUNT]
+                };
+                cells.push((k, shore, inland));
             }
         }
         Self { cells }
     }
 
-    fn at(&self, ctx: &Ctx, k: crate::source::CellKey) -> &Weights {
+    /// The weights of cell `k` on the strand share `strand` (`0..=1`).
+    fn at(&self, ctx: &Ctx, k: crate::source::CellKey, strand: f64) -> Weights {
         let r = crate::context::R;
         let dx = (k.x - ctx.cell.x).clamp(-r, r) + r;
         let dy = (k.y - ctx.cell.y).clamp(-r, r) + r;
         let i = usize::try_from(dy * (2 * r + 1) + dx).unwrap_or(0);
-        &self.cells[i.min(self.cells.len() - 1)].1
+        let (_, shore, inland) = &self.cells[i.min(self.cells.len() - 1)];
+        let mut w = *inland;
+        for (o, s) in w.iter_mut().zip(shore) {
+            *o += (s - *o) * strand;
+        }
+        w
     }
 
     /// Log-weights (scores) at a vertex, from interpolated cell weights,
-    /// local slope and northness, and per-class patch noise.
+    /// local slope and northness, and per-class patch noise. `local` says
+    /// how far the vertex lies on the sea's strand (the shoreline's ground
+    /// applies there only) and under canopy (glades open to grass), see
+    /// [`crate::square_signals`].
     #[must_use]
     #[allow(clippy::too_many_arguments)]
     pub fn scores(
@@ -238,16 +263,18 @@ impl Prior {
         north: f64,
         river_d: f64,
         shape: crate::shape::Shape,
+        local: crate::square_signals::Local,
     ) -> Weights {
+        let strand = local.strand;
         use Class::*;
         let (ix, fx) = split((u - 32.0) / 64.0);
         let (iy, fy) = split((v - 32.0) / 64.0);
         let k = crate::source::CellKey::new(ix, iy);
         let (a, b, c, d) = (
-            self.at(ctx, k),
-            self.at(ctx, k.offset(1, 0)),
-            self.at(ctx, k.offset(0, 1)),
-            self.at(ctx, k.offset(1, 1)),
+            self.at(ctx, k, strand),
+            self.at(ctx, k.offset(1, 0), strand),
+            self.at(ctx, k.offset(0, 1), strand),
+            self.at(ctx, k.offset(1, 1), strand),
         );
         let mut w = [0.0; COUNT];
         for i in 0..COUNT {
@@ -255,6 +282,7 @@ impl Prior {
             let bot = c[i] + (d[i] - c[i]) * fx;
             w[i] = top + (bot - top) * fy;
         }
+        crate::square_signals::clearing(&mut w, local.canopy);
         // Bare rock breaks out where the slope is too steep for the
         // vegetation the world shows to hold soil: the shared exposure
         // (`arda_core::biome::ground::rock`) of the square's slope under the
@@ -267,12 +295,14 @@ impl Prior {
             .lines_at(v)
             .growth(ctx.bilinear(u, v, |c, _| f64::from(c.temperature.raw()) / 100.0));
         // Scree runs ahead of bare rock on open ground; under trees the
-        // litter and roots hold it.
-        let steep = rock(slope + 10.0 * (1.0 - fd), fd, growth);
-        let crag = rock(slope, fd, growth);
+        // litter and roots hold it. Under the world's forest the slope is
+        // held to the cells' own (recipe 9, `square_signals`).
+        let held = crate::square_signals::held_slope(ctx, u, v, slope);
+        let steep = rock(held + 10.0 * (1.0 - fd), fd, growth);
+        let crag = rock(held, fd, growth);
         w[Scree.index()] = w[Scree.index()] * (1.0 + 3.0 * steep) + 0.35 * steep;
         w[Rock.index()] = w[Rock.index()] * (1.0 + 4.0 * crag) + 0.9 * crag;
-        w[Cliff.index()] = 0.9 * rock(slope - 3.0, fd, growth);
+        w[Cliff.index()] = 0.9 * rock(held - 3.0, fd, growth);
         for k in [Grass, Meadow, Dirt, Marsh, Mud, ReedBed, Sand] {
             w[k.index()] *= 1.0 - 0.8 * steep;
         }

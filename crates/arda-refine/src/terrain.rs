@@ -112,11 +112,33 @@ fn strata(ctx: &Ctx, u: f64, v: f64, h: f64) -> f64 {
     if crag <= 0.0 {
         return h;
     }
+    if crate::square_signals::applies(ctx) {
+        return broken_strata(ctx, u, v, h, crag);
+    }
     let t = (h + 3.0 * fbm(ctx.seed, 0x57A7, u, v, 36.0, 3, 0.5)) / STRATUM_M;
     let base = t.floor();
     let stepped = (base + smoothstep(1.0 - RISER, 1.0, t - base)) * STRATUM_M;
     let off = stepped - t * STRATUM_M;
     h + STRATA * crag * off
+}
+
+/// Strata on recipe-9 worlds (review gallery 2026-10-15): the even 7 m
+/// benches of [`strata`] read as ploughed or rice terraces across a whole
+/// mountainside. Here the ledges are broken: they stand only in outcrop
+/// patches (a 22-square noise field covering about a third of the ground), and
+/// their heights wander by up to 5 m over 36 squares and 2 m over 11, so
+/// a band thins, forks and dies out instead of running round the hill.
+fn broken_strata(ctx: &Ctx, u: f64, v: f64, h: f64, crag: f64) -> f64 {
+    let patch = smoothstep(0.04, 0.3, fbm(ctx.seed, 0x57A8, u, v, 22.0, 2, 0.5));
+    if patch <= 0.0 {
+        return h;
+    }
+    let wander = 5.0 * fbm(ctx.seed, 0x57A7, u, v, 36.0, 3, 0.5)
+        + 2.0 * fbm(ctx.seed, 0x57A9, u, v, 11.0, 2, 0.5);
+    let t = (h + wander) / STRATUM_M;
+    let base = t.floor();
+    let stepped = (base + smoothstep(1.0 - RISER, 1.0, t - base)) * STRATUM_M;
+    h + STRATA * crag * patch * (stepped - t * STRATUM_M)
 }
 
 /// Continuous land elevation at global square position `(u, v)`, metres.

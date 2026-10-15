@@ -55,7 +55,9 @@ pub fn classify(ctx: &Ctx, x: i64, y: i64, p: &Phys) -> FixedSquare {
             mask: bank_classes(p, rock),
         };
     }
-    if p.slope_deg > CLIFF_DEG {
+    // Under the world's forest only a face steeper than the cells' own
+    // slope allows is a cliff (recipe 9, `square_signals`).
+    if crate::square_signals::held_slope(ctx, u, v, p.slope_deg) > CLIFF_DEG {
         return FixedSquare {
             fixed: Fixed::Cliff,
             mask: Class::Cliff.bit() | Class::Rock.bit() | Class::Scree.bit(),
