@@ -69,7 +69,11 @@ impl Zig {
         // After the first half leg, the full legs alternate from +A.
         let inner = f64::from(self.legs - 2) * g.full;
         if x >= g.half + inner {
-            let sign = if self.legs.is_multiple_of(2) { 1.0 } else { -1.0 };
+            let sign = if self.legs.is_multiple_of(2) {
+                1.0
+            } else {
+                -1.0
+            };
             return sign * self.half_leg(self.span - x, g);
         }
         let u = x - g.half;
