@@ -115,6 +115,9 @@ impl TileFormat {
 /// `(z, x, y, format, oblique, labelled, society)`.
 type TileKey = (u32, u32, u32, TileFormat, bool, bool, bool);
 
+/// Cache identity of an overview PNG: `(quality, style, society, labelled)`.
+type PngKey = (u32, Style, bool, bool);
+
 /// Cache identity of a decoded pyramid base: `(oblique, society)`.
 type BaseKey = (bool, bool);
 
@@ -122,7 +125,7 @@ type BaseKey = (bool, bool);
 pub struct Overview {
     limits: OverviewLimits,
     pyramid: TilePyramidDto,
-    pngs: Mutex<ByteLru<(u32, Style, bool, bool), Vec<u8>>>,
+    pngs: Mutex<ByteLru<PngKey, Vec<u8>>>,
     tiles: Mutex<ByteLru<TileKey, Vec<u8>>>,
     /// Decoded pyramid bases by look (oblique is goal 24).
     base: Mutex<std::collections::BTreeMap<BaseKey, Arc<Rgb>>>,
@@ -267,7 +270,7 @@ impl Overview {
         let mut rgba = Vec::new();
         rgba.try_reserve_exact(w * h * 4)
             .map_err(|_| ServerError::ResourceLimit("overview labels".into()))?;
-        for p in rgb.pixels.chunks_exact(3) {
+        for p in rgb.pixels.as_chunks::<3>().0 {
             rgba.extend_from_slice(&[p[0], p[1], p[2], 255]);
         }
         drop(rgb);

@@ -103,7 +103,10 @@ async fn overview_names_are_opt_in_and_only_add_pixels() {
 
     let named = get_with(state.clone(), &uri("&labels=1"), None).await;
     assert_eq!(named.status, StatusCode::OK);
-    assert_ne!(named.body, plain.body, "labels=1 draws the gazetteer's names");
+    assert_ne!(
+        named.body, plain.body,
+        "labels=1 draws the gazetteer's names"
+    );
     let again = get_with(state.clone(), &uri("&labels=1"), None).await;
     assert_eq!(again.body, named.body, "deterministic");
     let (a, b) = (
