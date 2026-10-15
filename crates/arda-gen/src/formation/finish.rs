@@ -70,6 +70,12 @@ pub(super) fn run(mut g: Lattice, ctx: Context<'_>) -> Result<Formed, FormationE
             });
         coast::infill(&mut g, &macro_fine, &relief_q8)?;
         drop(macro_fine);
+        // Recipe 9 reworks the shore band only near the open sea, and
+        // before the terraces, which would otherwise be smoothed with it
+        // (review 3.1-5).
+        if view.recipe >= super::Recipe::V9 {
+            coast::rework_shore_near(&mut g, -LOWSTAND_MM)?;
+        }
         // logic/02 §fine-formation plains (recipe 8): alluvial valley
         // floors scaled to discharge, before the terraces cut their treads
         // and bluffs above the new floors.
@@ -108,7 +114,9 @@ pub(super) fn run(mut g: Lattice, ctx: Context<'_>) -> Result<Formed, FormationE
         drop(activity);
         relief_q8
     };
-    coast::rework_shore(&mut g, -LOWSTAND_MM)?;
+    if view.recipe < super::Recipe::V9 {
+        coast::rework_shore(&mut g, -LOWSTAND_MM)?;
+    }
     // logic/02 §fine-formation littoral: cliffs, bay beaches, barriers;
     // then §canyons: submarine canyons off the major river mouths.
     let littoral = {

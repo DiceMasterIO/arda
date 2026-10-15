@@ -278,9 +278,120 @@ pub fn rework_shore(g: &mut Lattice, fixed_deep_mm: i32) -> Result<usize, Format
     Ok(changed)
 }
 
+/// Recipe-9 wave rework reaches full strength this close to open sea,
+/// metres.
+pub const SHORE_REACH_FULL_M: i64 = 250;
+/// ...and fades out by this distance, metres.
+pub const SHORE_REACH_END_M: i64 = 1_250;
+
+/// Recipe-9 wave reworking (review 3.1-5): [`rework_shore`] weighted by
+/// distance to the open sea, full within [`SHORE_REACH_FULL_M`] and fading
+/// out by [`SHORE_REACH_END_M`]. Waves rework the shore, not every cell
+/// within 50 m of sea level: the unweighted rework also blended inland
+/// valleys and lowland basins toward a 625 m mean (an inland valley at
+/// 17-25 m lost 57% of its depth). Returns cells changed.
+///
+/// # Errors
+/// Allocation failure.
+pub fn rework_shore_near(g: &mut Lattice, fixed_deep_mm: i32) -> Result<usize, FormationError> {
+    let (w, h) = (g.width, g.height);
+    let n = w * h;
+    let d_m = (g.spacing_um / 1_000_000).max(1);
+    let r = usize::try_from((SHORE_RADIUS_M * 1_000_000 / g.spacing_um).max(1))
+        .map_err(|_| FormationError::ArithmeticOverflow)?;
+    let dist = {
+        let mut flags: Vec<u8> = alloc(n)?;
+        super::drainage::open_sea_flags_d8(&g.z, w, h, &mut flags);
+        let source: Vec<i32> = flags
+            .iter()
+            .zip(&g.z)
+            .map(|(&f, &z)| i32::from(!(f != 0 && z <= 0)))
+            .collect();
+        coast_distance_m(&source, w, h, d_m)?
+    };
+    let mut tmp: Vec<i32> = alloc(n)?;
+    let mut mean: Vec<i32> = alloc(n)?;
+    super::lattice::blur_into(&g.z, w, h, r, &mut tmp, &mut mean);
+    drop(tmp);
+    let span = SHORE_REACH_END_M - SHORE_REACH_FULL_M;
+    let changed =
+        g.z.par_iter_mut()
+            .zip(mean.par_iter())
+            .zip(dist.par_iter())
+            .map(|((z, &m), &dm)| {
+                let zi = i64::from(*z);
+                if zi.abs() >= SHORE_BAND_MM || *z <= fixed_deep_mm {
+                    return 0_usize;
+                }
+                let reach = (SHORE_REACH_END_M - i64::from(dm)).clamp(0, span) * 1_024 / span;
+                if reach == 0 {
+                    return 0;
+                }
+                let weight = (SHORE_BAND_MM - zi.abs()) * reach / 1_024;
+                let nz = zi + (i64::from(m) - zi) * weight / SHORE_BAND_MM;
+                *z = i32::try_from(nz).unwrap_or(*z);
+                usize::from(nz != zi)
+            })
+            .sum();
+    Ok(changed)
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    /// A coast at x = 20 (sea west of it) on a 39 m lattice, rising 3 m per
+    /// cell to a 60 m plateau, with an inland valley 300 cells (~12 km)
+    /// from the sea whose floor lies at 17 m between 25 m banks.
+    fn coast_with_inland_valley() -> Lattice {
+        let (w, h) = (512, 64);
+        let mut g = Lattice::new(w, h, 39_062_500).unwrap();
+        for y in 0..h {
+            for x in 0..w {
+                let land = (x as i32 - 20) * 3_000;
+                let mut z = if x < 20 { -20_000 } else { land.min(60_000) };
+                if (300..340).contains(&x) {
+                    // Valley: 25 m banks, 17 m floor 8 cells wide.
+                    z = if (316..324).contains(&x) {
+                        17_000
+                    } else {
+                        25_000
+                    };
+                }
+                g.z[y * w + x] = z;
+            }
+        }
+        g
+    }
+
+    fn valley_depth(g: &Lattice) -> i32 {
+        let w = g.width;
+        let row = 32 * w;
+        g.z[row + 305] - g.z[row + 320]
+    }
+
+    #[test]
+    fn recipe_9_shore_rework_leaves_inland_valleys_alone() {
+        let mut old = coast_with_inland_valley();
+        let before = valley_depth(&old);
+        assert_eq!(before, 8_000);
+        rework_shore(&mut old, -LOWSTAND).unwrap();
+        let mut new = coast_with_inland_valley();
+        let near_before = new.z[32 * new.width + 22];
+        rework_shore_near(&mut new, -LOWSTAND).unwrap();
+        let (v7, v9) = (valley_depth(&old), valley_depth(&new));
+        eprintln!("inland valley depth: {before} mm, recipe 7 {v7} mm, recipe 9 {v9} mm");
+        assert!(v7 * 4 < before * 3, "recipe 7 smooths the valley: {v7}");
+        assert_eq!(v9, before, "recipe 9 keeps the inland valley");
+        // The shore itself is still reworked.
+        assert_ne!(
+            new.z[32 * new.width + 22],
+            near_before,
+            "the shore is reworked"
+        );
+    }
+
+    const LOWSTAND: i32 = super::super::LOWSTAND_MM;
 
     #[test]
     fn long_drowned_valleys_fill_and_short_rias_stay_open() {
