@@ -11,12 +11,4 @@ pub enum NamesError {
     /// No meaning has this key.
     #[error("unknown meaning `{0}`")]
     UnknownMeaning(String),
-    /// Every name this language can give the place is taken in the scope.
-    #[error("no unused {kind} name left in this scope (key {key})")]
-    ScopeExhausted {
-        /// Place kind, as its key.
-        kind: String,
-        /// The place's key.
-        key: u64,
-    },
 }

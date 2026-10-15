@@ -56,9 +56,7 @@ fn serde_round_trip_preserves_everything() {
             serde_json::from_str(&serde_json::to_string(&name).unwrap()).unwrap();
         assert_eq!(name, n2);
         let mut scope = NameScope::new();
-        scope
-            .place_name(&lang, &PlaceSpec::new(PlaceKind::City, 1))
-            .unwrap();
+        scope.place_name(&lang, &PlaceSpec::new(PlaceKind::City, 1));
         let s2: NameScope = serde_json::from_str(&serde_json::to_string(&scope).unwrap()).unwrap();
         assert_eq!(scope, s2);
     }

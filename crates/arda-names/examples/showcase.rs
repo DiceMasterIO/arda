@@ -45,9 +45,7 @@ fn main() {
         let mut scope = NameScope::new();
         let mut capital = None;
         for spec in specs() {
-            let Ok(n) = scope.place_name(&lang, &spec) else {
-                continue;
-            };
+            let n = scope.place_name(&lang, &spec);
             println!(
                 "  {:<9} {:<22} {:<18} {:<26} [{}]",
                 format!("{:?}", spec.kind),
@@ -61,12 +59,8 @@ fn main() {
             }
         }
         if let Some(cap) = &capital {
-            let (Ok(region), Ok(realm)) = (
-                scope.place_name(&lang, &PlaceSpec::new(K::Region, 100).from_name(cap)),
-                scope.place_name(&lang, &PlaceSpec::new(K::Realm, 101).from_name(cap)),
-            ) else {
-                continue;
-            };
+            let region = scope.place_name(&lang, &PlaceSpec::new(K::Region, 100).from_name(cap));
+            let realm = scope.place_name(&lang, &PlaceSpec::new(K::Realm, 101).from_name(cap));
             println!(
                 "  {:<9} {:<22} {:<18} {}",
                 "Region", region.native, region.gloss, region.literal

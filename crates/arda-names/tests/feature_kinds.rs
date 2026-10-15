@@ -29,7 +29,7 @@ fn feature_kinds_are_deterministic_and_unique() {
             for kind in KINDS {
                 let spec = PlaceSpec::new(kind, key);
                 assert_eq!(place_name(&lang, &spec), place_name(&lang, &spec));
-                let n = scope.place_name(&lang, &spec).unwrap();
+                let n = scope.place_name(&lang, &spec);
                 assert!(!n.native.is_empty(), "{p:?} {kind:?}");
                 assert!(
                     seen.insert(skeleton(&n.native)),

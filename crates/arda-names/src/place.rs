@@ -270,7 +270,7 @@ fn kind_pool(k: K) -> &'static [M] {
     }
 }
 
-fn kind_head(k: K) -> M {
+pub(crate) fn kind_head(k: K) -> M {
     match k {
         K::Hamlet => M::Farm,
         K::Village => M::Village,

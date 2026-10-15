@@ -136,7 +136,7 @@ impl<'a> Naming<'a> {
     /// A unique name for `spec`, spoken at cell `(x, y)`.
     pub(crate) fn name(&mut self, x: i64, y: i64, spec: &PlaceSpec) -> Result<Name, SettleError> {
         Ok(match self.lang_at(x, y) {
-            Some(lang) => self.scope.place_name(&lang, spec)?,
+            Some(lang) => self.scope.place_name(&lang, spec),
             None => Name {
                 native: String::new(),
                 gloss: String::new(),
