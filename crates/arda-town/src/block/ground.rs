@@ -181,12 +181,15 @@ pub fn at(plan: &TownPlan, poor: bool, gx: i64, gy: i64) -> Ground {
 }
 
 /// The ground of a croft square by its parcel's use; the footprint's
-/// outer rim is rough grass and scrub.
+/// outer rim is long and short grass.
 fn croft(plan: &TownPlan, gx: i64, gy: i64, n: f64) -> &'static str {
     use crate::plan::croft::{parcel, rim, use_of, Use};
     let seed = plan.seed;
     if rim(seed, |x, y| kind(plan, x, y) == Kind::Open, gx, gy) {
-        return if n > 0.0 { "scrub" } else { "meadow" };
+        // Long grass, not `scrub`, which reads as a pale sandy band where
+        // the town meets open country (review 2026-10-15); the rim's
+        // bushes and birch are its roughness.
+        return if n > 0.0 { "meadow" } else { "grass" };
     }
     let p = parcel(seed, gx, gy);
     match use_of(p) {

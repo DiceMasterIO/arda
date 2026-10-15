@@ -679,3 +679,21 @@ fn docks_moor_boats_on_open_water_in_proportion() {
     assert!(docks > 0, "no sample plan has a dock");
     assert!(boats >= 2 * docks, "{boats} boats at {docks} docks");
 }
+
+/// Review 2026-10-15 (V1 on gallery 08): the footprint's rough rim was
+/// `scrub`, a pale sandy band where the town meets open country or wood;
+/// it is long meadow grass, its bushes and birch the roughness.
+#[test]
+fn a_footprints_rim_is_meadow_not_scrub() {
+    let mut owned = 0;
+    for p in plans() {
+        let blk = block::generate(p, market_window(p, 160, 160)).unwrap();
+        for (i, sq) in blk.layout.squares.iter().enumerate() {
+            if blk.owned[i] {
+                owned += 1;
+                assert_ne!(sq.ground, "scrub", "{}: square {i}", p.name);
+            }
+        }
+    }
+    assert!(owned > 0);
+}
