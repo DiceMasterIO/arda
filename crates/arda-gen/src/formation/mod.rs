@@ -480,4 +480,7 @@ mod band_tests;
 mod form_tests;
 
 #[cfg(test)]
+mod mountain_tests;
+
+#[cfg(test)]
 mod recipe_tests;
