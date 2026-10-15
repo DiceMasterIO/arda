@@ -59,12 +59,30 @@ impl CostSurface {
     /// # Errors
     /// [`SettleError::Reserve`] when the raster cannot be allocated.
     pub fn build(g: &Grid, sites: &Sites, lu: &LandUse, seed: u64) -> Result<Self, SettleError> {
+        Self::with_codes(g, sites, |i| lu.codes[i], seed)
+    }
+
+    /// The surface over the terrain alone, before any land is used (the
+    /// realm partition, which runs before land use).
+    ///
+    /// # Errors
+    /// [`SettleError::Reserve`] when the raster cannot be allocated.
+    pub fn terrain(g: &Grid, sites: &Sites, seed: u64) -> Result<Self, SettleError> {
+        Self::with_codes(g, sites, |_| code::NONE, seed)
+    }
+
+    fn with_codes(
+        g: &Grid,
+        sites: &Sites,
+        code_of: impl Fn(usize) -> u8,
+        seed: u64,
+    ) -> Result<Self, SettleError> {
         let mut base = filled(g.len(), 0_u16, "cost surface")?;
         for (i, b) in base.iter_mut().enumerate() {
             if !g.is_land(i) {
                 continue;
             }
-            let mut c = match lu.codes[i] {
+            let mut c = match code_of(i) {
                 code::BUILT => 90,
                 code::ARABLE | code::FALLOW | code::ORCHARD => 110,
                 code::PASTURE | code::MEADOW => 105,

@@ -1,22 +1,25 @@
 //! Realms (spec step 6; `logic/06` steps 1–3).
 //!
-//! 1. Seats are chosen in `seats.rs` (spread, balanced large towns) and
-//!    grown into primate cities in `primacy.rs`; here they are ranked by
-//!    population, so realm 1 has the largest capital.
-//! 2. Allegiance: every cell swears to the seat cheapest to reach over the
-//!    road and terrain cost surface (one multi-source Dijkstra); ties go to
-//!    the higher-ranked seat. Settlements take the realm of their cell.
+//! 1. Seats are chosen in `seats.rs` (spread, balanced large towns).
+//! 2. Allegiance ([`territory`]): every cell swears to the seat cheapest to
+//!    reach over the terrain cost surface (one multi-source Dijkstra); ties
+//!    go to the earlier seat. This runs right after placement, so the
+//!    primate capitals and the city cap (`primacy.rs`) size towns by the
+//!    realm they really end up in (review 3.3-8).
 //! 3. Borders: crossing a river of order ≥ 3 or a ridge crest carries a
 //!    fixed toll, so where one lies within a couple of cells of the
 //!    equal-cost line the border snaps onto it.
+//! 4. Ranking ([`finish`]): once populations are final, realms are ranked
+//!    by their capitals, so realm 1 has the largest; settlements take the
+//!    realm of their cell.
 //!
 //! Every land cell belongs to exactly one realm, so borders are closed.
 
 use crate::cost::{self, CostSurface};
 use crate::error::SettleError;
 use crate::grid::{filled, Grid, OFFSETS8};
-use crate::model::{Settlement, Tier, CITY_MIN};
-use crate::roads::{Network, RoadClass};
+use crate::model::Settlement;
+use crate::roads::RoadClass;
 use crate::snap;
 use crate::tags::Sites;
 use serde::{Deserialize, Serialize};
@@ -30,8 +33,6 @@ type Segment = ((i64, i64), (i64, i64));
 const RIVER_TOLL: u64 = 800;
 /// Toll for stepping onto a ridge crest.
 const RIDGE_TOLL: u64 = 600;
-/// At most this many cities per realm (goal 35).
-const MAX_CITIES: usize = 2;
 
 /// One realm, as written to `society/realms.json`.
 #[cfg_attr(feature = "schema", derive(schemars::JsonSchema))]
@@ -96,34 +97,58 @@ fn ridges(g: &Grid, sites: &Sites) -> Result<Vec<bool>, SettleError> {
     Ok(out)
 }
 
-/// Partitions the land.
+/// The land partition before realms are ranked: per land cell the slot
+/// (1-based, in the order the seats were given) of the seat it swears to.
+#[derive(Debug, Clone)]
+pub struct Territory {
+    /// Seat slot + 1 per cell; 0 on water.
+    pub map: Vec<u16>,
+    /// See [`Realms::natural_border_pm`].
+    pub natural_border_pm: u32,
+    /// See [`Realms::raw_border_pm`].
+    pub raw_border_pm: u32,
+    /// See [`Realms::natural_all_pm`].
+    pub natural_all_pm: u32,
+    /// See [`Realms::natural_land_pm`].
+    pub natural_land_pm: u32,
+}
+
+impl Territory {
+    /// Seat slot of every settlement (index into the seats the territory
+    /// was drawn for).
+    #[must_use]
+    pub fn slots(&self, g: &Grid, settlements: &[Settlement]) -> Vec<usize> {
+        settlements
+            .iter()
+            .map(|s| usize::from(self.map[s.index(g.width)].max(1)) - 1)
+            .collect()
+    }
+}
+
+/// Draws the territory of `seats` (settlement indices, in slot order):
+/// every land cell swears to the seat cheapest to reach over the terrain
+/// cost surface `cs`, ties to the lower slot, and borders snap onto rivers
+/// and ridges. This is the final partition: city sizing and the city cap
+/// read it before land use and roads exist (review 3.3-8), so it uses no
+/// road discount.
 ///
 /// # Errors
 /// [`SettleError::Reserve`] when a raster cannot be allocated.
-pub fn partition(
+pub fn territory(
     g: &Grid,
     sites: &Sites,
     cs: &CostSurface,
-    net: &Network,
     seats: &[usize],
-    settlements: &mut [Settlement],
-) -> Result<Realms, SettleError> {
-    // Seats in rank order: the largest capital is realm 1.
-    let mut seats = seats.to_vec();
-    seats.sort_by(|&a, &b| {
-        settlements[b]
-            .population
-            .cmp(&settlements[a].population)
-            .then(settlements[a].id.cmp(&settlements[b].id))
-    });
+    settlements: &[Settlement],
+) -> Result<Territory, SettleError> {
     let ridge = ridges(g, sites)?;
-    let on_road = |i: usize| net.raster[i] != 0;
+    let no_road = |_: usize| false;
     let mut best = filled(g.len(), u64::MAX, "allegiance cost")?;
     let mut map = filled(g.len(), 0_u16, "realm map")?;
     let mut heap = BinaryHeap::new();
-    for (rank, &k) in seats.iter().enumerate() {
+    for (slot, &k) in seats.iter().enumerate() {
         let c = settlements[k].index(g.width);
-        let id = u16::try_from(rank + 1).unwrap_or(u16::MAX);
+        let id = u16::try_from(slot + 1).unwrap_or(u16::MAX);
         best[c] = 0;
         map[c] = id;
         heap.push(Reverse((0_u64, id, c)));
@@ -137,7 +162,7 @@ pub fn partition(
             let Some(b) = g.at(ax + dx, ay + dy) else {
                 continue;
             };
-            let Some(mut c) = cost::step(g, cs, &on_road, a, b, (dx, dy), RoadClass::Road) else {
+            let Some(mut c) = cost::step(g, cs, &no_road, a, b, (dx, dy), RoadClass::Road) else {
                 continue;
             };
             if g.is_watercourse(b) && g.order[b] >= 3 && !g.is_watercourse(a) {
@@ -177,21 +202,59 @@ pub fn partition(
         map = raw_map;
         (natural_border_pm, natural_all_pm) = snap::on_line_share(g, &map, &line)?;
     }
-    for s in settlements.iter_mut() {
-        s.realm_id = arda_ids::RealmId(u64::from(map[s.index(g.width)]));
-    }
-    cap_cities(settlements, &seats);
-    crate::primacy::rerank(settlements);
-    let realms = records(g, &map, &seats, settlements);
     let natural_land_pm = natural_land(g, &map, &line);
-    Ok(Realms {
-        realms,
+    Ok(Territory {
         map,
         natural_border_pm,
         raw_border_pm,
         natural_all_pm,
         natural_land_pm,
     })
+}
+
+/// Ranks the realms of a territory by their seats' final population
+/// (realm 1 has the largest capital, ties by settlement id), relabels the
+/// map, sets every settlement's `realm_id` and builds the records.
+#[must_use]
+pub fn finish(
+    g: &Grid,
+    territory: Territory,
+    seats: &[usize],
+    settlements: &mut [Settlement],
+) -> Realms {
+    let mut order: Vec<usize> = (0..seats.len()).collect();
+    order.sort_by(|&a, &b| {
+        let (sa, sb) = (&settlements[seats[a]], &settlements[seats[b]]);
+        sb.population.cmp(&sa.population).then(sa.id.cmp(&sb.id))
+    });
+    // `relabel[slot + 1]` is the realm id of that slot.
+    let mut relabel = vec![0_u16; seats.len() + 1];
+    for (rank, &slot) in order.iter().enumerate() {
+        relabel[slot + 1] = u16::try_from(rank + 1).unwrap_or(u16::MAX);
+    }
+    let Territory {
+        mut map,
+        natural_border_pm,
+        raw_border_pm,
+        natural_all_pm,
+        natural_land_pm,
+    } = territory;
+    for m in &mut map {
+        *m = relabel.get(usize::from(*m)).copied().unwrap_or(0);
+    }
+    for s in settlements.iter_mut() {
+        s.realm_id = arda_ids::RealmId(u64::from(map[s.index(g.width)]));
+    }
+    let ranked: Vec<usize> = order.iter().map(|&slot| seats[slot]).collect();
+    let realms = records(g, &map, &ranked, settlements);
+    Realms {
+        realms,
+        map,
+        natural_border_pm,
+        raw_border_pm,
+        natural_all_pm,
+        natural_land_pm,
+    }
 }
 
 /// Baseline for the border share: per mille of land within two cells of a
@@ -207,32 +270,6 @@ fn natural_land(g: &Grid, map: &[u16], line: &[bool]) -> u32 {
         land_near += u64::from(near(i));
     }
     u32::try_from(land_near * 1000 / land.max(1)).unwrap_or(0)
-}
-
-/// Keeps at most two cities per realm; extras become large towns. Seats
-/// count first, so a capital is never the one demoted.
-fn cap_cities(settlements: &mut [Settlement], seats: &[usize]) {
-    let mut seen: BTreeMap<u64, usize> = BTreeMap::new();
-    let mut order: Vec<usize> = (0..settlements.len()).collect();
-    order.sort_by(|&a, &b| {
-        seats
-            .contains(&b)
-            .cmp(&seats.contains(&a))
-            .then(settlements[b].population.cmp(&settlements[a].population))
-            .then(settlements[a].id.cmp(&settlements[b].id))
-    });
-    for k in order {
-        let s = &mut settlements[k];
-        if s.tier != Tier::City {
-            continue;
-        }
-        let count = seen.entry(s.realm_id.get()).or_default();
-        *count += 1;
-        if *count > MAX_CITIES {
-            s.tier = Tier::Town;
-            s.population = s.population.min(CITY_MIN - 1);
-        }
-    }
 }
 
 fn records(g: &Grid, map: &[u16], seats: &[usize], settlements: &[Settlement]) -> Vec<Realm> {

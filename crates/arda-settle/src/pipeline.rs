@@ -70,8 +70,18 @@ pub fn run(g: &Grid, params: PlaceParams) -> Result<Society, SettleError> {
         &settlements,
         seats::seat_count(people, habitable, urban),
     );
-    let realm_of = seats::allegiance(&lat, &settlements, &seat_list);
-    primacy::apply(&mut settlements, &seat_list, &realm_of);
+    drop(lat);
+    // The final partition comes first, over the terrain alone, so the
+    // primate capitals and the city cap size every town by the realm it
+    // ends up in (review 3.3-8, 3.3-9).
+    let territory = {
+        let terrain = CostSurface::terrain(g, &sites, seed)?;
+        realms::territory(g, &sites, &terrain, &seat_list, &settlements)?
+    };
+    let slots = territory.slots(g, &settlements);
+    primacy::apply(&mut settlements, &seat_list, &slots);
+    primacy::cap(&mut settlements, &seat_list, &slots);
+    primacy::rerank(&mut settlements);
     let cultures = CultureMap::build(g, &sites);
     let miners = profile::miners(g, &sites, seed, &settlements);
     for s in &mut settlements {
@@ -83,7 +93,7 @@ pub fn run(g: &Grid, params: PlaceParams) -> Result<Society, SettleError> {
     let network = roads::build(g, &cs, &settlements);
     let (mut crossings, crossing_cells) = crossings::crossings(g, &network, &settlements)?;
     let mut passes = crossings::passes(g, &sites, &network);
-    let mut realms = realms::partition(g, &sites, &cs, &network, &seat_list, &mut settlements)?;
+    let mut realms = realms::finish(g, territory, &seat_list, &mut settlements);
     for r in &realms.realms {
         if let Some(s) = settlements
             .iter_mut()

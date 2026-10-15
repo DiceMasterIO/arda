@@ -153,8 +153,7 @@ impl Settlement {
         self.functions.contains(&f)
     }
 
-    /// A bare settlement at a cell, for unit tests.
-    #[cfg(test)]
+    /// A bare settlement at a cell, for tests and fixtures.
     #[must_use]
     pub fn bare(id: u64, cell_x: u32, cell_y: u32, tier: Tier, population: u32) -> Self {
         Self {

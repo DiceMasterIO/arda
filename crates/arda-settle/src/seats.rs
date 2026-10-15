@@ -20,11 +20,11 @@
 //! 3. A market area holding fewer than [`CORE_PEOPLE`] has no real core:
 //!    the land then holds one realm fewer and the choice is made again.
 //!
-//! The partition itself (`realms.rs`) follows the road and terrain cost
-//! surface; the market areas here only steer the choice of seats, and give
-//! each town its realm for the primate-city rule (`primacy.rs`).
+//! The partition itself (`realms.rs`) follows the terrain cost surface; the
+//! market areas here only steer the choice of seats. The primate-city rule
+//! (`primacy.rs`) reads the partition, never these market areas.
 
-use crate::market::{Lattice, NONE};
+use crate::market::Lattice;
 use crate::model::Settlement;
 use crate::num::dist_m;
 
@@ -230,41 +230,6 @@ fn largest(settlements: &[Settlement]) -> Option<usize> {
     })
 }
 
-/// Seat slot every settlement's block falls to over the lattice; a
-/// settlement the lattice cannot reach goes to the nearest seat in a
-/// straight line.
-#[must_use]
-pub fn allegiance(lat: &Lattice, settlements: &[Settlement], seats: &[usize]) -> Vec<usize> {
-    let owner = areas(lat, settlements, seats);
-    settlements
-        .iter()
-        .map(|s| match owner[block(lat, s)] {
-            NONE => nearest(
-                pos(s),
-                &seats
-                    .iter()
-                    .map(|&k| pos(&settlements[k]))
-                    .collect::<Vec<_>>(),
-            ),
-            o => usize::from(o),
-        })
-        .collect()
-}
-
-/// Slot of the nearest seat to `p` in a straight line; ties go to the lower
-/// slot.
-#[must_use]
-pub fn nearest(p: (i64, i64), seats: &[(i64, i64)]) -> usize {
-    let mut best = (u32::MAX, 0);
-    for (r, &q) in seats.iter().enumerate() {
-        let d = dist_m(p.0 - q.0, p.1 - q.1);
-        if d < best.0 {
-            best = (d, r);
-        }
-    }
-    best.1
-}
-
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -315,10 +280,9 @@ mod tests {
     }
 
     #[test]
-    fn choice_is_deterministic_and_nearest_breaks_ties_low() {
+    fn choice_is_deterministic() {
         let s = vec![town(1, 0, 0, 5000), town(2, 10, 0, 5000)];
         let land = Lattice::new(20, 20, |_| true, |_| 0);
         assert_eq!(choose(&land, &s, 2), choose(&land, &s, 2));
-        assert_eq!(nearest((5, 0), &[(0, 0), (10, 0)]), 0);
     }
 }

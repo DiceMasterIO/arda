@@ -14,10 +14,21 @@
 //!
 //! A realm too small to feed a city (fewer than half of
 //! [`PEOPLE_PER_REALM`](crate::seats::PEOPLE_PER_REALM) people) keeps its
-//! towns as placed.
+//! towns as placed, except that its seat trades places with any larger
+//! member.
+//!
+//! Realms here are the final partition (`realms::territory`), drawn before
+//! this runs, so no town is sized for a realm it does not end up in
+//! (review 3.3-8). [`cap`] then keeps at most [`MAX_CITIES`] cities a
+//! realm and moves the surplus people within the realm (review 3.3-9).
+//! Both run before land use, functions and roads, which therefore serve
+//! the final populations.
 
 use crate::model::{Settlement, Tier, CITY_MIN, TOWN_MIN};
 use crate::seats::PEOPLE_PER_REALM;
+
+/// At most this many cities per realm (goal 35).
+pub const MAX_CITIES: usize = 2;
 
 /// Harmonic number H(n) in millionths.
 fn harmonic_micro(n: u64) -> u64 {
@@ -124,6 +135,7 @@ pub fn apply(settlements: &mut [Settlement], seats: &[usize], realm_of: &[usize]
             .map(|&k| u64::from(settlements[k].population))
             .sum();
         if people < PEOPLE_PER_REALM / 2 {
+            seat_first(settlements, seat, &members);
             continue;
         }
         let mut towns: Vec<usize> = members
@@ -161,6 +173,111 @@ pub fn apply(settlements: &mut [Settlement], seats: &[usize], realm_of: &[usize]
         rescale_rural(settlements, &rural, people.saturating_sub(placed));
     }
     rerank(settlements);
+}
+
+/// Makes the seat its realm's largest settlement by trading population and
+/// tier with the largest member that outgrows it (people are kept).
+fn seat_first(settlements: &mut [Settlement], seat: usize, members: &[usize]) {
+    let Some(&big) = members.iter().max_by(|&&a, &&b| {
+        settlements[a]
+            .population
+            .cmp(&settlements[b].population)
+            .then(settlements[b].id.cmp(&settlements[a].id))
+    }) else {
+        return;
+    };
+    if big != seat && settlements[big].population > settlements[seat].population {
+        let (p, t) = (settlements[big].population, settlements[big].tier);
+        settlements[big].population = settlements[seat].population;
+        settlements[big].tier = settlements[seat].tier;
+        settlements[seat].population = p;
+        settlements[seat].tier = t;
+    }
+}
+
+/// Adds up to `want` people to `members`, in proportion to their size, none
+/// above `ceiling`; returns how many were placed.
+fn grow(settlements: &mut [Settlement], members: &[usize], want: u64, ceiling: u32) -> u64 {
+    let mut placed = 0_u64;
+    for _ in 0..4 {
+        let left = want - placed;
+        let room: Vec<usize> = members
+            .iter()
+            .copied()
+            .filter(|&k| settlements[k].population < ceiling)
+            .collect();
+        let pool: u64 = room
+            .iter()
+            .map(|&k| u64::from(settlements[k].population))
+            .sum();
+        if left == 0 || pool == 0 {
+            break;
+        }
+        for &k in &room {
+            let s = &mut settlements[k];
+            let share = (u64::from(s.population) * left / pool)
+                .max(1)
+                .min(want - placed);
+            let add = share.min(u64::from(ceiling - s.population));
+            s.population += u32::try_from(add).unwrap_or(0);
+            placed += add;
+        }
+    }
+    placed
+}
+
+/// Keeps at most [`MAX_CITIES`] cities in every realm, the seat counting
+/// first: a further city becomes a town of `CITY_MIN − 1` people, and its
+/// surplus goes to the realm's villages (up to their tier ceiling), then to
+/// its towns (up to `CITY_MIN − 1`), and what is left to the seat, so the
+/// realm keeps every inhabitant (review 3.3-9). `slot_of[k]` is the seat
+/// slot settlement `k` swears to.
+pub fn cap(settlements: &mut [Settlement], seats: &[usize], slot_of: &[usize]) {
+    for (slot, &seat) in seats.iter().enumerate() {
+        let members: Vec<usize> = (0..settlements.len())
+            .filter(|&k| slot_of.get(k) == Some(&slot))
+            .collect();
+        let mut cities: Vec<usize> = members
+            .iter()
+            .copied()
+            .filter(|&k| k != seat && settlements[k].tier == Tier::City)
+            .collect();
+        cities.sort_by(|&a, &b| {
+            settlements[b]
+                .population
+                .cmp(&settlements[a].population)
+                .then(settlements[a].id.cmp(&settlements[b].id))
+        });
+        let keep = MAX_CITIES - usize::from(settlements[seat].tier == Tier::City);
+        let mut surplus = 0_u64;
+        for &k in cities.iter().skip(keep) {
+            let s = &mut settlements[k];
+            surplus += u64::from(s.population - (CITY_MIN - 1));
+            s.population = CITY_MIN - 1;
+            s.tier = Tier::Town;
+        }
+        if surplus == 0 {
+            continue;
+        }
+        let of = |settlements: &[Settlement], t: Tier| -> Vec<usize> {
+            members
+                .iter()
+                .copied()
+                .filter(|&k| k != seat && settlements[k].tier == t)
+                .collect()
+        };
+        let villages = of(settlements, Tier::Village);
+        surplus -= grow(settlements, &villages, surplus, bounds(Tier::Village).1);
+        let towns = of(settlements, Tier::Town);
+        surplus -= grow(settlements, &towns, surplus, CITY_MIN - 1);
+        let s = &mut settlements[seat];
+        s.population = s
+            .population
+            .saturating_add(u32::try_from(surplus).unwrap_or(u32::MAX));
+        if s.tier.is_urban() {
+            s.tier = Tier::of_town(s.population);
+        }
+    }
 }
 
 /// Ranks towns and cities by population (1 = largest, ties by id); 0 for
