@@ -55,7 +55,15 @@ Scopes (goal 40, goal 04 "unique within scope"):
 | inn, tavern and other named buildings | the settlement |
 | given and family names of people | not unique (households share family names) |
 
-Resolution is deterministic: entities are named in ascending id order within a scope; on a collision the attempt counter in the key increments, up to 16 attempts; after that the culture's qualifier (`Upper`, `Nether`, `Great`, `Little` in their cultural spellings) is prefixed. A name therefore depends on the entity's own key and on the names of lower-id entities in its scope only.
+Resolution is deterministic: entities are named in ascending id order within a scope (`arda_names::NameScope::place_name`, `crates/arda-names/src/scope.rs`). Two names clash when their spelling skeletons match (case, apostrophes and doubled letters ignored). On a clash, in this order:
+
+1. the attempt counter in the key increments, 48 draws (settlements are named after founders from the 12th draw on);
+2. the culture's distinguishing adjectives are tried on the last draw (`Upper`, `Lower`, `Little`, `Great`, `North`, `South`, `East`, `West`, `New`, `Old`, in their cultural spellings);
+3. 912 further draws;
+4. 64 draws naming the place after a person, one founder's name or (every other draw) two founders' elements joined, before the kind's head (native "Gekdound", gloss "Gekbrook", literal "Gek's brook"); this is what lets a kind with few plain names (a stream draws from about 16 water words, so a few dozen names per language) fill a default-size world (OI-49);
+5. the plain name takes the lowest Roman numeral from II up that the scope has not yet given it ("Oakmark II"). Numbered names are told apart by their numeral, not their skeleton (which folds "II" into "I"), so this step always ends.
+
+`place_name` never fails and never returns a taken name. Names that resolved within steps 1–3 are unchanged by steps 4 and 5, which only replace the former refusal (`NamesError::ScopeExhausted`, removed). A name therefore depends on the entity's own key and on the names of lower-id entities in its scope only.
 
 ### §name-what-is-named
 
@@ -88,7 +96,7 @@ Resolution is deterministic: entities are named in ascending id order within a s
 ## Unhappy paths
 
 - A malformed inventory file is a load error naming the file and field; the crate embeds its data at build time (`include_str!`), so this is caught by a test, not at run time.
-- Exhausted attempts with the qualifier also colliding: append the lowest free Roman numeral (II, III, …); never an error.
+- Exhausted attempts, qualifiers and names after people: append the lowest free Roman numeral (II, III, …; §name-unique step 5); never an error. Before OI-49 the scope refused instead, and a default-size world could not be settled.
 
 ## State transitions
 
@@ -97,7 +105,7 @@ None: pure functions over embedded data.
 ## Invariants
 
 1. Determinism: the same key and context always give the same name [40].
-2. Uniqueness per §name-unique on MICRO seed 42 and on the default world's settlements file [40].
+2. Uniqueness per §name-unique on MICRO seed 42 and on the default world's settlements file [40]; a scope of 4,000 streams in one language never refuses, never repeats, and numbers under 1 % of them (`crates/arda-names/tests/uniqueness.rs`).
 3. Culture consistency: a classifier trained on nothing but the inventories (syllable membership) attributes ≥ 95 % of generated settlement names to their own culture (assumed test design) [40].
 4. Site suffix: every settlement whose top site is not Plain carries one of its culture's variants for that site [40; artifact].
 5. Form and denylist rules hold for 100,000 generated names per style [40].
