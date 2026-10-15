@@ -294,9 +294,6 @@ pub fn generate_world_with_fine_recipe(
     let mut last_check = String::new();
     for attempt in 0..CONTINENT_ATTEMPTS {
         let macro_grid = match recipe.formation() {
-            Some(crate::formation::Recipe::V9) => {
-                crate::continent::generate_continent_attempt_formed_v9(seed, config, attempt)
-            }
             Some(_) => crate::continent::generate_continent_attempt_formed(seed, config, attempt),
             None => generate_continent_attempt_fine(seed, config, attempt),
         };
