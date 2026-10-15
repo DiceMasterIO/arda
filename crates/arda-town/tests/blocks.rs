@@ -608,3 +608,74 @@ fn docks_are_owned_decks_over_water() {
     }
     assert!(docks > 0, "no sample plan has a dock");
 }
+
+/// Review 2026-10-15 (gallery 10): a port's docks had one rowboat between
+/// them, drawn on the next dock's deck. Boats lie moored on open water
+/// alongside and off the end of each dock, a dock's worth each, never on
+/// a deck, ashore or on one another.
+#[test]
+#[allow(clippy::cast_possible_truncation, clippy::cast_precision_loss)] // squares
+fn docks_moor_boats_on_open_water_in_proportion() {
+    use arda_town::plan::grid::Kind;
+    let (mut docks, mut boats) = (0, 0);
+    for p in plans() {
+        let decks: Vec<_> = p
+            .buildings
+            .iter()
+            .filter(|b| b.function == arda_town::BuildingFunction::Dock)
+            .map(|b| b.rect)
+            .collect();
+        for r in &decks {
+            docks += 1;
+            let win = Window {
+                x: r.x0 - 10,
+                y: r.y0 - 10,
+                w: r.x1 - r.x0 + 20,
+                h: r.y1 - r.y0 + 20,
+            };
+            let blk = block::generate(p, win).unwrap();
+            let mut taken = BTreeSet::new();
+            let mut here = 0;
+            for pl in &blk.layout.placements {
+                let AssetRef::Id(id) = &pl.asset else {
+                    continue;
+                };
+                let (w, h) = match id.as_str() {
+                    "prop.rowboat" => (1, 2),
+                    "prop.sailboat" => (2, 4),
+                    _ => continue,
+                };
+                let (w, h) = if pl.rotation % 180 == 90 {
+                    (h, w)
+                } else {
+                    (w, h)
+                };
+                let x0 = win.x + (f64::from(pl.x) - w as f64 / 2.0).round() as i64;
+                let y0 = win.y + (f64::from(pl.y) - h as f64 / 2.0).round() as i64;
+                for y in y0..y0 + h {
+                    for x in x0..x0 + w {
+                        assert_eq!(
+                            arda_town::block::ground::kind(p, x, y),
+                            Kind::Water,
+                            "{}: {id} at {x},{y} ashore",
+                            p.name
+                        );
+                        assert!(
+                            !decks.iter().any(|d| d.contains(x, y)),
+                            "{}: {id} at {x},{y} on a deck",
+                            p.name
+                        );
+                        assert!(taken.insert((x, y)), "{}: boats overlap at {x},{y}", p.name);
+                    }
+                }
+                // A boat lies alongside or off the end of this dock.
+                let near =
+                    x0 <= r.x1 + 1 && x0 + w >= r.x0 - 1 && y0 <= r.y1 + 1 && y0 + h >= r.y0 - 1;
+                here += usize::from(near);
+            }
+            boats += here;
+        }
+    }
+    assert!(docks > 0, "no sample plan has a dock");
+    assert!(boats >= 2 * docks, "{boats} boats at {docks} docks");
+}

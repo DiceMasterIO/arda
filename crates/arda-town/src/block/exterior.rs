@@ -266,7 +266,7 @@ fn stall(plan: &TownPlan, b: &Building, rng: &mut Rng, out: &mut Vec<GProp>) {
 
 fn dock(plan: &TownPlan, b: &Building, rng: &mut Rng, out: &mut Vec<GProp>) {
     let r = b.rect;
-    // Cargo on the deck and a boat moored at the far end.
+    // Cargo on the deck and boats moored alongside and off the end.
     for _ in 0..3 {
         let x = r.x0 + i64::from(rng.range(0, i32::try_from(r.w() - 1).unwrap_or(0)));
         let y = r.y0 + i64::from(rng.range(0, i32::try_from(r.h() - 1).unwrap_or(0)));
@@ -277,14 +277,7 @@ fn dock(plan: &TownPlan, b: &Building, rng: &mut Rng, out: &mut Vec<GProp>) {
             0,
         ));
     }
-    let (bx, by, rot) = if r.h() >= r.w() {
-        (r.x1, r.y0 + r.h() / 2 - 1, 0)
-    } else {
-        (r.x0 + r.w() / 2 - 1, r.y1, 90)
-    };
-    if kind(plan, bx, by) == Kind::Water {
-        out.push(prop("prop.rowboat", bx, by, rot));
-    }
+    out.extend(super::moorings::at_dock(plan, b));
     if b.wealth_level != WealthLevel::Poor && r.w() >= 3 && r.h() >= 3 {
         out.push(prop("prop.crane", r.x0, r.y0 + r.h() / 2, 0));
     }

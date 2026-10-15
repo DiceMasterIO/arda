@@ -17,6 +17,7 @@ pub mod garden;
 pub mod ground;
 pub mod interior;
 pub mod kits;
+pub mod moorings;
 pub mod wfc;
 pub mod yard;
 

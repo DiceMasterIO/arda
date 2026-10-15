@@ -107,6 +107,7 @@ pub fn prop_chain(id: &str) -> Option<&'static [&'static str]> {
         "prop.throne" => &["prop.chair", "prop.chest"],
         "prop.grave" => &["veg.stones"],
         "prop.haycart" => &["prop.cart"],
+        "prop.sailboat" => &["prop.rowboat"],
         "prop.banner" | "prop.rug_small" | "prop.drain" => return None,
         "veg.tree_pine" | "veg.tree_spruce" => &["veg.tree_birch"],
         "veg.tree_willow" | "veg.tree_dead" => &["veg.tree_elm"],
