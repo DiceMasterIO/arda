@@ -88,7 +88,7 @@ pub fn run(g: &Grid, params: PlaceParams) -> Result<Society, SettleError> {
         let miner = miners.contains(&s.id.get());
         profile::describe(g, &suit, &cultures, seed, miner, s);
     }
-    let landuse = landuse::allocate(g, &sites, &settlements)?;
+    let landuse = landuse::allocate(g, &sites, &settlements, seed)?;
     let cs = CostSurface::build(g, &sites, &landuse, seed)?;
     let network = roads::build(g, &cs, &settlements);
     let (mut crossings, crossing_cells) = crossings::crossings(g, &network, &settlements)?;

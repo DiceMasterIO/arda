@@ -132,6 +132,7 @@ pub fn allocate(
     g: &Grid,
     sites: &Sites,
     settlements: &[Settlement],
+    seed: u64,
 ) -> Result<LandUse, SettleError> {
     let mut lu = LandUse {
         codes: filled(g.len(), code::NONE, "land use")?,
@@ -143,7 +144,7 @@ pub fn allocate(
         built(g, &mut lu, s);
     }
     for s in &order {
-        fields(g, sites, &mut lu, s);
+        fields(g, sites, &mut lu, s, seed);
     }
     for s in order.iter().filter(|s| !s.tier.is_urban()) {
         pasture_and_wood(g, &mut lu, s);
@@ -218,9 +219,18 @@ fn nearest(
     out.into_iter().map(|(_, i)| i).collect()
 }
 
+/// Whether the field on cell `(x, y)` lies fallow this year: one in three
+/// by `H(seed, "fallow", x, y)` (logic/08 §landuse), so the pattern follows
+/// the world seed and the cell, never the grid's flat index (review
+/// 3.3-15).
+#[must_use]
+pub fn fallow(seed: u64, x: i64, y: i64) -> bool {
+    crate::rng::hash(seed, "fallow", x.cast_unsigned(), y.cast_unsigned()).is_multiple_of(3)
+}
+
 /// Fields at 0.8 ha a head, open ground before woodland; a tenth of village
 /// and town fields on warm, sunny, gentle slopes become orchards.
-fn fields(g: &Grid, sites: &Sites, lu: &mut LandUse, s: &Settlement) {
+fn fields(g: &Grid, sites: &Sites, lu: &mut LandUse, s: &Settlement, seed: u64) {
     let need = iu(i64::from(s.population * FIELD_TENTHS_HA / 10));
     let r = field_radius(s.tier);
     // Forest is cleared last: its distance is pushed beyond the whole disc.
@@ -247,7 +257,8 @@ fn fields(g: &Grid, sites: &Sites, lu: &mut LandUse, s: &Settlement) {
             orchards -= 1;
         }
         // Three-field rotation: about a third of the fields rest each year.
-        let fallow = crate::rng::mix(u64::try_from(i).unwrap_or(0)).is_multiple_of(3);
+        let (x, y) = g.xy(i);
+        let fallow = fallow(seed, x, y);
         let c = if orchard {
             code::ORCHARD
         } else if fallow {
