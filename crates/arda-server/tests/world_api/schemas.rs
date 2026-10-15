@@ -184,8 +184,8 @@ async fn settlement_people_and_scene_bodies_validate() {
     let npc = checked("Npc", &format!("/v1/npc/{notable}")).await;
     check("Sheet", "a notable's sheet", &npc["sheet"]).await;
     // The scene of the village's market square, where its people are: a
-    // plan can sit a few cells from the settlement's own cell (the recipe-9
-    // fixture's largest village, 116: about 290 m), whose scene is empty.
+    // plan can sit a few cells from the settlement's own cell, whose scene
+    // is then empty (seen on the recipe-9 fixture).
     let square = plan["square"]["polygon"].as_array().unwrap();
     let mean = |axis: &str| {
         square
