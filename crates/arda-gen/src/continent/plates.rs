@@ -77,10 +77,12 @@ fn seed_plates_with_zones(seed: u64, sim: SimExtent, attempt: u8, round: bool) -
     let cells = i64::from(sim.width) * i64::from(sim.height);
     let base = (cells / CELLS_PER_PLATE).clamp(8, 220);
     let spread = (base / 3).max(1);
-    let count = u16::try_from(base + i64::from(r.next_u32() % u32::try_from(spread).unwrap_or(1)))
-        .unwrap_or(8);
+    let count = base + i64::from(r.next_u32() % u32::try_from(spread).unwrap_or(1));
+    // Plate ids are `u8`. A draw above 255 fell back to 8 plates (review
+    // 3.2-9); it is capped at 255 instead. Draws up to 255 are unchanged.
+    let count = u8::try_from(count.min(255)).unwrap_or(u8::MAX);
 
-    (0..u8::try_from(count).unwrap_or(8))
+    (0..count)
         .map(|id| {
             let centre_x = (r.next_u32() % sim.width.unsigned_abs()) as i32;
             let centre_y = (r.next_u32() % sim.height.unsigned_abs()) as i32;
@@ -230,6 +232,28 @@ mod tests {
             let n = seed_plates(seed, sim(), 0).len();
             assert!((8..=14).contains(&n), "seed {seed} produced {n} plates");
         }
+    }
+
+    /// Review 3.2-9: on large domains the count drawn reaches 220 + 72; the
+    /// `u8` conversion fell back to 8 plates, a flat plain at continental
+    /// scale. The count is capped at 255, the most a `u8` id can name.
+    #[test]
+    fn very_large_domains_keep_their_plate_count() {
+        // 900 x 900 sim cells (3,600 km at 4 km): base 220, spread 73.
+        let big = SimExtent {
+            width: 900,
+            height: 900,
+        };
+        let counts: Vec<usize> = (0..64)
+            .map(|seed| seed_plates(seed, big, 0).len())
+            .collect();
+        assert!(
+            counts.iter().all(|&n| (220..=255).contains(&n)),
+            "plate counts {counts:?}"
+        );
+        assert!(counts.contains(&255), "some draw exceeds a u8: {counts:?}");
+        let ids: Vec<u8> = seed_plates(3, big, 0).iter().map(|p| p.id).collect();
+        assert!(ids.windows(2).all(|w| w[0] < w[1]), "ids stay unique");
     }
 
     #[test]
