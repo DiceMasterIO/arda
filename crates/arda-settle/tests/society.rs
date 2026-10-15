@@ -423,17 +423,25 @@ fn the_stand_in_hub_is_not_reported_unreachable() {
         },
     )
     .unwrap();
-    let urban = society.settlements.iter().any(|s| s.tier.is_urban());
-    assert!(!urban, "the fixture needs a world without towns");
-    let hub = society
+    // A world of villages and hamlets only: the carrying land of even a
+    // sparse synthetic world feeds a town, so the towns are left out.
+    let rural: Vec<_> = society
         .settlements
+        .iter()
+        .filter(|s| !s.tier.is_urban())
+        .cloned()
+        .collect();
+    let sites = arda_settle::tags::compute(&grid, 7).unwrap();
+    let cs = arda_settle::cost::CostSurface::terrain(&grid, &sites, 7).unwrap();
+    let net = arda_settle::roads::build(&grid, &cs, &rural);
+    let hub = rural
         .iter()
         .find(|s| s.tier == Tier::Village)
         .expect("a village");
     assert!(
-        !society.network.unreachable.contains(&hub.id.get()),
+        !net.unreachable.contains(&hub.id.get()),
         "{:?}",
-        society.network.unreachable
+        net.unreachable
     );
 }
 

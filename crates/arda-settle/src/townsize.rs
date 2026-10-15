@@ -17,9 +17,10 @@ use crate::model::{Settlement, Tier, TOWN_MIN};
 use crate::num::{dist_m, isqrt};
 use crate::tags;
 
-/// Exponent of the weight, as `(numerator, denominator)`: 3/2 (assumed,
-/// tunable).
-pub const AGGLOMERATION: (u32, u32) = (3, 2);
+/// Exponent of the weight, as `(numerator, denominator)`: 5/2 (assumed,
+/// tunable; at 3/2 a land four times MICRO's gave a flat hierarchy, slope
+/// −0.51, R² 0.61).
+pub const AGGLOMERATION: (u32, u32) = (5, 2);
 /// Hinterland every town is credited with beyond the rural people nearest
 /// it, so a town on the coast with little land behind it still trades.
 pub const BASE_HINTERLAND: u64 = 300;
@@ -52,10 +53,10 @@ pub fn advantage_pm(bits: u32) -> u64 {
     a
 }
 
-/// `v` raised to [`AGGLOMERATION`] (3/2): `v · √v`.
+/// `v` raised to [`AGGLOMERATION`] (5/2): `v² · √v`.
 fn agglomerate(v: u64) -> u128 {
-    debug_assert_eq!(AGGLOMERATION, (3, 2));
-    u128::from(v) * u128::from(isqrt(v))
+    debug_assert_eq!(AGGLOMERATION, (5, 2));
+    u128::from(v) * u128::from(v) * u128::from(isqrt(v))
 }
 
 /// A town's market draws villages and hamlets within this many metres, a

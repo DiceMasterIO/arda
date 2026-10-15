@@ -7,6 +7,7 @@ use arda_settle::grid::Grid;
 use arda_settle::model::{Settlement, Tier};
 use arda_settle::num::dist_m;
 use arda_settle::roads::RoadClass;
+use arda_settle::trunk::{LOOP_LINK_PCT, LOOP_RATIO_PCT};
 use arda_settle::{route, run, synthetic, PlaceParams, Society};
 use std::cmp::Reverse;
 use std::collections::BinaryHeap;
@@ -89,11 +90,11 @@ fn neighbouring_towns_are_not_joined_only_by_a_long_way_round() {
             let (ia, ib) = (a.index(g.width), b.index(g.width));
             let road = by_road(g, &s.network.raster, ia, ib).unwrap();
             // A direct way that is itself a long way round (a fjord, a
-            // lake) excuses the network.
+            // lake: beyond the loop rule's own limit) excuses the network.
             let direct = route::find(g, &cs, &none, ia, ib, RoadClass::Highway)
                 .map_or(u64::MAX, |p| route::length_m(g, &p.cells));
             assert!(
-                road * 100 <= straight * 200 || direct * 100 > straight * 180,
+                road * 100 <= straight * LOOP_RATIO_PCT || direct * 100 > straight * LOOP_LINK_PCT,
                 "{} to {}: {road} m by road for {straight} m apart (direct {direct} m)",
                 a.id,
                 b.id

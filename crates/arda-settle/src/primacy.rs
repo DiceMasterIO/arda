@@ -4,7 +4,8 @@
 //! Towns come out of placement sized by their hinterlands and sites
 //! (`townsize.rs`). A capital draws court, garrison and trade beyond that
 //! (Jefferson's primate city), so it holds at least a city's population,
-//! [`CITY_MIN`]; the court's trade lifts the realm's other towns a little
+//! [`CITY_MIN`], and at least [`CAPITAL_SHARE`] of its realm; the
+//! court's trade lifts the realm's other towns a little
 //! too ([`court_head`]), keeping their order. The people they draw come
 //! from the realm's villages and hamlets, which shrink in proportion but
 //! never below their tier's floor. No town falls below [`TOWN_MIN`]. No
@@ -25,6 +26,14 @@
 
 use crate::model::{Settlement, Tier, CITY_MIN, TOWN_MIN};
 use crate::seats::PEOPLE_PER_REALM;
+
+/// A capital holds at least this share of its realm's people, as
+/// `(numerator, denominator)`: a quarter (court, garrison, the realm's
+/// trade; assumed, tunable). With realms of a few tens of thousands this
+/// is a city-state's capital; it lets the largest realms' seats stand
+/// above the [`CITY_MIN`] floor, so the urban hierarchy keeps a head at
+/// scale (review 3.3-12).
+pub const CAPITAL_SHARE: (u64, u64) = (1, 4);
 
 /// At most this many cities per realm (goal 35).
 pub const MAX_CITIES: usize = 2;
@@ -136,7 +145,9 @@ pub fn apply(settlements: &mut [Settlement], seats: &[usize], realm_of: &[usize]
             continue;
         }
         let was = u64::from(settlements[seat].population).max(1);
-        let now = was.max(u64::from(CITY_MIN));
+        let now = was
+            .max(u64::from(CITY_MIN))
+            .max(people * CAPITAL_SHARE.0 / CAPITAL_SHARE.1);
         let towns: Vec<usize> = members
             .iter()
             .copied()
