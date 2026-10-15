@@ -86,6 +86,12 @@ impl Towns {
                     .map_err(|e| MidzoomError::Society(e.to_string()))
             })
             .collect::<Result<_, _>>()?;
+        Ok(Self::from_plans(plans))
+    }
+
+    /// The towns of `plans` (id order).
+    #[must_use]
+    pub fn from_plans(plans: Plans) -> Self {
         let streets = Streets::of(&plans);
         let plans = plans
             .into_iter()
@@ -95,7 +101,7 @@ impl Towns {
                 Some((p, b))
             })
             .collect();
-        Ok(Self { plans, streets })
+        Self { plans, streets }
     }
 
     /// Whether a road square lies where a town's streets replace the roads.
@@ -118,13 +124,17 @@ impl Towns {
                 continue;
             };
             let kind = plan.grid.kind[k];
-            if matches!(kind, Kind::Open | Kind::Water) {
+            let building = plan.grid.building.get(k).copied().unwrap_or(0);
+            // A dock stands on the water: its squares are a deck, as the
+            // tactical town layer claims them.
+            let dock = kind == Kind::Water && is_dock(plan, building);
+            if matches!(kind, Kind::Open | Kind::Water) && !dock {
                 continue;
             }
             return Some(Claim {
                 plan: i,
                 kind,
-                building: plan.grid.building.get(k).copied().unwrap_or(0),
+                building,
             });
         }
         None
@@ -220,6 +230,8 @@ impl Towns {
             Kind::Churchyard => [96, 122, 60],
             Kind::Croft => [98, 120, 58],
             Kind::WaterGate => [120, 116, 104],
+            // A dock's planked deck.
+            Kind::Water if cl.building > 0 => [128, 104, 76],
             Kind::Open | Kind::Water => return g,
         };
         let mut c = lit(paint, 3);
@@ -314,8 +326,58 @@ fn street(plan: &TownPlan, p: [f64; 2]) -> [i64; 3] {
     }
 }
 
+/// Whether building index + 1 `building` of `plan` is a dock.
+fn is_dock(plan: &TownPlan, building: u32) -> bool {
+    building
+        .checked_sub(1)
+        .and_then(|b| usize::try_from(b).ok())
+        .and_then(|b| plan.buildings.get(b))
+        .is_some_and(|b| b.function == arda_town::BuildingFunction::Dock)
+}
+
 /// The paint of a claim for masks and tests: whether it is a building.
 #[must_use]
 pub fn is_building(c: Option<Claim>) -> bool {
     c.is_some_and(|c| c.kind == Kind::Building)
+}
+
+#[cfg(test)]
+mod dock_tests {
+    use super::*;
+
+    /// The relief draws a harbour town's docks as decks over the water,
+    /// where the tactical town layer claims them.
+    #[test]
+    fn docks_are_claimed_and_painted_as_decks() {
+        let (site, terrain) = arda_town::samples::saltwick();
+        let plan = arda_town::generate(&site, &terrain, 7).unwrap();
+        let docks: Vec<(usize, &arda_town::plan::Building)> = plan
+            .buildings
+            .iter()
+            .enumerate()
+            .filter(|(_, b)| b.function == arda_town::BuildingFunction::Dock)
+            .collect();
+        assert!(!docks.is_empty(), "saltwick has docks");
+        let towns = Towns::from_plans(vec![(1, Arc::new(Some(plan.clone())))]);
+        let mut decks = 0;
+        for (i, b) in docks {
+            for gy in b.rect.y0..b.rect.y1 {
+                for gx in b.rect.x0..b.rect.x1 {
+                    let Some(k) = plan.grid.gidx(gx, gy) else {
+                        continue;
+                    };
+                    if plan.grid.kind[k] != Kind::Water {
+                        continue;
+                    }
+                    let c = towns.claim(gx, gy).expect("a dock square is claimed");
+                    assert_eq!(c.building, u32::try_from(i + 1).unwrap());
+                    let water = [40, 70, 110];
+                    let at = [(gx as f64 + 0.5) * SQUARE_M, (gy as f64 + 0.5) * SQUARE_M];
+                    assert_ne!(towns.paint(water, at, SQUARE_M, &|_, _| false), water);
+                    decks += 1;
+                }
+            }
+        }
+        assert!(decks > 0, "no dock square over water");
+    }
 }
