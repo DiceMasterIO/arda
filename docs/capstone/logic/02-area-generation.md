@@ -513,10 +513,11 @@ Recipe 9 keeps every recipe-7 stage and changes these rules (review
 - **Fields across area edges** (review 3.2-5, 3.2-7,
   3.2-16). An area's slope, aspect and wetness read a three-cell halo of the
   neighbouring areas' heights and drainage from the shared routing and flow
-  stores (`area_output::compose_recipe`, `area::fields9`): slope and aspect
-  are Horn's gradient over 3 × 3 cells, the aspect a whole-degree bearing
-  with `0` for flat ground only and `360` for north
-  (`arda_core::biome::aspect`); wetness is the topographic index
+  stores (`area_output::compose_recipe`, `area::fields9`): the slope keeps
+  its meaning, the steepest descent to one of the eight neighbours, now
+  across the edge; the aspect is the downhill bearing of Horn's gradient
+  over 3 × 3 cells to the whole degree, with `0` for flat ground only and
+  `360` for north (`arda_core::biome::aspect`); wetness is the topographic index
   `28 + 15·log2 A + 16·(10 − log2 slope)` on continuous logarithms,
   smoothed over a 5 × 5 binomial kernel of land cells, and the ecology keeps
   it.

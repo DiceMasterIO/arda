@@ -10,9 +10,11 @@
 //! lines on flat plains.
 //!
 //! Recipe 9 reads a three-cell halo from the neighbouring areas' prepared
-//! heights and solved drainage. Slope and aspect are Horn's continuous
-//! gradient over the 3 × 3 neighbourhood, the aspect a whole-degree bearing
-//! (`arda_core::biome::aspect`, flat `0`, north `360`). Wetness is the
+//! heights and solved drainage. The slope keeps its meaning, the steepest
+//! descent to a neighbour, but reads the neighbours across the area's edge;
+//! the aspect is the downhill bearing of Horn's continuous gradient over the
+//! 3 × 3 neighbourhood to the whole degree (`arda_core::biome::aspect`, flat
+//! `0`, north `360`). Wetness is the
 //! world's topographic index on a continuous base-2 logarithm of area and
 //! slope, smoothed over a 5 × 5 binomial kernel of land cells, so single D8
 //! lines and log steps no longer print into it. Integer only.
@@ -23,8 +25,6 @@ use arda_core::biome::aspect;
 pub const HALO: i32 = 3;
 /// Side of the halo grid in cells.
 pub const SIDE: i32 = 512 + 2 * HALO;
-/// Cell size, millimetres.
-const CELL_MM: i64 = 100_000;
 
 /// Heights, drainage and land membership over an area and its halo,
 /// row-major over [`SIDE`]², local cell `(x, y)` at `(x + HALO, y + HALO)`.
@@ -75,22 +75,29 @@ fn atan_milli_deg(grad_10k: i64) -> u16 {
     super::fields::atan_milli_deg(grad_10k)
 }
 
-/// Slope (milli-degrees) and stored aspect of local cell `(x, y)` from
-/// Horn's gradient over its 3 × 3 neighbourhood, halo included.
+/// Slope (milli-degrees) and stored aspect of local cell `(x, y)`, halo
+/// included. The slope keeps the world's meaning, the steepest descent to
+/// one of the eight neighbours (`fields::slope_and_aspect`), now read across
+/// the area's edges; the aspect is the downhill bearing of Horn's gradient
+/// over the 3 × 3 neighbourhood, to the whole degree.
 #[must_use]
 pub fn slope_aspect(h: &Halo, x: i32, y: i32) -> (u16, u16) {
     let z = |dx: i32, dy: i32| h.h(x + dx, y + dy);
+    let mut steepest = 0_i64;
+    for (dx, dy) in super::fill::NEIGHBOURS {
+        let drop = z(0, 0) - z(dx, dy);
+        if drop <= 0 {
+            continue;
+        }
+        let run = if dx != 0 && dy != 0 { 141_421 } else { 100_000 };
+        steepest = steepest.max(drop * 10_000 / run);
+    }
     // Rise per cell eastward and southward, times 8 cells of run.
     let gx = (z(1, -1) + 2 * z(1, 0) + z(1, 1)) - (z(-1, -1) + 2 * z(-1, 0) + z(-1, 1));
     let gy = (z(-1, 1) + 2 * z(0, 1) + z(1, 1)) - (z(-1, -1) + 2 * z(0, -1) + z(1, -1));
-    if gx == 0 && gy == 0 {
-        return (0, aspect::FLAT);
-    }
-    let len = (i128::from(gx) * i128::from(gx) + i128::from(gy) * i128::from(gy)).isqrt();
-    let grad_10k = i64::try_from(len * 10_000 / i128::from(8 * CELL_MM)).unwrap_or(i64::MAX);
     // Downhill is against the gradient.
     let bearing = aspect::compass_bearing(-gx, -gy).map_or(aspect::FLAT, aspect::encode);
-    (atan_milli_deg(grad_10k), bearing)
+    (atan_milli_deg(steepest), bearing)
 }
 
 /// `log2(v)` in Q8 for `v >= 1`: the integer part from the highest bit,
