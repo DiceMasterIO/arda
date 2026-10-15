@@ -100,6 +100,13 @@ pub struct SquareRules {
     /// Road class of the surface, verge or crossing.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub road_class: Option<RoadClass>,
+    /// The building on the square, a `BuildingId` as a decimal string
+    /// (toll houses and waystations; goal 45).
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub building: Option<String>,
+    /// The building's function: `toll_house` or `waystation`.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub building_function: Option<String>,
 }
 
 // serde's skip_serializing_if hands a reference.
@@ -224,6 +231,12 @@ impl SquareRules {
         }
         if let Some(d) = self.deck_elevation_ft {
             c.set_deck_level(d);
+        }
+        if let Some(b) = &self.building {
+            c.set_ext("building", serde_json::Value::from(b.clone()));
+        }
+        if let Some(f) = &self.building_function {
+            c.set_ext("building_function", serde_json::Value::from(f.clone()));
         }
         c
     }

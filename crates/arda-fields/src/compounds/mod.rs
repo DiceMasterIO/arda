@@ -88,6 +88,20 @@ pub struct Compound {
     pub lane_start: Option<Sq>,
     /// The direction the lane leaves in, a unit axis vector.
     pub lane_out: [i64; 2],
+    /// Its buildings: a farmhouse, barn or stable, a mill house (goal 45).
+    pub buildings: Vec<CBuilding>,
+}
+
+/// A building of a compound, with the id others name it by (goal 45;
+/// review 3.5-12).
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct CBuilding {
+    /// [`arda_ids::BuildingId::rural`] of its north-west square.
+    pub id: arda_ids::BuildingId,
+    /// Function key: `farmhouse`, `barn`, `stable` or `mill`.
+    pub function: &'static str,
+    /// Its floor squares on the global lattice.
+    pub squares: Vec<Sq>,
 }
 
 /// A local frame: local `+x` maps to `ex`, local `+y` to `ey`, and local
@@ -170,7 +184,11 @@ pub struct Local {
     walls: BTreeMap<(EdgeAxis, i64, i64), (WallRole, &'static str)>,
     placements: Vec<GPlacement>,
     lights: Vec<([f64; 2], u16, [u8; 3])>,
+    buildings: Vec<(Rect, &'static str)>,
 }
+
+/// A half-open local rectangle `(x0, y0, x1, y1)`.
+type Rect = (i64, i64, i64, i64);
 
 impl Local {
     /// An empty builder in a frame.
@@ -182,7 +200,14 @@ impl Local {
             walls: BTreeMap::new(),
             placements: Vec::new(),
             lights: Vec::new(),
+            buildings: Vec::new(),
         }
+    }
+
+    /// Records the half-open local rectangle `x0..x1 × y0..y1` as a
+    /// building of `function` (its floor; the walls are laid separately).
+    pub fn building(&mut self, x0: i64, y0: i64, x1: i64, y1: i64, function: &'static str) {
+        self.buildings.push(((x0, y0, x1, y1), function));
     }
 
     /// Sets the ground of the half-open rectangle `x0..x1 × y0..y1`.
@@ -310,6 +335,23 @@ impl Local {
             walled,
             lane_start: lane_start.map(|(x, y)| f.sq(x, y)),
             lane_out: out,
+            buildings: self
+                .buildings
+                .into_iter()
+                .map(|((x0, y0, x1, y1), function)| {
+                    let mut squares: Vec<Sq> = (y0..y1)
+                        .flat_map(|y| (x0..x1).map(move |x| (x, y)))
+                        .map(|(x, y)| f.sq(x, y))
+                        .collect();
+                    squares.sort_by_key(|s| (s.y, s.x));
+                    let first = squares.first().copied().unwrap_or(Sq::new(0, 0));
+                    CBuilding {
+                        id: arda_ids::BuildingId::rural(first.x, first.y),
+                        function,
+                        squares,
+                    }
+                })
+                .collect(),
         }
     }
 }

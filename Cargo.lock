@@ -205,6 +205,7 @@ dependencies = [
 name = "arda-fields"
 version = "0.8.1"
 dependencies = [
+ "arda-ids",
  "arda-scene",
  "arda-tactical",
  "rayon",
@@ -443,6 +444,7 @@ dependencies = [
 name = "arda-ways"
 version = "0.8.1"
 dependencies = [
+ "arda-ids",
  "arda-scene",
  "arda-tactical",
  "serde",

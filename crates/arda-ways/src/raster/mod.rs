@@ -49,6 +49,8 @@ pub struct Cell {
     pub deck_ft: Option<i16>,
     /// Difficult terrain.
     pub difficult: bool,
+    /// The building standing here: its id and function (goal 45).
+    pub building: Option<(u64, &'static str)>,
 }
 
 impl Cell {
@@ -335,6 +337,8 @@ fn emit(layout: &mut TacticalLayout, g: &Grid, win: Window) -> Sidecar {
                 deck_elevation_ft: c.deck_ft.map(step5),
                 feature: c.feature,
                 road_class: c.class,
+                building: c.building.map(|(id, _)| id.to_string()),
+                building_function: c.building.map(|(_, f)| f.to_owned()),
             });
         }
     }

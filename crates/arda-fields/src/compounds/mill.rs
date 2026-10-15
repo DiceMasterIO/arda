@@ -157,6 +157,7 @@ fn plan(l: &mut Local, wealth: u8) {
     let (x0, y0, x1, y1) = (-6, -10, 2, -3);
     l.ground(x0, y0, x1, y1, "planks");
     l.rect_walls(x0, y0, x1, y1, kit);
+    l.building(x0, y0, x1, y1, "mill");
     l.opening(H, -2, y0, WallRole::Door, kit);
     l.opening(V, x0, -6, WallRole::Window, kit);
     l.opening(V, x1, -7, WallRole::Window, kit);

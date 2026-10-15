@@ -8,6 +8,7 @@ repository.workspace = true
 description = "Tactical land use around settlements for arda: fields, hedgerows, farmsteads, mills and mines on the 5-ft grid"
 
 [dependencies]
+arda-ids.workspace = true
 rayon.workspace = true
 arda-scene.workspace = true
 arda-tactical.workspace = true

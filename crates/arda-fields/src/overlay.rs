@@ -120,6 +120,7 @@ mod tests {
             crop: None,
             furrow: furrow.then_some([1.0, 0.0]),
             field: None,
+            building: None,
         }
     }
 

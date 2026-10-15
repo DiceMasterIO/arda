@@ -8,6 +8,7 @@ repository.workspace = true
 description = "Tactical (5-ft) roads, verges, ditches, bridges, fords, ferries and toll houses for arda"
 
 [dependencies]
+arda-ids.workspace = true
 arda-scene.workspace = true
 arda-tactical.workspace = true
 serde.workspace = true

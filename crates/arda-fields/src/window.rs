@@ -327,6 +327,17 @@ fn sidecar(plan: &Plan, bounds: &Boundaries, dressed: &Dressed, l: &TacticalLayo
         *slot = (slot.0.max(r.0), slot.1 || r.1, slot.2 || r.2, slot.3 || r.3);
     }
     let mut squares = Vec::with_capacity(l.squares.len());
+    // Goal 45: the compounds' buildings by floor square.
+    let houses: std::collections::BTreeMap<Sq, (String, &'static str)> = plan
+        .compounds
+        .iter()
+        .flat_map(|c| &c.buildings)
+        .flat_map(|b| {
+            b.squares
+                .iter()
+                .map(move |&s| (s, (b.id.0.to_string(), b.function)))
+        })
+        .collect();
     let mut seen = BTreeSet::new();
     let mut touching = BTreeSet::new();
     let mut inside: std::collections::BTreeMap<usize, u32> = std::collections::BTreeMap::new();
@@ -351,6 +362,7 @@ fn sidecar(plan: &Plan, bounds: &Boundaries, dressed: &Dressed, l: &TacticalLayo
             crop: dressed.crop.get(s).copied().flatten(),
             furrow: dressed.furrow.get(s).copied().flatten(),
             field: field.map(|(_, f)| f.id.to_string()),
+            building: houses.get(&s).cloned(),
         });
     }
     let edges = l

@@ -94,6 +94,8 @@ fn one(g: &mut Grid, h: &House) {
     let floor_ft = g
         .get((x0 + x1) / 2, (y0 + y1) / 2)
         .map_or(0, super::Cell::elevation);
+    // Goal 45: a building others can name (review 3.5-12).
+    let id = arda_ids::BuildingId::rural(x0, y0).0;
     for gy in y0..=y1 {
         for gx in x0..=x1 {
             if let Some(c) = g.get_mut(gx, gy) {
@@ -104,6 +106,7 @@ fn one(g: &mut Grid, h: &House) {
                 c.difficult = false;
                 c.rank = (10, 0);
                 c.class = None;
+                c.building = Some((id, h.function));
             }
         }
     }

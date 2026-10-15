@@ -106,6 +106,30 @@ u64_id!(
     NpcId
 );
 
+impl BuildingId {
+    /// The top bit, set on every [`BuildingId::rural`] id and on no town
+    /// plan's (those count from 1 within their settlement).
+    pub const RURAL: u64 = 1 << 63;
+
+    /// The id of a building outside every town plan (a farmstead's house
+    /// or barn, a mill, a toll house or waystation), whose north-west
+    /// square is global `(gx, gy)`: [`crate::subseed`] with domain
+    /// `"rural-building"`, top bit set. Two buildings never share that
+    /// square, so the id is unique within a world (goal 45; review
+    /// 3.5-12) and every window that draws the building names it alike.
+    #[must_use]
+    pub fn rural(gx: i64, gy: i64) -> Self {
+        let word = |v: i64| u64::from_le_bytes(v.to_le_bytes());
+        Self(crate::subseed(0, "rural-building", &[word(gx), word(gy)]) | Self::RURAL)
+    }
+
+    /// Whether this is a [`BuildingId::rural`] id.
+    #[must_use]
+    pub const fn is_rural(self) -> bool {
+        self.0 & Self::RURAL != 0
+    }
+}
+
 impl NpcId {
     /// The id of the `index`-th resident of `building` in `settlement`:
     /// [`crate::subseed`] with the settlement id as seed, domain `"npc-id"`
@@ -173,6 +197,10 @@ mod tests {
 
     #[test]
     fn npc_ids_from_parts_are_stable_and_distinct() {
+        let r = BuildingId::rural(10, -3);
+        assert!(r.is_rural() && !BuildingId(12).is_rural());
+        assert_eq!(r, BuildingId::rural(10, -3));
+        assert_ne!(r, BuildingId::rural(-3, 10));
         let a = NpcId::from_parts(SettlementId(2), BuildingId(3), 4);
         assert_eq!(a, NpcId::from_parts(SettlementId(2), BuildingId(3), 4));
         assert_ne!(a, NpcId::from_parts(SettlementId(2), BuildingId(3), 5));

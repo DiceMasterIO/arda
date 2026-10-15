@@ -115,6 +115,7 @@ fn plan(l: &mut Local, st: &Style, h: u64) {
     if st.stable {
         l.ground(2, 11, 8, 16, "packed_earth");
         l.rect_walls(2, 11, 8, 16, st.house);
+        l.building(2, 11, 8, 16, "stable");
         l.opening(V, 8, 13, WallRole::Door, st.house);
         l.id("prop.trough", 3.0, 12.5, 0);
         l.id("prop.hay_bale", 6.5, 14.5, 0);
@@ -172,6 +173,7 @@ fn farmhouse(l: &mut Local, st: &Style) {
     let (x0, y0, x1, y1) = (2, 2, 11, 8);
     l.ground(x0, y0, x1, y1, st.floor);
     l.rect_walls(x0, y0, x1, y1, st.house);
+    l.building(x0, y0, x1, y1, "farmhouse");
     l.opening(H, 6, y1, WallRole::Door, st.house);
     l.opening(H, 4, y0, WallRole::Window, st.house);
     l.opening(H, 8, y0, WallRole::Window, st.house);
@@ -193,6 +195,7 @@ fn barn(l: &mut Local, st: &Style) {
     let (x0, y0, x1, y1) = (14, 2, 24, 9);
     l.ground(x0, y0, x1, y1, "packed_earth");
     l.rect_walls(x0, y0, x1, y1, st.house);
+    l.building(x0, y0, x1, y1, "barn");
     l.opening(H, 18, y1, WallRole::Gate, st.house);
     l.opening(H, 19, y1, WallRole::Gate, st.house);
     for (x, y, r) in [

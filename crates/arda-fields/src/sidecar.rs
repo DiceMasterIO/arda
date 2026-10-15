@@ -96,6 +96,10 @@ pub struct SquareRules {
     /// Field id (a u64 as a string), where in a field.
     #[serde(skip_serializing_if = "Option::is_none")]
     pub field: Option<String>,
+    /// The compound building on the square: its `BuildingId` as a decimal
+    /// string and its function (goal 45).
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub building: Option<(String, &'static str)>,
 }
 
 /// Rules of one edge segment.
@@ -195,6 +199,10 @@ impl Sidecar {
             }
             if let Some(f) = &sq.field {
                 cell.set_ext("field", serde_json::Value::from(f.clone()));
+            }
+            if let Some((id, function)) = &sq.building {
+                cell.set_ext("building", serde_json::Value::from(id.clone()));
+                cell.set_ext("building_function", serde_json::Value::from(*function));
             }
         }
         r.edges = self
