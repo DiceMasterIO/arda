@@ -16,6 +16,7 @@ use crate::pools;
 use crate::prior::cell_weights;
 use crate::source::{CellKey, Source};
 use arda::TerrainKind;
+use arda_core::biome::Lines;
 use arda_core::ShoreClass;
 use serde::Serialize;
 use std::collections::BTreeMap;
@@ -160,8 +161,8 @@ pub fn coast_of(src: &dyn Source, k: CellKey) -> Result<Coast, RefineError> {
 }
 
 /// The strongest ground of a cell's prior and its weights as shares.
-fn dominant(c: &arda::Cell, coast: Coast) -> (usize, [f64; COUNT]) {
-    let w = cell_weights(c, coast);
+fn dominant(c: &arda::Cell, coast: Coast, lines: Lines) -> (usize, [f64; COUNT]) {
+    let w = cell_weights(c, coast, lines);
     let mut best = 0;
     for (i, v) in w.iter().enumerate() {
         if *v > w[best] {
@@ -285,6 +286,7 @@ pub fn measure(src: &dyn Source, stride: i64) -> Result<Report, RefineError> {
     let mut tallies: BTreeMap<&'static str, Tally> = BTreeMap::new();
     let mut coast_cells: BTreeMap<&'static str, (u64, u64, u64, Vec<u64>)> = BTreeMap::new();
     let seed = src.seed();
+    let frame = src.biome_frame();
     for y in (0..h).step_by(usize::try_from(stride).unwrap_or(1)) {
         for x in (0..w).step_by(usize::try_from(stride).unwrap_or(1)) {
             let k = CellKey::new(x, y);
@@ -293,7 +295,8 @@ pub fn measure(src: &dyn Source, stride: i64) -> Result<Report, RefineError> {
                 continue;
             }
             let coast = coast_of(src, k)?;
-            let (dom, shares) = dominant(&c, coast);
+            let lines = frame.lines(frame.latitude_mdeg(k.y));
+            let (dom, shares) = dominant(&c, coast, lines);
             let wet = f64::from(c.wetness) / 255.0;
             for g in groups_of(&c) {
                 let t = tallies.entry(g).or_default();
@@ -301,7 +304,7 @@ pub fn measure(src: &dyn Source, stride: i64) -> Result<Report, RefineError> {
                 t.marshy += u64::from(marshy(&c) > 0.5);
                 t.coastal += u64::from(coast_strip(&c, coast) > 0.5);
                 t.arid += u64::from(arid(&c) > 0.5);
-                t.alpine += u64::from(alpine(&c) > 0.5);
+                t.alpine += u64::from(alpine(&c, lines) > 0.5);
                 t.ground[dom] += 1;
                 for (acc, v) in t.weight.iter_mut().zip(shares) {
                     *acc += v;
@@ -357,7 +360,8 @@ pub fn measure(src: &dyn Source, stride: i64) -> Result<Report, RefineError> {
                 .or_insert_with(|| (0, 0, 0, vec![0; WALK_MAX + 1]));
             e.0 += 1;
             e.1 += u64::try_from(width).unwrap_or(0);
-            e.2 += u64::from(dominant(&c, coast).0 == Class::Sand.index());
+            let lines = frame.lines(frame.latitude_mdeg(k.y));
+            e.2 += u64::from(dominant(&c, coast, lines).0 == Class::Sand.index());
             e.3[width] += 1;
         }
     }

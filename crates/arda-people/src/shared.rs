@@ -66,6 +66,14 @@ impl Source for SharedSource {
     fn has_shore(&self) -> bool {
         self.0.has_shore()
     }
+
+    fn biome_frame(&self) -> arda_core::biome::Frame {
+        self.0.biome_frame()
+    }
+
+    fn thalweg(&self, at: CellKey) -> Result<Option<(i16, i16)>, RefineError> {
+        self.0.thalweg(at)
+    }
 }
 
 #[cfg(test)]

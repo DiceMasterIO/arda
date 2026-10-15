@@ -77,9 +77,9 @@ mod tests {
         assert_eq!(smooth_q12(100, 0, 50), ONE / 2);
         assert!((smoothstep(0.0, 1.0, 0.5) - 0.5).abs() < 1e-12);
         assert!((smoothstep(1.0, 0.0, 0.25) - 0.843_75).abs() < 1e-12);
-        for x in [-10, 13, 47, 71, 120] {
-            let q = smooth_q12(0, 100, x) as f64 / ONE as f64;
-            assert!((q - smoothstep(0.0, 100.0, f64::from(x as i32))).abs() < 2e-3);
+        for x in [-10_i32, 13, 47, 71, 120] {
+            let q = smooth_q12(0, 100, i64::from(x)) as f64 / ONE as f64;
+            assert!((q - smoothstep(0.0, 100.0, f64::from(x))).abs() < 2e-3);
         }
     }
 

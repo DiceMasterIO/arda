@@ -163,4 +163,12 @@ impl Source for BoundedSource {
     fn has_shore(&self) -> bool {
         self.has_shore
     }
+
+    fn biome_frame(&self) -> arda_core::biome::Frame {
+        self.any().biome_frame()
+    }
+
+    fn thalweg(&self, at: CellKey) -> Result<Option<(i16, i16)>, RefineError> {
+        self.for_cell(at)?.thalweg(at)
+    }
 }

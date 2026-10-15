@@ -7,6 +7,7 @@ use crate::error::RefineError;
 use crate::grid::span;
 use crate::source::{CellKey, Edge, LakeInfo, Source};
 use arda::{Cell, TerrainKind};
+use arda_core::biome::{Frame, Lines};
 
 /// Squares per cell side.
 pub const N: i64 = 64;
@@ -51,6 +52,7 @@ pub struct Ctx {
     /// Channel edges touching cells within [`EDGE_R`], sorted, unique.
     pub edges: Vec<Edge>,
     fine: Option<(i64, i64, i64, Vec<f64>)>,
+    frame: Frame,
 }
 
 /// Catmull-Rom weights for fraction `t`.
@@ -210,6 +212,7 @@ impl Ctx {
             coasts,
             edges,
             fine: have.then_some((kx0, ky0, fw, fine)),
+            frame: src.biome_frame(),
         })
     }
 
@@ -265,6 +268,35 @@ impl Ctx {
     #[must_use]
     pub fn cell_of(u: f64, v: f64) -> CellKey {
         CellKey::new(split(u / 64.0).0, split(v / 64.0).0)
+    }
+
+    /// The world's place on the globe (`arda_core::biome::Frame`).
+    #[must_use]
+    pub const fn frame(&self) -> Frame {
+        self.frame
+    }
+
+    /// The tree and snow lines of cell `k` (at its row's latitude), so a
+    /// per-cell signal interpolated between cells is the same from every
+    /// block.
+    #[must_use]
+    pub fn lines_of(&self, k: CellKey) -> Lines {
+        self.frame.lines(self.frame.latitude_mdeg(k.y))
+    }
+
+    /// Latitude at global square row position `v`, degrees.
+    #[must_use]
+    pub fn lat_deg(&self, v: f64) -> f64 {
+        self.frame.latitude_deg((v - 32.0) / 64.0)
+    }
+
+    /// The tree and snow lines at global square row position `v`.
+    #[must_use]
+    pub fn lines_at(&self, v: f64) -> Lines {
+        let lat = (self.lat_deg(v) * 1_000.0).round();
+        #[allow(clippy::cast_possible_truncation)] // latitudes are within ±90°
+        let mdeg = lat as i32;
+        self.frame.lines(mdeg)
     }
 
     /// Whether the world had a fine terrain layer.

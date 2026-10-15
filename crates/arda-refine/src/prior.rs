@@ -8,6 +8,8 @@ use crate::classes::{Class, COUNT};
 use crate::context::Ctx;
 use crate::noise::{fbm, smoothstep};
 use arda::{Cell, Cover, TerrainKind};
+use arda_core::biome::aspect::sunward;
+use arda_core::biome::{climate, Lines};
 
 /// Per-class weights.
 pub type Weights = [f64; COUNT];
@@ -41,16 +43,15 @@ const SHORE: ShoreWeights = ShoreWeights {
     scree: 0.1,
 };
 
-/// Base weights for one cell.
+/// Base weights for one cell under the tree and snow lines of its row.
 #[must_use]
-pub fn cell_weights(c: &Cell, coast: crate::biome::Coast) -> Weights {
+pub fn cell_weights(c: &Cell, coast: crate::biome::Coast, lines: Lines) -> Weights {
     use Class::*;
     let mut w = [0.0; COUNT];
     let fd = f64::from(c.forest_density) / 255.0;
     let wet = f64::from(c.wetness) / 255.0;
     let moist = f64::from(c.moisture) / 255.0;
     let hab = f64::from(c.height_above_river_dm) / 10.0;
-    let temp = f64::from(c.temperature.raw()) / 100.0;
     let mut set = |k: Class, v: f64| w[k.index()] += v;
     if c.terrain != TerrainKind::Land {
         set(Sand, 0.6);
@@ -133,24 +134,8 @@ pub fn cell_weights(c: &Cell, coast: crate::biome::Coast) -> Weights {
         set(Marsh, 0.5 * soggy);
         set(Mud, 0.2 * soggy);
         set(ReedBed, 0.2 * soggy);
-        biome_weights(c, coast, open, &mut w);
+        biome_weights(c, coast, open, lines, &mut w);
     }
-    let snow = smoothstep(1.5, -2.5, temp);
-    for k in [
-        Grass,
-        Meadow,
-        ForestFloor,
-        LeafLitter,
-        Heath,
-        Scrub,
-        Marsh,
-        ReedBed,
-        Dirt,
-    ] {
-        w[k.index()] *= 1.0 - 0.85 * snow;
-    }
-    w[Snow.index()] += 1.6 * snow;
-    w[Ice.index()] += 0.2 * snow;
     w
 }
 
@@ -159,7 +144,7 @@ pub fn cell_weights(c: &Cell, coast: crate::biome::Coast) -> Weights {
 /// country trades meadow and moss for bare earth and scrub; sea-level land
 /// is beach; above the tree line and on crags rock, scree and moss take
 /// over from turf.
-fn biome_weights(c: &Cell, coast: crate::biome::Coast, open: f64, w: &mut Weights) {
+fn biome_weights(c: &Cell, coast: crate::biome::Coast, open: f64, lines: Lines, w: &mut Weights) {
     use crate::biome::{alpine, arid, craggy, marshy, shoreline};
     use Class::*;
     let bog = if c.cover == Cover::Marsh {
@@ -168,7 +153,7 @@ fn biome_weights(c: &Cell, coast: crate::biome::Coast, open: f64, w: &mut Weight
         marshy(c)
     };
     let sh = shoreline(c, coast);
-    let (dry, coast, alp, crag) = (arid(c), sh.strip, alpine(c), craggy(c));
+    let (dry, coast, alp, crag) = (arid(c), sh.strip, alpine(c, lines), craggy(c));
     let mut add = |k: Class, v: f64| w[k.index()] += v;
     add(Marsh, 1.4 * bog * open);
     add(ReedBed, 1.0 * bog * open);
@@ -222,7 +207,10 @@ impl Prior {
         for dy in -r..=r {
             for dx in -r..=r {
                 let k = ctx.cell.offset(dx, dy);
-                cells.push((k, cell_weights(ctx.cell_at(k), ctx.coast_at(k))));
+                cells.push((
+                    k,
+                    cell_weights(ctx.cell_at(k), ctx.coast_at(k), ctx.lines_of(k)),
+                ));
             }
         }
         Self { cells }
@@ -278,9 +266,11 @@ impl Prior {
             w[k.index()] *= 1.0 - 0.8 * steep;
         }
         w[ForestFloor.index()] *= 1.0 - 0.6 * crag;
-        let facing = north * smoothstep(3.0, 14.0, slope);
+        // Shade is the side away from the sun: north-facing in the northern
+        // hemisphere, south-facing in the southern (review 3.2-7).
+        let pole = -sunward(north, ctx.lat_deg(v));
+        let facing = pole * smoothstep(3.0, 14.0, slope);
         w[Moss.index()] *= 1.0 + 1.2 * facing.max(0.0);
-        w[Snow.index()] *= 1.0 + 0.6 * facing;
         w[Heath.index()] *= 1.0 + 0.8 * (-facing).max(0.0);
         w[Scrub.index()] *= 1.0 + 0.4 * (-facing).max(0.0);
         w[Meadow.index()] *= 1.0 + 0.3 * (-facing).max(0.0);
@@ -331,20 +321,45 @@ fn landform(
     let wet = ctx.bilinear(u, v, |c, _| f64::from(c.wetness) / 255.0);
     w[Marsh.index()] += 0.5 * bowl * smoothstep(0.35, 0.8, wet) * (1.0 - steepish);
     w[Mud.index()] += 0.12 * bowl * smoothstep(0.45, 0.9, wet) * (1.0 - steepish);
-    // Snow patches: cold country only, in proportion to shade.
-    w[Snow.index()] += 1.8 * lie(ctx, u, v, slope, north, bowl);
+    // Snow: the world's snow line at an effective temperature corrected for
+    // sun, hollows and wind-scoured ridges (the Atlas's rule). Its weight is
+    // set so that, under the WFC's sharpened choice (weights to the power
+    // `SHARPNESS`), snow wins at odds `p : 1 - p` against every other land
+    // ground: the share of squares under snow follows the world's snow
+    // fraction instead of a fixed bonus (review 3.4-9).
+    let p = lie(ctx, u, v, slope, north, shape).min(0.98);
+    if p > 1e-6 {
+        let others: f64 = (0..COUNT)
+            .filter(|&i| ![Snow.index(), Ice.index(), Water.index()].contains(&i))
+            .filter(|&i| w[i] > 1e-4)
+            .map(|i| crate::math::exp(SHARPNESS * crate::math::ln(w[i])))
+            .sum();
+        if others > 0.0 {
+            let snow = crate::math::exp(
+                (crate::math::ln(others) + crate::math::ln(p / (1.0 - p))) / SHARPNESS,
+            );
+            w[Snow.index()] += snow;
+            w[Ice.index()] += 0.1 * p * snow;
+        }
+    }
 }
 
-fn lie(ctx: &Ctx, u: f64, v: f64, slope: f64, north: f64, bowl: f64) -> f64 {
+/// Perennial snow at a square (`0..=1`): the snow line of its latitude at
+/// the cells' temperature, warmer on sunny slopes and ridges and colder in
+/// hollows (`arda_core::biome::climate`, the corrections the Atlas paints
+/// couloirs with), shed by steep faces.
+fn lie(ctx: &Ctx, u: f64, v: f64, slope: f64, north: f64, shape: crate::shape::Shape) -> f64 {
     let temp = ctx.bilinear(u, v, |c, _| f64::from(c.temperature.raw()) / 100.0);
-    let cold = smoothstep(5.0, 0.0, temp);
-    let shade = (north * smoothstep(4.0, 22.0, slope)).max(0.0);
-    cold * smoothstep(0.45, 0.9, 0.55 * shade + 0.8 * bowl + 0.15 * north)
+    let lines = ctx.lines_at(v);
+    let sun = sunward(north, ctx.lat_deg(v)) * smoothstep(4.0, 24.0, slope);
+    let t_eff = temp + f64::from(climate::SNOW_SUN_CENTI) / 100.0 * sun
+        - f64::from(climate::SNOW_HOLLOW_CENTI) / 100.0 * shape.bowl()
+        + f64::from(climate::SNOW_RIDGE_CENTI) / 100.0 * shape.ridge();
+    lines.snow(t_eff, slope)
 }
 
-/// How strongly snow lingers at a square in cold shade and hollows
-/// (`0..=1`), the term the ground prior adds to snow; scatter reads it so
-/// no flower stands on a drift.
+/// How much snow lies at a square (`0..=1`), the term the ground prior
+/// adds to snow; scatter reads it so no flower stands on a drift.
 #[must_use]
 pub fn snow_lie(
     ctx: &Ctx,
@@ -353,7 +368,7 @@ pub fn snow_lie(
     p: &crate::terrain::Phys,
     s: crate::shape::Shape,
 ) -> f64 {
-    lie(ctx, u, v, p.slope_deg, p.north, s.bowl())
+    lie(ctx, u, v, p.slope_deg, p.north, s)
 }
 
 fn split(t: f64) -> (i64, f64) {
@@ -384,7 +399,7 @@ mod tests {
 
     #[test]
     fn a_world_without_a_shore_layer_gives_sea_level_land_the_old_beach() {
-        let w = cell_weights(&plain(), Coast::default());
+        let w = cell_weights(&plain(), Coast::default(), Lines::MID);
         assert!((w[Class::Sand.index()] - 0.45).abs() < 1e-9);
         assert!((w[Class::Gravel.index()] - 0.15).abs() < 1e-9);
     }
@@ -399,6 +414,7 @@ mod tests {
                     shore: class,
                     layer: true,
                 },
+                Lines::MID,
             )
         };
         let sand = at(ShoreClass::SandBeach);

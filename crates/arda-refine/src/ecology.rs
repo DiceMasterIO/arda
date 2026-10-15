@@ -2,10 +2,11 @@
 //! cells, corrected for the local slope, aspect and landform, and the
 //! species that follow from it (goals 19, 20 and 43).
 //!
-//! - Effective temperature falls on shaded (north-facing) slopes and rises
-//!   on sunny ones, so conifers climb lower on the shade side.
-//! - Growth fades to zero at the tree line (the world's canopy limit runs
-//!   from -4 °C to +5 °C), where dead and stunted trees take over.
+//! - Effective temperature falls on shaded (poleward-facing) slopes and
+//!   rises on sunny ones, so conifers climb lower on the shade side.
+//! - Growth fades to zero at the shared tree line (`arda_core::biome`:
+//!   from -1 °C to +4 °C at mid-latitudes, colder poleward on recipe-9
+//!   worlds), where dead and stunted trees take over.
 //! - Wetness rises in hollows and by water, where willow and alder grow;
 //!   knolls and ridges are dry, where pine and heather grow.
 //!
@@ -17,6 +18,7 @@ use crate::noise::smoothstep;
 use crate::shape::Shape;
 use crate::terrain::{Phys, Water};
 use arda::Cover;
+use arda_core::biome::aspect::sunward;
 
 /// Ecology at one point.
 #[derive(Debug, Clone, Copy, Default, PartialEq)]
@@ -43,7 +45,7 @@ pub struct Eco {
     pub rocky: f64,
     /// Soil moisture of the cells, `0..=1`.
     pub moist: f64,
-    /// Sunniness: `1` on a steep south-facing slope, `-1` on a north one.
+    /// Sunniness: `1` on a steep equator-facing slope, `-1` on a poleward one.
     pub sun: f64,
     /// Local landform.
     pub shape: Shape,
@@ -80,8 +82,10 @@ fn share(ctx: &Ctx, u: f64, v: f64, f: impl Fn(Cover) -> f64) -> f64 {
 pub fn eco(ctx: &Ctx, p: &Phys, s: Shape, u: f64, v: f64) -> Eco {
     let cell_temp = ctx.bilinear(u, v, |c, _| f64::from(c.temperature.raw()) / 100.0);
     let steep = smoothstep(4.0, 24.0, p.slope_deg);
-    let sun = -p.north * steep;
+    // The sunny side faces the equator (review 3.2-7).
+    let sun = sunward(p.north, ctx.lat_deg(v)) * steep;
     let temp = cell_temp + 1.8 * sun;
+    let lines = ctx.lines_at(v);
     let water_d = if p.water == Water::Dry {
         p.river_d.min(-p.stand_v * 30.0).max(0.0)
     } else {
@@ -109,7 +113,7 @@ pub fn eco(ctx: &Ctx, p: &Phys, s: Shape, u: f64, v: f64) -> Eco {
     let conifer = (smoothstep(9.5, 3.5, temp) + 0.25 * s.ridge() - 0.15 * wet).clamp(0.0, 1.0);
     Eco {
         temp,
-        growth: smoothstep(-1.5, 3.5, temp),
+        growth: lines.growth(temp),
         conifer,
         wet,
         water_d,
@@ -126,14 +130,14 @@ pub fn eco(ctx: &Ctx, p: &Phys, s: Shape, u: f64, v: f64) -> Eco {
             f64::from(u8::from(c.built_by != 0 || c.road != arda::RoadClass::None))
         }),
         snow: ctx
-            .bilinear(u, v, |c, _| crate::biome::snowy(c))
+            .bilinear(u, v, |c, k| crate::biome::snowy(c, ctx.lines_of(k)))
             .max(smoothstep(
                 0.3,
                 0.8,
                 crate::prior::snow_lie(ctx, u, v, p, s),
             )),
         arid: ctx.bilinear(u, v, |c, _| crate::biome::arid(c)),
-        alpine: ctx.bilinear(u, v, |c, _| crate::biome::alpine(c)),
+        alpine: ctx.bilinear(u, v, |c, k| crate::biome::alpine(c, ctx.lines_of(k))),
         beach,
         dune,
         shore_rock: smoothstep(6.0, 18.0, p.slope_deg).max(crate::fixed::rocky(ctx, u, v)),

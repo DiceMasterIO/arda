@@ -17,6 +17,7 @@ pub struct Frame {
     north_mdeg: i32,
     south_mdeg: i32,
     rows: u32,
+    seasonal: bool,
 }
 
 /// A northern mid-latitude frame (the default continent's 35–55°N), for
@@ -25,6 +26,7 @@ pub const NORTHERN: Frame = Frame {
     north_mdeg: 55_000,
     south_mdeg: 35_000,
     rows: 2,
+    seasonal: false,
 };
 
 /// The latitude of a 45°N reference point, millidegrees: a northern
@@ -32,13 +34,40 @@ pub const NORTHERN: Frame = Frame {
 pub const NORTH_MDEG: i32 = 45_000;
 
 impl Frame {
-    /// A band from `south_deg` to `north_deg` over `rows` cell rows.
+    /// A band from `south_deg` to `north_deg` over `rows` cell rows, with
+    /// no seasonal shift of the tree and snow lines.
     #[must_use]
     pub const fn new(south_deg: i16, north_deg: i16, rows: u32) -> Self {
         Self {
             north_mdeg: north_deg as i32 * 1_000,
             south_mdeg: south_deg as i32 * 1_000,
             rows,
+            seasonal: false,
+        }
+    }
+
+    /// The same frame with the seasonal shift of the tree and snow lines on
+    /// or off (on for recipe-9 worlds, whose ecology was drawn with it).
+    #[must_use]
+    pub const fn with_seasons(mut self, on: bool) -> Self {
+        self.seasonal = on;
+        self
+    }
+
+    /// Whether the tree and snow lines shift with latitude.
+    #[must_use]
+    pub const fn seasonal(&self) -> bool {
+        self.seasonal
+    }
+
+    /// The tree and snow lines at latitude `lat_mdeg`: shifted poleward of
+    /// 45° when the frame is seasonal, the mid-latitude lines otherwise.
+    #[must_use]
+    pub fn lines(&self, lat_mdeg: i32) -> super::Lines {
+        if self.seasonal {
+            super::Lines::at(lat_mdeg)
+        } else {
+            super::Lines::MID
         }
     }
 

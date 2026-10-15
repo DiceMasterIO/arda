@@ -6,6 +6,7 @@
 
 use crate::error::RefineError;
 use arda::{Cell, TerrainKind};
+use arda_core::biome::Frame;
 use arda_core::water::PanKind;
 use arda_core::ShoreClass;
 use std::collections::BTreeMap;
@@ -116,6 +117,10 @@ pub trait Source {
     ///         self.0.shore(at)
     ///     }
     ///     fn has_shore(&self) -> bool { self.0.has_shore() }
+    ///     fn biome_frame(&self) -> arda_core::biome::Frame { self.0.biome_frame() }
+    ///     fn thalweg(&self, at: CellKey) -> Result<Option<(i16, i16)>, RefineError> {
+    ///         self.0.thalweg(at)
+    ///     }
     /// }
     /// ```
     ///
@@ -136,6 +141,25 @@ pub trait Source {
     /// Whether the world carries a shore layer at all.
     fn has_shore(&self) -> bool;
 
+    /// Where the world lies for the climate-to-biome rules: its latitude
+    /// band over its cell rows and whether its tree and snow lines shift
+    /// with latitude (`arda_core::biome::Frame`, recipe 9).
+    ///
+    /// Required, with no default, for the same reason as [`Source::pan`]: a
+    /// wrapper that forgot it would refine a southern world as a northern
+    /// one.
+    fn biome_frame(&self) -> Frame;
+
+    /// The formed thalweg of river cell `at` (`water.bin` layout 3, recipe
+    /// 9): its offset from the cell centre, east and south, decimetres.
+    /// `None` off a river, and on worlds that store no thalwegs.
+    ///
+    /// Required, with no default, for the same reason as [`Source::pan`].
+    ///
+    /// # Errors
+    /// A layer failed to load.
+    fn thalweg(&self, at: CellKey) -> Result<Option<(i16, i16)>, RefineError>;
+
     /// Clamps a key into the world.
     fn clamp(&self, at: CellKey) -> CellKey {
         let (w, h) = self.cells_wide_high();
@@ -155,6 +179,8 @@ pub struct GridSource {
     fine: Option<(i64, i64, Vec<i32>)>,
     pans: BTreeMap<CellKey, PanKind>,
     shores: Option<BTreeMap<CellKey, ShoreClass>>,
+    frame: Frame,
+    thalwegs: BTreeMap<CellKey, (i16, i16)>,
 }
 
 impl GridSource {
@@ -173,7 +199,21 @@ impl GridSource {
             fine: None,
             pans: BTreeMap::new(),
             shores: None,
+            frame: Frame::new(35, 55, u32::from(height.max(1))),
+            thalwegs: BTreeMap::new(),
         }
+    }
+
+    /// Places the world on the globe (default: 35–55°N over its rows, no
+    /// seasonal shift).
+    pub fn set_frame(&mut self, frame: Frame) {
+        self.frame = frame;
+    }
+
+    /// Stores the formed thalweg of a river cell, decimetres east and south
+    /// of its centre.
+    pub fn set_thalweg(&mut self, at: CellKey, dx_dm: i16, dy_dm: i16) {
+        self.thalwegs.insert(at, (dx_dm, dy_dm));
     }
 
     fn index(&self, at: CellKey) -> usize {
@@ -268,6 +308,14 @@ impl Source for GridSource {
         self.shores.is_some()
     }
 
+    fn biome_frame(&self) -> Frame {
+        self.frame
+    }
+
+    fn thalweg(&self, at: CellKey) -> Result<Option<(i16, i16)>, RefineError> {
+        Ok(self.thalwegs.get(&at).copied())
+    }
+
     fn edges_touching(&self, at: CellKey) -> Result<Vec<Edge>, RefineError> {
         Ok(self.edges.get(&at).cloned().unwrap_or_default())
     }
@@ -321,6 +369,12 @@ mod tests {
         }
         fn has_shore(&self) -> bool {
             self.0.has_shore()
+        }
+        fn biome_frame(&self) -> Frame {
+            self.0.biome_frame()
+        }
+        fn thalweg(&self, at: CellKey) -> Result<Option<(i16, i16)>, RefineError> {
+            self.0.thalweg(at)
         }
     }
 

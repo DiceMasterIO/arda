@@ -9,19 +9,13 @@
 
 use crate::noise::smoothstep;
 use arda::{Cell, Cover, TerrainKind};
+use arda_core::biome::{climate, ground, Lines};
 use arda_core::ShoreClass;
 
 /// Wetness (`0..=1`) where standing-water ground starts to become marsh,
-/// and where it is marsh outright. A wetness of 1.0 is a wetland.
-pub const MARSH_WETNESS: (f64, f64) = (0.5, 0.7);
-
-/// Mean annual temperature (°C) at which ground starts to lie under snow,
-/// and at which it is snowbound (the refiner's snow prior).
-pub const SNOW_C: (f64, f64) = (1.5, -2.5);
-
-/// Mean annual temperature (°C) where tree growth gives out: above it a
-/// cell is below the tree line, below the second value fully alpine.
-pub const TREELINE_C: (f64, f64) = (3.5, -1.0);
+/// and where it is marsh outright. A wetness of 1.0 is a wetland. The shared
+/// rule (`arda_core::biome::ground`).
+pub use arda_core::biome::ground::MARSH_WETNESS;
 
 /// Land height (m) under which a land cell counts as lying at sea level,
 /// and the height by which it no longer does.
@@ -54,32 +48,35 @@ pub fn marshy(c: &Cell) -> f64 {
 }
 
 /// Aridity from rainfall against warmth: `0` where rain covers what the
-/// warmth evaporates, `1` on dry steppe. The water need is a simple
-/// temperature proxy (300 mm plus 45 mm per °C above freezing); a world
-/// without a rainfall layer (all zeros) reads as unknown, not desert.
+/// warmth evaporates, `1` on dry steppe. The water need is the world's
+/// evaporation demand (`arda_core::biome::climate::pet_mm`: 300 mm plus
+/// 35 mm per °C above freezing); a world without a rainfall layer (all
+/// zeros) reads as unknown, not desert.
 #[must_use]
 pub fn arid(c: &Cell) -> f64 {
     let rain = f64::from(c.rainfall.raw());
     if !land(c) || rain <= 0.0 {
         return 0.0;
     }
-    let need = 300.0 + 45.0 * temp_c(c).max(0.0);
-    smoothstep(0.75, 0.35, rain / need)
+    let (wet, dry) = ground::ARID_BALANCE;
+    smoothstep(wet, dry, climate::water_balance(rain, temp_c(c)))
 }
 
-/// How snowbound the cell is, from its mean annual temperature.
+/// How snowbound the cell is: the world's perennial snow at its mean
+/// annual temperature and slope under `lines` (the Atlas's rule at cell
+/// scale, so tactical snow starts where the world's does).
 #[must_use]
-pub fn snowy(c: &Cell) -> f64 {
-    smoothstep(SNOW_C.0, SNOW_C.1, temp_c(c))
+pub fn snowy(c: &Cell, lines: Lines) -> f64 {
+    lines.snow(temp_c(c), f64::from(c.slope_milli_deg) / 1000.0)
 }
 
-/// How far above the tree line the cell lies.
+/// How far above the tree line the cell lies under `lines`.
 #[must_use]
-pub fn alpine(c: &Cell) -> f64 {
+pub fn alpine(c: &Cell, lines: Lines) -> f64 {
     if !land(c) {
         return 0.0;
     }
-    smoothstep(TREELINE_C.0, TREELINE_C.1, temp_c(c))
+    lines.alpine(temp_c(c))
 }
 
 /// How craggy the cell is: its mean slope from steep to mountain wall.
@@ -345,8 +342,9 @@ mod tests {
 
     #[test]
     fn steppe_rainfall_is_arid_and_a_missing_layer_is_not() {
+        // 330 mm at 12.8 °C is under half the world's 748 mm demand.
         let steppe = cell(|c| {
-            c.rainfall = RainfallMm::new(400);
+            c.rainfall = RainfallMm::new(330);
             c.temperature = TempCentiC::new(1280);
         });
         assert!(arid(&steppe) > 0.75, "{}", arid(&steppe));
@@ -363,10 +361,26 @@ mod tests {
 
     #[test]
     fn peaks_are_snowbound_and_alpine() {
-        let peak = cell(|c| c.temperature = TempCentiC::new(-686));
-        assert!(snowy(&peak) > 0.99 && alpine(&peak) > 0.99);
+        let mid = Lines::MID;
+        let peak = cell(|c| c.temperature = TempCentiC::new(-700));
+        assert!(snowy(&peak, mid) > 0.99 && alpine(&peak, mid) > 0.99);
         let valley = cell(|_| {});
-        assert!(snowy(&valley) < 1e-9 && alpine(&valley) < 1e-9);
+        assert!(snowy(&valley, mid) < 1e-9 && alpine(&valley, mid) < 1e-9);
+    }
+
+    #[test]
+    fn snow_starts_where_the_world_paints_it() {
+        // Review 3.4-9: the refiner snowed from +1.5 °C, the world from -4.
+        let mid = Lines::MID;
+        for t in [100, 0, -200, -400] {
+            let c = cell(|c| c.temperature = TempCentiC::new(t));
+            assert!(snowy(&c, mid) < 1e-9, "{t}");
+        }
+        let c = cell(|c| c.temperature = TempCentiC::new(-550));
+        assert!((snowy(&c, mid) - 0.5).abs() < 1e-9);
+        // The tree line is the shared one: full growth at +4 °C.
+        let line = cell(|c| c.temperature = TempCentiC::new(400));
+        assert!(alpine(&line, mid) < 1e-9);
     }
 
     #[test]

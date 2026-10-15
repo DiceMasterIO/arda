@@ -114,8 +114,11 @@ fn snow_lies_in_cold_shade_not_in_warm_country() {
             .sum()
     };
     assert_eq!(snow(&common::world(42)), 0, "no snow at 10 °C");
-    let cold = climate(42, 1);
-    assert!(snow(&cold) > 40, "snow patches at 1 °C");
+    // The world's snow line starts at -4 °C: none at 1 °C even in shade
+    // (review 3.4-9), patches in cold shade at -3 °C.
+    assert_eq!(snow(&climate(42, 1)), 0, "no snow at 1 °C");
+    let cold = climate(42, -3);
+    assert!(snow(&cold) > 40, "snow patches at -3 °C");
     // On the cold hill the snow sits on its north-facing side: count snow
     // where the ground rises southward against where it falls.
     let (mut north, mut south) = (0, 0);

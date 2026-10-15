@@ -5,6 +5,7 @@
 #![allow(clippy::unwrap_used, clippy::cast_precision_loss, missing_docs)]
 
 use arda::{Cell, Cover, TerrainKind};
+use arda_core::biome::Frame;
 use arda_core::{HeightMm, RainfallMm, TempCentiC};
 use arda_refine::{refine, Block, CellKey, GridSource};
 
@@ -120,6 +121,56 @@ fn a_snowbound_peak_grows_no_flowers_or_shrubs() {
         || it.tag == "tree:conifer:stunted"));
 }
 
+/// A 25° slope rising southward (facing north) at `t` °C mean annual.
+fn north_slope(t: i16, frame: Frame) -> GridSource {
+    let mut src = world(|_, y, c| {
+        c.temperature = TempCentiC::new(t * 100);
+        c.slope_milli_deg = 24_700;
+        c.height = HeightMm::new(900_000 + 46_000 * i32::try_from(y).unwrap());
+    });
+    src.set_frame(frame);
+    src
+}
+
+#[test]
+fn tactical_snow_starts_where_the_world_paints_it() {
+    // Review 3.4-9: cells near 0 °C, where the world paints no snow, got
+    // 32-43 % tactical snow on shaded slopes.
+    // The Atlas's corrections (1.5 °C for shade, 2.5 °C for a hollow) bring
+    // its snow down to -4 + 4 = 0 °C at most, so none lies at 0 °C or above.
+    let north = Frame::new(35, 55, u32::from(SIDE));
+    for t in [2, 0] {
+        let b = refine(&north_slope(t, north), MID).unwrap();
+        let snow = share(&b, &["snow", "ice"]);
+        assert!(snow < 0.005, "{t} °C: tactical snow {snow:.3}");
+    }
+    // At -2 °C only shaded hollows hold snow; at -8 °C most ground does.
+    let b = refine(&north_slope(-2, north), MID).unwrap();
+    assert!(share(&b, &["snow", "ice"]) < 0.25);
+    let b = refine(&north_slope(-8, north), MID).unwrap();
+    assert!(share(&b, &["snow", "ice"]) > 0.5);
+}
+
+#[test]
+fn the_shaded_side_follows_the_hemisphere() {
+    // At -5 °C a north-facing slope is the shaded one in the north and the
+    // sunny one in the south (review 3.2-7).
+    let snow = |frame| {
+        share(
+            &refine(&north_slope(-5, frame), MID).unwrap(),
+            &["snow", "ice"],
+        )
+    };
+    let (n, s) = (
+        snow(Frame::new(35, 55, u32::from(SIDE))),
+        snow(Frame::new(-55, -35, u32::from(SIDE))),
+    );
+    assert!(
+        n > s + 0.1,
+        "north-facing snow: northern {n:.2}, southern {s:.2}"
+    );
+}
+
 #[test]
 fn above_the_tree_line_low_plants_are_alpine() {
     // Cold but below the snowline: sparse alpine flowers and cushions.
@@ -141,8 +192,9 @@ fn above_the_tree_line_low_plants_are_alpine() {
 
 #[test]
 fn dry_steppe_grows_dry_grass_and_bare_patches() {
+    // Under half the world's evaporation demand (748 mm at 12.8 °C).
     let src = world(|_, _, c| {
-        c.rainfall = RainfallMm::new(400);
+        c.rainfall = RainfallMm::new(330);
         c.temperature = TempCentiC::new(1280);
     });
     let b = refine(&src, MID).unwrap();

@@ -84,6 +84,21 @@ pub struct Manifest {
     pub fine_terrain: Option<FineTerrainDescriptor>,
 }
 
+impl Manifest {
+    /// Where the world lies for the climate-to-biome rules: its latitude
+    /// band over its 100 m cell rows, with the seasonal shift of the tree and
+    /// snow lines on for recipe-9 fine worlds (`crate::biome`).
+    #[must_use]
+    pub fn biome_frame(&self) -> crate::biome::Frame {
+        let band = self.config.latitude_band();
+        let rows = self.config.size_km().height.saturating_mul(10);
+        let seasonal = self
+            .fine_terrain
+            .is_some_and(|fine| fine.recipe_version >= 9);
+        crate::biome::Frame::new(band.south_deg, band.north_deg, rows).with_seasons(seasonal)
+    }
+}
+
 /// Manifest file name inside a world directory.
 pub const MANIFEST_NAME: &str = "world.json";
 

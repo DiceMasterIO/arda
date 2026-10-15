@@ -232,7 +232,7 @@ fn review_section_2_measurements() {
             let ty = y0 as f64 + 32.0 + f64::from(t.dy_dm) / 10.0 / SQUARE_M;
             let near = arda_refine::rivers::cell_pieces(&ctx, k)
                 .iter()
-                .flat_map(|p| p.pts.iter().copied().collect::<Vec<_>>())
+                .flat_map(|p| p.pts.clone())
                 .map(|(x, y)| ((x - tx) * (x - tx) + (y - ty) * (y - ty)).sqrt())
                 .fold(f64::INFINITY, f64::min);
             if near.is_finite() {

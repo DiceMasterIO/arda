@@ -13,7 +13,7 @@
 
 mod common;
 use arda::{Cell, Cover, TerrainKind};
-use arda_core::HeightMm;
+use arda_core::{HeightMm, TempCentiC};
 use arda_refine::context::Ctx;
 use arda_refine::terrain::land_height;
 use arda_refine::{refine, CellKey, GridSource};
@@ -38,6 +38,11 @@ fn axis_fraction(samples: &[(f64, f64)]) -> f64 {
 }
 
 fn flat(seed: u64, cover: Cover, fd: u8) -> GridSource {
+    flat_at(seed, cover, fd, 0)
+}
+
+/// [`flat`] at a mean annual temperature of `centi` hundredths of a °C.
+fn flat_at(seed: u64, cover: Cover, fd: u8, centi: i16) -> GridSource {
     GridSource::new(
         seed,
         12,
@@ -51,6 +56,7 @@ fn flat(seed: u64, cover: Cover, fd: u8) -> GridSource {
             wetness: 60,
             height_above_river_dm: 80,
             slope_milli_deg: 12_000,
+            temperature: TempCentiC::new(centi),
             ..Cell::default()
         },
     )
@@ -98,12 +104,14 @@ fn elevation_detail_is_isotropic() {
 
 #[test]
 fn ground_borders_are_isotropic() {
-    // Grassland where grass and meadow have similar weight gives many
-    // borders; measure their orientation from a smoothed class indicator.
+    // Cold grassland at the snow line (-5.5 °C: half the ground under
+    // snow) gives many borders between classes of similar weight; measure
+    // their orientation from a smoothed class indicator. (At 0 °C the old
+    // snow rule did this; the world's snow line starts at -4 °C.)
     let mut g = Vec::new();
     let (mut h_changes, mut v_changes) = (0usize, 0usize);
     for seed in 0..3 {
-        let src = flat(20 + seed, Cover::Grass, 0);
+        let src = flat_at(20 + seed, Cover::Grass, 0, -550);
         for k in [CellKey::new(5, 5), CellKey::new(6, 5), CellKey::new(5, 6)] {
             let b = refine(&src, k).unwrap();
             let ind: Vec<f64> = b

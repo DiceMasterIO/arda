@@ -77,6 +77,13 @@ impl Lines {
         tree: ATLAS_CANOPY_V8_CENTI,
     };
 
+    /// The mid-latitude lines, no seasonal shift: the refiner's lines on
+    /// worlds generated before recipe 9.
+    pub const MID: Self = Self {
+        snow: (SNOW_START_CENTI, SNOW_FULL_CENTI),
+        tree: TREE_LINE_CENTI,
+    };
+
     /// The lines at latitude `lat_mdeg`: the mid-latitude ramps moved colder
     /// by the seasonal shift ([`cold_shift_centi`]).
     #[must_use]

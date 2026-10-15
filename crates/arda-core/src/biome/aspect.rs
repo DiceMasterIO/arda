@@ -134,6 +134,7 @@ pub fn sunny(aspect: u16, lat_mdeg: i32) -> bool {
 }
 
 #[cfg(test)]
+#[allow(clippy::cast_possible_truncation)]
 mod tests {
     use super::*;
 

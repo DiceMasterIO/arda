@@ -22,6 +22,7 @@ struct AreaIndex {
     lakes: BTreeMap<CellKey, LakeInfo>,
     edges: BTreeMap<CellKey, Vec<Edge>>,
     pans: BTreeMap<CellKey, arda_core::water::PanKind>,
+    thalwegs: BTreeMap<CellKey, (i16, i16)>,
 }
 
 struct Fine {
@@ -155,6 +156,13 @@ impl<'w> WorldSource<'w> {
                     ix.pans.insert(key, run.kind);
                 }
             }
+            for t in &water.thalwegs {
+                let key = CellKey::new(
+                    origin.0 + i64::from(t.cell.x()),
+                    origin.1 + i64::from(t.cell.y()),
+                );
+                ix.thalwegs.insert(key, (t.dx_dm, t.dy_dm));
+            }
         }
         for e in area.channel_edges() {
             let edge = Edge {
@@ -214,6 +222,18 @@ impl Source for WorldSource<'_> {
 
     fn has_shore(&self) -> bool {
         self.shore.is_some()
+    }
+
+    fn biome_frame(&self) -> arda_core::biome::Frame {
+        self.world.get().manifest().biome_frame()
+    }
+
+    fn thalweg(&self, at: CellKey) -> Result<Option<(i16, i16)>, RefineError> {
+        if self.clamp(at) != at {
+            return Ok(None);
+        }
+        let (ax, ay, _, _) = self.split(at)?;
+        Ok(self.area_index(ax, ay)?.thalwegs.get(&at).copied())
     }
 
     fn edges_touching(&self, at: CellKey) -> Result<Vec<Edge>, RefineError> {
