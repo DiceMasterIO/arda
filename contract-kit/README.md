@@ -25,7 +25,7 @@ with the image tag.
 ## The canonical world
 
 One world, the same for every campaign: MICRO, seed 42, fine terrain at the release's default
-recipe (7 in 0.8.1), settled and society-built. With the release CLI:
+recipe (9 from the recipe-9 change; 7 in 0.8.1), settled and society-built. With the release CLI:
 
 ```sh
 arda generate --seed 42 --micro --terrain fine --out out/kit42
@@ -49,11 +49,12 @@ The result must equal `world.txt` file for file. With [`b3sum`](https://github.c
   | diff - contract-kit/world.txt && echo identical
 ```
 
-About a minute on a desktop. The kit's own test (below) builds the same world through the
-library API (`arda::generate_from_fine_source`, `arda_settle::generate`,
-`arda_people::build`); on 0.8.1 the CLI output and that fixture were byte-identical in all
-47 files. `arda generate` without `--terrain fine` is the legacy terrain and is **not** the
-canonical world.
+About a minute and a half on a desktop. The kit's own test (below) builds the same world
+through the library API (`arda::generate_from_fine_source`, `arda_settle::generate`,
+`arda_people::build`); with recipe 9 the CLI output and that fixture were byte-identical in all
+47 files (as on 0.8.1 with recipe 7). Fine terrain is the CLI default since recipe 9, so
+`--terrain fine` may be omitted; `arda generate --terrain legacy` is the legacy terrain and is
+**not** the canonical world.
 
 ## Serving it
 
@@ -101,7 +102,7 @@ a changed image and its 304, an unreachable server).
 ```json
 {
   "kit_format": 1,
-  "fixture": {"seed": "42", "size": "micro", "terrain": "fine", "recipe_version": 7, "society": true,
+  "fixture": {"seed": "42", "size": "micro", "terrain": "fine", "recipe_version": 9, "society": true,
               "arda_version": "0.8.1", "server_version": "0.8.1", "world_json_blake3": "…",
               "world_fingerprint": "world.txt", "library": "placeholder", "library_version": "0.1.0+seed58",
               "contract_version": 3, "api_version": "v1", "sheet_mapping": null},
