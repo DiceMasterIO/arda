@@ -702,7 +702,7 @@ Required `no` marks an `Option` field, a serde default, a field omitted when emp
 | terrain | `TerrainKind` | yes | accepted: Sea, Land, Lake |
 | cover | `Cover` | yes | accepted: Bare, Grass, Scrub, Forest, Marsh, Rock, Ice |
 | slope_milli_deg | `u16` | yes | Slope in thousandths of a degree. |
-| aspect_deg | `u16` | yes | Downslope compass bearing, 0-359; 0 on flat ground. |
+| aspect_deg | `u16` | yes | Downslope compass bearing in degrees. Up to recipe 8: one of eight directions, 0-359, and 0 on flat ground as well as north. From recipe 9: a whole-degree bearing 1-360 (north 360) and 0 only on flat ground (`crate::biome::aspect`). |
 | temperature | `TempCentiC` | yes | Produced from prepared reference and final signed physical-altitude lapse; marine altitude is zero |
 | rainfall | `RainfallMm` | yes | Mean annual rainfall. |
 | moisture | `u8` | yes | Recipe 4 estimates soil moisture from rainfall, continuous centi-degree temperature and broad absolute-coordinate soil variation; older producers retain default |

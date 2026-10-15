@@ -216,7 +216,10 @@ pub fn cell_sample(cell: &Cell, at: CellPlace, derived: Derived) -> CellSample {
         terrain: terrain(cell.terrain),
         cover: cover(cell.cover),
         slope_deg,
-        aspect_deg: f64::from(cell.aspect_deg),
+        // The v1 contract's bearing is 0–359: recipe 9 stores north as 360
+        // (`arda_core::biome::aspect`), which reads 0 here, as flat does;
+        // `slope_deg` tells them apart.
+        aspect_deg: f64::from(arda_core::biome::aspect::bearing(cell.aspect_deg).unwrap_or(0)),
         temperature_c,
         rainfall_mm: f64::from(cell.rainfall.raw()),
         moisture: unit(cell.moisture),

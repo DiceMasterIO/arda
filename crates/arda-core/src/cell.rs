@@ -109,7 +109,10 @@ pub struct Cell {
     pub cover: Cover,
     /// Slope in thousandths of a degree.
     pub slope_milli_deg: u16,
-    /// Downslope compass bearing, 0-359; 0 on flat ground.
+    /// Downslope compass bearing in degrees. Up to recipe 8: one of eight
+    /// directions, 0-359, and 0 on flat ground as well as north. From
+    /// recipe 9: a whole-degree bearing 1-360 (north 360) and 0 only on
+    /// flat ground (`crate::biome::aspect`).
     pub aspect_deg: u16,
     /// Mean annual temperature.
     pub temperature: TempCentiC,

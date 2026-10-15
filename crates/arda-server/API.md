@@ -1412,7 +1412,7 @@ TS: `bindings/ts/arda/CellSample.ts`.
 | `terrain` | `sea`, `land`, `lake` | `Cell::terrain` |
 | `cover` | `bare`, `grass`, `scrub`, `forest`, `marsh`, `rock`, `ice` | `Cell::cover` |
 | `slope_deg` | degrees | `Cell::slope_milli_deg` / 1000 |
-| `aspect_deg` | degrees, 0–359, 0 on flat ground | `Cell::aspect_deg` |
+| `aspect_deg` | degrees, 0–359, 0 on flat ground (north also reads 0; recipe-9 worlds store whole degrees, older worlds eight directions; `slope_deg` 0 tells flat ground) | `Cell::aspect_deg` |
 | `temperature_c` | °C, mean annual | `Cell::temperature` (centi-°C) / 100 |
 | `rainfall_mm` | mm per year | `Cell::rainfall` |
 | `moisture` | 0–1 | `Cell::moisture` / 255 |
