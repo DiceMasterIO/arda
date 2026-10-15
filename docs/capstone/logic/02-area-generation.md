@@ -346,6 +346,10 @@ Source: [orchestrator.rs:449](../../../crates/arda-gen/src/orchestrator.rs:449),
   Horton ratio or 50% diagonal-direction target is asserted for every area.
 - Limits refuse unsupported work with typed errors; they do not trim lakes,
   change coefficients, discard crossings or publish incomplete geometry.
+- From recipe 9 a cell's slope, aspect and wetness are the same whichever
+  area publishes its neighbours: they read the neighbouring areas' cells
+  (§recipe 9, fields across area edges). A stored aspect of `0` means flat;
+  north-facing is `360`.
 
 ## Outcomes & side effects
 
@@ -506,6 +510,42 @@ Recipe 9 keeps every recipe-7 stage and changes these rules (review
 - **Thalwegs** (§world-water publication, review 3.2-14). `water.bin` layout
   version 3 stores, for every river cell, the lowest fine node in its 100 m
   footprint (offset in decimetres and bed height).
+- **Fields across area edges** (review 3.2-5, 3.2-7,
+  3.2-16). An area's slope, aspect and wetness read a three-cell halo of the
+  neighbouring areas' heights and drainage from the shared routing and flow
+  stores (`area_output::compose_recipe`, `area::fields9`): slope and aspect
+  are Horn's gradient over 3 × 3 cells, the aspect a whole-degree bearing
+  with `0` for flat ground only and `360` for north
+  (`arda_core::biome::aspect`); wetness is the topographic index
+  `28 + 15·log2 A + 16·(10 − log2 slope)` on continuous logarithms,
+  smoothed over a 5 × 5 binomial kernel of land cells, and the ecology keeps
+  it.
+- **Ecology** (§ground material, review 3.2-7, 3.2-8, 3.2-11, 3.4-2,
+  §4 item 6). The shared climate-to-biome rules (`arda_core::biome`) at the
+  world's latitude (`orchestrator::ecology9`): tree growth follows the tree
+  line (`-1 → +4 °C` at mid-latitudes), and both it and the snow line move
+  colder by 0.4 °C per degree poleward of 45° (at most 10 °C), so boreal
+  forest grows below -4 °C; ice lies under the full snow line (`-7 °C`
+  at mid-latitudes) at any height; rock and canopy follow the shared
+  bare-rock exposure with the canopy as a co-equal input (open ground rock
+  from 38°, cold ground from about 30°, a closed canopy holds to 48°); dry
+  country's denser woods lie on the slope facing away from the sun in either
+  hemisphere; soil patchiness reads rotated, phase-offset noise.
+
+Structural relief (`continent::structural_relief`, review 3.2-11) keeps its
+axis-aligned 8 km and 4 km lattices: it shapes only legacy terrain
+(`SharedTerrain::build`), which replays its golden bytes, and no fine recipe
+reads it (fine worlds form their bed by formation, whose level noise recipe 9
+rotates, review 3.1-4).
+
+Fields and ecology, measured on MICRO seed 42 at recipe 9 before and after
+(`arda-refine` `tests/review_measures.rs`): seam land cells whose slope is
+off the cross-edge slope by more than 0.5° 32.6 % (D8) → 0.0 % (Horn);
+stored aspects 8 values → 360; plain cells (under 2°) whose wetness differs
+from their four neighbours' mean by more than 30: 36.8 % → 0.5 %. The same
+world at 58–72°N: land under -3 °C grass 59.3 % → 44.3 %, forest 0 → 40.7 %,
+forest under -4 °C 0 → 10,400 cells (of 153,000 sampled), ice 0 → 75 cells
+(lowest 2,413 m).
 
 Measured on MICRO seed 42 (recipe 7 → 9): shore classes of coast land cells
 cliff 58.6% → 27.2%, sand beach 5.3% → 7.6% (the rest is mostly rocky shore:
@@ -1098,7 +1138,13 @@ absolute-coordinate patches. Drainage ownership and height above the river
 remain saved diagnostics; their angular routing boundaries do not tint the
 recipe-4 vegetation palette.
 Physics overrides classify ice, rock and marsh before forest, scrub, bare or
-grass. These fields are persisted in the existing cell format. Fine recipes
+grass. These fields are persisted in the existing cell format. The
+evaporation demand (300 mm + 35 mm/°C), canopy limits and cover thresholds
+are the shared `arda_core::biome` constants; recipe 9 draws the ecology with
+the shared tree line, snow line and rock exposure at the world's latitude
+(§recipe 9, `orchestrator/ecology9.rs`), recipes 4–8 and legacy terrain keep
+the linear `-4 → +5 °C` canopy limit, ice above 3,000 m and rock beyond 38°
+(28° under -2 °C) byte for byte. Fine recipes
 1–3 replay their published bytes and keep the grass/marsh-only composition.
 Legacy generation skipped this pass until 2026-10-07, which left every legacy
 land cell with zero moisture and canopy, grass cover and no tactical trees in
