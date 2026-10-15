@@ -77,3 +77,75 @@ fn bridge_decks_meet_their_banks_and_the_scene_stands_on_them() {
     assert!(ends > 0, "no bridge deck met a bank");
     assert!(worst.is_empty(), "{}", worst.join("\n"));
 }
+
+/// Review 3.5-11: the ways' dressing that stands beside the ground they
+/// claim (ford marker posts in the shallows, reeds on the banks,
+/// milestones past the verge) survives composition wherever no higher
+/// layer took its square.
+#[test]
+fn ford_posts_bank_reeds_and_milestones_survive() {
+    use arda_blocks::{OverlayCtx, Overlays, Owner};
+    use arda_tactical::layout::AssetRef;
+    let (world, society, pipeline) = open();
+    let library = lib();
+    let dressing = ["prop.marker_post", "veg.reeds", "prop.milestone"];
+    let mut cells: Vec<(i64, i64)> = world
+        .files
+        .roads
+        .crossings
+        .iter()
+        .filter(|c| c.kind == CrossingKind::Ford)
+        .take(10)
+        .map(|c| cell_at(c.x_m, c.y_m))
+        .collect();
+    cells.sort_unstable();
+    cells.dedup();
+    let (mut laid, mut kept) = (0, 0);
+    let mut lost = Vec::new();
+    for (cx, cy) in cells {
+        let win = (cx * 64, cy * 64, 64, 64);
+        let composed = pipeline.window(win, &library, Some(&society)).unwrap();
+        let base = pipeline.window(win, &library, None).unwrap().layout;
+        let ctx = OverlayCtx {
+            gsx0: win.0,
+            gsy0: win.1,
+            width: 64,
+            height: 64,
+            seed: pipeline.seed(),
+            base: &base,
+            library: &library,
+        };
+        let Some(ways) = society.ways(&ctx).unwrap() else {
+            continue;
+        };
+        for p in &ways.layout.placements {
+            let AssetRef::Id(id) = &p.asset else { continue };
+            if !dressing.contains(&id.as_str())
+                || !(0.0..64.0).contains(&p.x)
+                || !(0.0..64.0).contains(&p.y)
+            {
+                continue;
+            }
+            #[allow(clippy::cast_possible_truncation, clippy::cast_sign_loss)]
+            let i = p.y.floor() as usize * 64 + p.x.floor() as usize;
+            if matches!(
+                composed.owners[i],
+                Owner::Town | Owner::Fields | Owner::Croft
+            ) {
+                continue;
+            }
+            laid += 1;
+            let near = |q: &arda_tactical::layout::Placement| {
+                q.asset == p.asset && (q.x - p.x).abs() < 0.02 && (q.y - p.y).abs() < 0.02
+            };
+            if composed.layout.placements.iter().any(near) {
+                kept += 1;
+            } else {
+                lost.push(format!("{id} at {:.2},{:.2} of {cx},{cy}", p.x, p.y));
+            }
+        }
+    }
+    eprintln!("{kept} of {laid} kept");
+    assert!(laid > 0, "no dressing laid");
+    assert!(lost.is_empty(), "{} lost:\n{}", lost.len(), lost.join("\n"));
+}

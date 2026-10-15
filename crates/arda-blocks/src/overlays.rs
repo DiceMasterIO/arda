@@ -317,15 +317,43 @@ pub fn compose_over(
         }
     }
     layout.placements.retain(|p| !claimed[anchor(p.x, p.y)]);
-    layout.placements.extend(
-        layer
-            .layout
-            .placements
-            .iter()
-            .cloned()
-            .map(snapped)
-            .filter(|p| claimed[anchor(p.x, p.y)]),
-    );
+    // The ways' own dressing (not the refined scatter the layer started
+    // from) also stands beside their claims, on ground no overlay owns: a
+    // ford's marker posts in the shallows, reeds on a bank, a milestone
+    // past the verge (review 3.5-11; they were dropped for want of a
+    // claimed anchor). Fields and towns lay nothing outside their claims.
+    let mut inherited: std::collections::BTreeMap<String, usize> =
+        std::collections::BTreeMap::new();
+    if let Some(r) = refined {
+        for p in &r.placements {
+            *inherited
+                .entry(format!("{:?}", snapped(p.clone())))
+                .or_default() += 1;
+        }
+    }
+    let mut own = |p: &arda_tactical::layout::Placement| match inherited.get_mut(&format!("{p:?}"))
+    {
+        Some(n) if *n > 0 => {
+            *n -= 1;
+            false
+        }
+        _ => true,
+    };
+    let bare =
+        |i: usize| owner == Owner::Ways && matches!(owners[i], Owner::Natural | Owner::Water);
+    let added: Vec<_> = layer
+        .layout
+        .placements
+        .iter()
+        .cloned()
+        .map(snapped)
+        .filter(|p| {
+            let i = anchor(p.x, p.y);
+            let mine = own(p);
+            claimed[i] || (mine && bare(i))
+        })
+        .collect();
+    layout.placements.extend(added);
     layout.lights.retain(|l| !claimed[anchor(l.x, l.y)]);
     layout.lights.extend(
         layer
