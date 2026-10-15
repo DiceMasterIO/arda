@@ -111,10 +111,12 @@ pub struct OverlayLayer {
     /// Row-major: owned squares claimed only at the layer's soft precedence
     /// ([`Owner::soft`]); empty for none.
     pub soft: Vec<bool>,
-    /// Whether claimed squares take the layer's elevation (a layer built on
-    /// the world's terrain) or keep the base's (a layer built on synthetic
-    /// terrain, such as the demo samples).
-    pub elevation: bool,
+    /// Row-major: claimed squares that take the layer's elevation, where
+    /// the layer knows the height (a town's levelled floors and squares, a
+    /// wall-walk); every other claimed square keeps the refined base's
+    /// (the rules contract: a layer states only what it knows). Empty for
+    /// none.
+    pub elevation: Vec<bool>,
     /// Row-major: squares filled by a relaxed fill and marked for review
     /// (goal 47; the town WFC's `TownBlock::relaxed`); empty for none.
     pub review: Vec<bool>,
@@ -160,7 +162,9 @@ const fn sides(axis: EdgeAxis, x: u32, y: u32) -> [(i64, i64); 2] {
 }
 
 /// Composes one layer onto `layout`/`rules`, updating `owners`. Returns
-/// the number of squares the layer claimed.
+/// the number of squares the layer claimed. The water a claim may not dry
+/// is the layout's own ([`compose_over`] judges it against the refined
+/// terrain).
 ///
 /// # Errors
 /// [`BlocksError::Overlay`] when the layer's size differs from the base.
@@ -171,13 +175,33 @@ pub fn compose(
     layer: &OverlayLayer,
     owner: Owner,
 ) -> Result<usize, BlocksError> {
+    compose_over(layout, rules, owners, layer, owner, None)
+}
+
+/// [`compose`], judging the water a claim may not dry against the
+/// shallower of the layout's and the `refined` terrain's: water a lower
+/// layer laid itself (a ford's wading depth over a marsh pool) is not the
+/// terrain's, so a town building that outranks the ford still stands on
+/// the made ground beneath it (review 3.5-3).
+///
+/// # Errors
+/// [`BlocksError::Overlay`] when a layer's size differs from the base.
+pub fn compose_over(
+    layout: &mut TacticalLayout,
+    rules: &mut RulesSidecar,
+    owners: &mut [Owner],
+    layer: &OverlayLayer,
+    owner: Owner,
+    refined: Option<&TacticalLayout>,
+) -> Result<usize, BlocksError> {
     let (w, h) = (layout.width, layout.height);
     let n = w as usize * h as usize;
     let fits = layer.layout.width == w
         && layer.layout.height == h
         && layer.layout.squares.len() == n
         && layer.owned.len() == n
-        && owners.len() == n;
+        && owners.len() == n
+        && refined.is_none_or(|r| r.squares.len() == n);
     if !fits {
         return Err(BlocksError::Overlay {
             layer: owner.name(),
@@ -196,7 +220,8 @@ pub fn compose(
         .map(|i| {
             let (sq, cell) = (&layer.layout.squares[i], &layer.rules.squares[i]);
             let keeps_water = sq.water_depth_ft > 0 || cell.deck == Some(true);
-            let base_ft = layout.squares[i].water_depth_ft;
+            let refined_ft = refined.map_or(u8::MAX, |r| r.squares[i].water_depth_ft);
+            let base_ft = layout.squares[i].water_depth_ft.min(refined_ft);
             // A town plans its own water (harbours, rivers through it): in
             // its footprint the base's shallow standing fringe (a shore or
             // marsh edge at most `MADE_GROUND_FT` deep) is made ground.
@@ -228,7 +253,7 @@ pub fn compose(
         if up.water_depth_ft > 0 || !deck {
             base.water_depth_ft = up.water_depth_ft;
         }
-        if layer.elevation {
+        if layer.elevation.get(i).copied().unwrap_or(false) {
             base.elevation_ft = up.elevation_ft;
         }
         owners[i] = rank(i);
@@ -340,7 +365,7 @@ pub fn compose_all(
     });
     for ((owner, _), layer) in steps.into_iter().zip(layers) {
         if let Some(layer) = layer? {
-            if compose(layout, rules, owners, &layer, owner)? > 0 {
+            if compose_over(layout, rules, owners, &layer, owner, Some(ctx.base))? > 0 {
                 applied.push(owner.name());
             }
             // Review marks count only where the layer kept its claim.

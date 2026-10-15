@@ -18,7 +18,7 @@
 //! - town: the Thornby plan, cut with `arda-town`'s block generator.
 //!
 //! Demo layers keep the refined elevation (`OverlayLayer::elevation` is
-//! false): the samples' synthetic terrain is not the world's.
+//! empty): the samples' synthetic terrain is not the world's.
 
 mod layers;
 

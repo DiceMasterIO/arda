@@ -12,7 +12,7 @@ fn layer(ground: &str, owned: Vec<bool>, soft: Vec<bool>) -> OverlayLayer {
         rules: RulesSidecar::empty(3, 1),
         owned,
         soft,
-        elevation: false,
+        elevation: Vec::new(),
         review: Vec::new(),
     }
 }
@@ -168,4 +168,66 @@ fn relaxed_overlay_squares_are_reviewed_where_the_layer_keeps_them() {
     assert_eq!(owners, [Owner::Ways, Owner::Town, Owner::Town]);
     assert_eq!(applied.layers, ["ways", "town"]);
     assert_eq!(applied.review, [1, 2]);
+}
+
+/// Review 3.5-3: a ford a road lays through a marsh pool raises its wading
+/// depth; a town building that outranks the road is judged against the
+/// pool beneath, made ground, not the ford's water.
+#[test]
+fn a_town_builds_over_a_ford_on_made_ground() {
+    let mut refined = TacticalLayout::new("t", 3, 1, "marsh");
+    for s in &mut refined.squares {
+        s.water_depth_ft = 1;
+    }
+    let mut base = refined.clone();
+    let mut rules = RulesSidecar::empty(3, 1);
+    let mut owners = vec![Owner::Natural; 3];
+    let mut ways = layer("dirt", vec![true; 3], Vec::new());
+    for s in &mut ways.layout.squares {
+        s.water_depth_ft = 2;
+    }
+    compose_over(
+        &mut base,
+        &mut rules,
+        &mut owners,
+        &ways,
+        Owner::Ways,
+        Some(&refined),
+    )
+    .unwrap();
+    let town = layer("planks", vec![true; 3], Vec::new());
+    let mut alone = (base.clone(), rules.clone(), owners.clone());
+    compose(&mut alone.0, &mut alone.1, &mut alone.2, &town, Owner::Town).unwrap();
+    assert_eq!(alone.2, [Owner::Ways; 3], "without the refined terrain");
+    compose_over(
+        &mut base,
+        &mut rules,
+        &mut owners,
+        &town,
+        Owner::Town,
+        Some(&refined),
+    )
+    .unwrap();
+    assert_eq!(owners, [Owner::Town; 3]);
+    assert!(base.squares.iter().all(|s| s.water_depth_ft == 0));
+}
+
+/// Review 3.5-4: a layer states the elevation of the squares it levels
+/// and only those; its other claims keep the refined ground's.
+#[test]
+fn only_stated_squares_take_the_layer_elevation() {
+    let mut base = TacticalLayout::new("t", 3, 1, "grass");
+    for (k, s) in base.squares.iter_mut().enumerate() {
+        s.elevation_ft = 5 * i16::try_from(k).unwrap();
+    }
+    let mut rules = RulesSidecar::empty(3, 1);
+    let mut owners = vec![Owner::Natural; 3];
+    let mut town = layer("planks", vec![true; 3], Vec::new());
+    for s in &mut town.layout.squares {
+        s.elevation_ft = 40;
+    }
+    town.elevation = vec![true, false, true];
+    compose(&mut base, &mut rules, &mut owners, &town, Owner::Town).unwrap();
+    let e: Vec<i16> = base.squares.iter().map(|s| s.elevation_ft).collect();
+    assert_eq!(e, [40, 5, 40]);
 }

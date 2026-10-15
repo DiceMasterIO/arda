@@ -3,7 +3,7 @@
 //! roads where those enter a town.
 
 use super::{Bbox, SQUARE_M};
-use crate::overlays::{compose, OverlayCtx, OverlayLayer, Owner};
+use crate::overlays::{compose_over, OverlayCtx, OverlayLayer, Owner};
 use crate::BlocksError;
 use arda_people::World;
 use arda_scene::RulesSidecar;
@@ -68,15 +68,20 @@ pub fn occupies(plan: &TownPlan, gx: i64, gy: i64) -> bool {
     )
 }
 
+/// A plan's market and reach, squares, and the plan.
+type Reach = ((f64, f64), f64, Arc<Option<TownPlan>>);
+
 /// Where the towns near a window replace the world's roads with their own
 /// streets. A plan turns every road that comes within its reach of the
-/// market into a main street (`arda-town`'s arms, clipped to that reach), so
-/// inside the reach a road square is the same way twice and the street
-/// wins; outside it the road continues from the street's end.
+/// market into a main street (`arda-town`'s arms, clipped to that reach),
+/// but its streets may leave the road's line (onto a bank, across at the
+/// narrows), so inside the reach a road square gives way only where the
+/// plan lays public street ground on it; elsewhere the road stays road
+/// (review 3.5-6: a road square given up off the street was neither).
 #[derive(Debug, Clone, Default)]
 pub struct Streets {
-    /// Market and reach of each plan, squares.
-    discs: Vec<((f64, f64), f64)>,
+    /// Market and reach of each plan, squares, with the plan.
+    discs: Vec<Reach>,
 }
 
 impl Streets {
@@ -89,8 +94,8 @@ impl Streets {
     pub fn of(plans: &Plans) -> Self {
         let discs = plans
             .iter()
-            .filter_map(|(_, p)| p.as_ref().as_ref())
-            .filter_map(|plan| {
+            .filter_map(|(_, p)| {
+                let plan = p.as_ref().as_ref()?;
                 let m = plan.focal.market;
                 let reach = plan
                     .streets
@@ -99,21 +104,41 @@ impl Streets {
                     .filter_map(|s| s.points.last())
                     .map(|p| (p.x - m.x).hypot(p.y - m.y))
                     .fold(0.0_f64, f64::max);
-                (reach > 0.0).then(|| ((m.x / SQUARE_M, m.y / SQUARE_M), reach / SQUARE_M))
+                (reach > 0.0).then(|| {
+                    (
+                        (m.x / SQUARE_M, m.y / SQUARE_M),
+                        reach / SQUARE_M,
+                        Arc::clone(p),
+                    )
+                })
             })
             .collect();
         Self { discs }
     }
 
-    /// Whether a road square at global `(gx, gy)` lies where a town's
-    /// streets replace the roads.
+    /// Whether global `(gx, gy)` lies inside a town's reach, where its
+    /// streets take over the roads.
     #[must_use]
-    pub fn replace(&self, gx: i64, gy: i64) -> bool {
+    pub fn within(&self, gx: i64, gy: i64) -> bool {
+        self.reaching(gx, gy).next().is_some()
+    }
+
+    fn reaching(&self, gx: i64, gy: i64) -> impl Iterator<Item = &TownPlan> {
         #[allow(clippy::cast_precision_loss)] // squares are far below 2^52
         let p = (gx as f64 + 0.5, gy as f64 + 0.5);
         self.discs
             .iter()
-            .any(|&(c, r)| (p.0 - c.0).hypot(p.1 - c.1) < r - Self::JOIN)
+            .filter(move |&&(c, r, _)| (p.0 - c.0).hypot(p.1 - c.1) < r - Self::JOIN)
+            .filter_map(|(_, _, plan)| plan.as_ref().as_ref())
+    }
+
+    /// Whether a road square at global `(gx, gy)` gives way to a town's
+    /// street: inside the town's reach, where the plan lays public street
+    /// ground (a street, the square, a bridge, a gate or a green).
+    #[must_use]
+    pub fn replace(&self, gx: i64, gy: i64) -> bool {
+        self.reaching(gx, gy)
+            .any(|plan| arda_town::block::ground::kind(plan, gx, gy).public())
     }
 }
 
@@ -131,6 +156,8 @@ pub fn town(ctx: &OverlayCtx<'_>, world: &World) -> Result<Option<OverlayLayer>,
     let mut rules = RulesSidecar::empty(w, h);
     let mut owners = vec![Owner::Natural; n];
     let mut review = vec![false; n];
+    let mut elevated = vec![false; n];
+    let mut heights = arda_refine::heights::Heights::new();
     let mut any = false;
     for (id, plan) in plans_near(ctx, world, 0.0)? {
         let Some(plan) = plan.as_ref() else {
@@ -169,16 +196,35 @@ pub fn town(ctx: &OverlayCtx<'_>, world: &World) -> Result<Option<OverlayLayer>,
                 arda_town::block::ground::kind(plan, gx, gy) == Kind::Croft
             })
             .collect();
+        let elevation = super::levels::state(
+            ctx,
+            &world.src,
+            &mut heights,
+            plan,
+            &blk,
+            &mut part,
+            &mut part_rules,
+        )?;
         mark_relaxed(ctx, plan, &blk.relaxed, &mut review);
         let layer = OverlayLayer {
             layout: part,
             rules: part_rules,
             owned: blk.owned.clone(),
             soft,
-            elevation: false,
+            elevation,
             review: Vec::new(),
         };
-        any |= compose(&mut layout, &mut rules, &mut owners, &layer, Owner::Town)? > 0;
+        any |= compose_over(
+            &mut layout,
+            &mut rules,
+            &mut owners,
+            &layer,
+            Owner::Town,
+            Some(ctx.base),
+        )? > 0;
+        for (e, (&up, &o)) in elevated.iter_mut().zip(layer.elevation.iter().zip(&owners)) {
+            *e |= up && o == Owner::Town;
+        }
     }
     if !any {
         return Ok(None);
@@ -198,7 +244,7 @@ pub fn town(ctx: &OverlayCtx<'_>, world: &World) -> Result<Option<OverlayLayer>,
         rules,
         owned,
         soft,
-        elevation: false,
+        elevation: elevated,
         review,
     }))
 }

@@ -199,7 +199,7 @@ pub fn ways(
         rules: out.rules,
         owned,
         soft,
-        elevation: false,
+        elevation: Vec::new(),
         review: Vec::new(),
     })
 }
@@ -365,7 +365,7 @@ pub fn fields(
         rules: win.rules,
         owned,
         soft: Vec::new(),
-        elevation: false,
+        elevation: Vec::new(),
         review: Vec::new(),
     })
 }

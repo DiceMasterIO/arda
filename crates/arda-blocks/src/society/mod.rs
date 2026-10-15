@@ -10,6 +10,7 @@
 //! exceed the reach of any curve, switchback, crossing channel or plan.
 
 mod layers;
+mod levels;
 pub mod rivers;
 pub mod town;
 
