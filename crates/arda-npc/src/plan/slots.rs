@@ -73,7 +73,7 @@ impl Plan<'_> {
 
     /// The society office `person` holds, if its kind is in the table.
     pub(crate) fn office_of(&self, person: usize) -> Option<&'static OfficeData> {
-        let slot = self.slot_of(person, self.notables)?;
+        let slot = self.slot_of(person, &self.notables)?;
         self.data.occupations.offices.get(&slot.kind)
     }
 

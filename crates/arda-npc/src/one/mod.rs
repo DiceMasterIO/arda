@@ -175,7 +175,7 @@ fn fits(plan: &Plan<'_>, p: usize, request: &OneRequest, job: Option<&str>, offi
     let asked_job = job.is_some() || request.rank.is_some();
     job.is_none_or(|j| person.job == j)
         && (asked_job || person.job != "child")
-        && (!office || plan.slot_of(p, plan.notables).is_some())
+        && (!office || plan.slot_of(p, &plan.notables).is_some())
         && request
             .rank
             .is_none_or(|r| SocialRank::from_level(plan.rank_of(p)) == r)

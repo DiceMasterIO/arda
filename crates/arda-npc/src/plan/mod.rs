@@ -30,6 +30,7 @@ use crate::input::{
 use crate::names::Tongues;
 use crate::npc::{NpcId, RelationKind, Sex};
 use crate::rng::SeedKey;
+use std::borrow::Cow;
 
 /// A person's place in their household.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -73,13 +74,13 @@ pub(crate) struct House {
 pub(crate) struct Plan<'a> {
     pub data: &'static Data,
     pub seed: u64,
-    pub settlement: &'a SettlementProfile,
-    pub buildings: Vec<&'a BuildingSpec>,
+    pub settlement: Cow<'a, SettlementProfile>,
+    pub buildings: Vec<Cow<'a, BuildingSpec>>,
     pub tier: &'static TierData,
     /// Languages the people are named in (`names.rs`).
     pub tongues: Tongues,
     /// Notable slots from the society layer.
-    pub notables: &'a [NotableSlot],
+    pub notables: Cow<'a, [NotableSlot]>,
     /// Slot index bound to each person (`slots.rs`).
     pub bound: Vec<Option<usize>>,
     pub ancestry: Vec<(usize, u32)>,
@@ -98,6 +99,38 @@ pub(crate) struct Plan<'a> {
     /// The only land job, when set (`generate_one`, logic/13
     /// §npc-generate-one); `None` for every real settlement.
     pub land_job: Option<&'static str>,
+}
+
+impl Plan<'_> {
+    /// The same skeleton owning its inputs, free of the borrows it was
+    /// built from (a server keeps it across requests).
+    pub(crate) fn into_owned(self) -> Plan<'static> {
+        Plan {
+            data: self.data,
+            seed: self.seed,
+            settlement: Cow::Owned(self.settlement.into_owned()),
+            buildings: self
+                .buildings
+                .into_iter()
+                .map(|b| Cow::Owned(b.into_owned()))
+                .collect(),
+            tier: self.tier,
+            tongues: self.tongues,
+            notables: Cow::Owned(self.notables.into_owned()),
+            bound: self.bound,
+            ancestry: self.ancestry,
+            people: self.people,
+            offsets: self.offsets,
+            houses: self.houses,
+            slots: self.slots,
+            friend: self.friend,
+            rival: self.rival,
+            crafts: self.crafts,
+            ids: self.ids,
+            by_id: self.by_id,
+            land_job: self.land_job,
+        }
+    }
 }
 
 impl<'a> Plan<'a> {
@@ -121,7 +154,7 @@ impl<'a> Plan<'a> {
         land_job: Option<&'static str>,
     ) -> Result<Self, NpcError> {
         let data = Data::get()?;
-        let mut buildings: Vec<&BuildingSpec> = input.iter().collect();
+        let mut buildings: Vec<Cow<'a, BuildingSpec>> = input.iter().map(Cow::Borrowed).collect();
         buildings.sort_by_key(|b| b.id);
         for pair in buildings.windows(2) {
             if pair[0].id == pair[1].id {
@@ -166,11 +199,11 @@ impl<'a> Plan<'a> {
         let mut plan = Self {
             data,
             seed,
-            settlement,
+            settlement: Cow::Borrowed(settlement),
             buildings,
             tier,
             tongues: Tongues::new(seed, settlement),
-            notables,
+            notables: Cow::Borrowed(notables),
             bound: Vec::new(),
             ancestry,
             people: Vec::new(),

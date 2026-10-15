@@ -89,8 +89,8 @@ impl Plan<'_> {
         }
         // Society offices bind to the staffed workplaces before officials
         // are appointed, so an office stands in for the official it covers.
-        let slots = self.notables;
-        self.bind_slots(slots);
+        let slots = self.notables.clone();
+        self.bind_slots(&slots);
         let office = OFFICE
             .iter()
             .find_map(|&f| self.buildings.iter().position(|b| b.function == f));

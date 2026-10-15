@@ -39,6 +39,9 @@ pub(crate) fn people(state: &AppState) -> ServerResult<&World> {
 pub(crate) fn people_error(e: PeopleError) -> ServerError {
     match e {
         PeopleError::UnknownSettlement(id) => ServerError::NotFound(format!("no settlement {id}")),
+        // The generator's refusals keep their own status (a cached
+        // generator reports them through arda-people, review 3.3-10).
+        PeopleError::Npc(e) => ServerError::Npc(e),
         other => ServerError::Internal(other.to_string()),
     }
 }

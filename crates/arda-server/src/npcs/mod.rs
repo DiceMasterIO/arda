@@ -26,7 +26,7 @@ use crate::AppState;
 use arda_npc::{BuildingId, Npc, SettlementId};
 use axum::extract::State;
 use axum::response::Response;
-use page::{Filter, Inputs, Link, DEFAULT_LIMIT, MAX_LIMIT};
+use page::{Filter, Link, DEFAULT_LIMIT, MAX_LIMIT};
 use refs::{NpcKey, NpcRef};
 use std::collections::BTreeMap;
 use std::sync::Arc;
@@ -203,8 +203,9 @@ pub fn resolve(s: &AppState, key: NpcKey, settlement: Option<u64>) -> ServerResu
              <settlement>.<building>.<index> or add ?settlement="
         )));
     };
-    let inputs = Inputs::of(w, sid)?;
-    let g = inputs.generator(w.seed())?;
+    // One cached skeleton per settlement, not a rebuild per lookup
+    // (review 3.3-10).
+    let g = w.generator(sid).map_err(crate::people::people_error)?;
     Ok(match key {
         NpcKey::Ref(NpcRef {
             building, index, ..

@@ -26,11 +26,11 @@ impl Plan<'_> {
         let race = self.race(person);
         let lang = self.tongues.of(&race.key);
         let own_family = matches!(p.role, Role::Lodger | Role::Single);
-        let slot = self.slot_of(person, self.notables);
+        let slot = self.slot_of(person, &self.notables);
         let house = &self.houses[p.household];
         let head = house.members.first().copied().unwrap_or(person);
         let head_family = self
-            .slot_of(head, self.notables)
+            .slot_of(head, &self.notables)
             .and_then(|s| s.family_name.clone());
         let inherited = if own_family {
             None
@@ -188,7 +188,7 @@ impl Plan<'_> {
         );
         let lifestyle = Lifestyle::from_wealth(wealth);
         let title = self
-            .slot_of(person, self.notables)
+            .slot_of(person, &self.notables)
             .map_or_else(|| self.job_title(person, job_data), |s| s.title.clone());
         let relationships = self.relationships(person);
         let kin = relationships

@@ -201,3 +201,49 @@ fn a_plan_drawn_again_is_checked_against_the_stored_notables() {
     assert!(matches!(e, arda_people::PeopleError::Stale(_)), "{e}");
     assert!(w.notables_of(a).is_empty());
 }
+
+#[test]
+fn commoner_lookups_reuse_one_skeleton_per_settlement() {
+    let (dir, built) = &*BUILT;
+    let t = temp("gen");
+    std::fs::copy(dir.join("world.json"), t.0.join("world.json")).unwrap();
+    let soc = t.0.join("society");
+    std::fs::create_dir_all(&soc).unwrap();
+    for name in [
+        "settlements.json",
+        "roads.json",
+        "realms.json",
+        "gazetteer.json",
+    ] {
+        if dir.join("society").join(name).is_file() {
+            std::fs::copy(dir.join("society").join(name), soc.join(name)).unwrap();
+        }
+    }
+    arda_society::output::write_json(&built.society, &soc.join("society.json")).unwrap();
+    written(&built.notables, &soc);
+    let src = arda_people::shared::SharedSource::open(dir).unwrap();
+    let w = arda_people::World::with_source(src, &soc).unwrap();
+    let id = built
+        .notables
+        .settlements
+        .iter()
+        .find(|s| s.buildings == "plan")
+        .unwrap()
+        .settlement_id
+        .get();
+    let a = w.generator(id).unwrap();
+    let b = w.generator(id).unwrap();
+    assert!(
+        std::sync::Arc::ptr_eq(&a, &b),
+        "the second lookup reuses the skeleton"
+    );
+    // The cached generator expands the same people as a fresh one.
+    let profile = w.profile(id).unwrap();
+    let (buildings, _) = w.buildings(id).unwrap();
+    let slots = w.slots(id).unwrap();
+    let fresh = arda_npc::Generator::with_notables(w.seed(), &profile, &buildings, &slots).unwrap();
+    let ids: Vec<_> = fresh.ids().take(25).collect();
+    for npc in ids {
+        assert_eq!(a.npc(npc).unwrap(), fresh.npc(npc).unwrap());
+    }
+}

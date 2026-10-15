@@ -17,6 +17,8 @@ use std::sync::{Arc, Mutex};
 
 /// Town plans kept in memory (each a few hundred kB).
 const PLAN_CACHE: usize = 64;
+/// Population skeletons kept in memory (a city's is a few MB).
+const GENERATOR_CACHE: usize = 16;
 
 /// Where a settlement's buildings come from.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -39,6 +41,7 @@ impl BuildingSource {
 }
 
 type PlanCache = BTreeMap<u64, (u64, Arc<Option<TownPlan>>)>;
+type GeneratorCache = BTreeMap<u64, (u64, Arc<Generator<'static>>)>;
 
 /// A world with its `society/` directory.
 pub struct World {
@@ -53,6 +56,7 @@ pub struct World {
     pub notables: Option<Notables>,
     society_index: BTreeMap<u64, usize>,
     plans: Mutex<(u64, PlanCache)>,
+    generators: Mutex<(u64, GeneratorCache)>,
     /// Settlements whose plan, drawn again here, does not match the plan
     /// their stored notables were generated in (review 3.3-5).
     stale_plans: Mutex<BTreeSet<u64>>,
@@ -106,6 +110,7 @@ impl World {
             notables,
             society_index,
             plans: Mutex::new((0, BTreeMap::new())),
+            generators: Mutex::new((0, BTreeMap::new())),
             stale_plans: Mutex::new(BTreeSet::new()),
         })
     }
@@ -248,11 +253,47 @@ impl World {
     /// # Errors
     /// As [`World::buildings`], and the NPC generator's refusals.
     pub fn population(&self, id: u64) -> Result<Population, PeopleError> {
+        Ok(self.generator(id)?.population()?)
+    }
+
+    /// The settlement's population skeleton, built once and kept (the
+    /// [`GENERATOR_CACHE`] most recently used), so looking up one commoner
+    /// does not rebuild the whole settlement each time (review 3.3-10).
+    ///
+    /// # Errors
+    /// As [`World::population`].
+    pub fn generator(&self, id: u64) -> Result<Arc<Generator<'static>>, PeopleError> {
+        let lock = || {
+            self.generators
+                .lock()
+                .map_err(|_| PeopleError::World("generator cache poisoned".into()))
+        };
+        {
+            let mut g = lock()?;
+            g.0 += 1;
+            let tick = g.0;
+            if let Some(hit) = g.1.get_mut(&id) {
+                hit.0 = tick;
+                return Ok(Arc::clone(&hit.1));
+            }
+        }
         let profile = self.profile(id)?;
         let (buildings, _) = self.buildings(id)?;
         let slots = self.slots(id)?;
-        let g = Generator::with_notables(self.seed(), &profile, &buildings, &slots)?;
-        Ok(g.population()?)
+        let built = Arc::new(
+            Generator::with_notables(self.seed(), &profile, &buildings, &slots)?.into_owned(),
+        );
+        let mut g = lock()?;
+        g.0 += 1;
+        let tick = g.0;
+        g.1.insert(id, (tick, Arc::clone(&built)));
+        while g.1.len() > GENERATOR_CACHE {
+            let oldest = g.1.iter().min_by_key(|(_, e)| e.0).map(|(k, _)| *k);
+            if let Some(k) = oldest {
+                g.1.remove(&k);
+            }
+        }
+        Ok(built)
     }
 
     /// Compares a plan drawn here with the plan the settlement's stored

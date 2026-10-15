@@ -84,6 +84,17 @@ impl<'a> Generator<'a> {
         })
     }
 
+    /// The same generator owning copies of its inputs, so it can be kept
+    /// and shared after they are gone: a server caches one per settlement
+    /// instead of rebuilding the skeleton for every lookup (review 3.3-10).
+    /// It expands exactly the people the borrowing one does.
+    #[must_use]
+    pub fn into_owned(self) -> Generator<'static> {
+        Generator {
+            plan: self.plan.into_owned(),
+        }
+    }
+
     /// Number of inhabitants.
     #[must_use]
     pub fn len(&self) -> usize {
