@@ -238,3 +238,51 @@ fn renders_are_pinned() {
         "renders changed; bless with ARDA_BLESS_DUNGEON=1"
     );
 }
+
+/// OI-38: a cave's walls are natural rock faces, drawn as smoothed
+/// outlines with no stair steps, while its edges (and so its rules) stay
+/// on the square grid; a built dungeon's walls stay kit pieces.
+#[test]
+fn cave_walls_are_natural_outlines_without_stair_steps() {
+    use arda_tactical::compose::{natural, walls};
+    for seed in [5, 7, 11] {
+        let d = generate(&params(seed, Kind::Cave, 40, 30)).unwrap();
+        assert!(
+            d.layout.walls.iter().all(natural::is_natural),
+            "cave {seed}"
+        );
+        let edges = walls::natural_edges(&d.layout);
+        assert_eq!(edges.len(), d.layout.walls.len());
+        let (pieces, joints) = walls::assemble(&d.layout);
+        assert!(pieces.is_empty() && joints.is_empty(), "cave {seed}");
+        for c in natural::chains(&edges) {
+            // Every chain is closed or ends on the map border (the mouth).
+            if !c.closed {
+                for &(x, y) in [c.vertices[0], *c.vertices.last().unwrap()].iter() {
+                    assert!(
+                        x == 0 || y == 0 || x == 40 || y == 30,
+                        "cave {seed}: end {x},{y}"
+                    );
+                }
+            }
+            let pts = natural::outline(&c, seed, (0, 0));
+            let n = pts.len();
+            let turns = if c.closed { n } else { n.saturating_sub(2) };
+            for i in 0..turns {
+                let (a, b, e) = (pts[i], pts[(i + 1) % n], pts[(i + 2) % n]);
+                let (u, v) = ((b.0 - a.0, b.1 - a.1), (e.0 - b.0, e.1 - b.1));
+                let (lu, lv) = (u.0.hypot(u.1), v.0.hypot(v.1));
+                if lu > 0.0 && lv > 0.0 {
+                    let cos = (u.0 * v.0 + u.1 * v.1) / (lu * lv);
+                    assert!(
+                        cos > 0.7,
+                        "cave {seed}: a {:.0} degree step",
+                        cos.acos().to_degrees()
+                    );
+                }
+            }
+        }
+    }
+    let d = generate(&params(3, Kind::Dungeon, 40, 30)).unwrap();
+    assert!(d.layout.walls.iter().all(|w| !natural::is_natural(w)));
+}

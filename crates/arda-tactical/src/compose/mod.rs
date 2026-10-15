@@ -12,6 +12,7 @@ pub mod grade;
 pub mod ground;
 pub mod light_los;
 pub mod lighting;
+pub mod natural;
 pub mod sample;
 mod shadows;
 pub mod snow;
@@ -391,9 +392,17 @@ fn render_clip(
     let mut pools = Vec::new();
     let mut ops = Vec::new();
     let mut walls_done = false;
+    let mut under = Vec::new();
+    let mut draw_all = |ops: &mut Vec<Op>, sprites: &mut Sprites<'_>| {
+        draw_walls(ops, sprites, lib, seed, layout);
+        let natural = walls::natural_edges(layout);
+        let (fill, outline) = natural::draw(sprites, lib, seed, layout, &natural, &cv.img, area);
+        under = fill;
+        ops.extend(outline);
+    };
     for (layer, _, i, r) in &placed {
         if *layer > Layer::Wall && !walls_done {
-            draw_walls(&mut ops, &mut sprites, lib, seed, layout);
+            draw_all(&mut ops, &mut sprites);
             walls_done = true;
         }
         let (p, a) = (&layout.placements[*i], r.asset);
@@ -408,8 +417,10 @@ fn render_clip(
         }
     }
     if !walls_done {
-        draw_walls(&mut ops, &mut sprites, lib, seed, layout);
+        draw_all(&mut ops, &mut sprites);
     }
+    // Natural walls' ground repaint goes under every sprite.
+    ops.splice(0..0, under);
     stamp::stamp_all(&mut cv.img, &mut cv.buf, &mut cv.casts, cv.terrain, &ops);
     pools.extend(
         layout

@@ -375,6 +375,10 @@ pub(crate) fn generate(p: &Params) -> Result<Dungeon, DungeonError> {
         }
     }
     layout.walls = grid::walls(&g, &BTreeMap::<EdgeKey, Opening>::new(), &open, CAVE_KIT);
+    // Every cave wall is a rock face: drawn as a smoothed outline (OI-38).
+    for w in &mut layout.walls {
+        w.tags.push(arda_tactical::layout::TAG_NATURAL.to_string());
+    }
     // Dressing.
     let mut d = Dresser::new(w, h);
     d.wet = depth.iter().map(|&v| v > 0).collect();

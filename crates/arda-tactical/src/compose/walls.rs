@@ -5,7 +5,8 @@
 //! where a partition meets an exterior or party wall takes its joint from
 //! the exterior arms alone, so the heavy shell runs on unbroken and the
 //! partition only abuts it; a vertex with partition arms only takes a thin
-//! joint.
+//! joint. Natural rock faces (edges tagged `natural`) are drawn as
+//! smoothed outlines by `super::natural` instead.
 
 use crate::catalog::WallRole;
 use crate::layout::{EdgeAxis, TacticalLayout, WallSegment};
@@ -88,15 +89,31 @@ pub struct JointDraw<'a> {
     pub thin: bool,
 }
 
-/// Every edge and joint piece of a layout, in draw order.
-#[must_use]
-pub fn assemble(layout: &TacticalLayout) -> (Vec<EdgeDraw<'_>>, Vec<JointDraw<'_>>) {
-    let mut edges: BTreeMap<(EdgeAxis, u32, u32), &WallSegment> = BTreeMap::new();
+/// The segment drawn on each edge: later segments on the same edge
+/// replace earlier ones (a door punched into a run).
+fn by_edge(layout: &TacticalLayout) -> BTreeMap<(EdgeAxis, u32, u32), &WallSegment> {
+    let mut edges = BTreeMap::new();
     for w in &layout.walls {
-        // Later segments on the same edge replace earlier ones (a door
-        // punched into a run).
         edges.insert((w.axis, w.x, w.y), w);
     }
+    edges
+}
+
+/// The edges drawn as natural outlines (`super::natural`), not as kit
+/// pieces.
+#[must_use]
+pub fn natural_edges(layout: &TacticalLayout) -> BTreeMap<(EdgeAxis, u32, u32), &WallSegment> {
+    let mut edges = by_edge(layout);
+    edges.retain(|_, w| super::natural::is_natural(w));
+    edges
+}
+
+/// Every edge and joint piece of a layout, in draw order. Natural edges
+/// are left to `super::natural` and are no joint's arms.
+#[must_use]
+pub fn assemble(layout: &TacticalLayout) -> (Vec<EdgeDraw<'_>>, Vec<JointDraw<'_>>) {
+    let mut edges = by_edge(layout);
+    edges.retain(|_, w| !super::natural::is_natural(w));
     let edge_draws = edges
         .values()
         .map(|w| match w.axis {

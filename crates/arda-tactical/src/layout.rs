@@ -93,7 +93,8 @@ pub struct WallSegment {
     /// as a plain run of its kit; the scene marks it a secret door); on
     /// any piece, `partition` (an interior wall inside one building, drawn
     /// thin) and `party` (a wall two buildings share, drawn as an exterior
-    /// wall). Neither changes the rules: every wall blocks.
+    /// wall); on a run, `natural` (a rock face drawn as a smoothed
+    /// outline). None changes the rules: every wall blocks.
     /// Omitted when empty, so older layouts round-trip unchanged.
     #[serde(default, skip_serializing_if = "Vec::is_empty")]
     pub tags: Vec<String>,
@@ -110,6 +111,10 @@ pub const TAG_PARTITION: &str = "partition";
 /// Edge tag: a party wall shared by two buildings, drawn as an exterior
 /// wall.
 pub const TAG_PARTY: &str = "party";
+/// Edge tag: a natural rock face (a cave wall). Runs so tagged are drawn
+/// as one smoothed outline per chain of edges, not as kit pieces on the
+/// square edges; the edges themselves, and so the rules, are unchanged.
+pub const TAG_NATURAL: &str = "natural";
 
 impl WallSegment {
     /// Whether the segment carries free tag `tag`.
