@@ -398,3 +398,35 @@ fn checked_annual_source_bounds_abort_without_a_partial_result() {
         Err(AggregationError::Overflow)
     );
 }
+
+/// Review 3.2-1: recipe 9's aggregator takes the land loss from Fu's
+/// Budyko curve: a cell at E/P = 12 now keeps under 1% of its rain as
+/// runoff instead of half of it.
+#[test]
+fn recipe_9_runoff_follows_budyko() {
+    let arid = |model: RunoffModel| {
+        let mut a = Aggregator::new(Extent::new(1, 1).unwrap(), Vec::new(), limits())
+            .unwrap()
+            .with_runoff(model);
+        let mut c = cell(0, 5, Terminal::Sea);
+        c.evaporation_um = [100_000; 12];
+        a.push(&c).unwrap();
+        a.finish().unwrap().sea
+    };
+    let (half, budyko) = (arid(RunoffModel::HalfRain), arid(RunoffModel::Budyko));
+    assert_eq!(half.runoff.0 * 2, half.precipitation.0);
+    assert!(budyko.runoff.0 * 100 < budyko.precipitation.0, "{budyko:?}");
+    assert_eq!(
+        budyko.runoff.0 + budyko.land_loss.0,
+        budyko.precipitation.0,
+        "the ledger stays exact"
+    );
+    assert_eq!(
+        crate::hydrology::physics::SolvePhysics::for_recipe(9).runoff,
+        RunoffModel::Budyko
+    );
+    assert_eq!(
+        crate::hydrology::physics::SolvePhysics::for_recipe(7),
+        crate::hydrology::physics::SolvePhysics::default()
+    );
+}

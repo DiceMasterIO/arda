@@ -8,6 +8,7 @@ use super::{
     routing_disk::{self, DiskRoutingStore},
 };
 use crate::continent::{climate::ContinentClimate, ContinentGrid};
+use crate::hydrology::physics::SolvePhysics;
 use crate::hydrology::{
     annual::{self, AnnualInput, AnnualLimits, AnnualNode, AnnualSolution},
     annual_aggregation::{self, AggregationLimits, Aggregator},
@@ -233,7 +234,7 @@ fn reserved<T>(count: u64) -> Result<Vec<T>, SharedError> {
 /// and all file writers use fresh-file contracts; an existing stage is never overwritten.
 /// Failed transactions are caller-aborted, never reopened from file existence/length.
 /// On success both mutable stores are flushed before returning extraction handles.
-#[allow(clippy::too_many_lines)]
+#[cfg(test)]
 pub fn solve(
     prepared: &mut PreparedReader,
     grid: &ContinentGrid,
@@ -241,6 +242,28 @@ pub fn solve(
     config: GenerateConfig,
     directory: &Path,
     limits: SharedLimits,
+) -> Result<SharedArtifacts, SharedError> {
+    solve_with(
+        prepared,
+        grid,
+        climate,
+        config,
+        directory,
+        limits,
+        SolvePhysics::default(),
+    )
+}
+
+/// [`solve`] with the rules of a fine recipe ([`SolvePhysics::for_recipe`]).
+#[allow(clippy::too_many_lines)]
+pub fn solve_with(
+    prepared: &mut PreparedReader,
+    grid: &ContinentGrid,
+    climate: &ContinentClimate,
+    config: GenerateConfig,
+    directory: &Path,
+    limits: SharedLimits,
+    physics: SolvePhysics,
 ) -> Result<SharedArtifacts, SharedError> {
     let domain = prepared.domain();
     let expected = crate::hydrology::prepared_domain::PreparedDomain::for_config(config)
@@ -333,9 +356,11 @@ pub fn solve(
         },
     )
     .map_err(SharedError::Topology)?;
-    let mut aggregator = Aggregator::new(extent, topology.nodes, limits.aggregation)?;
+    let mut aggregator =
+        Aggregator::new(extent, topology.nodes, limits.aggregation)?.with_runoff(physics.runoff);
     let source_work = {
-        let mut source = AnnualSource::new(prepared, grid, climate, config, limits.source)?;
+        let mut source = AnnualSource::new(prepared, grid, climate, config, limits.source)?
+            .with_runoff(physics.runoff);
         for raw in 0..extent.cells() {
             let at = routing::CellIndex::new(raw, extent)
                 .ok_or(SharedError::Invalid("source ordinal"))?;
@@ -395,7 +420,8 @@ pub fn solve(
     .map_err(SharedError::FlowCreate)?;
     let (mut sea_out, mut domain_out) = (0u128, 0u128);
     let (flow_work, fine_source_work) = {
-        let mut source = AnnualSource::new(prepared, grid, climate, config, limits.source)?;
+        let mut source = AnnualSource::new(prepared, grid, climate, config, limits.source)?
+            .with_runoff(physics.runoff);
         let work = fine_flow::run_with_source(
             &mut routes,
             &mut flow,

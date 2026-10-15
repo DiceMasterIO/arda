@@ -4,8 +4,9 @@ use super::prepared_files::{PreparedError, PreparedReader};
 use crate::area::temperature::temperature_from_base;
 use crate::continent::{climate::ContinentClimate, ContinentGrid};
 use crate::hydrology::annual::LeafNet;
-use crate::hydrology::annual_aggregation::{cell_budget, AnnualCell, Terminal};
+use crate::hydrology::annual_aggregation::{cell_budget_with, AnnualCell, Terminal};
 use crate::hydrology::budget::BudgetError;
+use crate::hydrology::budyko::RunoffModel;
 use crate::hydrology::fine_flow::CellSource;
 use crate::hydrology::forcing::YearForcing;
 use crate::hydrology::forcing_sample::ForcingWindow;
@@ -108,8 +109,16 @@ pub struct AnnualSource<'a> {
     failed: bool,
     limits: SourceLimits,
     work: SourceWork,
+    runoff: RunoffModel,
 }
 impl<'a> AnnualSource<'a> {
+    /// Takes every cell's land loss by `model` (recipe 9: Budyko).
+    #[must_use]
+    pub fn with_runoff(mut self, model: RunoffModel) -> Self {
+        self.runoff = model;
+        self
+    }
+
     /// Admits a complete canonical scan and validates the exact request-derived domain.
     /// No routing borrow or fine/monthly array is retained.
     pub fn new(
@@ -165,6 +174,7 @@ impl<'a> AnnualSource<'a> {
             failed: false,
             limits,
             work: SourceWork::default(),
+            runoff: RunoffModel::HalfRain,
         })
     }
     fn charge(&mut self, amount: u64) -> Result<(), SourceError> {
@@ -349,7 +359,7 @@ impl<'a> AnnualSource<'a> {
                 }
             }
             let cell = self.read_cell(routing, at)?;
-            let b = cell_budget(cell.rain, &cell.evaporation_um);
+            let b = cell_budget_with(self.runoff, cell.rain, &cell.evaporation_um);
             let (mut wet, mut marginal) = (None, Litres(0));
             if let Terminal::Basin(id) = cell.terminal {
                 let (mut lo, mut hi) = (0, leaf_net.len());

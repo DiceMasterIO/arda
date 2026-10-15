@@ -292,13 +292,19 @@ fn generate_world_inner(
     }
     drop(terrain);
     let mut prepared = writer.finish()?;
-    let mut shared = shared_solve::solve(
+    // logic/02 §fine-formation recipe 9: the recipe also sets the shared
+    // solve's runoff, HAND and flat-routing rules.
+    let physics = crate::hydrology::physics::SolvePhysics::for_recipe(
+        fine.map_or(0, |(_, d)| d.recipe_version),
+    );
+    let mut shared = shared_solve::solve_with(
         &mut prepared,
         &continent.grid,
         &continent.climate,
         config,
         &solve_dir,
         admission.shared,
+        physics,
     )?;
     if shared.routing.extent() != admission.extent || shared.flow.extent() != admission.extent {
         return Err(GenError::AdmittedDomain);

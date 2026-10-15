@@ -427,7 +427,8 @@ pub fn form_world(
     // logic/02 §fine-formation climate runoff (recipe 7): the continent's
     // annual water balance drives channels, incision and basin lakes.
     let water = match recipe {
-        Recipe::V7 | Recipe::V8 | Recipe::V9 => Some(arid::macro_water(grid, band)?),
+        Recipe::V7 | Recipe::V8 => Some(arid::macro_water(grid, band)?),
+        Recipe::V9 => Some(arid::macro_water_recipe(grid, band, true)?),
         _ => None,
     };
     let view = MacroView {

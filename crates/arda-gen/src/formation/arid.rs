@@ -74,7 +74,20 @@ pub struct MacroWater {
 /// # Errors
 /// Allocation failure.
 pub fn macro_water(grid: &ContinentGrid, band: LatitudeBand) -> Result<MacroWater, FormationError> {
-    let b = crate::continent::aridity::water_balance(grid, band);
+    macro_water_recipe(grid, band, false)
+}
+
+/// [`macro_water`]; with `v9` the balance takes its land loss from the
+/// Budyko curve, as recipe 9's shared solve does (review 3.2-1).
+///
+/// # Errors
+/// Allocation failure.
+pub fn macro_water_recipe(
+    grid: &ContinentGrid,
+    band: LatitudeBand,
+    v9: bool,
+) -> Result<MacroWater, FormationError> {
+    let b = crate::continent::aridity::water_balance_recipe(grid, band, v9);
     let mut runoff = Lattice::new(b.width, b.height, 1_000_000_000)?;
     let mut deficit = Lattice::new(b.width, b.height, 1_000_000_000)?;
     for (z, &v) in runoff.z.iter_mut().zip(&b.runoff_mm) {

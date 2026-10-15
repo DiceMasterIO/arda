@@ -18,6 +18,7 @@
 
 use super::climate::{climate_smoothed_rain, ContinentClimate};
 use super::ContinentGrid;
+use crate::hydrology::budyko::RunoffModel;
 use crate::hydrology::forcing::{profile_year, LatitudeMilli};
 use arda_core::{LatitudeBand, RainfallMm, TempCentiC};
 
@@ -80,13 +81,32 @@ pub struct WaterBalance {
 /// One cell's `(runoff, deficit)` in mm/yr from rain `p` and Hamon `e`.
 #[must_use]
 pub fn budget_mm(p: u32, e: u32) -> (u32, u32) {
-    let a = (p / 2).min(e);
+    budget_mm_with(RunoffModel::HalfRain, p, e)
+}
+
+/// [`budget_mm`] with the land loss of `model`.
+#[must_use]
+pub fn budget_mm_with(model: RunoffModel, p: u32, e: u32) -> (u32, u32) {
+    let a = u32::try_from(model.land_loss(u128::from(p), u128::from(e))).unwrap_or(p.min(e));
     (p - a, e - a)
 }
 
 /// The recipe-7 water balance of `grid` at `band`.
 #[must_use]
 pub fn water_balance(grid: &ContinentGrid, band: LatitudeBand) -> WaterBalance {
+    water_balance_recipe(grid, band, false)
+}
+
+/// [`water_balance`]; with `v9` (recipe 9) the land loss follows Fu's
+/// Budyko curve ([`crate::hydrology::budyko`], review 3.2-1), as the shared
+/// annual solve takes it.
+#[must_use]
+pub fn water_balance_recipe(grid: &ContinentGrid, band: LatitudeBand, v9: bool) -> WaterBalance {
+    let model = if v9 {
+        RunoffModel::Budyko
+    } else {
+        RunoffModel::HalfRain
+    };
     let c = climate_recipe7(grid, band);
     let (w, h) = (grid.width(), grid.height());
     let n = usize::try_from(w * h).unwrap_or(0);
@@ -117,7 +137,7 @@ pub fn water_balance(grid: &ContinentGrid, band: LatitudeBand) -> WaterBalance {
                         .sum()
                 });
             let e = u32::try_from(e_um / 1_000).unwrap_or(u32::MAX);
-            let (r, d) = budget_mm(u32::from(p), e);
+            let (r, d) = budget_mm_with(model, u32::from(p), e);
             runoff_mm[i] = u16::try_from(r).unwrap_or(u16::MAX);
             deficit_mm[i] = u16::try_from(d).unwrap_or(u16::MAX);
         }

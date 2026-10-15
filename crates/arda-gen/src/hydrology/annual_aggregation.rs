@@ -2,6 +2,7 @@
 #![deny(missing_docs)]
 
 use super::annual::{AnnualBand, AnnualNode, MAX_ANNUAL};
+use super::budyko::RunoffModel;
 use super::routing::Extent;
 use arda_core::hydrology::{BasinId, Litres};
 use arda_core::{GlobalCell, HeightMm, RainfallMm};
@@ -51,9 +52,19 @@ pub struct CellBudget {
 /// Sums monthly evaporation; evaluating evaporation at annual mean temperature is not equivalent.
 #[must_use]
 pub fn cell_budget(rain: RainfallMm, evaporation_um: &[u32; 12]) -> CellBudget {
+    cell_budget_with(RunoffModel::HalfRain, rain, evaporation_um)
+}
+
+/// [`cell_budget`] with the land loss of `model` (recipe 9: Budyko).
+#[must_use]
+pub fn cell_budget_with(
+    model: RunoffModel,
+    rain: RainfallMm,
+    evaporation_um: &[u32; 12],
+) -> CellBudget {
     let p = u128::from(rain.raw()) * 10_000;
     let e = evaporation_um.iter().map(|&x| u128::from(x)).sum::<u128>() * 10;
-    let a = (p / 2).min(e);
+    let a = model.land_loss(p, e);
     CellBudget {
         precipitation: Litres(p),
         evaporation: Litres(e),
@@ -161,9 +172,17 @@ pub struct Aggregator {
     total_e: u128,
     node_slots: u64,
     failed: bool,
+    runoff: RunoffModel,
 }
 
 impl Aggregator {
+    /// Takes every cell's land loss by `model` (recipe 9: Budyko).
+    #[must_use]
+    pub fn with_runoff(mut self, model: RunoffModel) -> Self {
+        self.runoff = model;
+        self
+    }
+
     /// Admits nodes before allocating indices; all source totals and band spans must be empty.
     pub fn new(extent: Extent, nodes: Vec<AnnualNode>, limits: AggregationLimits) -> Result<Self> {
         let count = u64::try_from(nodes.len()).map_err(|_| AggregationError::Overflow)?;
@@ -251,6 +270,7 @@ impl Aggregator {
             total_e: 0,
             node_slots,
             failed: false,
+            runoff: RunoffModel::HalfRain,
         })
     }
 
@@ -295,7 +315,7 @@ impl Aggregator {
                 .ok_or(AggregationError::Overflow)?;
             return Ok(());
         }
-        let b = cell_budget(cell.rain, &cell.evaporation_um);
+        let b = cell_budget_with(self.runoff, cell.rain, &cell.evaporation_um);
         self.total_p = add(self.total_p, b.precipitation.0)?;
         self.total_e = add(self.total_e, b.evaporation.0)?;
         let owner = match cell.terminal {
