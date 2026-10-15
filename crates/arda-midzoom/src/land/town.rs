@@ -68,7 +68,8 @@ impl Towns {
             .settlements
             .iter()
             .filter(|s| {
-                let r = arda_people::town::plan_radius_m(s.tier) + margin_m;
+                // A plan window grows with its people (OI-50).
+                let r = arda_people::town::plan_radius_for(s) + margin_m;
                 #[allow(clippy::cast_precision_loss)] // world metres
                 let (x, y) = (s.x_m as f64, s.y_m as f64);
                 x >= bbox[0] - r && x <= bbox[2] + r && y >= bbox[1] - r && y <= bbox[3] + r

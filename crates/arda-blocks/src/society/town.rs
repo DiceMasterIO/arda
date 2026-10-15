@@ -38,11 +38,7 @@ pub fn plans_near(
         .settlements
         .settlements
         .iter()
-        .filter(|x| {
-            #[allow(clippy::cast_precision_loss)]
-            let at = Bbox::of([[x.x_m as f64, x.y_m as f64]]);
-            at.near(&win, arda_people::town::plan_radius_m(x.tier) + margin_m)
-        })
+        .filter(|x| reaches(x, &win, margin_m))
         .map(|x| x.id.get())
         .collect();
     near.sort_unstable();
@@ -56,6 +52,16 @@ pub fn plans_near(
                 .map_err(|x| err(x.to_string()))
         })
         .collect()
+}
+
+/// Whether settlement `s`'s plan can come within `margin_m` of `win`: its
+/// plan window grows with its people (`plan_radius_for`, OI-50), so a
+/// large city's outer streets are not missed.
+#[must_use]
+pub fn reaches(s: &arda_settle::model::Settlement, win: &Bbox, margin_m: f64) -> bool {
+    #[allow(clippy::cast_precision_loss)] // world metres
+    let at = Bbox::of([[s.x_m as f64, s.y_m as f64]]);
+    at.near(win, arda_people::town::plan_radius_for(s) + margin_m)
 }
 
 /// Whether a plan occupies a global square (every kind but open country
@@ -280,5 +286,35 @@ fn mark_relaxed(
                 }
             }
         }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use arda_settle::model::{Settlement, Tier};
+
+    /// OI-50: a window just past a city's tier radius still sees a city
+    /// of 120,000 people, whose plan window is wider.
+    #[test]
+    fn a_large_city_reaches_windows_past_its_tier_radius() {
+        let r = arda_people::town::plan_radius_m(Tier::City);
+        let x = r + 200.0;
+        let win = Bbox {
+            x0: x,
+            y0: -10.0,
+            x1: x + 100.0,
+            y1: 10.0,
+        };
+        assert!(!reaches(
+            &Settlement::bare(1, 0, 0, Tier::City, 8_000),
+            &win,
+            0.0
+        ));
+        assert!(reaches(
+            &Settlement::bare(2, 0, 0, Tier::City, 120_000),
+            &win,
+            0.0
+        ));
     }
 }
