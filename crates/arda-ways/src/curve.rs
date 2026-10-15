@@ -241,6 +241,28 @@ pub fn shapes(v: &[P]) -> Vec<Shape> {
     }
 }
 
+/// The smooth centreline of a polyline (its [`shapes`], no switchback
+/// wave), sampled about every `step_m` metres, both ends included: the
+/// line a way is laid on wherever the ground is gentle and no crossing
+/// straightens it, for layers that must follow the ways' roads (the
+/// fields, review 3.5-10).
+#[must_use]
+#[allow(clippy::cast_possible_truncation, clippy::cast_sign_loss)] // bounded counts
+pub fn centreline(v: &[P], step_m: f64) -> Vec<P> {
+    let mut out: Vec<P> = Vec::new();
+    for shape in shapes(v) {
+        let len = wave_len(&shape, None, 64);
+        let n = ((len / step_m.max(STEP_M)).ceil() as u32).clamp(1, 1 << 16);
+        for k in 0..=n {
+            let p = shape.at(f64::from(k) / f64::from(n));
+            if out.last().is_none_or(|&q| dist(p, q) > 1e-9) {
+                out.push(p);
+            }
+        }
+    }
+    out
+}
+
 /// Cubic Hermite from `a` (direction `ta`) to `b` (direction `tb`),
 /// sampled every [`STEP_M`], excluding `a` and including `b`.
 #[must_use]

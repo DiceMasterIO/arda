@@ -15,6 +15,9 @@ fn err(layer: &'static str) -> impl Fn(String) -> BlocksError {
     move |message| BlocksError::Overlay { layer, message }
 }
 
+/// Sampling step of the fields' road centrelines, metres (under a square).
+const FIELD_ROAD_STEP_M: f64 = 1.25;
+
 type Converted = (
     Vec<(Bbox, arda_ways::Road)>,
     Vec<arda_ways::Crossing>,
@@ -41,7 +44,9 @@ pub fn roads(world: &World) -> Result<Converted, BlocksError> {
         ways.push((bbox, road));
         let class = arda_fields::RoadClass::from_code(r.class.code());
         for seg in &r.segments {
-            let points = pts(seg);
+            // The ways' smooth centreline, not settle's straight one, so
+            // a field stops where the road is laid (review 3.5-10).
+            let points = arda_ways::curve::centreline(&pts(seg), FIELD_ROAD_STEP_M);
             fields.push((
                 Bbox::of(points.iter().copied()),
                 arda_fields::Road { class, points },
@@ -284,6 +289,7 @@ pub fn fields(
     world: &World,
     landuse: &LandUseRaster,
     roads: &[arda_fields::Road],
+    channels: &super::rivers::ChannelCache,
 ) -> Result<OverlayLayer, BlocksError> {
     // The partition reads heights and rivers over every land block that
     // meets the plan (logic/17 §land-fields).
@@ -313,11 +319,22 @@ pub fn fields(
             population: x.population,
         })
         .collect();
+    // The rivers the map draws (refine's channels), not settle's straight
+    // lines: mills stand on the real bank, farms and mines keep off the
+    // real water (review 3.5-10). A failed read counts as dry.
+    let river = |x: f64, y: f64| {
+        #[allow(clippy::cast_possible_truncation)] // world squares fit i64
+        let (gx, gy) = ((x / SQUARE_M).floor() as i64, (y / SQUARE_M).floor() as i64);
+        let cell = arda_refine::CellKey::new(gx.div_euclid(64), gy.div_euclid(64));
+        channels
+            .water_at(&world.src, cell)
+            .is_ok_and(|w| w.is_water(gx, gy))
+    };
     let terrain = |x: f64, y: f64| TerrainSample {
         height_m: s.height_m(x, y),
         water_depth_m: if s.open_water_at(x, y) {
             2.0
-        } else if s.river_at(x, y).is_some() {
+        } else if river(x, y) {
             1.0
         } else {
             0.0

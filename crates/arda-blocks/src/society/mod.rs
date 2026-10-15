@@ -196,7 +196,7 @@ impl Overlays for SocietyOverlays {
             .filter(|(b, _)| b.near(&win, FIELDS_MARGIN_M))
             .map(|(_, r)| r.clone())
             .collect();
-        layers::fields(ctx, &self.world, &self.landuse, &roads).map(Some)
+        layers::fields(ctx, &self.world, &self.landuse, &roads, &self.channels).map(Some)
     }
 
     fn town(&self, ctx: &OverlayCtx<'_>) -> Result<Option<OverlayLayer>, BlocksError> {

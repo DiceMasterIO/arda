@@ -18,20 +18,26 @@ const SALT: u64 = 0x3111;
 const DIG: i64 = 14;
 /// Leat depth in feet.
 const LEAT_FT: u8 = 3;
+/// Squares beyond its cell a mill looks for a bank.
+const BANK_REACH: i64 = 28;
 
 fn wet(inputs: &FieldInputs<'_>, s: Sq) -> bool {
     let m = s.centre_m();
     inputs.terrain.sample(m[0], m[1]).water_depth_m > 0.0
 }
 
-/// Bank squares of the cell, nearest the centre first, each with the axis
+/// Bank squares in and up to [`BANK_REACH`] around the cell, nearest the
+/// centre first, each with the axis
 /// towards the water (the mean offset of wet squares within 7 squares).
 fn banks(inputs: &FieldInputs<'_>, net: &RoadNet, cell: (i64, i64)) -> Vec<(Sq, [i64; 2])> {
     let (x0, y0) = (cell.0 * CELL_SQUARES, cell.1 * CELL_SQUARES);
     let c = cell_centre(cell);
     let mut out = Vec::new();
-    for y in (y0 + 4)..(y0 + CELL_SQUARES - 4) {
-        for x in (x0 + 4)..(x0 + CELL_SQUARES - 4) {
+    // The refined river wanders up to a cell from settle's straight one:
+    // its banks are looked for that far out (review 3.5-10).
+    let (lo, hi) = (4 - BANK_REACH, CELL_SQUARES - 4 + BANK_REACH);
+    for y in (y0 + lo)..(y0 + hi) {
+        for x in (x0 + lo)..(x0 + hi) {
             let s = Sq::new(x, y);
             if wet(inputs, s) || net.near(s.centre(), 3.0) {
                 continue;

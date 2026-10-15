@@ -23,10 +23,14 @@ pub const CHANNEL_MARGIN_CELLS: i64 = 6;
 /// Cells whose pieces are kept (about 10 kB each at most).
 const CACHE_CELLS: usize = 20_000;
 
-/// Refined channel pieces by cell.
+/// Cells whose river water is kept for the fields' terrain.
+const WATER_CELLS: usize = 4_096;
+
+/// Refined channel pieces by cell, and the water around each cell.
 #[derive(Default)]
 pub struct ChannelCache {
     cells: Mutex<BTreeMap<CellKey, Arc<Vec<Piece>>>>,
+    water: std::sync::RwLock<std::collections::HashMap<CellKey, Arc<RiverWater>>>,
 }
 
 impl ChannelCache {
@@ -44,6 +48,38 @@ impl ChannelCache {
             guard.clear();
         }
         Ok(Arc::clone(guard.entry(c).or_insert(pieces)))
+    }
+
+    /// The refined river water around cell `c`: the pieces of `c` and its
+    /// eight neighbours (a cell's pieces reach under one cell beyond it),
+    /// cached per cell, so whichever window asks gets the same water.
+    ///
+    /// # Errors
+    /// A world layer failed to read.
+    pub fn water_at(&self, src: &dyn Source, c: CellKey) -> Result<Arc<RiverWater>, BlocksError> {
+        let poisoned = || BlocksError::Overlay {
+            layer: "fields",
+            message: "river water cache poisoned".into(),
+        };
+        if let Some(w) = self.water.read().map_err(|_| poisoned())?.get(&c) {
+            return Ok(Arc::clone(w));
+        }
+        let mut pieces = Vec::new();
+        for dy in -1..=1 {
+            for dx in -1..=1 {
+                pieces.extend(
+                    self.cell(src, CellKey::new(c.x + dx, c.y + dy))?
+                        .iter()
+                        .cloned(),
+                );
+            }
+        }
+        let w = Arc::new(RiverWater::new(pieces));
+        let mut guard = self.water.write().map_err(|_| poisoned())?;
+        if guard.len() >= WATER_CELLS {
+            guard.clear();
+        }
+        Ok(Arc::clone(guard.entry(c).or_insert(w)))
     }
 
     /// The river water of every channel cell near the window.

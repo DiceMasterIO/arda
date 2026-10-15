@@ -63,6 +63,7 @@ pub fn open() -> (Arc<arda_people::World>, SocietyOverlays, Pipeline) {
 
 /// The cell holding world position `(x_m, y_m)`.
 #[allow(clippy::cast_possible_truncation, clippy::cast_precision_loss)]
+#[allow(dead_code)] // not every test file asks
 pub fn cell_at(x_m: i64, y_m: i64) -> (i64, i64) {
     let sq = |m: i64| (m as f64 / (100.0 / 64.0)).floor() as i64;
     (sq(x_m).div_euclid(64), sq(y_m).div_euclid(64))
