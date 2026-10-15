@@ -14,8 +14,8 @@ use rayon::prelude::*;
 use super::lattice::{alloc, Lattice};
 use super::macro_view::MacroView;
 use super::{
-    arid, bathymetry, canyon, coast, coastal, drainage, flats, flow, glacial, littoral, margin,
-    plains, sampled, shore, surface, terrace, water, FormationError, Formed, LOWSTAND_MM,
+    arid, bathymetry, canyon, coast, coastal, drainage, flats, flow, glacial, grading, littoral,
+    margin, plains, sampled, shore, surface, terrace, water, FormationError, Formed, LOWSTAND_MM,
     PREPARED_SPACING_UM, RELIEF_FULL_M, SINK_RADIUS_UM, TROUGH_SINK_RADIUS_UM,
 };
 
@@ -126,20 +126,32 @@ pub(super) fn run(mut g: Lattice, ctx: Context<'_>) -> Result<Formed, FormationE
         canyon::carve(&mut g, &mouths)?;
         built
     };
-    let fine_fill = |g: &mut Lattice,
-                     is_basin: &(dyn Fn(i64, i64) -> bool + Sync)|
+    // Recipe 9 grades every fill along a weighted geodesic and regrades its
+    // flats after every fill, not once (review 3.1-3).
+    let v9 = view.recipe >= super::Recipe::V9;
+    let mut fills = 0_u64;
+    let mut fine_fill = |g: &mut Lattice,
+                         is_basin: &(dyn Fn(i64, i64) -> bool + Sync)|
      -> Result<(), FormationError> {
         let flags = surface::sea_and_sinks(g, is_basin)?;
         let (w, h, n) = (g.width, g.height, g.z.len());
         let mut next: Vec<u32> = alloc(n)?;
         let mut closed: Vec<u8> = alloc(n)?;
-        drainage::fill(&mut g.z, w, h, &flags, 1, &mut next, &mut closed)
+        if !v9 {
+            return drainage::fill(&mut g.z, w, h, &flags, 1, &mut next, &mut closed);
+        }
+        fills += 1;
+        let seed = base_seed ^ 0x6EAD_F000 ^ (fills << 20);
+        grading::fill_graded(&mut g.z, w, h, &flags, 1, seed, &mut next, &mut closed)?;
+        flats::regrade(g, &flags, seed ^ 0xF1A7)?;
+        // A regraded flat can leave a hillslope cell beside it as a pit.
+        grading::fill_graded(&mut g.z, w, h, &flags, 1, seed ^ 1, &mut next, &mut closed)
     };
     // logic/02 §fine-formation flats: fill flats (sediment-filled basins,
     // estuarine infill) are regraded as cost-weighted geodesics, so rivers
     // wander across them instead of running along grid geodesics.
     fine_fill(&mut g, is_basin)?;
-    {
+    if !v9 {
         let flags = surface::sea_and_sinks(&g, is_basin)?;
         flats::regrade(&mut g, &flags, base_seed ^ 0xF1A7_5000)?;
     }
@@ -190,8 +202,10 @@ pub(super) fn run(mut g: Lattice, ctx: Context<'_>) -> Result<Formed, FormationE
             &mut features,
         )?;
         fine_fill(&mut g, is_basin)?;
-        let flags = surface::sea_and_sinks(&g, is_basin)?;
-        flats::regrade(&mut g, &flags, base_seed ^ 0xF1A7_5007)?;
+        if !v9 {
+            let flags = surface::sea_and_sinks(&g, is_basin)?;
+            flats::regrade(&mut g, &flags, base_seed ^ 0xF1A7_5007)?;
+        }
     }
     // logic/02 §world-water: braided belts and meanders, drained again,
     // then oxbows and karst poljes; their closed basins become protected
@@ -211,7 +225,8 @@ pub(super) fn run(mut g: Lattice, ctx: Context<'_>) -> Result<Formed, FormationE
     features.index();
     let is_shaped = |x_um: i64, y_um: i64| is_basin(x_um, y_um) || features.is_sink(x_um, y_um);
     fine_fill(&mut g, &is_shaped)?;
-    sampled::drain_sampled(&mut g, PREPARED_SPACING_UM, &is_shaped)?;
+    let sampled_grade = v9.then_some(base_seed ^ 0x6EAD_5A00);
+    sampled::drain_sampled_graded(&mut g, PREPARED_SPACING_UM, &is_shaped, sampled_grade)?;
     // logic/02 §fine-formation glacial lakes: deliberately closed trough
     // basins. Overlapping carve discs also leave secondary hollows, so the
     // drainage guarantees run again with each trough's sink protected.
@@ -228,7 +243,7 @@ pub(super) fn run(mut g: Lattice, ctx: Context<'_>) -> Result<Formed, FormationE
             })
     };
     fine_fill(&mut g, &is_sink)?;
-    sampled::drain_sampled(&mut g, PREPARED_SPACING_UM, &is_sink)?;
+    sampled::drain_sampled_graded(&mut g, PREPARED_SPACING_UM, &is_sink, sampled_grade)?;
     water::record_basins(
         &mut features,
         basins,

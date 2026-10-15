@@ -71,3 +71,20 @@ fn recipe_5_is_deterministic_and_publishes_no_new_layers() {
         "form() is the default recipe"
     );
 }
+
+#[test]
+fn recipe_9_is_deterministic_and_differs_from_recipe_7() {
+    let grid = island();
+    let form9 = || form_world(42, 0, &grid, (513, 513), u128::MAX, Recipe::V9, BAND).unwrap();
+    let a = form9();
+    assert!(a.shore.is_some() && a.water.is_some());
+    let pool = rayon::ThreadPoolBuilder::new()
+        .num_threads(1)
+        .build()
+        .unwrap();
+    let b = pool.install(form9);
+    assert_eq!(a.lattice, b.lattice, "recipe 9 is thread-count independent");
+    assert_eq!(a.shore, b.shore);
+    let v7 = form_world(42, 0, &grid, (513, 513), u128::MAX, Recipe::V7, BAND).unwrap();
+    assert_ne!(a.lattice.z, v7.lattice.z, "recipe 9 changes the surface");
+}

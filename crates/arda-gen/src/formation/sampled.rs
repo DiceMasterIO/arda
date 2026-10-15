@@ -55,7 +55,21 @@ pub fn drain_sampled(
     spacing_um: i64,
     basin: &(dyn Fn(i64, i64) -> bool + Sync),
 ) -> Result<usize, FormationError> {
-    drain(g, spacing_um, basin, true)
+    drain(g, spacing_um, basin, true, None)
+}
+
+/// [`drain_sampled`], filling the sampled lattice with the recipe-9
+/// weighted-geodesic grading when `grade` is a seed ([`super::grading`]).
+///
+/// # Errors
+/// Allocation failure.
+pub fn drain_sampled_graded(
+    g: &mut Lattice,
+    spacing_um: i64,
+    basin: &(dyn Fn(i64, i64) -> bool + Sync),
+    grade: Option<u64>,
+) -> Result<usize, FormationError> {
+    drain(g, spacing_um, basin, true, grade)
 }
 
 /// [`drain_sampled`] as recipe 5 ran it: a four-connected sea, and only
@@ -68,7 +82,7 @@ pub fn drain_sampled_v5(
     spacing_um: i64,
     basin: &(dyn Fn(i64, i64) -> bool + Sync),
 ) -> Result<usize, FormationError> {
-    drain(g, spacing_um, basin, false)
+    drain(g, spacing_um, basin, false, None)
 }
 
 fn drain(
@@ -76,6 +90,7 @@ fn drain(
     spacing_um: i64,
     basin: &(dyn Fn(i64, i64) -> bool + Sync),
     v6: bool,
+    grade: Option<u64>,
 ) -> Result<usize, FormationError> {
     let s = i128::from(spacing_um);
     let span_x = (g.width as i128 - 1) * i128::from(g.spacing_um);
@@ -113,7 +128,19 @@ fn drain(
             }
         });
         filled.copy_from_slice(&z);
-        fill(&mut filled, w, h, &flags, 1, &mut next, &mut closed)?;
+        match grade {
+            Some(seed) => super::grading::fill_graded(
+                &mut filled,
+                w,
+                h,
+                &flags,
+                1,
+                seed,
+                &mut next,
+                &mut closed,
+            )?,
+            None => fill(&mut filled, w, h, &flags, 1, &mut next, &mut closed)?,
+        }
         let mut changed = 0;
         let gs = i128::from(g.spacing_um);
         // Splat each filled sample's required raise onto its four support

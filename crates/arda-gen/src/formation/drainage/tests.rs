@@ -41,7 +41,17 @@ fn local_fill_removes_every_closed_pit_like_the_global_fill() {
     let mut stamp = vec![0; w * h];
     let mut closed = vec![0; w * h];
     let before = z.clone();
-    fill_local(&mut z, w, h, &flags, 1, (&mut stamp, &mut closed), true).unwrap();
+    fill_local(
+        &mut z,
+        w,
+        h,
+        &flags,
+        1,
+        (&mut stamp, &mut closed),
+        true,
+        None,
+    )
+    .unwrap();
     assert!(pits(&z, w, h, &flags).is_empty());
     assert!(
         z.iter().zip(&before).all(|(a, b)| a >= b),

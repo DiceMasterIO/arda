@@ -102,3 +102,26 @@ fn recipe_9_hillslope_creep_is_stable_on_mature_ground() {
     let v7 = creep(false, 30);
     assert!(v7 > 10 * before, "recipe 7 creep amplifies: {v7} mm");
 }
+
+/// Review 3.1-3: the floor of the implicit update turned a small drop on a
+/// large channel into an exact tie with the receiver. Recipe 9 keeps 1 mm.
+#[test]
+fn recipe_9_implicit_incision_keeps_a_millimetre_of_drop() {
+    let (zr, f) = (50_000, 2_000_000);
+    for drop in [1, 5, 20] {
+        assert_eq!(
+            implicit_step(zr + drop, zr, f, false),
+            zr,
+            "recipe 7 ties at {drop} mm"
+        );
+        assert_eq!(
+            implicit_step(zr + drop, zr, f, true),
+            zr + 1,
+            "recipe 9 at {drop} mm"
+        );
+    }
+    // Large drops are solved exactly as before.
+    let big = implicit_step(zr + 100_000, zr, f, true);
+    assert_eq!(big, implicit_step(zr + 100_000, zr, f, false));
+    assert!(big > zr + 1);
+}

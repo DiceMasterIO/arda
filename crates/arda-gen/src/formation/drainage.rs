@@ -208,10 +208,13 @@ fn pits(z: &[i32], width: usize, height: usize, flags: &[u8]) -> Vec<u32> {
 /// spill, so it drains through the spill. Pits are handled in index order,
 /// so the result is deterministic. Two local rounds clear almost all pits
 /// (MICRO: ~13,000 to ~130); with `exact` any remainder is cleared by the
-/// global [`fill`] (logic/02 §fine-formation drainage).
+/// global [`fill`] (logic/02 §fine-formation drainage). With a `grade`
+/// seed (recipe 9) flooded cells are graded along a weighted geodesic
+/// instead of in breadth-first rings ([`super::grading`]).
 ///
 /// # Errors
 /// Allocation failure in the fallback.
+#[allow(clippy::too_many_arguments)]
 pub fn fill_local(
     z: &mut [i32],
     width: usize,
@@ -220,6 +223,7 @@ pub fn fill_local(
     eps_mm: i32,
     scratch: (&mut [u32], &mut [u8]),
     exact: bool,
+    grade: Option<u64>,
 ) -> Result<(), FormationError> {
     use std::cmp::Reverse;
     let (stamp, closed) = scratch;
@@ -275,11 +279,24 @@ pub fn fill_local(
                 }
             }
             let Some(outlet) = outlet else { continue };
+            let done = rid | 0x8000_0000;
+            if let Some(seed) = grade {
+                super::grading::grade_region(
+                    z,
+                    width,
+                    height,
+                    stamp,
+                    (outlet, level),
+                    (popped, done),
+                    eps_mm,
+                    seed,
+                );
+                continue;
+            }
             // Breadth-first from the outlet (below the water level by
             // construction) through the flooded cells only.
             queue.clear();
             queue.push_back((outlet as u32, 0));
-            let done = rid | 0x8000_0000;
             while let Some((c, dist)) = queue.pop_front() {
                 let c = c as usize;
                 if c != outlet {
@@ -307,7 +324,12 @@ pub fn fill_local(
     if !exact || pits(z, width, height, flags).is_empty() {
         return Ok(());
     }
-    fill(z, width, height, flags, eps_mm, stamp, closed)
+    match grade {
+        Some(seed) => {
+            super::grading::fill_graded(z, width, height, flags, eps_mm, seed, stamp, closed)
+        }
+        None => fill(z, width, height, flags, eps_mm, stamp, closed),
+    }
 }
 
 /// Receivers: steepest descent, or with probability `stoch_q16 / 65536`

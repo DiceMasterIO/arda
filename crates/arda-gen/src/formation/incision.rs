@@ -227,7 +227,7 @@ pub fn run(
             let f = i64::from(scratch.bz[i]);
             let zr = i64::from(g.z[r]);
             let zi = i64::from(g.z[i]);
-            let mut nz = (zi * 65_536 + f * zr).div_euclid(65_536 + f);
+            let mut nz = implicit_step(zi, zr, f, params.v9);
             let base_cap = if code < 4 { cap_card } else { cap_diag };
             // Quadratic ramp: hills stay gentle until relief is substantial.
             let cap = match fields.shape {
@@ -270,6 +270,8 @@ fn drain(
         params.eps_mm,
         (&mut scratch.order, &mut scratch.indeg),
         exact,
+        // Recipe 9 grades fills along a weighted geodesic (review 3.1-3).
+        params.v9.then_some(seed ^ 0x6EAD_0009),
     )?;
     // logic/02 §fine-formation hillslopes: with convergent area, water is
     // routed on steepest descent (it converges), while the solve and talus
@@ -291,6 +293,21 @@ fn drain(
         upstream_order(&scratch.rcv, w, h, &mut scratch.indeg, &mut scratch.order);
     }
     Ok(())
+}
+
+/// Backward-Euler stream-power update of a cell at `zi` draining to a
+/// receiver at `zr` with coefficient `f` (Q16). The floor of the rational
+/// update turns any drop under about `(65536 + f) / 65536` mm into a tie
+/// with the receiver; on large channels that flattens reaches whose
+/// receivers then fall back to the fixed neighbour order (review 3.1-3).
+/// Recipe 9 (`keep_mm`) keeps at least 1 mm of drop.
+pub(crate) fn implicit_step(zi: i64, zr: i64, f: i64, keep_mm: bool) -> i64 {
+    let nz = (zi * 65_536 + f * zr).div_euclid(65_536 + f);
+    if keep_mm && zi > zr {
+        nz.max(zr + 1)
+    } else {
+        nz
+    }
 }
 
 /// Blurs the raw target (see [`Scratch::raw_target`]) into

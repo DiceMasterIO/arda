@@ -46,6 +46,7 @@ pub mod flats;
 pub mod floodplain;
 pub mod flow;
 pub mod glacial;
+pub mod grading;
 pub mod incision;
 pub mod lattice;
 mod levels;
