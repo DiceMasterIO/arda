@@ -1,9 +1,11 @@
 //! Settlement placement by carrying capacity (spec step 3; artifact "Where
 //! people settle").
 //!
-//! Population is the region's density times its carrying land
-//! ([`carrying_ha`]: arable land counts double, barren land a quarter).
-//! Three tenths live in
+//! Population is the world's mean density times its land area (logic/01:
+//! the configured density is people per km² of all land, on average), so
+//! a fertile world and a barren one of one size hold as many people; the
+//! land's carrying capacity decides where they live, through the site
+//! scores, the refusals and the farm-sized villages. Three tenths live in
 //! towns (as many as the rank-size rule fills, sized by hinterland and
 //! site in `townsize.rs`), just under half in villages of a few hundred,
 //! the rest in hamlets. Placement is greedy, best site first, within each
@@ -93,34 +95,6 @@ pub fn rank_size(urban: u64) -> (u64, u64) {
         best = (n, p1);
     }
     best
-}
-
-/// Carrying weight of a land cell in hundredths (assumed, tunable;
-/// review 3.3-13): arable land feeds twice an average hectare, other
-/// habitable land (a settlement site, pasture, woods) an average one,
-/// and land nobody can live on (rock, ice, marsh, steep or flooded ground)
-/// a quarter, for herds and gathering. On a land of about a third arable
-/// and a fifth other habitable ground (the MICRO worlds) the weights
-/// average one, so the world's density keeps its meaning there.
-const CARRYING_PCT: [u64; 3] = [200, 100, 25];
-
-/// The land's carrying capacity in hectare-equivalents: the population is
-/// the world's density times this, not times the bare land area.
-#[must_use]
-pub fn carrying_ha(g: &Grid, sites: &Sites, suit: &Suitability) -> u64 {
-    let pct: u64 = (0..g.len())
-        .filter(|&i| g.is_land(i))
-        .map(|i| {
-            if sites.tags[i] & tags::ARABLE != 0 {
-                CARRYING_PCT[0]
-            } else if suit.score[i] > 0 {
-                CARRYING_PCT[1]
-            } else {
-                CARRYING_PCT[2]
-            }
-        })
-        .sum();
-    pct / 100
 }
 
 /// Spatial buckets of placed settlements, 1 km on a side.
@@ -235,7 +209,9 @@ pub fn place(
     suit: &Suitability,
     p: PlaceParams,
 ) -> Result<Placement, SettleError> {
-    let target = carrying_ha(g, sites, suit) * u64::from(p.density_per_km2) / 100;
+    // Land hectares × people per km² / 100 ha per km².
+    let land_ha = u64::try_from(g.land_cells()).unwrap_or(u64::MAX);
+    let target = land_ha.saturating_mul(u64::from(p.density_per_km2)) / 100;
     let urban = target * URBAN_PM / 1000;
     let villages = target * VILLAGE_PM / 1000;
     let hamlets = target - urban - villages;

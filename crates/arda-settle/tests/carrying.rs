@@ -1,6 +1,7 @@
-//! People follow the land's carrying capacity and the sites' resources,
-//! not land area alone (review 3.3-13; logic/08 §settle-tiers,
-//! §settle-placement).
+//! The configured density is people per km² of all land, on average over
+//! the world (logic/01 "mean density"); where they live follows the
+//! land's carrying capacity and the sites' resources (review 3.3-13;
+//! logic/08 §settle-tiers, §settle-placement).
 #![allow(clippy::unwrap_used, clippy::expect_used, missing_docs)]
 
 use arda::{Cover, TerrainKind};
@@ -35,24 +36,28 @@ fn world(rock: impl Fn(i64, i64) -> bool) -> Grid {
     g
 }
 
-fn target(g: &Grid) -> u64 {
+fn placement(g: &Grid) -> place::Placement {
     let sites = tags::compute(g, 1).unwrap();
     let suit = suitability::compute(g, &sites).unwrap();
     let p = PlaceParams {
         seed: 1,
         density_per_km2: 15,
     };
-    place::place(g, &sites, &suit, p).unwrap().target_population
+    place::place(g, &sites, &suit, p).unwrap()
 }
 
 #[test]
-fn bare_rock_feeds_fewer_people_than_farmland() {
-    let farm = target(&world(|_, _| false));
-    let rocky = target(&world(|x, _| !(30..=50).contains(&x)));
-    assert!(
-        rocky * 2 < farm,
-        "the same land area: {farm} on farmland, {rocky} mostly on rock"
-    );
+fn the_density_is_people_per_km2_of_all_land() {
+    // 6,400 ha = 64 km² at 15 people/km²: 960 people, fertile or not.
+    let farm = world(|_, _| false);
+    let rocky = world(|x, _| !(30..=50).contains(&x));
+    for g in [&farm, &rocky] {
+        assert_eq!(placement(g).target_population, 960);
+    }
+    // On the rocky land they crowd onto the strip of farmland.
+    let p = placement(&rocky);
+    assert!(!p.settlements.is_empty());
+    assert!(p.settlements.iter().all(|s| (30..=50).contains(&s.cell_x)));
 }
 
 #[test]
