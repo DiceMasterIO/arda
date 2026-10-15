@@ -372,3 +372,55 @@ fn review_section_2_measurements() {
     let max = offsets.iter().copied().fold(0.0, f64::max);
     println!("-- thalweg to tactical centreline: {n} cells, median {med:.1} m, p90 {p90:.1} m, max {max:.1} m");
 }
+
+/// Review 3.4-5: blocks whose WFC fell back to the relaxed fill, over a
+/// sweep of every ninth land cell in both axes.
+#[test]
+#[ignore = "needs a generated world"]
+fn review_relaxed_blocks() {
+    let Some(w) = world() else {
+        println!("ARDA_MEASURE_WORLD unset; nothing measured");
+        return;
+    };
+    let src = WorldSource::new(&w).unwrap();
+    let (cw, ch) = src.cells_wide_high();
+    let mut cells = Vec::new();
+    for y in (1..ch - 1).step_by(9) {
+        for x in (1..cw - 1).step_by(9) {
+            let k = CellKey::new(x, y);
+            if src.cell(k).unwrap().terrain == TerrainKind::Land {
+                cells.push(k);
+            }
+        }
+    }
+    let chunks: Vec<Vec<CellKey>> = cells
+        .chunks(cells.len() / 4 + 1)
+        .map(<[CellKey]>::to_vec)
+        .collect();
+    let (relaxed, illegal): (usize, usize) = std::thread::scope(|s| {
+        let hs: Vec<_> = chunks
+            .iter()
+            .map(|part| {
+                let src = &src;
+                s.spawn(move || {
+                    let (mut r, mut i) = (0, 0);
+                    for &k in part {
+                        let b = refine(src, k).unwrap();
+                        if b.relaxed {
+                            r += 1;
+                            i += b.rules.iter().filter(|q| q.review).count();
+                        }
+                    }
+                    (r, i)
+                })
+            })
+            .collect();
+        hs.into_iter()
+            .map(|h| h.join().unwrap())
+            .fold((0, 0), |a, b| (a.0 + b.0, a.1 + b.1))
+    });
+    println!(
+        "-- relaxed blocks: {relaxed} of {} ({illegal} squares flagged for review)",
+        cells.len()
+    );
+}

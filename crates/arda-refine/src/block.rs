@@ -1,7 +1,7 @@
 //! The per-block pipeline: gather, physical fields, fixed features, fixed
 //! borders, WFC ground, scatter and rules.
 
-use crate::borders::{corner_class, solve_line, LineCorner};
+use crate::borders::{corner_star, solve_line, LineCorner, Star, StarCorner};
 use crate::classes::{Class, Mask, COUNT};
 use crate::context::{Ctx, N};
 use crate::error::RefineError;
@@ -158,14 +158,19 @@ impl Lattice {
             .collect()
     }
 
-    fn corner(&self, x: i64, y: i64) -> Class {
-        let mut around = [0; 9];
-        for (k, slot) in around.iter_mut().enumerate() {
-            let (dx, dy) = (span(k) % 3 - 1, span(k) / 3 - 1);
-            *slot = *self.masks.clamped(x + dx, y + dy);
-        }
-        let cost = self.scores.clamped(x, y).map(|v| -SHARPNESS * v);
-        corner_class(*self.masks.clamped(x, y), &cost, around)
+    /// The block corner at vertex `(x, y)` solved with its four arms
+    /// ([`corner_star`]); every block meeting there gets the same star.
+    fn star(&self, x: i64, y: i64) -> Star {
+        let at = |dx: i64, dy: i64| StarCorner {
+            mask: *self.masks.clamped(x + dx, y + dy),
+            cost: self.scores.clamped(x + dx, y + dy).map(|v| -SHARPNESS * v),
+        };
+        let diag = |dx: i64, dy: i64| *self.masks.clamped(x + dx, y + dy);
+        corner_star(
+            at(0, 0),
+            [at(0, -1), at(1, 0), at(0, 1), at(-1, 0)],
+            [diag(1, -1), diag(1, 1), diag(-1, 1), diag(-1, -1)],
+        )
     }
 }
 
@@ -205,16 +210,37 @@ pub fn refine(src: &dyn Source, cell: CellKey) -> Result<Block, RefineError> {
     }
     let lat = Lattice { masks, scores };
 
-    // Fixed borders: block corners first, then each edge in increasing order.
+    // Fixed borders: block corners with their arms first (one star per
+    // corner, shared by the four blocks there), then each edge between the
+    // stars at its ends, always in increasing order.
     let n = span(SIDE);
-    let corner = |dx: i64, dy: i64| lat.corner(x0 + dx * n, y0 + dy * n);
-    let (nw, ne, sw, se) = (corner(0, 0), corner(1, 0), corner(0, 1), corner(1, 1));
+    let star = |dx: i64, dy: i64| lat.star(x0 + dx * n, y0 + dy * n);
+    let (nw, ne, sw, se) = (star(0, 0), star(1, 0), star(0, 1), star(1, 1));
     let row = |y: i64| (0..=n).map(|i| (x0 + i, y)).collect::<Vec<_>>();
     let col = |x: i64| (0..=n).map(|j| (x, y0 + j)).collect::<Vec<_>>();
-    let (north, ok_n) = solve_line(&lat.line(&row(y0), true), nw, ne);
-    let (south, ok_s) = solve_line(&lat.line(&row(y0 + n), true), sw, se);
-    let (west, ok_w) = solve_line(&lat.line(&col(x0), false), nw, sw);
-    let (east, ok_e) = solve_line(&lat.line(&col(x0 + n), false), ne, se);
+    // Arms: 0 north, 1 east, 2 south, 3 west.
+    let edge = |pts: &[(i64, i64)], horizontal: bool, a: &Star, b: &Star| {
+        let mut line = lat.line(pts, horizontal);
+        // Along the edge: the arm leaving the first star, the arm entering
+        // the last. Across it (side a, side b): the perpendicular arms.
+        let (from, to, sa, sb) = if horizontal {
+            (1, 3, 0, 2)
+        } else {
+            (2, 0, 3, 1)
+        };
+        let last = line.len() - 1;
+        line[1].mask = a.arms[from].bit();
+        line[last - 1].mask = b.arms[to].bit();
+        line[0].side_a = a.arms[sa].bit();
+        line[0].side_b = a.arms[sb].bit();
+        line[last].side_a = b.arms[sa].bit();
+        line[last].side_b = b.arms[sb].bit();
+        solve_line(&line, a.centre, b.centre)
+    };
+    let (north, ok_n) = edge(&row(y0), true, &nw, &ne);
+    let (south, ok_s) = edge(&row(y0 + n), true, &sw, &se);
+    let (west, ok_w) = edge(&col(x0), false, &nw, &sw);
+    let (east, ok_e) = edge(&col(x0 + n), false, &ne, &se);
 
     let side = SIDE + 1;
     let mut problem = Problem {
