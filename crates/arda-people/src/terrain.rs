@@ -29,7 +29,8 @@ pub struct Surroundings {
     pub open_water: Vec<bool>,
     /// River channels touching the cells, sorted and deduplicated.
     pub edges: Vec<Edge>,
-    /// The channels as straight pieces between cell centres.
+    /// The channels as straight pieces between the cells' formed thalwegs
+    /// (cell centres on worlds without them).
     pub pieces: Vec<RiverPiece>,
     /// Per cell, the pieces whose channel (half its width, at least 1 m)
     /// reaches into it.
@@ -85,13 +86,21 @@ impl Surroundings {
         }
         edges.sort();
         edges.dedup();
-        let pieces = edges
-            .iter()
-            .map(|e| {
-                let width_dm = e.from_width_dm.max(e.to_width_dm);
-                (centre_m(e.from), centre_m(e.to), f64::from(width_dm) / 10.0)
+        // A cell's channel runs through its formed thalweg where the world
+        // stores one (recipe 9), as the refined river does
+        // (`arda_refine::rivers::node`); the cell centre otherwise.
+        let anchor = |c: CellKey| -> Result<(f64, f64), PeopleError> {
+            let (x, y) = centre_m(c);
+            Ok(match src.thalweg(c).map_err(world)? {
+                Some((dx, dy)) => (x + f64::from(dx) / 10.0, y + f64::from(dy) / 10.0),
+                None => (x, y),
             })
-            .collect();
+        };
+        let mut pieces = Vec::with_capacity(edges.len());
+        for e in &edges {
+            let width_dm = e.from_width_dm.max(e.to_width_dm);
+            pieces.push((anchor(e.from)?, anchor(e.to)?, f64::from(width_dm) / 10.0));
+        }
         let mut s = Self {
             origin: (x0, y0),
             size: (x1 - x0 + 1, y1 - y0 + 1),
@@ -179,7 +188,8 @@ impl Surroundings {
             .unwrap_or(false)
     }
 
-    /// River channels as straight pieces between cell centres: `(from, to,
+    /// River channels as straight pieces between the cells' thalwegs (or
+    /// centres): `(from, to,
     /// width_m)`.
     #[must_use]
     pub fn river_pieces(&self) -> &[RiverPiece] {
