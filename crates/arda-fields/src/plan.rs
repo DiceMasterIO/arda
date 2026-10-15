@@ -6,7 +6,7 @@ use crate::fields::Field;
 use crate::geom::{h2, Grid, Sq, CELL_SQUARES, SQUARE_M};
 use crate::input::{FieldInputs, RoadClass, TerrainSample, Tier};
 use crate::linear::{self, Line, RoadNet, MAX_LANE_SQ};
-use crate::partition::{components, Partition, PartitionInputs, FIELD_SPAN};
+use crate::partition::{Partition, PartitionInputs, FIELD_SPAN};
 use rayon::prelude::*;
 
 /// Margin around the window, in squares: every field touching the window
@@ -63,6 +63,8 @@ pub struct Plan {
     pub partition: Partition,
     /// Settlement centres in world metres.
     pub settlements: Vec<[f64; 2]>,
+    /// Squares the partition was asked to locate (the plan's cost).
+    pub located: usize,
 }
 
 impl Plan {
@@ -143,25 +145,17 @@ impl Plan {
         aprons(&mut cover, &compounds);
         reserve_cores(&mut cover, inputs);
         let partition = Partition::new(&PartitionInputs::from(inputs), seed, rect);
-        let mut raw: Grid<Option<usize>> = Grid::new(x0, y0, w, h, None);
-        let wild: Vec<Sq> = cover
-            .squares()
-            .filter(|&s| cover.get(s) == Some(&Cover::Wild))
-            .collect();
-        let near: Vec<Option<usize>> = wild
-            .par_iter()
-            .map(|&s| partition.locate(s.centre()))
-            .collect();
-        for (s, n) in wild.into_iter().zip(near) {
-            raw.set(s, n);
-        }
+        // Only the fields the window can see (review 3.5-14: the whole
+        // margin was located, 128 times the window).
+        let (comps, located) = crate::flood::fields_seen(&cover, &partition, win);
         let mut fields = Vec::new();
-        components(&raw, |site, members| {
-            if members.len() < MIN_FIELD_SQ || thin(&raw, site, members) {
+        for (site, members) in &comps {
+            let (site, members) = (*site, members.as_slice());
+            if members.len() < MIN_FIELD_SQ || thin(members) {
                 for m in members {
                     cover.set(*m, Cover::Rough);
                 }
-                return;
+                continue;
             }
             let st = &partition.sites[site];
             let (kind, crop) = (st.kind, st.crop);
@@ -189,7 +183,7 @@ impl Plan {
                 sum,
                 site,
             });
-        });
+        }
         Self {
             seed,
             win,
@@ -200,6 +194,7 @@ impl Plan {
             lanes,
             partition,
             settlements: inputs.settlements.iter().map(|s| [s.x_m, s.y_m]).collect(),
+            located,
         }
     }
 
@@ -230,12 +225,17 @@ impl Plan {
 }
 
 /// Whether a parcel is a sliver: mean width (twice its area over its
-/// perimeter) below [`MIN_FIELD_WIDTH`].
-fn thin(raw: &Grid<Option<usize>>, site: usize, members: &[Sq]) -> bool {
+/// perimeter) below [`MIN_FIELD_WIDTH`]. `members` is a whole component in
+/// row-major order.
+fn thin(members: &[Sq]) -> bool {
     let mut perimeter = 0_usize;
     for m in members {
         for (dx, dy) in [(1, 0), (-1, 0), (0, 1), (0, -1)] {
-            if raw.get(m.offset(dx, dy)) != Some(&Some(site)) {
+            let n = m.offset(dx, dy);
+            if members
+                .binary_search_by_key(&(n.y, n.x), |q| (q.y, q.x))
+                .is_err()
+            {
                 perimeter += 1;
             }
         }

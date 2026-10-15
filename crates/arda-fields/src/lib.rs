@@ -21,6 +21,7 @@ pub mod degrade;
 pub mod dress;
 pub mod error;
 pub mod fields;
+pub mod flood;
 pub mod fringe;
 pub mod geom;
 pub mod input;
