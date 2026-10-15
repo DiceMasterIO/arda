@@ -41,11 +41,30 @@ fn a_cell_window_is_the_refined_block_with_its_origin() {
     assert_eq!(got.layout.squares, want.layout.squares);
     assert_eq!(got.layout.placements, want.layout.placements);
     // The pipeline folds the placements' catalogue rules into refine's
-    // (logic/12 §scene-sidecar, the rules contract).
-    let mut folded = want.rules.clone();
-    let placed = arda_scene::squares::resolve_known(&want.layout, lib(), p.seed());
+    // (logic/12 §scene-sidecar, the rules contract), those anchored up to
+    // the compose margin outside the cell included (review 3.5-8).
+    let m = i64::from(arda_blocks::COMPOSE_MARGIN);
+    let (x0, y0) = (RIVER_CELL.x * 64 - m, RIVER_CELL.y * 64 - m);
+    let side = u32::try_from(64 + 2 * m).unwrap();
+    let src = synthetic::world(42);
+    let blocks: Vec<_> = (-1..=1)
+        .flat_map(|dy| (-1..=1).map(move |dx| (dx, dy)))
+        .map(|(dx, dy)| {
+            let c = CellKey::new(RIVER_CELL.x + dx, RIVER_CELL.y + dy);
+            arda_refine::refine(&src, c).unwrap()
+        })
+        .collect();
+    let grown = arda_refine::output::assemble("g", &blocks, x0, y0, side, side);
+    let mut folded = grown.rules.clone();
+    let placed = arda_scene::squares::resolve_known(&grown.layout, lib(), p.art_seed());
     arda_scene::squares::fold_placements(&mut folded, &placed);
-    assert_eq!(got.rules, folded);
+    let cut = arda_blocks::Cut {
+        x: 8,
+        y: 8,
+        w: 64,
+        h: 64,
+    };
+    assert_eq!(got.rules, arda_blocks::crop::rules(&folded, cut));
     assert!(got
         .rules
         .squares
@@ -125,6 +144,19 @@ fn overlapping_demo_windows_agree_where_they_overlap() {
             assert_eq!(big.rules.squares[i], small.rules.squares[j], "({x}, {y})");
         }
     }
+    // Walls, edge rules, placements and lights too, the small window's
+    // border edges included (review §5: only squares were compared).
+    let cut = arda_blocks::Cut {
+        x: 64,
+        y: 32,
+        w: 64,
+        h: 64,
+    };
+    let from_big = big.cut(cut, &small.layout.name);
+    assert_eq!(from_big.layout, small.layout);
+    assert_eq!(from_big.rules, small.rules);
+    assert_eq!(from_big.owners, small.owners);
+    assert!(!small.layout.walls.is_empty() || !small.layout.placements.is_empty());
 }
 
 #[test]

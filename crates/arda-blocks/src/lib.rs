@@ -18,13 +18,15 @@
 #![deny(unsafe_code)]
 #![cfg_attr(test, allow(clippy::unwrap_used, clippy::expect_used))]
 
+pub mod crop;
 pub mod demo;
 pub mod overlays;
 pub mod pipeline;
 pub mod society;
 
+pub use crop::Cut;
 pub use overlays::{OverlayCtx, OverlayLayer, Overlays, Owner};
-pub use pipeline::{Composed, Pipeline, SQUARES_PER_CELL};
+pub use pipeline::{Composed, Pipeline, COMPOSE_MARGIN, SQUARES_PER_CELL};
 
 /// Why a block could not be composed.
 #[derive(Debug, thiserror::Error)]

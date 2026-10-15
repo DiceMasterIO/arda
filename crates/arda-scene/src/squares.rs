@@ -201,8 +201,8 @@ fn stamp(placed: &[Placed<'_>], w: u32, h: u32) -> Stamped {
 /// Folds the catalogue rules of `placed` into `rules` (logic/12
 /// §scene-sidecar, the rules contract): a square a blocking asset covers
 /// states `blocks_movement`, a sight-blocking one `blocks_sight`, a
-/// difficult one `difficult`, and `cover` takes the stronger of the cell's
-/// and the assets'. Only `true`
+/// canopy's crown `lightly_obscured`, a difficult one `difficult`, and
+/// `cover` takes the stronger of the cell's and the assets'. Only `true`
 /// and stronger values are written, so the fold never erases what a layer
 /// stated, and folding twice changes nothing.
 pub fn fold_placements(rules: &mut RulesSidecar, placed: &[Placed<'_>]) {
@@ -212,8 +212,13 @@ pub fn fold_placements(rules: &mut RulesSidecar, placed: &[Placed<'_>]) {
         if s.blocked.get(i).copied().unwrap_or(false) {
             c.blocks_movement = Some(true);
         }
-        if s.obscured.get(i) == Some(&Obscurement::Heavy) {
-            c.blocks_sight = Some(true);
+        match s.obscured.get(i) {
+            Some(Obscurement::Heavy) => c.blocks_sight = Some(true),
+            // A canopy's crown lightly obscures its footprint, so a
+            // neighbouring window cut beside an overhanging tree knows it
+            // too (review 3.5-8).
+            Some(Obscurement::Light) => c.lightly_obscured = Some(true),
+            _ => {}
         }
         if s.difficult.get(i).copied().unwrap_or(false) {
             c.difficult = Some(true);

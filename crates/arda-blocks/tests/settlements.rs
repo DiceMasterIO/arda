@@ -163,8 +163,11 @@ fn settlement_cells_have_one_wall_per_edge_and_no_foreign_walls_in_town() {
             let e = (w.x, w.y, w.axis);
             let s = sides(e, 64, 64);
             // Inside the town's ground, or against a building, only the
-            // town's own walls stand.
-            let inside = s.iter().all(|&i| townish(i));
+            // town's own walls stand. An edge on the window's border is
+            // decided with the square beyond it too (review 3.5-8), which
+            // this window does not show: a field's hedge may stand there
+            // against the town's croft.
+            let inside = s.len() == 2 && s.iter().all(|&i| townish(i));
             let at_building = s.iter().any(|&i| building(i));
             if inside || at_building {
                 assert_eq!(

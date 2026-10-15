@@ -173,13 +173,18 @@ pub fn assemble<B: std::borrow::Borrow<Block>>(
             }
         }
         for it in &b.items {
-            if it.x < x0 as f64 || it.y < y0 as f64 || it.x >= x1 as f64 || it.y >= y1 as f64 {
+            // Snap in world squares first, so whether an item anchored on
+            // a window's border belongs to it is the same for every window
+            // (review 3.5-8: a tree at y = 79679.99999 fell in one window
+            // and not the next).
+            let (gx, gy) = (snap64(it.x), snap64(it.y));
+            if gx < x0 as f64 || gy < y0 as f64 || gx >= x1 as f64 || gy >= y1 as f64 {
                 continue;
             }
             placements.push(Placement {
                 asset: AssetRef::Id(it.asset.to_string()),
-                x: fixed64(it.x - x0 as f64),
-                y: fixed64(it.y - y0 as f64),
+                x: fixed64(gx - x0 as f64),
+                y: fixed64(gy - y0 as f64),
                 rotation: it.rotation,
                 mirror: it.mirror,
             });
@@ -234,6 +239,12 @@ pub fn assemble<B: std::borrow::Borrow<Block>>(
             placements: meta,
         },
     }
+}
+
+/// Snaps a world coordinate, in squares, to 1/64 square in `f64`.
+#[must_use]
+pub fn snap64(v: f64) -> f64 {
+    (v * 64.0).round() / 64.0
 }
 
 /// Snaps a coordinate to 1/64 square, a fixed-point value that `f32` and

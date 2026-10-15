@@ -209,6 +209,14 @@ pub fn compose_over(
         });
     }
     layer.rules.check(w, h)?;
+    // Positions on the world's 1/64-square lattice, so a placement's
+    // anchor square is the same in every window (review 3.5-8).
+    crate::crop::snap_positions(layout);
+    let [ox, oy] = layout.origin.unwrap_or([0, 0]);
+    let snapped = |mut p: arda_tactical::layout::Placement| {
+        (p.x, p.y) = (crate::crop::snap(ox, p.x), crate::crop::snap(oy, p.y));
+        p
+    };
     let rank = |i: usize| {
         if layer.soft.get(i).copied().unwrap_or(false) {
             owner.soft()
@@ -314,8 +322,9 @@ pub fn compose_over(
             .layout
             .placements
             .iter()
-            .filter(|p| claimed[anchor(p.x, p.y)])
-            .cloned(),
+            .cloned()
+            .map(snapped)
+            .filter(|p| claimed[anchor(p.x, p.y)]),
     );
     layout.lights.retain(|l| !claimed[anchor(l.x, l.y)]);
     layout.lights.extend(
@@ -323,8 +332,12 @@ pub fn compose_over(
             .layout
             .lights
             .iter()
-            .filter(|l| claimed[anchor(l.x, l.y)])
-            .copied(),
+            .map(|l| {
+                let mut l = *l;
+                (l.x, l.y) = (crate::crop::snap(ox, l.x), crate::crop::snap(oy, l.y));
+                l
+            })
+            .filter(|l| claimed[anchor(l.x, l.y)]),
     );
     Ok(count)
 }
