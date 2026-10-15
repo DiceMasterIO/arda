@@ -36,6 +36,7 @@ fn multiple_outlets_and_neighbor_order_have_identical_ownership() {
         extent,
         limits: Limits::for_extent(extent),
         work: Work::default(),
+        hashed_ties: false,
     };
     p.receivers([7, 6, 5, 4, 3, 2, 1, 0]).unwrap();
     p.ownership().unwrap();
@@ -163,6 +164,7 @@ fn varied_physical_heights_and_flats_obey_linear_limits_and_order() {
             extent,
             limits: Limits::for_extent(extent),
             work: Work::default(),
+            hashed_ties: false,
         };
         p.receivers([5, 2, 7, 0, 3, 6, 1, 4]).unwrap();
         p.ownership().unwrap();
@@ -200,4 +202,60 @@ fn page_decoder_rejects_ghost_export_and_unreserved_bits() {
     let mut bytes = CellRecord::prepared(10, false).encode();
     bytes[15] = 1;
     assert!(CellRecord::decode(bytes, e, CellIndex(0)).is_none());
+}
+
+/// Longest run of one receiver direction along any routed path, cells.
+fn straightest(s: &mut MemoryPages) -> usize {
+    let e = s.extent();
+    let mut best = 0;
+    for raw in 0..e.cells() {
+        let mut at = CellIndex(raw);
+        let (mut run, mut last) = (0, None);
+        for _ in 0..e.cells() {
+            let r = s.read(at).unwrap();
+            let Some(Receiver::Cell(next)) = r.receiver(e, at) else {
+                break;
+            };
+            let dir = r.receiver;
+            run = if Some(dir) == last { run + 1 } else { 1 };
+            last = Some(dir);
+            best = best.max(run);
+            at = next;
+        }
+    }
+    best
+}
+
+/// Review 3.2-13: across an exact flat, equal-distance candidates went to
+/// the lowest packed index, so flow ran in long parallel straight lines;
+/// recipe 9's hashed ties break them up.
+#[test]
+fn recipe_9_flat_ties_do_not_run_straight() {
+    let w = 41;
+    let mut z = vec![10; w * w];
+    for y in 0..w {
+        for x in 0..w {
+            if x == 0 || y == 0 || x == w - 1 || y == w - 1 {
+                z[y * w + x] = 20;
+            }
+        }
+    }
+    z[20 * w + w - 1] = 9;
+    let side = u32::try_from(w).unwrap();
+    let mut old = store(side, side, &z);
+    run(&mut old);
+    let mut new = store(side, side, &z);
+    let limits = Limits::for_extent(new.extent());
+    route_and_own_with(&mut new, limits, true).unwrap();
+    let (a, b) = (straightest(&mut old), straightest(&mut new));
+    eprintln!("straightest flat run: index ties {a}, hashed ties {b}");
+    // The ring diagonals of the breadth-first flat distance stay forced
+    // (one candidate each); every tied step now wanders.
+    assert!(a >= 25, "index ties run straight: {a}");
+    assert!(b * 3 <= a * 2, "hashed ties wander: {b}");
+    // Ownership is unchanged: every cell still drains to the one outlet.
+    for raw in 0..side * side {
+        let at = CellIndex(raw);
+        assert_eq!(new.read(at).unwrap().owner(), old.read(at).unwrap().owner());
+    }
 }

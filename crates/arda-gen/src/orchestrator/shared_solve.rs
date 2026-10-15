@@ -302,7 +302,8 @@ pub fn solve_with(
     .map_err(SharedError::RoutingCreate)?;
     let ocean_work = ocean::connect(&mut routes, limits.ocean).map_err(SharedError::Ocean)?;
     let routing_work =
-        routing::route_and_own(&mut routes, limits.routing).map_err(SharedError::Route)?;
+        routing::route_and_own_with(&mut routes, limits.routing, physics.hashed_flat_ties)
+            .map_err(SharedError::Route)?;
     routes.flush()?;
     let product = mst::produce(&mut routes, &mst_dir, limits.mst).map_err(SharedError::Mst)?;
     let mst_work = product.work;

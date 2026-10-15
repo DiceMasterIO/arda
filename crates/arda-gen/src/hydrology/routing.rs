@@ -8,7 +8,7 @@
 mod memory;
 mod pass;
 pub use memory::{MemoryError, MemoryPages};
-pub use pass::{resolve_ownership, route_and_own};
+pub use pass::{resolve_ownership, route_and_own, route_and_own_with};
 
 const NONE: u32 = u32::MAX;
 const UNSET: u8 = u8::MAX;

@@ -8,6 +8,24 @@ pub(super) struct Pass<'a, S: RoutingStore> {
     pub(super) extent: Extent,
     pub(super) limits: Limits,
     pub(super) work: Work,
+    /// Recipe 9: break ties by a cell-pair hash, not the lowest index.
+    pub(super) hashed_ties: bool,
+}
+
+/// Order key of candidate receiver `j` of cell `i`: its packed index, or
+/// with `hashed` (recipe 9, review 3.2-13) a hash of the pair first. The
+/// lowest index prefers the north-west neighbours of every cell, so flow
+/// over exact flats ran in parallel straight lines.
+fn tie_key(hashed: bool, i: CellIndex, j: CellIndex) -> (u32, u32) {
+    if !hashed {
+        return (0, j.0);
+    }
+    let h = crate::noise::hash_2d(
+        0x7135_F1A7,
+        i32::from_ne_bytes(i.0.to_ne_bytes()),
+        i32::from_ne_bytes(j.0.to_ne_bytes()),
+    );
+    (h, j.0)
 }
 impl<S: RoutingStore> Pass<'_, S> {
     pub(super) fn read(&mut self, i: CellIndex) -> Result<CellRecord, RoutingError<S::Error>> {
@@ -94,9 +112,11 @@ impl<S: RoutingStore> Pass<'_, S> {
                             let drop = i64::from(level) - i64::from(z);
                             let (dx, dy) = DIRS[dir];
                             let distance = if dx != 0 && dy != 0 { 141400 } else { 100000 };
+                            let hashed = self.hashed_ties;
                             let better = best.is_none_or(|(old, old_distance, old_cell, _)| {
                                 drop * old_distance > old * distance
-                                    || (drop * old_distance == old * distance && j < old_cell)
+                                    || (drop * old_distance == old * distance
+                                        && tie_key(hashed, i, j) < tie_key(hashed, i, old_cell))
                             });
                             if better {
                                 best = Some((drop, distance, j, dir));
@@ -153,10 +173,13 @@ impl<S: RoutingStore> Pass<'_, S> {
                 for &dir in &order {
                     if let Some(j) = self.extent.neighbor(i, dir) {
                         let q = self.read(j)?;
+                        let hashed = self.hashed_ties;
                         if q.height == level
                             && !q.is_marine()
                             && q.distance.checked_add(1) == Some(r.distance)
-                            && best.is_none_or(|(old, _)| j < old)
+                            && best.is_none_or(|(old, _)| {
+                                tie_key(hashed, i, j) < tie_key(hashed, i, old)
+                            })
                         {
                             best = Some((j, dir));
                         }
@@ -218,12 +241,27 @@ pub fn route_and_own<S: RoutingStore>(
     store: &mut S,
     limits: Limits,
 ) -> Result<Work, RoutingError<S::Error>> {
+    route_and_own_with(store, limits, false)
+}
+
+/// [`route_and_own`]; with `hashed_ties` (recipe 9, review 3.2-13) equal
+/// drops and equal flat distances break by a cell-pair hash instead of the
+/// lowest packed index.
+///
+/// # Errors
+/// As [`route_and_own`].
+pub fn route_and_own_with<S: RoutingStore>(
+    store: &mut S,
+    limits: Limits,
+    hashed_ties: bool,
+) -> Result<Work, RoutingError<S::Error>> {
     let extent = store.extent();
     let mut p = Pass {
         store,
         extent,
         limits,
         work: Work::default(),
+        hashed_ties,
     };
     p.receivers([0, 1, 2, 3, 4, 5, 6, 7])?;
     p.ownership()?;
@@ -240,6 +278,7 @@ pub fn resolve_ownership<S: RoutingStore>(
         extent,
         limits,
         work: Work::default(),
+        hashed_ties: false,
     };
     for raw in 0..extent.cells() {
         let i = CellIndex(raw);
