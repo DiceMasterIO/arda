@@ -77,6 +77,10 @@ A road over water is a bridge or ford (ways wins over water); a building never s
 
 A claimed square takes the layer's placements anchored on it; the ways' own dressing (their posts, reeds, milestones, signposts: placements the layer added, not the refined scatter it started from) also stands beside their claims on ground no overlay owns (natural, shore or water), so a ford's marker posts, bank reeds and milestones past the verge survive (review 3.5-11). Placements and lights sit on the world's 1/64-square lattice before composition, so a placement's anchor square is the same in every window.
 
+**Headlands** (review 2026-10-15, gallery 08 and 10). After the three layers compose, worked soil (`farmland`, `stubble`, `fallow`) owned by fields, crofts or the town stops short of what it must not run up to: within 3 squares of a beach, cliff or open water (`Owner::Shore`, `Owner::Water`) and within 2 squares of built ground (a square with an `ext.building`, or a town square laid as planks, stone floor, rug, flagstone or packed earth: buildings, yards, walls, squares) it is grass, and so is any worked ground the headlands leave narrower than three squares (an opening by a 3 × 3 square). The grass is not difficult going and drops the square's `crop` and `furrow`; the square keeps its owner, field and placements. The rule reads at most 5 squares round a square, inside the 8-square `COMPOSE_MARGIN`, so windows agree (`arda_blocks::headland`).
+
+**Moored boats** (review 2026-10-15, gallery 10). A town's boats (`prop.rowboat`, `prop.sailboat`, `prop.canoe`, `prop.barge`, `prop.ferry_boat` and their takes) are kept where their anchor lies on water no layer claims; the town's other dressing stands only on its claims.
+
 Two claims are soft, ranked between the rows above (arda-blocks `Owner`):
 
 - **Crofts** (town, between water and fields): the open ground of a settlement's built-up footprint (10 §town-crofts), which fields run up to but never enter, gives way to water and roads.
