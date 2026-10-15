@@ -233,8 +233,20 @@ pub(super) fn run(mut g: Lattice, ctx: Context<'_>) -> Result<Formed, FormationE
     features.index();
     let is_shaped = |x_um: i64, y_um: i64| is_basin(x_um, y_um) || features.is_sink(x_um, y_um);
     fine_fill(&mut g, &is_shaped)?;
-    let sampled_grade = v9.then_some(base_seed ^ 0x6EAD_5A00);
-    sampled::drain_sampled_graded(&mut g, PREPARED_SPACING_UM, &is_shaped, sampled_grade)?;
+    // Recipe 9 alternates the fine fill and the sampled pass until both
+    // drain, so no fine pit hides behind a raised support node (review
+    // 3.1-7).
+    let drain_both = |g: &mut Lattice,
+                      sink: &(dyn Fn(i64, i64) -> bool + Sync),
+                      salt: u64|
+     -> Result<usize, FormationError> {
+        if v9 {
+            sampled::drain_fine_and_sampled(g, PREPARED_SPACING_UM, sink, base_seed ^ salt)
+        } else {
+            sampled::drain_sampled(g, PREPARED_SPACING_UM, sink)
+        }
+    };
+    drain_both(&mut g, &is_shaped, 0x6EAD_5A00)?;
     // logic/02 §fine-formation glacial lakes: deliberately closed trough
     // basins. Overlapping carve discs also leave secondary hollows, so the
     // drainage guarantees run again with each trough's sink protected.
@@ -251,7 +263,7 @@ pub(super) fn run(mut g: Lattice, ctx: Context<'_>) -> Result<Formed, FormationE
             })
     };
     fine_fill(&mut g, &is_sink)?;
-    sampled::drain_sampled_graded(&mut g, PREPARED_SPACING_UM, &is_sink, sampled_grade)?;
+    drain_both(&mut g, &is_sink, 0x6EAD_5A01)?;
     water::record_basins(
         &mut features,
         basins,

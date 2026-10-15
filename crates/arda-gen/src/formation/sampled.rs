@@ -58,20 +58,6 @@ pub fn drain_sampled(
     drain(g, spacing_um, basin, true, None)
 }
 
-/// [`drain_sampled`], filling the sampled lattice with the recipe-9
-/// weighted-geodesic grading when `grade` is a seed ([`super::grading`]).
-///
-/// # Errors
-/// Allocation failure.
-pub fn drain_sampled_graded(
-    g: &mut Lattice,
-    spacing_um: i64,
-    basin: &(dyn Fn(i64, i64) -> bool + Sync),
-    grade: Option<u64>,
-) -> Result<usize, FormationError> {
-    drain(g, spacing_um, basin, true, grade)
-}
-
 /// [`drain_sampled`] as recipe 5 ran it: a four-connected sea, and only
 /// the support nodes of a filled sample are raised.
 ///
@@ -83,6 +69,48 @@ pub fn drain_sampled_v5(
     basin: &(dyn Fn(i64, i64) -> bool + Sync),
 ) -> Result<usize, FormationError> {
     drain(g, spacing_um, basin, false, None)
+}
+
+/// Recipe 9 (review 3.1-7): alternates the fine-lattice fill and the
+/// sampled pass until neither changes anything, so both the 39 m lattice
+/// and its 100 m samples drain. Raising only the four support nodes of a
+/// filled sample left closed fine pits behind them (4,253 land pits on
+/// MICRO seed 42, 300 deeper than 100 mm); the fine fill that follows
+/// grades those pits into the raised nodes. Both passes only raise, so
+/// the alternation converges; the sampled pass runs last and stays the
+/// authority. Returns the fine nodes the sampled passes raised.
+///
+/// # Errors
+/// Allocation failure.
+pub fn drain_fine_and_sampled(
+    g: &mut Lattice,
+    spacing_um: i64,
+    basin: &(dyn Fn(i64, i64) -> bool + Sync),
+    seed: u64,
+) -> Result<usize, FormationError> {
+    let n = g.z.len();
+    let mut next: Vec<u32> = alloc(n)?;
+    let mut closed: Vec<u8> = alloc(n)?;
+    let mut total = 0;
+    for round in 0..16_u64 {
+        let flags = super::surface::sea_and_sinks(g, basin)?;
+        super::grading::fill_graded(
+            &mut g.z,
+            g.width,
+            g.height,
+            &flags,
+            1,
+            seed ^ (round << 24),
+            &mut next,
+            &mut closed,
+        )?;
+        let raised = drain(g, spacing_um, basin, true, Some(seed ^ (round << 32)))?;
+        total += raised;
+        if raised == 0 {
+            break;
+        }
+    }
+    Ok(total)
 }
 
 fn drain(
@@ -237,6 +265,61 @@ mod tests {
             let lower = (0..8).any(|k| neighbour(i, sw, sh, k).is_some_and(|n| z[n] < z[i]));
             assert!(lower, "sample {x},{y} is a closed depression");
         }
+    }
+
+    fn gully_field() -> Lattice {
+        let (w, h) = (257, 257);
+        let mut g = Lattice::new(w, h, 39_062_500).unwrap();
+        for y in 0..h {
+            for x in 0..w {
+                let base = 5_000 + 40 * x as i32;
+                let gully = if (x + y) % 7 == 0 { -900 } else { 0 };
+                g.z[y * w + x] = if x == 0 {
+                    -10_000
+                } else {
+                    base + gully + 300 * ((x * y) % 5) as i32
+                };
+            }
+        }
+        g
+    }
+
+    /// Land pits of the fine lattice: non-sea, non-rim nodes with no lower
+    /// neighbour.
+    fn fine_pits(g: &Lattice) -> usize {
+        let (w, h) = (g.width, g.height);
+        let flags = crate::formation::surface::sea_and_sinks(g, &|_, _| false).unwrap();
+        (0..w * h)
+            .filter(|&i| {
+                flags[i] == 0
+                    && g.z[i] > 0
+                    && !(0..8).any(|k| neighbour(i, w, h, k).is_some_and(|n| g.z[n] < g.z[i]))
+            })
+            .count()
+    }
+
+    /// Review 3.1-7: the sampled pass alone leaves closed pits on the fine
+    /// lattice; recipe 9's alternation leaves none and the samples drain.
+    #[test]
+    fn recipe_9_leaves_no_fine_pits_behind_the_sampled_pass() {
+        let mut old = gully_field();
+        {
+            let flags = crate::formation::surface::sea_and_sinks(&old, &|_, _| false).unwrap();
+            let (w, h, n) = (old.width, old.height, old.z.len());
+            let (mut next, mut closed) = (vec![0; n], vec![0; n]);
+            fill(&mut old.z, w, h, &flags, 1, &mut next, &mut closed).unwrap();
+        }
+        drain_sampled(&mut old, 100_000_000, &|_, _| false).unwrap();
+        let mut new = gully_field();
+        drain_fine_and_sampled(&mut new, 100_000_000, &|_, _| false, 9).unwrap();
+        let (p7, p9) = (fine_pits(&old), fine_pits(&new));
+        eprintln!("fine land pits: recipe 7 {p7}, recipe 9 {p9}");
+        assert!(p7 > 0, "the sampled pass leaves fine pits");
+        assert_eq!(p9, 0, "recipe 9 leaves none");
+        assert_eq!(
+            drain_sampled(&mut new, 100_000_000, &|_, _| false).unwrap(),
+            0
+        );
     }
 
     /// A fine field constant over each 100 m sample's footprint, from a
