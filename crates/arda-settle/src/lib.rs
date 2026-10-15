@@ -17,6 +17,7 @@ pub mod features;
 pub mod field;
 pub mod gazetteer;
 pub mod grid;
+pub mod hand;
 pub mod ids;
 pub mod landuse;
 pub mod load;

@@ -60,6 +60,9 @@ pub fn load_grid(world: &World, budget: u64) -> Result<Grid, SettleError> {
     confluences.sort_unstable();
     confluences.dedup();
     grid.confluences = confluences;
+    // logic/08 §settle-refusals rule 4: the flood rule reads a measured
+    // height, never the generator's "unknown" placeholder (review 3.3-3).
+    crate::hand::resolve(&mut grid)?;
     Ok(grid)
 }
 
