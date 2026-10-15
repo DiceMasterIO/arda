@@ -25,7 +25,7 @@ A plan is computed once per settlement in **global square coordinates** (09 §sq
 
 ### §town-footprint
 
-The built footprint is the set of cells with land-use code `built` owned by the settlement (08 §landuse). The artifact's "centre cell" is the settlement's `cell_x, cell_y`; it receives the temple (or shrine), the inn and the market (artifact, "Inside a cell"). Squares whose `E` gives a square-scale slope above 20° or that are water, cliff or road-ford squares are unbuildable (slope assumed, tunable).
+The built footprint is the set of cells with land-use code `built` owned by the settlement (08 §landuse). The artifact's "centre cell" is the settlement's `cell_x, cell_y`; it receives the temple (or shrine), the inn and the market (artifact, "Inside a cell"). Squares whose `E` gives a square-scale slope above 20° or that are water, cliff or road-ford squares are unbuildable (slope assumed, tunable). The plan's water is the tactical map's, square for square: the refined lake and sea shores (`arda_refine::region::WaterRegion::standing`, the shore rule of 09 §linear-features, not whole 100 m cells; review 3.3-2) and the refined rivers (§town-rivers); marsh pools, at most a foot deep, are made ground (09 §reservations). So no building is planned on water a composed block refuses to dry (review 3.5-3).
 
 ### §town-streets
 
@@ -40,7 +40,7 @@ A plan is drawn on the refined rivers, the same centreline pieces and water squa
 
 1. A main street follows its road, but where its carriageway would come within one square of a river it is moved onto the nearer bank; where the road passes from one bank to the other the street keeps to the first bank up to one point and goes straight across, square to the flow, where the widest channel of that stretch is narrowest (a confluence is never the narrowest). No main street runs along or in a river.
 2. Every stretch where a street's centreline runs over water, between land on both sides, is a bridge (`TownPlan.bridges`): rows of deck squares, along x or along y, whichever deck is smaller; each row covers the whole crossing and is carried on to its own banks (or to a wall standing in the river). Main streets bridge up to 64 squares; lanes cross only where the gap between dry points is at most 18 m and they cross at more than 45° to the flow (a footbridge of at most 10 squares). A street that would end in water or cross a longer stretch is cut at the banks.
-3. Plots and buildings never stand on river water (docks and jetties are decks over it by design); plots with water within four squares form the waterfront district, where mills, warehouses and tanneries prefer to stand (§town-functions).
+3. Plots and buildings never stand on river water (docks and jetties are decks over it by design: the grid keeps a dock's squares water, and the town owns them as a deck, §town-clip); plots with water within four squares form the waterfront district, where mills, warehouses and tanneries prefer to stand (§town-functions).
 
 ### §town-plots
 
@@ -215,7 +215,9 @@ One mapping table for the three vocabularies (goal 45). Society keys (the `arda-
 
 ### §town-clip
 
-`town_reservation(plan, gx, gy)` returns the squares of block `(gx, gy)` that the plan owns, with their ground keys, wall segments (on the block's edges they are split so a segment on the shared edge appears in exactly one block: the block whose square lies south or east of it, matching the `TacticalLayout` north/west-edge convention), placements whose anchor lies in the block, and lights. A building that straddles block edges appears partly in each block and whole in a window.
+`town_reservation(plan, gx, gy)` returns the squares of block `(gx, gy)` that the plan owns (every grid kind but open country and water, and the squares of a dock, a deck over water; review 3.5-2), with their ground keys, wall segments (on the block's edges they are split so a segment on the shared edge appears in exactly one block: the block whose square lies south or east of it, matching the `TacticalLayout` north/west-edge convention), placements whose anchor lies in the block, and lights. A building that straddles block edges appears partly in each block and whole in a window.
+
+On the world's terrain (arda-blocks, 09 §reservations) the town states only the heights it knows, against the refined ground (`arda_blocks::society::levels`, review 3.5-4): a walled building's floor is one level, the refined `elevation_ft` of the square outside its street door (outside the middle of its front for a building without a door), so its threshold meets the street; the market square and a green take the level at the market, a bailey the level at the keep's feature point; the curtain's wall-walk stands `WALL_WALK_FT` (20 ft) over the refined ground beneath it. Every other square it owns keeps the refined elevation. Levels are read at global squares (`arda_refine::heights::Heights`, the block's own elevation there), never from the window, so a building straddling two windows is levelled alike in both. A deck (a dock or a town bridge) states the deck and no water depth, so the refined water and its ground stand beneath it; a dock's squares carry its deck level, the refined ground at its landward end, as `ext.deck_elevation_ft` (as ways' bridges do, 12 §scene-sidecar).
 
 ## Steps
 
@@ -256,6 +258,7 @@ None. The plan is a pure function cached by the service (16-service-api §api-ca
 10. Party walls and partitions: an edge tagged `partition` has one building on both sides and lies inside its footprint; an edge tagged `party` lies on the footprints of two different buildings; no other edge carries either tag (`arda-town/tests/blocks.rs`, `arda-blocks/tests/settlements.rs` against the scene's building ids).
 11. Materials: a rich merchant town or city is stone throughout; other towns split by district; history only upgrades towards stone; materials never change the layout (`block::kits` tests, `arda-blocks/tests/settlements.rs`).
 12. Ambitus: in towns and cities 10–40 % of street-front row houses leave a one-square gap and full frontages stay the majority; the gap is plot ground with no building in it (`arda-town/tests/plan.rs`).
+13. Composition (review 3.5-2, 3.5-3, 3.5-4): in composed windows on the world's terrain every square of every plan building is the town's and carries the building's id, so every NPC home is on the map whole; every dock is a deck the town owns; a walled building's floor is one level; every wall-walk square stands 20 ft over the refined ground (`arda-blocks/tests/tactical_drops.rs` on MICRO seed 42; a dock under a neighbouring plan's earlier claim is that plan's, one of 217).
 
 ## Outcomes & side effects
 
