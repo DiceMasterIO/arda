@@ -154,10 +154,26 @@ fn deck(g: &mut PlanGrid, s: &Street, run: &[Vec2]) -> Option<Bridge> {
     }
     let (x, y) = (rows(g, &wet, true), rows(g, &wet, false));
     let area = |r: &[(i64, i64, i64)]| r.iter().map(|&(_, a, b)| b - a + 1).sum::<i64>();
-    let along_x = match area(&x).cmp(&area(&y)) {
-        std::cmp::Ordering::Less => true,
-        std::cmp::Ordering::Greater => false,
-        std::cmp::Ordering::Equal => d.x.abs() >= d.y.abs(),
+    // A deck whose rows all reach a bank beats one that runs on along the
+    // channel past REACH (a street crossing a river that runs obliquely to
+    // the grid); between two such, the smaller deck.
+    let banked = |r: &[(i64, i64, i64)], along_x: bool| {
+        r.iter().all(|&(across, from, to)| {
+            let water = |along: i64| {
+                at(g, along_x, across, along)
+                    .is_some_and(|k| matches!(g.kind[k], Kind::Water | Kind::Bridge))
+            };
+            !water(from - 1) && !water(to + 1)
+        })
+    };
+    let along_x = match (banked(&x, true), banked(&y, false)) {
+        (true, false) => true,
+        (false, true) => false,
+        _ => match area(&x).cmp(&area(&y)) {
+            std::cmp::Ordering::Less => true,
+            std::cmp::Ordering::Greater => false,
+            std::cmp::Ordering::Equal => d.x.abs() >= d.y.abs(),
+        },
     };
     let rows = if along_x { x } else { y };
     let id = s.id.0 + 1;
@@ -223,4 +239,62 @@ fn rows(g: &PlanGrid, wet: &[(i64, i64)], along_x: bool) -> Vec<(i64, i64, i64)>
             (across, from, to)
         })
         .collect()
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::plan::types::StreetId;
+
+    #[test]
+    fn a_deck_spans_the_channel_rather_than_running_along_it() {
+        // A river nine squares wide runs west to east (rows 46..=54) and on
+        // west past the deck's reach; a one-square street runs over it for
+        // 33 squares. Rows along x run on along the river and never reach a
+        // bank; columns across it do, though their deck is larger.
+        let (gx0, w, h) = (-256_i64, 320_i64, 100_i64);
+        let n = usize::try_from(w * h).unwrap_or(0);
+        let mut g = PlanGrid {
+            gx0,
+            gy0: 0,
+            w,
+            h,
+            kind: vec![Kind::Open; n],
+            street: vec![0; n],
+            plot: vec![0; n],
+            building: vec![0; n],
+            height: vec![0.0; n],
+            slope: vec![0; n],
+            depth: vec![0; n],
+        };
+        for y in 46..=54 {
+            for x in -200..=32 {
+                if let Some(k) = g.gidx(x, y) {
+                    g.kind[k] = Kind::Water;
+                    g.depth[k] = 1;
+                }
+            }
+        }
+        let p = |x: f64| Vec2 {
+            x: (x + 0.5) * SQUARE_M,
+            y: 50.5 * SQUARE_M,
+        };
+        let s = Street {
+            id: StreetId(4),
+            class: StreetClass::Main,
+            points: vec![p(-1.0), p(33.0)],
+            width_m: 1.0,
+            paved: false,
+        };
+        let run: Vec<Vec2> = (-1..=33).map(|x| p(f64::from(x))).collect();
+        let b = deck(&mut g, &s, &run).unwrap_or_else(|| unreachable!());
+        assert!(
+            !b.along_x,
+            "the deck runs along the river: {:?}",
+            b.rows.first()
+        );
+        for &(_, from, to) in &b.rows {
+            assert_eq!((from, to), (46, 54));
+        }
+    }
 }

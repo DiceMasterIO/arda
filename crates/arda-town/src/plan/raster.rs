@@ -171,7 +171,14 @@ fn gatehouse(g: &mut PlanGrid, x: Vec2, tangent: Vec2, street: u16) {
             let (i, j) = at(a, c);
             let Some(k) = g.idx(i, j) else { continue };
             if c.abs() <= 1 {
-                g.kind[k] = Kind::Gate;
+                // Where the wall band runs over water the passage is a deck,
+                // as a street over water is: a gate square never stands on
+                // river water.
+                g.kind[k] = if g.depth[k] > 0 {
+                    Kind::Bridge
+                } else {
+                    Kind::Gate
+                };
                 g.street[k] = street;
             } else if matches!(g.kind[k], Kind::Open | Kind::Street | Kind::Wall) {
                 g.kind[k] = Kind::Wall;
@@ -237,4 +244,46 @@ pub fn wall_over_water(g: &PlanGrid, water: &dyn Fn(Vec2) -> bool) -> Vec<usize>
             g.kind[k] == Kind::Wall && water(g.centre(i, j))
         })
         .collect()
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn a_gate_passage_over_water_is_decked() {
+        // A wall band down columns 10..=12 crossing a channel in rows 5..=7.
+        let (w, h) = (24_i64, 16_i64);
+        let n = usize::try_from(w * h).unwrap_or(0);
+        let mut g = PlanGrid {
+            gx0: 0,
+            gy0: 0,
+            w,
+            h,
+            kind: vec![Kind::Open; n],
+            street: vec![0; n],
+            plot: vec![0; n],
+            building: vec![0; n],
+            height: vec![0.0; n],
+            slope: vec![0; n],
+            depth: vec![0; n],
+        };
+        for j in 0..h {
+            for i in 10..=12 {
+                if let Some(k) = g.idx(i, j) {
+                    g.kind[k] = Kind::Wall;
+                    g.depth[k] = u8::from((5..=7).contains(&j));
+                }
+            }
+        }
+        let x = g.centre(11, 6);
+        gatehouse(&mut g, x, Vec2 { x: 1.0, y: 0.0 }, 3);
+        for j in 5..=7 {
+            for i in 10..=12 {
+                let k = g.idx(i, j).unwrap_or(0);
+                assert_eq!(g.kind[k], Kind::Bridge, "({i}, {j})");
+                assert_eq!(g.street[k], 3);
+            }
+        }
+    }
 }
