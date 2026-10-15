@@ -239,17 +239,7 @@ impl Pipeline {
         let refs: Vec<&Block> = blocks.iter().map(AsRef::as_ref).collect();
         let map = assemble(&name, &refs, gsx0, gsy0, w, h);
         let (mut layout, mut rules) = (map.layout, map.rules);
-        let mut owners: Vec<Owner> = layout
-            .squares
-            .iter()
-            .map(|s| {
-                if s.water_depth_ft > 0 {
-                    Owner::Water
-                } else {
-                    Owner::Natural
-                }
-            })
-            .collect();
+        let mut owners: Vec<Owner> = layout.squares.iter().map(Owner::of_base).collect();
         layout.origin = Some([gsx0, gsy0]);
         let applied = match overlays {
             Some(o) => {

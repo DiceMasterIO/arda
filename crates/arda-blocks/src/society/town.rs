@@ -154,7 +154,7 @@ pub fn town(ctx: &OverlayCtx<'_>, world: &World) -> Result<Option<OverlayLayer>,
     let n = w as usize * h as usize;
     let mut layout = ctx.base.clone();
     let mut rules = RulesSidecar::empty(w, h);
-    let mut owners = vec![Owner::Natural; n];
+    let mut owners: Vec<Owner> = ctx.base.squares.iter().map(Owner::of_base).collect();
     let mut review = vec![false; n];
     let mut elevated = vec![false; n];
     let mut heights = arda_refine::heights::Heights::new();

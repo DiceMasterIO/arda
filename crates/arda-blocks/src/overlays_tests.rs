@@ -231,3 +231,25 @@ fn only_stated_squares_take_the_layer_elevation() {
     let e: Vec<i16> = base.squares.iter().map(|s| s.elevation_ft).collect();
     assert_eq!(e, [40, 5, 40]);
 }
+
+/// Review 3.5-13: cliffs and beaches are the terrain's own, not open
+/// ground: fields and a town's crofts never take them; roads and
+/// buildings may.
+#[test]
+fn fields_never_take_cliffs_or_beaches() {
+    let mut base = TacticalLayout::new("t", 3, 1, "grass");
+    base.squares[0].ground = "cliff".into();
+    base.squares[1].ground = "sand".into();
+    let mut rules = RulesSidecar::empty(3, 1);
+    let mut owners: Vec<Owner> = base.squares.iter().map(Owner::of_base).collect();
+    assert_eq!(owners, [Owner::Shore, Owner::Shore, Owner::Natural]);
+    let fields = layer("pasture", vec![true; 3], Vec::new());
+    compose(&mut base, &mut rules, &mut owners, &fields, Owner::Fields).unwrap();
+    assert_eq!(owners, [Owner::Shore, Owner::Shore, Owner::Fields]);
+    let crofts = layer("grass", vec![true; 3], vec![true; 3]);
+    compose(&mut base, &mut rules, &mut owners, &crofts, Owner::Town).unwrap();
+    assert_eq!(owners, [Owner::Shore, Owner::Shore, Owner::Croft]);
+    let road = layer("dirt", vec![false, true, false], Vec::new());
+    compose(&mut base, &mut rules, &mut owners, &road, Owner::Ways).unwrap();
+    assert_eq!(owners[1], Owner::Ways);
+}

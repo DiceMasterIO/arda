@@ -26,6 +26,8 @@ const MADE_GROUND_FT: u8 = 1;
 /// town 1 > ways 2 > water 3 > fields 4 > natural ground). Two soft
 /// claims sit between: a road's verge yields to fields, and the open
 /// ground of a town's footprint (crofts) yields to water and roads.
+/// Cliffs and beaches are the terrain's own ([`Owner::Shore`]): no field
+/// or croft takes them, roads and buildings may (review 3.5-13).
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub enum Owner {
     /// Free natural ground and cliffs, from arda-refine.
@@ -36,6 +38,8 @@ pub enum Owner {
     Fields,
     /// Paddocks, orchards and gardens of a town's footprint, from arda-town.
     Croft,
+    /// Cliffs and beaches, from arda-refine: not open ground to farm.
+    Shore,
     /// Rivers, lakes and sea, from arda-refine.
     Water,
     /// Roads, bridges and fords, from arda-ways.
@@ -53,9 +57,23 @@ impl Owner {
             Self::Verge => "verge",
             Self::Fields => "fields",
             Self::Croft => "croft",
+            Self::Shore => "shore",
             Self::Water => "water",
             Self::Ways => "ways",
             Self::Town => "town",
+        }
+    }
+
+    /// The owner of a refined square before any overlay: water, a cliff
+    /// or beach ([`Owner::Shore`]), or natural ground.
+    #[must_use]
+    pub fn of_base(sq: &arda_tactical::layout::Square) -> Self {
+        if sq.water_depth_ft > 0 {
+            Self::Water
+        } else if matches!(sq.ground.as_str(), "cliff" | "sand") {
+            Self::Shore
+        } else {
+            Self::Natural
         }
     }
 
@@ -339,8 +357,9 @@ pub fn compose_over(
         }
         _ => true,
     };
-    let bare =
-        |i: usize| owner == Owner::Ways && matches!(owners[i], Owner::Natural | Owner::Water);
+    let bare = |i: usize| {
+        owner == Owner::Ways && matches!(owners[i], Owner::Natural | Owner::Shore | Owner::Water)
+    };
     let added: Vec<_> = layer
         .layout
         .placements
