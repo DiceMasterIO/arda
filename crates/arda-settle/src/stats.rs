@@ -138,7 +138,7 @@ pub fn town_pattern(settlements: &[Settlement], land_cells: u64) -> (f64, f64, f
                 .map(|b| {
                     let dx = f64::from(a.cell_x) - f64::from(b.cell_x);
                     let dy = f64::from(a.cell_y) - f64::from(b.cell_y);
-                    dx.hypot(dy) * 100.0
+                    (dx * dx + dy * dy).sqrt() * 100.0
                 })
                 .fold(f64::INFINITY, f64::min)
         })
@@ -227,9 +227,9 @@ pub fn rank_size_fit(settlements: &[Settlement]) -> (f64, f64) {
     let n = pts.len() as f64;
     let mx = pts.iter().map(|p| p.0).sum::<f64>() / n;
     let my = pts.iter().map(|p| p.1).sum::<f64>() / n;
-    let sxx: f64 = pts.iter().map(|p| (p.0 - mx).powi(2)).sum();
+    let sxx: f64 = pts.iter().map(|p| (p.0 - mx) * (p.0 - mx)).sum();
     let sxy: f64 = pts.iter().map(|p| (p.0 - mx) * (p.1 - my)).sum();
-    let syy: f64 = pts.iter().map(|p| (p.1 - my).powi(2)).sum();
+    let syy: f64 = pts.iter().map(|p| (p.1 - my) * (p.1 - my)).sum();
     if sxx == 0.0 || syy == 0.0 {
         return (0.0, 0.0);
     }

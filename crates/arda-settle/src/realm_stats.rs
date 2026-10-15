@@ -39,7 +39,8 @@ pub struct RealmStats {
 fn km(a: &Settlement, b: &Settlement) -> f64 {
     let dx = f64::from(a.cell_x) - f64::from(b.cell_x);
     let dy = f64::from(a.cell_y) - f64::from(b.cell_y);
-    dx.hypot(dy) / 10.0
+    // `sqrt` is correctly rounded everywhere; libm `hypot` is not (OI-52).
+    (dx * dx + dy * dy).sqrt() / 10.0
 }
 
 fn share_pm(part: u64, whole: u64) -> u32 {

@@ -76,7 +76,8 @@ fn principal(cells: &[(i64, i64)]) -> ((i64, i64), u64, f64) {
     }
     let (a, b, c) = (a / n as f64, b / n as f64, c / n as f64);
     let half = (a + c) / 2.0;
-    let root = (((a - c) / 2.0).powi(2) + b * b).sqrt();
+    let diff = (a - c) / 2.0;
+    let root = (diff * diff + b * b).sqrt();
     let (l1, l2) = (half + root, (half - root).max(1e-9));
     let dir = if b.abs() < 1e-12 {
         if a >= c {

@@ -105,7 +105,7 @@ pub fn ln(x: f64) -> f64 {
     }
     // Normalise subnormals into the normal range first.
     let (x, bias) = if x < f64::MIN_POSITIVE {
-        (x * 2f64.powi(64), -64)
+        (x * 18_446_744_073_709_551_616.0, -64) // 2^64, exact
     } else {
         (x, 0)
     };
