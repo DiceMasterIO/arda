@@ -266,7 +266,9 @@ impl Prior {
         let growth = ctx
             .lines_at(v)
             .growth(ctx.bilinear(u, v, |c, _| f64::from(c.temperature.raw()) / 100.0));
-        let steep = rock(slope + 10.0, fd, growth);
+        // Scree runs ahead of bare rock on open ground; under trees the
+        // litter and roots hold it.
+        let steep = rock(slope + 10.0 * (1.0 - fd), fd, growth);
         let crag = rock(slope, fd, growth);
         w[Scree.index()] = w[Scree.index()] * (1.0 + 3.0 * steep) + 0.35 * steep;
         w[Rock.index()] = w[Rock.index()] * (1.0 + 4.0 * crag) + 0.9 * crag;

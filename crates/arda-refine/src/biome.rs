@@ -80,17 +80,20 @@ pub fn alpine(c: &Cell, lines: Lines) -> f64 {
 }
 
 /// How craggy the cell is: the shared bare-rock exposure
-/// (`arda_core::biome::ground::rock`) of a slope somewhat steeper than the
-/// cell's mean (its steepest squares), under the cell's own forest density
-/// and the tree growth of its temperature. Vegetation is a co-equal input
-/// with slope: a wooded 30° cell is not craggy, an open one is, and above
-/// the tree line frost bares gentler ground (review 3.4-2).
+/// (`arda_core::biome::ground::rock`) under the cell's own forest density
+/// and the tree growth of its temperature, of a slope steeper than the
+/// cell's mean by up to [`ground::CRAG_LEAD_MILLI`] on open ground (its
+/// steepest squares break out) and not at all under a closed canopy.
+/// Vegetation is a co-equal input with slope: a wooded 30° cell is not
+/// craggy, an open one is, and above the tree line frost bares gentler
+/// ground (review 3.4-2).
 #[must_use]
 pub fn craggy(c: &Cell, lines: Lines) -> f64 {
     if !land(c) {
         return 0.0;
     }
-    let lead = ground::CRAG_LEAD_MILLI as f64 / 1000.0;
+    let fd = f64::from(c.forest_density) / 255.0;
+    let lead = ground::CRAG_LEAD_MILLI as f64 / 1000.0 * (1.0 - fd);
     exposure(c, f64::from(c.slope_milli_deg) / 1000.0 + lead, lines)
 }
 

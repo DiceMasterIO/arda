@@ -77,7 +77,10 @@ fn roughness(c: &arda::Cell) -> f64 {
         Cover::Grass => 0.0,
         Cover::Marsh => -0.08,
     };
-    (0.2 + 0.6 * smoothstep(0.0, 35.0, slope) + cover).max(0.12)
+    // Roots and litter smooth a wooded slope: the slope term halves under
+    // a closed canopy (review 3.4-2).
+    let fd = f64::from(c.forest_density) / 255.0;
+    (0.2 + 0.6 * smoothstep(0.0, 35.0, slope) * (1.0 - 0.5 * fd) + cover).max(0.12)
 }
 
 /// A smooth, rotated domain warp of up to `amp` squares, so iso-lines of
