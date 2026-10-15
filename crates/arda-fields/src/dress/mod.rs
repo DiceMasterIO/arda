@@ -139,11 +139,15 @@ fn square_ground(plan: &Plan, s: Sq, d: u8) -> GroundOut {
                     if d <= 1 {
                         return ("grass", None, None);
                     }
-                    // Balks stay unploughed but are not painted as grass: a
-                    // one-square line of grass between strips breaks into
-                    // ragged blobs once ground borders blend; each strip's
-                    // own crop marks it off from its neighbours.
+                    // A one-square grass balk between strips: strips run on
+                    // the lattice or its diagonals, so the balk is a straight
+                    // line of squares (it broke into ragged blobs while
+                    // strips ran at any bearing), and strips of one crop
+                    // stay strips (review 2026-10-15, gallery 16).
                     let at = strips::locate(seed, site, s.centre());
+                    if at.balk {
+                        return ("grass", None, None);
+                    }
                     let c = strips::crop(seed, site, f.crop, at.index);
                     let fur = (c == Crop::Ploughed).then_some(at.along);
                     (c.ground(), Some(c), fur)

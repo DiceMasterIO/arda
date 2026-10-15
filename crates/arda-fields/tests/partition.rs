@@ -217,3 +217,50 @@ fn no_field_corner_is_a_wedge() {
         assert!(sharp.is_empty(), "{}: wedge corners {sharp:?}", s.name);
     }
 }
+
+#[test]
+fn a_lone_worked_cell_in_the_wild_reads_as_wild_ground() {
+    // review 2026-10-15 (gallery 07): a single 100 m cell of farmland in
+    // unworked country became a cell-shaped parcel, a faint ghost
+    // rectangle on the relief tiles; a block of cells is real farmland.
+    use arda_fields::input::{LandUse, LandUseGrid, TerrainSample};
+    use arda_fields::partition::context::{Context, Ground, Style};
+    let mut landuse = LandUseGrid::filled((0, 0), 40, 40, None).unwrap();
+    landuse.set(12, 12, Some(LandUse::Arable));
+    // A diagonal pair of specks is no farm either.
+    landuse.set(18, 12, Some(LandUse::Fallow));
+    landuse.set(19, 13, Some(LandUse::Arable));
+    for (cx, cy) in [(26, 26), (27, 26), (26, 27), (27, 27)] {
+        landuse.set(cx, cy, Some(LandUse::Arable));
+    }
+    let terrain = |_: f64, _: f64| TerrainSample {
+        height_m: 20.0,
+        water_depth_m: 0.0,
+    };
+    let g = Ground {
+        seed: SEED,
+        landuse: &landuse,
+        terrain: &terrain,
+        settlements: &[],
+        rivers: &[],
+        style: Style::of("human", 128),
+    };
+    // A 24-square region centred on square (x, y).
+    let class_of = |x: f64, y: f64| {
+        let (x, y) = (x - 12.0, y - 12.0);
+        let region = vec![vec![
+            [x, y],
+            [x + 24.0, y],
+            [x + 24.0, y + 24.0],
+            [x, y + 24.0],
+        ]];
+        Context::new(&g, &region, [x + 12.0, y + 12.0], 576.0).class
+    };
+    let before = class_of(12.0 * 64.0 + 32.0, 12.0 * 64.0 + 32.0);
+    assert_eq!(before, None, "a lone cell");
+    let pair = class_of(18.0 * 64.0 + 32.0, 12.0 * 64.0 + 32.0);
+    assert_eq!(pair, None, "a diagonal pair");
+    // Where the block's four cells meet.
+    let block = class_of(27.0 * 64.0, 27.0 * 64.0);
+    assert_eq!(block, Some(LandUse::Arable), "a block of cells");
+}

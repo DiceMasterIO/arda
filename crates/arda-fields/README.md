@@ -57,8 +57,9 @@ Everything is a function of global square coordinates and the seed. A window is 
 2. **Partition** (`partition/`). Fields come from a fixed global hierarchy (logic/17 §land-fields), so every window and the relief tiles agree:
    - land blocks are a brick lattice of 500 m tiles paired two wide, alternate rows offset, every corner a T-junction; the vertices drift with a smooth 2 km noise field, so the brickwork turns from place to place (`lattice.rs`);
    - each block is split recursively (`split.rs`): along a road that crosses a piece nearly straight, else across the piece square to its longest straight side (lengthwise for long narrow closes by the houses, along the contour on slopes), at jittered and often slightly kinked lines in old enclosure and on one surveyed bearing in planned enclosure; cuts that would leave a wedge are retried gentler;
-   - a piece stops splitting at the size its ground asks for (`context.rs`): closes of 0.4 ha by the houses growing to 3.4 ha 1.4 km out, 6 ha furlongs in a village's open fields, small orchards and farmstead closes, large woods and wastes, scaled by wealth, culture and enclosure style;
+   - a piece stops splitting at the size its ground asks for (`context.rs`): closes of 0.4 ha by the houses growing to 3.4 ha 1.4 km out, 3.5 ha furlongs in a village's open fields, small orchards and farmstead closes, large woods and wastes, scaled by wealth, culture and enclosure style;
    - where farmland meets wood or waste the cut that separates them wins, and the land-use raster is read through a smooth 70 m displacement, so outlines follow field edges, not 100 m cells;
+   - a cell of field use that no worked cell touches along an edge (a lone cell, a diagonal chain) reads as wild ground, not a cell-shaped parcel;
    - everything is drawn in a gently warped frame, so hedges wander a few squares;
    - lanes and roads still cut parcels; connected parcels under 320 squares (0.08 ha) or thinner than 4.5 squares on average become scrubby corners.
 3. **Kinds and crops** (`fields.rs`, `partition/context.rs`). A field takes the majority land use of its ground:
@@ -70,7 +71,7 @@ Everything is a function of global square coordinates and the seed. A window is 
    - farmstead cells split between pasture and arable;
    - mill cells become meadow;
    - mine and quarry cells become rough ground.
-4. **Strips** (`strips.rs`). Each furlong is divided into strips 7–11 squares (11–17 m) wide, with a reverse-S curve and a 1-square grass balk between strips. Strips run down the slope where there is one, else along the furlong (30% of broad furlongs across it). A strip usually takes its furlong's crop, and 28% of strips take their own. Headlands are grass.
+4. **Strips** (`strips.rs`). Each furlong is divided into straight strips 7–11 squares (11–17 m) wide with a 1-square grass balk between strips. Strips run down the slope where there is one, else along the furlong (30% of broad furlongs across it), on that bearing snapped to the nearest 45° of the square lattice, so a strip's edge is a straight line of squares rather than a staircase. Half the strips take their furlong's crop and half their own. Headlands are grass.
 5. **Boundaries** (`boundary.rs`). Every edge of an enclosed field that faces another cover gets that field's kit, except for edges facing water or a walled compound. Where two fields meet, the field with the lower id sets the kit. Each enclosed field has one gate:
    - the gate faces a lane or road if possible;
    - otherwise it faces the nearest farm gate or settlement within 800 m;

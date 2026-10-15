@@ -126,7 +126,43 @@ fn class_at(g: &Ground<'_>, p: P) -> Option<LandUse> {
     };
     let q = [p[0] + n(0x1A5D), p[1] + n(0x1A5E)];
     let cell = |v: f64| (v.floor() as i64).div_euclid(CELL_SQUARES);
-    g.landuse.class_at(cell(q[0]), cell(q[1]))
+    let (cx, cy) = (cell(q[0]), cell(q[1]));
+    let class = g.landuse.class_at(cx, cy);
+    // A cell of fields no worked cell touches along an edge is the
+    // raster's speckle at the edge of the farmland (lone cells and the
+    // diagonal chains settle leaves along tracks), not a farm: it reads as
+    // the wild around it rather than a cell-shaped parcel (review
+    // 2026-10-15, gallery 07's ghost rectangles).
+    if parcel_use(class)
+        && ![(1, 0), (-1, 0), (0, 1), (0, -1)]
+            .iter()
+            .any(|&(dx, dy)| worked(g.landuse.class_at(cx + dx, cy + dy)))
+    {
+        return None;
+    }
+    class
+}
+
+/// Field uses a lone cell cannot hold on its own (a mill's meadow
+/// included; the mill itself is a compound and stands regardless).
+const fn parcel_use(c: Option<LandUse>) -> bool {
+    matches!(
+        c,
+        Some(
+            LandUse::Arable
+                | LandUse::Fallow
+                | LandUse::Pasture
+                | LandUse::Meadow
+                | LandUse::Orchard
+                | LandUse::Mill
+        )
+    )
+}
+
+/// Whether a cell is worked land of any kind (farm and mill cells
+/// included), so a field beside it is not alone.
+const fn worked(c: Option<LandUse>) -> bool {
+    parcel_use(c) || matches!(c, Some(LandUse::Farmstead | LandUse::Mill))
 }
 
 impl Context {
@@ -190,7 +226,9 @@ impl Context {
         let t = ((self.settle_m - 80.0) / 1_300.0).clamp(0.0, 1.0);
         let enclosure = 0.4 + 3.0 * t * t * (3.0 - 2.0 * t);
         let ha = match self.class {
-            Some(LandUse::Arable | LandUse::Fallow) if self.open_field => 6.0,
+            // Furlongs of a few hectares, so strips change direction from
+            // one to the next (review 2026-10-15, gallery 16).
+            Some(LandUse::Arable | LandUse::Fallow) if self.open_field => 3.5,
             Some(LandUse::Arable | LandUse::Fallow) => enclosure,
             Some(LandUse::Pasture) => enclosure * 1.25,
             Some(LandUse::Meadow | LandUse::Mill) => 1.4,
