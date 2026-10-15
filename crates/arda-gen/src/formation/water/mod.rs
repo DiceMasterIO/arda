@@ -245,6 +245,23 @@ pub fn shape_channels(
     features: &mut WaterFeatures,
     runoff: Option<&[u16]>,
 ) -> Result<Shaped, FormationError> {
+    shape_channels_recipe(g, relief_q8, seed, features, runoff, false)
+}
+
+/// [`shape_channels`]; with `v9` (recipe 9, review 3.1-8) braided belts and
+/// meander courses are graded to the bed as it stood before planing
+/// ([`braid::apply`], [`meander::apply`]).
+///
+/// # Errors
+/// Allocation failure.
+pub fn shape_channels_recipe(
+    g: &mut Lattice,
+    relief_q8: &[u8],
+    seed: u64,
+    features: &mut WaterFeatures,
+    runoff: Option<&[u16]>,
+    v9: bool,
+) -> Result<Shaped, FormationError> {
     let net = network::build(g, runoff)?;
     let min_cells = u32::try_from(STREAM_MIN_KM2 * 1_000_000 / cell_m2(g)).unwrap_or(u32::MAX);
     let smooth = usize::try_from(geom::m_to_q8(g, 400) / geom::CELL_Q8).unwrap_or(1);
@@ -263,6 +280,7 @@ pub fn shape_channels(
         &mut claimed,
         seed ^ 0xB4A1,
         features,
+        v9,
     );
     let cutoffs = meander::apply(
         g,
@@ -271,6 +289,7 @@ pub fn shape_channels(
         &mut claimed,
         seed ^ 0x3EA7,
         features,
+        v9,
     );
     Ok(Shaped {
         streams,
@@ -313,7 +332,21 @@ pub fn shape(
     seed: u64,
     features: &mut WaterFeatures,
 ) -> Result<(), FormationError> {
-    let shaped = shape_channels(g, relief_q8, seed, features, None)?;
+    shape_recipe(g, relief_q8, seed, features, false)
+}
+
+/// [`shape`] with the recipe-9 belt grading when `v9`.
+///
+/// # Errors
+/// Allocation failure.
+pub fn shape_recipe(
+    g: &mut Lattice,
+    relief_q8: &[u8],
+    seed: u64,
+    features: &mut WaterFeatures,
+    v9: bool,
+) -> Result<(), FormationError> {
+    let shaped = shape_channels_recipe(g, relief_q8, seed, features, None, v9)?;
     shape_basins(g, &shaped, features, None)
 }
 

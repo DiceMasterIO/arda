@@ -91,7 +91,12 @@ fn candidates(g: &Lattice, s: &Stream, area: &[u32], relief_q8: &[u8]) -> Vec<bo
     out
 }
 
-/// Builds braided belts on eligible reaches at least 1.5 km long.
+/// Builds braided belts on eligible reaches at least 1.5 km long. With
+/// `v9` (recipe 9, review 3.1-8) the belt is graded to the reach's bed as
+/// it was before any planing, made monotone downstream, and the threads
+/// fade in and out over the belt's end ramps, so the belt neither cuts a
+/// knickpoint at its head nor deepens cumulatively along the reach.
+#[allow(clippy::too_many_arguments)]
 pub fn apply(
     g: &mut Lattice,
     streams: &[Stream],
@@ -100,6 +105,7 @@ pub fn apply(
     claimed: &mut [Vec<bool>],
     seed: u64,
     features: &mut WaterFeatures,
+    v9: bool,
 ) {
     let min_len = m_to_q8(g, 1_500);
     for (si, s) in streams.iter().enumerate() {
@@ -131,12 +137,14 @@ pub fn apply(
                 (a, b),
                 hash3(seed, si as i64, a as i64),
                 features,
+                v9,
             );
             claimed[si][a..=b].iter_mut().for_each(|v| *v = true);
         }
     }
 }
 
+#[allow(clippy::too_many_arguments)]
 fn build(
     g: &mut Lattice,
     s: &Stream,
@@ -144,9 +152,22 @@ fn build(
     (a, b): (usize, usize),
     seed: u64,
     features: &mut WaterFeatures,
+    v9: bool,
 ) {
     let cell_m2 = super::cell_m2(g);
     let ramp = m_to_q8(g, 500);
+    // Recipe 9: the reach's bed before planing, monotone downstream. The
+    // live bed falls as the belt is planed and threads are cut, so later
+    // positions graded against an already-lowered bed.
+    let beds = super::meander::bed_profile(g, s, (a, b));
+    let bed_at = |g: &Lattice, k: usize| if v9 { beds[k - a] } else { s.bed(g, k) };
+    let fade = |k: usize| {
+        if !v9 {
+            return 1_000;
+        }
+        let edge = (s.along[k] - s.along[a]).min(s.along[b] - s.along[k]);
+        (edge * 1_000 / ramp.max(1)).clamp(0, 1_000)
+    };
     let km2_at = |k: usize| u64::from(area[s.cells[k]]) * cell_m2 / 1_000_000;
     let (w, h) = (g.width as i64, g.height as i64);
     let bar = m_to_q8(g, 60).max(1);
@@ -154,7 +175,7 @@ fn build(
     for k in a..=b {
         let edge = (s.along[k] - s.along[a]).min(s.along[b] - s.along[k]);
         let half = belt_half_q8(g, km2_at(k)) * (edge * 1000 / ramp.max(1)).clamp(250, 1000) / 1000;
-        let plain = s.bed(g, k);
+        let plain = bed_at(g, k);
         let c = s.centre[k];
         let (x0, x1) = ((c.0 - half) / CELL_Q8, (c.0 + half) / CELL_Q8 + 1);
         let (y0, y1) = ((c.1 - half) / CELL_Q8, (c.1 + half) / CELL_Q8 + 1);
@@ -187,7 +208,8 @@ fn build(
             let off = half * amp_permille / 1000 * sin_q14(phase) / ONE_Q14;
             let (t, c) = (s.dir[k], s.centre[k]);
             let p = (c.0 - t.1 * off / ONE_Q14, c.1 + t.0 * off / ONE_Q14);
-            carve_disc(g, p, m_to_q8(g, 40), s.bed(g, k) - depth, depth);
+            let depth = depth * fade(k) / 1_000;
+            carve_disc(g, p, m_to_q8(g, 40), bed_at(g, k) - depth, depth.max(1));
             k += 1;
         }
     }

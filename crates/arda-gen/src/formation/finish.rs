@@ -218,12 +218,13 @@ pub(super) fn run(mut g: Lattice, ctx: Context<'_>) -> Result<Formed, FormationE
     // logic/02 §world-water: braided belts and meanders, drained again,
     // then oxbows and karst poljes; their closed basins become protected
     // sinks for every later drainage guarantee.
-    let shaped = water::shape_channels(
+    let shaped = water::shape_channels_recipe(
         &mut g,
         &relief_q8,
         base_seed ^ 0x3A7E_5000,
         &mut features,
         runoff.as_deref(),
+        v9,
     )?;
     drop(relief_q8);
     fine_fill(&mut g, is_basin)?;

@@ -267,3 +267,78 @@ fn oxbows_survive_the_drainage_guarantees_whole() {
         "no fragments: basin sizes {sizes:?}"
     );
 }
+
+/// Lowest height of each column between rows `y0 - r` and `y0 + r`.
+fn thalweg(g: &Lattice, r: usize) -> Vec<i64> {
+    let (w, h) = (g.width, g.height);
+    let y0 = h / 2;
+    (0..w)
+        .map(|x| {
+            (y0 - r..=y0 + r)
+                .map(|y| i64::from(g.z[y * w + x]))
+                .min()
+                .unwrap()
+        })
+        .collect()
+}
+
+/// (largest single-column drop of the thalweg beyond the valley's own fall,
+/// deepest cut below the original thalweg), mm, over land columns.
+fn belt_profile(before: &Lattice, after: &Lattice, r: usize, fall: i64) -> (i64, i64) {
+    let (t0, t1) = (thalweg(before, r), thalweg(after, r));
+    let land = |x: usize| t0[x] > 0 && t1[x] > 0;
+    let knick = (2..t1.len() - 8)
+        .filter(|&x| land(x) && land(x - 1))
+        .map(|x| t1[x - 1] - t1[x] - fall)
+        .max()
+        .unwrap_or(0);
+    let cut = (1..t1.len() - 8)
+        .filter(|&x| land(x))
+        .map(|x| t0[x] - t1[x])
+        .max()
+        .unwrap_or(0);
+    (knick, cut)
+}
+
+/// Review 3.1-8: recipe-7 belts grade against the live bed, which their own
+/// planing and threads have already lowered, start with a knickpoint and
+/// end flat. Recipe 9 grades to the bed before planing and fades the cut
+/// in at the head.
+#[test]
+fn recipe_9_belts_have_no_head_knickpoint_or_runaway_cut() {
+    // The meandering floodplain of the test above.
+    let (w, h) = (1_200, 400);
+    let base = valley(w, h, 20, 800, 12, 20_000);
+    let relief = vec![0_u8; w * h];
+    let run = |v9: bool| {
+        let mut g = base.clone();
+        let mut f = WaterFeatures::default();
+        shape_recipe(&mut g, &relief, 5, &mut f, v9).unwrap();
+        assert!(f.stats.meander_spans >= 1, "{:?}", f.stats);
+        belt_profile(&base, &g, 60, 12)
+    };
+    let ((k7, c7), (k9, c9)) = (run(false), run(true));
+    eprintln!("meander: knick {k7} -> {k9} mm, deepest cut {c7} -> {c9} mm");
+    assert!(k9 * 4 < k7 * 3, "head knickpoint {k7} -> {k9} mm");
+    assert!(c9 <= c7, "deepest cut {c7} -> {c9} mm");
+    // The braided piedmont.
+    let (w, h) = (900, 300);
+    let base = valley(w, h, 1, 1_500, 390, 20_000);
+    let mut relief = vec![0_u8; w * h];
+    for (i, r) in relief.iter_mut().enumerate() {
+        if i % w < 300 {
+            *r = 255;
+        }
+    }
+    let run = |v9: bool| {
+        let mut g = base.clone();
+        let mut f = WaterFeatures::default();
+        shape_recipe(&mut g, &relief, 9, &mut f, v9).unwrap();
+        assert!(f.stats.braided_reaches >= 1, "{:?}", f.stats);
+        belt_profile(&base, &g, 20, 390)
+    };
+    let ((k7, c7), (k9, c9)) = (run(false), run(true));
+    eprintln!("braid: knick {k7} -> {k9} mm, deepest cut {c7} -> {c9} mm");
+    assert!(k9 < k7, "braid head knickpoint {k7} -> {k9} mm");
+    assert!(c9 <= c7, "braid deepest cut {c7} -> {c9} mm");
+}

@@ -178,7 +178,14 @@ fn plan(g: &Lattice, s: &Stream, area: &[u32], seed: u64) -> Plan {
 /// nodes within the bends, channel and a 0.2 λ margin of the floor middle
 /// that stand at most [`BELT_CUT_MM`] + [`FLOOR_RISE_MM`] above the bed.
 /// The outer fifth blends back to the valley side, a soft bluff.
-fn plane_belt(g: &mut Lattice, s: &Stream, area: &[u32], p: &Plan, (a, b): (usize, usize)) {
+fn plane_belt(
+    g: &mut Lattice,
+    s: &Stream,
+    area: &[u32],
+    p: &Plan,
+    (a, b): (usize, usize),
+    beds: Option<&[i64]>,
+) {
     let ramp = p.lambda[a] / 2;
     let (w, h) = (g.width as i64, g.height as i64);
     // Q8 distance to millimetres of rise at FLOODPLAIN_TILT_PERMILLE.
@@ -195,7 +202,7 @@ fn plane_belt(g: &mut Lattice, s: &Stream, area: &[u32], p: &Plan, (a, b): (usiz
             c0.0 - t.1 * p.shift[k] / ONE_Q14,
             c0.1 + t.0 * p.shift[k] / ONE_Q14,
         );
-        let floor = s.bed(g, k) + 300;
+        let floor = beds.map_or_else(|| s.bed(g, k), |beds| beds[k - a]) + 300;
         let (x0, x1) = ((c.0 - half) / CELL_Q8, (c.0 + half) / CELL_Q8 + 1);
         let (y0, y1) = ((c.1 - half) / CELL_Q8, (c.1 + half) / CELL_Q8 + 1);
         for y in y0.max(1)..=y1.min(h - 2) {
@@ -259,10 +266,27 @@ fn spans(s: &Stream, p: &Plan) -> Vec<(usize, usize)> {
     out
 }
 
+/// The bed of positions `a..=b` of `s` as it stands, made monotone
+/// (never rising) downstream (recipe 9, review 3.1-8).
+pub(super) fn bed_profile(g: &Lattice, s: &Stream, (a, b): (usize, usize)) -> Vec<i64> {
+    let mut low = i64::MAX;
+    (a..=b)
+        .map(|k| {
+            low = low.min(s.bed(g, k));
+            low
+        })
+        .collect()
+}
+
 /// Applies meanders to every eligible stream and returns the planned
 /// oxbow cutoffs, which [`carve_cutoffs`] carves after the channels have
 /// been drained. `claimed` marks stream positions already shaped by another
-/// pass.
+/// pass. With `v9` (recipe 9, review 3.1-8) the belt and course are graded
+/// to the bed as it stood before planing, the course's depth fades in over
+/// the head ramp instead of starting with a knickpoint, and the run-on
+/// below the span grades down to the old bed instead of running flat.
+///
+/// [`carve_cutoffs`]: super::oxbow::carve_cutoffs
 pub fn apply(
     g: &mut Lattice,
     streams: &[Stream],
@@ -270,6 +294,7 @@ pub fn apply(
     claimed: &mut [Vec<bool>],
     seed: u64,
     features: &mut WaterFeatures,
+    v9: bool,
 ) -> Vec<super::oxbow::Cutoff> {
     let mut cutoffs = Vec::new();
     for (si, s) in streams.iter().enumerate() {
@@ -282,8 +307,12 @@ pub fn apply(
             if curve.len() < 4 {
                 continue;
             }
-            plane_belt(g, s, area, &p, (a, b));
-            carve_course(g, s, area, &curve, a, b);
+            let beds = v9.then(|| bed_profile(g, s, (a, b)));
+            plane_belt(g, s, area, &p, (a, b), beds.as_deref());
+            match &beds {
+                Some(beds) => carve_course_graded(g, s, area, &curve, (a, b), (beds, p.lambda[a])),
+                None => carve_course(g, s, area, &curve, a, b),
+            }
             let valley = s.along[b] - s.along[a];
             let length: i64 = curve
                 .windows(2)
@@ -419,6 +448,56 @@ fn carve_course(
             (c / g.width) as i64 * CELL_Q8,
         );
         carve_disc(g, p, channel_radius(g, s, area, k), bed, depth);
+    }
+}
+
+/// Recipe-9 course carve (see [`apply`]): `beds` is the span's bed before
+/// planing (monotone), `lambda` the span's wavelength, whose half is the
+/// head ramp.
+fn carve_course_graded(
+    g: &mut Lattice,
+    s: &Stream,
+    area: &[u32],
+    curve: &[((i64, i64), usize)],
+    (a, b): (usize, usize),
+    (beds, lambda): (&[i64], i64),
+) {
+    let total = curve.len().max(2) - 1;
+    let (za, zb) = (beds[0], beds[b - a]);
+    let ramp = (lambda / 2).max(CELL_Q8);
+    let mut bed = i64::MAX;
+    for (i, &(p, k)) in curve.iter().enumerate() {
+        let fade = ((s.along[k] - s.along[a]) * 1_000 / ramp).clamp(0, 1_000);
+        let depth = carve_depth_mm(g, s, area, k) * fade / 1_000;
+        let lin = za + (zb - za) * i as i64 / total as i64;
+        bed = bed.min(lin.min(beds[k - a]) - depth);
+        carve_disc(g, p, channel_radius(g, s, area, k), bed, depth.max(1));
+    }
+    // Run on below the span until the old bed falls below the channel,
+    // grading down to it rather than running flat.
+    let end = (b + 1..s.cells.len())
+        .find(|&k| s.bed(g, k) <= bed || g.z[s.cells[k]] <= 0)
+        .unwrap_or(s.cells.len());
+    if end <= b + 1 {
+        return;
+    }
+    // A run-on that reaches the coast before the old bed falls below it
+    // keeps its level: grading it to the sea would cut a gorge.
+    let target = if end < s.cells.len() && g.z[s.cells[end]] > 0 {
+        s.bed(g, end).min(bed)
+    } else {
+        bed
+    };
+    let span = (end - b) as i64;
+    for k in b + 1..end {
+        let level = bed - (bed - target) * (k - b) as i64 / span;
+        let depth = carve_depth_mm(g, s, area, k);
+        let c = s.cells[k];
+        let p = (
+            (c % g.width) as i64 * CELL_Q8,
+            (c / g.width) as i64 * CELL_Q8,
+        );
+        carve_disc(g, p, channel_radius(g, s, area, k), level, depth);
     }
 }
 
