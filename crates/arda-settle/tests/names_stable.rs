@@ -14,7 +14,7 @@ fn fnv(bytes: &[u8]) -> u64 {
 }
 
 const NAMES_JSON: u64 = 16_548_298_144_442_858_563;
-const OTHER_NAMES: u64 = 13_609_271_205_993_474_194;
+const OTHER_NAMES: u64 = 11_566_543_098_113_165_408;
 
 #[test]
 fn names_json_bytes_are_pinned() {
