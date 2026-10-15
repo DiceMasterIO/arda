@@ -12,12 +12,14 @@
 
 use super::{smooth_q12, smoothstep, ONE};
 
-/// Slope (milli-degrees) where bare rock starts on bare, frost-free ground.
-pub const ROCK_BARE_MILLI: i64 = 30_000;
+/// Slope (milli-degrees) where bare rock starts on open, frost-free ground
+/// (half exposed at 35°, the refiner's crag ramp before the shared rule).
+pub const ROCK_BARE_MILLI: i64 = 26_000;
 /// Slope (milli-degrees) from the start of exposure to full bare rock.
-pub const ROCK_SPAN_MILLI: i64 = 14_000;
-/// How far a full canopy potential raises the rock slope, milli-degrees.
-pub const ROCK_VEG_HOLD_MILLI: i64 = 8_000;
+pub const ROCK_SPAN_MILLI: i64 = 18_000;
+/// How far a closed canopy raises the rock slope, milli-degrees (half
+/// exposed at 45° under full forest).
+pub const ROCK_VEG_HOLD_MILLI: i64 = 10_000;
 /// How far frost shattering above the tree line lowers it, milli-degrees.
 pub const ROCK_FROST_MILLI: i64 = 8_000;
 
@@ -54,7 +56,8 @@ pub fn veg_potential(growth: f64, balance: f64) -> f64 {
 }
 
 /// Bare-rock exposure, Q12, of ground sloping `slope_milli` milli-degrees
-/// under vegetation potential `veg_q12` and tree growth `growth_q12`.
+/// under a canopy of `veg_q12` (the world's forest density) and tree growth
+/// `growth_q12`.
 #[must_use]
 pub fn rock_q12(slope_milli: i64, veg_q12: i64, growth_q12: i64) -> i64 {
     let lo = ROCK_BARE_MILLI + ROCK_VEG_HOLD_MILLI * veg_q12.clamp(0, ONE) / ONE
@@ -71,8 +74,14 @@ pub fn rock(slope_deg: f64, veg: f64, growth: f64) -> f64 {
     smoothstep(lo, lo + ms(ROCK_SPAN_MILLI), slope_deg)
 }
 
-/// Exposure (Q12) at or above which a world cell's cover is rock (recipe 9).
-pub const ROCK_COVER_Q12: i64 = ONE / 2;
+/// Exposure (Q12) at or above which a world cell's cover is rock (recipe 9):
+/// open ground from 38°, as before, cold ground from 30°, a closed canopy
+/// from 48°.
+pub const ROCK_COVER_Q12: i64 = 3 * ONE / 4;
+/// How much steeper than its cell's mean slope a cell's steepest squares
+/// run, milli-degrees: a cell is craggy (strata, cliff bands) at the
+/// exposure of this much more slope.
+pub const CRAG_LEAD_MILLI: i64 = 8_000;
 /// Slope (milli-degrees) above which a recipe ≤ 8 cell is rock.
 pub const ROCK_V8_MILLI: u16 = 38_000;
 /// Slope (milli-degrees) above which a cold recipe ≤ 8 cell is rock.
@@ -107,15 +116,18 @@ mod tests {
 
     #[test]
     fn vegetation_holds_soil_on_steeper_ground() {
-        // Bare, frost-free ground: half rock at 37°.
-        assert_eq!(rock_q12(37_000, 0, ONE), ONE / 2);
-        // A full canopy potential holds soil to 45°.
-        assert_eq!(rock_q12(37_000, ONE, ONE), 0);
+        // Open, frost-free ground: half rock at 35°.
+        assert_eq!(rock_q12(35_000, 0, ONE), ONE / 2);
+        // A closed canopy holds soil to 45°.
+        assert_eq!(rock_q12(35_000, ONE, ONE), 0);
         assert_eq!(rock_q12(45_000, ONE, ONE), ONE / 2);
-        // Above the tree line frost bares it from 29°.
-        assert_eq!(rock_q12(29_000, 0, 0), ONE / 2);
+        // Above the tree line frost bares it from 27°.
+        assert_eq!(rock_q12(27_000, 0, 0), ONE / 2);
         assert!((rock(45.0, 1.0, 1.0) - 0.5).abs() < 1e-12);
-        assert!((rock(29.0, 0.0, 0.0) - 0.5).abs() < 1e-12);
+        assert!((rock(27.0, 0.0, 0.0) - 0.5).abs() < 1e-12);
+        // World rock cover: open ground from 38°, as before recipe 9.
+        assert!(rock_q12(37_500, 0, ONE) < ROCK_COVER_Q12);
+        assert!(rock_q12(38_500, 0, ONE) >= ROCK_COVER_Q12);
     }
 
     #[test]

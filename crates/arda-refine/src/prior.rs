@@ -9,6 +9,7 @@ use crate::context::Ctx;
 use crate::noise::{fbm, smoothstep};
 use arda::{Cell, Cover, TerrainKind};
 use arda_core::biome::aspect::sunward;
+use arda_core::biome::ground::rock;
 use arda_core::biome::{climate, Lines};
 
 /// Per-class weights.
@@ -153,7 +154,7 @@ fn biome_weights(c: &Cell, coast: crate::biome::Coast, open: f64, lines: Lines, 
         marshy(c)
     };
     let sh = shoreline(c, coast);
-    let (dry, coast, alp, crag) = (arid(c), sh.strip, alpine(c, lines), craggy(c));
+    let (dry, coast, alp, crag) = (arid(c), sh.strip, alpine(c, lines), craggy(c, lines));
     let mut add = |k: Class, v: f64| w[k.index()] += v;
     add(Marsh, 1.4 * bog * open);
     add(ReedBed, 1.0 * bog * open);
@@ -254,14 +255,22 @@ impl Prior {
             let bot = c[i] + (d[i] - c[i]) * fx;
             w[i] = top + (bot - top) * fy;
         }
-        let steep = smoothstep(16.0, 36.0, slope);
-        let crag = smoothstep(26.0, 44.0, slope);
+        // Bare rock breaks out where the slope is too steep for the
+        // vegetation the world shows to hold soil: the shared exposure
+        // (`arda_core::biome::ground::rock`) of the square's slope under the
+        // cells' forest density and tree growth, so a wooded mountainside
+        // stays wooded where an open one turns to rock bands among the scree
+        // (review 3.4-2). On open, frost-free ground the ramps are the old
+        // ones: scree from about 26°, rock from 35°, cliff from 38°.
+        let fd = ctx.bilinear(u, v, |c, _| f64::from(c.forest_density) / 255.0);
+        let growth = ctx
+            .lines_at(v)
+            .growth(ctx.bilinear(u, v, |c, _| f64::from(c.temperature.raw()) / 100.0));
+        let steep = rock(slope + 10.0, fd, growth);
+        let crag = rock(slope, fd, growth);
         w[Scree.index()] = w[Scree.index()] * (1.0 + 3.0 * steep) + 0.35 * steep;
-        // Steep squares break out as bare rock and cliff faces, so a
-        // mountainside reads as rock bands among the scree, not a flat
-        // talus sheet.
         w[Rock.index()] = w[Rock.index()] * (1.0 + 4.0 * crag) + 0.9 * crag;
-        w[Cliff.index()] = 0.9 * smoothstep(32.0, 44.0, slope);
+        w[Cliff.index()] = 0.9 * rock(slope - 3.0, fd, growth);
         for k in [Grass, Meadow, Dirt, Marsh, Mud, ReedBed, Sand] {
             w[k.index()] *= 1.0 - 0.8 * steep;
         }

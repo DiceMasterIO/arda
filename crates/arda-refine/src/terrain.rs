@@ -105,7 +105,7 @@ const STRATA: f64 = 0.6;
 /// loosely, never in rulered lines. Identity where the cells are not
 /// craggy.
 fn strata(ctx: &Ctx, u: f64, v: f64, h: f64) -> f64 {
-    let crag = ctx.bilinear(u, v, |c, _| crate::biome::craggy(c));
+    let crag = ctx.bilinear(u, v, |c, k| crate::biome::craggy(c, ctx.lines_of(k)));
     if crag <= 0.0 {
         return h;
     }

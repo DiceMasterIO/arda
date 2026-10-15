@@ -238,6 +238,29 @@ fn a_craggy_mountainside_breaks_into_cliffs_and_outcrops() {
     assert!(outcrops >= 2, "{outcrops} outcrops");
 }
 
+#[test]
+fn a_forested_steep_slope_keeps_its_forest() {
+    // Review 3.4-2: on steep cells the world shows forest, the battle map
+    // painted up to 91 % rock. A 32° wooded slope (62.5 m of fall per cell).
+    let src = world(|x, _, c| {
+        c.cover = Cover::Forest;
+        c.forest_density = 200;
+        c.slope_milli_deg = 32_000;
+        c.height = HeightMm::new(1_200_000 - 62_500 * i32::try_from(x).unwrap());
+        c.temperature = TempCentiC::new(800);
+        c.rainfall = RainfallMm::new(1_100);
+    });
+    let b = refine(&src, MID).unwrap();
+    let rock = share(&b, &["rock", "scree", "cliff"]);
+    assert!(rock < 0.25, "rock ground under forest: {rock:.2}");
+    let trees = b
+        .items
+        .iter()
+        .filter(|i| i.tag.starts_with("tree:"))
+        .count();
+    assert!(trees > 400, "{trees} trees");
+}
+
 /// Blocks refined independently agree on their shared edges' elevation,
 /// water and corner classes under the new rules (strata, the coast strip,
 /// marsh).

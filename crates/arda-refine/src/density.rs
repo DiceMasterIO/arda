@@ -71,9 +71,11 @@ pub fn woods(ctx: &Ctx, e: &Eco, x: f64, y: f64) -> Woods {
     }
 }
 
-/// Firm ground a trunk or log may stand on.
-fn firm(p: &Phys) -> bool {
-    p.water == Water::Dry && p.slope_deg < 38.0 && p.river_d > 0.6 && p.stand_v < -0.34
+/// Firm ground a trunk or log may stand on: dry, off the banks and not bare
+/// rock, so trees stand on as steep ground as the world's forest holds soil
+/// on (review 3.4-2; the old rule cut every trunk off at 38°).
+fn firm(p: &Phys, e: &Eco) -> bool {
+    p.water == Water::Dry && e.rock < 0.5 && p.river_d > 0.6 && p.stand_v < -0.34
 }
 
 /// Density of a layer at a point, `0..=1`.
@@ -93,12 +95,12 @@ pub fn density(kind: Kind, e: &Eco, w: &Woods, p: &Phys) -> f64 {
         Kind::Low if dry && e.dune > 0.2 => 0.55 * e.dune * bare,
         Kind::Rock if dry && e.beach > 0.3 => 0.04 + 0.3 * e.shore_rock * e.beach,
         Kind::Boulder if p.water == Water::Sea && p.depth_m < 2.5 => 0.04 + 0.35 * e.shore_rock,
-        Kind::TreeLarge if firm(p) => w.canopy,
-        Kind::TreeSmall if firm(p) => {
+        Kind::TreeLarge if firm(p, e) => w.canopy,
+        Kind::TreeSmall if firm(p, e) => {
             (0.5 * w.canopy + 0.4 * w.edge + 0.1 * e.scrub * w.drift).min(1.0)
         }
-        Kind::Log if firm(p) => 0.2 * w.canopy * e.growth.max(0.3),
-        Kind::Undergrowth if firm(p) => {
+        Kind::Log if firm(p, e) => 0.2 * w.canopy * e.growth.max(0.3),
+        Kind::Undergrowth if firm(p, e) => {
             let juniper = 0.3 * smoothstep(7.0, 2.0, e.temp) * (1.0 - e.rocky) * alive;
             let steppe = 0.15 * e.arid;
             let open = (0.4 * e.scrub + juniper + steppe) * w.drift;
@@ -108,14 +110,14 @@ pub fn density(kind: Kind, e: &Eco, w: &Woods, p: &Phys) -> f64 {
             let knoll = smoothstep(0.25, 0.7, s.ridge()) * smoothstep(10.0, 28.0, p.slope_deg);
             // Crags: outcrops break out of steep mountainsides even off
             // the knolls.
-            let crag = smoothstep(24.0, 40.0, p.slope_deg) * (0.35 + 0.65 * s.ridge());
+            let crag = e.rock * (0.35 + 0.65 * s.ridge());
             ((0.45 + e.rocky) * knoll + 0.08 * e.rocky + 0.3 * crag + 0.06 * e.alpine).min(0.9)
         }
         Kind::Boulder | Kind::Rock if dry && p.river_d > 0.3 => {
             (0.35 + 0.9 * w.stony).min(1.0)
                 * (0.02
                     + 0.35 * e.rocky
-                    + 0.45 * smoothstep(20.0, 42.0, p.slope_deg)
+                    + 0.45 * e.rock.max(0.5 * smoothstep(20.0, 42.0, p.slope_deg))
                     + 0.9 * s.talus
                     + 0.2 * s.ridge() * smoothstep(8.0, 25.0, p.slope_deg)
                     + 0.25 * e.alpine)
@@ -142,7 +144,7 @@ pub fn density(kind: Kind, e: &Eco, w: &Woods, p: &Phys) -> f64 {
             Water::Lake | Water::Pool if p.depth_m < 1.8 => 0.35,
             _ => 0.0,
         },
-        Kind::Low if firm(p) => {
+        Kind::Low if firm(p, e) => {
             // Drifts: flowers and tall grass gather in patches, ferns under
             // trees and along wood edges.
             let open = (0.05 + 0.5 * e.grass + 0.3 * e.scrub) * w.drift * (1.0 - 0.6 * w.canopy);

@@ -70,6 +70,10 @@ pub struct Eco {
     pub in_sea: bool,
     /// How craggy the cells are ([`crate::biome::craggy`]), `0..=1`.
     pub crag: f64,
+    /// Bare-rock exposure of this square (the shared
+    /// `arda_core::biome::ground::rock` of its slope under the cells' forest
+    /// density), `0..=1`: trunks need it under one half.
+    pub rock: f64,
 }
 
 fn share(ctx: &Ctx, u: f64, v: f64, f: impl Fn(Cover) -> f64) -> f64 {
@@ -142,7 +146,12 @@ pub fn eco(ctx: &Ctx, p: &Phys, s: Shape, u: f64, v: f64) -> Eco {
         dune,
         shore_rock: smoothstep(6.0, 18.0, p.slope_deg).max(crate::fixed::rocky(ctx, u, v)),
         in_sea: p.water == Water::Sea,
-        crag: ctx.bilinear(u, v, |c, _| crate::biome::craggy(c)),
+        crag: ctx.bilinear(u, v, |c, k| crate::biome::craggy(c, ctx.lines_of(k))),
+        rock: arda_core::biome::ground::rock(
+            p.slope_deg,
+            ctx.bilinear(u, v, |c, _| f64::from(c.forest_density) / 255.0),
+            lines.growth(cell_temp),
+        ),
     }
 }
 
