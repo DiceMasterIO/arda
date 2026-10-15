@@ -1,6 +1,6 @@
 //! One composition per apron window, shared by the image and the scene
 //! (review 3.5-8, 3.6-3, 3.6-4; logic/16 §api-tactical, logic/12
-//! §scene-tokens), on the society fixture's town of settlement 10:
+//! §scene-tokens), on the society fixture's town of settlement 2:
 //!
 //! - `/scene` and the cell body carry the same scene, drawn with the
 //!   render seed the image uses;
@@ -18,8 +18,9 @@ use serde_json::Value;
 use std::collections::{BTreeMap, BTreeSet};
 use std::sync::OnceLock;
 
-/// The contract kit's town cell (settlement 10).
-const TOWN: (u32, u32) = (479, 1245);
+/// A cell of settlement 2's town on the recipe-9 fixture, where notables
+/// stand by day and by night (the contract kit's scene cell).
+const TOWN: (u32, u32) = (732, 1081);
 
 fn lib() -> &'static Library {
     static LIB: OnceLock<Library> = OnceLock::new();
@@ -107,11 +108,13 @@ fn furniture(layout: &TacticalLayout, seed: u64) -> BTreeSet<(u32, u32)> {
 async fn tokens_stand_once_at_work_by_day_and_never_on_furniture() {
     let state = society_state();
     let people = state.people.clone().unwrap();
-    let notables: BTreeMap<String, arda_npc::Npc> = people
-        .notables_of(10)
-        .iter()
-        .map(|n| (n.id.0.to_string(), n.clone()))
-        .collect();
+    let notables = |sid: &str| -> BTreeMap<String, arda_npc::Npc> {
+        people
+            .notables_of(sid.parse().unwrap())
+            .iter()
+            .map(|n| (n.id.0.to_string(), n.clone()))
+            .collect()
+    };
     let (gx, gy) = TOWN;
     for time in ["day", "night"] {
         let mut seen: BTreeMap<String, (u32, u32)> = BTreeMap::new();
@@ -141,10 +144,8 @@ async fn tokens_stand_once_at_work_by_day_and_never_on_furniture() {
                     );
                     let ext = rules.cell(x, y).and_then(|c| c.ext.clone()).unwrap();
                     assert_eq!(ext.get("building"), Some(&t["building_id"]), "{id}");
-                    if t["settlement_id"] != "10" {
-                        continue;
-                    }
-                    let n = &notables[&id];
+                    let of = notables(t["settlement_id"].as_str().unwrap());
+                    let n = &of[&id];
                     let want = match (time, n.workplace_building) {
                         ("day", Some(w)) => (w.0, "worker"),
                         _ => (n.home_building.0, "resident"),

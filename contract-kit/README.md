@@ -128,8 +128,9 @@ a changed image and its 304, an unreachable server).
 
 54 cases over 41 of the 42 stable routes of `docs/capstone/versioning.md`, at MICRO-42 places
 picked from the fixture: village 10
-(Ifyil, realm 3), its cell (479, 1245) with three notables on the day scene, building 10.2,
-commoner `10.2.1`, the open-sea cell (5, 5).
+(Ifyil, realm 3), its cell (479, 1245), building 10.2, commoner `10.2.1`, the open-sea cell
+(5, 5); the scene cases read town 2's cell (732, 1081), where notables stand by day and by
+night, so the kit exercises token shapes.
 
 | Need | Cases |
 |---|---|

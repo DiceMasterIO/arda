@@ -319,7 +319,7 @@
       "id": "tactical-scene-day",
       "route": "GET /v1/tactical/cell/{gx}/{gy}/scene",
       "method": "GET",
-      "uri": "/v1/tactical/cell/479/1245/scene?time=day",
+      "uri": "/v1/tactical/cell/732/1081/scene?time=day",
       "status": 200,
       "content_type": "application/json",
       "headers": {
@@ -332,7 +332,7 @@
       "id": "tactical-scene-night",
       "route": "GET /v1/tactical/cell/{gx}/{gy}/scene",
       "method": "GET",
-      "uri": "/v1/tactical/cell/479/1245/scene?time=night",
+      "uri": "/v1/tactical/cell/732/1081/scene?time=night",
       "status": 200,
       "content_type": "application/json",
       "headers": {
