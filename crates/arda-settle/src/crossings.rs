@@ -1,10 +1,11 @@
 //! Crossing objects and passes on the built network (artifact "Roads").
 //!
-//! Every place a road meets a watercourse is classified: small streams are
+//! Every place a road meets a watercourse wider than a ditch is
+//! classified (narrower channels are stepped over): small streams are
 //! bridged near settlements and forded elsewhere; middling rivers are bridged
 //! on trunk roads or near settlements and forded or ferried otherwise; wide
 //! rivers are ferried unless a trunk road and a nearby town justify a bridge.
-//! Every stretch of road over open water is a ferry. Where a road climbs over
+//! Every ferry leg over open water is a ferry crossing. Where a road climbs over
 //! a ridge, the high point of its profile is a pass.
 
 use crate::error::SettleError;
@@ -79,6 +80,10 @@ pub struct Pass {
     pub cell: usize,
 }
 
+/// Channels narrower than this, in decimetres, are ditches and rills a
+/// road steps over on a culvert or a plank: no crossing object (assumed,
+/// tunable; review 3.3-14).
+pub const DITCH_DM: u32 = 20;
 /// Width thresholds, metres.
 const SMALL_M: u32 = 14;
 const WIDE_M: u32 = 50;
@@ -113,24 +118,34 @@ pub fn crossings(
     let mut seen = vec![false; g.len()];
     let mut out = Vec::new();
     let mut cells = Vec::new();
+    // A channel cell carries a crossing when a road is on it and it is
+    // wider than a ditch; open water when a ferry leg runs over it (ferry
+    // legs are never road raster, review 3.3-15).
+    let river_at =
+        |i: usize| net.raster[i] != 0 && g.is_watercourse(i) && g.width_dm[i] >= DITCH_DM;
+    let open_at = |i: usize| g.is_water(i) && net.ferry.contains_key(&i);
     for start in 0..g.len() {
-        if seen[start] || net.raster[start] == 0 {
+        if seen[start] {
             continue;
         }
-        let river = g.is_watercourse(start);
-        let open = g.is_water(start);
+        let river = river_at(start);
+        let open = open_at(start);
         if !river && !open {
             continue;
         }
         // One crossing per connected stretch of road over the same kind of water.
-        let same =
-            |i: usize| net.raster[i] != 0 && g.is_watercourse(i) == river && g.is_water(i) == open;
+        let same = |i: usize| if river { river_at(i) } else { open_at(i) };
         let mut stack = vec![start];
         seen[start] = true;
         let mut widest = start;
         let mut class: Option<RoadClass> = None;
         while let Some(c) = stack.pop() {
-            let here = RoadClass::from_code(net.raster[c]).filter(|r| *r != RoadClass::None);
+            let code = if open {
+                net.ferry_class(c)
+            } else {
+                net.raster[c]
+            };
+            let here = RoadClass::from_code(code).filter(|r| *r != RoadClass::None);
             class = match (class, here) {
                 (Some(a), Some(b)) if b.rank() > a.rank() => Some(b),
                 (None, b) => b,

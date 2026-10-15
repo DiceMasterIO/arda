@@ -136,7 +136,7 @@ pub fn close_loops(g: &Grid, cs: &CostSurface, net: &mut Network, hubs: &[&Settl
         let (a, b) = (hubs[i], hubs[j]);
         let straight = u64::from(straight_m(a, b));
         let (ca, cb) = (a.index(g.width), b.index(g.width));
-        if within_by_road(g, &net.raster, ca, cb, straight * LOOP_RATIO_PCT / 100) {
+        if within_by_road(g, net, ca, cb, straight * LOOP_RATIO_PCT / 100) {
             continue;
         }
         let Some(p) = route::find(g, cs, &none, ca, cb, RoadClass::Highway) else {
@@ -154,12 +154,12 @@ pub fn close_loops(g: &Grid, cs: &CostSurface, net: &mut Network, hubs: &[&Settl
     }
 }
 
-/// Whether `b` lies within `limit` metres of `a` over road cells (A* over
-/// the road raster, octile lengths, cut off at `limit`).
-fn within_by_road(g: &Grid, raster: &[u8], a: usize, b: usize, limit: u64) -> bool {
+/// Whether `b` lies within `limit` metres of `a` over road and ferry cells
+/// (A*, octile lengths, cut off at `limit`).
+fn within_by_road(g: &Grid, net: &Network, a: usize, b: usize, limit: u64) -> bool {
     use std::cmp::Reverse;
     use std::collections::{BTreeMap, BinaryHeap};
-    if raster[a] == 0 || raster[b] == 0 {
+    if !net.carries(a) || !net.carries(b) {
         return false;
     }
     let (bx, by) = g.xy(b);
@@ -182,7 +182,7 @@ fn within_by_road(g: &Grid, raster: &[u8], a: usize, b: usize, limit: u64) -> bo
             continue;
         }
         for (j, dx, dy) in g.neighbours8(i) {
-            if raster[j] == 0 {
+            if !net.carries(j) {
                 continue;
             }
             let nd = d + if dx != 0 && dy != 0 { 141 } else { 100 };

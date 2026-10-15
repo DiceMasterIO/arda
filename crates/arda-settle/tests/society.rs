@@ -1,7 +1,7 @@
 //! Stage rules on the synthetic landscape (spec "Tests").
 #![allow(clippy::unwrap_used, clippy::expect_used, missing_docs)]
 
-use arda_settle::crossings::CrossingKind;
+use arda_settle::crossings::{CrossingKind, DITCH_DM};
 use arda_settle::grid::Grid;
 use arda_settle::model::Tier;
 use arda_settle::num::dist_m;
@@ -194,14 +194,15 @@ fn farmland_is_about_point_eight_hectares_a_head() {
 fn every_settlement_is_on_one_connected_network() {
     let f = &*FIXTURE;
     let g = &f.grid;
-    let raster = &f.society.network.raster;
+    let net = &f.society.network;
     let start = f.society.settlements[0].index(g.width);
     let mut seen = vec![false; g.len()];
     let mut q = VecDeque::from([start]);
     seen[start] = true;
     while let Some(c) = q.pop_front() {
         for (j, _, _) in g.neighbours8(c) {
-            if !seen[j] && raster[j] != 0 {
+            // Ferry legs join the network without being road.
+            if !seen[j] && net.carries(j) {
                 seen[j] = true;
                 q.push_back(j);
             }
@@ -220,7 +221,11 @@ fn water_is_only_crossed_at_recorded_crossings() {
     let raster = &f.society.network.raster;
     for c in &f.society.crossings {
         let i = g.at(c.x_m / 100, c.y_m / 100).unwrap();
-        assert!(raster[i] != 0, "crossing {} off the road", c.id);
+        assert!(
+            f.society.network.carries(i),
+            "crossing {} off the road",
+            c.id
+        );
         match c.water.as_str() {
             "river" => {
                 assert!(g.is_watercourse(i), "crossing {} not on a river", c.id);
@@ -229,8 +234,9 @@ fn water_is_only_crossed_at_recorded_crossings() {
             _ => assert_eq!(c.kind, CrossingKind::Ferry),
         }
     }
-    // Every road cell on open water or a channel belongs to a crossing
-    // component that holds a recorded crossing.
+    // Every ferry leg over open water, and every road cell on a channel
+    // wider than a ditch, belongs to a crossing component that holds a
+    // recorded crossing; no road raster lies on open water.
     let at: BTreeSet<usize> = f
         .society
         .crossings
@@ -239,7 +245,15 @@ fn water_is_only_crossed_at_recorded_crossings() {
         .collect();
     let mut seen = vec![false; g.len()];
     for i in 0..g.len() {
-        let wet = |j: usize| raster[j] != 0 && (g.is_water(j) || g.is_watercourse(j));
+        assert!(
+            !(g.is_water(i) && raster[i] != 0),
+            "road raster on open water"
+        );
+        let net = &f.society.network;
+        let wet = |j: usize| {
+            net.ferry.contains_key(&j)
+                || (raster[j] != 0 && g.is_watercourse(j) && g.width_dm[j] >= DITCH_DM)
+        };
         if seen[i] || !wet(i) {
             continue;
         }

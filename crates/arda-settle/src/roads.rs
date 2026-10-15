@@ -17,6 +17,7 @@ use crate::num::dist_m;
 use crate::route::{self, Path};
 use crate::trunk;
 use serde::{Deserialize, Serialize};
+use std::collections::BTreeMap;
 
 /// Road class, shared through `arda-ids`: the world's stored codes with
 /// footpath appended (canonical convention I3). Compare importance with
@@ -113,36 +114,62 @@ pub struct Network {
     pub raster: Vec<u8>,
     /// Settlements no route could reach.
     pub unreachable: Vec<u64>,
+    /// Open-water cells a ferry leg crosses, with the most important class
+    /// using each as a stored code. Ferry legs are never road raster
+    /// (`roads.bin` is 0 on lake and sea; review 3.3-15).
+    pub ferry: BTreeMap<usize, u8>,
 }
 
 impl Network {
     pub(crate) fn on_road(&self) -> impl Fn(usize) -> bool + '_ {
-        |i| self.raster[i] != 0
+        |i| self.raster[i] != 0 || self.ferry.contains_key(&i)
+    }
+
+    /// Whether cell `i` carries a road or a ferry leg.
+    #[must_use]
+    pub fn carries(&self, i: usize) -> bool {
+        self.raster[i] != 0 || self.ferry.contains_key(&i)
+    }
+
+    /// The stored class code of the ferry leg over cell `i` (0 if none).
+    #[must_use]
+    pub fn ferry_class(&self, i: usize) -> u8 {
+        self.ferry.get(&i).copied().unwrap_or(0)
     }
 
     pub(crate) fn commit(&mut self, g: &Grid, path: &Path, class: RoadClass, from: u64, to: End) {
         let mut segments = Vec::new();
         let mut run: Vec<usize> = Vec::new();
         let mut new_m = 0;
+        let mut flush = |run: &mut Vec<usize>, segments: &mut Vec<Vec<[i64; 2]>>| {
+            if run.len() > 1 {
+                new_m += route::length_m(g, run);
+                segments.push(polyline(g, run));
+            }
+            run.clear();
+        };
         for (k, &c) in path.cells.iter().enumerate() {
-            if self.raster[c] == 0 {
-                if run.is_empty() && k > 0 {
+            if g.is_water(c) {
+                // A ferry leg ends any new stretch: it is not road.
+                flush(&mut run, &mut segments);
+            } else if self.raster[c] == 0 {
+                if run.is_empty() && k > 0 && !g.is_water(path.cells[k - 1]) {
                     run.push(path.cells[k - 1]);
                 }
                 run.push(c);
             } else if !run.is_empty() {
                 run.push(c);
-                new_m += route::length_m(g, &run);
-                segments.push(polyline(g, &run));
-                run.clear();
+                flush(&mut run, &mut segments);
             }
         }
-        if run.len() > 1 {
-            new_m += route::length_m(g, &run);
-            segments.push(polyline(g, &run));
-        }
+        flush(&mut run, &mut segments);
         for &c in &path.cells {
-            self.raster[c] = class.max_code(self.raster[c]);
+            if g.is_water(c) {
+                let code = self.ferry.entry(c).or_insert(0);
+                *code = class.max_code(*code);
+            } else {
+                self.raster[c] = class.max_code(self.raster[c]);
+            }
         }
         let (a, b) = (path.cells[0], path.cells[path.cells.len() - 1]);
         let (ax, ay) = g.xy(a);
