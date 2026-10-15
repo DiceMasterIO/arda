@@ -541,11 +541,11 @@ rotates, review 3.1-4).
 
 Fields and ecology, measured on MICRO seed 42 at recipe 9 before and after
 (`arda-refine` `tests/review_measures.rs`): seam land cells whose slope is
-off the cross-edge slope by more than 0.5° 32.6 % (D8) → 0.0 % (Horn);
+off the steepest descent across the edge by more than 0.5° 32.6 % → 0.0 %;
 stored aspects 8 values → 360; plain cells (under 2°) whose wetness differs
-from their four neighbours' mean by more than 30: 36.8 % → 0.5 %. The same
-world at 58–72°N: land under -3 °C grass 59.3 % → 44.3 %, forest 0 → 40.7 %,
-forest under -4 °C 0 → 10,400 cells (of 153,000 sampled), ice 0 → 75 cells
+from their four neighbours' mean by more than 30: 36.8 % → 0.4 %. The same
+world at 58–72°N: land under -3 °C grass 59.3 % → 40.3 %, forest 0 → 39.2 %,
+forest under -4 °C 0 → 9,988 cells (of 153,000 sampled), ice 0 → 52 cells
 (lowest 2,413 m).
 
 Measured on MICRO seed 42 (recipe 7 → 9): shore classes of coast land cells
