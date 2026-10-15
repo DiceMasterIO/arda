@@ -215,6 +215,12 @@ impl arda_refine::Source for OnPool {
     fn has_shore(&self) -> bool {
         self.0.has_shore()
     }
+    fn biome_frame(&self) -> arda_core::biome::Frame {
+        self.0.biome_frame()
+    }
+    fn thalweg(&self, at: CellKey) -> Result<Option<(i16, i16)>, arda_refine::RefineError> {
+        self.0.thalweg(at)
+    }
 }
 
 /// Review 3.6-12: refinement runs on the shared, bounded rayon pool, never
