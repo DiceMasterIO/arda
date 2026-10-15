@@ -12,8 +12,10 @@
 //! What is drawn follows metres per pixel: land-use tone up to
 //! [`LAND_MAX_M`]; highways and roads at any scale, tracks up to
 //! [`TRACK_MAX_M`], footpaths up to [`FOOTPATH_MAX_M`]; settlement symbols
-//! by tier, scaled like the offline page (`s = 1` at 2,048 pixels across,
-//! kept between 0.5 and 2). No text: names are the gazetteer's.
+//! by tier, strokes scaled like the offline page (`s = 1` at 2,048 pixels
+//! across, kept between 0.5 and 2) and symbols larger with the output width
+//! ([`super::scale::symbol_scale`]: 1.6 at 2,048 pixels, up to 2.4). No
+//! text: names are the gazetteer's.
 #![allow(
     clippy::cast_possible_truncation,
     clippy::cast_sign_loss,
@@ -51,6 +53,8 @@ pub struct SocietyBandOverlay {
     lines: RoadLines,
     syms: Vec<Sym>,
     classes: Vec<RoadClass>,
+    /// Scale of settlement symbols ([`super::scale::symbol_scale`]).
+    sym_s: f32,
     /// Samples per pixel axis for the land tone; 0 draws none.
     land_k: usize,
 }
@@ -90,12 +94,21 @@ impl SocietyBandOverlay {
             codes: soc.codes,
             view,
             classes,
+            sym_s: super::scale::symbol_scale(fw),
             land_k: if m_per_px > LAND_MAX_M {
                 0
             } else {
                 (m_per_px / 100.0).ceil().clamp(1.0, 4.0) as usize
             },
         })
+    }
+
+    /// The scale settlement symbols are drawn at: they grow with the
+    /// output width ([`super::scale::symbol_scale`]) while road strokes keep
+    /// the page scale (1 at 2,048 pixels).
+    #[must_use]
+    pub const fn symbol_scale(&self) -> f32 {
+        self.sym_s
     }
 
     /// Reads `world_dir/society/` and prepares the overlay.
@@ -125,7 +138,7 @@ impl SocietyBandOverlay {
         }
         let o = (origin.0 as i64, origin.1 as i64);
         layers::paint_roads(c, lines, v.s, o, &self.classes);
-        layers::paint_symbols(c, syms, v.s, o);
+        layers::paint_symbols(c, syms, self.sym_s, o);
     }
 }
 
@@ -198,7 +211,7 @@ impl BandOverlay for SocietyBandOverlay {
         let syms: Vec<Sym> = self
             .syms
             .iter()
-            .filter(|x| x.at.1 + 14.0 * self.view.s >= top && x.at.1 - 14.0 * self.view.s <= bottom)
+            .filter(|x| x.at.1 + 14.0 * self.sym_s >= top && x.at.1 - 14.0 * self.sym_s <= bottom)
             .copied()
             .collect();
         let (lines, syms) = (&lines, &syms);

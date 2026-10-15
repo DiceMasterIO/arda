@@ -131,3 +131,14 @@ fn windows_of_a_zoomed_image_agree_with_their_union_including_dashed_paths() {
         }
     }
 }
+
+#[test]
+fn settlement_symbols_scale_with_the_output_width() {
+    let small = overlay(640, 480).symbol_scale();
+    let page = overlay(1280, 960).symbol_scale();
+    let wide = overlay(2048, 1536).symbol_scale();
+    let huge = overlay(8192, 6144).symbol_scale();
+    assert!(small < page && page < wide, "{small} {page} {wide}");
+    assert!(wide >= 1.5, "a 2048 px overview draws cities big: {wide}");
+    assert!(huge >= wide && huge <= 2.4);
+}

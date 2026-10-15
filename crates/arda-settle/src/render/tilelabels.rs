@@ -25,6 +25,10 @@ use crate::model::Settlement;
 use std::collections::BTreeMap;
 use std::sync::{Arc, Mutex, PoisonError};
 
+/// The finest overview zoom of the default pyramid (4,096 pixels on the
+/// long edge).
+const DEFAULT_BASE_ZOOM: u8 = 4;
+
 /// Halo colour.
 pub const PAPER: Rgb = [250, 245, 230];
 /// Halo opacity.
@@ -86,6 +90,8 @@ struct Label {
 #[derive(Debug, Clone, Default)]
 pub struct Level {
     labels: Vec<Label>,
+    /// The type scale the level was laid out at (0 for an empty level).
+    unit: f32,
 }
 
 /// Coverage to composite: the halo, then the text.
@@ -106,6 +112,9 @@ pub struct Labeler {
     items: Vec<Item>,
     world_m: [f64; 2],
     longest_m: f64,
+    /// The finest overview zoom: names are bigger at and above it
+    /// ([`super::scale::level_unit`]).
+    base_zoom: u8,
     levels: Mutex<BTreeMap<u8, Arc<Level>>>,
 }
 
@@ -214,8 +223,17 @@ impl Labeler {
             items,
             world_m,
             longest_m,
+            base_zoom: DEFAULT_BASE_ZOOM,
             levels: Mutex::new(BTreeMap::new()),
         })
+    }
+
+    /// Sets the finest overview zoom of the pyramid these labels serve, so
+    /// the coarse levels' larger names line up with its symbols.
+    #[must_use]
+    pub fn with_base_zoom(mut self, base_zoom: u8) -> Self {
+        self.base_zoom = base_zoom;
+        self
     }
 
     /// Metres per pixel at pyramid zoom `z`.
@@ -234,8 +252,20 @@ impl Labeler {
     pub fn level(&self, z: u8) -> Arc<Level> {
         let mut levels = self.levels.lock().unwrap_or_else(PoisonError::into_inner);
         Arc::clone(levels.entry(z).or_insert_with(|| {
-            Arc::new(self.lay_out(1.0 / self.metres_per_px(z), 1.0, z, &[], |_| true))
+            let unit = super::scale::level_unit(z, self.base_zoom);
+            Arc::new(self.lay_out(1.0 / self.metres_per_px(z), unit, z, &[], |_| true))
         }))
+    }
+
+    /// The layout for a whole image `width_px` pixels across that spans the
+    /// world's width: names at [`super::scale::label_unit_for_width`] and
+    /// every item, for exports drawn on one image (the opt-in names of
+    /// `/v1/overview.png`).
+    #[must_use]
+    pub fn level_for_width(&self, width_px: u32) -> Level {
+        let w = f64::from(width_px);
+        let unit = super::scale::label_unit_for_width(width_px as f32);
+        self.lay_out(w / self.world_m[0], unit, u8::MAX, &[], |_| true)
     }
 
     /// A layout at `px_per_m` for the offline page: every item `keep`
@@ -292,7 +322,7 @@ impl Labeler {
                 }
             }
             out.push(Ink {
-                halo: m.dilate(HALO_R),
+                halo: m.dilate(HALO_R * level.unit.max(1.0)),
                 text: m,
                 colour: l.colour,
                 halo_colour: l.halo,
@@ -380,7 +410,19 @@ fn look(kind: PlaceKind, rank: u8, unit: f32) -> Look {
     }
 }
 
-const fn symbol_r(kind: PlaceKind) -> f32 {
+/// The clearance a settlement's symbol takes. At page size the label's own
+/// radii; above it (the coarse levels) the radii of the overview symbols
+/// drawn at the same scale (`layers::symbol_r`).
+fn symbol_r(kind: PlaceKind, unit: f32) -> f32 {
+    if unit > 1.0 {
+        let page = match kind {
+            PlaceKind::City => 7.0,
+            PlaceKind::Town => 4.4,
+            PlaceKind::Village => 2.6,
+            _ => 1.4,
+        };
+        return page * unit;
+    }
     match kind {
         PlaceKind::City => 4.5,
         PlaceKind::Town => 3.6,
@@ -437,7 +479,7 @@ impl Labeler {
         };
         for i in shown.iter().filter(|i| i.kind.is_settlement()) {
             let (x, y) = px(i.anchor);
-            taken.reserve(Rect::around((x, y), symbol_r(i.kind)));
+            taken.reserve(Rect::around((x, y), symbol_r(i.kind, unit)));
         }
         let mut labels = Vec::new();
         for i in shown {
@@ -448,7 +490,7 @@ impl Labeler {
             };
             labels.extend(placed);
         }
-        Level { labels }
+        Level { labels, unit }
     }
 
     fn style(&self, i: &Item, size: f32, tracking: f32, unit: f32) -> (Style, Look) {
@@ -466,7 +508,7 @@ impl Labeler {
         let (glyphs, w) = self.fonts.layout(&style, &i.name);
         let cap = self.fonts.cap_height(&style);
         let h = cap + self.fonts.descent(&style) * 0.55 + lk.size * 0.12;
-        let r = symbol_r(i.kind);
+        let r = symbol_r(i.kind, unit);
         let g = r + 2.0 + lk.size * 0.12;
         let d = g * 0.72;
         let (ax, ay) = at_px;

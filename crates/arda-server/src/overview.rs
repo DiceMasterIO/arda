@@ -35,6 +35,10 @@ impl Default for OverviewLimits {
     }
 }
 
+/// Largest `/overview.png` long edge that can carry `?labels=1` (the image
+/// is decoded to RGBA whole to draw the names).
+pub const LABEL_MAX_QUALITY_PX: u32 = 4096;
+
 /// Default `/overview.png` long edge.
 pub const DEFAULT_QUALITY_PX: u32 = 2048;
 
@@ -118,7 +122,7 @@ type BaseKey = (bool, bool);
 pub struct Overview {
     limits: OverviewLimits,
     pyramid: TilePyramidDto,
-    pngs: Mutex<ByteLru<(u32, Style, bool), Vec<u8>>>,
+    pngs: Mutex<ByteLru<(u32, Style, bool, bool), Vec<u8>>>,
     tiles: Mutex<ByteLru<TileKey, Vec<u8>>>,
     /// Decoded pyramid bases by look (oblique is goal 24).
     base: Mutex<std::collections::BTreeMap<BaseKey, Arc<Rgb>>>,
@@ -230,16 +234,84 @@ impl Overview {
 
     /// The overview PNG at `quality_px`, rendering on a cache miss; `society`
     /// (from [`Self::society`]) paints land use, roads and settlements.
+    /// `labels` (opt-in, `?labels=1`) then draws the gazetteer's names on
+    /// the finished image, at most [`LABEL_MAX_QUALITY_PX`] on the long edge:
+    /// the image is decoded whole to draw them.
     ///
     /// # Errors
-    /// Render, write or read failures.
+    /// Render, write or read failures; [`ServerError::BadRequest`] for names
+    /// on a world without a gazetteer, on the oblique look, or above the
+    /// size limit.
     pub fn png(
         &self,
         query: &WorldQuery,
         quality_px: u32,
         (style, society): (Style, bool),
+        labels: bool,
     ) -> ServerResult<Arc<Vec<u8>>> {
-        let key = (quality_px, style, society);
+        let labeler = if labels {
+            Some(self.label_source(quality_px, style)?)
+        } else {
+            None
+        };
+        let key = (quality_px, style, society, labels);
+        if let Some(hit) = lock(&self.pngs)?.get(&key) {
+            return Ok(hit);
+        }
+        let plain = self.png_plain(query, quality_px, (style, society))?;
+        let Some(labeler) = labeler else {
+            return Ok(plain);
+        };
+        let rgb = tiles::decode_rgb(&plain)?;
+        let (w, h) = (rgb.width as usize, rgb.height as usize);
+        let mut rgba = Vec::new();
+        rgba.try_reserve_exact(w * h * 4)
+            .map_err(|_| ServerError::ResourceLimit("overview labels".into()))?;
+        for p in rgb.pixels.chunks_exact(3) {
+            rgba.extend_from_slice(&[p[0], p[1], p[2], 255]);
+        }
+        drop(rgb);
+        let level = labeler.level_for_width(
+            u32::try_from(w).map_err(|_| ServerError::Internal("overview width".into()))?,
+        );
+        labeler.draw_rgba(&level, (0, 0), (w, h), &mut rgba);
+        let bytes = Arc::new(tiles::encode_rgba(
+            u32::try_from(w).map_err(|_| ServerError::Internal("overview width".into()))?,
+            u32::try_from(h).map_err(|_| ServerError::Internal("overview height".into()))?,
+            &rgba,
+        )?);
+        let size = bytes.len();
+        Ok(lock(&self.pngs)?.insert(key, bytes, size))
+    }
+
+    /// The labels an opt-in names request draws, or why it cannot.
+    fn label_source(
+        &self,
+        quality_px: u32,
+        style: Style,
+    ) -> ServerResult<&Arc<arda_midzoom::labels::Labeler>> {
+        if style == Style::AtlasOblique {
+            return Err(ServerError::BadRequest(
+                "labels=1 cannot be combined with the oblique look".into(),
+            ));
+        }
+        if quality_px > LABEL_MAX_QUALITY_PX {
+            return Err(ServerError::BadRequest(format!(
+                "labels=1 serves quality up to {LABEL_MAX_QUALITY_PX} px"
+            )));
+        }
+        self.labels
+            .get()
+            .ok_or_else(|| ServerError::BadRequest("this world has no gazetteer to label".into()))
+    }
+
+    fn png_plain(
+        &self,
+        query: &WorldQuery,
+        quality_px: u32,
+        (style, society): (Style, bool),
+    ) -> ServerResult<Arc<Vec<u8>>> {
+        let key = (quality_px, style, society, false);
         if let Some(hit) = lock(&self.pngs)?.get(&key) {
             return Ok(hit);
         }
@@ -261,7 +333,7 @@ impl Overview {
         } else {
             Style::Atlas
         };
-        let png = self.png(query, self.limits.tile_base_px, (style, society))?;
+        let png = self.png_plain(query, self.limits.tile_base_px, (style, society))?;
         let rgb = Arc::new(tiles::decode_rgb(&png)?);
         let mut slots = lock(&self.base)?;
         Ok(Arc::clone(slots.entry((oblique, society)).or_insert(rgb)))

@@ -132,3 +132,38 @@ fn layout_is_deterministic() {
     b.draw_rgba(&b.level(4), (1792, 1792), (512, 512), &mut y);
     assert_eq!(x, y);
 }
+
+fn ink_of(l: &Labeler, level: &arda_settle::render::tilelabels::Level) -> usize {
+    let mut b = blank(1024, 1024);
+    l.draw_rgba(level, (1536, 1536), (1024, 1024), &mut b);
+    changed(&b)
+}
+
+#[test]
+fn coarse_levels_draw_names_larger_and_fine_levels_keep_page_size() {
+    let l = labeler(vec![feature(
+        1,
+        PlaceKind::Forest,
+        "Greenwood",
+        [50_000, 50_000],
+        2,
+        0,
+    )]);
+    // The same pixel scale as level 4, at page size and at the level's own.
+    let px_per_m = 1.0 / l.metres_per_px(4);
+    let page = l.level_at(px_per_m, 1.0, &[], |_| true);
+    let page_ink = ink_of(&l, &page);
+    let level_ink = ink_of(&l, &l.level(4));
+    assert!(page_ink > 100, "the name is drawn: {page_ink}");
+    assert!(
+        level_ink * 10 > page_ink * 18,
+        "level 4 names are much larger: {level_ink} vs {page_ink}"
+    );
+    // Two levels on, names are back to page size: same pixels as unit 1.
+    let fine = l.level_at(1.0 / l.metres_per_px(6), 1.0, &[], |_| true);
+    let mut a = blank(512, 512);
+    let mut b = blank(512, 512);
+    l.draw_rgba(&fine, (6144, 6144), (512, 512), &mut a);
+    l.draw_rgba(&l.level(6), (6144, 6144), (512, 512), &mut b);
+    assert_eq!(a, b);
+}

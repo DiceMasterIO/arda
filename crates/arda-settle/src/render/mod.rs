@@ -28,6 +28,7 @@ pub mod labels;
 pub mod layers;
 pub mod mask;
 pub mod roadlayer;
+pub mod scale;
 mod text;
 pub mod tilelabels;
 

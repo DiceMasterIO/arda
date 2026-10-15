@@ -339,8 +339,9 @@ async fn overview_png(
         .get("style")
         .map_or(Ok(Style::Atlas), |s| Style::parse(s))?;
     let society = Overview::society(&state.query, style, overlay_flag(&q)?)?;
+    let labels = overview_labels_flag(&q)?;
     let bytes = blocking(state, move |s| {
-        s.overview.png(&s.query, quality, (style, society))
+        s.overview.png(&s.query, quality, (style, society), labels)
     })
     .await?;
     Ok(image(&headers, &etag, "image/png", &bytes))
@@ -356,6 +357,18 @@ fn overlay_flag(q: &std::collections::BTreeMap<String, String>) -> ServerResult<
         Some("none") => Ok(Some(false)),
         Some(other) => Err(ServerError::BadRequest(format!(
             "overlay must be society or none, not {other:?}"
+        ))),
+    }
+}
+
+/// `?labels=1` draws the gazetteer's names on an `overview.png`; absent or
+/// `0` is the plain image (names are opt-in there, default on for tiles).
+fn overview_labels_flag(q: &std::collections::BTreeMap<String, String>) -> ServerResult<bool> {
+    match q.get("labels").map(String::as_str) {
+        None | Some("0") => Ok(false),
+        Some("1") => Ok(true),
+        Some(other) => Err(ServerError::BadRequest(format!(
+            "labels must be 0 or 1, not {other:?}"
         ))),
     }
 }
