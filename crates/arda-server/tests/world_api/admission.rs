@@ -13,10 +13,10 @@ use arda_server::tactical::refine_blocks::{block_bytes, REFINED_BLOCK_BYTES};
 use arda_server::{ServerError, MEMORY_CEILING_BYTES};
 use std::sync::Arc;
 
-/// The fixture's largest city (Frirgegor, population 9,293).
-const TOWN: (u32, u32) = (485, 699);
+/// The fixture's largest city (Ildeflel, population 8,650; recipe 9).
+const TOWN: (u32, u32) = (619, 625);
 /// The dense forest river cell of `cells.rs`.
-const FOREST: (u32, u32) = (529, 812);
+const FOREST: (u32, u32) = (518, 822);
 const WORLD: (i64, i64) = (1024 * 64, 2048 * 64);
 
 #[test]

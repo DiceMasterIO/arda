@@ -3,8 +3,9 @@
 //! Resolution order: `$ARDA_SERVER_TEST_WORLD`, then `<workspace>/out/micro42`
 //! (the documented `arda generate --seed 42 --micro --terrain fine` output),
 //! else the world is generated once into `target/arda-server-fixture/`. Only
-//! a world of the default fine-terrain recipe (7 since v0.4.0) is reused, so
-//! a stale recipe-6 `out/micro42` is never what the schemas are checked on.
+//! a world of the default fine-terrain recipe (9 since the recipe-9 change)
+//! is reused, so a stale older `out/micro42` is never what the schemas are
+//! checked on.
 
 use arda_server::{router, AppState, ServerConfig};
 use axum::body::Body;

@@ -11,8 +11,8 @@ use serde_json::Value;
 use std::path::PathBuf;
 
 /// The river cell of `cells.rs`, a land cell.
-const CELL: &str = "529/812";
-const WINDOW: &str = "gx0=529&gy0=812&w=1&h=1&ppsq=16";
+const CELL: &str = "518/822";
+const WINDOW: &str = "gx0=518&gy0=822&w=1&h=1&ppsq=16";
 
 /// The router's own answer for a path it does not serve.
 const FALLBACK: &str = "no such route";
@@ -38,7 +38,7 @@ fn probes(ids: &Ids) -> Vec<(&'static str, &'static str, String, Option<&'static
         (
             "GET /v1/point",
             "GET",
-            "/v1/point?x_m=52950&y_m=81250".into(),
+            "/v1/point?x_m=51850&y_m=82250".into(),
             None,
         ),
         (
@@ -217,7 +217,7 @@ fn probes(ids: &Ids) -> Vec<(&'static str, &'static str, String, Option<&'static
             "POST /v1/tactical/prefetch",
             "POST",
             "/v1/tactical/prefetch".into(),
-            Some(r#"{"gx":529,"gy":812,"radius":9}"#),
+            Some(r#"{"gx":518,"gy":822,"radius":9}"#),
         ),
         // Refused before any work: a body without a layout is 400.
         (

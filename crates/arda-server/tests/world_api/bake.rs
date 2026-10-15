@@ -14,7 +14,7 @@ use std::sync::Arc;
 use std::time::Duration;
 
 /// The river cell of `cells.rs`.
-const RIVER: (u32, u32) = (529, 812);
+const RIVER: (u32, u32) = (518, 822);
 /// Quick renders: 4096 px a side, max zoom 3, 85 tiles.
 const PPSQ: u32 = 64;
 const WAIT: Duration = Duration::from_secs(900);

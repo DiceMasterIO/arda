@@ -8,7 +8,7 @@ use arda_server::tiles::decode_rgb;
 use axum::http::StatusCode;
 
 /// The MICRO seed-42 river cell of `cells.rs`.
-const RIVER: (u32, u32) = (529, 812);
+const RIVER: (u32, u32) = (518, 822);
 
 fn ok(uri: &str, r: &crate::support::Reply) {
     assert_eq!(

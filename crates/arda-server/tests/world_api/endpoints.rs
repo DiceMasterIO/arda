@@ -38,22 +38,22 @@ async fn health_and_world_describe_the_served_world() {
 
 #[tokio::test]
 async fn cell_and_point_return_contract_json() {
-    // An order-4 river cell of MICRO seed 42 on variant-Q terrain.
-    let cell = get("/v1/cell/512/1039").await;
+    // An order-4 river cell of MICRO seed 42 (recipe 9).
+    let cell = get("/v1/cell/530/1063").await;
     assert_eq!(cell.status, StatusCode::OK);
     let c = cell.json();
     assert_eq!(
         (c["ax"].as_i64(), c["ay"].as_i64(), c["cy"].as_u64()),
-        (Some(1), Some(2), Some(15))
+        (Some(1), Some(2), Some(39))
     );
     assert_eq!(c["terrain"], "land");
     assert!(
         c["river"]["global_reach_id"].is_string(),
         "a saved order-4 river runs here"
     );
-    let point = get("/v1/point?x_m=51234.5&y_m=103917.25").await.json();
+    let point = get("/v1/point?x_m=53034.5&y_m=106317.25").await.json();
     assert_eq!(point["height_source"], "fine");
-    assert_eq!(point["cell"]["gx"], 512);
+    assert_eq!(point["cell"]["gx"], 530);
 }
 
 #[tokio::test]

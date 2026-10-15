@@ -13,7 +13,7 @@ use std::sync::Arc;
 use std::time::{Duration, Instant};
 
 /// A river cell of the fixture world (a built block, neighbours refined).
-const CELL: (u64, u64) = (529, 812);
+const CELL: (u64, u64) = (518, 822);
 const REPS: usize = 3;
 
 const TILE_MS: f64 = 20.0;

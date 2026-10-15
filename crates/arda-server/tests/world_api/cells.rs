@@ -6,9 +6,9 @@ use crate::support::{get, Reply};
 use arda_server::tiles::decode_rgb;
 use axum::http::StatusCode;
 
-/// A river cell of MICRO seed 42 on variant-Q terrain: an order-4 river,
-/// 11.8 m wide, crosses it.
-const RIVER: (u32, u32) = (529, 812);
+/// A river cell of MICRO seed 42 (recipe 9): an order-4 river, 11.6 m wide,
+/// crosses it (it was (529, 812) on recipe 7).
+const RIVER: (u32, u32) = (518, 822);
 
 fn header<'a>(r: &'a Reply, name: &str) -> &'a str {
     r.headers[name].to_str().unwrap()
@@ -69,9 +69,17 @@ async fn open_sea_is_no_block_and_bad_windows_are_refused() {
     assert_eq!(big.status, StatusCode::PAYLOAD_TOO_LARGE);
     let missing = get("/v1/tactical/window?gx0=10&gy0=10&w=1").await;
     assert_eq!(missing.error_code(), "bad_request");
-    let ppsq = get("/v1/tactical/cell/529/812.png?ppsq=48").await;
+    let ppsq = get(&format!(
+        "/v1/tactical/cell/{}/{}.png?ppsq=48",
+        RIVER.0, RIVER.1
+    ))
+    .await;
     assert_eq!(ppsq.error_code(), "bad_request");
-    let demo = get("/v1/tactical/cell/529/812?demo_overlays=2").await;
+    let demo = get(&format!(
+        "/v1/tactical/cell/{}/{}?demo_overlays=2",
+        RIVER.0, RIVER.1
+    ))
+    .await;
     assert_eq!(demo.error_code(), "bad_request");
 }
 
