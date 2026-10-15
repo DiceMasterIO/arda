@@ -142,7 +142,6 @@ pub fn territory(
     settlements: &[Settlement],
 ) -> Result<Territory, SettleError> {
     let ridge = ridges(g, sites)?;
-    let no_road = |_: usize| false;
     let mut best = filled(g.len(), u64::MAX, "allegiance cost")?;
     let mut map = filled(g.len(), 0_u16, "realm map")?;
     let mut heap = BinaryHeap::new();
@@ -162,7 +161,7 @@ pub fn territory(
             let Some(b) = g.at(ax + dx, ay + dy) else {
                 continue;
             };
-            let Some(mut c) = cost::step(g, cs, &no_road, a, b, (dx, dy), RoadClass::Road) else {
+            let Some(mut c) = cost::travel(g, cs, a, b, (dx, dy), RoadClass::Road) else {
                 continue;
             };
             if g.is_watercourse(b) && g.order[b] >= 3 && !g.is_watercourse(a) {

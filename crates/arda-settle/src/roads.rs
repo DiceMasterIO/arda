@@ -5,9 +5,10 @@
 //! (highways), trunks are pushed to map edges where land leaves the map,
 //! each village is routed to its nearest town, each hamlet to its nearest
 //! village, and footpaths join neighbouring villages. Because existing road
-//! is cheap, later routes fall onto earlier ones and the network grows as a
-//! tree with shared trunks; only the new cells of a route become a road
-//! object, so there are no parallel duplicates.
+//! is cheap, later routes fall onto earlier ones and share trunks; only the
+//! new cells of a route become a road object, so there are no parallel
+//! duplicates. The trunk is not left a tree: neighbouring towns a long way
+//! round by road get a direct highway (`trunk::close_loops`).
 
 use crate::cost::CostSurface;
 use crate::grid::Grid;
@@ -48,6 +49,12 @@ pub struct Road {
     pub relief_m: i32,
     /// Ground the whole route crosses, by its median slope.
     pub terrain: Terrain,
+    /// Metres of the whole route on 100 m steps steeper than its class
+    /// sustains (`cost::max_grade_pct`): where the tactical road must
+    /// switch back within the cell (goal 37; review 3.3-7). 0 on older
+    /// files.
+    #[serde(default)]
+    pub steep_m: u64,
     /// New stretches as polylines of `[x_m, y_m]` cell centres.
     pub segments: Vec<Vec<[i64; 2]>>,
 }
@@ -158,10 +165,33 @@ impl Network {
                 (hs.clone().max().unwrap_or(0) - hs.min().unwrap_or(0)) / 1000
             },
             terrain: Terrain::of(g, &path.cells),
+            steep_m: steep_m(g, &path.cells, class),
             segments,
         });
         self.routes.push(path.cells.clone());
     }
+}
+
+/// Metres of `cells` on steps steeper than `class` sustains (open water
+/// legs excluded).
+#[must_use]
+pub fn steep_m(g: &Grid, cells: &[usize], class: RoadClass) -> u64 {
+    let max = crate::cost::max_grade_pct(class);
+    cells
+        .windows(2)
+        .filter(|w| !g.is_water(w[0]) && !g.is_water(w[1]))
+        .map(|w| {
+            let (ax, ay) = g.xy(w[0]);
+            let (bx, by) = g.xy(w[1]);
+            let len: i64 = if ax != bx && ay != by { 141 } else { 100 };
+            let rise = (i64::from(g.height_mm[w[1]]) - i64::from(g.height_mm[w[0]])).abs();
+            if rise * 100 > max * len * 1000 {
+                u64::try_from(len).unwrap_or(0)
+            } else {
+                0
+            }
+        })
+        .sum()
 }
 
 /// Where a route ends.
@@ -203,6 +233,7 @@ pub fn build(g: &Grid, cs: &CostSurface, settlements: &[Settlement]) -> Network 
         );
     }
     trunk::trunk(g, cs, &mut net, &hubs);
+    trunk::close_loops(g, cs, &mut net, &hubs);
     trunk::edges(g, cs, &mut net, &hubs);
     let villages: Vec<&Settlement> = settlements
         .iter()
@@ -299,23 +330,26 @@ fn connect_cheapest(
 
 /// A footpath is a short cut between neighbours: it is only worth making
 /// when it is one, so a path that would wind round a fjord or a lake to
-/// reach the next village is left unbuilt.
+/// reach the next village is left unbuilt. It is routed over the ground
+/// alone, not the road discount, so it takes its own line across the
+/// fields; a path that would only retrace roads adds nothing and is not
+/// recorded (review 3.3-6).
 fn footpath(g: &Grid, cs: &CostSurface, net: &mut Network, a: &Settlement, b: &Settlement) {
-    let path = {
-        let on = net.on_road();
-        route::find(
-            g,
-            cs,
-            &on,
-            a.index(g.width),
-            b.index(g.width),
-            RoadClass::Footpath,
-        )
-        .map(|p| route::straighten(g, cs, p, RoadClass::Footpath))
-    };
+    let none = |_: usize| false;
+    let path = route::find(
+        g,
+        cs,
+        &none,
+        a.index(g.width),
+        b.index(g.width),
+        RoadClass::Footpath,
+    );
     let Some(p) = path.filter(|p| p.cells.len() > 1) else {
         return;
     };
+    if p.cells.iter().all(|&c| net.raster[c] != 0) {
+        return;
+    }
     let straight = u64::from(dist_m(
         ui_of(b.cell_x) - ui_of(a.cell_x),
         ui_of(b.cell_y) - ui_of(a.cell_y),

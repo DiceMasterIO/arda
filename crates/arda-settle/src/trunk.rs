@@ -35,22 +35,8 @@ pub(crate) fn connect(
 /// cheapest first so later trunks share earlier ones.
 pub fn trunk(g: &Grid, cs: &CostSurface, net: &mut Network, hubs: &[&Settlement]) {
     let n = hubs.len();
-    let d = |i: usize, j: usize| {
-        dist_m(
-            ui_of(hubs[i].cell_x) - ui_of(hubs[j].cell_x),
-            ui_of(hubs[i].cell_y) - ui_of(hubs[j].cell_y),
-        )
-    };
-    let mut pairs: Vec<(usize, usize)> = Vec::new();
-    for i in 0..n {
-        let mut by: Vec<usize> = (0..n).filter(|&j| j != i).collect();
-        by.sort_by_key(|&j| (d(i, j), j));
-        for &j in by.iter().take(4) {
-            pairs.push((i.min(j), i.max(j)));
-        }
-    }
-    pairs.sort_unstable();
-    pairs.dedup();
+    let d = |i: usize, j: usize| straight_m(hubs[i], hubs[j]);
+    let pairs = neighbour_pairs(hubs);
     let none = |_: usize| false;
     let mut edges: Vec<(u64, usize, usize)> = pairs
         .iter()
@@ -103,6 +89,110 @@ pub fn trunk(g: &Grid, cs: &CostSurface, net: &mut Network, hubs: &[&Settlement]
     for (_, i, j) in tree {
         connect(g, cs, net, hubs[i], hubs[j], RoadClass::Highway);
     }
+}
+
+fn straight_m(a: &Settlement, b: &Settlement) -> u32 {
+    dist_m(
+        ui_of(a.cell_x) - ui_of(b.cell_x),
+        ui_of(a.cell_y) - ui_of(b.cell_y),
+    )
+}
+
+/// Each town paired with its four nearest towns in a straight line, as
+/// sorted, deduplicated index pairs.
+fn neighbour_pairs(hubs: &[&Settlement]) -> Vec<(usize, usize)> {
+    let n = hubs.len();
+    let mut pairs: Vec<(usize, usize)> = Vec::new();
+    for i in 0..n {
+        let mut by: Vec<usize> = (0..n).filter(|&j| j != i).collect();
+        by.sort_by_key(|&j| (straight_m(hubs[i], hubs[j]), j));
+        for &j in by.iter().take(4) {
+            pairs.push((i.min(j), i.max(j)));
+        }
+    }
+    pairs.sort_unstable();
+    pairs.dedup();
+    pairs
+}
+
+/// Neighbouring towns whose way by road runs more than this many per cent
+/// of their straight distance get a direct highway (assumed, tunable;
+/// review 3.3-6).
+pub const LOOP_RATIO_PCT: u64 = 200;
+/// ... when that highway is itself no longer than this many per cent of the
+/// straight distance (a link round a fjord closes nothing).
+pub const LOOP_LINK_PCT: u64 = 160;
+
+/// Closes the trunk's loops: a spanning tree joins every town but leaves
+/// neighbours a long way round (towns 54 km apart and 179 km by road on
+/// MICRO). Each pair of neighbouring towns, nearest first, whose way over
+/// the network runs beyond [`LOOP_RATIO_PCT`] of the straight line gets a
+/// direct highway of its own, kept when it is within [`LOOP_LINK_PCT`].
+pub fn close_loops(g: &Grid, cs: &CostSurface, net: &mut Network, hubs: &[&Settlement]) {
+    let mut pairs = neighbour_pairs(hubs);
+    pairs.sort_by_key(|&(i, j)| (straight_m(hubs[i], hubs[j]), i, j));
+    let none = |_: usize| false;
+    for (i, j) in pairs {
+        let (a, b) = (hubs[i], hubs[j]);
+        let straight = u64::from(straight_m(a, b));
+        let (ca, cb) = (a.index(g.width), b.index(g.width));
+        if within_by_road(g, &net.raster, ca, cb, straight * LOOP_RATIO_PCT / 100) {
+            continue;
+        }
+        let Some(p) = route::find(g, cs, &none, ca, cb, RoadClass::Highway) else {
+            continue;
+        };
+        if p.cells.len() > 1 && route::length_m(g, &p.cells) * 100 <= straight * LOOP_LINK_PCT {
+            net.commit(
+                g,
+                &p,
+                RoadClass::Highway,
+                a.id.get(),
+                End::Settlement(b.id.get()),
+            );
+        }
+    }
+}
+
+/// Whether `b` lies within `limit` metres of `a` over road cells (A* over
+/// the road raster, octile lengths, cut off at `limit`).
+fn within_by_road(g: &Grid, raster: &[u8], a: usize, b: usize, limit: u64) -> bool {
+    use std::cmp::Reverse;
+    use std::collections::{BTreeMap, BinaryHeap};
+    if raster[a] == 0 || raster[b] == 0 {
+        return false;
+    }
+    let (bx, by) = g.xy(b);
+    let h = |i: usize| {
+        let (x, y) = g.xy(i);
+        let (dx, dy) = ((x - bx).unsigned_abs(), (y - by).unsigned_abs());
+        let (lo, hi) = (dx.min(dy), dx.max(dy));
+        lo * 141 + (hi - lo) * 100
+    };
+    let mut best: BTreeMap<usize, u64> = BTreeMap::from([(a, 0)]);
+    let mut heap = BinaryHeap::from([Reverse((h(a), 0_u64, a))]);
+    while let Some(Reverse((f, d, i))) = heap.pop() {
+        if f > limit {
+            return false;
+        }
+        if i == b {
+            return true;
+        }
+        if best.get(&i).is_some_and(|&v| d > v) {
+            continue;
+        }
+        for (j, dx, dy) in g.neighbours8(i) {
+            if raster[j] == 0 {
+                continue;
+            }
+            let nd = d + if dx != 0 && dy != 0 { 141 } else { 100 };
+            if best.get(&j).is_none_or(|&v| nd < v) {
+                best.insert(j, nd);
+                heap.push(Reverse((nd + h(j), nd, j)));
+            }
+        }
+    }
+    false
 }
 
 /// Pushes a highway from the nearest town to the middle of every long run

@@ -102,6 +102,7 @@ mod tests {
                     new_m: 0,
                     relief_m: 0,
                     terrain: Terrain::Open,
+                    steep_m: 0,
                     segments: vec![segment],
                 }],
                 crossings: vec![],

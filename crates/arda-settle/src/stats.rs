@@ -71,8 +71,9 @@ pub struct Stats {
     pub sinuosity_median: BTreeMap<String, f64>,
     /// Median sinuosity over every route of 1.5 km or more.
     pub sinuosity_all: f64,
-    /// Median sinuosity over open-ground routes (median slope under 5°),
-    /// the artifact's 1.2–1.4 check; hill and mountain routes rise above it.
+    /// Median sinuosity over open-ground village-to-town roads (class
+    /// `road`, median slope under 5°), the artifact's 1.2–1.4 check
+    /// (logic/08 Invariants 9); hill and mountain routes rise above it.
     pub sinuosity_open: f64,
     /// Routes counted in `sinuosity_open`.
     pub open_routes: u64,
@@ -290,7 +291,7 @@ pub fn gather(
     let all = sinuosities(net, None, None);
     s.runaway_routes = all.iter().filter(|&&v| v > RUNAWAY).count() as u64;
     s.sinuosity_all = median(all);
-    let open = sinuosities(net, None, Some(Terrain::Open));
+    let open = sinuosities(net, Some(RoadClass::Road), Some(Terrain::Open));
     s.open_routes = open.len() as u64;
     s.sinuosity_open = median(open);
     for t in Terrain::ALL {

@@ -131,6 +131,20 @@ pub fn slope_pct(grade: i64) -> i64 {
     m
 }
 
+/// Per-cent added per squared per-cent of grade beyond a class's maximum
+/// (assumed, tunable): 2 % over a road's 10 % costs twice the step, 5 %
+/// over seven times, so a route winds across a slope its class cannot
+/// climb rather than straight up it (review 3.3-7).
+pub const OVER_GRADE_PCT: i64 = 25;
+
+/// Extra slope multiplier, per-cent, for a step `grade` per-cent steep on a
+/// road whose class sustains `max` per-cent.
+#[must_use]
+pub fn over_grade_pct(grade: i64, max: i64) -> i64 {
+    let over = (grade - max).max(0);
+    OVER_GRADE_PCT * over * over
+}
+
 /// Extra cost of crossing a watercourse `w` metres wide.
 #[must_use]
 pub fn crossing_cost(w: u32) -> u64 {
@@ -144,7 +158,8 @@ pub fn crossing_cost(w: u32) -> u64 {
 
 /// Grade a road of each class sustains, per cent (spec §roads): the slope
 /// multiplier reads a grade as `g × 10 / max_grade`, so a footpath climbs
-/// straight up what a highway must wind across.
+/// straight up what a highway must wind across, and every per-cent beyond
+/// it costs [`over_grade_pct`].
 #[must_use]
 pub const fn max_grade_pct(class: RoadClass) -> i64 {
     match class {
@@ -167,6 +182,36 @@ pub fn step(
     b: usize,
     d: (i64, i64),
     class: RoadClass,
+) -> Option<u64> {
+    step_with(g, cs, on_road, a, b, d, class, true)
+}
+
+/// [`step`] for travel across country rather than road building: the
+/// slope still costs as it would for `class`, but a grade beyond what
+/// `class` sustains carries no extra toll (the realm partition: people and
+/// allegiance cross a steep slope a road could not climb).
+#[must_use]
+pub fn travel(
+    g: &Grid,
+    cs: &CostSurface,
+    a: usize,
+    b: usize,
+    d: (i64, i64),
+    class: RoadClass,
+) -> Option<u64> {
+    step_with(g, cs, &|_: usize| false, a, b, d, class, false)
+}
+
+#[allow(clippy::too_many_arguments)]
+fn step_with(
+    g: &Grid,
+    cs: &CostSurface,
+    on_road: &impl Fn(usize) -> bool,
+    a: usize,
+    b: usize,
+    d: (i64, i64),
+    class: RoadClass,
+    graded: bool,
 ) -> Option<u64> {
     let (dx, dy) = d;
     let diagonal = dx != 0 && dy != 0;
@@ -193,8 +238,14 @@ pub fn step(
         return Some(len * ROAD_PCT * m / 10_000);
     }
     let avg = (u64::from(cs.base[a]) + u64::from(cs.base[b])) / 2;
-    let felt = grade * 10 / max_grade_pct(class);
-    let m = u64::try_from(slope_pct(felt)).unwrap_or(u64::MAX / 4);
+    let max = max_grade_pct(class);
+    let felt = grade * 10 / max;
+    let over = if graded {
+        over_grade_pct(grade, max)
+    } else {
+        0
+    };
+    let m = u64::try_from(slope_pct(felt) + over).unwrap_or(u64::MAX / 4);
     let mut c = len * avg * m / 10_000;
     if g.is_watercourse(b) && !on_road(b) {
         c += crossing_cost(g.width_m(b));
