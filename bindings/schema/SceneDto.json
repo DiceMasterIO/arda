@@ -66,7 +66,6 @@
       ]
     },
     "EdgeExitDto": {
-      "additionalProperties": false,
       "description": "A run of enterable squares along one map edge.",
       "properties": {
         "edge": {
@@ -90,7 +89,6 @@
       "type": "object"
     },
     "EntranceDto": {
-      "additionalProperties": false,
       "description": "Squares beside a door or gate.",
       "properties": {
         "squares": {
@@ -164,7 +162,6 @@
       ]
     },
     "RegionDto": {
-      "additionalProperties": false,
       "description": "Merged squares of one kind as closed rings on grid vertices (even-odd fill).",
       "properties": {
         "kind": {
@@ -317,7 +314,6 @@
       "type": "array"
     },
     "SceneLightDto": {
-      "additionalProperties": false,
       "description": "A light source with SRD bright and dim radii.",
       "properties": {
         "asset": {
@@ -374,7 +370,6 @@
       "type": "object"
     },
     "SceneWallDto": {
-      "additionalProperties": false,
       "description": "A wall polyline on grid vertices.",
       "properties": {
         "blocks_light": {
@@ -442,7 +437,6 @@
       "type": "object"
     },
     "SpawnHintsDto": {
-      "additionalProperties": false,
       "description": "Where tokens may be put.",
       "properties": {
         "entrances": {
@@ -493,7 +487,6 @@
       "type": "array"
     },
     "TokenSlotDto": {
-      "additionalProperties": false,
       "description": "Where an NPC's token stands (scene token slot).",
       "properties": {
         "facing": {
@@ -527,7 +520,6 @@
       "type": "object"
     },
     "VisionBlockerDto": {
-      "additionalProperties": false,
       "description": "A polygon that obscures vision.",
       "properties": {
         "asset": {
@@ -596,7 +588,6 @@
     }
   },
   "$schema": "https://json-schema.org/draft/2020-12/schema",
-  "additionalProperties": false,
   "description": "`arda-scene` `Scene` format 1: everything the game needs to run a map.",
   "properties": {
     "climb": {

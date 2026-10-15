@@ -1,7 +1,6 @@
 {
   "$defs": {
     "SchemaIndexEntry": {
-      "additionalProperties": false,
       "description": "One schema in [`SchemaIndex`].",
       "properties": {
         "family": {
@@ -59,7 +58,6 @@
     }
   },
   "$schema": "https://json-schema.org/draft/2020-12/schema",
-  "additionalProperties": false,
   "description": "`GET /v1/schema`: the catalogue of published schemas (`index.json`).",
   "properties": {
     "api_version": {

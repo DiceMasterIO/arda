@@ -51,4 +51,10 @@ scene: SceneDto | null,
 /**
  * Tile pyramid geometry at the requested ppsq.
  */
-tiles: TacticalTilesDto, };
+tiles: TacticalTilesDto, 
+/**
+ * The release that generated the body (`server_version`): blocks,
+ * scenes and images follow the serving build, not the world's
+ * generator (versioning.md). Added in 0.9; absent before.
+ */
+generator_version: string, };

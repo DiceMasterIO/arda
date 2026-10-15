@@ -36,7 +36,6 @@
       ]
     },
     "Attack": {
-      "additionalProperties": false,
       "description": "One attack line.",
       "properties": {
         "average": {
@@ -109,7 +108,6 @@
       ]
     },
     "Background": {
-      "additionalProperties": false,
       "description": "Flavour background of a class build.",
       "properties": {
         "name": {
@@ -136,7 +134,6 @@
       "type": "object"
     },
     "Coins": {
-      "additionalProperties": false,
       "description": "Coins carried.",
       "properties": {
         "cp": {
@@ -166,7 +163,6 @@
       "type": "object"
     },
     "HouseholdId": {
-      "additionalProperties": false,
       "description": "A household: its home building and index inside it.",
       "properties": {
         "building": {
@@ -187,7 +183,6 @@
       "type": "object"
     },
     "Ideal": {
-      "additionalProperties": false,
       "description": "An ideal and its alignment lean.",
       "properties": {
         "alignment": {
@@ -219,7 +214,6 @@
       "type": "object"
     },
     "Item": {
-      "additionalProperties": false,
       "description": "An item and how many.",
       "properties": {
         "name": {
@@ -241,7 +235,6 @@
       "type": "object"
     },
     "Job": {
-      "additionalProperties": false,
       "description": "A person's occupation.",
       "properties": {
         "category": {
@@ -375,7 +368,6 @@
       ]
     },
     "Name": {
-      "additionalProperties": false,
       "description": "A person's name.",
       "properties": {
         "byname": {
@@ -401,7 +393,6 @@
       "type": "object"
     },
     "Npc": {
-      "additionalProperties": false,
       "description": "One inhabitant with a full SRD 5.1 sheet (`logic/13` §npc-game-schema).",
       "properties": {
         "age": {
@@ -528,7 +519,6 @@
       "type": "string"
     },
     "Personality": {
-      "additionalProperties": false,
       "description": "Personality.",
       "properties": {
         "bond": {
@@ -625,7 +615,6 @@
       ]
     },
     "Relationship": {
-      "additionalProperties": false,
       "description": "One relationship: `other` is this person's `kind`.",
       "properties": {
         "kind": {
@@ -644,7 +633,6 @@
       "type": "object"
     },
     "SaveBonus": {
-      "additionalProperties": false,
       "description": "A saving throw.",
       "properties": {
         "ability": {
@@ -686,7 +674,6 @@
       ]
     },
     "Sheet": {
-      "additionalProperties": false,
       "description": "A full SRD 5.1 sheet.",
       "properties": {
         "abilities": {
@@ -937,7 +924,6 @@
       ]
     },
     "SkillBonus": {
-      "additionalProperties": false,
       "description": "A proficient skill.",
       "properties": {
         "ability": {
@@ -1004,7 +990,6 @@
       ]
     },
     "SpellRef": {
-      "additionalProperties": false,
       "description": "A spell known or prepared.",
       "properties": {
         "level": {
@@ -1026,7 +1011,6 @@
       "type": "object"
     },
     "Spellcasting": {
-      "additionalProperties": false,
       "description": "Spellcasting block.",
       "properties": {
         "ability": {

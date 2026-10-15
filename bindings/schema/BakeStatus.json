@@ -26,6 +26,35 @@
       ],
       "type": "object"
     },
+    "BakeIgnored": {
+      "description": "Posted items a bake could not place in its cell (review 3.6-9): walls\noff the cell's edges, placements and lights anchored outside it. A\nbake ignores them, and says so here, instead of dropping them silently.",
+      "properties": {
+        "lights": {
+          "description": "Lights placed outside the cell.",
+          "format": "uint32",
+          "minimum": 0,
+          "type": "integer"
+        },
+        "placements": {
+          "description": "Placements anchored outside the cell (a placement on its east or\nsouth border line belongs to the neighbour).",
+          "format": "uint32",
+          "minimum": 0,
+          "type": "integer"
+        },
+        "walls": {
+          "description": "Wall segments on no edge of the cell.",
+          "format": "uint32",
+          "minimum": 0,
+          "type": "integer"
+        }
+      },
+      "required": [
+        "walls",
+        "placements",
+        "lights"
+      ],
+      "type": "object"
+    },
     "BakeState": {
       "description": "Where a bake job stands.",
       "oneOf": [
@@ -120,6 +149,11 @@
       "minimum": 0,
       "type": "integer"
     },
+    "generator_version": {
+      "default": "",
+      "description": "The release that bakes it (`server_version`); part of the job id.\nAdded in 0.9; absent before.",
+      "type": "string"
+    },
     "gx": {
       "description": "Cell column.",
       "format": "uint32",
@@ -131,6 +165,15 @@
       "format": "uint32",
       "minimum": 0,
       "type": "integer"
+    },
+    "ignored": {
+      "$ref": "#/$defs/BakeIgnored",
+      "default": {
+        "lights": 0,
+        "placements": 0,
+        "walls": 0
+      },
+      "description": "Posted items the bake ignores. Added in 0.9; absent before."
     },
     "job_id": {
       "description": "The job id.",

@@ -27,4 +27,9 @@ scene: SceneDto,
 /**
  * NPC tokens.
  */
-tokens: Array<Token>, };
+tokens: Array<Token>, 
+/**
+ * The release that generated the scene (`server_version`). Added in
+ * 0.9; absent before.
+ */
+generator_version: string, };

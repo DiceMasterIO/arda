@@ -34,7 +34,6 @@
       "description": "An asset chosen by id or by a deterministic tag query.",
       "oneOf": [
         {
-          "additionalProperties": false,
           "description": "A specific asset id.",
           "properties": {
             "id": {
@@ -47,7 +46,6 @@
           "type": "object"
         },
         {
-          "additionalProperties": false,
           "description": "Any asset of the class carrying every tag.",
           "properties": {
             "query": {
@@ -111,7 +109,6 @@
       ]
     },
     "DungeonDoorDto": {
-      "additionalProperties": false,
       "description": "A door on a square edge, in layout edge terms (as `WallSegmentDto`).",
       "properties": {
         "axis": {
@@ -149,7 +146,6 @@
       "type": "object"
     },
     "DungeonExitDto": {
-      "additionalProperties": false,
       "description": "An exit: its kind and the floor square a token arrives on.",
       "properties": {
         "kind": {
@@ -212,7 +208,6 @@
       ]
     },
     "DungeonParamsDto": {
-      "additionalProperties": false,
       "description": "Generation parameters (`arda_dungeon::Params`).",
       "properties": {
         "height": {
@@ -245,7 +240,6 @@
       "type": "object"
     },
     "DungeonRoomDto": {
-      "additionalProperties": false,
       "description": "A room: its purpose and its floor rectangle in squares.",
       "properties": {
         "h": {
@@ -339,7 +333,6 @@
       ]
     },
     "EdgeRuleDto": {
-      "additionalProperties": false,
       "description": "Movement and sight rules of one unit edge.",
       "properties": {
         "axis": {
@@ -387,7 +380,6 @@
       "type": "object"
     },
     "LightSourceDto": {
-      "additionalProperties": false,
       "description": "A light source not attached to an asset.",
       "properties": {
         "colour": {
@@ -429,7 +421,6 @@
       "type": "object"
     },
     "PlacementDto": {
-      "additionalProperties": false,
       "description": "A prop or vegetation placement.",
       "properties": {
         "asset": {
@@ -518,7 +509,6 @@
       ]
     },
     "RulesCellDto": {
-      "additionalProperties": false,
       "description": "One square's rules; an absent field means \"no opinion\".",
       "properties": {
         "blocks_movement": {
@@ -550,6 +540,16 @@
           "description": "A walkable deck (bridge, jetty) over the square.",
           "type": [
             "boolean",
+            "null"
+          ]
+        },
+        "deck_elevation_ft": {
+          "description": "The deck's walking level in feet (absolute, 5-ft steps) where a deck\nspans the square; the scene stands creatures there (review 3.6-6).\nAdded in 0.9; `ext.deck_elevation_ft` carries the same value.",
+          "format": "int16",
+          "maximum": 32767,
+          "minimum": -32768,
+          "type": [
+            "integer",
             "null"
           ]
         },
@@ -589,7 +589,6 @@
       "type": "object"
     },
     "RulesSidecarDto": {
-      "additionalProperties": false,
       "description": "The per-square rules sidecar, format 2.",
       "properties": {
         "edges": {
@@ -635,7 +634,6 @@
       "type": "object"
     },
     "SquareDto": {
-      "additionalProperties": false,
       "description": "One 5-ft square.",
       "properties": {
         "dryness": {
@@ -672,7 +670,6 @@
       "type": "object"
     },
     "TacticalLayoutDto": {
-      "additionalProperties": false,
       "description": "Mirror of `arda_tactical::TacticalLayout`: a W × H battle map.",
       "properties": {
         "height": {
@@ -795,7 +792,6 @@
       ]
     },
     "WallSegmentDto": {
-      "additionalProperties": false,
       "description": "A wall-kit edge feature.",
       "properties": {
         "axis": {
@@ -844,7 +840,6 @@
     }
   },
   "$schema": "https://json-schema.org/draft/2020-12/schema",
-  "additionalProperties": false,
   "description": "`GET /v1/tactical/dungeon`: a generated level.",
   "properties": {
     "doors": {

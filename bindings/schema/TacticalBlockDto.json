@@ -34,7 +34,6 @@
       "description": "An asset chosen by id or by a deterministic tag query.",
       "oneOf": [
         {
-          "additionalProperties": false,
           "description": "A specific asset id.",
           "properties": {
             "id": {
@@ -47,7 +46,6 @@
           "type": "object"
         },
         {
-          "additionalProperties": false,
           "description": "Any asset of the class carrying every tag.",
           "properties": {
             "query": {
@@ -166,7 +164,6 @@
       ]
     },
     "EdgeExitDto": {
-      "additionalProperties": false,
       "description": "A run of enterable squares along one map edge.",
       "properties": {
         "edge": {
@@ -220,7 +217,6 @@
       ]
     },
     "EdgeRuleDto": {
-      "additionalProperties": false,
       "description": "Movement and sight rules of one unit edge.",
       "properties": {
         "axis": {
@@ -268,7 +264,6 @@
       "type": "object"
     },
     "EntranceDto": {
-      "additionalProperties": false,
       "description": "Squares beside a door or gate.",
       "properties": {
         "squares": {
@@ -292,7 +287,6 @@
       "type": "object"
     },
     "LightSourceDto": {
-      "additionalProperties": false,
       "description": "A light source not attached to an asset.",
       "properties": {
         "colour": {
@@ -384,7 +378,6 @@
       ]
     },
     "PlacementDto": {
-      "additionalProperties": false,
       "description": "A prop or vegetation placement.",
       "properties": {
         "asset": {
@@ -423,7 +416,6 @@
       "type": "object"
     },
     "RegionDto": {
-      "additionalProperties": false,
       "description": "Merged squares of one kind as closed rings on grid vertices (even-odd fill).",
       "properties": {
         "kind": {
@@ -475,7 +467,6 @@
       ]
     },
     "RulesCellDto": {
-      "additionalProperties": false,
       "description": "One square's rules; an absent field means \"no opinion\".",
       "properties": {
         "blocks_movement": {
@@ -507,6 +498,16 @@
           "description": "A walkable deck (bridge, jetty) over the square.",
           "type": [
             "boolean",
+            "null"
+          ]
+        },
+        "deck_elevation_ft": {
+          "description": "The deck's walking level in feet (absolute, 5-ft steps) where a deck\nspans the square; the scene stands creatures there (review 3.6-6).\nAdded in 0.9; `ext.deck_elevation_ft` carries the same value.",
+          "format": "int16",
+          "maximum": 32767,
+          "minimum": -32768,
+          "type": [
+            "integer",
             "null"
           ]
         },
@@ -546,7 +547,6 @@
       "type": "object"
     },
     "RulesSidecarDto": {
-      "additionalProperties": false,
       "description": "The per-square rules sidecar, format 2.",
       "properties": {
         "edges": {
@@ -693,7 +693,6 @@
       "type": "array"
     },
     "SceneDto": {
-      "additionalProperties": false,
       "description": "`arda-scene` `Scene` format 1: everything the game needs to run a map.",
       "properties": {
         "climb": {
@@ -831,7 +830,6 @@
       "type": "object"
     },
     "SceneLightDto": {
-      "additionalProperties": false,
       "description": "A light source with SRD bright and dim radii.",
       "properties": {
         "asset": {
@@ -888,7 +886,6 @@
       "type": "object"
     },
     "SceneWallDto": {
-      "additionalProperties": false,
       "description": "A wall polyline on grid vertices.",
       "properties": {
         "blocks_light": {
@@ -956,7 +953,6 @@
       "type": "object"
     },
     "SpawnHintsDto": {
-      "additionalProperties": false,
       "description": "Where tokens may be put.",
       "properties": {
         "entrances": {
@@ -1007,7 +1003,6 @@
       "type": "array"
     },
     "SquareDto": {
-      "additionalProperties": false,
       "description": "One 5-ft square.",
       "properties": {
         "dryness": {
@@ -1044,7 +1039,6 @@
       "type": "object"
     },
     "TacticalLayoutDto": {
-      "additionalProperties": false,
       "description": "Mirror of `arda_tactical::TacticalLayout`: a W × H battle map.",
       "properties": {
         "height": {
@@ -1165,7 +1159,6 @@
       "type": "object"
     },
     "TokenSlotDto": {
-      "additionalProperties": false,
       "description": "Where an NPC's token stands (scene token slot).",
       "properties": {
         "facing": {
@@ -1199,7 +1192,6 @@
       "type": "object"
     },
     "VisionBlockerDto": {
-      "additionalProperties": false,
       "description": "A polygon that obscures vision.",
       "properties": {
         "asset": {
@@ -1317,7 +1309,6 @@
       ]
     },
     "WallSegmentDto": {
-      "additionalProperties": false,
       "description": "A wall-kit edge feature.",
       "properties": {
         "axis": {
@@ -1368,6 +1359,11 @@
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "description": "`GET /v1/tactical/cell/{gx}/{gy}` and `GET /v1/tactical/window`: one\nworld-derived block or window (logic/16 §api-tactical).",
   "properties": {
+    "generator_version": {
+      "default": "",
+      "description": "The release that generated the body (`server_version`): blocks,\nscenes and images follow the serving build, not the world's\ngenerator (versioning.md). Added in 0.9; absent before.",
+      "type": "string"
+    },
     "layout": {
       "$ref": "#/$defs/TacticalLayoutDto",
       "description": "What the compositor draws."

@@ -34,6 +34,12 @@ blocks_movement?: boolean,
  */
 deck?: boolean, 
 /**
+ * The deck's walking level in feet (absolute, 5-ft steps) where a deck
+ * spans the square; the scene stands creatures there (review 3.6-6).
+ * Added in 0.9; `ext.deck_elevation_ft` carries the same value.
+ */
+deck_elevation_ft?: number, 
+/**
  * Layer extras: `feature`, `road_class`, `deck_elevation_ft` (ways),
  * `crop`, `field`, `furrow` (fields), `building` (town).
  */

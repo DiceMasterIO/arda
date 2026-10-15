@@ -66,7 +66,6 @@
       ]
     },
     "EdgeExitDto": {
-      "additionalProperties": false,
       "description": "A run of enterable squares along one map edge.",
       "properties": {
         "edge": {
@@ -90,7 +89,6 @@
       "type": "object"
     },
     "EntranceDto": {
-      "additionalProperties": false,
       "description": "Squares beside a door or gate.",
       "properties": {
         "squares": {
@@ -164,7 +162,6 @@
       ]
     },
     "RegionDto": {
-      "additionalProperties": false,
       "description": "Merged squares of one kind as closed rings on grid vertices (even-odd fill).",
       "properties": {
         "kind": {
@@ -317,7 +314,6 @@
       "type": "array"
     },
     "SceneDto": {
-      "additionalProperties": false,
       "description": "`arda-scene` `Scene` format 1: everything the game needs to run a map.",
       "properties": {
         "climb": {
@@ -455,7 +451,6 @@
       "type": "object"
     },
     "SceneLightDto": {
-      "additionalProperties": false,
       "description": "A light source with SRD bright and dim radii.",
       "properties": {
         "asset": {
@@ -527,7 +522,6 @@
       ]
     },
     "SceneWallDto": {
-      "additionalProperties": false,
       "description": "A wall polyline on grid vertices.",
       "properties": {
         "blocks_light": {
@@ -595,7 +589,6 @@
       "type": "object"
     },
     "SpawnHintsDto": {
-      "additionalProperties": false,
       "description": "Where tokens may be put.",
       "properties": {
         "entrances": {
@@ -646,7 +639,6 @@
       "type": "array"
     },
     "Token": {
-      "additionalProperties": false,
       "description": "One token on the scene.",
       "properties": {
         "building_id": {
@@ -703,13 +695,12 @@
         },
         {
           "const": "resident",
-          "description": "At home (by night, or with no workplace in the block).",
+          "description": "At home (by night, or with no workplace).",
           "type": "string"
         }
       ]
     },
     "TokenSlotDto": {
-      "additionalProperties": false,
       "description": "Where an NPC's token stands (scene token slot).",
       "properties": {
         "facing": {
@@ -743,7 +734,6 @@
       "type": "object"
     },
     "VisionBlockerDto": {
-      "additionalProperties": false,
       "description": "A polygon that obscures vision.",
       "properties": {
         "asset": {
@@ -814,6 +804,11 @@
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "description": "`GET /v1/tactical/cell/{gx}/{gy}/scene`: the scene of one block and the\nNPCs on it.",
   "properties": {
+    "generator_version": {
+      "default": "",
+      "description": "The release that generated the scene (`server_version`). Added in\n0.9; absent before.",
+      "type": "string"
+    },
     "origin_gs": {
       "description": "World square of the block's top-left square.",
       "items": {

@@ -30,6 +30,7 @@ export type { Attack } from "./Attack";
 export type { AttackKind } from "./AttackKind";
 export type { Background } from "./Background";
 export type { BakeAccepted } from "./BakeAccepted";
+export type { BakeIgnored } from "./BakeIgnored";
 export type { BakeRequest } from "./BakeRequest";
 export type { BakeState } from "./BakeState";
 export type { BakeStatus } from "./BakeStatus";
