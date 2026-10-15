@@ -13,7 +13,7 @@ use crate::context::{Ctx, N};
 use crate::error::RefineError;
 use crate::rivers::Piece;
 use crate::source::{CellKey, Source};
-use crate::terrain::physical;
+use crate::terrain::{physical, Phys, Water};
 use std::collections::BTreeMap;
 
 /// Refined play elevation by global square, caching each cell's context.
@@ -35,6 +35,21 @@ impl Heights {
     /// # Errors
     /// A world layer failed to read.
     pub fn elevation_ft(&mut self, src: &dyn Source, gx: i64, gy: i64) -> Result<i16, RefineError> {
+        Ok(self.phys(src, gx, gy)?.map_or(0, |p| contour_ft(p.elev_m)))
+    }
+
+    /// Whether the refined block of square `(gx, gy)` lays lake or sea
+    /// water there (a ferry's open water, review 3.5-9).
+    ///
+    /// # Errors
+    /// A world layer failed to read.
+    pub fn open_water(&mut self, src: &dyn Source, gx: i64, gy: i64) -> Result<bool, RefineError> {
+        Ok(self
+            .phys(src, gx, gy)?
+            .is_some_and(|p| matches!(p.water, Water::Lake | Water::Sea)))
+    }
+
+    fn phys(&mut self, src: &dyn Source, gx: i64, gy: i64) -> Result<Option<Phys>, RefineError> {
         let cell = CellKey::new(gx.div_euclid(N), gy.div_euclid(N));
         let (ctx, pieces) = match self.cells.entry(cell) {
             std::collections::btree_map::Entry::Occupied(e) => e.into_mut(),
@@ -45,7 +60,7 @@ impl Heights {
             }
         };
         let grid = physical(ctx, pieces, gx, gy, 1);
-        Ok(grid.data.first().map_or(0, |p| contour_ft(p.elev_m)))
+        Ok(grid.data.first().copied())
     }
 }
 

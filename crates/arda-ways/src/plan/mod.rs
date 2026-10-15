@@ -5,6 +5,7 @@
 pub mod crossing;
 pub mod house;
 pub mod relevant;
+pub mod shore;
 pub mod switchback;
 pub mod wet;
 
@@ -232,6 +233,8 @@ pub struct Plan {
     pub orphans: Vec<u64>,
     /// Toll houses and waystations.
     pub houses: Vec<house::House>,
+    /// Ferry landings at shores too far apart to rope across.
+    pub landings: Vec<shore::Landing>,
 }
 
 /// Plans every way, channel, crossing and toll house that can reach `win`.
@@ -272,6 +275,7 @@ pub(crate) fn build_inner(
         crossing::plan_all(win, crossings, &mut ways, &mut channels, terrain, standing)
     };
     let houses = house::plan_all(&crossings, &ways, &channels, seed);
+    let landings = shore::plan_all(win, &ways, &crossings, terrain);
     Plan {
         window: win,
         ways,
@@ -280,6 +284,7 @@ pub(crate) fn build_inner(
         crossings,
         orphans,
         houses,
+        landings,
     }
 }
 

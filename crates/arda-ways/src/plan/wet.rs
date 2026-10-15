@@ -36,9 +36,10 @@ const SEED_SQ: i64 = 4;
 /// Dry squares a span bridges between two stretches of water: at least the
 /// straight approach, so no water is left under it.
 const GAP_SQ: i64 = 5;
-/// Longest water run one crossing spans, squares; longer runs (a way
-/// running along the river) are left alone.
-const MAX_RUN_SQ: i64 = 96;
+/// Longest water run one crossing spans, squares (1 km); longer runs (a
+/// way running along the river) are left alone. 96 squares (150 m) left
+/// the widest rivers uncrossed (review 3.5-9).
+const MAX_RUN_SQ: i64 = 640;
 /// Set in the id of a crossing no record names: bit 62, far above any id
 /// `arda-settle` writes (review round 2 #25: bit 30 of a u32 met real ids
 /// once they reached 2^30).

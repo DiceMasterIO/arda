@@ -4,6 +4,7 @@
 
 mod house;
 mod roads;
+mod shore;
 mod structures;
 
 use crate::input::{m_to_ft, step5, RoadClass, Terrain, SQUARE_M, SWIM_FT};
@@ -298,6 +299,7 @@ pub fn apply(
     roads::paint(&mut g, plan, terrain);
     structures::paint(&mut g, plan, terrain);
     house::paint(&mut g, plan);
+    shore::paint(&mut g, plan, terrain);
     roads::finish(&mut g, plan);
     emit(layout, &g, plan.window)
 }

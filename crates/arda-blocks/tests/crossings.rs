@@ -149,3 +149,63 @@ fn ford_posts_bank_reeds_and_milestones_survive() {
     assert!(laid > 0, "no dressing laid");
     assert!(lost.is_empty(), "{} lost:\n{}", lost.len(), lost.join("\n"));
 }
+
+/// Review 3.5-9: a sea ferry is laid across all of its open water, shore
+/// to shore, or, too wide to rope, with a landing and a boat on each
+/// shore; never cut to a pad of a few squares.
+#[test]
+fn sea_ferries_span_their_water() {
+    let (world, society, pipeline) = open();
+    let library = lib();
+    let ferries: Vec<_> = world
+        .files
+        .roads
+        .crossings
+        .iter()
+        .filter(|c| c.kind == CrossingKind::Ferry && c.water != "river")
+        .collect();
+    assert!(!ferries.is_empty());
+    let mut report = Vec::new();
+    for f in ferries {
+        let (cx, cy) = cell_at(f.x_m, f.y_m);
+        let win = ((cx - 1) * 64, (cy - 1) * 64, 192, 192);
+        let c = pipeline.window(win, &library, Some(&society)).unwrap();
+        let feature = |i: usize| {
+            c.rules.squares[i]
+                .ext
+                .as_ref()
+                .and_then(|e| e.get("feature"))
+                .and_then(|v| v.as_str())
+                .map(str::to_owned)
+        };
+        let landings = (0..c.rules.squares.len())
+            .filter(|&i| feature(i).as_deref() == Some("landing"))
+            .count();
+        let rope = c
+            .layout
+            .placements
+            .iter()
+            .filter(|p| matches!(&p.asset, arda_tactical::layout::AssetRef::Id(id) if id == "prop.ferry_rope"))
+            .count();
+        let boats = c
+            .layout
+            .placements
+            .iter()
+            .filter(|p| matches!(&p.asset, arda_tactical::layout::AssetRef::Id(id) if id == "prop.ferry_boat"))
+            .count();
+        report.push(format!(
+            "ferry {}: {landings} landing squares, {rope} rope, {boats} boats",
+            f.id
+        ));
+        assert!(landings > 0, "ferry {}: no landing", f.id);
+        assert!(boats > 0, "ferry {}: no boat", f.id);
+        // A roped ferry crosses its water; a sea route too wide to rope
+        // lands on each shore instead.
+        assert!(
+            rope == 0 || rope >= 8,
+            "ferry {}: a {rope}-square rope is a pad",
+            f.id
+        );
+    }
+    eprintln!("{}", report.join("\n"));
+}

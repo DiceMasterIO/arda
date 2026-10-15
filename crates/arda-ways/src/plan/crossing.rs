@@ -17,6 +17,15 @@ pub const APPROACH_M: f64 = 4.0 * SQUARE_M;
 pub const ABUTMENT_SQ: i64 = 2;
 /// Squares of landing stage a ferry pushes into the water on each bank.
 pub const LANDING_SQ: i64 = 3;
+/// Longest open water a roped ferry spans, squares (400 m). A longer
+/// crossing is never cut to a pad: each of its shores gets a landing stage
+/// of its own ([`super::shore`]; review 3.5-9).
+pub const MAX_FERRY_SQ: i64 = 256;
+/// Gap of land a ferry's open water may hold (a rock, a sand bar), squares.
+const FERRY_GAP_SQ: i64 = 3;
+/// How far along its way from a record's foot a ferry's water may start,
+/// squares (one cell).
+const FERRY_SEED_SQ: i64 = 64;
 
 /// A resolved crossing on the global square lattice.
 #[derive(Debug, Clone, PartialEq)]
@@ -132,7 +141,56 @@ fn synthetic_half(w: f64) -> f64 {
 pub fn reach_m(c: &Crossing) -> f64 {
     let w = f64::from(c.width_m).max(3.0);
     let structure = f64::from(c.width_m) * 1.5 + 150.0;
-    structure.max(150.0 + synthetic_half(w) + w / 2.0 + SQUARE_M)
+    let reach = structure.max(150.0 + synthetic_half(w) + w / 2.0 + SQUARE_M);
+    // An open-water ferry may reach a far shore up to its longest span
+    // away, and every window it reaches must plan it (review 3.5-9).
+    #[allow(clippy::cast_precision_loss)] // a small constant
+    let ferry = 150.0 + (MAX_FERRY_SQ + 2 * LANDING_SQ) as f64 * SQUARE_M;
+    if c.water == "river" {
+        reach
+    } else {
+        reach.max(ferry)
+    }
+}
+
+/// The along-axis squares of the open water under `rows` next to `mid`,
+/// by the terrain's own knowledge ([`Terrain::open_water`]): `None` when it
+/// does not know, `Some(None)` when the water is longer than
+/// [`MAX_FERRY_SQ`] or absent.
+fn open_run(
+    terrain: &dyn Terrain,
+    east_west: bool,
+    rows: (i64, i64),
+    mid: i64,
+) -> Option<Option<(i64, i64)>> {
+    let at = |a: i64, r: i64| {
+        let (gx, gy) = if east_west { (a, r) } else { (r, a) };
+        terrain.open_water(gx, gy)
+    };
+    at(mid, rows.0)?;
+    let wet = |a: i64| (rows.0..=rows.1).any(|r| at(a, r) == Some(true));
+    // Settle puts a record at a cell centre, often on the shore: the
+    // water nearest it along the way, within one cell.
+    let Some(seed) = (0..=FERRY_SEED_SQ)
+        .flat_map(|d| [mid - d, mid + d])
+        .find(|&a| wet(a))
+    else {
+        return Some(None);
+    };
+    let (mut lo, mut hi) = (seed, seed);
+    while let Some(a) = (hi + 1..=hi + 1 + FERRY_GAP_SQ).find(|&a| wet(a)) {
+        hi = a;
+        if hi - lo > MAX_FERRY_SQ {
+            return Some(None);
+        }
+    }
+    while let Some(a) = (lo - 1 - FERRY_GAP_SQ..lo).rev().find(|&a| wet(a)) {
+        lo = a;
+        if hi - lo > MAX_FERRY_SQ {
+            return Some(None);
+        }
+    }
+    Some(Some((lo, hi)))
 }
 
 fn synthetic_channel(c: &Crossing, foot: P, dir: P) -> ChannelPlan {
@@ -222,16 +280,26 @@ pub(super) fn plan_one(
     let east_west = flow[1].abs() >= flow[0].abs();
     let rows = rows_for(c.kind, &ways[wi], east_west, centre);
     let mid = square_of(along(east_west, centre));
-    let reach = ((ch.width_m * 2.0 + 60.0) / SQUARE_M).ceil() as i64;
-    let mut water: Option<(i64, i64)> = None;
-    for r in rows.0..=rows.1 {
-        for a in mid - reach..=mid + reach {
-            let (gx, gy) = if east_west { (a, r) } else { (r, a) };
-            if ch.is_water(square_centre(gx, gy)) {
-                water = Some(water.map_or((a, a), |(lo, hi)| (lo.min(a), hi.max(a))));
+    // Open water the terrain knows: the whole of it, shore to shore.
+    let open = (c.water != "river")
+        .then(|| open_run(terrain, east_west, rows, mid))
+        .flatten();
+    let water = match open {
+        Some(run) => run,
+        None => {
+            let reach = ((ch.width_m * 2.0 + 60.0) / SQUARE_M).ceil() as i64;
+            let mut water: Option<(i64, i64)> = None;
+            for r in rows.0..=rows.1 {
+                for a in mid - reach..=mid + reach {
+                    let (gx, gy) = if east_west { (a, r) } else { (r, a) };
+                    if ch.is_water(square_centre(gx, gy)) {
+                        water = Some(water.map_or((a, a), |(lo, hi)| (lo.min(a), hi.max(a))));
+                    }
+                }
             }
+            water
         }
-    }
+    };
     let lay = Lay {
         id: c.id,
         kind: c.kind,

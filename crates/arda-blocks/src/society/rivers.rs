@@ -128,6 +128,10 @@ impl arda_ways::Terrain for WaysTerrain<'_> {
         self.water.is_water(gx, gy)
     }
 
+    fn open_water(&self, gx: i64, gy: i64) -> Option<bool> {
+        self.play.borrow_mut().open_water(self.src, gx, gy).ok()
+    }
+
     fn play_ft(&self, gx: i64, gy: i64) -> Option<i16> {
         self.play.borrow_mut().elevation_ft(self.src, gx, gy).ok()
     }

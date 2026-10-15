@@ -251,6 +251,16 @@ pub trait Terrain {
         false
     }
 
+    /// Whether global square `(gx, gy)` is open water (a lake or the sea),
+    /// when the caller knows it everywhere (the refined terrain): a ferry
+    /// over open water then spans all of it, shore to shore, the same in
+    /// every window (review 3.5-9). `None` by default: open-water ferries
+    /// span the record's synthetic channel.
+    fn open_water(&self, gx: i64, gy: i64) -> Option<bool> {
+        let _ = (gx, gy);
+        None
+    }
+
     /// The play elevation the map draws at global square `(gx, gy)`, in
     /// feet, when the caller knows it (the refined terrain): a bridge deck
     /// is set from it, so the deck meets the banks the map shows (review
