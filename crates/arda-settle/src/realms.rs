@@ -2,8 +2,9 @@
 //!
 //! 1. Seats are chosen in `seats.rs` (spread, balanced large towns).
 //! 2. Allegiance ([`territory`]): every cell swears to the seat cheapest to
-//!    reach over the terrain cost surface (one multi-source Dijkstra); ties
-//!    go to the earlier seat. This runs right after placement, so the
+//!    reach over the terrain cost surface, each seat starting with an
+//!    offset that balances the realms' people and land (`balance.rs`;
+//!    OI-53); ties go to the earlier seat. This runs right after placement, so the
 //!    primate capitals and the city cap (`primacy.rs`) size towns by the
 //!    realm they really end up in (review 3.3-8).
 //! 3. Borders: crossing a river of order ≥ 3 or a ridge crest carries a
@@ -15,24 +16,18 @@
 //!
 //! Every land cell belongs to exactly one realm, so borders are closed.
 
-use crate::cost::{self, CostSurface};
+use crate::balance;
+use crate::cost::CostSurface;
 use crate::error::SettleError;
-use crate::grid::{filled, Grid, OFFSETS8};
+use crate::grid::{filled, Grid};
 use crate::model::Settlement;
-use crate::roads::RoadClass;
 use crate::snap;
 use crate::tags::Sites;
 use serde::{Deserialize, Serialize};
-use std::cmp::Reverse;
-use std::collections::{BTreeMap, BTreeSet, BinaryHeap};
+use std::collections::{BTreeMap, BTreeSet};
 
 /// A unit border edge between two cell corners.
 type Segment = ((i64, i64), (i64, i64));
-
-/// Toll for stepping over a river of order ≥ 3, metre-equivalents.
-const RIVER_TOLL: u64 = 800;
-/// Toll for stepping onto a ridge crest.
-const RIDGE_TOLL: u64 = 600;
 
 /// One realm, as written to `society/realms.json`.
 #[cfg_attr(feature = "schema", derive(schemars::JsonSchema))]
@@ -142,43 +137,11 @@ pub fn territory(
     settlements: &[Settlement],
 ) -> Result<Territory, SettleError> {
     let ridge = ridges(g, sites)?;
-    let mut best = filled(g.len(), u64::MAX, "allegiance cost")?;
-    let mut map = filled(g.len(), 0_u16, "realm map")?;
-    let mut heap = BinaryHeap::new();
-    for (slot, &k) in seats.iter().enumerate() {
-        let c = settlements[k].index(g.width);
-        let id = u16::try_from(slot + 1).unwrap_or(u16::MAX);
-        best[c] = 0;
-        map[c] = id;
-        heap.push(Reverse((0_u64, id, c)));
-    }
-    while let Some(Reverse((d, id, a))) = heap.pop() {
-        if d > best[a] || map[a] != id {
-            continue;
-        }
-        let (ax, ay) = g.xy(a);
-        for &(dx, dy) in &OFFSETS8 {
-            let Some(b) = g.at(ax + dx, ay + dy) else {
-                continue;
-            };
-            let Some(mut c) = cost::travel(g, cs, a, b, (dx, dy), RoadClass::Road) else {
-                continue;
-            };
-            if g.is_watercourse(b) && g.order[b] >= 3 && !g.is_watercourse(a) {
-                c += RIVER_TOLL;
-            }
-            if ridge[b] && !ridge[a] {
-                c += RIDGE_TOLL;
-            }
-            let nd = d + c;
-            if nd < best[b] || (nd == best[b] && id < map[b]) {
-                best[b] = nd;
-                map[b] = id;
-                heap.push(Reverse((nd, id, b)));
-            }
-        }
-    }
-    drop(best);
+    let seat_cells: Vec<usize> = seats
+        .iter()
+        .map(|&k| settlements[k].index(g.width))
+        .collect();
+    let mut map = balance::partition(g, cs, &ridge, &seat_cells, settlements)?;
     for (i, m) in map.iter_mut().enumerate() {
         if !g.is_land(i) {
             *m = 0;
@@ -188,10 +151,6 @@ pub fn territory(
         .map(|i| ridge[i] || (g.is_watercourse(i) && g.order[i] >= 3))
         .collect();
     let (raw_border_pm, _) = snap::on_line_share(g, &map, &line)?;
-    let seat_cells: Vec<usize> = seats
-        .iter()
-        .map(|&k| settlements[k].index(g.width))
-        .collect();
     let raw_map = map.clone();
     snap::snap(g, &mut map, &line, &seat_cells)?;
     let (mut natural_border_pm, mut natural_all_pm) = snap::on_line_share(g, &map, &line)?;

@@ -7,6 +7,7 @@
 //! README for the formats and the rules each stage follows.
 #![cfg_attr(test, allow(clippy::unwrap_used, clippy::expect_used))]
 
+pub mod balance;
 pub mod canvas;
 pub mod central;
 pub mod cost;
