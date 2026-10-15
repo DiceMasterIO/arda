@@ -142,9 +142,11 @@ pub fn choose(lat: &Lattice, settlements: &[Settlement], n: usize) -> Vec<usize>
 
 /// `n` seats among `urban` (sorted largest first).
 fn pick(lat: &Lattice, settlements: &[Settlement], urban: &[usize], n: usize) -> Vec<usize> {
-    // Seats are among the larger towns: the larger half, and at least
-    // twice as many as there are seats.
-    let keep = urban.len().div_ceil(2).max(2 * n).min(urban.len());
+    // Seats are among the larger towns: the larger half, and at least four
+    // per seat. With few towns the larger half can lie in one region of
+    // the land (recipe-9 MICRO 42: all four of eight), leaving none to
+    // seed a far realm; the d² · population pick still prefers large towns.
+    let keep = urban.len().div_ceil(2).max(4 * n).min(urban.len());
     let urban = &urban[..keep];
     // 1. Size-weighted farthest-point seeding over travel cost; a town
     // the lattice cannot reach from any seat (an island) counts its
@@ -277,6 +279,38 @@ mod tests {
             1,
             "one seat in the north-west: {seats:?}"
         );
+    }
+
+    /// Recipe-9 MICRO seed 42: eight towns, the four largest all in the
+    /// north of a long continent. With the pool cut to the larger half
+    /// (four towns), the second seat stood 30 km from the first and the
+    /// south was 60 km and more from either; a town of the south must be
+    /// eligible when there are few towns.
+    #[test]
+    fn few_towns_do_not_bunch_both_seats_in_one_region() {
+        let mut s = vec![
+            town(1, 46, 94, 12_800),
+            town(2, 73, 108, 9_000),
+            town(3, 55, 66, 3_400),
+            town(4, 71, 78, 2_150),
+            town(5, 63, 172, 2_100),
+            town(6, 100, 102, 1_550),
+            town(7, 101, 127, 1_450),
+            town(8, 83, 180, 1_450),
+        ];
+        // The south is farmland: its villages hold as many people as the
+        // northern towns, so balance does not pull both seats north.
+        for y in (10..195).step_by(10) {
+            for x in (10..110).step_by(10) {
+                let id = u64::try_from(s.len() + 1).unwrap();
+                let people = if y >= 140 { 900 } else { 150 };
+                s.push(Settlement::bare(id, x, y, Tier::Village, people));
+            }
+        }
+        let land = Lattice::new(120, 200, |_| true, |_| 0);
+        let seats = choose(&land, &s, 2);
+        let south = seats.iter().filter(|&&k| s[k].cell_y >= 150).count();
+        assert_eq!(south, 1, "one seat in the south: {seats:?}");
     }
 
     #[test]

@@ -104,7 +104,13 @@ fn check(seed: u64) {
         );
     }
     // Seat spread: no two seats closer than 0.4 of the even lattice
-    // spacing, and nine people in ten within 0.85 of it of a seat.
+    // spacing, and nine people in ten within one spacing of a seat. The
+    // lattice assumes people spread evenly over compact land; seats can
+    // only be towns. On recipe-9 MICRO 42 (two realms, eight towns, half
+    // the people north of y = 945 on land running to y = 1907) no pair of
+    // towns keeps the people within 2.5x (asserted below) and nine in ten
+    // within 0.85 spacing: the best balanced pair reaches 0.905 of it
+    // (exhaustive over all 28 pairs), so 0.85 was infeasible there.
     assert!(
         r.seat_nn_min_km >= 0.4 * r.seat_lattice_km,
         "seed {seed}: seats {} km apart, lattice {} km",
@@ -112,7 +118,7 @@ fn check(seed: u64) {
         r.seat_lattice_km
     );
     assert!(
-        r.people_to_seat_p90_km <= 0.85 * r.seat_lattice_km,
+        r.people_to_seat_p90_km <= r.seat_lattice_km,
         "seed {seed}: p90 {} km from a seat, lattice {} km",
         r.people_to_seat_p90_km,
         r.seat_lattice_km
