@@ -127,3 +127,61 @@ fn low_headlands_keep_beaches_only_on_sand_bodies_or_at_mouths() {
     };
     assert_eq!(classify(&front), ShoreClass::SandBeach);
 }
+
+/// A coast at y = 200 rising 5 m per 100 m inland, with a 120 m ridge
+/// 150 m back from the waterline: a gentle coast below a steep hill.
+fn gentle_coast_below_a_hill() -> Lattice {
+    let (w, h) = (512, 512);
+    let mut g = Lattice::new(w, h, 39_062_500).unwrap();
+    for y in 0..h {
+        for x in 0..w {
+            let inland_m = (200 - y as i64) * 39;
+            g.z[y * w + x] = if inland_m < 0 {
+                -6_000
+            } else if inland_m >= 150 {
+                120_000
+            } else {
+                i32::try_from(500 + inland_m * 50).unwrap()
+            };
+        }
+    }
+    g
+}
+
+/// Review 3.1-12 (OI-41): the rise was the highest land in a 5 x 5 window
+/// (up to 283 m away on diagonals) with no slope test, and an exposure of
+/// 30/255 (about 7 km of fetch) let it call almost every coast a cliff.
+/// Recipe 9 measures the rise within 100 m of the waterline and needs
+/// real exposure for a cliff.
+#[test]
+fn recipe_9_does_not_call_a_gentle_coast_below_a_hill_a_cliff() {
+    let g = gentle_coast_below_a_hill();
+    let count = |layer: &arda_core::ShoreLayer, class: ShoreClass| {
+        layer.classes.iter().filter(|&&c| c == class).count()
+    };
+    let v7 = survey_recipe(&g, 100_000_000, 3, &Builders::default(), false).unwrap();
+    let v9 = survey_recipe(&g, 100_000_000, 3, &Builders::default(), true).unwrap();
+    eprintln!(
+        "cliff cells: recipe 7 {}, recipe 9 {}",
+        count(&v7, ShoreClass::Cliff),
+        count(&v9, ShoreClass::Cliff)
+    );
+    assert!(count(&v7, ShoreClass::Cliff) > 100, "recipe 7 cliffs it");
+    assert_eq!(count(&v9, ShoreClass::Cliff), 0, "recipe 9 does not");
+    // A real cliff (40 m at the waterline) on exposed water stays a cliff.
+    let exposed = setting(150, 30, 150);
+    assert_eq!(
+        classify_recipe(&cell(true, 40, 500, exposed), true),
+        ShoreClass::Cliff
+    );
+    // Moderate rise on barely exposed water is no longer a cliff.
+    let sheltered = setting(40, 30, 150);
+    assert_eq!(
+        classify_recipe(&cell(true, 20, 500, sheltered), false),
+        ShoreClass::Cliff
+    );
+    assert_ne!(
+        classify_recipe(&cell(true, 20, 500, sheltered), true),
+        ShoreClass::Cliff
+    );
+}

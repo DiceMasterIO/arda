@@ -77,10 +77,30 @@ pub struct ShoreCell {
     pub setting: Setting,
 }
 
-/// The shore class of one cell (logic/02 §fine-formation shore classes).
+/// Recipe-9 cliff: land rising at least this much within 100 m of the
+/// waterline, metres (about 14°).
+pub const CLIFF_RISE_M_V9: i32 = 25;
+/// Recipe-9 cliff: wave exposure at least this (about 20 km of fetch).
+pub const CLIFF_EXPOSURE_V9: u8 = 80;
+
+/// The shore class of one cell (logic/02 §fine-formation shore classes),
+/// as recipes 6-8 classify it.
 #[must_use]
 pub fn classify(c: &ShoreCell) -> ShoreClass {
+    classify_recipe(c, false)
+}
+
+/// [`classify`]; with `v9` (recipe 9, review 3.1-12) a cliff needs
+/// [`CLIFF_RISE_M_V9`] within 100 m of the waterline (the survey measures
+/// `rise_m` there) on water of at least [`CLIFF_EXPOSURE_V9`].
+#[must_use]
+pub fn classify_recipe(c: &ShoreCell, v9: bool) -> ShoreClass {
     let s = &c.setting;
+    let (cliff_rise, cliff_exposure) = if v9 {
+        (CLIFF_RISE_M_V9, CLIFF_EXPOSURE_V9)
+    } else {
+        (CLIFF_RISE_M, 30)
+    };
     let bay = c.sea_share < BAY_SHARE;
     if !c.land {
         return if c.mouth_km2 >= ESTUARY_KM2 && c.sea_share < 550 {
@@ -110,7 +130,7 @@ pub fn classify(c: &ShoreCell) -> ShoreClass {
     } else if bay && c.rise_m < BAY_BEACH_RISE_M {
         // Bay-head (pocket) beach: waves diverge in the bay and drop sand.
         sandy()
-    } else if c.rise_m >= CLIFF_RISE_M && s.exposure >= 30 {
+    } else if c.rise_m >= cliff_rise && s.exposure >= cliff_exposure {
         ShoreClass::Cliff
     } else if c.rise_m < BEACH_RISE_M
         && (c.sand_body || c.mouth_km2 >= HEADLAND_MOUTH_KM2 || (!headland && s.sediment >= 60))
@@ -135,6 +155,23 @@ pub fn survey(
     spacing_um: i64,
     base_seed: u64,
     built: &Builders<'_>,
+) -> Result<ShoreLayer, FormationError> {
+    survey_recipe(g, spacing_um, base_seed, built, false)
+}
+
+/// [`survey`]; with `v9` (recipe 9, review 3.1-12) the rise is the highest
+/// land within one survey cell (100 m) of the shore cell rather than two
+/// (up to 283 m on the diagonals), and cells are classified by
+/// [`classify_recipe`].
+///
+/// # Errors
+/// Allocation failure.
+pub fn survey_recipe(
+    g: &Lattice,
+    spacing_um: i64,
+    base_seed: u64,
+    built: &Builders<'_>,
+    v9: bool,
 ) -> Result<ShoreLayer, FormationError> {
     let s = i128::from(spacing_um);
     let span_x = (g.width as i128 - 1) * i128::from(g.spacing_um);
@@ -195,11 +232,12 @@ pub fn survey(
         (y.saturating_sub(1)..(y + 2).min(h))
             .any(|yy| (x.saturating_sub(1)..(x + 2).min(w)).any(|xx| sea(yy * w + xx) == want_sea))
     };
+    let reach = if v9 { 1 } else { 2 };
     let rise_m = |i: usize| {
         let (x, y) = (i % w, i / w);
         let mut top = 0;
-        for yy in y.saturating_sub(2)..(y + 3).min(h) {
-            for xx in x.saturating_sub(2)..(x + 3).min(w) {
+        for yy in y.saturating_sub(reach)..(y + reach + 1).min(h) {
+            for xx in x.saturating_sub(reach)..(x + reach + 1).min(w) {
                 top = top.max(z[yy * w + xx]);
             }
         }
@@ -229,16 +267,19 @@ pub fn survey(
         let Some(setting) = setting.at_fine(fine_of(i)) else {
             continue;
         };
-        *class = classify(&ShoreCell {
-            land,
-            z_mm: z[i],
-            rise_m: rise_m(i),
-            sea_share: share[i],
-            mouth_km2: mouth_km2[i],
-            sand_body: sand_body(i),
-            delta: mark[i] & 2 != 0,
-            setting,
-        });
+        *class = classify_recipe(
+            &ShoreCell {
+                land,
+                z_mm: z[i],
+                rise_m: rise_m(i),
+                sea_share: share[i],
+                mouth_km2: mouth_km2[i],
+                sand_body: sand_body(i),
+                delta: mark[i] & 2 != 0,
+                setting,
+            },
+            v9,
+        );
     }
     // Open-sea shore cells left unclassified take the class of their
     // highest land neighbour, so every waterline has material on both

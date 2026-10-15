@@ -276,7 +276,7 @@ pub(super) fn run(mut g: Lattice, ctx: Context<'_>) -> Result<Formed, FormationE
         deltas: &features.deltas,
         barrier_cells: &littoral.barrier_cells,
     };
-    let mut layer = shore::survey(&g, PREPARED_SPACING_UM, base_seed, &built)?;
+    let mut layer = shore::survey_recipe(&g, PREPARED_SPACING_UM, base_seed, &built, v9)?;
     landforms.extend(troughs.iter().map(|&(x_um, y_um)| arda_core::Landform {
         x_um,
         y_um,
