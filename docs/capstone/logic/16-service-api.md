@@ -55,7 +55,7 @@ Implemented (registered in `crates/arda-server/src/routes.rs` and `src/tactical/
 | `GET /v1/world` | `WorldInfo` (with `server_version` and `versions`) | 01, §api-versioning |
 | `GET /v1/cell/{gx}/{gy}`, `GET /v1/point?x_m=&y_m=` | `CellSample`, `PointSample` | 05, §api-cell-society |
 | `GET /v1/area/{ax}/{ay}/cells[?format=json\|bin]`, `/rivers`, `/lakes` | `AreaCells` or `ARDACOLS`, `AreaRivers`, `AreaLakes` | 05 |
-| `GET /v1/overview.png[?quality=&style=]` | PNG | 04 |
+| `GET /v1/overview.png[?quality=&style=&labels=]` | PNG; `labels=1` (default 0, plain bytes unchanged) draws the gazetteer's names exactly as the pyramid level of that size's tiles do (long edge 4,096 = level 4), up to quality 4,096; 400 on the oblique look or a world without a gazetteer | 04, 17 §labels |
 | `?overlay=society\|none` on `GET /v1/overview.png` and the overview tiles | land use, roads and tier symbols painted into the overview pyramid (implemented); default `society` when the world has `society/`, never for the oblique look; `society` without society files or with oblique is 400; render, pyramid and tile cache keys include it | 04 §overlay |
 | `GET /v1/tiles/overview/{z}/{x}/{y}.webp\|.png[?oblique=&labels=]` | 256 px tiles | §api-tiles |
 | `GET /v1/tiles/relief/{z}/{x}/{y}.webp[?labels=]` | 256 px mid-zoom relief tiles | 17 |
