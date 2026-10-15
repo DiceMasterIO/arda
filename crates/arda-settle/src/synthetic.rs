@@ -191,12 +191,23 @@ pub fn landscape(seed: u64) -> Result<Grid, SettleError> {
             0.0
         };
         let valley = if d == 0.0 { 0.0 } else { 2200.0 + d * 700.0 };
-        let h = b.h as f64 + valley + hills * 130_000.0 * ramp + mountain * ramp;
+        // The sheltered bay's head eases down to the tide over 1.2 km, so it
+        // has low landings (`tags::harbours`); the open coast is cliffs.
+        let plain = if (y - 240).abs() < 40 {
+            (((x - cx + 1) as f64) / 12.0).min(1.0)
+        } else {
+            1.0
+        };
+        let bed_h = b.h as f64 * plain;
+        let h = bed_h + (valley + hills * 130_000.0 * ramp + mountain * ramp) * plain;
         g.height_mm[i] = h as i32;
-        g.har_dm[i] = sat_u16(((h - b.h as f64) / 100.0) as i64);
+        g.har_dm[i] = sat_u16(((h - bed_h) / 100.0) as i64);
         if let Some(own) = bed[i] {
             g.order[i] = own.order;
             g.width_dm[i] = own.width_dm;
+            // The generator's width law, w = 4·√Q m, inverted.
+            let q_m3 = (f64::from(own.width_dm) / 40.0).powi(2);
+            g.discharge_milli[i] = (q_m3 * 1000.0) as u32;
             g.drainage[i] = own.drainage;
             g.har_dm[i] = 0;
         } else {

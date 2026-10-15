@@ -6,7 +6,7 @@
 //! dry terrace beside it rather than in the stream.
 
 use crate::error::SettleError;
-use crate::field::{distance_m, Integral};
+use crate::field::{distance_m, near_low, Integral};
 use crate::grid::{filled, Grid};
 use crate::ore;
 use arda::{Cover, TerrainKind};
@@ -49,7 +49,8 @@ pub const FOREST: u32 = 1 << 16;
 pub const MARSH: u32 = 1 << 17;
 /// In the mountains.
 pub const MOUNTAIN: u32 = 1 << 18;
-/// Within 300 m of a navigable river (order ≥ 4).
+/// Within 300 m of a navigable reach (wide and deep enough for river
+/// boats, [`navigable_reach`]), on ground near its level.
 pub const NAVIGABLE: u32 = 1 << 19;
 /// Arable: gentle, warm and moist enough, above flood level, clearable cover.
 pub const ARABLE: u32 = 1 << 20;
@@ -94,9 +95,36 @@ pub fn names(bits: u32) -> Vec<String> {
 const FORD_WIDTH_M: (u32, u32) = (2, 14);
 /// Radius of the "short walk" that carries a point tag to nearby land.
 const WALK_M: u32 = 300;
+/// A reach is navigable by river boats from this channel width, metres
+/// (assumed, tunable; review 3.3-1).
+pub const NAV_WIDTH_M: u32 = 25;
+/// ... and from this discharge, thousandths of m³/s: the discharge at which
+/// downstream hydraulic geometry `d = 0.27 · Q^0.39` (Leopold and Maddock's
+/// form; coefficients assumed, tunable) gives a 1 m deep channel.
+pub const NAV_DISCHARGE_MILLI: u32 = 28_700;
+/// Port tags (`navigable`, `harbour`, `estuary`) only reach land at most
+/// this far above the water level they name, millimetres: a quay or a
+/// landing stands at the water, not on the bluff above it (assumed,
+/// tunable).
+pub const QUAY_RISE_MM: i32 = 10_000;
+/// A harbour's landing (the coast cell itself) stands at most this high,
+/// millimetres ...
+pub const LANDING_MAX_MM: i32 = 5_000;
+/// ... on a slope of at most this, thousandths of a degree.
+pub const LANDING_SLOPE_MD: u16 = 6_000;
 /// Saddle test offset and height margin.
 const SADDLE_R: i64 = 10;
 const SADDLE_MARGIN_MM: i32 = 30_000;
+
+/// Whether a watercourse cell is a navigable reach: wide and deep enough
+/// for river boats by [`NAV_WIDTH_M`] and [`NAV_DISCHARGE_MILLI`], whatever
+/// its Strahler order (review 3.3-1).
+#[must_use]
+pub fn navigable_reach(g: &Grid, i: usize) -> bool {
+    g.is_watercourse(i)
+        && g.width_m(i) >= NAV_WIDTH_M
+        && g.discharge_milli[i] >= NAV_DISCHARGE_MILLI
+}
 
 /// Whether a cell can be ploughed (artifact "arable").
 #[must_use]
@@ -183,12 +211,18 @@ pub fn compute(g: &Grid, seed: u64) -> Result<Sites, SettleError> {
     }
     let confluence = near(&|i| conf_mask[i], WALK_M)?;
     let sea = |i: usize| g.terrain[i] == TerrainKind::Sea;
-    let mouth = near(
-        &|i| g.is_watercourse(i) && g.order[i] >= 3 && g.neighbours8(i).any(|(j, _, _)| sea(j)),
+    // Port tags stay on ground near the water they name (review 3.3-1).
+    let mouth = near_low(
+        g,
+        |i| {
+            (g.is_watercourse(i) && g.order[i] >= 3 && g.neighbours8(i).any(|(j, _, _)| sea(j)))
+                .then_some(g.height_mm[i])
+        },
         500,
+        QUAY_RISE_MM,
     )?;
     let harbour_cells = harbours(g)?;
-    let harbour = near(&|i| harbour_cells[i], WALK_M)?;
+    let harbour = near_low(g, |i| harbour_cells[i].then_some(0), WALK_M, QUAY_RISE_MM)?;
     let saddle = saddles(g)?;
     let pass = near(&|i| saddle[i], WALK_M)?;
     let head = near(
@@ -203,7 +237,12 @@ pub fn compute(g: &Grid, seed: u64) -> Result<Sites, SettleError> {
     )?;
     let river = near(&|i| g.is_watercourse(i) && g.order[i] >= 2, 150)?;
     let big_river = near(&|i| g.is_watercourse(i) && g.order[i] >= 3, 200)?;
-    let navigable = near(&|i| g.is_watercourse(i) && g.order[i] >= 4, WALK_M)?;
+    let navigable = near_low(
+        g,
+        |i| navigable_reach(g, i).then_some(g.height_mm[i]),
+        WALK_M,
+        QUAY_RISE_MM,
+    )?;
     let lake = near(&|i| g.terrain[i] == TerrainKind::Lake, WALK_M)?;
     let coast = near(&sea, WALK_M)?;
     let marsh = near(&|i| g.is_land(i) && g.cover[i] == Cover::Marsh, WALK_M)?;
@@ -318,13 +357,14 @@ pub fn open_rays(g: &Grid, i: usize) -> u32 {
     open
 }
 
-/// Coastal cells on a sheltered, deep bay: open to the sea through one to
+/// Coastal cells on a sheltered, deep bay: a low, gentle landing
+/// ([`LANDING_MAX_MM`], [`LANDING_SLOPE_MD`]) open to the sea through one to
 /// four of sixteen rays (a mouth no wider than a right angle) with water at
 /// least 3 m deep within 300 m.
 fn harbours(g: &Grid) -> Result<Vec<bool>, SettleError> {
     let mut out = filled(g.len(), false, "harbour mask")?;
     for (i, o) in out.iter_mut().enumerate() {
-        if !g.is_coast(i) {
+        if !g.is_coast(i) || g.height_mm[i] > LANDING_MAX_MM || g.slope_md[i] > LANDING_SLOPE_MD {
             continue;
         }
         let rays = open_rays(g, i);

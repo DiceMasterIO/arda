@@ -48,6 +48,7 @@ pub fn load_grid(world: &World, budget: u64) -> Result<Grid, SettleError> {
                 grid.drainage[i] = c.drainage_area_cells;
                 grid.order[i] = c.watercourse_order;
                 grid.width_dm[i] = c.watercourse_width_dm;
+                grid.discharge_milli[i] = u32::try_from(c.discharge.raw()).unwrap_or(u32::MAX);
                 grid.har_dm[i] = c.height_above_river_dm;
             }
         }

@@ -138,6 +138,56 @@ pub fn distance_m(
     Ok(d)
 }
 
+/// Land within `within` metres (chamfer 100 / 141, over land only) of a
+/// source cell, reached without ever standing more than `rise_mm` above
+/// the source's water level: the ground a quay, a landing or a waterfront
+/// can actually use. `level(i)` is the water level a source cell names
+/// (`None` for non-sources); sources themselves are included. Expansion is
+/// a Dijkstra over `(distance, cell)`, so the result is deterministic.
+///
+/// # Errors
+/// [`SettleError::Reserve`] when the scratch rasters cannot be allocated.
+pub fn near_low(
+    grid: &Grid,
+    level: impl Fn(usize) -> Option<i32>,
+    within: u32,
+    rise_mm: i32,
+) -> Result<Vec<bool>, SettleError> {
+    use std::cmp::Reverse;
+    use std::collections::BinaryHeap;
+    let n = grid.len();
+    let mut out = filled(n, false, "waterfront mask")?;
+    let mut best = filled(n, u32::MAX, "waterfront distance")?;
+    let mut lvl = filled(n, 0_i32, "waterfront level")?;
+    let mut heap = BinaryHeap::new();
+    for i in 0..n {
+        if let Some(l) = level(i) {
+            best[i] = 0;
+            lvl[i] = l;
+            out[i] = true;
+            heap.push(Reverse((0_u32, i)));
+        }
+    }
+    while let Some(Reverse((d, a))) = heap.pop() {
+        if d > best[a] {
+            continue;
+        }
+        for (b, dx, dy) in grid.neighbours8(a) {
+            if !grid.is_land(b) || grid.height_mm[b].saturating_sub(lvl[a]) > rise_mm {
+                continue;
+            }
+            let nd = d + if dx != 0 && dy != 0 { 141 } else { 100 };
+            if nd <= within && nd < best[b] {
+                best[b] = nd;
+                lvl[b] = lvl[a];
+                out[b] = true;
+                heap.push(Reverse((nd, b)));
+            }
+        }
+    }
+    Ok(out)
+}
+
 /// Linear ramp: `full` per-mille at or below `lo`, nothing at or above `hi`.
 #[must_use]
 pub fn falloff(v: i64, lo: i64, hi: i64) -> i64 {

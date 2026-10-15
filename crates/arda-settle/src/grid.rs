@@ -53,6 +53,9 @@ pub struct Grid {
     pub order: Vec<u8>,
     /// Channel width in decimetres.
     pub width_dm: Vec<u32>,
+    /// Mean discharge in thousandths of a cubic metre per second
+    /// (saturating at `u32::MAX`); 0 off a watercourse.
+    pub discharge_milli: Vec<u32>,
     /// Height above the nearest downstream channel, decimetres.
     pub har_dm: Vec<u16>,
     /// Confluence cells of two sizeable rivers, from the saved segments.
@@ -90,6 +93,7 @@ impl Grid {
             drainage: filled(n, 1, "drainage")?,
             order: filled(n, 0, "order")?,
             width_dm: filled(n, 0, "width")?,
+            discharge_milli: filled(n, 0, "discharge")?,
             har_dm: filled(n, 0, "height above river")?,
             confluences: Vec::new(),
         })

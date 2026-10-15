@@ -168,8 +168,15 @@ pub fn partition(
         .iter()
         .map(|&k| settlements[k].index(g.width))
         .collect();
+    let raw_map = map.clone();
     snap::snap(g, &mut map, &line, &seat_cells)?;
-    let (natural_border_pm, natural_all_pm) = snap::on_line_share(g, &map, &line)?;
+    let (mut natural_border_pm, mut natural_all_pm) = snap::on_line_share(g, &map, &line)?;
+    // Snapping must never pull a border off a line it already ran on: when
+    // the repaired partition is worse than the raw one, the raw one stands.
+    if natural_border_pm < raw_border_pm {
+        map = raw_map;
+        (natural_border_pm, natural_all_pm) = snap::on_line_share(g, &map, &line)?;
+    }
     for s in settlements.iter_mut() {
         s.realm_id = arda_ids::RealmId(u64::from(map[s.index(g.width)]));
     }
