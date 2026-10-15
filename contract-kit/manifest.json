@@ -121,7 +121,7 @@
       "content_type": "image/png",
       "headers": {
         "cache-control": "no-cache",
-        "etag": "\"27e5a7d9ffe242fb9d2cd80fbe494245428e6bcdc5a3c7bb350da034ae1c48f9\""
+        "etag": "\"236b5ad7c7b0b2d59fc84811b6f9312a\""
       },
       "schema": null,
       "body": {
@@ -138,7 +138,7 @@
       "content_type": "image/webp",
       "headers": {
         "cache-control": "no-cache",
-        "etag": "\"fd0f47e7043ed90f41350f64d50c153c391d1e83f5bce7215ab3450e0a2ec511\""
+        "etag": "\"e0fb36a9a1e537923b4a0d9c3d3c45da\""
       },
       "schema": null,
       "body": {
@@ -155,7 +155,7 @@
       "status": 304,
       "content_type": null,
       "headers": {
-        "etag": "\"fd0f47e7043ed90f41350f64d50c153c391d1e83f5bce7215ab3450e0a2ec511\""
+        "etag": "\"e0fb36a9a1e537923b4a0d9c3d3c45da\""
       },
       "schema": null,
       "body": {
@@ -172,7 +172,7 @@
       "content_type": "image/webp",
       "headers": {
         "cache-control": "no-cache",
-        "etag": "\"fd0f47e7043ed90f41350f64d50c153c391d1e83f5bce7215ab3450e0a2ec511\""
+        "etag": "\"cbee41ea7f60eae64fd7e5f80ea1e9ac\""
       },
       "schema": null,
       "body": {
@@ -189,7 +189,7 @@
       "content_type": "image/png",
       "headers": {
         "cache-control": "no-cache",
-        "etag": "\"02d964e235f75adc3ba67851633e6a3e1d38172e657b12cc8a61f6c5cebb31cd\""
+        "etag": "\"783772edc700fff681fc20c2c664f842\""
       },
       "schema": null,
       "body": {
@@ -206,7 +206,7 @@
       "content_type": "image/webp",
       "headers": {
         "cache-control": "no-cache",
-        "etag": "\"422bd9dbe378c4befff7cf39c505e0ad9a85674769fe3768d7a2d97172513d9f\""
+        "etag": "\"220fa37dd2b298fb3a059541b3ea6af0\""
       },
       "schema": null,
       "body": {
@@ -323,7 +323,7 @@
       "status": 200,
       "content_type": "application/json",
       "headers": {
-        "cache-control": null
+        "cache-control": "no-cache"
       },
       "schema": "TacticalScene",
       "golden": "golden/tactical-scene-day.json"
@@ -336,7 +336,7 @@
       "status": 200,
       "content_type": "application/json",
       "headers": {
-        "cache-control": null
+        "cache-control": "no-cache"
       },
       "schema": "TacticalScene",
       "golden": "golden/tactical-scene-night.json"
@@ -350,12 +350,12 @@
       "content_type": "image/png",
       "headers": {
         "cache-control": "no-cache",
-        "etag": "\"affcd9786cbec0beb382ae0ef851f130\""
+        "etag": "\"494480947daea45836d95076a0e7b7fb\""
       },
       "schema": null,
       "body": {
-        "sha256": "ebafb25aa09561ea16491a19353bf799c08e9e891876d86823e5a9f9edf1d48c",
-        "bytes": 36615478
+        "sha256": "dd36ce1f0a1ce608a278c8f38defc28e6fbc8e42f5b96bc60884d108aed0fc20",
+        "bytes": 36614962
       }
     },
     {
@@ -367,7 +367,7 @@
       "status": 304,
       "content_type": null,
       "headers": {
-        "etag": "\"affcd9786cbec0beb382ae0ef851f130\""
+        "etag": "\"494480947daea45836d95076a0e7b7fb\""
       },
       "schema": null,
       "body": {
@@ -384,12 +384,12 @@
       "content_type": "image/webp",
       "headers": {
         "cache-control": "no-cache",
-        "etag": "\"7979fc89f10c9ca9cfb9533a12db3309\""
+        "etag": "\"ec61546974befe735e9ceee3371fcc62\""
       },
       "schema": null,
       "body": {
-        "sha256": "adac3c1a7484115fc3b94499168c235fa7ef8b4067553e727920aa9e4dc715cf",
-        "bytes": 563982
+        "sha256": "c0d198576952460c0bab07c3bd8c73e9ef1383202b951dc49b4ac18f4fb9b2a0",
+        "bytes": 563984
       }
     },
     {
@@ -404,8 +404,8 @@
       },
       "schema": "TacticalBlockDto",
       "body": {
-        "sha256": "be28868a3dfdee0623e3c42957a40a7bad275fd248dec9dd6e2aaac581faa1b5",
-        "bytes": 1511143
+        "sha256": "1fd097ee1fbd2287cec0ca4aba21169ee47aa1dbed492284256eb871462dcb7e",
+        "bytes": 1499480
       }
     },
     {
@@ -417,12 +417,12 @@
       "content_type": "image/png",
       "headers": {
         "cache-control": "no-cache",
-        "etag": "\"9a0b568d3c658cfd424cfd6fe74a176d\""
+        "etag": "\"901d3fa564fd981a559fc2759ed0e18f\""
       },
       "schema": null,
       "body": {
-        "sha256": "2897b885f3e0f8d07e83fd49b71537152f268e56e67c9ffa46c80975adb0ee79",
-        "bytes": 18148808
+        "sha256": "bb5702d6aa9f5615c102cde71bbfc1fd5eec7bcf1c9fcf586a5623d97f5d0eb7",
+        "bytes": 18149368
       }
     },
     {
@@ -434,12 +434,12 @@
       "content_type": "image/webp",
       "headers": {
         "cache-control": "no-cache",
-        "etag": "\"79ee3fba02b3c867481244d8eddaa869\""
+        "etag": "\"012754990f37cd5a5482534c21bd5732\""
       },
       "schema": null,
       "body": {
-        "sha256": "087757c2852f27f96806d6c192c3ae6cdafe35067d4c28b259d5ed78a7969d07",
-        "bytes": 273282
+        "sha256": "7287596285e3b674c0b9f6986a70faff15c8f8e16d88cba4911a1851b1e0165f",
+        "bytes": 273284
       }
     },
     {
@@ -477,7 +477,7 @@
       "content_type": "image/png",
       "headers": {
         "cache-control": "no-cache",
-        "etag": "\"a3913fa1048ee0c74234a4f4d030620e\""
+        "etag": "\"46ef10a5b6aacd39656cb10f72fbc66d\""
       },
       "schema": null,
       "body": {
@@ -497,7 +497,7 @@
       "status": 202,
       "content_type": "application/json",
       "headers": {
-        "location": "/v1/tactical/bake/636841e9422aa37523c5bd688f6d121a"
+        "location": "/v1/tactical/bake/f9cc0917c13bc5bc37772ffc6b7fcbc3"
       },
       "schema": "BakeAccepted",
       "golden": "golden/tactical-bake.json"
@@ -506,7 +506,7 @@
       "id": "tactical-bake-delete",
       "route": "DELETE /v1/tactical/bake/{id}",
       "method": "DELETE",
-      "uri": "/v1/tactical/bake/636841e9422aa37523c5bd688f6d121a",
+      "uri": "/v1/tactical/bake/f9cc0917c13bc5bc37772ffc6b7fcbc3",
       "uri_from_location_of": "tactical-bake",
       "status": 204,
       "content_type": null,
@@ -539,7 +539,7 @@
       "content_type": "image/png",
       "headers": {
         "cache-control": "no-cache",
-        "etag": "\"c993b84f23edcfcd5266ac92209a8a1d\""
+        "etag": "\"11a148603c342846839048504c35d9f5\""
       },
       "schema": null,
       "body": {
@@ -555,7 +555,7 @@
       "status": 200,
       "content_type": "application/json",
       "headers": {
-        "cache-control": null
+        "cache-control": "no-cache"
       },
       "schema": "SceneDto",
       "golden": "golden/dungeon-scene.json"
