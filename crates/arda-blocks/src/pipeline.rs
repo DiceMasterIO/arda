@@ -150,27 +150,12 @@ impl Pipeline {
         self.cache.lock().map_err(|_| BlocksError::Poisoned)
     }
 
-    /// Refines the missing cells on parallel threads; each block is a pure
-    /// function of its cell, so scheduling never changes a result.
+    /// Refines the missing cells on the shared rayon pool (bounded, never
+    /// a thread per request: review 3.6-12); each block is a pure function
+    /// of its cell, so scheduling never changes a result.
     fn refine_all(&self, cells: &[CellKey]) -> Result<Vec<Arc<Block>>, BlocksError> {
-        let threads = std::thread::available_parallelism().map_or(4, std::num::NonZeroUsize::get);
-        let mut out = Vec::with_capacity(cells.len());
-        for chunk in cells.chunks(threads.max(1)) {
-            let results: Vec<Result<Arc<Block>, BlocksError>> = std::thread::scope(|s| {
-                let handles: Vec<_> = chunk
-                    .iter()
-                    .map(|&c| s.spawn(move || self.refined(c)))
-                    .collect();
-                handles
-                    .into_iter()
-                    .map(|h| h.join().unwrap_or(Err(BlocksError::Poisoned)))
-                    .collect()
-            });
-            for r in results {
-                out.push(r?);
-            }
-        }
-        Ok(out)
+        use rayon::prelude::*;
+        cells.par_iter().map(|&c| self.refined(c)).collect()
     }
 
     /// Whether `cell` is open sea with no land square (logic/09 Branches).

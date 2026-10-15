@@ -23,6 +23,7 @@ thiserror.workspace = true
 rayon.workspace = true
 
 [dev-dependencies]
+arda-core.workspace = true
 arda-society.workspace = true
 
 [lints]

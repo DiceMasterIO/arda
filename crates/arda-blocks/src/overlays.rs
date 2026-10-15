@@ -365,17 +365,16 @@ pub fn compose_all(
         (Owner::Town, |o, c| o.town(c)),
     ];
     // Each provider reads only the context, never another's layer, so the
-    // three run at once (goal 50); they are composed in the fixed order.
-    let layers: Vec<Result<Option<OverlayLayer>, BlocksError>> = std::thread::scope(|s| {
-        let handles: Vec<_> = steps
-            .iter()
-            .map(|&(_, get)| s.spawn(move || get(overlays, ctx)))
-            .collect();
-        handles
-            .into_iter()
-            .map(|h| h.join().unwrap_or(Err(BlocksError::Poisoned)))
+    // three run at once (goal 50) on the shared, bounded rayon pool (review
+    // 3.6-12: not three threads per window); they are composed in the
+    // fixed order.
+    let layers: Vec<Result<Option<OverlayLayer>, BlocksError>> = {
+        use rayon::prelude::*;
+        steps
+            .par_iter()
+            .map(|&(_, get)| get(overlays, ctx))
             .collect()
-    });
+    };
     for ((owner, _), layer) in steps.into_iter().zip(layers) {
         if let Some(layer) = layer? {
             if compose_over(layout, rules, owners, &layer, owner, Some(ctx.base))? > 0 {

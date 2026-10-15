@@ -167,3 +167,74 @@ fn oversized_and_outside_windows_are_refused() {
     assert!(p.window((-1, 0, 64, 64), lib(), None).is_err());
     assert!(p.window((16 * 64 - 32, 0, 64, 64), lib(), None).is_err());
 }
+
+/// Records whether each cell read runs on a rayon pool thread.
+struct OnPool(
+    arda_refine::source::GridSource,
+    std::sync::Arc<std::sync::Mutex<Vec<bool>>>,
+);
+
+impl arda_refine::Source for OnPool {
+    fn seed(&self) -> u64 {
+        self.0.seed()
+    }
+    fn cells_wide_high(&self) -> (i64, i64) {
+        self.0.cells_wide_high()
+    }
+    fn cell(&self, at: CellKey) -> Result<arda::Cell, arda_refine::RefineError> {
+        self.1
+            .lock()
+            .unwrap()
+            .push(rayon::current_thread_index().is_some());
+        self.0.cell(at)
+    }
+    fn lake(
+        &self,
+        at: CellKey,
+    ) -> Result<Option<arda_refine::source::LakeInfo>, arda_refine::RefineError> {
+        self.0.lake(at)
+    }
+    fn edges_touching(
+        &self,
+        at: CellKey,
+    ) -> Result<Vec<arda_refine::source::Edge>, arda_refine::RefineError> {
+        self.0.edges_touching(at)
+    }
+    fn fine_mm(&self, kx: i64, ky: i64) -> Result<Option<i32>, arda_refine::RefineError> {
+        self.0.fine_mm(kx, ky)
+    }
+    fn pan(
+        &self,
+        at: CellKey,
+    ) -> Result<Option<arda_core::water::PanKind>, arda_refine::RefineError> {
+        self.0.pan(at)
+    }
+    fn shore(&self, at: CellKey) -> Result<arda_core::ShoreClass, arda_refine::RefineError> {
+        self.0.shore(at)
+    }
+    fn has_shore(&self) -> bool {
+        self.0.has_shore()
+    }
+}
+
+/// Review 3.6-12: refinement runs on the shared, bounded rayon pool, never
+/// on threads spawned per request.
+#[test]
+fn refinement_runs_on_the_bounded_pool() {
+    let seen = std::sync::Arc::new(std::sync::Mutex::new(Vec::new()));
+    let src = OnPool(synthetic::world(42), std::sync::Arc::clone(&seen));
+    let p = Pipeline::new(Box::new(src), 64);
+    let pool = rayon::ThreadPoolBuilder::new()
+        .num_threads(2)
+        .build()
+        .unwrap();
+    pool.install(|| p.window(cell_window(GRASS_CELL), lib(), None).unwrap());
+    let seen = seen.lock().unwrap();
+    assert!(!seen.is_empty());
+    assert!(
+        seen.iter().all(|&on_pool| on_pool),
+        "{} of {} cell reads ran on spawned threads",
+        seen.iter().filter(|&&p| !p).count(),
+        seen.len()
+    );
+}

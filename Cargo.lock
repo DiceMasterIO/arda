@@ -144,6 +144,7 @@ name = "arda-blocks"
 version = "0.8.1"
 dependencies = [
  "arda",
+ "arda-core",
  "arda-fields",
  "arda-ids",
  "arda-people",
