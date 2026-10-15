@@ -175,8 +175,8 @@ fn recipe_8_is_pinned() {
 
 #[test]
 fn unknown_recipes_are_refused_before_output() {
-    let tmp = TempDir::new("r9");
-    for recipe in [0, 1, 3, 9] {
+    let tmp = TempDir::new("r10");
+    for recipe in [0, 1, 3, 10] {
         let err = arda::generate_from_fine_recipe(
             42,
             GenerateConfig::MICRO,

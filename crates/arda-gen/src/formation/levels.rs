@@ -234,6 +234,7 @@ pub(super) fn run(
                 (true, false) => CHANNEL_AREA_Q8_V5,
             },
             convergent_area: k >= 3,
+            v9: view.recipe >= super::Recipe::V9,
         };
         let fields = LevelFields {
             flags: &flags,

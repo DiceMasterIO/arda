@@ -217,6 +217,11 @@ pub enum Recipe {
     /// Recipe 7 plus plains: alluvial valley floors scaled to discharge
     /// ([`plains`]).
     V8,
+    /// Recipe 7 plus the 2026-10 review corrections (logic/02
+    /// §fine-formation recipe 9): stable creep, fill grading, rotated noise,
+    /// shore rework and classification, glacial troughs, Budyko runoff and
+    /// the climate fixes. No alluvial plains (recipe 8 stays opt-in).
+    V9,
 }
 
 impl Recipe {
@@ -224,7 +229,7 @@ impl Recipe {
     pub const DEFAULT: Self = Self::V7;
 
     /// The newest recipe this build forms.
-    pub const LATEST: Self = Self::V8;
+    pub const LATEST: Self = Self::V9;
 
     /// The manifest `recipe_version` of this recipe.
     #[must_use]
@@ -234,6 +239,7 @@ impl Recipe {
             Self::V6 => 6,
             Self::V7 => 7,
             Self::V8 => 8,
+            Self::V9 => 9,
         }
     }
 
@@ -245,6 +251,7 @@ impl Recipe {
             6 => Some(Self::V6),
             7 => Some(Self::V7),
             8 => Some(Self::V8),
+            9 => Some(Self::V9),
             _ => None,
         }
     }
@@ -362,6 +369,7 @@ pub fn form_world(
             extent_um,
             v6: false,
             water: None,
+            recipe,
         };
         let sinks = macro_basins(&view, base.0, base.1, base.2)?;
         let is_basin = |x_um: i64, y_um: i64| in_sink(&sinks, x_um, y_um);
@@ -403,7 +411,7 @@ pub fn form_world(
     // logic/02 §fine-formation climate runoff (recipe 7): the continent's
     // annual water balance drives channels, incision and basin lakes.
     let water = match recipe {
-        Recipe::V7 | Recipe::V8 => Some(arid::macro_water(grid, band)?),
+        Recipe::V7 | Recipe::V8 | Recipe::V9 => Some(arid::macro_water(grid, band)?),
         _ => None,
     };
     let view = MacroView {
@@ -415,6 +423,7 @@ pub fn form_world(
         extent_um,
         v6: true,
         water: water.as_ref().map(|m| (&m.runoff, &m.deficit)),
+        recipe,
     };
     let sinks = macro_basins(&view, base.0, base.1, base.2)?;
     let arid_basins = arid::classify(&view, base, &sinks)?;
@@ -431,7 +440,7 @@ pub fn form_world(
             volcanoes: &volcanoes,
             landforms,
             arid: &arid_basins,
-            plains: recipe >= Recipe::V8,
+            plains: recipe == Recipe::V8,
         },
     )
 }

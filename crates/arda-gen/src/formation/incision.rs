@@ -52,6 +52,10 @@ pub struct LevelParams {
     pub channel_area_q8: u64,
     /// Accumulate contributing area on steepest-descent receivers.
     pub convergent_area: bool,
+    /// Recipe-9 corrections (review 3.1-1, 3.1-3): hillslope creep stays
+    /// within the explicit scheme's stability limit, and the implicit
+    /// stream-power solve keeps at least 1 mm of drop to the receiver.
+    pub v9: bool,
 }
 
 /// Reusable per-level scratch, sized to the lattice.
@@ -339,10 +343,15 @@ fn diffuse(
             }
             let threshold = initiation_q8(params, fields, i, drop, g.spacing_um);
             // Creep rounds divides into convex, arched crests; its rate
-            // follows landscape maturity (0.25x to 4x the base number).
+            // follows landscape maturity. Recipes 6-8 scale it 0.25x to
+            // 8.2x the base number, which reaches 0.33 on mature ground,
+            // past the explicit five-point scheme's stability limit of
+            // 0.25 (review 3.1-1). Recipe 9 scales it 0.25x to 4.2x
+            // (at most 0.17), so creep always smooths.
+            let soft_gain = if params.v9 { 2 } else { 4 };
             let hill = if area[i] < threshold {
                 fields.shape.map_or(params.hill_kappa_q16, |shape| {
-                    params.hill_kappa_q16 * (32 + 4 * i64::from(shape.soft[i])) / 128
+                    params.hill_kappa_q16 * (32 + soft_gain * i64::from(shape.soft[i])) / 128
                 })
             } else {
                 0
@@ -425,6 +434,10 @@ pub fn isqrt(v: u64) -> u64 {
         x = y;
     }
 }
+
+#[cfg(test)]
+#[path = "incision_tests.rs"]
+mod level_tests;
 
 #[cfg(test)]
 mod tests {

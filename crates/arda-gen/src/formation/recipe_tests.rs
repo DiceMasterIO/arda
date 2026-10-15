@@ -25,11 +25,11 @@ fn island() -> ContinentGrid {
 #[test]
 fn recipe_numbers_round_trip() {
     assert_eq!(Recipe::DEFAULT, Recipe::V7);
-    assert_eq!(Recipe::LATEST, Recipe::V8);
-    for recipe in [Recipe::V5, Recipe::V6, Recipe::V7, Recipe::V8] {
+    assert_eq!(Recipe::LATEST, Recipe::V9);
+    for recipe in [Recipe::V5, Recipe::V6, Recipe::V7, Recipe::V8, Recipe::V9] {
         assert_eq!(Recipe::from_version(recipe.version()), Some(recipe));
     }
-    for unknown in [0, 4, 9] {
+    for unknown in [0, 4, 10] {
         assert_eq!(Recipe::from_version(unknown), None);
     }
     assert_eq!(

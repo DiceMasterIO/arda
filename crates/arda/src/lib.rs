@@ -77,8 +77,9 @@ pub fn generate_from_fine_source(
 }
 
 /// [`generate_from_fine_source`] with an explicit fine-terrain recipe:
-/// 4 (spectral valleys), 5 (v0.1 formation, replayed exactly) or 6 (the
-/// default). The manifest records it, and loading and rendering follow it.
+/// 4 (spectral valleys), 5 (v0.1 formation, replayed exactly), 6, 7, 8 or 9
+/// (logic/02 §fine-formation recipes). The manifest records it, and loading
+/// and rendering follow it.
 ///
 /// # Errors
 /// [`GenError::Validation`] for a recipe this build cannot generate, else
@@ -91,7 +92,7 @@ pub fn generate_from_fine_recipe(
     recipe_version: u16,
 ) -> Result<Manifest, GenError> {
     let recipe = FineRecipe::from_version(recipe_version).ok_or_else(|| GenError::Validation {
-        check: format!("unsupported fine terrain recipe {recipe_version} (expected 4, 5, 6 or 7)"),
+        check: format!("unsupported fine terrain recipe {recipe_version} (expected 4 to 9)"),
     })?;
     arda_gen::orchestrator::generate_world_with_fine_recipe(seed, config, out, limits, recipe)
 }

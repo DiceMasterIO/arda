@@ -52,6 +52,7 @@ fn classify_island(runoff_mm: i32, deficit_mm: i32) -> (Vec<(i64, i64)>, Vec<Ari
         extent_um: (63 * KM, 63 * KM),
         v6: true,
         water: Some((&runoff, &deficit)),
+        recipe: super::super::Recipe::V7,
     };
     let d = FINE_SPACING_UM << 5;
     let n = (63 * KM / d) as usize + 1;
@@ -96,6 +97,7 @@ fn without_climate_no_basin_is_classified() {
         extent_um: (63 * KM, 63 * KM),
         v6: true,
         water: None,
+        recipe: super::super::Recipe::V6,
     };
     assert!(classify(&view, (10, 10, KM), &[(5 * KM, 5 * KM)])
         .unwrap()

@@ -144,6 +144,9 @@ pub enum FineRecipe {
     /// Recipe 8 (opt-in): recipe 7 plus plains (alluvial valley floors
     /// scaled to discharge; logic/02 §fine-formation plains).
     FormationV8,
+    /// Recipe 9: recipe 7 plus the 2026-10 review corrections to
+    /// formation, climate and hydrology (logic/02 §fine-formation recipe 9).
+    FormationV9,
 }
 
 impl FineRecipe {
@@ -160,11 +163,12 @@ impl FineRecipe {
             Self::FormationV6 => 6,
             Self::Formation => 7,
             Self::FormationV8 => 8,
+            Self::FormationV9 => 9,
         }
     }
 
     /// The recipe that generates `recipe_version`, if this build has one
-    /// (recipes 4 to 8).
+    /// (recipes 4 to 9).
     #[must_use]
     pub const fn from_version(recipe_version: u16) -> Option<Self> {
         match recipe_version {
@@ -173,6 +177,7 @@ impl FineRecipe {
             6 => Some(Self::FormationV6),
             7 => Some(Self::Formation),
             8 => Some(Self::FormationV8),
+            9 => Some(Self::FormationV9),
             _ => None,
         }
     }
@@ -185,6 +190,7 @@ impl FineRecipe {
             Self::FormationV6 => Some(crate::formation::Recipe::V6),
             Self::Formation => Some(crate::formation::Recipe::V7),
             Self::FormationV8 => Some(crate::formation::Recipe::V8),
+            Self::FormationV9 => Some(crate::formation::Recipe::V9),
         }
     }
 }

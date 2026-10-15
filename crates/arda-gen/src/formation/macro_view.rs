@@ -68,6 +68,8 @@ pub(super) struct MacroView<'a> {
     /// macro lattice (logic/02 §fine-formation climate runoff); `None`
     /// before recipe 7, which assumed a nominal runoff.
     pub water: Option<(&'a Lattice, &'a Lattice)>,
+    /// The recipe being formed; recipe-9 corrections test it.
+    pub recipe: super::Recipe,
 }
 
 impl MacroView<'_> {
