@@ -84,10 +84,15 @@ docker run --rm -p 8787:8787 -v /abs/world:/worlds/world:ro arda:local
     the decoded pyramid base, plus `area_builds` (2) concurrent area builds, plus one
     buffered response body per allowed connection) fits the 16 GiB ceiling (goal-prompt §8).
     Otherwise it refuses to start. Area requests beyond `area_builds` wait for a slot.
-  - Every image (overview PNG and tiles, relief tiles, tactical images) carries a strong
-    `ETag` and `Cache-Control: no-cache`: its bytes depend on the served world and library,
-    which the URL does not name, so clients revalidate with `If-None-Match` (304, no body)
-    instead of reusing it for an hour after the server restarts on another world.
+  - Every image (overview PNG and tiles, relief tiles, tactical images) and every tactical
+    JSON body (cells, windows, `/scene`, dungeons, built-in layouts) carries a strong `ETag`
+    and `Cache-Control: no-cache`: its bytes depend on the served world and library, which
+    the URL does not name, so clients revalidate with `If-None-Match` (304, no body) instead
+    of reusing it for an hour after the server restarts on another world. The `ETag` names
+    the request, not the bytes (review 3.6-11): 32 hex digits of BLAKE3 over the server
+    version, the world identity (seed, `world.json` and every file of `society/`), the
+    catalogue `library_version`, the route and the request's path and query. A matching
+    `If-None-Match` is answered before anything is composed or rendered, cold or warm.
   - The tactical caches (renders, pyramids, encoded PNGs, encoded tiles) are admitted the
     same way, together with one transient render at the pixel limit per lane and one
     transient encode: full-size PNG encodes and tile-pyramid builds run one at a time across
@@ -557,8 +562,18 @@ the `--library` catalogue, with lighting on.
 - **Seamless world images.** A cell or window image is rendered from the requested squares
   plus an **apron of 6 squares** from the neighbouring blocks on every side (clipped at the
   world edge), then cropped (logic/11 §seam-art 2). The pixels of an independently rendered
-  cell equal the same pixels of any window render that contains it (logic/16 Invariant 5,
-  tested for a 2 × 1 window and checked for a 3 × 3 window on MICRO seed 42).
+  cell equal the same pixels of any window render that contains it, plain and with the world
+  grade (logic/16 Invariant 5, `tests/world_api/seams.rs` on cells 529,812, 518,822 and
+  530,1063 of the recipe-9 MICRO seed 42 world).
+- **One composition per apron window.** A cell's or window's JSON body and its `/scene` are
+  cut from the same composed apron block its image is drawn from (review 3.5-8), so body,
+  scene and image never disagree and a cell is composed once. Every composition is itself
+  made over the window grown by 8 squares and cut out (logic/09 §window-crop), so a wall or
+  edge rule on a cell's border, a placement anchored on it and the rules a neighbouring
+  placement's footprint folds in are the same in every window: a window's body is its cells'
+  bodies side by side. A cut keeps every wall and edge rule on its four border edges and the
+  placements and lights anchored in it (half-open: a position on the west or north border
+  line is the cell's, on the east or south line the neighbour's).
 - **Cache key.** Renders are cached by `(world seed, anchor, BLAKE3 of the layout's JSON,
   ppsq, grid, library_version, crop)` (goal 67); for world images the layout is the apron
   layout and `crop` is the requested part. A posted layout equal to a built-in one, without
@@ -577,8 +592,9 @@ the `--library` catalogue, with lighting on.
   (`library_version`); `tests/world_api/prefetch.rs` asserts all three for two neighbouring
   cells. JSON bodies are keyed by `(window, demo anchor, ppsq)` inside one server, which
   serves one world and one library.
-- **Headers.** Every image carries a strong `ETag` (a BLAKE3 prefix of the bytes);
-  `If-None-Match` with it returns **304** with no body. `X-Arda-Cache` is `hit` or `miss`
+- **Headers.** Every image and body carries a strong request-keyed `ETag` (see Caching; a
+  built-in layout's image and a posted copy of it share theirs, keyed on the render key);
+  `If-None-Match` with it returns **304** with no body before any work. `X-Arda-Cache` is `hit` or `miss`
   and `Server-Timing: tactical;dur=<ms>` gives the server time. Every tactical response,
   built-in layouts, world cells and windows (images and JSON) and `POST /render`, is
   `Cache-Control: no-cache` (revalidate by ETag): the bytes depend on the world seed and
@@ -703,12 +719,21 @@ server derives the scene from the same layout (goal 48). The cell must lie insid
   by it.
 - `rules` is `arda-scene`'s `RulesSidecar` **format 2**, the one per-square rules schema
   (I9; TS `RulesSidecarDto`): `difficult`, `water_depth_ft`, `cover`, `blocks_sight`,
-  `lightly_obscured`, `blocks_movement`, `deck`, each optional, plus an `ext` map for layer
-  extras (`feature`, `road_class`, `deck_elevation_ft` from ways; `crop`, `field`, `furrow`
-  from fields; `building` from town) and `edges` for parapets, hedges and field walls.
+  `lightly_obscured`, `blocks_movement`, `deck`, `deck_elevation_ft` (since 0.9: the deck's
+  walking level in feet where a deck spans the square), each optional, plus an `ext` map for
+  layer extras (`feature`, `road_class`, `deck_elevation_ft` from ways and docks, kept beside
+  the typed field; `crop`, `field`, `furrow` from fields; `building` and `settlement` from
+  town; `building` and `building_function` on the floor squares of fields compounds
+  (`farmhouse`, `barn`, `stable`, `mill`) and of toll houses and waystations, whose ids
+  have the top bit set, `BuildingId::rural`) and `edges` for parapets, hedges and field
+  walls. The catalogue rules of every placement whose footprint reaches a square, those
+  anchored in a neighbouring cell included, are folded in: blocking, sight blocking, cover,
+  difficulty and a canopy's `lightly_obscured`.
 - `scene` is `arda-scene`'s `Scene` (format 1) of the same layout, library and render seed,
   with `seed` as a decimal string and the block's `origin_gs` (I17). TS type: `SceneDto`
   (see the scene route below for its parts).
+- `generator_version` (since 0.9, optional in the schema) is the release that generated the
+  body (`server_version`).
 - `meta` is provenance: `source`, `generator`, `relaxed` (goal 47 review flag: arda-refine's
   relaxed blocks or the town WFC's relaxed interiors and outdoor chunks, `TownBlock.relaxed`),
   `review_squares` (squares under a relaxed fill, both sources; windows report theirs the same
@@ -737,9 +762,14 @@ curl -s $B/cell/0/0      # {"error":{"code":"no_block","status":404,…}}
 The scene of the same composed block (goal 48) and its NPC tokens (adapter A13, logic/12
 §scene-tokens): `{tactical_format, origin_gs, time, scene, tokens}`. A token is
 `{npc_id, name, x, y, building_id, settlement_id, kind}`: a stored notable of a settlement
-whose plan buildings lie in the block, standing by day in its workplace (`worker`), else and
-by night at home (`resident`), on a free floor square nearest the building's centre. Every
-`npc_id` resolves with `GET /v1/npc/{npc_id}`. TS type: `TacticalScene` (adapter A12):
+whose plan buildings lie in the block, standing by day in its workplace (`worker`) wherever
+that lies, else and by night at home (`resident`). Placement is global (review 3.6-3): a
+building's notables, in id order, take the free floor squares of the whole building as
+composed (no water, no blocking, no prop such as furniture or a stall) nearest its centre,
+and a block lists the tokens standing in it, so a notable stands in exactly one block. The
+scene is drawn with the render seed the image uses (review 3.6-4), and the envelope carries
+`generator_version` (since 0.9). Every `npc_id` resolves with `GET /v1/npc/{npc_id}`. TS
+type: `TacticalScene` (adapter A12):
 
 - `scene` is a `SceneDto`: `format_version`, `name`, `width`, `height`, `seed` (a decimal
   string), `library`, `library_version`; six per-square layers as run-length grids
@@ -756,6 +786,10 @@ by night at home (`resident`), on a free floor square nearest the building's cen
   carries `origin_gs`; this envelope carries it instead.
 - `time` is `SceneTime` (`day` or `night`); `tokens` are `Token`s with `kind` a `TokenKind`
   (`worker` or `resident`).
+- Since 0.9 (review 3.6-6, 3.6-12): `elevation_ft` on a decked square is the deck's level, not
+  the ground or bed beneath; a diagonal step between two squares 10 ft above (or below) both
+  ends is a climb; a wall an edge rule overrides (a parapet) keeps its wall piece's
+  `blocks_light`, the compositor's; locked doors are no spawn entrances.
 
 ```sh
 curl -s $B/cell/618/689/scene | jq '.tokens[0]'
@@ -877,20 +911,25 @@ Body (TS `BakeRequest`, `Content-Type: application/json`, unknown fields rejecte
   `format_version`, when present, must be 1.
 - **Seams.** The server takes the cell's apron block (6 squares from every neighbour) as the
   cell route does, pastes the posted cell into its centre and renders the apron cropped to
-  the cell, with the world's render seed. Squares inside the cell come from the post. Walls
-  (by their square), placements and lights (by their position, strictly inside the cell; a
-  position on the cell's border line stays with the neighbour) come from the post when
-  anchored inside the cell and from the neighbours otherwise, so an item straddling the edge
-  is drawn once. Edges therefore join the neighbours' unbaked tiles, and an unedited layout
-  bakes to tiles byte-identical to `GET /v1/tactical/cell/{gx}/{gy}/tiles/…` at the same
-  `ppsq` and `world_grade`.
-- **Job id.** The first 32 hex digits of BLAKE3 over the world seed, `library_version` and the
-  canonical request (every option resolved). Re-posting the same body returns the same job:
+  the cell, with the world's render seed. The splice follows the cut the cell route sends
+  (review 3.6-9): squares inside the cell, walls on every edge of the cell (its four border
+  edges included), and placements and lights anchored in it (half-open: the west and north
+  border lines are the cell's, the east and south lines the neighbour's) come from the post;
+  everything else from the neighbours, so an item straddling the edge is drawn once and an
+  edit on the border is baked, not dropped. Posted items the cell cannot hold (a wall on no
+  edge of it, a placement or light anchored outside it) are ignored and counted in the job's
+  `ignored` `{walls, placements, lights}` (since 0.9; TS `BakeIgnored`). Edges join the
+  neighbours' unbaked tiles, and an unedited layout bakes to tiles byte-identical to
+  `GET /v1/tactical/cell/{gx}/{gy}/tiles/…` at the same `ppsq` and `world_grade`.
+- **Job id.** The first 32 hex digits of BLAKE3 over the release (`server_version`), the
+  world seed, `library_version` and the canonical request (every option resolved), so
+  another release bakes under another id; both bodies carry `generator_version` (since 0.9). Re-posting the same body returns the same job:
   **202** while `queued` or `running`, **200** once `done` or `failed`. Response (TS
   `BakeAccepted`, with `Location` set to `status_url`):
 
   ```json
-  {"format_version":1,"job_id":"62e24fde911d80ba08128c242a3a3321","state":"queued","status_url":"/v1/tactical/bake/62e24fde911d80ba08128c242a3a3321"}
+  {"format_version":1,"job_id":"62e24fde911d80ba08128c242a3a3321","state":"queued","status_url":"/v1/tactical/bake/62e24fde911d80ba08128c242a3a3321",
+   "generator_version":"0.9.0","ignored":{"walls":0,"placements":0,"lights":0}}
   ```
 
 - **Limits.** At most 8 jobs wait and one bakes at a time (`--bake-workers`, default 1; 0
@@ -911,7 +950,8 @@ Body (TS `BakeRequest`, `Content-Type: application/json`, unknown fields rejecte
 ```json
 {"format_version":1,"job_id":"62e24fde…","state":"done","gx":529,"gy":812,"origin_gs":[33856,51968],"world_grade":false,
  "tiles":{"tile_px":512,"ppsq":128,"image_width_px":8192,"image_height_px":8192,"max_zoom":4,"format":"webp"},
- "tile_count":341,"total_bytes":150673194,"error":null}
+ "tile_count":341,"total_bytes":150673194,"error":null,"generator_version":"0.9.0",
+ "ignored":{"walls":0,"placements":0,"lights":0}}
 ```
 
 `state` is `queued`, `running`, `done` or `failed`; `tiles`, `tile_count` and `total_bytes`
@@ -1025,7 +1065,8 @@ art) and the world seed. Headers, caching and `ETag` as for layout PNGs; the ren
 
 ### `GET /v1/tactical/dungeon/scene?…`
 
-The `arda-scene` scene of the level (`SceneDto`), built with its rules sidecar: rock impassable
+The `arda-scene` scene of the level (`SceneDto`), built with its rules sidecar and the seed
+`/dungeon.png` draws with (the render seed of the level's name, since 0.9): rock impassable
 and opaque, closed doors solid (`locked` ones flagged), secret doors as `kind: "secret"`, water
 `wade`/`swim`, rubble and scree `difficult`.
 
@@ -1218,6 +1259,11 @@ describe the same JSON.
 | `Gazetteer`, `GazetteerFeature`, `GazetteerPoint` | `/v1/gazetteer` and its entries |
 | `RealmList`, `RealmDetail`, `Realm`, `RealmSociety`, `Relation`, `Event` | `/v1/realms` and `/v1/realms/{id}`; the realm record, its politics, relations and history events |
 | `SchemaIndex` | `/v1/schema` itself |
+
+Response schemas are open (no `additionalProperties: false`, since 0.9): a field a minor
+release adds is additive and no strict validator refuses it. Schemas that are also request
+bodies (`TacticalLayoutDto`, `BakeRequest`, `PrefetchRequest`, `GenerateNpcRequest`,
+`PopulationRequest`) stay closed, because the server refuses unknown fields there.
 
 The files are committed in `bindings/schema/` and the server serves them byte for byte.
 `cargo test -p arda-server schema` fails when they are stale, and `ARDA_BLESS_BINDINGS=1`
