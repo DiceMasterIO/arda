@@ -141,7 +141,7 @@ fn plan_all(
                         Ok(plan.map(|p| {
                             (
                                 town::society_buildings(&p),
-                                town::plan_specs(&p, s.population),
+                                town::plan_specs(&p, s.population, s.wealth),
                             )
                         }))
                     })

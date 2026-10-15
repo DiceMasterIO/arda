@@ -26,6 +26,39 @@ pub const fn plan_radius_m(tier: arda_settle::model::Tier) -> f64 {
     }
 }
 
+/// Metres of plan radius per square root of a person: the ground a city
+/// of `p` needs at 150 people a hectare (logic/08 §landuse) is a disc of
+/// `√(p / 150 / π)` hectares, about `8.2·√p` m; half again for streets,
+/// walls, fields at the gate and the 300 m terrain margin's slack.
+const RADIUS_PER_ROOT_PERSON: f64 = 12.0;
+
+/// Radius of terrain the plan of `s` sees, metres: its tier's
+/// ([`plan_radius_m`]), or more for a city whose people need more ground
+/// (review 3.3-11: cities above about 48,000 ran past a fixed window).
+#[must_use]
+pub fn plan_radius_for(s: &Settlement) -> f64 {
+    plan_radius_m(s.tier).max(RADIUS_PER_ROOT_PERSON * f64::from(s.population).sqrt())
+}
+
+/// People the plan's own buildings house (before any off-plan cottage).
+#[must_use]
+pub fn housed(plan: &TownPlan) -> u64 {
+    plan_buildings(plan)
+        .iter()
+        .map(|b| u64::from(b.capacity))
+        .sum()
+}
+
+/// A plan stands for its settlement when its buildings house at least half
+/// its people; a plan that houses fewer is refused like one the planner
+/// cannot draw, and the settlement keeps the buildings of its mix
+/// (logic/21 §build-buildings), instead of a handful of plan buildings and
+/// a crowd of invented off-plan cottages (review 3.3-11).
+#[must_use]
+pub fn usable(plan: &TownPlan, population: u32) -> bool {
+    housed(plan) * 2 >= u64::from(population)
+}
+
 /// The planner's view of a settlement record (the record deserialises
 /// into `TownSite` directly; extra fields are ignored).
 ///
@@ -149,7 +182,8 @@ fn standing_region(
 }
 
 /// The settlement's town plan, or `None` when the planner refuses the site
-/// (the settlement then keeps its derived buildings).
+/// or the plan cannot house half its people ([`usable`]); the settlement
+/// then keeps its derived buildings.
 ///
 /// # Errors
 /// Record or world failures (a refused plan is `Ok(None)`).
@@ -164,8 +198,10 @@ pub fn plan(
     }
     #[allow(clippy::cast_precision_loss)]
     let at = (settlement.x_m as f64, settlement.y_m as f64);
-    let t = terrain(src, at, plan_radius_m(settlement.tier), roads)?;
-    Ok(arda_town::generate(&site(record)?, &t, src.seed()).ok())
+    let t = terrain(src, at, plan_radius_for(settlement), roads)?;
+    Ok(arda_town::generate(&site(record)?, &t, src.seed())
+        .ok()
+        .filter(|p| usable(p, settlement.population)))
 }
 
 /// Wealth a prosperity sample needs to count towards a golden age.
@@ -202,11 +238,12 @@ fn function(f: arda_town::BuildingFunction) -> Option<BuildingFunction> {
 /// The plan's buildings as `arda-npc` specs (adapter A4: capacity and
 /// workplace slots from the plan, logic/10 §town-capacity). A partial plan
 /// that houses fewer than `population` people gets outlying cottages after
-/// its last id (off the plan, so never in a tactical block).
+/// its last id (off the plan, so never in a tactical block), at the
+/// settlement's `wealth`.
 #[must_use]
-pub fn plan_specs(plan: &TownPlan, population: u32) -> Vec<arda_npc::BuildingSpec> {
+pub fn plan_specs(plan: &TownPlan, population: u32, wealth: u8) -> Vec<arda_npc::BuildingSpec> {
     let mut out = plan_buildings(plan);
-    pad_housing(&mut out, population, plan.site.0, 128);
+    pad_housing(&mut out, population, plan.site.0, wealth);
     out
 }
 

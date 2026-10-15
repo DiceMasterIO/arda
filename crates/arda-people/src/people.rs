@@ -222,8 +222,9 @@ impl World {
     /// settlement, or world failures.
     pub fn buildings(&self, id: u64) -> Result<(Vec<BuildingSpec>, BuildingSource), PeopleError> {
         if let Some(plan) = self.plan(id)?.as_ref() {
+            let (s, _) = self.files.settlement(id)?;
             return Ok((
-                town::plan_specs(plan, self.files.settlement(id)?.0.population),
+                town::plan_specs(plan, s.population, s.wealth),
                 BuildingSource::Plan,
             ));
         }
