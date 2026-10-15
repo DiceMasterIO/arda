@@ -36,8 +36,9 @@ pub const FINE_STEP: f64 = 25.0;
 /// a square is 100/64 m (I2). Exactly 32.
 #[allow(clippy::cast_precision_loss)] // 50 m in µm is exact in f64
 pub const FINE_ORIGIN_SQ: f64 = arda_core::FINE_FRAME_OFFSET_UM as f64 * 64.0 / 100_000_000.0;
-/// Metres per square (a 100 m cell is 64 squares).
-pub const SQUARE_M: f64 = 100.0 / 64.0;
+/// Metres per square (a 100 m cell is 64 squares; `arda_core::SQUARE_SIZE_UM`).
+#[allow(clippy::cast_precision_loss)] // 1,562,500 µm is exact in f64
+pub const SQUARE_M: f64 = arda_core::SQUARE_SIZE_UM as f64 / 1_000_000.0;
 
 /// A block's gathered world data.
 #[derive(Debug, Clone)]

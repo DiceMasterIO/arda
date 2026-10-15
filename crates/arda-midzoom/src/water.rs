@@ -13,7 +13,7 @@ use arda_refine::terrain::Water;
 use arda_render::ReliefSurface;
 
 /// One tactical square, micrometres (100 m / 64).
-pub const SQUARE_UM: i64 = 1_562_500;
+pub const SQUARE_UM: i64 = arda_core::SQUARE_SIZE_UM;
 /// Pixels at or below this size show marsh pools, micrometres.
 const POOL_PIXEL_UM: i64 = 3_200_000;
 

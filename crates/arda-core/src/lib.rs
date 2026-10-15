@@ -26,7 +26,8 @@ pub use continent::{
     ClimateRegime, ContinentCell, ContinentObjects, ContinentOverview, ContinentRiver,
 };
 pub use coords::{
-    AreaCoord, CellCoord, GlobalCell, KmCoord, AREA_CELLS, CELL_SIZE_M, SQUARE_SIZE_MM,
+    AreaCoord, CellCoord, GlobalCell, KmCoord, AREA_CELLS, BLOCK_SQUARES, CELL_SIZE_M,
+    SQUARE_SIZE_UM,
 };
 pub use error::{ConfigError, FormatError, LoadError};
 pub use fixed::{DischargeMilli, HeightMm, RainfallMm, TempCentiC};

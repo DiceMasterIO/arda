@@ -7,8 +7,16 @@
 pub const AREA_CELLS: u16 = 512;
 /// Ground size of one area cell, in metres.
 pub const CELL_SIZE_M: i32 = 100;
-/// Ground size of one tactical square, in millimetres (five feet exactly).
-pub const SQUARE_SIZE_MM: i32 = 1524;
+/// Tactical squares along one edge of a cell.
+pub const BLOCK_SQUARES: u16 = 64;
+/// Ground size of one tactical square, in micrometres: a 100 m cell is
+/// exactly [`BLOCK_SQUARES`] squares, so one square samples 100/64 m =
+/// 1.5625 m of the world. Play calls a square five feet (1.524 m); the
+/// 2.5 % horizontal compression is deliberate (logic/09 §square-frame).
+/// The one statement of the square size: the old five-foot
+/// `SQUARE_SIZE_MM = 1524` was used by nothing and invited misuse (review
+/// 3.4-11).
+pub const SQUARE_SIZE_UM: i64 = CELL_SIZE_M as i64 * 1_000_000 / BLOCK_SQUARES as i64;
 
 /// Index of a 51.2 km area tile within the continent.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
@@ -95,6 +103,15 @@ impl KmCoord {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn a_cell_is_exactly_sixty_four_squares() {
+        assert_eq!(SQUARE_SIZE_UM, 1_562_500);
+        assert_eq!(
+            SQUARE_SIZE_UM * i64::from(BLOCK_SQUARES),
+            i64::from(CELL_SIZE_M) * 1_000_000
+        );
+    }
 
     #[test]
     fn cell_coord_rejects_out_of_bounds() {
