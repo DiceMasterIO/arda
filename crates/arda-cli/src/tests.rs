@@ -58,9 +58,29 @@ fn style_parses_and_omission_defaults_to_classic() {
 }
 
 #[test]
-fn fine_generation_is_explicit_and_legacy_remains_default() {
-    let legacy = Cli::try_parse_from([
+fn fine_generation_is_the_default_and_legacy_stays_available() {
+    // Review 3.2-15: fine terrain is the default since recipe 9.
+    let default = Cli::try_parse_from([
         "arda", "generate", "--seed", "42", "--micro", "--out", "world",
+    ])
+    .unwrap();
+    assert!(matches!(
+        default.command,
+        Command::Generate {
+            terrain: Terrain::Fine,
+            ..
+        }
+    ));
+    let legacy = Cli::try_parse_from([
+        "arda",
+        "generate",
+        "--seed",
+        "42",
+        "--micro",
+        "--out",
+        "world",
+        "--terrain",
+        "legacy",
     ])
     .unwrap();
     assert!(matches!(
@@ -95,7 +115,7 @@ fn fine_generation_is_explicit_and_legacy_remains_default() {
 }
 
 #[test]
-fn recipe_is_a_fine_option_from_4_to_8() {
+fn recipe_is_a_fine_option_from_4_to_9() {
     let parse = |recipe: &str| {
         Cli::try_parse_from([
             "arda",
@@ -121,7 +141,8 @@ fn recipe_is_a_fine_option_from_4_to_8() {
     assert!(parse("3").is_err());
     assert!(parse("7").is_ok());
     assert!(parse("8").is_ok());
-    assert!(parse("9").is_err());
+    assert!(parse("9").is_ok());
+    assert!(parse("10").is_err());
     let default = Cli::try_parse_from([
         "arda",
         "generate",
@@ -187,7 +208,7 @@ fn latitude_bands_parse_and_recipe_7_is_accepted() {
         }
     ));
     assert!(Cli::try_parse_from([
-        "arda", "generate", "--seed", "1", "--out", "w", "--recipe", "9",
+        "arda", "generate", "--seed", "1", "--out", "w", "--recipe", "10",
     ])
     .is_err());
 }
