@@ -8,8 +8,6 @@
 //! (goal 46, `mockup-artifact.md` "Inside a cell": linear features must
 //! leave one block exactly where they enter the next).
 
-use std::f64::consts::PI;
-
 /// A world point in metres (x east, y south).
 pub type P = [f64; 2];
 
@@ -86,18 +84,7 @@ impl Shape {
     }
 }
 
-/// Peak rounding of the switchback wave: 1 would give sharp hairpins.
-const HAIRPIN: f64 = 0.985;
-
-/// A switchback wave laid across a piece: a rounded triangle wave, so legs
-/// run straight across the slope and turn in tight hairpins.
-#[derive(Debug, Clone, Copy, PartialEq)]
-pub struct Zig {
-    /// Lateral amplitude, metres.
-    pub amp: f64,
-    /// Number of half-waves (legs).
-    pub legs: u32,
-}
+pub use crate::zig::Zig;
 
 /// One piece of a centreline with its design heights and arc length.
 #[derive(Debug, Clone, PartialEq)]
@@ -130,18 +117,47 @@ pub struct Station {
 }
 
 /// Position on a (possibly waved) shape.
+///
+/// The wave ([`Zig`]) is laid square to the piece's chord, not its local
+/// tangent, so a wave on a tight corner never folds into loops (review
+/// 2026-10-15, gallery 07).
 #[must_use]
 pub fn wave_at(shape: &Shape, zig: Option<Zig>, t: f64) -> P {
     let base = shape.at(t);
     match zig {
         None => base,
         Some(z) => {
-            let d = unit(shape.tangent(t));
-            let x = arda_ids::pmath::sin(PI * f64::from(z.legs) * t);
-            let o = z.amp * arda_ids::pmath::asin(HAIRPIN * x) / arda_ids::pmath::asin(HAIRPIN);
+            let (a, b) = shape.ends();
+            let d = unit([b[0] - a[0], b[1] - a[1]]);
+            let o = z.offset(t);
             [base[0] - d[1] * o, base[1] + d[0] * o]
         }
     }
+}
+
+/// Smallest turning radius of a waved shape sampled at `n` points,
+/// metres (infinite for a straight run).
+#[must_use]
+pub fn min_radius(shape: &Shape, zig: Option<Zig>, n: u32) -> f64 {
+    let n = n.max(2);
+    let mut best = f64::INFINITY;
+    let mut p0 = wave_at(shape, zig, 0.0);
+    let mut p1 = wave_at(shape, zig, 1.0 / f64::from(n));
+    for k in 2..=n {
+        let p2 = wave_at(shape, zig, f64::from(k) / f64::from(n));
+        let u = [p1[0] - p0[0], p1[1] - p0[1]];
+        let v = [p2[0] - p1[0], p2[1] - p1[1]];
+        let (lu, lv) = (dist(p0, p1), dist(p1, p2));
+        if lu > 1e-9 && lv > 1e-9 {
+            let c = ((u[0] * v[0] + u[1] * v[1]) / (lu * lv)).clamp(-1.0, 1.0);
+            let turn = arda_ids::pmath::acos(c);
+            if turn > 1e-12 {
+                best = best.min(0.5 * (lu + lv) / turn);
+            }
+        }
+        (p0, p1) = (p1, p2);
+    }
+    best
 }
 
 /// Polyline length of a waved shape at `n` samples.

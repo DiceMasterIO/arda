@@ -82,11 +82,16 @@ therefore runs through a highway's ditch at a junction. Trees and rocks
 from earlier stages are removed from every way square.
 
 **Profile and switchbacks.** Off switchbacks, the road follows the ground at
-its centreline. A piece steeper than its class allows (highway 8 %, road
-10 %, track 14 %, footpath 25 %) gets a rounded triangle wave across the
-slope. The search takes the fewest legs first, which keeps the legs as far
-apart as possible, and then the narrowest amplitude (at most 36 m) that
-brings the sustained grade under the limit. Heights along the wave rise
+its centreline. A piece up to 1.3 times steeper than its class allows
+(highway 8 %, road 10 %, track 14 %, footpath 25 %) climbs as it lies; a
+steeper one gets a switchback wave (`zig.rs`): straight legs across the
+slope joined by circular hairpins of the class's tightest radius (the
+carriageway and verges, at least 8 m), laid square to the piece's chord,
+with half legs at its ends that leave and rejoin the piece's line, so there
+are no needle tips, loops or kinks. The search takes the fewest legs first,
+which keeps the legs as far apart as possible, and then the gentlest leg
+slope (20° to 85°, at most 54 m either side) that brings the sustained
+grade under the limit. Heights along the wave rise
 linearly in arc length, so the grade is constant. Across the road the
 surface is level at the centreline height, which cuts a bench into the
 hillside. Any drop of 4 ft or more off the surface or verge gets a

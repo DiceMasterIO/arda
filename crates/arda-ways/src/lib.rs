@@ -21,6 +21,7 @@ pub mod plan;
 pub mod raster;
 pub mod sidecar;
 pub mod standing;
+pub mod zig;
 
 pub use error::WaysError;
 pub use input::{
