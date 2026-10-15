@@ -121,7 +121,7 @@
       "content_type": "image/png",
       "headers": {
         "cache-control": "no-cache",
-        "etag": "\"4cb8614fe6a8b57bd37c0dad36ddffb6\""
+        "etag": "\"e51614497628e4ca4e1b85d9ddb28678\""
       },
       "schema": null,
       "body": {
@@ -138,7 +138,7 @@
       "content_type": "image/webp",
       "headers": {
         "cache-control": "no-cache",
-        "etag": "\"c78fd0e9db9e1d2e0348efcf8e5b1f0b\""
+        "etag": "\"92b91aadeb73512a84cd85c9e952755e\""
       },
       "schema": null,
       "body": {
@@ -155,7 +155,7 @@
       "status": 304,
       "content_type": null,
       "headers": {
-        "etag": "\"c78fd0e9db9e1d2e0348efcf8e5b1f0b\""
+        "etag": "\"92b91aadeb73512a84cd85c9e952755e\""
       },
       "schema": null,
       "body": {
@@ -172,7 +172,7 @@
       "content_type": "image/webp",
       "headers": {
         "cache-control": "no-cache",
-        "etag": "\"0fe37a2ad288b60c30b0054580b76d48\""
+        "etag": "\"3fc2fef1cbe48ab5433f7e25533d328a\""
       },
       "schema": null,
       "body": {
@@ -189,7 +189,7 @@
       "content_type": "image/png",
       "headers": {
         "cache-control": "no-cache",
-        "etag": "\"6c5d88a4bf1d16df60f0af171fd4b1e1\""
+        "etag": "\"4edd812d97e41ec470ba28f440178094\""
       },
       "schema": null,
       "body": {
@@ -206,7 +206,7 @@
       "content_type": "image/webp",
       "headers": {
         "cache-control": "no-cache",
-        "etag": "\"d66a006ff1f4946eabb8e303203240dc\""
+        "etag": "\"7e3a8b415f2c5700fb5a4bfd9d514326\""
       },
       "schema": null,
       "body": {
@@ -350,12 +350,12 @@
       "content_type": "image/png",
       "headers": {
         "cache-control": "no-cache",
-        "etag": "\"371e3c6271ccc033f009fd6496004d4f\""
+        "etag": "\"62e13d1aa242e46a7b55ecd851e45a11\""
       },
       "schema": null,
       "body": {
-        "sha256": "e41251ea8c0b560de8327c7e7c3a441240973f7c7f193919fa660ce2793a0bd2",
-        "bytes": 37517171
+        "sha256": "8789d121f3a1cc3dc539324175d7d665f20e230e57a415c7f2f98df9c875a3ea",
+        "bytes": 37510645
       }
     },
     {
@@ -367,7 +367,7 @@
       "status": 304,
       "content_type": null,
       "headers": {
-        "etag": "\"371e3c6271ccc033f009fd6496004d4f\""
+        "etag": "\"62e13d1aa242e46a7b55ecd851e45a11\""
       },
       "schema": null,
       "body": {
@@ -384,7 +384,7 @@
       "content_type": "image/webp",
       "headers": {
         "cache-control": "no-cache",
-        "etag": "\"609a04ac14fa6f0db4601e86e1e9f70c\""
+        "etag": "\"4913cc7a45c5a89cc39cbbc3e214dd4c\""
       },
       "schema": null,
       "body": {
@@ -404,8 +404,8 @@
       },
       "schema": "TacticalBlockDto",
       "body": {
-        "sha256": "cc7744c05732e24da49e27f999f2eaabea05670b0a268380a1a2fe5c9ec3e8e3",
-        "bytes": 2100780
+        "sha256": "f3c5596c96360a98c273317f3587d5924363677358bb21f56f0e6b4e4ca2234b",
+        "bytes": 2106634
       }
     },
     {
@@ -417,12 +417,12 @@
       "content_type": "image/png",
       "headers": {
         "cache-control": "no-cache",
-        "etag": "\"5de382f551633e0d5fd5a9f6fcf6d11c\""
+        "etag": "\"ca9fe10d207a76dfac2f240480b56398\""
       },
       "schema": null,
       "body": {
-        "sha256": "171ede5ffcfa8c196afc1559046f81b7c416f61c5b01ffa13a446a8baaf54ebc",
-        "bytes": 18268421
+        "sha256": "41a9b9d22509d2513fd87bfe83db35c01c7625c5d84604ecb9327872d4d46c7a",
+        "bytes": 18285457
       }
     },
     {
@@ -434,12 +434,12 @@
       "content_type": "image/webp",
       "headers": {
         "cache-control": "no-cache",
-        "etag": "\"362bf4df197114653647f72d49a46a29\""
+        "etag": "\"cb79d175d9e13fa16a5dc03054d64d54\""
       },
       "schema": null,
       "body": {
-        "sha256": "b5ab5b9f0ab7b957b25d26d831c257109a984d68cb44063883df28c878e043cb",
-        "bytes": 299350
+        "sha256": "d9c242d097578e0bfab50156554e1bc7bd2d1134c6d66e4f7afad6747c02f11b",
+        "bytes": 299548
       }
     },
     {
@@ -477,7 +477,7 @@
       "content_type": "image/png",
       "headers": {
         "cache-control": "no-cache",
-        "etag": "\"1195a0a59bf46295567c0f7765506547\""
+        "etag": "\"33359d2d1b87cd178267d2b626d3b348\""
       },
       "schema": null,
       "body": {
@@ -539,7 +539,7 @@
       "content_type": "image/png",
       "headers": {
         "cache-control": "no-cache",
-        "etag": "\"68c973e273c837a4067be4a8b1ee919a\""
+        "etag": "\"f8e64a1ca62c9840e4e1be8a7842b041\""
       },
       "schema": null,
       "body": {
