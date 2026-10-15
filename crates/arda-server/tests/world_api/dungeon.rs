@@ -59,3 +59,20 @@ async fn bad_dungeon_queries_are_refused() {
         assert_eq!(get(uri).await.status, StatusCode::BAD_REQUEST, "{uri}");
     }
 }
+
+/// Review 3.6-4 for dungeons: the scene names the seed the image is drawn
+/// with (the render seed of the level's name), so it resolves the same
+/// assets the image shows.
+#[tokio::test]
+async fn the_dungeon_scene_uses_the_image_seed() {
+    let q = "seed=9&kind=dungeon&w=32&h=24";
+    let d = get(&format!("/v1/tactical/dungeon?{q}")).await.json();
+    let name = d["layout"]["name"].as_str().unwrap().to_owned();
+    let scene = get(&format!("/v1/tactical/dungeon/scene?{q}")).await.json();
+    let state = crate::support::state();
+    let want = arda_server::tactical::key::render_seed(
+        state.tactical.world_seed(),
+        &arda_server::tactical::Anchor::Name(name),
+    );
+    assert_eq!(scene["seed"], want.to_string());
+}

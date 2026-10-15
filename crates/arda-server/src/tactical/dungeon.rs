@@ -109,13 +109,13 @@ pub(super) async fn dungeon_scene(
     }
     let scene = blocking(state, move |s| {
         let d = build(s, &q)?;
-        arda_scene::build_scene(
-            &d.layout,
-            s.tactical.library(),
+        // The seed `/dungeon.png` draws with (review 3.6-4).
+        let seed = super::key::render_seed(
             s.tactical.world_seed(),
-            Some(&d.rules),
-        )
-        .map_err(|e| ServerError::Internal(format!("scene: {e}")))
+            &Anchor::Name(d.layout.name.clone()),
+        );
+        arda_scene::build_scene(&d.layout, s.tactical.library(), seed, Some(&d.rules))
+            .map_err(|e| ServerError::Internal(format!("scene: {e}")))
     })
     .await?;
     log("dungeon_scene", &scene.name, super::Hit::Miss, 0, start);
