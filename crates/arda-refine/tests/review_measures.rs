@@ -193,6 +193,8 @@ fn review_section_2_measurements() {
     let bands = [(24.0, 28.0), (28.0, 34.0), (34.0, 38.0), (38.0, 90.0)];
     let mut steep: Vec<Vec<CellKey>> = vec![Vec::new(); bands.len()];
     let temps = [(-0.5, 0.5), (-2.5, -1.5), (-4.5, -3.5), (-6.5, -5.5)];
+    let fractions = [(0.05, 0.3), (0.3, 0.7), (0.7, 1.01)];
+    let mut snowy: Vec<Vec<CellKey>> = vec![Vec::new(); fractions.len()];
     let mut cold: Vec<Vec<CellKey>> = vec![Vec::new(); temps.len()];
     let mut rivers = Vec::new();
     let (mut land, mut steep_land, mut steep_forest) = (0u64, 0u64, 0u64);
@@ -216,6 +218,10 @@ fn review_section_2_measurements() {
                 steep[b].push(k);
             }
             let t = f64::from(c.temperature.raw()) / 100.0;
+            let ws = world_snow(&src, k, &c);
+            if let Some(b) = fractions.iter().position(|&(a, z)| ws >= a && ws < z) {
+                snowy[b].push(k);
+            }
             if let Some(b) = temps.iter().position(|&(a, z)| t >= a && t <= z) {
                 cold[b].push(k);
             }
@@ -298,6 +304,30 @@ fn review_section_2_measurements() {
             100.0 * mean(&tact),
             100.0 * max,
             mean(&world_s)
+        );
+    }
+    println!("-- tactical snow by the world's snow fraction");
+    for (b, cells) in snowy.iter_mut().enumerate() {
+        thin(cells, 60);
+        let (mut tact, mut world_s) = (Vec::new(), Vec::new());
+        for &k in cells.iter() {
+            let c = src.cell(k).unwrap();
+            let blk = refine(&src, k).unwrap();
+            let snow = blk
+                .ground
+                .iter()
+                .filter(|g| matches!(**g, "snow" | "ice"))
+                .count() as f64
+                / 4096.0;
+            tact.push(snow);
+            world_s.push(world_snow(&src, k, &c));
+        }
+        let (a, z) = fractions[b];
+        println!(
+            "  world {a:.2}..{z:.2}: {} cells, world mean {:.2}, tactical mean {:.2}",
+            cells.len(),
+            mean(&world_s),
+            mean(&tact)
         );
     }
     // Banks (3.4-8) and channel offsets (3.4-7).
