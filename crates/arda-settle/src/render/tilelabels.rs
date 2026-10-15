@@ -258,14 +258,17 @@ impl Labeler {
     }
 
     /// The layout for a whole image `width_px` pixels across that spans the
-    /// world's width: names at [`super::scale::label_unit_for_width`] and
-    /// every item, for exports drawn on one image (the opt-in names of
-    /// `/v1/overview.png`).
+    /// world's width, for exports drawn on one image (the opt-in names of
+    /// `/v1/overview.png`): the pyramid level whose scale is nearest the
+    /// image's (a 4,096 pixel long edge is level 4), so it shows the same
+    /// names at the same size as that level's tiles.
     #[must_use]
     pub fn level_for_width(&self, width_px: u32) -> Level {
-        let w = f64::from(width_px);
-        let unit = super::scale::label_unit_for_width(width_px as f32);
-        self.lay_out(w / self.world_m[0], unit, u8::MAX, &[], |_| true)
+        let px_per_m = f64::from(width_px) / self.world_m[0];
+        let long_px = (self.longest_m * px_per_m).max(256.0);
+        let z = (long_px / 256.0).log2().round().clamp(0.0, 24.0) as u8;
+        let unit = super::scale::level_unit(z, self.base_zoom);
+        self.lay_out(px_per_m, unit, z, &[], |_| true)
     }
 
     /// A layout at `px_per_m` for the offline page: every item `keep`

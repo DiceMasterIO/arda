@@ -91,3 +91,29 @@ async fn overlay_values_are_validated_and_tiles_follow_the_overlay() {
     assert_ne!(none.body, soc.body);
     assert_eq!(default.body, soc.body);
 }
+
+#[tokio::test]
+async fn overview_names_are_opt_in_and_only_add_pixels() {
+    let state = society_state();
+    let uri = |o: &str| format!("/v1/overview.png?quality=512{o}");
+    let plain = get_with(state.clone(), &uri(""), None).await;
+    let off = get_with(state.clone(), &uri("&labels=0"), None).await;
+    assert_eq!(plain.status, StatusCode::OK);
+    assert_eq!(off.body, plain.body, "names are off by default");
+
+    let named = get_with(state.clone(), &uri("&labels=1"), None).await;
+    assert_eq!(named.status, StatusCode::OK);
+    assert_ne!(named.body, plain.body, "labels=1 draws the gazetteer's names");
+    let again = get_with(state.clone(), &uri("&labels=1"), None).await;
+    assert_eq!(again.body, named.body, "deterministic");
+    let (a, b) = (
+        decode_rgb(&plain.body).unwrap(),
+        decode_rgb(&named.body).unwrap(),
+    );
+    assert_eq!((a.width, a.height), (b.width, b.height));
+
+    let bad = get_with(state.clone(), &uri("&labels=yes"), None).await;
+    assert_eq!(bad.status, StatusCode::BAD_REQUEST);
+    let oblique = get_with(state, &uri("&labels=1&style=atlas-oblique"), None).await;
+    assert_eq!(oblique.status, StatusCode::BAD_REQUEST);
+}
