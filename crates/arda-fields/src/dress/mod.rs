@@ -185,10 +185,12 @@ fn square_ground(plan: &Plan, s: Sq, d: u8) -> GroundOut {
                 FieldKind::Orchard => ("grass", Some(Crop::Grazed), None),
                 FieldKind::Woodland => {
                     if d <= woodland_edge(seed, s) {
+                        // A wood's margin is long grass under its edge
+                        // bushes, never a `scrub` rim (review 2026-10-15).
                         let g = if d <= 1 || patch(seed, 0xED6F, s, 0.2) < 0.4 {
                             "meadow"
                         } else {
-                            "scrub"
+                            "grass"
                         };
                         (g, None, None)
                     } else if patch(seed, 0x1EAF, s, 0.08) > 0.6 {

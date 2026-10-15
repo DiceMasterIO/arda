@@ -154,7 +154,7 @@ pub fn generate(
     })
 }
 
-/// Grounds and young trees of the fringe: grass beside the fields, scrub
+/// Grounds and young trees of the fringe: grass beside the fields, meadow
 /// towards the forest, with birch and bushes scattered through it.
 fn dress_fringe(plan: &Plan, fringe: &[Option<f32>], layout: &mut TacticalLayout) {
     use crate::geom::{h2, u01};
@@ -165,13 +165,11 @@ fn dress_fringe(plan: &Plan, fringe: &[Option<f32>], layout: &mut TacticalLayout
         let (x, y) = (x0 + k % w, y0 + k / w);
         let n = crate::dress::patch(plan.seed, 0xF41F, Sq::new(x, y), 0.15);
         let v = f64::from(t) + 0.6 * (n - 0.5);
-        let ground = if v < 0.4 {
-            "grass"
-        } else if v < 0.62 {
-            "meadow"
-        } else {
-            "scrub"
-        };
+        // Grass beside the fields, long meadow grass towards the trees;
+        // no `scrub` ground, which reads as a pale sandy rim against the
+        // forest floor (review 2026-10-15): the bushes and birch below are
+        // the scrub.
+        let ground = if v < 0.4 { "grass" } else { "meadow" };
         if let Some(sq) = layout.squares.get_mut(i) {
             ground.clone_into(&mut sq.ground);
         }

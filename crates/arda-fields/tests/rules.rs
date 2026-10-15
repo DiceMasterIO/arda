@@ -368,3 +368,33 @@ fn compounds_never_stand_on_a_settlement_core() {
             .all(|q| (q.x - hit.x).abs() > 1 || (q.y - hit.y).abs() > 1));
     }
 }
+
+/// Review 2026-10-15 (V1 on gallery 08): where worked land meets forest
+/// the fringe and a wood's own margin turned to `scrub`, which reads as a
+/// pale sandy rim; they thin to grass and meadow, the scrub is in the
+/// bushes and birch they carry.
+#[test]
+fn forest_margins_are_grass_and_meadow_not_scrub() {
+    let mut fringe = 0;
+    for s in [synthetic::hedge_country(), synthetic::village_strips()] {
+        let win = big(&s, 256);
+        for (i, f) in win.fringe.iter().enumerate() {
+            if f.is_some() {
+                fringe += 1;
+                assert_ne!(win.layout.squares[i].ground, "scrub", "fringe square {i}");
+            }
+        }
+        for (i, q) in win.sidecar.squares.iter().enumerate() {
+            let wood = q.field.as_ref().is_some_and(|id| {
+                win.sidecar
+                    .fields
+                    .iter()
+                    .any(|f| &f.id.to_string() == id && f.kind == FieldKind::Woodland)
+            });
+            if wood {
+                assert_ne!(q.ground, "scrub", "woodland margin square {i}");
+            }
+        }
+    }
+    assert!(fringe > 0, "no fringe in the scenarios");
+}

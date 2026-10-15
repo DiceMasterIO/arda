@@ -78,7 +78,7 @@ Everything is a function of global square coordinates and the seed. A window is 
    - it is two edges wide where the boundary runs straight.
 6. **Dressing** (`dress/`). Placements come from global jittered lattices:
    - orchards are planted in rows of fruit trees, 5 squares apart;
-   - woodland is a closed canopy in stands, with glades and a 3-square fringe of scrub, birch and bushes;
+   - woodland is a closed canopy in stands, with glades and a 3-square margin of long grass, birch and bushes;
    - pasture has loose flocks, found by the tag queries `livestock:sheep` or `livestock:cattle`, and a trough inside each gate;
    - hay meadows have tall grass and flowers, or rows of bales;
    - stubble has stooks;
