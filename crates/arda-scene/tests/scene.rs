@@ -212,3 +212,22 @@ fn a_secret_door_is_no_spawn_entrance() {
     let plain = build_scene(&l.0, lib(), 1, None).unwrap();
     assert_eq!(plain.spawn_hints.entrances.len(), 1);
 }
+
+/// Review 3.6-12: a locked door is not where a party spawns or walks in
+/// from; it stays a door in the scene, marked locked.
+#[test]
+fn a_locked_door_is_no_spawn_entrance() {
+    let mut l = L::new(4, 3);
+    l.0.walls.push(arda_tactical::layout::WallSegment {
+        x: 1,
+        y: 1,
+        axis: arda_tactical::layout::EdgeAxis::Horizontal,
+        kind: WallRole::Door,
+        kit: "timber".into(),
+        tags: vec![arda_tactical::layout::TAG_LOCKED.to_owned()],
+    });
+    let s = build_scene(&l.0, lib(), 1, None).unwrap();
+    assert_eq!(s.walls[0].kind, WallKind::Door);
+    assert!(s.walls[0].locked);
+    assert!(s.spawn_hints.entrances.is_empty());
+}

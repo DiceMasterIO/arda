@@ -66,6 +66,22 @@ fn ten_foot_steps_need_climbing() {
     assert_eq!(s.path_cost(Sq(1, 0), Sq(2, 0)), Some(5));
 }
 
+/// Review 3.6-12: a diagonal step between two squares 10 ft above both
+/// ends squeezes past a climb on each side, so it is a climb too, not a
+/// free 5-ft step.
+#[test]
+fn a_diagonal_between_two_raised_squares_is_a_climb() {
+    let s = L::new(2, 2).elevation(1, 0, 10).elevation(0, 1, 10).scene();
+    // Bit 3 is SE from (0, 0); bit 7 is NW from (1, 1).
+    assert_eq!(s.climb.0[0] & (1 << 3), 1 << 3);
+    assert_eq!(s.climb.0[3] & (1 << 7), 1 << 7);
+    assert_eq!(s.path_cost(Sq(0, 0), Sq(1, 1)), Some(10));
+    // One raised side leaves the diagonal open.
+    let open = L::new(2, 2).elevation(1, 0, 10).scene();
+    assert_eq!(open.climb.0[0] & (1 << 3), 0);
+    assert_eq!(open.path_cost(Sq(0, 0), Sq(1, 1)), Some(5));
+}
+
 #[test]
 fn cover_levels_follow_the_obstacle() {
     let open = L::new(8, 3).scene();
@@ -302,6 +318,11 @@ fn format_2_bridge_deck_and_parapet_follow_the_sidecar() {
     assert!(!plain.line_of_sight(Sq(1, 0), Sq(1, 2)));
     let parapet = s.walls.iter().find(|w| w.points[0][1] == 1).unwrap();
     assert!(parapet.blocks_movement && !parapet.blocks_sight);
+    // The picture's light stops where the wall piece says (the sidecar's
+    // edge rules never reach the compositor), so the scene's light does
+    // too (review 3.6-12: the two disagreed at parapets).
+    let seg = l.0.walls.iter().find(|w| w.y == 1).unwrap();
+    assert_eq!(parapet.blocks_light, seg.blocks_light(common::lib()));
 }
 
 #[test]

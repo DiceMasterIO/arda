@@ -89,6 +89,8 @@ pub fn build(layout: &TacticalLayout, lib: &Library, rules: Option<&RulesSidecar
     }
     // logic/12 §scene-sidecar: sidecar edge rules override a non-opening
     // edge's blocking and cover (a parapet blocks movement, not sight).
+    // Light keeps the wall piece's rule, the one the compositor draws
+    // (`WallSegment::blocks_light`; review 3.6-12).
     let overrides: BTreeMap<(EdgeAxis, u32, u32), &EdgeRule> = rules
         .map(|r| r.edges.iter().map(|e| ((e.axis, e.x, e.y), e)).collect())
         .unwrap_or_default();
@@ -104,7 +106,6 @@ pub fn build(layout: &TacticalLayout, lib: &Library, rules: Option<&RulesSidecar
             if let Some(e) = overrides.get(&(w.axis, w.x, w.y)) {
                 if !a.kind.opens() {
                     a.blocks_sight = e.blocks_sight;
-                    a.blocks_light = e.blocks_sight;
                     a.blocks_movement = e.blocks_movement;
                     a.cover = e.cover;
                 }

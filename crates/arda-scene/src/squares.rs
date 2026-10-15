@@ -331,7 +331,8 @@ fn trunk(at: (f32, f32), w: u32, h: u32) -> Option<(u32, u32)> {
 
 /// Whether the step from a square at `e` to a neighbour at `ne` is a climb:
 /// 10 ft or more, or 5 ft or more where either square is cliff ground
-/// (logic/12 §scene-climb).
+/// (logic/12 §scene-climb). A diagonal step is also a climb when both
+/// squares beside it are climbs from where it starts.
 fn is_climb(e: i16, ne: i16, cliff: bool) -> bool {
     let dz = (i32::from(ne) - i32::from(e)).abs();
     dz >= CLIMB_STEP_FT || (cliff && dz >= CLIFF_STEP_FT)
@@ -347,16 +348,27 @@ fn climb_masks(elev: &[i16], cliff: &[bool], w: u32, h: u32) -> Vec<u8> {
             let Some(&e) = elev.get(k) else { continue };
             let here = cliff.get(k).copied().unwrap_or(false);
             let mut m = 0u8;
+            // A step to a square's neighbour that is a climb (logic/12
+            // §scene-climb).
+            let step = |nx: i64, ny: i64| -> bool {
+                if nx < 0 || ny < 0 || nx >= wi || ny >= hi {
+                    return false;
+                }
+                let Some(j) = at(nx, ny) else { return false };
+                elev.get(j).is_some_and(|&ne| {
+                    is_climb(e, ne, here || cliff.get(j).copied().unwrap_or(false))
+                })
+            };
             for (bit, (dx, dy)) in DIRS.iter().enumerate() {
                 let (nx, ny) = (x + dx, y + dy);
                 if nx < 0 || ny < 0 || nx >= wi || ny >= hi {
                     continue;
                 }
-                let Some(j) = at(nx, ny) else { continue };
-                if let Some(&ne) = elev.get(j) {
-                    if is_climb(e, ne, here || cliff.get(j).copied().unwrap_or(false)) {
-                        m |= 1 << bit;
-                    }
+                // A diagonal squeezing between two raised (or sunken)
+                // squares climbs past them (review 3.6-12).
+                let squeeze = *dx != 0 && *dy != 0 && step(x + dx, y) && step(x, y + dy);
+                if step(nx, ny) || squeeze {
+                    m |= 1 << bit;
                 }
             }
             if let Some(slot) = out.get_mut(k) {

@@ -57,9 +57,10 @@ fn entrances(ix: &SceneIndex<'_>) -> Vec<Entrance> {
         .walls
         .iter()
         .enumerate()
-        // A secret door looks like wall until found: it is no spawn
-        // entrance (review round 2 #39).
-        .filter(|(_, w)| w.kind.opens() && w.kind != crate::types::WallKind::Secret)
+        // A secret door looks like wall until found (review round 2 #39)
+        // and a locked one needs a key or a check (review 3.6-12): neither
+        // is a spawn entrance.
+        .filter(|(_, w)| w.kind.opens() && w.kind != crate::types::WallKind::Secret && !w.locked)
         .map(|(i, w)| {
             let mut squares = Vec::new();
             for (axis, x, y) in unit_edges(w) {
