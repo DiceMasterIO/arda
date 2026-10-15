@@ -26,6 +26,16 @@ fn wet(inputs: &FieldInputs<'_>, s: Sq) -> bool {
     inputs.terrain.sample(m[0], m[1]).water_depth_m > 0.0
 }
 
+/// Water at least this deep is open water (a sea or lake: the blocks'
+/// terrain reports it at 2 m, rivers shallower), whose shore is no mill
+/// bank while a river bank is in reach.
+const OPEN_WATER_M: f64 = 2.0;
+
+fn open_water(inputs: &FieldInputs<'_>, s: Sq) -> bool {
+    let m = s.centre_m();
+    inputs.terrain.sample(m[0], m[1]).water_depth_m >= OPEN_WATER_M
+}
+
 /// Bank squares in and up to [`BANK_REACH`] around the cell, nearest the
 /// centre first, each with the axis
 /// towards the water (the mean offset of wet squares within 7 squares).
@@ -61,7 +71,15 @@ fn banks(inputs: &FieldInputs<'_>, net: &RoadNet, cell: (i64, i64)) -> Vec<(Sq, 
                 }
             }
             let dist = (x - c.x).pow(2) + (y - c.y).pow(2);
-            out.push((dist, s, super::axis_towards(v)));
+            // A river bank before a sea or lake shore: a mill sited by a
+            // river whose refined course runs a cell over must not settle
+            // on the coast instead.
+            let shore = [(0, 1), (1, 0), (0, -1), (-1, 0)]
+                .into_iter()
+                .all(|(dx, dy)| {
+                    !wet(inputs, s.offset(dx, dy)) || open_water(inputs, s.offset(dx, dy))
+                });
+            out.push(((shore, dist), s, super::axis_towards(v)));
         }
     }
     out.sort_by_key(|(d, s, _)| (*d, *s));
