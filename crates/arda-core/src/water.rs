@@ -8,10 +8,13 @@ use crate::coords::CellCoord;
 use crate::fixed::DischargeMilli;
 pub use crate::playa::{PanKind, PanRun};
 
-/// Bankfull depth in centimetres from mean discharge: `0.3 m × Q^0.4`
+/// Channel depth in centimetres from mean discharge: `0.3 m × Q^0.4`
 /// with `Q` in m³/s (Leopold & Maddock at-a-station exponent 0.4; the
 /// matching width law is [`crate::hydrology::channel_width_dm`], `4 m × Q^0.5`).
-/// Returns `None` only on arithmetic overflow.
+/// Named "bankfull" for the channel it sizes, but `Q` is the saved *mean*
+/// annual discharge, not a bankfull (about 1.5-year) flood, so the depth
+/// is the channel's at mean flow (review 3.2-18). Returns `None` only on
+/// arithmetic overflow.
 #[must_use]
 pub fn bankfull_depth_cm(discharge: DischargeMilli) -> Option<u32> {
     // depth_cm = 30 × (raw / 1000)^0.4 = (30^5 × raw² / 1000²)^(1/5)
@@ -337,9 +340,10 @@ impl LakeOrigin {
 pub struct SegmentForm {
     /// Planform.
     pub pattern: ChannelPattern,
-    /// Single-thread bankfull width, decimetres (`4 m × Q^0.5`).
+    /// Single-thread channel width, decimetres (`4 m × Q^0.5`, `Q` the
+    /// mean annual discharge; see [`bankfull_depth_cm`]).
     pub bankfull_width_dm: u32,
-    /// Bankfull depth, centimetres (`0.3 m × Q^0.4`).
+    /// Channel depth, centimetres (`0.3 m × Q^0.4`, mean discharge).
     pub bankfull_depth_cm: u32,
     /// Width of the active belt: the braidplain for braided reaches, the
     /// bankfull channel otherwise; decimetres.
