@@ -77,7 +77,17 @@ struct Scratch {
     area: Vec<u64>,
     seen: Vec<u8>,
     queue: BinaryHeap<QueueEntry>,
+    /// Bucket queue (review 3.2-12): per-level FIFO lists threaded through
+    /// `link`, `head` and `tail` hold the cells waiting at a higher level
+    /// than the current one; `queue` holds only the current level and any
+    /// level beyond the buckets, so the pop order is the heap's exactly.
+    link: Vec<u32>,
+    head: Vec<u32>,
+    tail: Vec<u32>,
 }
+
+/// Empty bucket or list end.
+const NONE: u32 = u32::MAX;
 
 /// Exact requested owned payload, including scratch container headers. The
 /// caller admits this plus its already-owned heights/coarse fields before
@@ -91,7 +101,8 @@ pub(crate) fn scratch_bytes(width: usize, height: usize) -> Result<u128, Hydrolo
         + size_of::<u32>()
         + size_of::<u64>()
         + size_of::<u8>()
-        + size_of::<QueueEntry>();
+        + size_of::<QueueEntry>()
+        + 3 * size_of::<u32>();
     Ok(grid.count as u128 * per_cell as u128 + size_of::<Scratch>() as u128)
 }
 
@@ -147,6 +158,9 @@ impl Scratch {
             area: allocated(grid.count, 0)?,
             seen: allocated(grid.count, 0)?,
             queue,
+            link: allocated(grid.count, NONE)?,
+            head: allocated(grid.count, NONE)?,
+            tail: allocated(grid.count, NONE)?,
         })
     }
 
@@ -157,21 +171,72 @@ impl Scratch {
     fn flood(&mut self, heights: &[i32], grid: Grid, increment: i64) {
         self.seen.fill(0);
         self.queue.clear();
-        let mut seed = |i: usize| {
+        // Levels lo..lo + cap get a bucket; every pushed level is at least
+        // the level being popped, so only levels above the current one wait
+        // in buckets and the heap keeps its exact (level, index) order.
+        let lo = heights.iter().copied().min().map_or(0, i64::from);
+        let hi = heights.iter().copied().max().map_or(0, i64::from);
+        let cap = usize::try_from(hi - lo + 1).map_or(grid.count, |r| r.min(grid.count));
+        self.head[..cap].fill(NONE);
+        let mut first = cap;
+        let mut current = i64::MIN;
+        let mut rank = 0;
+        macro_rules! push {
+            ($level:expr, $i:expr) => {{
+                let (level, i): (i64, usize) = ($level, $i);
+                let off = usize::try_from(level - lo).unwrap_or(usize::MAX);
+                if level > current && off < cap {
+                    self.link[i] = NONE;
+                    if self.head[off] == NONE {
+                        self.head[off] = i as u32;
+                    } else {
+                        self.link[self.tail[off] as usize] = i as u32;
+                    }
+                    self.tail[off] = i as u32;
+                    first = first.min(off);
+                } else {
+                    // Each cell is enqueued once. The fixed grid-sized
+                    // capacity therefore covers even the worst frontier.
+                    self.queue.push(Reverse((level, i as u32)));
+                }
+            }};
+        }
+        let rim = (0..grid.width)
+            .flat_map(|x| [x, (grid.height - 1) * grid.width + x])
+            .chain(
+                (1..grid.height - 1)
+                    .flat_map(|y| [y * grid.width, y * grid.width + grid.width - 1]),
+            );
+        for i in rim {
             self.seen[i] = 1;
             self.routing[i] = i64::from(heights[i]);
-            self.queue.push(Reverse((self.routing[i], i as u32)));
-        };
-        for x in 0..grid.width {
-            seed(x);
-            seed((grid.height - 1) * grid.width + x);
+            push!(self.routing[i], i);
         }
-        for y in 1..grid.height - 1 {
-            seed(y * grid.width);
-            seed(y * grid.width + grid.width - 1);
-        }
-        let mut rank = 0;
-        while let Some(Reverse((level, raw))) = self.queue.pop() {
+        loop {
+            while first < cap && self.head[first] == NONE {
+                first += 1;
+            }
+            let bucket = (first < cap).then(|| lo + first as i64);
+            let top = self.queue.peek().map(|&Reverse((level, _))| level);
+            match (bucket, top) {
+                (None, None) => break,
+                (Some(b), t) if t.is_none_or(|t| b <= t) => {
+                    // Every cell at this level joins the heap before any of
+                    // them is popped.
+                    let mut at = self.head[first];
+                    self.head[first] = NONE;
+                    while at != NONE {
+                        self.queue.push(Reverse((b, at)));
+                        at = self.link[at as usize];
+                    }
+                    continue;
+                }
+                _ => {}
+            }
+            let Some(Reverse((level, raw))) = self.queue.pop() else {
+                break;
+            };
+            current = level;
             let i = raw as usize;
             self.order[rank] = raw;
             rank += 1;
@@ -182,9 +247,7 @@ impl Scratch {
                 self.seen[j] = 1;
                 let filled = i64::from(heights[j]).max(level + increment);
                 self.routing[j] = filled;
-                // Each cell is enqueued once. The fixed grid-sized capacity
-                // therefore covers even the worst simultaneous frontier.
-                self.queue.push(Reverse((filled, j as u32)));
+                push!(filled, j);
             }
         }
         debug_assert_eq!(rank, grid.count, "rectangular flood visits every cell");

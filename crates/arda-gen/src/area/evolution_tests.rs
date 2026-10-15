@@ -304,6 +304,7 @@ fn scratch_budget_covers_all_reserved_buffers_without_growth() {
             + s.area.capacity() * size_of::<u64>()
             + s.seen.capacity() * size_of::<u8>()
             + s.queue.capacity() * size_of::<QueueEntry>()
+            + (s.link.capacity() + s.head.capacity() + s.tail.capacity()) * size_of::<u32>()
             + size_of::<Scratch>()
     };
     let budget = scratch_bytes(grid.width, grid.height).unwrap();
@@ -317,5 +318,76 @@ fn scratch_budget_covers_all_reserved_buffers_without_growth() {
     assert!(scratch_bytes(usize::MAX, 2).is_err());
     if usize::BITS > 32 {
         assert!(scratch_bytes(65_536, 65_536).is_err());
+    }
+}
+
+/// The published heap flood, kept as the reference for the bucket queue.
+fn heap_flood(heights: &[i32], grid: Grid, increment: i64) -> (Vec<i64>, Vec<u32>) {
+    let mut seen = vec![0_u8; grid.count];
+    let mut routing = vec![0_i64; grid.count];
+    let mut order = vec![0_u32; grid.count];
+    let mut queue = BinaryHeap::new();
+    let mut seed = |i: usize, queue: &mut BinaryHeap<QueueEntry>| {
+        seen[i] = 1;
+        routing[i] = i64::from(heights[i]);
+        queue.push(Reverse((routing[i], i as u32)));
+    };
+    for x in 0..grid.width {
+        seed(x, &mut queue);
+        seed((grid.height - 1) * grid.width + x, &mut queue);
+    }
+    for y in 1..grid.height - 1 {
+        seed(y * grid.width, &mut queue);
+        seed(y * grid.width + grid.width - 1, &mut queue);
+    }
+    let mut rank = 0;
+    while let Some(Reverse((level, raw))) = queue.pop() {
+        order[rank] = raw;
+        rank += 1;
+        for (j, _) in grid.neighbours(raw as usize) {
+            if seen[j] != 0 {
+                continue;
+            }
+            seen[j] = 1;
+            let filled = i64::from(heights[j]).max(level + increment);
+            routing[j] = filled;
+            queue.push(Reverse((filled, j as u32)));
+        }
+    }
+    (routing, order)
+}
+
+/// Review 3.2-12: the legacy evolution ran 320 whole-domain heap floods
+/// (54 min at default size). The bucket queue must pop in exactly the
+/// heap's (level, index) order, so legacy worlds keep their bytes.
+#[test]
+fn bucket_flood_matches_the_heap_flood_exactly() {
+    let mut random = 0x2545_F491_4F6C_DD1D_u64;
+    for (w, h, spread) in [
+        (13, 9, 5),
+        (40, 31, 3),
+        (64, 48, 2_000),
+        (17, 17, 1),
+        (30, 20, 1 << 30),
+    ] {
+        let grid = Grid::checked(w, h).unwrap();
+        let heights: Vec<i32> = (0..w * h)
+            .map(|_| {
+                random ^= random << 13;
+                random ^= random >> 7;
+                random ^= random << 17;
+                i32::try_from(random % spread).unwrap() - i32::try_from(spread / 3).unwrap()
+            })
+            .collect();
+        let mut scratch = Scratch::new(grid).unwrap();
+        for increment in [0, 1] {
+            scratch.flood(&heights, grid, increment);
+            let (routing, order) = heap_flood(&heights, grid, increment);
+            assert_eq!(
+                scratch.routing, routing,
+                "{w}x{h} spread {spread} +{increment}"
+            );
+            assert_eq!(scratch.order, order, "{w}x{h} spread {spread} +{increment}");
+        }
     }
 }
