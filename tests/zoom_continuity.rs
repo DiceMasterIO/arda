@@ -12,6 +12,7 @@
 #![allow(clippy::unwrap_used, clippy::expect_used, missing_docs)]
 
 mod zoom_land;
+mod zoom_terrain;
 
 use arda_core::water::PanKind;
 use arda_midzoom::{water_mask, Pyramid, ReliefWorld};
