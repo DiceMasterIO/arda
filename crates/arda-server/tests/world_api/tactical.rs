@@ -3,7 +3,7 @@
 
 use crate::support::{config, get, library_dir, post, send, state};
 use arda_server::tactical::block::{Block, BlockRequest};
-use arda_server::tactical::{Anchor, TacticalLimits};
+use arda_server::tactical::TacticalLimits;
 use arda_server::{AppState, BlockError, BlockSource, ServerError, Tactical};
 use arda_tactical::{layouts, Library, TacticalLayout};
 use axum::body::Body;
@@ -95,7 +95,7 @@ async fn a_pending_source_is_a_typed_not_yet_naming_arda_refine() {
 struct Fixed;
 
 impl BlockSource for Fixed {
-    fn block(&self, req: &BlockRequest, _lib: &Library) -> Result<Block, BlockError> {
+    fn check(&self, req: &BlockRequest) -> Result<(), BlockError> {
         let (gx, gy) = (
             u32::try_from(req.gsx0 / 64).unwrap(),
             u32::try_from(req.gsy0 / 64).unwrap(),
@@ -107,18 +107,20 @@ impl BlockSource for Fixed {
                 reason: "open sea".into(),
             });
         }
-        let mut l = layouts::by_name("wall_junctions").ok_or(BlockError::Failed("none".into()))?;
-        l.name = format!("block_{gx}_{gy}");
-        let Anchor::Origin(x, y) = Anchor::of_cell(gx, gy) else {
-            return Err(BlockError::Failed("origin".into()));
-        };
+        Ok(())
+    }
+
+    fn block(&self, req: &BlockRequest, _lib: &Library) -> Result<Block, BlockError> {
+        self.check(req)?;
+        let mut l = TacticalLayout::new("fixed", req.w, req.h, "grass");
         let rules = arda_scene::RulesSidecar::empty(l.width, l.height);
-        l.origin = Some([x, y]);
+        l.origin = Some([req.gsx0, req.gsy0]);
         Ok(Block {
             layout: l,
             rules: Some(rules),
-            origin: [x, y],
+            origin: [req.gsx0, req.gsy0],
             meta: [("source".to_owned(), "test".to_owned())].into(),
+            review: Vec::new(),
         })
     }
 }
@@ -137,7 +139,9 @@ async fn a_plugged_block_source_serves_through_the_same_route() {
     let r = send(Arc::clone(&plugged), request("/v1/tactical/cell/7/9")).await;
     assert_eq!(r.status, StatusCode::OK);
     let j = r.json();
-    assert_eq!(j["layout"]["name"], "block_7_9");
+    // The body is cut from the apron block (review 3.5-8).
+    assert_eq!(j["layout"]["name"], "cell_7_9");
+    assert_eq!(j["layout"]["squares"].as_array().unwrap().len(), 64 * 64);
     assert_eq!(j["origin"], serde_json::json!([448, 576]));
     assert_eq!(j["rules"]["format_version"], 2);
     assert_eq!(j["meta"]["source"], "test");

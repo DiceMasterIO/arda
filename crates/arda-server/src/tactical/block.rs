@@ -27,6 +27,45 @@ pub struct Block {
     pub origin: [i64; 2],
     /// Provenance, for example `source`, `relaxed` and `overlays`.
     pub meta: BTreeMap<String, String>,
+    /// Row-major squares a relaxed fill laid, marked for review (goal 47).
+    #[serde(skip)]
+    pub review: Vec<u32>,
+}
+
+impl Block {
+    /// The sub-window `cut` of this block (`arda_blocks::crop`): what a
+    /// cell's body and scene are cut from its apron block, so image and
+    /// scene come from one composition (review 3.5-8). `relaxed` and
+    /// `review_squares` describe the cut.
+    #[must_use]
+    pub fn cut(&self, cut: arda_blocks::Cut, name: &str) -> Self {
+        let width = self.layout.width.max(1);
+        let review: Vec<u32> = self
+            .review
+            .iter()
+            .filter_map(|&i| {
+                let (x, y) = (i % width, i / width);
+                let inside = x >= cut.x && y >= cut.y && x < cut.x + cut.w && y < cut.y + cut.h;
+                inside.then(|| (y - cut.y) * cut.w + (x - cut.x))
+            })
+            .collect();
+        let mut meta = self.meta.clone();
+        meta.insert("relaxed".into(), (!review.is_empty()).to_string());
+        meta.insert("review_squares".into(), review.len().to_string());
+        Self {
+            layout: arda_blocks::crop::layout(&self.layout, cut, name),
+            rules: self
+                .rules
+                .as_ref()
+                .map(|r| arda_blocks::crop::rules(r, cut)),
+            origin: [
+                self.origin[0] + i64::from(cut.x),
+                self.origin[1] + i64::from(cut.y),
+            ],
+            meta,
+            review,
+        }
+    }
 }
 
 /// A window of world squares and the overlays wanted on it.
@@ -119,6 +158,17 @@ pub trait BlockSource: Send + Sync + std::fmt::Debug {
     /// # Errors
     /// [`BlockError`] when the block cannot be produced.
     fn block(&self, req: &BlockRequest, library: &Library) -> Result<Block, BlockError>;
+
+    /// Refuses a request the source has no block for (open sea) without
+    /// composing it; `Ok` when [`Self::block`] may answer. Bodies and
+    /// scenes are cut from the apron block (review 3.5-8), which is never
+    /// a whole cell, so the server asks this first.
+    ///
+    /// # Errors
+    /// [`BlockError::NoBlock`] and the source's own failures.
+    fn check(&self, _req: &BlockRequest) -> Result<(), BlockError> {
+        Ok(())
+    }
 }
 
 /// The placeholder source: every request is [`BlockError::NotYet`].

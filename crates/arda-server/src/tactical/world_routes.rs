@@ -100,7 +100,7 @@ pub(super) fn opts(
 }
 
 /// World extent in cells and in squares.
-fn extent(state: &AppState) -> ((u32, u32), (i64, i64)) {
+pub(super) fn extent(state: &AppState) -> ((u32, u32), (i64, i64)) {
     let (w, h) = state.query.cells();
     ((w, h), (i64::from(w) * 64, i64::from(h) * 64))
 }
@@ -175,7 +175,7 @@ pub(super) async fn cell(
         .await?;
         return Ok(send(&headers, "cell.png", &detail, out, "image/png", start));
     }
-    let out = blocking(state, move |s| s.tactical.world_body(&req, ppsq)).await?;
+    let out = blocking(state, move |s| s.tactical.world_body(&req, world, ppsq)).await?;
     Ok(send(
         &headers,
         "cell",
@@ -285,7 +285,8 @@ pub(super) async fn window(
     let req = window_request(&state, &q, &o)?;
     let detail = format!("window {},{} {}x{}", req.gsx0, req.gsy0, req.w, req.h);
     let ppsq = o.ppsq;
-    let out = blocking(state, move |s| s.tactical.world_body(&req, ppsq)).await?;
+    let (_, world) = extent(&state);
+    let out = blocking(state, move |s| s.tactical.world_body(&req, world, ppsq)).await?;
     Ok(send(
         &headers,
         "window",

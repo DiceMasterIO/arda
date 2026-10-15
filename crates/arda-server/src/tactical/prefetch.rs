@@ -437,7 +437,7 @@ impl Tactical {
         ppsq: u32,
         image: bool,
     ) -> ServerResult<()> {
-        self.world_body(req, ppsq)?;
+        self.world_body(req, world, ppsq)?;
         if image {
             let (block, key) = self.world_render(req, world, ppsq, false)?;
             self.pyramid_in(&block.layout, &key, Lane::Prefetch)?;

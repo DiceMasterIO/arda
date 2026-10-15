@@ -57,6 +57,37 @@ impl Tactical {
         )
     }
 
+    /// The block of `req` cut from its apron block, the one composition
+    /// its image is rendered from, so the body, the scene and the image
+    /// never disagree (review 3.5-8). `world` is the world's extent in
+    /// squares.
+    ///
+    /// # Errors
+    /// The source's [`super::block::BlockError`] (open sea is `no_block`).
+    pub fn world_block_cut(&self, req: &BlockRequest, world: (i64, i64)) -> ServerResult<Block> {
+        self.blocks.check(req)?;
+        let apron = req.with_apron(APRON, world);
+        let block = self.world_block(&apron)?;
+        if (block.layout.width, block.layout.height) != (apron.w, apron.h) {
+            return Err(ServerError::Internal(format!(
+                "the block source answered {}x{} for a {}x{} window",
+                block.layout.width, block.layout.height, apron.w, apron.h
+            )));
+        }
+        if apron == *req {
+            return Ok(block);
+        }
+        let off = |a: i64, b: i64| u32::try_from(a - b).unwrap_or(0);
+        let cut = arda_blocks::Cut {
+            x: off(req.gsx0, apron.gsx0),
+            y: off(req.gsy0, apron.gsy0),
+            w: req.w,
+            h: req.h,
+        };
+        let name = arda_blocks::pipeline::window_name(req.gsx0, req.gsy0, req.w, req.h);
+        Ok(block.cut(cut, &name))
+    }
+
     /// The compositor seed of every world-anchored render of this world.
     #[must_use]
     pub fn world_render_seed(&self) -> u64 {
@@ -163,11 +194,17 @@ impl Tactical {
     }
 
     /// The JSON body of `req`: layout, rules, origin, meta, scene and tile
-    /// geometry at `ppsq`.
+    /// geometry at `ppsq`, cut from the apron block its image is drawn
+    /// from (`world` is the world's extent in squares).
     ///
     /// # Errors
     /// Block or scene failures.
-    pub fn world_body(&self, req: &BlockRequest, ppsq: u32) -> ServerResult<(Arc<Encoded>, Hit)> {
+    pub fn world_body(
+        &self,
+        req: &BlockRequest,
+        world: (i64, i64),
+        ppsq: u32,
+    ) -> ServerResult<(Arc<Encoded>, Hit)> {
         let key = BodyKey { req: *req, ppsq };
         if let Some(hit) = cached(&self.bodies, &key)? {
             return Ok((hit, Hit::Hit));
@@ -175,18 +212,26 @@ impl Tactical {
         let value = self.lanes.bodies.run(
             &key,
             || cached(&self.bodies, &key),
-            || self.build_body(req, key),
+            || self.build_body(req, world, key),
         )?;
         Ok((value, Hit::Miss))
     }
 
-    fn build_body(&self, req: &BlockRequest, key: BodyKey) -> ServerResult<Arc<Encoded>> {
-        let block = self.world_block(req)?;
+    fn build_body(
+        &self,
+        req: &BlockRequest,
+        world: (i64, i64),
+        key: BodyKey,
+    ) -> ServerResult<Arc<Encoded>> {
+        let block = self.world_block_cut(req, world)?;
         let seed = self.world_render_seed();
         let scene =
             arda_scene::build_scene(&block.layout, &self.library, seed, block.rules.as_ref())
                 .map_err(|e| ServerError::InvalidLayout(e.to_string()))?;
-        let mut scene = serde_json::to_value(&scene)
+        // Through text, so `f32` coordinates keep their shortest form, as
+        // `/scene` writes them (`to_value` widens them to `f64` digits).
+        let mut scene: serde_json::Value = serde_json::to_vec(&scene)
+            .and_then(|b| serde_json::from_slice(&b))
             .map_err(|e| ServerError::Internal(format!("scene json: {e}")))?;
         // logic/16 §api-conventions: u64 seeds travel as decimal strings.
         if let Some(obj) = scene.as_object_mut() {

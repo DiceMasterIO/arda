@@ -61,7 +61,11 @@ impl Tactical {
             )));
         }
         self.admit(&layout, ppsq)?;
-        self.world_block(&BlockRequest::cell(gx, gy))?;
+        let world = (
+            i64::from(cells.0) * i64::from(CELL_SQUARES),
+            i64::from(cells.1) * i64::from(CELL_SQUARES),
+        );
+        self.world_block_cut(&BlockRequest::cell(gx, gy), world)?;
         Ok(BakeRequestParsed {
             gx,
             gy,

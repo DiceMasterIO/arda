@@ -117,7 +117,7 @@ fn place<'a>(p: &arda_tactical::layout::Placement, r: &compose::Resolved<'a>) ->
     clippy::cast_sign_loss,
     clippy::cast_precision_loss
 )]
-fn covered(rect: [f32; 4], width: u32, height: u32) -> impl Iterator<Item = (u32, u32)> {
+pub fn covered(rect: [f32; 4], width: u32, height: u32) -> impl Iterator<Item = (u32, u32)> {
     // Centre c = i + 0.5 lies in [x0, x1) iff i in [ceil(x0 - 0.5), ceil(x1 - 0.5)).
     let lo = |v: f32, max: u32| (v - 0.5).ceil().clamp(0.0, max as f32) as u32;
     let (x0, x1) = (lo(rect[0], width), lo(rect[2], width));

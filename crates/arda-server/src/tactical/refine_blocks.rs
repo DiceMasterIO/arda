@@ -73,7 +73,7 @@ impl RefineBlocks {
     pub fn open(dir: &Path) -> Result<Self, BlockError> {
         let world = arda::World::load(dir).map_err(failed)?;
         let src = WorldSource::shared(Arc::new(world)).map_err(failed)?;
-        Ok(Self::new(Pipeline::new(Box::new(src), REFINED_BLOCKS)))
+        Ok(Self::new(pipeline(Box::new(src))))
     }
 
     /// Wraps an existing pipeline (for synthetic worlds in tests).
@@ -91,7 +91,7 @@ impl RefineBlocks {
     /// Blocks over an opened world, with its society overlays when given.
     #[must_use]
     pub fn with_society(src: SharedSource, society: Option<Arc<SocietyOverlays>>) -> Self {
-        let mut b = Self::new(Pipeline::new(Box::new(src), REFINED_BLOCKS));
+        let mut b = Self::new(pipeline(Box::new(src)));
         b.society = society;
         b
     }
@@ -109,7 +109,8 @@ impl RefineBlocks {
         Ok(d)
     }
 
-    fn compose(&self, req: &BlockRequest, library: &Library) -> Result<Block, BlockError> {
+    /// Open sea answers `no_block` for a whole-cell request.
+    fn sea(&self, req: &BlockRequest) -> Result<(), BlockError> {
         let n = 64_i64;
         let whole_cell = req.gsx0 % n == 0
             && req.gsy0 % n == 0
@@ -125,6 +126,11 @@ impl RefineBlocks {
                 });
             }
         }
+        Ok(())
+    }
+
+    fn compose(&self, req: &BlockRequest, library: &Library) -> Result<Block, BlockError> {
+        self.sea(req)?;
         let demo = req.demo_at.map(|at| self.demo(at)).transpose()?;
         let overlays = match (&demo, &self.society) {
             (Some(d), _) => Some(d.as_ref() as &dyn Overlays),
@@ -160,8 +166,16 @@ impl RefineBlocks {
             layout: c.layout,
             rules: Some(c.rules),
             meta,
+            review: c.meta.review,
         })
     }
+}
+
+/// A pipeline over `src` whose sidecar folds resolve placements with the
+/// world's render seed, the seed the images are drawn with (review 3.6-4).
+fn pipeline(src: Box<dyn arda_refine::Source + Send + Sync>) -> Pipeline {
+    let seed = super::key::render_seed(src.seed(), &super::Anchor::Origin(0, 0));
+    Pipeline::new(src, REFINED_BLOCKS).with_art_seed(seed)
 }
 
 fn blocks_error(e: BlocksError) -> BlockError {
@@ -246,6 +260,10 @@ fn json_len<T: serde::Serialize>(v: &T) -> usize {
 }
 
 impl BlockSource for RefineBlocks {
+    fn check(&self, req: &BlockRequest) -> Result<(), BlockError> {
+        self.sea(req)
+    }
+
     fn block(&self, req: &BlockRequest, library: &Library) -> Result<Block, BlockError> {
         if let Some(hit) = self.composed.lock().map_err(failed)?.get(req) {
             return Ok(Block::clone(&hit));
