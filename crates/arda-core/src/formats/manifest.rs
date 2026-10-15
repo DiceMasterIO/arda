@@ -52,10 +52,10 @@ pub const FINE_TERRAIN_PATH: &str = "terrain/fine.bin";
 /// §fine-formation recipes). Every older recipe still loads and renders as
 /// it did.
 ///
-/// This is the recipe new worlds use by default: recipe 7 (climate-driven
-/// runoff and arid basins), approved by the maintainer on 2026-10-01.
-/// `--recipe 6` reproduces v0.2–v0.3 worlds exactly.
-pub const FINE_TERRAIN_RECIPE_VERSION: u16 = 7;
+/// This is the recipe new worlds use by default: recipe 9 (recipe 7 plus
+/// the 2026-10 review corrections). `--recipe 7` reproduces v0.4–v0.8
+/// default worlds exactly, `--recipe 6` v0.2–v0.3 worlds.
+pub const FINE_TERRAIN_RECIPE_VERSION: u16 = 9;
 
 /// The newest fine-terrain recipe this build generates and reads (recipe 9:
 /// recipe 7 plus the 2026-10 review corrections). Manifests may name any

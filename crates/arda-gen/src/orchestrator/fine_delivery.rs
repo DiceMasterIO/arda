@@ -131,9 +131,8 @@ fn refuse_occupied(out: &Path) -> Result<(), GenError> {
 pub enum FineRecipe {
     /// Recipe 4: spectral source plus carved bent valleys (exact replay).
     Valleys,
-    /// Recipe 7, the default: recipe 6 plus climate
-    /// (runoff-weighted channels, arid endorheic basins with terminal lakes
-    /// and playas).
+    /// Recipe 7: recipe 6 plus climate (runoff-weighted channels, arid
+    /// endorheic basins with terminal lakes and playas).
     Formation,
     /// Recipe 6: multi-resolution stream-power formation with
     /// margins, coasts and water forms (logic/02 §fine-formation), as v0.2
@@ -144,15 +143,16 @@ pub enum FineRecipe {
     /// Recipe 8 (opt-in): recipe 7 plus plains (alluvial valley floors
     /// scaled to discharge; logic/02 §fine-formation plains).
     FormationV8,
-    /// Recipe 9: recipe 7 plus the 2026-10 review corrections to
-    /// formation, climate and hydrology (logic/02 §fine-formation recipe 9).
+    /// Recipe 9, the default: recipe 7 plus the 2026-10 review corrections
+    /// to formation, climate and hydrology (logic/02 §fine-formation recipe
+    /// 9).
     FormationV9,
 }
 
 impl FineRecipe {
     /// The recipe new worlds use ([`arda_core::FINE_TERRAIN_RECIPE_VERSION`]):
-    /// recipe 7 ([`Self::Formation`]).
-    pub const DEFAULT: Self = Self::Formation;
+    /// recipe 9 ([`Self::FormationV9`]).
+    pub const DEFAULT: Self = Self::FormationV9;
 
     /// The manifest `recipe_version` this recipe records.
     #[must_use]
@@ -195,7 +195,7 @@ impl FineRecipe {
     }
 }
 
-/// Generate one default-recipe (7) world; see
+/// Generate one default-recipe (9) world; see
 /// [`generate_world_with_fine_recipe`].
 ///
 /// # Errors

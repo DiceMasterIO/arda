@@ -235,8 +235,8 @@ pub enum Recipe {
 }
 
 impl Recipe {
-    /// The recipe new worlds use: recipe 7.
-    pub const DEFAULT: Self = Self::V7;
+    /// The recipe new worlds use: recipe 9.
+    pub const DEFAULT: Self = Self::V9;
 
     /// The newest recipe this build forms.
     pub const LATEST: Self = Self::V9;

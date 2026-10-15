@@ -46,18 +46,22 @@ enum Command {
         /// World directory to create.
         #[arg(long)]
         out: PathBuf,
-        /// Terrain source. Fine uses stream-power formation (recipe 7 unless
-        /// --recipe says otherwise) and a fixed five-attempt gate.
-        #[arg(long, value_enum, default_value_t = Terrain::Legacy)]
+        /// Terrain source (default fine). Fine uses stream-power formation
+        /// (recipe 9 unless --recipe says otherwise) and a fixed five-attempt
+        /// gate; legacy is the older procedural terrain without fine terrain
+        /// or shore layers.
+        #[arg(long, value_enum, default_value_t = Terrain::Fine)]
         terrain: Terrain,
-        /// Fine-terrain recipe: 7 (default: climate, arid basins), 8 (opt-in:
-        /// recipe 7 plus alluvial plains), 6 (v0.2 formation), 5 (v0.1
-        /// formation, replayed exactly) or 4 (spectral valleys). Fine mode
-        /// only.
-        #[arg(long, value_parser = clap::value_parser!(u16).range(4..=8))]
+        /// Fine-terrain recipe: 9 (default: recipe 7 plus the 2026-10 review
+        /// corrections), 7 (v0.4-v0.8 default: climate, arid basins), 8
+        /// (opt-in: recipe 7 plus alluvial plains), 6 (v0.2 formation), 5
+        /// (v0.1 formation, replayed exactly) or 4 (spectral valleys). Fine
+        /// mode only.
+        #[arg(long, value_parser = clap::value_parser!(u16).range(4..=9))]
         recipe: Option<u16>,
-        /// Latitude band as SOUTH,NORTH degrees (default 35,55). Recipe 7
-        /// dries the subtropical belt (15-26°), e.g. `--latitude 15,35`.
+        /// Latitude band as SOUTH,NORTH degrees (default 35,55). Recipes 7
+        /// and later dry the subtropical belt (15-26°), e.g. `--latitude
+        /// 15,35`; recipe 9 also turns the wind to the trades there.
         #[arg(long)]
         latitude: Option<String>,
         /// Fine-source RAM ceiling in bytes (default 16 GiB; fine mode only).

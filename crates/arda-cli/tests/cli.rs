@@ -46,9 +46,20 @@ impl Drop for TempDir {
     }
 }
 
+/// The legacy MICRO world: these tests exercise the CLI, not the terrain,
+/// and legacy generation is the quick one. Fine terrain is the default
+/// (`generate_defaults_to_fine_terrain`).
 fn generate_micro(dir: &std::path::Path) -> std::process::Output {
     Command::new(bin())
-        .args(["generate", "--seed", "42", "--micro", "--out"])
+        .args([
+            "generate",
+            "--seed",
+            "42",
+            "--micro",
+            "--terrain",
+            "legacy",
+            "--out",
+        ])
         .arg(dir)
         .output()
         .unwrap()
@@ -128,6 +139,41 @@ fn generate_into_an_occupied_directory_exits_non_zero() {
     let out = generate_micro(dir.path());
     assert!(!out.status.success());
     assert!(String::from_utf8_lossy(&out.stderr).contains("not empty"));
+}
+
+/// Review 3.2-15: `arda generate` defaulted to legacy terrain (no fine
+/// terrain, no shore layer). Without `--terrain`, a fine-source RAM ceiling
+/// is now accepted as a fine option and refused only by formation
+/// admission, before any output; legacy refuses it as a fine-only flag.
+#[test]
+fn generate_defaults_to_fine_terrain() {
+    let dir = TempDir::new("default-fine");
+    let run = |terrain: Option<&str>| {
+        let mut cmd = Command::new(bin());
+        cmd.args([
+            "generate",
+            "--seed",
+            "42",
+            "--micro",
+            "--fine-ram-bytes",
+            "1",
+        ]);
+        if let Some(t) = terrain {
+            cmd.args(["--terrain", t]);
+        }
+        cmd.arg("--out").arg(dir.path()).output().unwrap()
+    };
+    let default = run(None);
+    assert!(!default.status.success());
+    let stderr = String::from_utf8_lossy(&default.stderr);
+    assert!(!stderr.contains("require --terrain fine"), "{stderr}");
+    assert!(
+        stderr.contains("admitted"),
+        "fine admission refuses it: {stderr}"
+    );
+    assert!(!dir.path().exists(), "nothing is written");
+    let legacy = run(Some("legacy"));
+    assert!(String::from_utf8_lossy(&legacy.stderr).contains("require --terrain fine"));
 }
 
 #[test]
