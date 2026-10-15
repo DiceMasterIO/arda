@@ -228,7 +228,7 @@ pub trait Terrain {
         let d = SQUARE_M;
         let gx = (self.height_m(x_m + d, y_m) - self.height_m(x_m - d, y_m)) / (2.0 * d);
         let gy = (self.height_m(x_m, y_m + d) - self.height_m(x_m, y_m - d)) / (2.0 * d);
-        gx.hypot(gy)
+        arda_ids::pmath::hypot(gx, gy)
     }
 
     /// River channels near the window; none by default.

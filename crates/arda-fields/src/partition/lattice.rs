@@ -199,7 +199,10 @@ mod tests {
             let o = outline(5, id);
             for a in &o {
                 for b in &o {
-                    assert!((a[0] - b[0]).hypot(a[1] - b[1]) <= BLOCK_SPAN, "{id:?}");
+                    assert!(
+                        arda_ids::pmath::hypot(a[0] - b[0], a[1] - b[1]) <= BLOCK_SPAN,
+                        "{id:?}"
+                    );
                 }
             }
         }

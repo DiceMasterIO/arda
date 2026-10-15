@@ -88,9 +88,47 @@ fn a_town_builds_over_a_shallow_fringe_but_not_deep_water() {
     let town = layer("cobbles", vec![true; 3], vec![true, true, false]);
     compose(&mut base, &mut rules, &mut owners, &town, Owner::Town).unwrap();
     let grounds: Vec<&str> = base.squares.iter().map(|s| s.ground.as_str()).collect();
-    assert_eq!(grounds, ["cobbles", "water_shallow", "cobbles"]);
+    // Review 3.5-14: a soft croft makes no ground; only built ground does.
+    assert_eq!(grounds, ["water_shallow", "water_shallow", "cobbles"]);
     let depths: Vec<u8> = base.squares.iter().map(|s| s.water_depth_ft).collect();
-    assert_eq!(depths, [0, 4, 0]);
+    assert_eq!(depths, [1, 4, 0]);
+}
+
+/// Review 3.5-14: a way builds over the refined base's shallowest water
+/// (a gravel bar at a river's edge, a causeway over a marsh pool), dry,
+/// and never over deeper water.
+#[test]
+fn a_way_fills_only_the_shallowest_water() {
+    let mut base = TacticalLayout::new("t", 3, 1, "water_shallow");
+    base.squares[0].water_depth_ft = 1;
+    base.squares[1].water_depth_ft = 2;
+    base.squares[2].water_depth_ft = 4;
+    let mut rules = RulesSidecar::empty(3, 1);
+    let mut owners = vec![Owner::Water; 3];
+    let ways = layer("gravel", vec![true; 3], Vec::new());
+    compose(&mut base, &mut rules, &mut owners, &ways, Owner::Ways).unwrap();
+    assert_eq!(owners, [Owner::Ways, Owner::Ways, Owner::Water]);
+    let depths: Vec<u8> = base.squares.iter().map(|s| s.water_depth_ft).collect();
+    assert_eq!(depths, [0, 0, 4]);
+}
+
+/// Review 3.5-14: under a deck the rules state the water the layout
+/// keeps, not the layer's own guess.
+#[test]
+fn rules_under_a_deck_state_the_water_the_layout_keeps() {
+    let mut base = TacticalLayout::new("t", 1, 1, "water_deep");
+    base.squares[0].water_depth_ft = 6;
+    let mut rules = RulesSidecar::empty(1, 1);
+    let mut owners = vec![Owner::Water];
+    let mut ways = layer("planks", vec![true], Vec::new());
+    ways.layout = TacticalLayout::new("t", 1, 1, "planks");
+    ways.rules = RulesSidecar::empty(1, 1);
+    ways.rules.squares[0].deck = Some(true);
+    ways.rules.squares[0].water_depth_ft = Some(3);
+    compose(&mut base, &mut rules, &mut owners, &ways, Owner::Ways).unwrap();
+    assert_eq!(base.squares[0].water_depth_ft, 6);
+    assert_eq!(rules.squares[0].water_depth_ft, Some(6));
+    assert_eq!(rules.squares[0].deck, Some(true));
 }
 
 fn fence(x: u32) -> arda_tactical::layout::WallSegment {

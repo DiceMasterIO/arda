@@ -13,11 +13,16 @@
 
 use super::crossing::{rows_for, CrossingPlan};
 use super::{square_of, WayPlan, Window};
-use crate::input::{CrossingKind, Terrain};
+use crate::input::{Crossing, CrossingKind, Terrain};
 
 /// How far from the window a shore is looked for, metres: past the
 /// landing's own reach.
 const SEARCH_M: f64 = 60.0;
+/// How far past a way's end its landing may lie, metres.
+const END_REACH_M: f64 = 420.0;
+/// How far from an open-water record its way may pass, metres (the ways'
+/// own rule for a record's way).
+const RECORD_REACH_M: f64 = 150.0;
 
 /// A landing stage from a shore square into open water.
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -46,6 +51,56 @@ impl Landing {
     }
 }
 
+/// The landing from land point `from` straight ahead along the axis
+/// nearest `dir` to the first open water within [`END_REACH_M`].
+fn landing_from(
+    terrain: &dyn Terrain,
+    w: &WayPlan,
+    wi: usize,
+    from: [f64; 2],
+    dir: [f64; 2],
+) -> Option<Landing> {
+    let wet = |p: [f64; 2]| terrain.open_water(square_of(p[0]), square_of(p[1]));
+    if wet(from) != Some(false) {
+        return None;
+    }
+    let east_west = dir[0].abs() >= dir[1].abs();
+    let axis = if east_west {
+        [dir[0].signum(), 0.0]
+    } else {
+        [0.0, dir[1].signum()]
+    };
+    let mut land = from;
+    #[allow(clippy::cast_precision_loss, clippy::cast_possible_truncation)] // small counts
+    let steps = (END_REACH_M / super::SQUARE_M) as i64;
+    let found = (1..=steps).any(|k| {
+        #[allow(clippy::cast_precision_loss)] // small counts
+        let k = k as f64 * super::SQUARE_M;
+        let p = [from[0] + axis[0] * k, from[1] + axis[1] * k];
+        if wet(p) == Some(true) {
+            return true;
+        }
+        land = p;
+        false
+    });
+    if !found {
+        return None;
+    }
+    let (gx, gy) = (square_of(land[0]), square_of(land[1]));
+    let (shore, towards) = if east_west {
+        (gx, if axis[0] > 0.0 { 1 } else { -1 })
+    } else {
+        (gy, if axis[1] > 0.0 { 1 } else { -1 })
+    };
+    Some(Landing {
+        way: wi,
+        east_west,
+        shore,
+        towards,
+        rows: rows_for(CrossingKind::Ferry, w, east_west, land),
+    })
+}
+
 /// Whether global square `(gx, gy)` lies in a laid crossing's structure.
 fn in_crossing(crossings: &[CrossingPlan], gx: i64, gy: i64) -> bool {
     crossings.iter().any(|c| {
@@ -63,10 +118,80 @@ fn in_crossing(crossings: &[CrossingPlan], gx: i64, gy: i64) -> bool {
 pub fn plan_all(
     win: Window,
     ways: &[WayPlan],
-    crossings: &[CrossingPlan],
+    (crossings, records, orphans): (&[CrossingPlan], &[Crossing], &[u64]),
     terrain: &dyn Terrain,
 ) -> Vec<Landing> {
     let mut out = Vec::new();
+    let push = |l: Landing, out: &mut Vec<Landing>| {
+        if !out.contains(&l) {
+            out.push(l);
+        }
+    };
+    // An open-water record too wide to rope, whose way passes the shore
+    // without entering the water: the landing runs from the way's nearest
+    // point towards the record.
+    for c in records
+        .iter()
+        .filter(|c| c.water != "river" && orphans.contains(&c.id))
+    {
+        #[allow(clippy::cast_precision_loss)] // world metres
+        let at = [c.x_m as f64, c.y_m as f64];
+        if win.dist_m(at) > SEARCH_M + END_REACH_M + RECORD_REACH_M {
+            continue;
+        }
+        let best = ways
+            .iter()
+            .enumerate()
+            .filter_map(|(i, w)| {
+                w.dense
+                    .nearest(at, RECORD_REACH_M)
+                    .map(|h| (h.d, i, h.foot))
+            })
+            .min_by(|a, b| a.0.total_cmp(&b.0).then(a.1.cmp(&b.1)));
+        let Some((_, wi, foot)) = best else { continue };
+        if let Some(l) = landing_from(
+            terrain,
+            &ways[wi],
+            wi,
+            foot,
+            [at[0] - foot[0], at[1] - foot[1]],
+        )
+        .filter(|l| {
+            let (gx, gy) = l.square(l.shore, l.rows.0);
+            !in_crossing(crossings, gx, gy)
+        }) {
+            push(l, &mut out);
+        }
+    }
+    // A way that ends at the shore (settle stops a ferry's road at the
+    // water's edge): the landing runs on from its end, straight ahead.
+    for (wi, w) in ways.iter().enumerate() {
+        let v = &w.vertices;
+        for (end, prev) in [
+            (v.first(), v.get(1)),
+            (v.last(), v.len().checked_sub(2).and_then(|i| v.get(i))),
+        ] {
+            let (Some(&end), Some(&prev)) = (end, prev) else {
+                continue;
+            };
+            if win.dist_m(end) > SEARCH_M + END_REACH_M {
+                continue;
+            }
+            let wet = |p: [f64; 2]| terrain.open_water(square_of(p[0]), square_of(p[1]));
+            if wet(end) != Some(false) {
+                continue;
+            }
+            let Some(l) = landing_from(terrain, w, wi, end, [end[0] - prev[0], end[1] - prev[1]])
+            else {
+                continue;
+            };
+            let (gx, gy) = l.square(l.shore, l.rows.0);
+            if in_crossing(crossings, gx, gy) {
+                continue;
+            }
+            push(l, &mut out);
+        }
+    }
     for (wi, w) in ways.iter().enumerate() {
         for run in &w.dense.runs {
             let wet = |p: [f64; 2]| terrain.open_water(square_of(p[0]), square_of(p[1]));
@@ -101,9 +226,7 @@ pub fn plan_all(
                     towards,
                     rows,
                 };
-                if !out.contains(&l) {
-                    out.push(l);
-                }
+                push(l, &mut out);
             }
         }
     }

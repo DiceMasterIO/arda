@@ -12,7 +12,7 @@ use arda_tactical::WallRole;
 pub fn paint(g: &mut Grid, plan: &Plan, terrain: &dyn Terrain) {
     for c in &plan.crossings {
         match c.kind {
-            CrossingKind::Bridge => bridge(g, c),
+            CrossingKind::Bridge => bridge(g, c, terrain),
             CrossingKind::Ford => ford(g, c, plan, terrain),
             CrossingKind::Ferry => ferry(g, c),
         }
@@ -38,7 +38,16 @@ fn run_rot(c: &CrossingPlan) -> u16 {
 }
 
 #[allow(clippy::cast_precision_loss)] // small grid indices
-fn bridge(g: &mut Grid, c: &CrossingPlan) {
+fn bridge(g: &mut Grid, c: &CrossingPlan, terrain: &dyn Terrain) {
+    // An abutment ramps from the deck down to its bank in 5-ft steps, so
+    // a bridge between banks of different heights is walked, not climbed
+    // (review 3.6-6). The banks as the map draws them when known.
+    let bank_ft = |g: &Grid, a: i64, r: i64| {
+        let (gx, gy) = c.square(a, r);
+        terrain
+            .play_ft(gx, gy)
+            .unwrap_or_else(|| g.get(gx, gy).map_or(c.deck_ft, super::Cell::elevation))
+    };
     let (floor, deck_id, kit) = if c.stone {
         ("flagstone", "prop.bridge_deck_stone", "stone")
     } else {
@@ -94,6 +103,43 @@ fn bridge(g: &mut Grid, c: &CrossingPlan) {
                 EdgeAxis::Vertical
             };
             g.wall(gx, gy, axis, WallRole::Run, kit, EdgeRole::Parapet);
+        }
+    }
+    // The abutments ramp down (or up) from the deck to the bank beyond
+    // them, 5 ft a square counted from the nearest deck square of their row.
+    for r in c.rows.0..=c.rows.1 {
+        let deck: Vec<i64> = (c.span.0..=c.span.1)
+            .filter(|&a| {
+                let (gx, gy) = c.square(a, r);
+                g.get(gx, gy).is_some_and(|x| x.feature == Feature::Bridge)
+            })
+            .collect();
+        let (Some(&first), Some(&last)) = (deck.first(), deck.last()) else {
+            continue;
+        };
+        let (west, east) = (bank_ft(g, c.span.0 - 1, r), bank_ft(g, c.span.1 + 1, r));
+        for a in c.span.0..=c.span.1 {
+            let (k, bank) = if a < first {
+                (first - a, west)
+            } else if a > last {
+                (a - last, east)
+            } else {
+                continue;
+            };
+            let (gx, gy) = c.square(a, r);
+            let Some(cell) = g.get_mut(gx, gy) else {
+                continue;
+            };
+            if cell.feature != Feature::Abutment {
+                continue;
+            }
+            let step = i16::try_from(5 * k).unwrap_or(i16::MAX);
+            let level = if bank <= c.deck_ft {
+                c.deck_ft.saturating_sub(step).max(bank)
+            } else {
+                c.deck_ft.saturating_add(step).min(bank)
+            };
+            cell.elev_ft = Some(level);
         }
     }
 }

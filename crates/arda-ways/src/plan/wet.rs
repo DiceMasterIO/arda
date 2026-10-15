@@ -84,9 +84,18 @@ pub fn plan_all(
     let mut failed: Vec<(usize, i64, i64)> = Vec::new();
     while out.len() < MAX_CROSSINGS {
         let all = stretches(win, ways, channels, terrain);
-        let open = all.iter().find(|s| {
-            win.dist_m(s.at) <= REACH_M && !overlaps(&reserved, s) && !failed.contains(&key(s))
-        });
+        // A run of stretches close enough along one way to contend for
+        // it is laid whole, in its own order, when any of it is within
+        // reach: which crossing wins a contended stretch never depends on
+        // where the window is cut (review 3.5-14: greedy laying from the
+        // window outwards lost crossings to ones beyond another window's
+        // reach).
+        let near = near_clusters(&all, win);
+        let open = all
+            .iter()
+            .enumerate()
+            .find(|&(i, s)| near[i] && !overlaps(&reserved, s) && !failed.contains(&key(s)));
+        let open = open.map(|(_, s)| s);
         let Some(&st) = open else { break };
         // A record goes to the stretch nearest it, not the first laid.
         let rec = attach(&sorted, &used, &st, ways).filter(|&i| {
@@ -121,6 +130,40 @@ pub fn plan_all(
     }
     orphans.sort_unstable();
     (out, orphans)
+}
+
+/// Stretches of one way closer than this, metres, contend for it: a laid
+/// crossing's straightened approach reaches about this far.
+const CONTEND_M: f64 = 60.0;
+
+/// Per stretch (in `all`'s order): whether its run of contending
+/// stretches has one within [`REACH_M`] of the window.
+fn near_clusters(all: &[Stretch], win: Window) -> Vec<bool> {
+    let mut order: Vec<usize> = (0..all.len()).collect();
+    order.sort_by(|&a, &b| {
+        (all[a].way, all[a].s0)
+            .partial_cmp(&(all[b].way, all[b].s0))
+            .unwrap_or(std::cmp::Ordering::Equal)
+    });
+    let mut cluster = vec![0_usize; all.len()];
+    let mut id = 0;
+    for w in order.windows(2) {
+        let (a, b) = (&all[w[0]], &all[w[1]]);
+        if a.way != b.way || b.s0 - a.s1 > CONTEND_M {
+            id += 1;
+        }
+        cluster[w[1]] = id;
+    }
+    if let Some(&first) = order.first() {
+        cluster[first] = 0;
+    }
+    let mut reach = vec![false; id + 1];
+    for (i, s) in all.iter().enumerate() {
+        if win.dist_m(s.at) <= REACH_M {
+            reach[cluster[i]] = true;
+        }
+    }
+    cluster.iter().map(|&c| reach[c]).collect()
 }
 
 fn reindex(ways: &mut [WayPlan]) {

@@ -30,7 +30,7 @@ pub fn perp(d: P) -> P {
 /// A unit vector, or east for a null one.
 #[must_use]
 pub fn unit(v: P) -> P {
-    let l = v[0].hypot(v[1]);
+    let l = arda_ids::pmath::hypot(v[0], v[1]);
     if l > 1e-12 {
         [v[0] / l, v[1] / l]
     } else {
@@ -41,7 +41,7 @@ pub fn unit(v: P) -> P {
 /// `d` turned by `a` radians.
 #[must_use]
 pub fn rotate(d: P, a: f64) -> P {
-    let (s, c) = a.sin_cos();
+    let (s, c) = arda_ids::pmath::sin_cos(a);
     [d[0] * c - d[1] * s, d[0] * s + d[1] * c]
 }
 
@@ -132,8 +132,8 @@ pub fn moments(region: &[Vec<P>], o: P) -> Moments {
 /// The long (major) axis of a covariance.
 #[must_use]
 pub fn major_axis(cov: [f64; 3]) -> P {
-    let th = 0.5 * (2.0 * cov[1]).atan2(cov[0] - cov[2]);
-    let (s, c) = th.sin_cos();
+    let th = 0.5 * arda_ids::pmath::atan2(2.0 * cov[1], cov[0] - cov[2]);
+    let (s, c) = arda_ids::pmath::sin_cos(th);
     [c, s]
 }
 
@@ -212,7 +212,7 @@ pub fn closest_on_outline(poly: &[P], p: P) -> (f64, P) {
     let mut best = (f64::INFINITY, p);
     for i in 0..poly.len() {
         let (q, _) = closest_on_segment(p, poly[i], poly[(i + 1) % poly.len()]);
-        let d = (q[0] - p[0]).hypot(q[1] - p[1]);
+        let d = arda_ids::pmath::hypot(q[0] - p[0], q[1] - p[1]);
         if d < best.0 {
             best = (d, q);
         }

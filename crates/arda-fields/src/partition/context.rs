@@ -111,7 +111,7 @@ pub fn near(settlements: &[Settlement], p: P) -> Vec<Settlement> {
     let m = [p[0] * SQUARE_M, p[1] * SQUARE_M];
     settlements
         .iter()
-        .filter(|s| (s.x_m - m[0]).hypot(s.y_m - m[1]) <= INFLUENCE_M)
+        .filter(|s| arda_ids::pmath::hypot(s.x_m - m[0], s.y_m - m[1]) <= INFLUENCE_M)
         .cloned()
         .collect()
 }
@@ -159,7 +159,7 @@ impl Context {
         let mut settle_m = INFLUENCE_M;
         let mut open_field = false;
         for s in g.settlements {
-            let d = (s.x_m - m[0]).hypot(s.y_m - m[1]);
+            let d = arda_ids::pmath::hypot(s.x_m - m[0], s.y_m - m[1]);
             if d > INFLUENCE_M {
                 continue;
             }
@@ -168,7 +168,7 @@ impl Context {
             open_field |= s.tier >= Tier::Village && d <= r;
         }
         let gr = super::gradient(g.terrain, m);
-        let slope = gr[0].hypot(gr[1]);
+        let slope = arda_ids::pmath::hypot(gr[0], gr[1]);
         let river_m = river_distance(g.rivers, c).map_or(f64::INFINITY, |r| r.0);
         Self {
             samples,

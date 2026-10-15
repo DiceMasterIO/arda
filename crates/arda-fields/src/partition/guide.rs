@@ -56,7 +56,7 @@ fn densify(pts: &[P]) -> Vec<P> {
     let mut out = Vec::with_capacity(pts.len());
     for w in pts.windows(2) {
         let (a, b) = (w[0], w[1]);
-        let len = (b[0] - a[0]).hypot(b[1] - a[1]);
+        let len = arda_ids::pmath::hypot(b[0] - a[0], b[1] - a[1]);
         #[allow(clippy::cast_possible_truncation, clippy::cast_sign_loss)] // short runs
         let n = (len / CHORD).ceil().max(1.0) as usize;
         for k in 0..n {
@@ -148,7 +148,7 @@ pub fn river_distance(rivers: &[RiverLine], p: P) -> Option<(f64, f64)> {
         .iter()
         .map(|r| {
             let (q, _) = closest_on_segment(m, r.a, r.b);
-            let d = (q[0] - m[0]).hypot(q[1] - m[1]);
+            let d = arda_ids::pmath::hypot(q[0] - m[0], q[1] - m[1]);
             ((d - r.width_m / 2.0).max(0.0), r.width_m)
         })
         .min_by(|a, b| a.0.total_cmp(&b.0))

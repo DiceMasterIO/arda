@@ -199,12 +199,20 @@ pub fn ways(
         owned.push(own);
         soft.push(own && verge);
     }
+    // The ways state the height of the ground they build: a bridge's
+    // abutments ramp from its deck to its banks (review 3.6-6).
+    let elevation = out
+        .sidecar
+        .squares
+        .iter()
+        .map(|q| q.feature == Feature::Abutment)
+        .collect();
     Ok(OverlayLayer {
         layout,
         rules: out.rules,
         owned,
         soft,
-        elevation: Vec::new(),
+        elevation,
         review: Vec::new(),
     })
 }

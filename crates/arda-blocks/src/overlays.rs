@@ -21,6 +21,10 @@ use arda_tactical::Library;
 /// Deepest base water, feet, a town may build over in its own footprint
 /// (quays and made ground over a shore or marsh fringe).
 const MADE_GROUND_FT: u8 = 1;
+/// Deepest base water, feet, a way fills to build over dry: a gravel bar
+/// at a river's edge, a causeway over a marsh pool (review 3.5-14:
+/// neither ever composed).
+const WAY_FILL_FT: u8 = 2;
 
 /// Who reserves a square, in rising precedence (logic/09 §reservations:
 /// town 1 > ways 2 > water 3 > fields 4 > natural ground). Two soft
@@ -249,9 +253,13 @@ pub fn compose_over(
             let refined_ft = refined.map_or(u8::MAX, |r| r.squares[i].water_depth_ft);
             let base_ft = layout.squares[i].water_depth_ft.min(refined_ft);
             // A town plans its own water (harbours, rivers through it): in
-            // its footprint the base's shallow standing fringe (a shore or
-            // marsh edge at most `MADE_GROUND_FT` deep) is made ground.
-            let made_ground = owner == Owner::Town && base_ft <= MADE_GROUND_FT;
+            // its built footprint (not its soft crofts) the base's shallow
+            // standing fringe (a shore or marsh edge at most
+            // `MADE_GROUND_FT` deep) is made ground; a way fills water up
+            // to `WAY_FILL_FT`.
+            let made_ground =
+                (owner == Owner::Town && rank(i) == Owner::Town && base_ft <= MADE_GROUND_FT)
+                    || (owner == Owner::Ways && rank(i) == Owner::Ways && base_ft <= WAY_FILL_FT);
             let outranks = owners[i] < rank(i) || (made_ground && owners[i] == Owner::Water);
             layer.owned[i] && outranks && (keeps_water || base_ft == 0 || made_ground)
         })
@@ -295,6 +303,11 @@ pub fn compose_over(
             rules.squares[i] = RulesCell::default();
         }
         rules.squares[i].merge_from(&layer.rules.squares[i]);
+        // The rules state the water the layout keeps (under a deck, the
+        // base's; review 3.5-14).
+        if rules.squares[i].water_depth_ft.is_some() {
+            rules.squares[i].water_depth_ft = Some(base.water_depth_ft);
+        }
     }
     let touches = |axis, x, y| {
         sides(axis, x, y)

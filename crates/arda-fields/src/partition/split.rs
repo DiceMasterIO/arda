@@ -182,7 +182,9 @@ impl Builder<'_, '_> {
         let (lo2, hi2) = extent(region, perp(e1));
         let l2 = hi2 - lo2;
         // Field sizes vary about the target: 0.4× to 2.2×.
-        let jitter = (0.4_f64.ln() + draw(h, 1) * (2.2_f64 / 0.4).ln()).exp();
+        let jitter = arda_ids::pmath::exp(
+            arda_ids::pmath::ln(0.4) + draw(h, 1) * arda_ids::pmath::ln(2.2 / 0.4),
+        );
         let target = ctx.target_sq(self.g.style) * jitter;
         let fits =
             mo.area <= target && l1 <= MAX_LEN && (ctx.purity >= 0.8 || mo.area <= MIXED_STOP);
@@ -269,7 +271,7 @@ impl Builder<'_, '_> {
                 let mid = [a[0] + e[0] * 0.5, a[1] + e[1] * 0.5];
                 if slivers && dot(e, e) >= 4.0 && !inner(mid) {
                     let (gap, dir) = nearest_on(cut, mid);
-                    let deg = (dot(unit(e), dir).abs().min(1.0)).acos().to_degrees();
+                    let deg = arda_ids::pmath::acos(dot(unit(e), dir).abs().min(1.0)).to_degrees();
                     let close = nearest_on(cut, a).0.min(nearest_on(cut, b).0);
                     if deg < MIN_CORNER_DEG && close.min(gap) < MIN_WIDTH {
                         least = least.min(deg);
@@ -422,7 +424,7 @@ impl Builder<'_, '_> {
             let n = super::lattice::vnoise(self.seed, 0xBEA1, mo.centroid, 4_000.0);
             let bearing = std::f64::consts::FRAC_PI_4 * (1.6 * n).clamp(-1.0, 1.0);
             let quarter = std::f64::consts::FRAC_PI_2;
-            let phi = d[1].atan2(d[0]);
+            let phi = arda_ids::pmath::atan2(d[1], d[0]);
             let to = bearing + ((phi - bearing) / quarter).round() * quarter - phi;
             turn += to.clamp(-0.6, 0.6);
         }
@@ -481,7 +483,7 @@ impl Builder<'_, '_> {
             }
             let span = {
                 let (a, z) = (inside[0], inside[inside.len() - 1]);
-                (z[0] - a[0]).hypot(z[1] - a[1])
+                arda_ids::pmath::hypot(z[0] - a[0], z[1] - a[1])
             };
             if span < 0.5 * short {
                 continue;
@@ -535,14 +537,14 @@ fn frontage_axes(region: &[Vec<P>], e1: P) -> (P, P) {
         for (i, &a) in piece.iter().enumerate() {
             let b = piece[(i + 1) % piece.len()];
             let (dx, dy) = (b[0] - a[0], b[1] - a[1]);
-            let len = dx.hypot(dy);
+            let len = arda_ids::pmath::hypot(dx, dy);
             if len < 1e-6 {
                 continue;
             }
-            let ang = dy.atan2(dx).rem_euclid(std::f64::consts::PI);
+            let ang = arda_ids::pmath::atan2(dy, dx).rem_euclid(std::f64::consts::PI);
             #[allow(clippy::cast_possible_truncation, clippy::cast_sign_loss)]
             let k = ((ang / std::f64::consts::PI * BINS as f64) as usize).min(BINS - 1);
-            let (s2, c2) = (2.0 * ang).sin_cos();
+            let (s2, c2) = arda_ids::pmath::sin_cos(2.0 * ang);
             w[k] += len;
             v[k] = [v[k][0] + c2 * len, v[k][1] + s2 * len];
         }
@@ -555,8 +557,8 @@ fn frontage_axes(region: &[Vec<P>], e1: P) -> (P, P) {
         })
         .unwrap_or(0);
     let (a, b) = (v[k], v[(k + 1) % BINS]);
-    let half = 0.5 * (a[1] + b[1]).atan2(a[0] + b[0]);
-    let f = [half.cos(), half.sin()];
+    let half = 0.5 * arda_ids::pmath::atan2(a[1] + b[1], a[0] + b[0]);
+    let f = [arda_ids::pmath::cos(half), arda_ids::pmath::sin(half)];
     // Across the long axis is whichever of the side and its normal lies
     // nearer to the long axis's normal.
     let n1 = perp(e1);
@@ -573,7 +575,7 @@ fn nearest_on(cut: &[P], p: P) -> (f64, P) {
     let mut best = (f64::INFINITY, [1.0, 0.0]);
     for s in cut.windows(2) {
         let (q, _) = closest_on_segment(p, s[0], s[1]);
-        let d = (q[0] - p[0]).hypot(q[1] - p[1]);
+        let d = arda_ids::pmath::hypot(q[0] - p[0], q[1] - p[1]);
         if d < best.0 {
             best = (d, unit(sub(s[1], s[0])));
         }
@@ -585,7 +587,10 @@ fn nearest_on(cut: &[P], p: P) -> (f64, P) {
 /// between them, degrees; `None` if they do not cross (or run parallel).
 fn crossing(p: P, q: P, a: P, b: P) -> Option<(P, f64)> {
     let (r, e) = (sub(q, p), sub(b, a));
-    let (lr, le) = (r[0].hypot(r[1]), e[0].hypot(e[1]));
+    let (lr, le) = (
+        arda_ids::pmath::hypot(r[0], r[1]),
+        arda_ids::pmath::hypot(e[0], e[1]),
+    );
     let den = cross(r, e);
     if lr < 1e-9 || le < 1e-9 || den.abs() < 1e-12 * lr * le {
         return None;
@@ -596,7 +601,10 @@ fn crossing(p: P, q: P, a: P, b: P) -> Option<(P, f64)> {
         return None;
     }
     let c = (dot(r, e) / (lr * le)).abs().min(1.0);
-    Some(([p[0] + r[0] * t, p[1] + r[1] * t], c.acos().to_degrees()))
+    Some((
+        [p[0] + r[0] * t, p[1] + r[1] * t],
+        arda_ids::pmath::acos(c).to_degrees(),
+    ))
 }
 
 fn cross(a: P, b: P) -> f64 {

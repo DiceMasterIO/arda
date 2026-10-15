@@ -173,6 +173,57 @@ fn pick_rotation(a: &Asset, rot: u16) -> u16 {
     }
 }
 
+/// Replaces every rug square with the nearest other floor along its row,
+/// never looking past a wall (review 3.5-14: a rug against a wall took the
+/// street's cobbles from beyond it).
+fn unrug(out: &mut TacticalLayout, log: &mut Log) {
+    let w = usize::try_from(out.width).unwrap_or(1).max(1);
+    let walled: std::collections::BTreeSet<(u32, u32)> = out
+        .walls
+        .iter()
+        .filter(|s| s.axis == arda_tactical::layout::EdgeAxis::Vertical)
+        .map(|s| (s.x, s.y))
+        .collect();
+    let keys: Vec<String> = out.squares.iter().map(|s| s.ground.clone()).collect();
+    let edge = |x: usize, y: usize| {
+        walled.contains(&(
+            u32::try_from(x).unwrap_or(u32::MAX),
+            u32::try_from(y).unwrap_or(u32::MAX),
+        ))
+    };
+    for (i, sq) in out.squares.iter_mut().enumerate() {
+        if sq.ground != "rug" {
+            continue;
+        }
+        let (x, y) = (i % w, i / w);
+        let row = y * w;
+        // The squares reachable along the row without crossing a wall,
+        // nearest first, west before east.
+        let (mut west, mut east) = (true, true);
+        let mut under = None;
+        for d in 1..w {
+            // West to x - d crosses the west edge of x - d + 1.
+            west &= x >= d && !edge(x + 1 - d, y);
+            east &= x + d < w && !edge(x + d, y);
+            let found = [west.then(|| row + x - d), east.then(|| row + x + d)]
+                .into_iter()
+                .flatten()
+                .map(|j| &keys[j])
+                .find(|k| *k != "rug");
+            if let Some(k) = found {
+                under = Some(k.clone());
+                break;
+            }
+            if !west && !east {
+                break;
+            }
+        }
+        let under = under.unwrap_or_else(|| "planks".into());
+        log.note(FallbackKind::Ground, "rug", &under);
+        sq.ground = under;
+    }
+}
+
 /// Maps a canonical block onto `lib`.
 #[must_use]
 pub fn resolve(block: &TownBlock, lib: &Library, seed: u64) -> Resolved {
@@ -180,28 +231,7 @@ pub fn resolve(block: &TownBlock, lib: &Library, seed: u64) -> Resolved {
     let mut out = block.layout.clone();
     // A missing rug disappears into the floor around it.
     if lib.textures("rug").is_empty() {
-        let w = usize::try_from(out.width).unwrap_or(1).max(1);
-        let keys: Vec<String> = out.squares.iter().map(|s| s.ground.clone()).collect();
-        for (i, sq) in out.squares.iter_mut().enumerate() {
-            if sq.ground != "rug" {
-                continue;
-            }
-            let row = i / w * w;
-            let under = (1..w)
-                .flat_map(|d| {
-                    [
-                        i.checked_sub(d).filter(|&j| j >= row),
-                        Some(i + d).filter(|&j| j < row + w),
-                    ]
-                })
-                .flatten()
-                .map(|j| &keys[j])
-                .find(|k| *k != "rug")
-                .cloned()
-                .unwrap_or_else(|| "planks".into());
-            log.note(FallbackKind::Ground, "rug", &under);
-            sq.ground = under;
-        }
+        unrug(&mut out, &mut log);
     }
     let mut ground_map: BTreeMap<String, String> = BTreeMap::new();
     for sq in &mut out.squares {
@@ -303,5 +333,37 @@ pub fn resolve(block: &TownBlock, lib: &Library, seed: u64) -> Resolved {
     Resolved {
         layout: out,
         fallbacks,
+    }
+}
+
+#[cfg(test)]
+mod rug_tests {
+    use super::*;
+    use arda_tactical::layout::{EdgeAxis, WallSegment};
+
+    /// Review 3.5-14: a rug against a wall takes the room's floor, not the
+    /// street beyond the wall.
+    #[test]
+    fn a_rug_never_takes_the_floor_beyond_a_wall() {
+        let mut l = TacticalLayout::new("t", 6, 1, "planks");
+        l.squares[0].ground = "cobbles".into();
+        for x in 1..4 {
+            l.squares[x].ground = "rug".into();
+        }
+        l.walls.push(WallSegment {
+            x: 1,
+            y: 0,
+            axis: EdgeAxis::Vertical,
+            kind: arda_tactical::WallRole::Run,
+            kit: "stone".into(),
+            tags: Vec::new(),
+        });
+        let mut log = Log(BTreeMap::new());
+        unrug(&mut l, &mut log);
+        let g: Vec<&str> = l.squares.iter().map(|s| s.ground.as_str()).collect();
+        assert_eq!(
+            g,
+            ["cobbles", "planks", "planks", "planks", "planks", "planks"]
+        );
     }
 }

@@ -90,7 +90,7 @@ impl Window {
         let y1 = y0 + f64::from(self.height) * SQUARE_M;
         let dx = (x0 - p[0]).max(p[0] - x1).max(0.0);
         let dy = (y0 - p[1]).max(p[1] - y1).max(0.0);
-        dx.hypot(dy)
+        arda_ids::pmath::hypot(dx, dy)
     }
 
     /// Whether axis-aligned bounds `[x0, y0, x1, y1]` come within `margin`
@@ -104,7 +104,7 @@ impl Window {
         let y1 = y0 + f64::from(self.height) * SQUARE_M;
         let dx = (b[0] - x1).max(x0 - b[2]).max(0.0);
         let dy = (b[1] - y1).max(y0 - b[3]).max(0.0);
-        dx.hypot(dy) <= margin
+        arda_ids::pmath::hypot(dx, dy) <= margin
     }
 }
 
@@ -259,6 +259,7 @@ pub(crate) fn build_inner(
     standing: &crate::standing::Standing,
     filter: bool,
 ) -> Plan {
+    let records = crossings;
     let guide = terrain.rivers_rasterised();
     let mut channels: Vec<ChannelPlan> = terrain
         .channels()
@@ -275,7 +276,7 @@ pub(crate) fn build_inner(
         crossing::plan_all(win, crossings, &mut ways, &mut channels, terrain, standing)
     };
     let houses = house::plan_all(&crossings, &ways, &channels, seed);
-    let landings = shore::plan_all(win, &ways, &crossings, terrain);
+    let landings = shore::plan_all(win, &ways, (&crossings, records, &orphans), terrain);
     Plan {
         window: win,
         ways,

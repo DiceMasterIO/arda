@@ -25,13 +25,13 @@ pub fn lerp(a: P, b: P, t: f64) -> P {
 /// Euclidean distance.
 #[must_use]
 pub fn dist(a: P, b: P) -> f64 {
-    (a[0] - b[0]).hypot(a[1] - b[1])
+    arda_ids::pmath::hypot(a[0] - b[0], a[1] - b[1])
 }
 
 /// Unit vector of `v`, or east for a zero vector.
 #[must_use]
 pub fn unit(v: P) -> P {
-    let l = v[0].hypot(v[1]);
+    let l = arda_ids::pmath::hypot(v[0], v[1]);
     if l > 1e-12 {
         [v[0] / l, v[1] / l]
     } else {
@@ -137,8 +137,8 @@ pub fn wave_at(shape: &Shape, zig: Option<Zig>, t: f64) -> P {
         None => base,
         Some(z) => {
             let d = unit(shape.tangent(t));
-            let x = (PI * f64::from(z.legs) * t).sin();
-            let o = z.amp * (HAIRPIN * x).asin() / HAIRPIN.asin();
+            let x = arda_ids::pmath::sin(PI * f64::from(z.legs) * t);
+            let o = z.amp * arda_ids::pmath::asin(HAIRPIN * x) / arda_ids::pmath::asin(HAIRPIN);
             [base[0] - d[1] * o, base[1] + d[0] * o]
         }
     }
