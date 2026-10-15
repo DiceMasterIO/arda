@@ -12,8 +12,8 @@
 use super::aridity::subtropical_permille;
 use super::climate::{
     capped_distance, distance_to_sea_km, exchange_capped, latitude_millideg, ocean_mask,
-    release_factor, sea_level_centi, smoothed_land, ContinentClimate, CONTINENTALITY_CAP_KM,
-    C_NORM, DIFFUSE_DIV, F_MAX, M_SAT,
+    release_factor, sea_level_centi, ContinentClimate, CONTINENTALITY_CAP_KM, C_NORM, DIFFUSE_DIV,
+    M_SAT,
 };
 use super::ContinentGrid;
 use arda_core::{ClimateRegime, LatitudeBand};
@@ -52,7 +52,7 @@ pub fn climate_recipe9(grid: &ContinentGrid, band: LatitudeBand) -> ContinentCli
             });
         }
     }
-    let relief = smoothed_land(grid, 5, 2);
+    let relief = rain_relief(grid);
     let (rainfall, moisture) = steady_rainfall(&relief, &ocean, band);
     ContinentClimate {
         temperature,
@@ -62,6 +62,49 @@ pub fn climate_recipe9(grid: &ContinentGrid, band: LatitudeBand) -> ContinentCli
         ocean,
         ocean_distance_km: dist.into_iter().map(capped_distance).collect(),
     }
+}
+
+/// Release cap of recipe 9 (1/32 of the store per cell): even unsmoothed,
+/// the recipe-7 cap of 1/16 let a cliff coast reach 13 m/yr (review 3.2-2).
+const F_MAX_V9: u64 = 2_048;
+
+/// The relief rainfall climbs (logic/02 §fine-formation climate relief):
+/// land heights box-blurred over 5 km twice, with the sea counted as sea
+/// level, and kept on the sea cells too. Recipe 7 restored the sea's own
+/// heights after blurring, so the first land cell climbed the whole
+/// smoothed coastal height at once: a rain spike on every windward coast
+/// (review 3.2-2). Here the ramp starts offshore.
+fn rain_relief(grid: &ContinentGrid) -> ContinentGrid {
+    let land = ContinentGrid::from_heights(
+        grid.width(),
+        grid.height(),
+        grid.height_mm.iter().map(|&v| v.max(0)).collect(),
+    )
+    .unwrap_or_else(|_| grid.clone());
+    let mut out = land.clone();
+    let (w, h) = (grid.width(), grid.height());
+    let r = 5;
+    let mut col = vec![0_i64; usize::try_from(w * h).unwrap_or(0)];
+    let idx = |x: i32, y: i32| usize::try_from(y * w + x).unwrap_or(0);
+    let mut cur: Vec<i64> = land.height_mm.iter().map(|&v| i64::from(v)).collect();
+    for _ in 0..2 {
+        for y in 0..h {
+            for x in 0..w {
+                let s: i64 = (-r..=r).map(|d| cur[idx((x + d).clamp(0, w - 1), y)]).sum();
+                col[idx(x, y)] = s / i64::from(2 * r + 1);
+            }
+        }
+        for y in 0..h {
+            for x in 0..w {
+                let s: i64 = (-r..=r).map(|d| col[idx(x, (y + d).clamp(0, h - 1))]).sum();
+                cur[idx(x, y)] = s / i64::from(2 * r + 1);
+            }
+        }
+    }
+    for (o, &v) in out.height_mm.iter_mut().zip(&cur) {
+        *o = i32::try_from(v).unwrap_or(*o);
+    }
+    out
 }
 
 /// Steady-state rainfall and moisture: one sweep per row in the wind
@@ -99,10 +142,10 @@ fn steady_rainfall(
             let i = y * wu + xu;
             let upwind = if x == 0 { 0 } else { height(x - 1, yi) };
             let climb = (height(x, yi) - upwind).max(0).unsigned_abs();
-            let (after, _, _) = exchange_capped(*m, climb, ocean[i], F_MAX);
+            let (after, _, _) = exchange_capped(*m, climb, ocean[i], F_MAX_V9);
             // The release in Q16, unfloored: recipe 7's per-pass floor
             // averaged out over its passes; a single sweep keeps it exact.
-            rain[i] = *m * release_factor(climb, F_MAX);
+            rain[i] = *m * release_factor(climb, F_MAX_V9);
             moisture[i] = after;
             air[y] = after;
         }

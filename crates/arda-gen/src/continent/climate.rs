@@ -144,7 +144,7 @@ const F_BASE: u64 = 128;
 /// Orographic release per 100 m of climb, in 1/65,536 units (1/64).
 const F_ORO: u64 = 1_024;
 /// Release clamp (1/16).
-pub(super) const F_MAX: u64 = 4_096;
+const F_MAX: u64 = 4_096;
 /// Lateral diffusion divisor: 1/8 blend with the 4-neighbour mean.
 pub(super) const DIFFUSE_DIV: u64 = 8;
 /// Per-pass rainfall scale; calibrated on seed 42 at default size so

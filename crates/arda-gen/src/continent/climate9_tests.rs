@@ -45,3 +45,47 @@ fn recipe_9_rain_decays_to_the_steady_state_across_a_wide_continent() {
     let (w7, w9) = (rain_at(&c7, w, h, west), rain_at(&c9, w, h, west));
     assert!((w9 / w7 - 1.0).abs() < 0.05, "coast rain {w7} vs {w9}");
 }
+
+/// A 300 m coastal plateau rising straight from a western sea.
+fn plateau_coast(w: i32, h: i32) -> ContinentGrid {
+    let heights = (0..w * h)
+        .map(|i| {
+            let x = i % w;
+            if x < 20 || x + 1 == w {
+                -1_000_000
+            } else {
+                300_000
+            }
+        })
+        .collect();
+    ContinentGrid::from_heights(w, h, heights).unwrap()
+}
+
+/// Largest land rain over the mean of the first 20 km of land, and the
+/// largest land rain (mm), middle row.
+fn coast_spike(c: &ContinentClimate, w: i32, h: i32) -> (f64, f64) {
+    let max = (20..w - 1).map(|x| rain_at(c, w, h, x)).fold(0.0, f64::max);
+    let coast = (20..40).map(|x| rain_at(c, w, h, x)).sum::<f64>() / 20.0;
+    (max / coast, max)
+}
+
+/// Review 3.2-2: recipe 7 smooths land with the sea counted as 0 but then
+/// restores the sea's own heights, so the first land cell climbs the whole
+/// smoothed coastal height at once and every west coast gets a rain spike
+/// (5.4x elsewhere on seed 42). Recipe 9 keeps the smoothed ramp offshore
+/// and caps the release at 1/32.
+#[test]
+fn recipe_9_west_coasts_have_no_rain_spike() {
+    let (w, h) = (200, 9);
+    let g = plateau_coast(w, h);
+    let (s7, s9) = (
+        coast_spike(&climate_recipe7(&g, MID), w, h),
+        coast_spike(&climate_recipe9(&g, MID), w, h),
+    );
+    eprintln!(
+        "coastal spike (peak over 20 km mean, peak mm): recipe 7 {s7:.2?}, recipe 9 {s9:.2?}"
+    );
+    assert!(s7.0 >= 4.0, "recipe 7 spike {s7:.2?}");
+    assert!(s9.0 <= 2.0, "recipe 9 spike {s9:.2?}");
+    assert!(s9.1 * 3.0 < s7.1, "recipe 9 peak {s9:.2?} vs {s7:.2?}");
+}
