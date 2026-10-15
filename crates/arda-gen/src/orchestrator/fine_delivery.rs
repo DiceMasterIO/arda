@@ -230,7 +230,7 @@ pub fn generate_world_with_fine_recipe(
 ) -> Result<Manifest, GenError> {
     let plan = match recipe.formation() {
         None => fine_source::admit(config, limits.source)?,
-        Some(_) => {
+        Some(formation) => {
             let plan = fine_source::admit(
                 config,
                 fine_source::FineSourceLimits {
@@ -238,10 +238,13 @@ pub fn generate_world_with_fine_recipe(
                     max_file_bytes: limits.source.max_file_bytes,
                 },
             )?;
-            crate::formation::plan(
+            // Admit the recipe actually formed: recipe 7 holds a runoff
+            // weight per node that recipe 6 does not (review 3.1-6).
+            crate::formation::plan_recipe(
                 plan.fine_width,
                 plan.fine_height,
                 limits.source.max_ram_bytes,
+                formation,
             )?;
             plan
         }

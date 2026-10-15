@@ -188,9 +188,17 @@ pub fn plan_recipe(
     let (fw, fh) = dims[LEVELS - 1];
     let fine = (fw * fh) as u128;
     let (pw, ph) = dims[LEVELS - 2];
-    // Level lattice, scratch, three u8 fields, the parent during upsampling,
-    // and a 64 MiB allowance for bucket heads, masks and row buffers.
-    let per_cell = 4 + Scratch::BYTES_PER_CELL + 3 + if recipe >= Recipe::V7 { 2 } else { 0 };
+    // Level lattice, scratch, the u8 level fields (flags, uplift,
+    // erodibility, lowland and rock; recipe 6 adds maturity and relief),
+    // recipe 7's u16 runoff weight, one transient full-lattice buffer (the
+    // blur's column blocks, or recipe 6's roughness output and channel
+    // mask), the parent during upsampling, and a 64 MiB allowance for
+    // bucket heads, masks and row buffers. Charging three u8 fields and no
+    // transient undercounted the live peak by 8-9 B per node (review 3.1-6).
+    let fields = if recipe >= Recipe::V6 { 7 } else { 5 };
+    let runoff = if recipe >= Recipe::V7 { 2 } else { 0 };
+    let transient = if recipe >= Recipe::V6 { 5 } else { 4 };
+    let per_cell = 4 + Scratch::BYTES_PER_CELL + fields + runoff + transient;
     let peak = fine * per_cell + (pw * ph) as u128 * 4 + (64 << 20);
     if peak > max_ram_bytes {
         return Err(FormationError::ResourceLimit {

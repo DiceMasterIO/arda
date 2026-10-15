@@ -112,3 +112,34 @@ fn admission_refuses_before_allocating() {
         full.peak_bytes
     );
 }
+
+/// Review 3.1-6: the finest level holds the lattice (4 B), the scratch
+/// (26 B), seven u8 fields (flags, uplift, erodibility, lowland, rock and,
+/// from recipe 6, maturity and relief), from recipe 7 a u16 runoff weight,
+/// and a transient full-lattice buffer (the blur's column blocks, 4 B, or
+/// from recipe 6 the roughness pass's output and channel mask, 5 B).
+/// Admission charged 35 B per node, so a 600 x 1000 km domain was admitted
+/// at 14.2 GB and peaked near 17.3 GB.
+#[test]
+fn admission_charges_every_live_byte_per_node() {
+    let (w, h) = (4_097_u32, 4_097_u32);
+    let nodes = u128::from(w) * u128::from(h);
+    for (recipe, per_node) in [
+        (Recipe::V5, 39),
+        (Recipe::V6, 42),
+        (Recipe::V7, 44),
+        (Recipe::V8, 44),
+        (Recipe::V9, 44),
+    ] {
+        let peak = plan_recipe(w, h, u128::MAX, recipe).unwrap().peak_bytes;
+        assert!(
+            peak >= nodes * per_node,
+            "{recipe:?}: {peak} bytes < {per_node} B/node"
+        );
+    }
+    // 600 x 1000 km at the default 16 GiB ceiling is refused.
+    assert!(matches!(
+        plan_recipe(15_368, 25_608, 16 << 30, Recipe::V7),
+        Err(FormationError::ResourceLimit { .. })
+    ));
+}
