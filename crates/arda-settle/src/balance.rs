@@ -14,6 +14,11 @@
 //! seat: a cell on the cheapest way from a seat to a cell it owns is owned
 //! by it too. A round in which a seat would lose its own cell is undone
 //! and the step halved.
+//!
+//! Realms balance within their landmass: realms joined by land borders
+//! form a group (a continent, a large island) and share that group's people
+//! and land; a realm alone on its island cannot grow past its shore and
+//! keeps a zero offset.
 
 use crate::cost::{self, CostSurface};
 use crate::error::SettleError;
@@ -27,8 +32,9 @@ use std::collections::BinaryHeap;
 pub const RIVER_TOLL: u64 = 800;
 /// Toll for stepping onto a ridge crest.
 pub const RIDGE_TOLL: u64 = 600;
-/// Balancing rounds at most (each is one flood of the whole grid).
-pub const ROUNDS: usize = 10;
+/// Balancing rounds at most (each is one flood of the whole grid; a
+/// 250 × 500 km world converges in about 24).
+pub const ROUNDS: usize = 24;
 /// Weight of land against people in a realm's share, in quarters, as the
 /// seat choice weighs them (`seats.rs`).
 const LAND_WEIGHT: i128 = 1;
@@ -91,7 +97,8 @@ fn flood(
 }
 
 /// Land cells and people per slot.
-fn tally(g: &Grid, map: &[u16], settlements: &[Settlement], n: usize) -> (Vec<u64>, Vec<u64>) {
+#[must_use]
+pub fn tally(g: &Grid, map: &[u16], settlements: &[Settlement], n: usize) -> (Vec<u64>, Vec<u64>) {
     let mut land = vec![0_u64; n];
     let mut people = vec![0_u64; n];
     for (i, &m) in map.iter().enumerate() {
@@ -145,6 +152,41 @@ fn settled(land: &[u64], people: &[u64]) -> bool {
     ratio_ok(people, PEOPLE_RATIO_PCT) && ratio_ok(land, LAND_RATIO_PCT) && fair_ok
 }
 
+/// One group of realms joined by land borders: its slots, its offsets'
+/// step and its best imbalance so far.
+struct Group {
+    slots: Vec<usize>,
+    step: i128,
+    score: u128,
+    done: bool,
+}
+
+impl Group {
+    /// The group's weighted shares and whether it is within bounds.
+    fn measure(&self, land: &[u64], people: &[u64]) -> (Vec<i128>, bool) {
+        let l: Vec<u64> = self.slots.iter().map(|&k| land[k]).collect();
+        let p: Vec<u64> = self.slots.iter().map(|&k| people[k]).collect();
+        (weights(&l, &p), settled(&l, &p))
+    }
+
+    /// Offsets one step on from `offsets`, given the shares `w`; the
+    /// group's least offset is zero.
+    fn advance(&self, offsets: &[u64], w: &[i128]) -> Vec<u64> {
+        let fair = 4_000_000 / i128::try_from(self.slots.len().max(1)).unwrap_or(1);
+        let moved: Vec<i128> = self
+            .slots
+            .iter()
+            .zip(w)
+            .map(|(&k, &v)| i128::from(offsets[k]) + self.step * (v - fair) / fair)
+            .collect();
+        let low = moved.iter().copied().min().unwrap_or(0);
+        moved
+            .iter()
+            .map(|&t| u64::try_from(t - low).unwrap_or(u64::MAX))
+            .collect()
+    }
+}
+
 /// The balanced partition of `seats` (cells, in slot order): owner slot + 1
 /// per cell (water included; the caller clears it).
 ///
@@ -159,10 +201,7 @@ pub fn partition(
 ) -> Result<Vec<u16>, SettleError> {
     let n = seats.len();
     let mut offsets = vec![0_u64; n];
-    let (map, best) = flood(g, cs, ridge, seats, &offsets)?;
-    if n < 2 {
-        return Ok(map);
-    }
+    let (first, best) = flood(g, cs, ridge, seats, &offsets)?;
     // The step is the mean cost from a land cell to its seat: a realm's
     // reach, in the flood's own units.
     let (sum, count) = (0..g.len())
@@ -171,51 +210,136 @@ pub fn partition(
             (s + u128::from(best[i]), c + 1)
         });
     drop(best);
-    let mut step = i128::try_from(sum / count.max(1)).unwrap_or(0);
-    let (land, people) = tally(g, &map, settlements, n);
-    let mut done = settled(&land, &people);
-    let mut w = weights(&land, &people);
-    let mut score = imbalance(&w);
-    let mut best_map = map;
-    let fair = 4_000_000 / i128::try_from(n).unwrap_or(1);
+    let step = i128::try_from(sum / count.max(1)).unwrap_or(0);
+    // Steps below a 64th of the first move borders by a cell or two.
+    let floor = (step / 64).max(1);
+    let (land, people) = tally(g, &first, settlements, n);
+    let mut groups: Vec<Group> = groups(g, &first, n)
+        .into_iter()
+        .filter(|slots| slots.len() >= 2)
+        .map(|slots| Group {
+            slots,
+            step,
+            score: 0,
+            done: false,
+        })
+        .collect();
+    let mut shares = Vec::with_capacity(groups.len());
+    for gr in &mut groups {
+        let (w, done) = gr.measure(&land, &people);
+        gr.score = imbalance(&w);
+        gr.done = done;
+        shares.push(w);
+    }
+    let mut moved = false;
     for _ in 0..ROUNDS {
-        if done || step == 0 {
+        if groups.iter().all(|gr| gr.done || gr.step < floor) {
             break;
         }
-        let mut trial: Vec<i128> = offsets
-            .iter()
-            .zip(&w)
-            .map(|(&o, &v)| i128::from(o) + step * (v - fair) / fair)
-            .collect();
-        let low = trial.iter().copied().min().unwrap_or(0);
-        for t in &mut trial {
-            *t -= low;
+        let mut trial = offsets.clone();
+        for (gr, w) in groups.iter().zip(&shares) {
+            if !(gr.done || gr.step < floor) {
+                for (&k, o) in gr.slots.iter().zip(gr.advance(&offsets, w)) {
+                    trial[k] = o;
+                }
+            }
         }
-        let trial: Vec<u64> = trial
-            .iter()
-            .map(|&t| u64::try_from(t).unwrap_or(u64::MAX))
-            .collect();
         let (map, _) = flood(g, cs, ridge, seats, &trial)?;
-        let kept = seats
-            .iter()
-            .enumerate()
-            .all(|(slot, &c)| usize::from(map[c]) == slot + 1);
-        if !kept {
-            step /= 2;
-            continue;
-        }
         let (land, people) = tally(g, &map, settlements, n);
-        let tw = weights(&land, &people);
-        let ts = imbalance(&tw);
-        if ts < score {
-            offsets = trial;
-            w = tw;
-            score = ts;
-            best_map = map;
-            done = settled(&land, &people);
-        } else {
-            step /= 2;
+        for (gr, w) in groups.iter_mut().zip(shares.iter_mut()) {
+            if gr.done || gr.step < floor {
+                continue;
+            }
+            let kept = gr
+                .slots
+                .iter()
+                .all(|&k| usize::from(map[seats[k]]) == k + 1);
+            let (tw, done) = gr.measure(&land, &people);
+            let ts = imbalance(&tw);
+            if kept && ts < gr.score {
+                for &k in &gr.slots {
+                    offsets[k] = trial[k];
+                }
+                gr.score = ts;
+                gr.done = done;
+                *w = tw;
+                moved = true;
+                // A step that helped may be too timid: grow it.
+                gr.step = gr.step * 3 / 2;
+            } else {
+                gr.step /= 2;
+            }
         }
     }
-    Ok(best_map)
+    if !moved {
+        return Ok(first);
+    }
+    // The groups were judged on floods that also moved the others; draw the
+    // partition of the offsets kept, which every seat must still hold.
+    let (map, _) = flood(g, cs, ridge, seats, &offsets)?;
+    let kept = seats
+        .iter()
+        .enumerate()
+        .all(|(slot, &c)| usize::from(map[c]) == slot + 1);
+    Ok(if kept { map } else { first })
+}
+
+/// Groups of slots whose realms are joined by land borders, each in slot
+/// order, ordered by their first slot.
+#[must_use]
+pub fn groups(g: &Grid, map: &[u16], n: usize) -> Vec<Vec<usize>> {
+    let mut parent: Vec<usize> = (0..n).collect();
+    fn root(parent: &mut [usize], mut k: usize) -> usize {
+        while parent[k] != k {
+            parent[k] = parent[parent[k]];
+            k = parent[k];
+        }
+        k
+    }
+    for i in (0..g.len()).filter(|&i| g.is_land(i)) {
+        let (x, y) = g.xy(i);
+        for (dx, dy) in [(1_i64, 0_i64), (0, 1)] {
+            let Some(j) = g.at(x + dx, y + dy) else {
+                continue;
+            };
+            let (a, b) = (usize::from(map[i]), usize::from(map[j]));
+            if g.is_land(j) && a != b && a > 0 && b > 0 && a <= n && b <= n {
+                let (ra, rb) = (root(&mut parent, a - 1), root(&mut parent, b - 1));
+                if ra != rb {
+                    parent[ra.max(rb)] = ra.min(rb);
+                }
+            }
+        }
+    }
+    let mut out: Vec<Vec<usize>> = Vec::new();
+    let mut at = vec![usize::MAX; n];
+    for k in 0..n {
+        let r = root(&mut parent, k);
+        if at[r] == usize::MAX {
+            at[r] = out.len();
+            out.push(Vec::new());
+        }
+        out[at[r]].push(k);
+    }
+    out
+}
+
+/// The slot of the realm with the fewest people of any group of realms
+/// joined by land, when the largest realm of that group holds more than
+/// 2.5 times its people (logic/08 Invariants 5a): a seat the partition
+/// cannot give a fair share, because it stands too near larger neighbours
+/// or on a narrow peninsula. `None` when every group is within the bound.
+#[must_use]
+pub fn starved(g: &Grid, map: &[u16], settlements: &[Settlement], n: usize) -> Option<usize> {
+    let (_, people) = tally(g, map, settlements, n);
+    groups(g, map, n)
+        .into_iter()
+        .filter(|slots| slots.len() >= 2)
+        .filter_map(|slots| {
+            let most = slots.iter().map(|&k| people[k]).max()?;
+            let least = slots.iter().copied().min_by_key(|&k| (people[k], k))?;
+            (people[least] * 5 < most * 2).then_some((people[least], least))
+        })
+        .min()
+        .map(|(_, k)| k)
 }
