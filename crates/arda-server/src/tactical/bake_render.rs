@@ -101,7 +101,7 @@ impl Tactical {
         let (w, h) = (img.width, img.height);
         let p = {
             let _slot = self.lanes.encode_slot_uncancelled();
-            Pyramid::build(img)
+            Pyramid::build(Arc::new(img))
         };
         let top = p.max_zoom();
         let mut encoded = BTreeMap::new();

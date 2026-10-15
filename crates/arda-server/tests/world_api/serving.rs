@@ -220,3 +220,23 @@ async fn a_panicking_prefetch_job_leaves_the_worker_alive() {
     .await;
     assert_eq!(r.headers["x-arda-cache"], "hit");
 }
+
+/// 3.6-5: a render is held once. The pyramid built from it shares it and
+/// the render cache lets it go; a PNG of the same render reads it from the
+/// pyramid instead of rendering it again.
+#[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+async fn a_render_is_cached_once_by_its_pyramid() {
+    let s = fresh();
+    let tile = fetch(Arc::clone(&s), tile_uri(CELL, (0, 0))).await;
+    assert_eq!(tile.status, StatusCode::OK);
+    let [renders, pyramids, _, _] = s.tactical.cache_counts();
+    assert_eq!((renders, pyramids), (0, 1), "the render is cached twice");
+    let (gx, gy) = CELL;
+    let png = fetch(
+        Arc::clone(&s),
+        format!("/v1/tactical/cell/{gx}/{gy}.png?ppsq={PPSQ}"),
+    )
+    .await;
+    assert_eq!(png.status, StatusCode::OK);
+    assert_eq!(s.tactical.build_counts(), [1, 1], "the PNG rendered again");
+}

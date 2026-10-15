@@ -125,7 +125,7 @@ impl Tactical {
         let lanes = &self.lanes;
         lanes.renders.run(
             key,
-            || cached(&self.renders, key),
+            || self.cached_render(key),
             || {
                 // An abandoned request leaves the lane's queue here, and
                 // checks once more after entering (logic/16 §api-cache).
@@ -133,7 +133,7 @@ impl Tactical {
                     Lane::Request => lanes.request.enter()?,
                     Lane::Prefetch => lanes.prefetch.enter()?,
                 };
-                if let Some(hit) = cached(&self.renders, key)? {
+                if let Some(hit) = self.cached_render(key)? {
                     return Ok(hit);
                 }
                 crate::flight::check()?;
@@ -143,6 +143,16 @@ impl Tactical {
                 Ok(lock(&self.renders)?.insert(key.clone(), Arc::new(img), bytes))
             },
         )
+    }
+
+    /// A cached render of `key`: from the render cache, or the deepest
+    /// level of its cached pyramid (which holds it once built, review
+    /// 3.6-5).
+    fn cached_render(&self, key: &RenderKey) -> ServerResult<Option<Arc<Rgba>>> {
+        if let Some(hit) = cached(&self.renders, key)? {
+            return Ok(Some(hit));
+        }
+        Ok(cached(&self.pyramids, key)?.and_then(|p| p.top()))
     }
 
     /// Holds the bake lane until the guard drops: one bake renders at a

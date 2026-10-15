@@ -75,7 +75,8 @@ impl<K: Ord + Clone, V> ByteLru<K, V> {
         value
     }
 
-    fn remove(&mut self, key: &K) {
+    /// Drops `key`'s entry, if any.
+    pub fn remove(&mut self, key: &K) {
         if let Some(old) = self.entries.remove(key) {
             self.order.remove(&old.tick);
             self.used -= old.bytes;

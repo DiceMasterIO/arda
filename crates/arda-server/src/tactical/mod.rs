@@ -416,11 +416,14 @@ impl Tactical {
                 let slot = self.lanes.encode_slot()?;
                 let start = Instant::now();
                 self.lanes.count_pyramid();
-                let p = Pyramid::build(Rgba::clone(&img));
+                let p = Pyramid::build(Arc::clone(&img));
                 drop(slot);
                 stage("pyramid", &img, start);
                 let bytes = p.bytes();
-                Ok(lock(&self.pyramids)?.insert(key.clone(), Arc::new(p), bytes))
+                let p = lock(&self.pyramids)?.insert(key.clone(), Arc::new(p), bytes);
+                // The pyramid holds the render now (review 3.6-5).
+                lock(&self.renders)?.remove(key);
+                Ok(p)
             },
         )
     }

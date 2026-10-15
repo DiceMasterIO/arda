@@ -8,6 +8,7 @@
 
 use crate::error::{ServerError, ServerResult};
 use arda_tactical::Rgba;
+use std::sync::Arc;
 
 /// Tile edge in pixels.
 pub const TACTICAL_TILE_PX: u32 = 512;
@@ -38,26 +39,37 @@ pub fn tile_grid(width: u32, height: u32, max_zoom: u32, z: u32) -> (u32, u32) {
 }
 
 /// Every level of a render, `levels[z]` for `z` in `0..=max_zoom`.
+///
+/// The deepest level is the render itself, shared, not copied: once a
+/// pyramid holds a render, the render cache lets it go and a PNG of the
+/// same render reads it from here (review 3.6-5: a 128-ppsq render was
+/// held twice, so only one fit).
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct Pyramid {
     /// Levels from the most reduced (`z = 0`) to the render itself.
-    pub levels: Vec<Rgba>,
+    pub levels: Vec<Arc<Rgba>>,
 }
 
 impl Pyramid {
     /// Builds every level of `render`.
     #[must_use]
-    pub fn build(render: Rgba) -> Self {
+    pub fn build(render: Arc<Rgba>) -> Self {
         let top = max_zoom(render.width, render.height);
         let mut levels = Vec::with_capacity(top as usize + 1);
         levels.push(render);
         for _ in 0..top {
             let Some(prev) = levels.last() else { break };
             let next = prev.resized(prev.width.div_ceil(2), prev.height.div_ceil(2));
-            levels.push(next);
+            levels.push(Arc::new(next));
         }
         levels.reverse();
         Self { levels }
+    }
+
+    /// The render itself (the deepest level).
+    #[must_use]
+    pub fn top(&self) -> Option<Arc<Rgba>> {
+        self.levels.last().map(Arc::clone)
     }
 
     /// Deepest zoom level.
@@ -125,7 +137,7 @@ mod tests {
 
     #[test]
     fn levels_halve_and_match_the_geometry() {
-        let p = Pyramid::build(solid(1100, 600));
+        let p = Pyramid::build(Arc::new(solid(1100, 600)));
         assert_eq!(p.max_zoom(), 2);
         let sizes: Vec<_> = p.levels.iter().map(|l| (l.width, l.height)).collect();
         assert_eq!(sizes, vec![(275, 150), (550, 300), (1100, 600)]);
@@ -137,7 +149,7 @@ mod tests {
 
     #[test]
     fn tiles_are_bounded_and_edge_tiles_are_padded() {
-        let p = Pyramid::build(solid(1100, 600));
+        let p = Pyramid::build(Arc::new(solid(1100, 600)));
         let edge = p.tile(2, 2, 1).unwrap();
         assert_eq!(edge.len(), 512 * 512 * 4);
         // Level 2 is 1100 wide: tile column 2 holds 76 image columns.
