@@ -31,6 +31,7 @@ pub mod error;
 pub mod fixed;
 pub mod grid;
 pub mod hash;
+pub mod heights;
 pub mod layout;
 pub mod math;
 pub mod noise;
