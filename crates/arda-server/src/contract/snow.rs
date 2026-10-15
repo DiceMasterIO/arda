@@ -17,28 +17,24 @@
 //!    sea level, never from the seafloor (integration plan I26).
 
 use super::SnowSample;
+use arda_core::biome::{climate, Lines};
 use arda_core::{Cover, TerrainKind};
 
 /// Environmental lapse rate, °C per metre of ascent.
 pub const LAPSE_C_PER_M: f64 = 0.0065;
-/// Mean annual temperature where snow starts, °C.
-pub const SNOW_START_C: f64 = -4.0;
+/// Mean annual temperature where snow starts, °C (the shared snow line,
+/// `arda_core::biome::climate::SNOW_START_CENTI`).
+pub const SNOW_START_C: f64 = climate::SNOW_START_CENTI as f64 / 100.0;
 /// Mean annual temperature of full snow cover, °C.
-pub const SNOW_FULL_C: f64 = -7.0;
+pub const SNOW_FULL_C: f64 = climate::SNOW_FULL_CENTI as f64 / 100.0;
 /// Temperature reported as the snowline, °C (the ramp midpoint).
-pub const SNOWLINE_C: f64 = -5.5;
+pub const SNOWLINE_C: f64 = (SNOW_START_C + SNOW_FULL_C) / 2.0;
 /// Sea level, metres: the reference surface of sea cells' temperature.
 pub const SEA_LEVEL_M: f64 = 0.0;
 
-fn smoothstep(e0: f64, e1: f64, x: f64) -> f64 {
-    let t = ((x - e0) / (e1 - e0)).clamp(0.0, 1.0);
-    t * t * (3.0 - 2.0 * t)
-}
-
 fn fraction_at(temperature_c: f64, slope_deg: f64) -> f64 {
     let gradient = slope_deg.to_radians().tan();
-    let shed = 1.0 - 0.75 * smoothstep(0.7, 1.3, gradient);
-    smoothstep(SNOW_START_C, SNOW_FULL_C, temperature_c) * shed
+    Lines::LEGACY.snow_by_gradient(temperature_c, gradient)
 }
 
 /// Evaluates the proxy for a node at `height_m` with the saved climate.

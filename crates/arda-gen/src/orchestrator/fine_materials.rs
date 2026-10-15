@@ -6,6 +6,7 @@
 //! do not introduce a new random seed or a rectangular colour boundary.
 
 use crate::noise::value_noise;
+use arda_core::biome::{climate, ground};
 use arda_core::{AreaCells, AreaCoord, Cell, CellCoord, Cover, TerrainKind, AREA_CELLS};
 
 /// Populate material fields (moisture, wetness, canopy, cover) for legacy
@@ -38,10 +39,10 @@ fn derive(cell: &mut Cell, seed: u64, gx: i32, gy: i32) {
     // A simple annual water balance: rainfall relative to temperature-driven
     // evaporation demand. A given rainfall is thus wetter in a cold valley
     // than on a warm plain, as the capstone geography model requires.
-    let temp_centi_c = i32::from(cell.temperature.raw());
-    let potential_evap_mm = 300 + temp_centi_c.max(0) * 35 / 100;
-    let moisture_index_q8 =
-        (i32::from(cell.rainfall.raw()) * 256 / potential_evap_mm).clamp(0, 768);
+    let moisture_index_q8 = climate::moisture_index_q8(
+        i32::from(cell.rainfall.raw()),
+        i32::from(cell.temperature.raw()),
+    );
     // Fine plains can have nearly level beds. Their D8 contributing areas and
     // height-above-river ownership then form artificial straight polygons.
     // Keep those measurements in the saved cell, but do not paint them across
@@ -59,8 +60,12 @@ fn derive(cell: &mut Cell, seed: u64, gx: i32, gy: i32) {
     // Independent growth limits keep forests off cold summits, thin soils and
     // arid ground. Slow absolute-coordinate noise creates clearings and cores
     // large enough to remain legible in a world overview.
-    let temperature_limit = ((i32::from(cell.temperature.raw()) + 400) * 255 / 900).clamp(0, 255);
-    let water_limit = ((moisture_index_q8 - 77) * 255 / 179).clamp(0, 255);
+    let (t0, t1) = climate::TREE_LIMIT_V8_CENTI;
+    let temperature_limit =
+        ((i32::from(cell.temperature.raw()) - t0) * 255 / (t1 - t0)).clamp(0, 255);
+    let water_limit = ((moisture_index_q8 - ground::CANOPY_DRY_Q8) * 255
+        / ground::CANOPY_WET_SPAN_Q8)
+        .clamp(0, 255);
     let slope_limit = ((44_000 - i32::from(cell.slope_milli_deg)) * 255 / 12_000).clamp(0, 255);
     let potential = temperature_limit * water_limit / 255 * slope_limit / 255 * 210 / 255;
     let patch = (broad * 145 + local * 60) / 32_768;
@@ -80,23 +85,27 @@ fn derive(cell: &mut Cell, seed: u64, gx: i32, gy: i32) {
     cell.forest_density = u8::try_from(canopy).unwrap_or(u8::MAX);
 
     let height_m = cell.height.raw() / 1_000;
-    cell.cover = if height_m > 3_000 && cell.temperature.raw() < -300 {
-        Cover::Ice
-    } else if cell.slope_milli_deg > 38_000
-        || (cell.slope_milli_deg > 28_000 && cell.temperature.raw() < -200)
-    {
-        Cover::Rock
-    } else if cell.cover == Cover::Marsh && cell.moisture >= 125 {
-        Cover::Marsh
-    } else if moisture_index_q8 < 65 {
-        Cover::Bare
-    } else if canopy >= 145 {
-        Cover::Forest
-    } else if moisture_index_q8 < 165 && cell.temperature.raw() > -400 {
-        Cover::Scrub
-    } else {
-        Cover::Grass
-    };
+    cell.cover =
+        if height_m > ground::ICE_V8_HEIGHT_M && cell.temperature.raw() < ground::ICE_V8_CENTI {
+            Cover::Ice
+        } else if cell.slope_milli_deg > ground::ROCK_V8_MILLI
+            || (cell.slope_milli_deg > ground::COLD_ROCK_V8_MILLI
+                && cell.temperature.raw() < ground::COLD_ROCK_V8_CENTI)
+        {
+            Cover::Rock
+        } else if cell.cover == Cover::Marsh && cell.moisture >= ground::MARSH_MOISTURE {
+            Cover::Marsh
+        } else if moisture_index_q8 < ground::BARE_BELOW_Q8 {
+            Cover::Bare
+        } else if canopy >= ground::FOREST_CANOPY {
+            Cover::Forest
+        } else if moisture_index_q8 < ground::SCRUB_BELOW_Q8
+            && cell.temperature.raw() > ground::SCRUB_ABOVE_CENTI
+        {
+            Cover::Scrub
+        } else {
+            Cover::Grass
+        };
     // Floodplain marsh keeps its canopy: riparian ground is among the greenest
     // on a plain, and marsh ownership steps with D8 height above the river.
     if matches!(cell.cover, Cover::Ice | Cover::Rock) {

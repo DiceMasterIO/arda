@@ -4,6 +4,8 @@
 //! highlight shoulder in [`super::shade`]; recipe-5 worlds keep rendering
 //! identically through this module.
 
+use arda_core::biome::{climate, Lines};
+
 use super::{
     mix, organic_noise, relief_term, rgb, smooth, soft_q12, FormedInputs, EXAGGERATION_Q8, ONE,
     SCALE_WEIGHT_Q12,
@@ -75,7 +77,7 @@ pub(in crate::atlas) fn shade(p: &FormedInputs) -> [u8; 3] {
         );
     let fine_mo = mo + (organic_noise(fx, fy, 900) - ONE / 2) * 4 / 5 * fine_keep / ONE;
     let forest = smooth(90 * ONE / 255, 170 * ONE / 255, fine_mo)
-        * smooth(100, 400, i64::from(p.temperature_centi))
+        * Lines::LEGACY.growth_q12(i64::from(p.temperature_centi))
         / ONE
         * (ONE - smooth(2_458, 4_096, slope))
         / ONE;
@@ -142,10 +144,11 @@ pub(in crate::atlas) fn shade(p: &FormedInputs) -> [u8; 3] {
     // gullies up to 2.5 C colder, so snow streaks down couloirs; convex
     // ridges are wind-scoured (up to 1.5 C warmer); cliffs shed snow.
     let aspect_south = if slope > 0 { gy * ONE / slope } else { 0 };
-    let t_eff = i64::from(p.temperature_centi) + 150 * aspect_south / ONE
-        - 250 * smooth(0, 40_000, conc) / ONE
-        + 150 * smooth(0, 40_000, -conc) / ONE;
-    let snow = smooth(-400, -700, t_eff) * (ONE - 3 * smooth(2_867, 5_325, slope) / 4) / ONE;
+    let t_eff = i64::from(p.temperature_centi)
+        + i64::from(climate::SNOW_SUN_CENTI) * aspect_south / ONE
+        - i64::from(climate::SNOW_HOLLOW_CENTI) * smooth(0, 40_000, conc) / ONE
+        + i64::from(climate::SNOW_RIDGE_CENTI) * smooth(0, 40_000, -conc) / ONE;
+    let snow = Lines::LEGACY.snow_q12(t_eff, slope);
     c = mix(c, rgb(0xde_d8d1), snow);
 
     // Multi-scale light.

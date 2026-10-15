@@ -8,9 +8,11 @@
 //! field itself rather than from 100 m saved cells, so colour follows
 //! landforms without blocks.
 
-/// Q12 one.
 mod v5;
 
+use arda_core::biome::{climate, Lines};
+
+/// Q12 one.
 const ONE: i64 = 4_096;
 /// Light from the north-west at 42 degrees: horizontal component per axis
 /// (cos 42 / sqrt 2) and vertical component (sin 42), Q12.
@@ -207,7 +209,7 @@ pub(super) fn shade(p: &FormedInputs) -> [u8; 3] {
     // random patches (goals 24, 25).
     let crest = smooth(5_000, 50_000, -conc);
     let forest = smooth(90 * ONE / 255, 170 * ONE / 255, fine_mo)
-        * smooth(100, 400, i64::from(p.temperature_centi))
+        * Lines::LEGACY.growth_q12(i64::from(p.temperature_centi))
         / ONE
         * (ONE - smooth(2_458, 4_096, slope))
         / ONE
@@ -301,10 +303,11 @@ pub(super) fn shade(p: &FormedInputs) -> [u8; 3] {
     // gullies up to 2.5 C colder, so snow streaks down couloirs; convex
     // ridges are wind-scoured (up to 1.5 C warmer); cliffs shed snow.
     let aspect_south = if slope > 0 { gy * ONE / slope } else { 0 };
-    let t_eff = i64::from(p.temperature_centi) + 150 * aspect_south / ONE
-        - 250 * smooth(0, 40_000, conc) / ONE
-        + 150 * smooth(0, 40_000, -conc) / ONE;
-    let snow = smooth(-400, -700, t_eff) * (ONE - 3 * smooth(2_867, 5_325, slope) / 4) / ONE;
+    let t_eff = i64::from(p.temperature_centi)
+        + i64::from(climate::SNOW_SUN_CENTI) * aspect_south / ONE
+        - i64::from(climate::SNOW_HOLLOW_CENTI) * smooth(0, 40_000, conc) / ONE
+        + i64::from(climate::SNOW_RIDGE_CENTI) * smooth(0, 40_000, -conc) / ONE;
+    let snow = Lines::LEGACY.snow_q12(t_eff, slope);
     c = mix(c, rgb(0xde_d8d1), snow);
 
     // Multi-scale light, plus sub-grid runnels once pixels are small enough
