@@ -43,6 +43,53 @@ The September 23 correction passes local physical, deterministic and golden
 checks; natural-landscape visual acceptance remains open. Historical verification
 below retains its original scope.
 
+## Recipe-9 climate and plates — 2026-10-15
+
+Fine recipe 9 (logic/02 §recipe 9) reads its own continent climate
+(`continent::climate9::climate_recipe9`); legacy terrain and recipes 4–8 keep
+theirs byte for byte. Temperature and regime are recipe 7's except
+continentality; rainfall keeps the moisture model (release on climb, 1/8 of
+the deficit recharged over water, 1/8 lateral mixing, the subtropical-high
+factor) with four changes (review 2026-10-14 §3.2):
+- **Steady state in one sweep** (3.2-4). Each row is swept once from its
+  windward edge, and the rain is the release of that steady state, kept
+  unfloored. Recipe 7 started saturated and averaged all `1.5 × width`
+  passes, warm-up included: on a flat 1,000 km strip the leeward/windward
+  rain ratio was 0.367 against a steady state of 0.155 (recipe 9: 0.161),
+  and the solve cost O(w²h).
+- **Latitude winds** (3.2-3). Rows within 30° of the equator (trades) and
+  beyond 60° (polar easterlies) take an easterly wind, the rest westerlies;
+  rows mix only with neighbours under the same wind. A 1,500 m range at
+  18–22° now has its wet flank on the east (+328 mm, recipe 7 −333 mm).
+- **Offshore rain relief and a lower cap** (3.2-2). Rain climbs land heights
+  box-blurred over 5 km twice with the sea at sea level, and the blurred
+  ramp is kept on the sea cells, so the climb starts offshore; the release
+  cap is 1/32. Recipe 7 restored the sea's own heights after blurring, so the
+  first land cell climbed the whole coastal height: a 300 m coastal plateau
+  peaked at 8.5 m/yr (6.7× the first 20 km), recipe 9 at 1.9 m/yr (2.0×).
+- **Continentality** (3.2-17). Cooling is 1 centi-°C per km to 300 km, then
+  a quarter of that to 1,500 km (6 °C in all; recipe 7 stopped at 3 °C). The
+  stored `ocean_distance_km` stays capped at 300.
+
+Formation's macro water balance and the shared annual solve read this
+climate, with the Budyko land loss (logic/02 §recipe 9).
+
+**Plate count** (all recipes, 3.2-9). Plate ids are `u8`; a drawn count above
+255 used to fall back to 8 plates. It is capped at 255; every draw up to 255
+is unchanged.
+
+**Crust and belts** (3.2-10, open). Belts are raised between the drifting
+plates while the crust map is drawn from their starting positions. Mapping
+crust from the final positions and carrying belts with their plates was tried
+and withdrawn: MICRO land fell below the 25% gate (seed 42 attempt 0: 353 →
+159‰, 44‰ with belt advection), because the 2:1 centred continental mask no
+longer overlaps the drifted continental plates. Each plate keeps one drift
+for the whole run; nothing re-rolls it.
+
+Source: [climate9.rs](../../../crates/arda-gen/src/continent/climate9.rs),
+[plates.rs](../../../crates/arda-gen/src/continent/plates.rs),
+[tectonics.rs](../../../crates/arda-gen/src/continent/tectonics.rs).
+
 ## Trigger & preconditions
 
 `arda generate`, `arda::generate`, or `generate_world_with_limits` receives a

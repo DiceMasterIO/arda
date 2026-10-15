@@ -236,7 +236,7 @@ creep only; stream-power incision belongs to the existing shared 100 m evolution
    and sea-level lapse on marine cells. Let `P` be a cell's annual precipitation
    and `E` the sum of twelve climatological monthly Hamon evaporation depths,
    both converted to whole litres for the 100 m square. Baseline land loss is
-   `A = min(P/2, E)`, dry runoff is `R = P − A`, and the extra cost of maintaining
+   `A = min(P/2, E)` (recipe 9: Fu's Budyko curve, §recipe 9), dry runoff is `R = P − A`, and the extra cost of maintaining
    a fully wet cell is `D = E − A ≥ 0`. Group exact bed/owner bands on the
    witnessed hierarchy and install each cell's source exactly once. Start from
    empty and pay ascending support costs, with deterministic spill/merge events.
@@ -263,7 +263,8 @@ creep only; stream-power incision belongs to the existing shared 100 m evolution
    can reach the threshold even when individual incoming edges do not. Point
    records cover channel termini without inventing a step. The downstream channel reference
    for height-above-river follows the shortest directed route, stops at standing
-   water/exterior, and resolves ties canonically. Source:
+   water/exterior (recipe 9 measures to the standing water itself: lake
+   surface or sea level), and resolves ties canonically. Source:
    [annual_transfers.rs:108](../../../crates/arda-gen/src/hydrology/annual_transfers.rs:108),
    [fine_flow.rs:439](../../../crates/arda-gen/src/hydrology/fine_flow.rs:439),
    [flow_metrics.rs:564](../../../crates/arda-gen/src/hydrology/flow_metrics.rs:564),
@@ -357,15 +358,16 @@ resume point. Source:
 [shared_compose.rs:125](../../../crates/arda-gen/src/area/shared_compose.rs:125),
 [area_output.rs:289](../../../crates/arda-gen/src/hydrology/area_output.rs:289).
 
-## Fine recipe-5 to recipe-8 formation
+## Fine recipe-5 to recipe-9 formation
 
 Recipe 5 replaces the recipe-3 spectral source and recipe-4 valley carving with
 stream-power landscape formation from the tectonic macro surface. Its output is
 the same canonical 39.0625 m fine terrain file, so continent derivation,
 climate, hydrology, publication and export are unchanged downstream. Recipe 6
 is recipe 5 plus every v0.2 rule below. Recipe 7 is recipe 6 plus climate
-(§climate runoff, §world-water arid basins); it is the default. Recipe 8 is
-recipe 7 plus alluvial valley floors (§plains); it is opt-in.
+(§climate runoff, §world-water arid basins). Recipe 8 is recipe 7 plus
+alluvial valley floors (§plains); it is opt-in. Recipe 9 is recipe 7 plus the
+2026-10 review corrections (§recipe 9); it is the default.
 Source: [formation/](../../../crates/arda-gen/src/formation/mod.rs),
 [fine_formation.rs](../../../crates/arda-gen/src/orchestrator/fine_formation.rs).
 
@@ -392,10 +394,10 @@ loading and rendering read it from there.
   before the finest level; 0.2 km² channel initiation; one seam pass;
   terraces, littoral, canyons and flats; the §world-water forms (deltas,
   braids, meanders, oxbows, karst); the eight-connected sampled drainage with
-  pocket levelling; and the shore survey. Only recipes 6 and 7 write
+  pocket levelling; and the shore survey. Only recipes 6 and later write
   `terrain/shore.bin` and `areas/*/water.bin`.
-- **Recipe 7** (v0.4, the default since the maintainer approved its look
-  on 2026-10-01) adds climate: the subtropical-high
+- **Recipe 7** (v0.4, the default from the maintainer's approval of its
+  look on 2026-10-01 until recipe 9) adds climate: the subtropical-high
   rainfall belt (logic/01 §Q6 subtropical highs); runoff-weighted
   contributing area for incision, channel initiation and channel sizing
   (§climate runoff); and arid endorheic basins with terminal saline lakes,
@@ -405,6 +407,10 @@ loading and rendering read it from there.
   valley floors scaled to discharge, cut by lateral erosion and built by
   aggradation where the river's specific stream power is low, before the
   terraces. Everything else, including the stored layers, is recipe 7.
+- **Recipe 9** (the default since the 2026-10 review) is recipe 7, without
+  §plains, plus the corrections of §recipe 9 to formation, climate
+  (logic/01 §recipe-9 climate) and the shared annual solve, and writes
+  `water.bin` layout version 3 (formed thalwegs).
 - **Rendering** follows the recipe too (logic/04 §atlas-formed recipes).
 - **v0.2.0 worlds.** v0.2.0 formed its terrain with what is now recipe 6
   but recorded `recipe_version: 5`, because recipe 6 did not yet exist as a
@@ -415,17 +421,17 @@ loading and rendering read it from there.
   manifest on disk is left as written; a true recipe-5 world has no shore
   layer and stays recipe 5.
 
-Choosing a recipe: `arda generate --terrain fine --recipe <4|5|6|7|8>`
-(default 7: `arda_core::FINE_TERRAIN_RECIPE_VERSION`,
+Choosing a recipe: `arda generate --recipe <4|5|6|7|8|9>` (fine terrain is
+the CLI default; default recipe 9: `arda_core::FINE_TERRAIN_RECIPE_VERSION`,
 `FineRecipe::DEFAULT`); in code `arda::generate_from_fine_recipe` or
 `arda_gen::orchestrator::FineRecipe` (`Valleys` = 4, `FormationV5` = 5,
-`FormationV6` = 6, `Formation` = 7, `FormationV8` = 8). Recipe 7 changes every world (wet
-uplands more dissected, dry land less); `--recipe 6` reproduces v0.2–v0.3
-worlds exactly. Manifests may name any recipe up to
-`arda_core::FINE_TERRAIN_LATEST_RECIPE_VERSION` (8). Unknown numbers are refused before any
+`FormationV6` = 6, `Formation` = 7, `FormationV8` = 8, `FormationV9` = 9).
+`--recipe 7` reproduces the v0.4–v0.8 default worlds exactly, `--recipe 6`
+v0.2–v0.3 worlds. Manifests may name any recipe up to
+`arda_core::FINE_TERRAIN_LATEST_RECIPE_VERSION` (9). Unknown numbers are refused before any
 output. The gate is `tests/golden_recipes.rs`: MICRO seed 42 with recipes 5
 and 6 must match the v0.1 and v0.2.0 terrain, area, hydrology and Atlas 4K
-overview hashes, and recipes 7 and 8 their own first releases. The latitude band is
+overview hashes, and recipes 7, 8 and 9 their own first releases. The latitude band is
 `arda generate --latitude SOUTH,NORTH` (default 35,55); it only changes
 rainfall from recipe 7 on.
 Source: [formation/mod.rs](../../../crates/arda-gen/src/formation/mod.rs)
@@ -433,6 +439,85 @@ Source: [formation/mod.rs](../../../crates/arda-gen/src/formation/mod.rs)
 [levels.rs](../../../crates/arda-gen/src/formation/levels.rs),
 [fine_delivery.rs](../../../crates/arda-gen/src/orchestrator/fine_delivery.rs),
 [manifest.rs](../../../crates/arda-core/src/formats/manifest.rs) (`effective_recipe`).
+
+### §recipe 9
+
+Recipe 9 keeps every recipe-7 stage and changes these rules (review
+2026-10-14 §3.1 and §3.2; each is gated on `Recipe::V9` or
+`SolvePhysics::for_recipe(9)`, so recipes 5–8 replay their bytes):
+- **Hillslope creep** (§hillslopes, review 3.1-1). Maturity scales the creep
+  number 0.25×–4.2× (`(32 + 2·soft)/128`, at most 0.17), not up to 8.2×:
+  0.33 broke the explicit five-point scheme's 0.25 stability limit and
+  amplified cell-scale roughness on mature ground.
+- **Fill grading** (§drainage, §flats, review 3.1-3). Every fill (the
+  in-level local fills and their fallback, the final fine fills, the 100 m
+  sampled fill) grades flooded cells along a weighted geodesic from the
+  spill: a step costs `eps` (cardinal) or `eps·√2` (diagonal), jittered
+  ±40% per cell by a hash, with the fraction rounded by the same hash
+  (`formation::grading`). Breadth-first grading made square rings across
+  which flow ran in straight axis lines. Flats are regraded after every
+  final fill, not once, and the implicit stream-power update keeps at least
+  1 mm of drop to its receiver (its floor made ties on large channels).
+- **Level-mask noise** (§levels, review 3.1-4). Uplift and erodibility
+  variation, the level-0 perturbation and the level 1–2 relief read value
+  noise whose octaves each turn to their own angle (19°–75°, at least 15°
+  from the axes) and origin (`noise::rotated_noise`).
+- **Shore rework** (§shore, review 3.1-5). The wave rework is weighted by
+  distance to the open sea (full within 250 m, none beyond 1.25 km) and runs
+  after the infill, before the terraces; it no longer flattens inland valleys.
+- **Admission** (all recipes, review 3.1-6). The finest level charges 39
+  (recipe 5), 42 (recipe 6) or 44 (recipes 7–9) bytes per node, and the
+  fine-source orchestrator admits the recipe it forms.
+- **Sampled drainage** (§sampled drainage, review 3.1-7). The graded fine fill
+  and the sampled pass alternate until neither changes anything, so no fine
+  pit hides behind a raised support node.
+- **Belts** (§world-water braids and meanders, review 3.1-8). Braid planing,
+  threads and meander courses grade to the reach's bed as it stood before
+  planing (monotone downstream); thread and course depth fade in over the
+  end ramps; a meander run-on grades down to the old bed (it stays level if
+  it reaches the coast first).
+- **Terraces** (§terraces, review 3.1-9). The interfluve compression above
+  the bluff is smoothed over 625 m, not 80 m, so divides between rivers at
+  different heights get no scarp.
+- **Masks after the audit** (§basin audit, review 3.1-10). The local relief
+  of every macro cell within 12 km of a basin the audit filled is recomputed
+  from the filled surface.
+- **Estuarine infill** (§drowned coasts, review 3.1-11) rises 100 mm per km,
+  so every diagonal step stays inside the flats' 8 mm.
+- **Glacial troughs** (§glacial lakes, review 3.1-2). The floor follows the
+  pre-glacial valley profile overdeepened by the trough depth, and each
+  cross-section rises from it to the highest ground around it
+  (`min(z, floor + (r/R)²(top − floor))`).
+- **Shore classes** (§shore classes, review 3.1-12). The rise is read within
+  one survey cell (100 m) of the shore cell, and a cliff needs 25 m of it on
+  water of exposure 80 or more.
+- **Climate** (logic/01 §recipe-9 climate): steady-state rain sweeps,
+  latitude winds, offshore rain relief and a 1/32 release cap, continentality
+  to 1,500 km.
+- **Runoff** (Steps 4, review 3.2-1). The shared annual solve and formation's
+  water balance take the land loss from Fu's Budyko curve (ω = 2.6, integer
+  table): runoff 12% of the rain at `E/P` = 2 and 0.7% at 12, where
+  `min(P/2, E)` kept half.
+- **HAND** (Steps 6, review 3.2-6). A dry cell draining into a lake or the
+  sea, with no channel nearer, measures its height to the lake surface or sea
+  level.
+- **Flat ties** (review 3.2-13). Equal drops and equal flat distances in the
+  shared router break by a cell-pair hash, not the lowest index.
+- **Thalwegs** (§world-water publication, review 3.2-14). `water.bin` layout
+  version 3 stores, for every river cell, the lowest fine node in its 100 m
+  footprint (offset in decimetres and bed height).
+
+Measured on MICRO seed 42 (recipe 7 → 9): shore classes of coast land cells
+cliff 58.6% → 27.2%, sand beach 5.3% → 7.6% (the rest is mostly rocky shore:
+62% of coast cells rise 25 m or more within 100 m on water of exposure below
+80); 10 km river probes within 600 m of a straight chord 2.8% → 2.5%; generation
+47 s → 69 s. On seed 42 at 200 × 300 km: straight probes 2.3% → 2.1%, cliff
+13.9% → 7.7%, sand 28.0% → 30.4%.
+Source: [mod.rs](../../../crates/arda-gen/src/formation/mod.rs) (`Recipe::V9`),
+[grading.rs](../../../crates/arda-gen/src/formation/grading.rs),
+[level_noise.rs](../../../crates/arda-gen/src/formation/level_noise.rs),
+[physics.rs](../../../crates/arda-gen/src/hydrology/physics.rs),
+[budyko.rs](../../../crates/arda-gen/src/hydrology/budyko.rs).
 
 ### §fine-formation levels
 
@@ -962,9 +1047,13 @@ and spills it too (`tests/arid_recipe7.rs`).
 
 **Publication.** Worlds formed in the run write `areas/<ax>_<ay>/water.bin`
 (`arda_core::formats::water`), with forms in the order of the area's rivers and
-lakes. Recipe 6 writes layout version 1; recipe 7 writes version 2, which adds
-a saline flag per lake and the playa runs.
-- **Segments.** Bankfull width and depth come from saved discharge. Sinuosity
+lakes. Recipe 6 writes layout version 1; recipes 7 and 8 write version 2, which
+adds a saline flag per lake and the playa runs; recipe 9 writes version 3,
+which adds the formed thalweg of every river cell (the lowest fine-lattice node
+in its 100 m footprint, read from the copied fine terrain), so the channel
+formation cut is not lost to the 100 m routing.
+- **Segments.** Width and depth (named bankfull) come from the saved mean
+  discharge, not a bankfull flood. Sinuosity
   and slope are measured over a 2 km window centred on the segment; the window
   follows the largest feeder upstream and the chain downstream. The pattern is
   braided when at least half of the course lies on recorded belt cells,
@@ -990,13 +1079,17 @@ layer load with no forms.
 
 - Same seed, attempt and domain give a byte-identical field for any thread
   count.
-- Every fine land cell and every 100 m sample has a lower neighbour or is sea.
-- Peak RAM is admitted before allocation: about 33 bytes per finest cell plus the
-  parent level (planned ≈10.8 GB for 500×1000 km).
+- Every 100 m sample has a lower neighbour or is sea. From recipe 9 every
+  fine land cell does too (or lies in a protected sink); earlier recipes can
+  leave fine pits behind the sampled pass's raised support nodes (MICRO 42
+  recipe 7: 4,253).
+- Peak RAM is admitted before allocation: 39 (recipe 5), 42 (recipe 6) or 44
+  (recipes 7–9) bytes per finest node plus the parent level (≈14.9 GB for
+  500×1000 km at recipe 9, inside the 16 GiB default).
 
 ## Ground material
 
-Legacy terrain (the CLI default) and fine recipe ≥ 4 apply a material pass
+Legacy terrain (`--terrain legacy`) and fine recipe ≥ 4 apply a material pass
 after the shared annual water solve and before area publication. It replaces the saturating flat-ground
 wetness calculation with a logarithmic drainage/slope score, estimates soil
 moisture from rainfall relative to continuous centi-degree evaporation demand,

@@ -180,7 +180,7 @@ Embedded at compile time with `include_str!`/`include_bytes!` and parsed on firs
 | Unit tests | `#[cfg(test)] mod tests;` in a sibling `tests.rs` (48 files) or `<name>_tests.rs`/`tests_<name>.rs` (40+), or inline `mod tests { .. }` (225) | `crates/arda-tactical/src/compose/tests_variants.rs`, `crates/arda-gen/src/area/water_neighbor_tests.rs:1` |
 | Integration tests | `crates/<crate>/tests/*.rs`; shared helpers in `tests/common/mod.rs` or `tests/support/` | `crates/arda-town/tests/common/mod.rs`, `crates/arda-fields/tests/support/shape.rs` |
 | Workspace tests | Root package `arda-workspace-tests` (lib `tests/empty_lib.rs`) hosts `golden_world`, `golden_recipes`, `arid_recipe7`, `e2e_village`, `zoom_continuity`, `fixture_dir` | `Cargo.toml:76`, `Cargo.toml:104` |
-| Golden fingerprints | `tests/golden/*.txt`; rewrite with `ARDA_BLESS=1` | `tests/golden_world.rs:82`, `tests/golden_recipes.rs:102` |
+| Golden fingerprints | `tests/golden/*.txt`; rewrite with `ARDA_BLESS=1` | `tests/golden_world.rs:82`, `tests/golden_recipes.rs:104` |
 | Committed schemas | `bindings/schema/*.json` (148 files under `bindings/`) checked fresh; rewrite with `ARDA_BLESS_BINDINGS=1` | `crates/arda-server/src/schema/tests.rs:8` |
 | World-backed tests | `$ARDA_TEST_WORLD`, else `<workspace>/out/micro42` | `crates/arda-blocks/tests/settlements.rs:8` |
 | Shared fixtures | Built under `target/` in a private sibling then renamed; stamped with a fingerprint of library inputs and rebuilt when stale | `tests/support/fixture_dir.rs:1` |

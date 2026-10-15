@@ -78,7 +78,7 @@ Root `[[test]]` targets are declared explicitly (`Cargo.toml:104`–`126`):
 | `arda-town` | 20 | 41 | 0 | `blocks.rs`, `interiors.rs`, `plan.rs`, `rivers.rs`, `wfc.rs`, `wfc_rows.rs`, `common/mod.rs` |
 | `arda-ways` | 5 | 29 | 0 | `fallback.rs`, `ids.rs`, `reach.rs`, `rules_sidecar.rs`, `standing.rs`, `ways.rs` (+`ways/refusals.rs`), `wet.rs` |
 | `arda-wfc` | 6 | 5 | 0 | `solve.rs` |
-| root `tests/` | — | 17 | 5 | `golden_world.rs` (2), `golden_recipes.rs` (5), `arid_recipe7.rs` (2), `e2e_village.rs` (1), `zoom_continuity.rs` + `zoom_land.rs` (4), `fixture_dir.rs` (3) |
+| root `tests/` | — | 18 | 5 | `golden_world.rs` (2), `golden_recipes.rs` (6), `arid_recipe7.rs` (2), `e2e_village.rs` (1), `zoom_continuity.rs` + `zoom_land.rs` (4), `fixture_dir.rs` (3) |
 | `apps/viewer` | — | 86 + 6 | — | 12 Vitest files: `api/{areaBin,client,scene,tactical}`, `format`, `hooks`, `geo/{cellWalk,coords,handoff,relief,tacticalTiles}`, `render/tacticalOverlay`; plus `scripts/check-licences.test.mjs` (6, `node --test scripts/`) |
 | `tools/art-gen` | — | 43 | — | `art-gen.test.mjs` (28), `mock-slopify.test.mjs` (3), `safety.test.mjs` (12); shared stub `fake-slopify.mjs` |
 
@@ -94,7 +94,7 @@ Root `[[test]]` targets are declared explicitly (`Cargo.toml:104`–`126`):
 | Release verify (tag) | `tools/release.sh --check`, fmt, clippy `--locked`, `cargo test --workspace --locked` on the tag's commit | `.github/workflows/release.yml` job `verify` |
 | Dependency policy | `EmbarkStudios/cargo-deny-action` (v2.1.1, SHA-pinned) against `deny.toml` | `.github/workflows/ci.yml:44` |
 | Golden world bless | `ARDA_BLESS=1 cargo test --test golden_world` | `tests/golden_world.rs:4` |
-| Recipe goldens bless | `ARDA_BLESS=1 cargo test --test golden_recipes` | `tests/golden_recipes.rs:10` |
+| Recipe goldens bless | `ARDA_BLESS=1 cargo test --test golden_recipes` | `tests/golden_recipes.rs:12` |
 | Bindings/schema freshness | `cargo test -p arda-server bindings` / `schema`; bless with `ARDA_BLESS_BINDINGS=1` | `crates/arda-server/src/bindings.rs:4`, `crates/arda-server/src/schema/mod.rs:9` |
 | Schema freeze baseline | `ARDA_BLESS_SCHEMA_BASELINE=1 cargo test -p arda-server --lib frozen_schemas` rewrites `bindings/schema-baseline/v1/` (schemas plus `versions.json`); an explicit step, committed on its own, after a family bump or to adopt additions ([versioning.md](versioning.md) § Freeze guard) | `crates/arda-server/src/schema/tests.rs:161` |
 | Dungeon render bless | `ARDA_BLESS_DUNGEON=1 cargo test -p arda-dungeon` | `crates/arda-dungeon/tests/levels.rs:208` |
@@ -149,14 +149,17 @@ fingerprints every file as `<relative path>  <blake3 hex>`, sorted, with `\` →
 | `regenerating_produces_the_same_fingerprint` | `tests/golden_world.rs:99` | a second, independent generation matches the first |
 
 `tests/golden_recipes.rs` pins the fine-terrain recipes: each `check(recipe)`
-(`tests/golden_recipes.rs:65`) generates MICRO 42 with
+(`tests/golden_recipes.rs:67`) generates MICRO 42 with
 `generate_from_fine_recipe`, renders an Atlas 4K overview and compares the file
 fingerprints plus the PNG hash with `tests/golden/micro-42-recipe<N>.txt`
-(`:101`). Tests: `recipe_5_replays_v0_1_byte_for_byte` (`:154`),
-`recipe_6_replays_v0_2_byte_for_byte` (`:159`), `recipe_7_is_pinned` (`:165`),
-`recipe_8_is_pinned` (`:172`), `unknown_recipes_are_refused_before_output`
-(`:177`). The module doc states recipe-5 hashes must never be re-blessed
-(`:11`). `world.json` is excluded from the hash and checked field by field (`:7`).
+(`:103`). Tests: `recipe_5_replays_v0_1_byte_for_byte` (`:156`),
+`recipe_6_replays_v0_2_byte_for_byte` (`:161`), `recipe_7_is_pinned` (`:167`),
+`recipe_8_is_pinned` (`:174`), `recipe_9_is_pinned` (`:181`),
+`unknown_recipes_are_refused_before_output` (`:186`). The module doc states
+recipe-5 hashes must never be re-blessed (`:13`). `world.json` is excluded from
+the hash and checked field by field (`:8`). The arda-gen unit test
+`formation::mountain_tests` adds a mountainous recipe-9 world (a 40 km island
+with a 3.6 km massif, about 5 s) to the lowland MICRO 42 fixtures.
 
 ### Shared world fixtures under `target/`
 
@@ -269,7 +272,7 @@ world was byte-identical to the test fixture (47 files), and the checker passed 
 
 | Area | Tests |
 |---|---|
-| Whole world | `tests/golden_world.rs:99`, `tests/golden_recipes.rs:65`, `crates/arda/tests/round_trip.rs:154`, `crates/arda-gen/tests/continent_hydrology.rs:219` |
+| Whole world | `tests/golden_world.rs:99`, `tests/golden_recipes.rs:67`, `crates/arda/tests/round_trip.rs:154`, `crates/arda-gen/tests/continent_hydrology.rs:219` |
 | Thread-count independence (rayon pool of 1 vs default) | `crates/arda-gen/src/formation/form_tests.rs:24`, `crates/arda-gen/src/formation/lattice.rs:287`, `crates/arda-gen/src/formation/plains_tests.rs:132`, `crates/arda-gen/src/formation/recipe_tests.rs:53` |
 | Reroll sequence | `crates/arda-gen/src/orchestrator/tests.rs:24` |
 | Render bytes on repeat | `crates/arda-render/src/lib.rs:183`, `:222`; `crates/arda/tests/area_exports.rs:351`; `crates/arda-dungeon/tests/levels.rs:210` (pinned blake3 of two renders, `tests/golden/renders.txt`) |
@@ -292,7 +295,7 @@ synthetic inputs.
 | In-process HTTP | `tower::ServiceExt` requests against `arda_server::router` without a socket (`crates/arda-server/tests/world_api/support.rs:15`); one shared `AppState` so caches warm across tests (`:71`) |
 | Real loopback socket | `crates/arda-server/tests/serve.rs:13` binds `127.0.0.1:0` to test header timeouts and connection limits with shortened `ServeLimits` (`:20`) |
 | Committed asset library | `assets/tactical/placeholder` (`crates/arda-server/tests/world_api/support.rs:66`, `crates/arda-tactical/tests/timing.rs:14`) |
-| Temp directories with `Drop` cleanup | `tests/golden_world.rs:15`, `tests/golden_recipes.rs:17` |
+| Temp directories with `Drop` cleanup | `tests/golden_world.rs:15`, `tests/golden_recipes.rs:19` |
 | Stand-in HTTP service (JS) | `tools/art-gen/test/mock-slopify.test.mjs:1` replaces Slopify's API on `127.0.0.1`; `art-gen.test.mjs` runs `generate.mjs --dry-run` with `fetch` replaced by a failing function and skips Slopify-schema checks without `SLOPIFY_DIR` (`tools/art-gen/test/art-gen.test.mjs:4`–`10`) |
 
 ## Coverage shape

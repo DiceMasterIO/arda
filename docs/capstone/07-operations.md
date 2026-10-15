@@ -65,11 +65,11 @@ Defined in `crates/arda-cli/src/main.rs:34`.
 | | `--size WxH` km | `500x1000` | `crates/arda-cli/src/main.rs:41` |
 | | `--micro` | off (8-area MICRO continent) | `crates/arda-cli/src/main.rs:45` |
 | | `--out` | required | `crates/arda-cli/src/main.rs:48` |
-| | `--terrain legacy\|fine` | `legacy` | `crates/arda-cli/src/main.rs:51` |
-| | `--recipe 4..=8` | recipe 7 in fine mode; fine only | `crates/arda-cli/src/main.rs:57` |
-| | `--latitude S,N` | `35,55` | `crates/arda-cli/src/main.rs:61` |
-| | `--fine-ram-bytes` / `--fine-file-bytes` | 16 GiB / 4 GiB; rejected with `legacy` (`crates/arda-cli/src/generate.rs:76`) | `crates/arda-cli/src/main.rs:64`-`crates/arda-cli/src/main.rs:68` |
-| `preview` | `--seed`, `--size`, `--micro`, `--out` | as `generate`; writes `world/` and `overview.png` | `crates/arda-cli/src/main.rs:73` |
+| | `--terrain legacy\|fine` | `fine` (since recipe 9; `legacy` was the default before, review 3.2-15) | `crates/arda-cli/src/main.rs:53` |
+| | `--recipe 4..=9` | recipe 9 in fine mode (`--recipe 7` reproduces the v0.4–v0.8 default); fine only | `crates/arda-cli/src/main.rs:60` |
+| | `--latitude S,N` | `35,55` | `crates/arda-cli/src/main.rs:65` |
+| | `--fine-ram-bytes` / `--fine-file-bytes` | 16 GiB / 4 GiB; rejected with `legacy` (`crates/arda-cli/src/generate.rs:76`) | `crates/arda-cli/src/main.rs:68`-`crates/arda-cli/src/main.rs:71` |
+| `preview` | `--seed`, `--size`, `--micro`, `--out` | as `generate`, but always legacy terrain; writes `world/` and `overview.png` | `crates/arda-cli/src/main.rs:77` |
 | | `--px 1..=512` | absent; conflicts with `--quality`, `--style` | `crates/arda-cli/src/main.rs:84` |
 | | `--quality` | `8k` (512–32768 px or `1k`–`32k`) | `crates/arda-cli/src/main.rs:87` |
 | | `--style classic\|atlas\|atlas-oblique` | Classic | `crates/arda-cli/src/main.rs:91`, `crates/arda-cli/src/main.rs:183` |
@@ -131,7 +131,7 @@ Runtime configuration is CLI flags only; no binary reads a config file from a fi
 
 | Name | Default | Consuming code | Documented where |
 |---|---|---|---|
-| `ARDA_BLESS` | unset | Rewrites root golden fixtures instead of comparing (`tests/golden_world.rs:82`, `tests/golden_recipes.rs:102`) | Panic message in the same files |
+| `ARDA_BLESS` | unset | Rewrites root golden fixtures instead of comparing (`tests/golden_world.rs:82`, `tests/golden_recipes.rs:104`) | Panic message in the same files |
 | `ARDA_BLESS_BINDINGS` | unset | Rewrites `bindings/ts/arda` and the served JSON Schemas (`crates/arda-server/src/bindings.rs:240`, `crates/arda-server/src/schema/tests.rs:8`) | `apps/viewer/README.md:78` |
 | `ARDA_BLESS_SCHEMA_BASELINE` | unset | Rewrites `bindings/schema-baseline/v1/` (schemas plus `versions.json`) instead of comparing (`crates/arda-server/src/schema/tests.rs:164`) | `docs/capstone/versioning.md` § Freeze guard |
 | `ARDA_BLESS_DUNGEON` | unset | Rewrites dungeon golden (`crates/arda-dungeon/tests/levels.rs:230`) | Panic message there |
@@ -181,7 +181,7 @@ Third-party runtime controls such as `RAYON_NUM_THREADS` are read by `rayon`, no
 | Lint | `cargo clippy --workspace --all-targets -- -D warnings` | `.github/workflows/ci.yml:38` |
 | Dependency policy | `cargo deny check` (policy `deny.toml`) | `.github/workflows/ci.yml:44` |
 | Benches | `cargo bench -p arda-gen` (`area_erosion`, `continent_stage`) | `crates/arda-gen/Cargo.toml` |
-| Golden re-bless | `ARDA_BLESS=1 cargo test --release --test golden_world --test golden_recipes` rewrites `tests/golden/micro-42*.txt` | `tests/golden_world.rs:82`, `tests/golden_recipes.rs:102` |
+| Golden re-bless | `ARDA_BLESS=1 cargo test --release --test golden_world --test golden_recipes` rewrites `tests/golden/micro-42*.txt` | `tests/golden_world.rs:82`, `tests/golden_recipes.rs:104` |
 | Bindings/schema re-bless | `ARDA_BLESS_BINDINGS=1 cargo test -p arda-server bindings` (schemas: same variable, `schema` tests) | `apps/viewer/README.md:78`, `crates/arda-server/src/schema/tests.rs:8` |
 | Dungeon re-bless | `ARDA_BLESS_DUNGEON=1 cargo test -p arda-dungeon` | `crates/arda-dungeon/tests/levels.rs:230` |
 | Contract kit re-bless | `ARDA_BLESS_CONTRACT=1 cargo test --release -p arda-server --test contract_kit` | `contract-kit/README.md` |
@@ -221,7 +221,7 @@ Releases v0.5.0 to v0.8.1 were hand-made `release: Arda v<version>` commits with
 
 `tools/release-gates.sh` is the one command for every wall-clock budget (1.0 task 09, OI-28). It builds the release test binaries once, runs each `#[ignore = "wall-clock timing; release gate"]` test with `--ignored --nocapture --test-threads=1`, and parses the `GATE <name> <measured_ms> <budget_ms>` line each gate prints before it asserts. A missing line, an over-budget gate or a failed cargo target is a failure. `--with-benches` adds the two `arda-gen` budget benches (about 6 minutes of criterion sampling, so they are opt-in; they also print `GATE` lines); `--from-log FILE` re-parses a saved log. The release hardware is the maintainer's workstation (Ryzen 9 9950X3D, 16 cores / 32 threads, about 91 GiB RAM, CachyOS); the receipt prints `lscpu`, `free`, the kernel, the commit and the load average before and after. Run it on an idle machine: gates take the best of 3 to 5 fresh measurements, but the numbers are only comparable at low load. GitHub-hosted runners are too small and noisy, so the gates stay out of `ci.yml`.
 
-The server gates (`crates/arda-server/tests/world_api/gates.rs`) run on the settled society fixture `target/arda-server-fixture/micro42-society` (recipe 7), the river cell (529, 812), in-process through the real router; `e2e_village` keeps its own recipe-6 world.
+The server gates (`crates/arda-server/tests/world_api/gates.rs`) run on the settled society fixture `target/arda-server-fixture/micro42-society` (the default recipe, 9 since the recipe-9 change), the river cell (518, 822; (529, 812) on recipe 7), in-process through the real router; `e2e_village` keeps its own recipe-6 world.
 
 ### Recorded measurements
 
