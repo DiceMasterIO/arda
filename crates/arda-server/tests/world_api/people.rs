@@ -249,3 +249,29 @@ async fn buildings_list_their_residents_and_workers() {
         StatusCode::BAD_REQUEST
     );
 }
+
+#[test]
+fn paged_queries_reuse_the_cached_skeletons() {
+    // OI-51: a page reads `World::generator`, so paging the same
+    // settlement twice builds its skeleton once.
+    use arda_server::npcs::page::{page, Filter, DEFAULT_LIMIT};
+    let w = arda_people::World::open(crate::support::society_dir()).unwrap();
+    let id = *w.files.index.keys().next().unwrap();
+    let f = Filter {
+        settlement: Some(id),
+        building: None,
+        job: None,
+        realm: None,
+        notable: None,
+        limit: DEFAULT_LIMIT,
+        cursor: None,
+    };
+    let first = page(&w, &f).unwrap();
+    assert_eq!(w.skeletons_built(), 1, "the first page builds the skeleton");
+    let again = page(&w, &f).unwrap();
+    assert_eq!(w.skeletons_built(), 1, "the second page reuses it");
+    assert_eq!(
+        serde_json::to_string(&first).unwrap(),
+        serde_json::to_string(&again).unwrap()
+    );
+}

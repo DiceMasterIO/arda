@@ -2,10 +2,12 @@
 //! logic/16 §api-routes): filters over settlements' skeletons, expanding
 //! only the people a page returns.
 //!
-//! Scale (goal 56): stored data stays O(settlements). A page builds at most
-//! [`MAX_SCANNED`] settlement skeletons (a few integers per inhabitant,
-//! dropped after the page) and expands at most `limit` people; no query
-//! materialises commoners world-wide. Order is settlement id, then skeleton
+//! Scale (goal 56): stored data stays O(settlements). A page reads at most
+//! [`MAX_SCANNED`] settlement skeletons (a few integers per inhabitant)
+//! through `World::generator`, which keeps the most recently used ones, so
+//! paging on through a settlement does not build it again (OI-51); it
+//! expands at most `limit` people, and no query materialises commoners
+//! world-wide. Order is settlement id, then skeleton
 //! order (home building id, resident index), so pages are deterministic and
 //! a cursor resumes exactly where the previous page stopped.
 
@@ -13,7 +15,7 @@ use super::dto::{EntryOut, PageOut, NPC_PAGE_FORMAT};
 use super::refs::{Cursor, NpcRef};
 use crate::error::{ServerError, ServerResult};
 use crate::people::people_error;
-use arda_npc::{BuildingId, BuildingSpec, Generator, NotableSlot, Resident, SettlementProfile};
+use arda_npc::{BuildingId, Resident};
 use arda_people::World;
 
 /// Default page size.
@@ -66,43 +68,6 @@ impl Filter {
         building
             && self.job.as_deref().is_none_or(|j| r.job == j)
             && self.notable.is_none_or(|n| r.notable == n)
-    }
-}
-
-/// A settlement's generator inputs, owned.
-pub struct Inputs {
-    /// Its profile.
-    pub profile: SettlementProfile,
-    /// Its buildings (plan or mix).
-    pub buildings: Vec<BuildingSpec>,
-    /// Society's notable slots.
-    pub slots: Vec<NotableSlot>,
-}
-
-impl Inputs {
-    /// Reads the inputs of settlement `id`.
-    ///
-    /// # Errors
-    /// Unknown settlement (404) or world failures.
-    pub fn of(w: &World, id: u64) -> ServerResult<Self> {
-        Ok(Self {
-            profile: w.profile(id).map_err(people_error)?,
-            buildings: w.buildings(id).map_err(people_error)?.0,
-            slots: w.slots(id).map_err(people_error)?,
-        })
-    }
-
-    /// The skeleton, as `arda society build` built it.
-    ///
-    /// # Errors
-    /// The generator's refusals.
-    pub fn generator(&self, seed: u64) -> ServerResult<Generator<'_>> {
-        Ok(Generator::with_notables(
-            seed,
-            &self.profile,
-            &self.buildings,
-            &self.slots,
-        )?)
     }
 }
 
@@ -160,8 +125,7 @@ pub fn page(w: &World, f: &Filter) -> ServerResult<PageOut> {
             break;
         }
         out.scanned_settlements += 1;
-        let inputs = Inputs::of(w, id)?;
-        let g = inputs.generator(w.seed())?;
+        let g = w.generator(id).map_err(people_error)?;
         let range = match f.building {
             Some((b, link)) => {
                 let r = g.residents_of(BuildingId(b)).ok_or_else(|| {

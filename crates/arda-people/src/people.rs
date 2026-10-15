@@ -13,6 +13,7 @@ use arda_society::Society;
 use arda_town::TownPlan;
 use std::collections::{BTreeMap, BTreeSet};
 use std::path::Path;
+use std::sync::atomic::{AtomicU64, Ordering};
 use std::sync::{Arc, Mutex};
 
 /// Town plans kept in memory (each a few hundred kB).
@@ -57,6 +58,8 @@ pub struct World {
     society_index: BTreeMap<u64, usize>,
     plans: Mutex<(u64, PlanCache)>,
     generators: Mutex<(u64, GeneratorCache)>,
+    /// Population skeletons built so far (cache misses of [`World::generator`]).
+    skeletons_built: AtomicU64,
     /// Settlements whose plan, drawn again here, does not match the plan
     /// their stored notables were generated in (review 3.3-5).
     stale_plans: Mutex<BTreeSet<u64>>,
@@ -111,6 +114,7 @@ impl World {
             society_index,
             plans: Mutex::new((0, BTreeMap::new())),
             generators: Mutex::new((0, BTreeMap::new())),
+            skeletons_built: AtomicU64::new(0),
             stale_plans: Mutex::new(BTreeSet::new()),
         })
     }
@@ -280,6 +284,7 @@ impl World {
         let profile = self.profile(id)?;
         let (buildings, _) = self.buildings(id)?;
         let slots = self.slots(id)?;
+        self.skeletons_built.fetch_add(1, Ordering::Relaxed);
         let built = Arc::new(
             Generator::with_notables(self.seed(), &profile, &buildings, &slots)?.into_owned(),
         );
@@ -294,6 +299,13 @@ impl World {
             }
         }
         Ok(built)
+    }
+
+    /// How many population skeletons [`World::generator`] has built (its
+    /// cache misses), so callers can check they reuse the cache.
+    #[must_use]
+    pub fn skeletons_built(&self) -> u64 {
+        self.skeletons_built.load(Ordering::Relaxed)
     }
 
     /// Compares a plan drawn here with the plan the settlement's stored
