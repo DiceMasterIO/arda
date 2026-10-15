@@ -2,7 +2,7 @@
 #![deny(missing_docs)]
 
 use super::temperature::temperature_from_base;
-use super::{channel_width_dm, fields};
+use super::{channel_width_dm, fields, fields9};
 use crate::hydrology::types::PreparedTerrain;
 use arda_core::hydrology::{BasinId, GlobalLake};
 use arda_core::{
@@ -82,6 +82,19 @@ pub fn compose_shared(
     global: &[GlobalLake],
     ram_bytes: u64,
 ) -> Result<(AreaCells, Vec<Lake>), ComposeError> {
+    compose_shared_with(prepared, water, global, ram_bytes, None)
+}
+
+/// [`compose_shared`] with an optional neighbour halo: recipe 9 reads slope,
+/// aspect and wetness across the area's edges from it ([`fields9`]); without
+/// one the tile's own cells decide, as recipes up to 8 published them.
+pub fn compose_shared_with(
+    prepared: &PreparedTerrain,
+    water: &[SolvedCell],
+    global: &[GlobalLake],
+    ram_bytes: u64,
+    halo: Option<&fields9::Halo>,
+) -> Result<(AreaCells, Vec<Lake>), ComposeError> {
     if prepared.valid.width != AREA_CELLS
         || prepared.valid.height != AREA_CELLS
         || prepared.heights.len() != COUNT
@@ -123,6 +136,7 @@ pub fn compose_shared(
     heights.extend(prepared.heights.iter().map(|h| h.raw()));
     let mut cells = AreaCells::flat(Cell::default());
     let mut counts = BTreeMap::<BasinId, usize>::new();
+    let halo_wetness = halo.map(fields9::wetness);
     for y in 0..AREA_CELLS {
         for x in 0..AREA_CELLS {
             let at = CellCoord::new(x, y).ok_or(ComposeError::Invalid("local coordinate"))?;
@@ -162,8 +176,10 @@ pub fn compose_shared(
             {
                 return Err(ComposeError::Invalid("standing water has dry river fields"));
             }
-            let (slope_milli_deg, aspect_deg) =
-                fields::slope_and_aspect(&heights, i32::from(x), i32::from(y));
+            let (slope_milli_deg, aspect_deg) = match halo {
+                Some(h) => fields9::slope_aspect(h, i32::from(x), i32::from(y)),
+                None => fields::slope_and_aspect(&heights, i32::from(x), i32::from(y)),
+            };
             let drainage = if land { solved.drainage_cells } else { 0 };
             let discharge = if land {
                 solved.discharge
@@ -209,10 +225,10 @@ pub fn compose_shared(
                         0
                     },
                     height_above_river_dm: u16::try_from(hand_mm / 100).unwrap_or(u16::MAX),
-                    wetness: if land {
-                        fields::wetness(drainage, slope_milli_deg)
-                    } else {
-                        255
+                    wetness: match (&halo_wetness, land) {
+                        (Some(w), true) => w[i],
+                        (None, true) => fields::wetness(drainage, slope_milli_deg),
+                        (_, false) => 255,
                     },
                     ..Cell::default()
                 },

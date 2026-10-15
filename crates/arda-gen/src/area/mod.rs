@@ -14,6 +14,7 @@ pub mod shared_compose;
 pub mod temperature;
 
 pub mod fields;
+pub mod fields9;
 pub mod fill;
 mod lakes;
 pub mod relief;

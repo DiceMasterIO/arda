@@ -10,8 +10,16 @@ use arda_core::biome::{climate, ground};
 use arda_core::{AreaCells, AreaCoord, Cell, CellCoord, Cover, TerrainKind, AREA_CELLS};
 
 /// Populate material fields (moisture, wetness, canopy, cover) for legacy
-/// terrain and fine recipe >= 4.
-pub(super) fn apply(cells: &mut AreaCells, seed: u64, area: AreaCoord) {
+/// terrain and fine recipe >= 4. Recipe 9 and later use the shared
+/// climate-to-biome rules at the world's latitude ([`super::ecology9`]);
+/// earlier recipes and legacy terrain (`recipe` 0) replay their bytes.
+pub(super) fn apply(
+    cells: &mut AreaCells,
+    seed: u64,
+    area: AreaCoord,
+    recipe: u16,
+    frame: arda_core::biome::Frame,
+) {
     let ox = area.x * i32::from(AREA_CELLS);
     let oy = area.y * i32::from(AREA_CELLS);
     for y in 0..AREA_CELLS {
@@ -21,7 +29,12 @@ pub(super) fn apply(cells: &mut AreaCells, seed: u64, area: AreaCoord) {
             };
             let mut cell = *cells.get(at);
             if cell.terrain == TerrainKind::Land {
-                derive(&mut cell, seed, ox + i32::from(x), oy + i32::from(y));
+                let (gx, gy) = (ox + i32::from(x), oy + i32::from(y));
+                if recipe >= 9 {
+                    super::ecology9::derive(&mut cell, seed, gx, gy, frame);
+                } else {
+                    derive(&mut cell, seed, gx, gy);
+                }
                 cells.set(at, cell);
             }
         }

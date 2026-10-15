@@ -250,7 +250,10 @@ fn fields(g: &Grid, sites: &Sites, lu: &mut LandUse, s: &Settlement, seed: u64) 
     );
     let mut orchards = if s.tier == Tier::Hamlet { 0 } else { need / 10 };
     for &i in cells.iter().take(need) {
-        let sunny = (120..=240).contains(&g.aspect_deg[i]);
+        let sunny = arda_core::biome::aspect::sunny(
+            g.aspect_deg[i],
+            arda_core::biome::latitude::NORTH_MDEG,
+        );
         let orchard =
             orchards > 0 && sunny && g.temp_cc[i] >= 900 && (3000..=8000).contains(&g.slope_md[i]);
         if orchard {

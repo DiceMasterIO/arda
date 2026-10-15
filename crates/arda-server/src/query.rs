@@ -251,6 +251,14 @@ impl WorldQuery {
                 .map(|l| convert::lake(l, cell.height)),
             fine: window.and_then(|w| fine::footprint(w, place.gx, place.gy)),
             society: self.society.as_ref().map(|s| s.at(place.gx, place.gy)),
+            lines: {
+                // The shared snow line at the cell's latitude (recipe 9
+                // shifts it poleward of 45°, as the Atlas paints it).
+                let frame = self.world.manifest().biome_frame();
+                frame
+                    .seasonal()
+                    .then(|| frame.lines(frame.latitude_mdeg(i64::from(place.gy))))
+            },
         };
         Ok(convert::cell_sample(cell, place, derived))
     }

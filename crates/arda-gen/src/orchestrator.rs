@@ -7,6 +7,7 @@
 
 pub(crate) mod annual_source;
 pub(crate) mod child_links;
+mod ecology9;
 #[cfg(test)]
 mod entrypoint_tests;
 mod error;
@@ -337,6 +338,15 @@ fn generate_world_inner(
     // Recipe 9 also stores where the formed channel runs in each river cell
     // (review 3.2-14), read from the copied fine terrain.
     let recipe_version = fine.map_or(0, |(_, d)| d.recipe_version);
+    // Where the world lies for the climate-to-biome rules (the manifest's
+    // `biome_frame`): recipe 9 shifts its tree and snow lines with latitude.
+    let band = config.latitude_band();
+    let biome_frame = arda_core::biome::Frame::new(
+        band.south_deg,
+        band.north_deg,
+        config.size_km().height.saturating_mul(10),
+    )
+    .with_seasons(recipe_version >= 9);
     let mut thalweg_reader = if water.is_some() && recipe_version >= 9 {
         let path = out.join(arda_core::formats::manifest::FINE_TERRAIN_PATH);
         Some(
@@ -354,13 +364,14 @@ fn generate_world_inner(
     };
     for &area in &coords {
         let tile = prepared.tile(area)?;
-        let (mut cells, objects) = area_output::compose(
+        let (mut cells, objects) = area_output::compose_recipe(
             tile,
             &mut shared.routing,
             &mut shared.flow,
             &index,
             &shared.lakes,
             admission.area,
+            recipe_version,
         )
         .map_err(GenError::Area)?;
         // Ground ecology (moisture, canopy, cover) reads only saved climate,
@@ -368,7 +379,7 @@ fn generate_world_inner(
         // fine recipe >= 4. Fine recipes 1-3 replay their published bytes and
         // keep the grass/marsh-only composition (logic/02 §ground material).
         if fine.is_none_or(|(_, descriptor)| descriptor.recipe_version >= 4) {
-            fine_materials::apply(&mut cells, seed, area);
+            fine_materials::apply(&mut cells, seed, area, recipe_version, biome_frame);
         }
         write_area(area, &cells, &objects, &output, &mut writes)?;
         if let Some(features) = water {

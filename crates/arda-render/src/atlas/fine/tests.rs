@@ -45,6 +45,8 @@ fn physical_plane_has_exact_height_and_equivalent_gradient() {
     let atlas = FineAtlas {
         formed: false,
         v6: true,
+        v9: false,
+        frame: None,
         field,
         origin_x: 0,
         origin_y: 0,
@@ -114,6 +116,8 @@ fn overlapping_area_queries_share_exact_seam_radiance() {
     let left = FineAtlas {
         formed: false,
         v6: true,
+        v9: false,
+        frame: None,
         field: source.clone(),
         origin_x: 0,
         origin_y: 0,
@@ -124,6 +128,8 @@ fn overlapping_area_queries_share_exact_seam_radiance() {
     let right = FineAtlas {
         formed: false,
         v6: true,
+        v9: false,
+        frame: None,
         field: source,
         origin_x: AREA_UM,
         origin_y: 0,
@@ -172,6 +178,8 @@ fn fine_high_frequency_changes_box_and_linear_samples() {
     let atlas = FineAtlas {
         formed: false,
         v6: true,
+        v9: false,
+        frame: None,
         field: source,
         origin_x: 0,
         origin_y: 0,
@@ -256,6 +264,8 @@ fn only_a_true_world_edge_clamps_outside_source_queries() {
     let mut atlas = FineAtlas {
         formed: false,
         v6: true,
+        v9: false,
+        frame: None,
         field: source,
         origin_x: 0,
         origin_y: 0,

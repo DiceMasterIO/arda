@@ -201,7 +201,7 @@ pub fn slope_and_aspect(heights: &[i32], x: i32, y: i32) -> (u16, u16) {
 /// `atan` of a gradient scaled by 10_000, returned in thousandths of a
 /// degree. A 16-entry table with linear interpolation between entries; no
 /// libm, and identical on every platform.
-fn atan_milli_deg(grad_10k: i64) -> u16 {
+pub(crate) fn atan_milli_deg(grad_10k: i64) -> u16 {
     // atan(i/8) in milli-degrees, for i = 0..=16 (gradient 0 to 2.0).
     const TABLE: [i64; 17] = [
         0, 7_125, 14_036, 20_556, 26_565, 32_005, 36_870, 41_186, 45_000, 48_366, 51_340, 53_973,

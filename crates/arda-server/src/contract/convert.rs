@@ -130,6 +130,9 @@ pub struct Derived {
     pub fine: Option<FineHeights>,
     /// The cell's `society/` raster values, when the world has them.
     pub society: Option<SocietyCell>,
+    /// The snow line at the cell's latitude on a recipe-9 world
+    /// (`arda_core::biome`); `None` keeps the mid-latitude line.
+    pub lines: Option<arda_core::biome::Lines>,
 }
 
 /// A society raster road code (`arda_ids::RoadClass::code`) to its contract
@@ -188,9 +191,9 @@ pub fn cell_sample(cell: &Cell, at: CellPlace, derived: Derived) -> CellSample {
     let height = height_m(cell.height);
     let temperature_c = f64::from(cell.temperature.raw()) / 100.0;
     let slope_deg = f64::from(cell.slope_milli_deg) / 1000.0;
-    let snow = snow::snow(
-        cell.cover,
-        cell.terrain,
+    let snow = snow::snow_under(
+        derived.lines.unwrap_or(arda_core::biome::Lines::LEGACY),
+        (cell.cover, cell.terrain),
         temperature_c,
         height,
         slope_deg,

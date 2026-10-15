@@ -131,7 +131,8 @@ pub(crate) fn atlas_terrain(
                 let terrain = AtlasTerrain::new_with_fine_formed(
                     cells, lakes, halo, at, bounds, window, sky,
                 )?
-                .with_recipe(recipe);
+                .with_recipe(recipe)
+                .with_frame(world.manifest().biome_frame());
                 // logic/04 §atlas-formed shore: stored classes when present.
                 let terrain = match shore {
                     Some(layer) => terrain.with_shore(layer, at),

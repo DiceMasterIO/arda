@@ -75,6 +75,18 @@ impl AtlasTerrain {
         self
     }
 
+    /// Places the world on the globe (`arda_core::biome::Frame`): from
+    /// recipe 9 the formed shader draws the shared tree and snow lines at
+    /// each row's latitude and the sun's side by hemisphere. Earlier recipes
+    /// ignore it and render as they were pinned.
+    #[must_use]
+    pub fn with_frame(mut self, frame: arda_core::biome::Frame) -> Self {
+        if let Some(fine) = self.fine.as_mut() {
+            fine.set_frame(frame);
+        }
+        self
+    }
+
     /// Whether this formed terrain draws the recipe-6 look.
     pub(crate) fn is_formed_v6(&self) -> bool {
         self.fine

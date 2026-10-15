@@ -166,6 +166,7 @@ impl FineAtlas {
         } else {
             (g0x, g0y, height, ring_mean - i64::from(height))
         };
+        let (lines, sun_q12, v9) = self.climate_at(y);
         Ok(crate::atlas::formed::shade(
             &crate::atlas::formed::FormedInputs {
                 height_mm: height,
@@ -187,6 +188,9 @@ impl FineAtlas {
                 wetness: saved.wetness,
                 shore: saved.shore,
                 v6: self.v6,
+                lines,
+                sun_q12,
+                v9,
             },
         ))
     }

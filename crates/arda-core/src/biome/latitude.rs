@@ -94,13 +94,13 @@ impl Frame {
 pub const SEASONAL_FROM_MDEG: i32 = 45_000;
 /// Colder tree and snow lines per degree beyond [`SEASONAL_FROM_MDEG`],
 /// centi-degrees Celsius.
-pub const SEASONAL_CENTI_PER_DEG: i32 = 25;
+pub const SEASONAL_CENTI_PER_DEG: i32 = 40;
 /// The largest seasonal shift, centi-degrees Celsius.
-pub const SEASONAL_MAX_CENTI: i32 = 800;
+pub const SEASONAL_MAX_CENTI: i32 = 1_000;
 
 /// How much colder than at mid-latitudes the tree and snow lines lie at
 /// `lat_mdeg` (either hemisphere), centi-degrees Celsius, `<= 0`: none
-/// within 45° of the equator, 2.5 °C at 55°, 5 °C at 65°, at most 8 °C.
+/// within 45° of the equator, 4 °C at 55°, 8 °C at 65°, at most 10 °C.
 #[must_use]
 pub fn cold_shift_centi(lat_mdeg: i32) -> i32 {
     let beyond = (lat_mdeg.saturating_abs() - SEASONAL_FROM_MDEG).max(0);
@@ -146,9 +146,9 @@ mod tests {
     fn the_seasonal_shift_starts_at_45_degrees_in_both_hemispheres() {
         assert_eq!(cold_shift_centi(30_000), 0);
         assert_eq!(cold_shift_centi(45_000), 0);
-        assert_eq!(cold_shift_centi(55_000), -250);
-        assert_eq!(cold_shift_centi(-65_000), -500);
-        assert_eq!(cold_shift_centi(80_000), -800);
+        assert_eq!(cold_shift_centi(55_000), -400);
+        assert_eq!(cold_shift_centi(-65_000), -800);
+        assert_eq!(cold_shift_centi(80_000), -1_000);
     }
 
     #[test]

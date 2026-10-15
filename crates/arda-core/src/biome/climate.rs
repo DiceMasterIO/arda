@@ -173,8 +173,8 @@ mod tests {
         assert_eq!(mid.snow_q12(-700, 0), ONE);
         assert!(mid.snow(0.0, 10.0).abs() < 1e-12);
         let north = Lines::at(65_000);
-        assert_eq!(north.snow, (-900, -1_200));
-        assert_eq!(north.tree, (-600, -100));
+        assert_eq!(north.snow, (-1_200, -1_500));
+        assert_eq!(north.tree, (-900, -400));
         // Boreal forest grows at -5 °C at 65°, not at 45°.
         assert!(north.growth(-5.0) > 0.0 && mid.growth(-5.0) == 0.0);
     }

@@ -8,6 +8,7 @@ use super::local_rivers;
 use super::prepared_codec::PreparedTile;
 use super::routing::{CellIndex, RoutingStore};
 use super::types::PreparedTerrain;
+use crate::area::fields9;
 use crate::area::shared_compose::{self, SolvedCell};
 use arda_core::hydrology::{
     self, AnnualCatchment, AreaHydrologyContext, BasinId, CatchmentId, ChannelEdge, CrossingId,
@@ -239,6 +240,24 @@ pub fn compose<R: RoutingStore, F: FlowStore>(
     lakes: &[GlobalLake],
     limits: AreaLimits,
 ) -> Result<(AreaCells, AreaObjects), AreaError<R::Error, F::Error>> {
+    compose_recipe(tile, routing, flow, index, lakes, limits, 0)
+}
+
+/// [`compose`] for a fine recipe: recipe 9 and later read slope, aspect and
+/// wetness across the area's edges from a three-cell halo of the shared
+/// routing and flow stores (review 3.2-5; logic/02 §recipe 9 fields).
+/// Earlier recipes and legacy terrain (`0`) keep the tile-local fields byte
+/// for byte.
+#[allow(clippy::too_many_arguments)]
+pub fn compose_recipe<R: RoutingStore, F: FlowStore>(
+    tile: &PreparedTile,
+    routing: &mut R,
+    flow: &mut F,
+    index: &FinalIndex,
+    lakes: &[GlobalLake],
+    limits: AreaLimits,
+    recipe: u16,
+) -> Result<(AreaCells, AreaObjects), AreaError<R::Error, F::Error>> {
     let extent = routing.extent();
     let last =
         CellIndex::new(extent.cells() - 1, extent).ok_or(AreaError::Invalid("empty extent"))?;
@@ -391,12 +410,25 @@ pub fn compose<R: RoutingStore, F: FlowStore>(
         local_rivers::required_ram(local_count).ok_or(AreaError::Limit)?,
     )
     .map_err(AreaError::Rivers)?;
+    let halo = if recipe >= 9 {
+        Some(halo(
+            routing,
+            flow,
+            (ax, ay),
+            (mx, my),
+            (&prepared, &solved),
+            &mut context,
+        )?)
+    } else {
+        None
+    };
     let copied_lakes: Vec<GlobalLake> = values(context.lakes)?;
-    let (cells, local_lakes) = shared_compose::compose_shared(
+    let (cells, local_lakes) = shared_compose::compose_shared_with(
         &prepared,
         &solved,
         &copied_lakes,
         shared_compose::required_ram(copied_lakes.len()).ok_or(AreaError::Limit)?,
+        halo.as_ref(),
     )?;
     Ok((
         cells,
@@ -413,4 +445,48 @@ pub fn compose<R: RoutingStore, F: FlowStore>(
             },
         },
     ))
+}
+
+/// The area's cells and a [`fields9::HALO`]-cell ring around them: the
+/// area's own from its prepared and solved rows, the ring read from the
+/// shared stores, coordinates clamped into the modeled domain.
+fn halo<R: RoutingStore, F: FlowStore>(
+    routing: &mut R,
+    flow: &mut F,
+    (ax, ay): (u32, u32),
+    (mx, my): (u32, u32),
+    (prepared, solved): (&PreparedTerrain, &[SolvedCell]),
+    context: &mut Context<'_>,
+) -> Result<fields9::Halo, AreaError<R::Error, F::Error>> {
+    let extent = routing.extent();
+    let mut h = fields9::Halo::new();
+    let r = fields9::HALO;
+    for y in -r..512 + r {
+        for x in -r..512 + r {
+            let slot = fields9::Halo::at(x, y);
+            if (0..512).contains(&x) && (0..512).contains(&y) {
+                let i = usize::try_from(y * 512 + x).map_err(|_| AreaError::Limit)?;
+                let w = solved[i];
+                h.heights[slot] = prepared.heights[i].raw();
+                h.land[slot] = !w.marine && w.lake.is_none();
+                h.drainage[slot] = if h.land[slot] { w.drainage_cells } else { 0 };
+                continue;
+            }
+            context.charge(2)?;
+            let gx = (i64::from(ax) + i64::from(x)).clamp(0, i64::from(mx));
+            let gy = (i64::from(ay) + i64::from(y)).clamp(0, i64::from(my));
+            let raw = u32::try_from(gy * (i64::from(mx) + 1) + gx).map_err(|_| AreaError::Limit)?;
+            let at = CellIndex::new(raw, extent).ok_or(AreaError::Invalid("halo coordinate"))?;
+            let terrain = routing.read(at).map_err(AreaError::Routing)?;
+            let row = flow.read(at).map_err(AreaError::Flow)?;
+            h.heights[slot] = terrain.height();
+            h.land[slot] = !terrain.is_marine() && row.lake.is_none();
+            h.drainage[slot] = if h.land[slot] {
+                row.metrics.drainage_cells
+            } else {
+                0
+            };
+        }
+    }
+    Ok(h)
 }

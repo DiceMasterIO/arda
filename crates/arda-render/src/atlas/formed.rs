@@ -51,6 +51,15 @@ pub(super) struct FormedInputs {
     /// Recipe-6 look; false renders exactly as v0.1 drew recipe 5
     /// ([`v5::shade`]).
     pub v6: bool,
+    /// The tree and snow lines here (`Lines::LEGACY` before recipe 9).
+    pub lines: Lines,
+    /// Which side the sun shines from, Q12: `ONE` from the south (northern
+    /// hemisphere), `-ONE` from the north.
+    pub sun_q12: i64,
+    /// Recipe 9 and later: sun and shade from the true downhill direction
+    /// and the hemisphere. Earlier recipes keep their pinned look, which
+    /// took the gradient's southward component for the sunny side.
+    pub v9: bool,
 }
 
 /// Vertical exaggeration per lighting scale, Q8.
@@ -136,6 +145,23 @@ fn soft_q12(x: i64) -> i64 {
     i64::try_from(v).unwrap_or(0).clamp(-ONE, ONE)
 }
 
+/// How much the ground faces the sun, Q12 `-ONE..=ONE`. Before recipe 9
+/// the shader took the gradient's southward component, which is the
+/// downhill direction's northward share (north-facing read as sunny); the
+/// pinned looks keep it. Recipe 9 uses the shared rule: minus the
+/// northness times the hemisphere (`arda_core::biome::aspect::sunward`).
+fn sun_share(p: &FormedInputs, gy: i64, slope: i64) -> i64 {
+    if slope <= 0 {
+        return 0;
+    }
+    let north = gy * ONE / slope;
+    if p.v9 {
+        -north * p.sun_q12 / ONE
+    } else {
+        north
+    }
+}
+
 /// Shaded land colour for one fine point.
 pub(super) fn shade(p: &FormedInputs) -> [u8; 3] {
     if !p.v6 {
@@ -209,19 +235,18 @@ pub(super) fn shade(p: &FormedInputs) -> [u8; 3] {
     // random patches (goals 24, 25).
     let crest = smooth(5_000, 50_000, -conc);
     let forest = smooth(90 * ONE / 255, 170 * ONE / 255, fine_mo)
-        * Lines::LEGACY.growth_q12(i64::from(p.temperature_centi))
+        * p.lines.growth_q12(i64::from(p.temperature_centi))
         / ONE
         * (ONE - smooth(2_458, 4_096, slope))
         / ONE
         * (ONE - crest * 11 / 20)
         / ONE;
-    // Sun-facing (south) slopes are drier: thinner canopy, more ochre;
-    // shaded north slopes keep denser forest (goal 19, aspect).
-    let south = if slope > 0 {
-        (gy * ONE / slope).clamp(0, ONE)
-    } else {
-        0
-    };
+    // Sun-facing slopes are drier: thinner canopy, more ochre; shaded ones
+    // keep denser forest (goal 19, aspect). The gradient's y runs south, so
+    // `gy / slope` is the downhill direction's northward share; recipe 9
+    // turns it to the sun's side of either hemisphere.
+    let sunward = sun_share(p, gy, slope);
+    let south = sunward.clamp(0, ONE);
     let dry = south * smooth(410, 2_048, slope) / ONE;
     c = mix(c, rgb(0xa0_8a55), dry / 5);
     let forest = forest * (ONE - 2 * dry / 5) / ONE;
@@ -302,12 +327,10 @@ pub(super) fn shade(p: &FormedInputs) -> [u8; 3] {
     // -5 C mean annual). Sun-facing (south) slopes count 1.5 C warmer and
     // gullies up to 2.5 C colder, so snow streaks down couloirs; convex
     // ridges are wind-scoured (up to 1.5 C warmer); cliffs shed snow.
-    let aspect_south = if slope > 0 { gy * ONE / slope } else { 0 };
-    let t_eff = i64::from(p.temperature_centi)
-        + i64::from(climate::SNOW_SUN_CENTI) * aspect_south / ONE
+    let t_eff = i64::from(p.temperature_centi) + i64::from(climate::SNOW_SUN_CENTI) * sunward / ONE
         - i64::from(climate::SNOW_HOLLOW_CENTI) * smooth(0, 40_000, conc) / ONE
         + i64::from(climate::SNOW_RIDGE_CENTI) * smooth(0, 40_000, -conc) / ONE;
-    let snow = Lines::LEGACY.snow_q12(t_eff, slope);
+    let snow = p.lines.snow_q12(t_eff, slope);
     c = mix(c, rgb(0xde_d8d1), snow);
 
     // Multi-scale light, plus sub-grid runnels once pixels are small enough

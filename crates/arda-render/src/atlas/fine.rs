@@ -66,6 +66,12 @@ pub(super) struct FineAtlas {
     /// The recipe-6 look of formed shading; false draws a recipe-5 world
     /// exactly as v0.1 did (logic/04 §atlas-formed recipes).
     v6: bool,
+    /// Recipe 9 and later: the shared tree and snow lines at the world's
+    /// latitude and the sun's side by hemisphere (logic/04 §atlas-formed
+    /// recipe 9).
+    v9: bool,
+    /// Where the world lies, for the recipe-9 lines.
+    frame: Option<arda_core::biome::Frame>,
     field: TerrainField,
     origin_x: i128,
     origin_y: i128,
@@ -104,6 +110,8 @@ impl FineAtlas {
         let this = Self {
             formed,
             v6: true,
+            v9: false,
+            frame: None,
             field,
             origin_x,
             origin_y,
@@ -312,9 +320,32 @@ impl FineAtlas {
         self.v6
     }
 
-    /// Selects the formed look for a world's recipe (6 and later: v0.2).
+    /// Selects the formed look for a world's recipe (6 and later: v0.2; 9
+    /// and later: the shared climate-to-biome lines).
     pub(super) fn set_recipe(&mut self, recipe_version: u16) {
         self.v6 = recipe_version >= 6;
+        self.v9 = recipe_version >= 9;
+    }
+
+    /// Places the world on the globe for the recipe-9 lines.
+    pub(super) fn set_frame(&mut self, frame: arda_core::biome::Frame) {
+        self.frame = Some(frame);
+    }
+
+    /// The tree and snow lines and the sun's side (Q12, positive from the
+    /// south) at world `y_um` (from cell `(0, 0)`'s centre): the shared
+    /// lines at the row's latitude from recipe 9, the pre-recipe-9 look
+    /// before (northern sun, no seasonal shift).
+    pub(super) fn climate_at(&self, y_um: i128) -> (arda_core::biome::Lines, i64, bool) {
+        use arda_core::biome::{latitude, Lines};
+        match (self.v9, self.frame) {
+            (true, Some(frame)) => {
+                let row = i64::try_from((y_um + CELL_UM / 2).div_euclid(CELL_UM)).unwrap_or(0);
+                let lat = frame.latitude_mdeg(row);
+                (frame.lines(lat), latitude::hemisphere_q12(lat), true)
+            }
+            _ => (Lines::LEGACY, arda_core::biome::ONE, false),
+        }
     }
 
     /// Recipe-5 channel vertex: the lowest fine node inside the saved 100 m

@@ -32,12 +32,13 @@ pub const SNOWLINE_C: f64 = (SNOW_START_C + SNOW_FULL_C) / 2.0;
 /// Sea level, metres: the reference surface of sea cells' temperature.
 pub const SEA_LEVEL_M: f64 = 0.0;
 
-fn fraction_at(temperature_c: f64, slope_deg: f64) -> f64 {
+fn fraction_at(lines: Lines, temperature_c: f64, slope_deg: f64) -> f64 {
     let gradient = slope_deg.to_radians().tan();
-    Lines::LEGACY.snow_by_gradient(temperature_c, gradient)
+    lines.snow_by_gradient(temperature_c, gradient)
 }
 
-/// Evaluates the proxy for a node at `height_m` with the saved climate.
+/// Evaluates the proxy for a node at `height_m` with the saved climate,
+/// under the mid-latitude snow line.
 ///
 /// `peak_m` is the highest fine-terrain point of the footprint, when known.
 #[must_use]
@@ -49,16 +50,43 @@ pub fn snow(
     slope_deg: f64,
     peak_m: Option<f64>,
 ) -> SnowSample {
+    snow_under(
+        Lines::LEGACY,
+        (cover, terrain),
+        temperature_c,
+        height_m,
+        slope_deg,
+        peak_m,
+    )
+}
+
+/// [`snow`] under the snow line `lines` (a recipe-9 world's line at the
+/// cell's latitude, `arda_core::biome::Lines::at`); the reported snowline
+/// height is the lapse-adjusted midpoint of that line.
+#[must_use]
+pub fn snow_under(
+    lines: Lines,
+    (cover, terrain): (Cover, TerrainKind),
+    temperature_c: f64,
+    height_m: f64,
+    slope_deg: f64,
+    peak_m: Option<f64>,
+) -> SnowSample {
     let surface_m = if terrain == TerrainKind::Sea {
         SEA_LEVEL_M
     } else {
         height_m
     };
-    let snowline_m = surface_m + (temperature_c - SNOWLINE_C) / LAPSE_C_PER_M;
+    let mid_c = if lines == Lines::LEGACY {
+        SNOWLINE_C
+    } else {
+        f64::from(lines.snow.0 + lines.snow.1) / 200.0
+    };
+    let snowline_m = surface_m + (temperature_c - mid_c) / LAPSE_C_PER_M;
     let rule = |t: f64| match (cover, terrain) {
         (Cover::Ice, _) => 1.0,
         (_, TerrainKind::Sea | TerrainKind::Lake) => 0.0,
-        _ => fraction_at(t, slope_deg),
+        _ => fraction_at(lines, t, slope_deg),
     };
     let fraction = rule(temperature_c);
     let peak_fraction = peak_m.map(|peak| {
@@ -76,6 +104,23 @@ pub fn snow(
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn a_recipe_9_high_latitude_line_snows_colder() {
+        // At 65° the shared snow line starts at -12 °C: -9 °C is bare there.
+        let north = Lines::at(65_000);
+        let s = snow_under(
+            north,
+            (Cover::Grass, TerrainKind::Land),
+            -9.0,
+            300.0,
+            2.0,
+            None,
+        );
+        assert!(s.fraction.abs() < 1e-12 && !s.perennial);
+        let mid = snow(Cover::Grass, TerrainKind::Land, -9.0, 300.0, 2.0, None);
+        assert!((mid.fraction - 1.0).abs() < 1e-12);
+    }
 
     #[test]
     fn warm_lowland_is_bare_and_cold_crest_is_snowed() {

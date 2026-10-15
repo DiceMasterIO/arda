@@ -16,7 +16,31 @@ fn flat(height_mm: i32) -> FormedInputs {
         wetness: 0,
         shore: [0; 8],
         v6: true,
+        lines: Lines::LEGACY,
+        sun_q12: ONE,
+        v9: false,
     }
+}
+
+#[test]
+fn recipe_9_snow_lies_on_the_side_away_from_the_sun_in_either_hemisphere() {
+    // Gradient y runs south: +gy rises southward, so the slope faces north.
+    let face = |gy: i64, sun_q12: i64| {
+        let c = shade(&FormedInputs {
+            temperature_centi: -480,
+            gradients: [(0, gy); 4],
+            lines: Lines::MID,
+            sun_q12,
+            v9: true,
+            ..flat(2_500_000)
+        });
+        c.iter().map(|&v| i64::from(v)).sum::<i64>()
+    };
+    // The light is the same either way, so a face is brighter (snowier)
+    // where it is the shaded one: the north face in the north, the south
+    // face in the south.
+    assert!(face(1_500, ONE) > face(1_500, -ONE));
+    assert!(face(-1_500, -ONE) > face(-1_500, ONE));
 }
 
 #[test]
