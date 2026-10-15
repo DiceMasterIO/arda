@@ -18,6 +18,7 @@ use crate::npc_dto as npc;
 use crate::npcs::dto::{NpcEntry, NpcPage};
 use crate::schema::{SchemaIndex, SchemaIndexEntry};
 use crate::tactical::bake::{BakeAccepted, BakeRequest, BakeState, BakeStatus};
+use crate::tactical::bake_dto::BakeIgnored;
 use crate::tactical::dto::{
     AssetClassDto, AssetRefDto, EdgeAxisDto, LightSourceDto, PlacementDto, SquareDto,
     TacticalBlockDto, TacticalLayoutDto, TacticalLayoutSummary, TacticalLayouts, TacticalTilesDto,
@@ -197,6 +198,7 @@ exported!(
     BakeRequest,
     BakeState,
     BakeAccepted,
+    BakeIgnored,
     BakeStatus,
     Runs<u8>,
     SqDto,
