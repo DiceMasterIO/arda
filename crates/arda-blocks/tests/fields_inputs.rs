@@ -103,25 +103,39 @@ fn fields_roads_are_the_ways_roads_and_mills_stand_on_the_river() {
                 *hist.entry(f).or_insert(0) += 1;
             }
         }
-        // The mill house's nearest square to the refined water.
-        let house: Vec<(i64, i64)> = (0..64 * 64)
+        // The mill house's nearest square to the refined water, both read
+        // over the cell grown by 32 squares: the bank a mill takes may lie
+        // in the next cell.
+        let wwin = (win.0 - 32, win.1 - 32, 128_u32, 128_u32);
+        let wide = pipeline.window(wwin, &library, None).unwrap().layout;
+        let wctx = OverlayCtx {
+            gsx0: wwin.0,
+            gsy0: wwin.1,
+            width: 128,
+            height: 128,
+            seed: pipeline.seed(),
+            base: &wide,
+            library: &library,
+        };
+        let wfields = society.fields(&wctx).unwrap().unwrap();
+        let house: Vec<(i64, i64)> = (0..128 * 128)
             .filter(|&i| {
-                fields.rules.squares[i]
+                wfields.rules.squares[i]
                     .ext
                     .as_ref()
                     .and_then(|e| e.get("building_function"))
                     .and_then(|v| v.as_str())
                     == Some("mill")
             })
-            .map(|i| ((i % 64) as i64, (i / 64) as i64))
+            .map(|i| ((i % 128) as i64, (i / 128) as i64))
             .collect();
         if house.is_empty() {
             continue;
         }
         mills_seen += 1;
-        let water: Vec<(i64, i64)> = (0..64 * 64)
-            .filter(|&i| base.squares[i].water_depth_ft > 0)
-            .map(|i| ((i % 64) as i64, (i / 64) as i64))
+        let water: Vec<(i64, i64)> = (0..128 * 128)
+            .filter(|&i| wide.squares[i].water_depth_ft > 0)
+            .map(|i| ((i % 128) as i64, (i / 128) as i64))
             .collect();
         let d = house
             .iter()
