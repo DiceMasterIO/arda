@@ -175,7 +175,76 @@ pub fn generate_continent_attempt_formed(
     config: GenerateConfig,
     attempt: u8,
 ) -> ContinentGrid {
-    generate_continent_attempt_with_profile_zones(seed, config, attempt, true, true)
+    generate_continent_attempt_zones(seed, config, attempt, Zones::FORMED)
+}
+
+/// Recipe-9 macro geography: [`generate_continent_attempt_formed`] with
+/// belts that ride on their plates ([`tectonics::run_tectonics_formed_v9`])
+/// and the crust map drawn from the plates where the run leaves them
+/// (review 3.2-10). Earlier recipes map crust from the plates' starting
+/// positions while the belts are raised between the drifted ones, so belts
+/// and coasts disagree by up to 20 steps of drift.
+#[must_use]
+pub fn generate_continent_attempt_formed_v9(
+    seed: u64,
+    config: GenerateConfig,
+    attempt: u8,
+) -> ContinentGrid {
+    generate_continent_attempt_zones(
+        seed,
+        config,
+        attempt,
+        Zones {
+            final_crust: true,
+            ..Zones::FORMED
+        },
+    )
+}
+
+/// The plate geometry of one continent profile.
+#[derive(Debug, Clone, Copy)]
+struct Zones {
+    /// Fine tectonic profile.
+    fine: bool,
+    /// Round crust zones and continuous drift (recipe 5 on).
+    round: bool,
+    /// Crust mapped from the plates' final positions (recipe 9).
+    final_crust: bool,
+}
+
+impl Zones {
+    const FORMED: Self = Self {
+        fine: true,
+        round: true,
+        final_crust: false,
+    };
+}
+
+/// The 4 km crust map (continental `CONTINENTALITY_FULL`, oceanic 0): each
+/// cell takes the crust of the plate that owns it through the warped
+/// Voronoi, at the plates' starting positions or, with `final_crust`, where
+/// the tectonic run leaves them.
+fn crust_map(seed: u64, plates: &[plates::Plate], sim: SimExtent, zones: Zones) -> Vec<i32> {
+    let placed = if zones.final_crust {
+        tectonics::moved_round(seed, plates, SKELETON_STEPS - 1)
+    } else {
+        plates.to_vec()
+    };
+    (0..sim.height)
+        .flat_map(|y| (0..sim.width).map(move |x| (x, y)))
+        .map(|(x, y)| {
+            let id = if zones.round {
+                plates::plate_of_warped_round(seed, &placed, x, y)
+            } else {
+                plates::plate_of_warped(seed, &placed, x, y)
+            };
+            let continental = placed
+                .iter()
+                .find(|p| p.id == id)
+                .is_some_and(|p| p.crust == plates::CrustType::Continental);
+            i32::from(continental) * CONTINENTALITY_FULL
+        })
+        .collect()
 }
 
 #[allow(clippy::cast_possible_wrap)]
@@ -185,17 +254,26 @@ fn generate_continent_attempt_with_profile(
     attempt: u8,
     fine: bool,
 ) -> ContinentGrid {
-    generate_continent_attempt_with_profile_zones(seed, config, attempt, fine, false)
+    generate_continent_attempt_zones(
+        seed,
+        config,
+        attempt,
+        Zones {
+            fine,
+            round: false,
+            final_crust: false,
+        },
+    )
 }
 
 #[allow(clippy::cast_possible_wrap)]
-fn generate_continent_attempt_with_profile_zones(
+fn generate_continent_attempt_zones(
     seed: u64,
     config: GenerateConfig,
     attempt: u8,
-    fine: bool,
-    round: bool,
+    zones: Zones,
 ) -> ContinentGrid {
+    let Zones { fine, round, .. } = zones;
     let vis_w = config.size_km().width as i32;
     let vis_h = config.size_km().height as i32;
 
@@ -212,7 +290,9 @@ fn generate_continent_attempt_with_profile_zones(
 
     // Step 2: coupled tectonics.
     let uplift = if fine {
-        if round {
+        if zones.final_crust {
+            tectonics::run_tectonics_formed_v9(seed, &plates, sim, SKELETON_STEPS)
+        } else if round {
             tectonics::run_tectonics_formed(seed, &plates, sim, SKELETON_STEPS)
         } else {
             tectonics::run_tectonics_fine(seed, &plates, sim, SKELETON_STEPS)
@@ -225,21 +305,7 @@ fn generate_continent_attempt_with_profile_zones(
     // Crust is sampled through a warped Voronoi so plate boundaries are not
     // straight lines, then blurred into a shelf gradient so the continent
     // meets the ocean over tens of kilometres rather than one 4 km cell.
-    let binary: Vec<i32> = (0..sim.height)
-        .flat_map(|y| (0..sim.width).map(move |x| (x, y)))
-        .map(|(x, y)| {
-            let id = if round {
-                plates::plate_of_warped_round(seed, &plates, x, y)
-            } else {
-                plates::plate_of_warped(seed, &plates, x, y)
-            };
-            let continental = plates
-                .iter()
-                .find(|p| p.id == id)
-                .is_some_and(|p| p.crust == plates::CrustType::Continental);
-            i32::from(continental) * CONTINENTALITY_FULL
-        })
-        .collect();
+    let binary = crust_map(seed, &plates, sim, zones);
     let mut continentality = shelf_gradient(&binary, sim.width, sim.height);
 
     // Blend the plate field with a centred mask, weighting the mask twice.

@@ -100,7 +100,21 @@ pub fn run_tectonics_fine(seed: u64, plates: &[Plate], sim: SimExtent, steps: u1
 /// ([`plate_of_warped_round`]).
 #[must_use]
 pub fn run_tectonics_formed(seed: u64, plates: &[Plate], sim: SimExtent, steps: u16) -> Vec<i32> {
-    run_tectonics_with_profile(seed, plates, sim, steps, true, true)
+    run_tectonics_inner(seed, plates, sim, steps, (true, true, false))
+}
+
+/// Recipe-9 macro uplift (review 3.2-10): [`run_tectonics_formed`] with the
+/// accumulated uplift carried along by the plate that owns each cell, step
+/// by step, so belts ride on the crust that raised them. Recipe 5 to 8
+/// accumulate uplift in a fixed frame while the plates drift beneath it.
+#[must_use]
+pub fn run_tectonics_formed_v9(
+    seed: u64,
+    plates: &[Plate],
+    sim: SimExtent,
+    steps: u16,
+) -> Vec<i32> {
+    run_tectonics_inner(seed, plates, sim, steps, (true, true, true))
 }
 
 fn run_tectonics_with_profile(
@@ -110,6 +124,16 @@ fn run_tectonics_with_profile(
     steps: u16,
     fine: bool,
     round: bool,
+) -> Vec<i32> {
+    run_tectonics_inner(seed, plates, sim, steps, (fine, round, false))
+}
+
+fn run_tectonics_inner(
+    seed: u64,
+    plates: &[Plate],
+    sim: SimExtent,
+    steps: u16,
+    (fine, round, advect): (bool, bool, bool),
 ) -> Vec<i32> {
     let w = sim.width;
     let h = sim.height;
@@ -142,33 +166,18 @@ fn run_tectonics_with_profile(
         //
         // Drift accumulates as `centre + drift * step`, which is the
         // kinematic-lite reading of `logic/01` §Q5.
-        let moved: Vec<Plate> = plates
-            .iter()
-            .map(|p| {
-                if round {
-                    // logic/02 §fine-formation continent: continuous drift
-                    // direction (same speed as the shared integer drift), in
-                    // 1/16-cell units. Integer axis/diagonal drift swept belts
-                    // into parallelograms with axis-aligned sides.
-                    let (vx, vy) = round_drift_q4(seed, p);
-                    Plate {
-                        centre_x: p.centre_x + (vx * i32::from(step) + 8).div_euclid(16),
-                        centre_y: p.centre_y + (vy * i32::from(step) + 8).div_euclid(16),
-                        // Classification needs only the sign of a dot product,
-                        // so scaled drift classifies identically in kind.
-                        drift_x: vx,
-                        drift_y: vy,
-                        ..*p
-                    }
-                } else {
-                    Plate {
-                        centre_x: p.centre_x + p.drift_x * i32::from(step),
-                        centre_y: p.centre_y + p.drift_y * i32::from(step),
-                        ..*p
-                    }
-                }
-            })
-            .collect();
+        let moved: Vec<Plate> = if round {
+            moved_round(seed, plates, step)
+        } else {
+            plates
+                .iter()
+                .map(|p| Plate {
+                    centre_x: p.centre_x + p.drift_x * i32::from(step),
+                    centre_y: p.centre_y + p.drift_y * i32::from(step),
+                    ..*p
+                })
+                .collect()
+        };
         let owner: Vec<u8> = (0..h)
             .flat_map(|y| (0..w).map(move |x| (x, y)))
             .map(|(x, y)| {
@@ -179,11 +188,44 @@ fn run_tectonics_with_profile(
                 }
             })
             .collect();
+        if advect && step > 0 {
+            // Carry the accumulated uplift with each cell's plate.
+            let before = moved_round(seed, plates, step - 1);
+            let shift = |id: u8| {
+                let (a, b) = (
+                    moved.iter().find(|p| p.id == id),
+                    before.iter().find(|p| p.id == id),
+                );
+                a.zip(b).map_or((0, 0), |(a, b)| {
+                    (a.centre_x - b.centre_x, a.centre_y - b.centre_y)
+                })
+            };
+            let shifts: Vec<(i32, i32)> = (0..=u8::MAX).map(shift).collect();
+            for field in [&mut uplift, &mut calibration] {
+                if field.is_empty() {
+                    continue;
+                }
+                let src = field.clone();
+                for y in 0..h {
+                    for x in 0..w {
+                        let i = idx(x, y);
+                        let (dx, dy) = shifts[usize::from(owner[i])];
+                        let (sx, sy) = (x - dx, y - dy);
+                        field[i] = if sx >= 0 && sy >= 0 && sx < w && sy < h {
+                            src[idx(sx, sy)]
+                        } else {
+                            0
+                        };
+                    }
+                }
+            }
+        }
         let plates = &moved;
 
-        // Classify boundaries at the plates' current positions. Drift is
-        // re-rolled inside `seed_plates`, so the belts shift a little as the
-        // run proceeds and the ranges gain structure rather than being one
+        // Classify boundaries at the plates' current positions. Each plate
+        // keeps one drift for the whole run (it is drawn once, in
+        // `seed_plates`, and never re-rolled); the belts migrate as the
+        // plates move, so the ranges gain structure rather than being one
         // straight ridge.
         let mut kind = vec![BoundaryMask::default(); count];
         for y in 1..h - 1 {
@@ -243,6 +285,29 @@ fn run_tectonics_with_profile(
         normalise(&mut uplift);
     }
     uplift
+}
+
+/// Recipe-5 plates moved to drift step `step`
+/// (logic/02 §fine-formation continent): continuous drift direction (same
+/// speed as the shared integer drift), in 1/16-cell units. Integer
+/// axis/diagonal drift swept belts into parallelograms with axis-aligned
+/// sides.
+pub(super) fn moved_round(seed: u64, plates: &[Plate], step: u16) -> Vec<Plate> {
+    plates
+        .iter()
+        .map(|p| {
+            let (vx, vy) = round_drift_q4(seed, p);
+            Plate {
+                centre_x: p.centre_x + (vx * i32::from(step) + 8).div_euclid(16),
+                centre_y: p.centre_y + (vy * i32::from(step) + 8).div_euclid(16),
+                // Classification needs only the sign of a dot product, so
+                // scaled drift classifies identically in kind.
+                drift_x: vx,
+                drift_y: vy,
+                ..*p
+            }
+        })
+        .collect()
 }
 
 /// Recipe-5 plate drift in 1/16 cell per step: the shared drift's speed in
