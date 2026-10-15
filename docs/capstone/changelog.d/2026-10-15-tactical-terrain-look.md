@@ -1,0 +1,13 @@
+## 2026-10-15 - Tactical terrain look: forest on steep slopes, beaches at the water, cliffs along the contours
+
+Review gallery 2026-10-15 (main 352435b, MICRO 42 recipe 9), images 08, 12, 13 and 19, and a snow check on a 58–72°N MICRO world.
+
+- **arda-refine, recipe 9 only** (`square_signals.rs`; recipes 5–8 refine as before, `tests/terrain_look.rs` pins each rule against its recipe-8 twin, logic/09):
+  - *Steep forest*: under the world's forest the rock exposure and the 48° cliff fix read the square slope held to the cells' slope plus the 8° crag lead. Cell 716,1423 (27°, forest 0.67, fine terrain 45–57° over a third of it) was 660 cliff and 1,609 rock squares with 469 trees; now 0 cliff, 871 rock (the edge towards the 39° open cell north of it), 915 trees. World-forest cells of MICRO 42, tactical rock, scree and cliff: 24–28° 4.9 → 1.7 %, 28–34° 8.0 → 4.1 %, 34–38° 14.1 → 9.3 %, 38°+ 42.2 → 32.8 %.
+  - *Beaches*: the coast's shoreline ground (sand, shingle, salt marsh, shore rock) applies only on the sea's strand (the standing-water band, `stand_v` above -0.5) instead of up to three cells inland, and trunks keep 0.08 inland of it. City cell 546,658: sand 1,971 → 0 squares; no tree stands on sand.
+  - *Glades*: the ground prior reads the grove canopy, so a forest's glades are grass instead of bare forest floor.
+  - *Crag ledges*: strata stand in outcrop patches with wandering heights instead of even 7 m terraces ringing the hill (a cold 26° crag: cliff 15.8 → 2.9 %, rows crossed by five or more ledges 100 → 0 %).
+- **arda-tactical compositor** (all layouts, logic/11 §ground-blend): cliff art (strata in elevation) is sampled along the local contour in 15° steps, with each cell keeping the band phase: no more plank or brick pattern, and bands follow east-facing faces. The 5-ft contour ledges are scaled by the bare share of the ground, so turf and forest floor show no dark curved cracks.
+- **Snow check** (58–72°N MICRO, seed 42): full, partial and patchy snow cells render as expected; the only defect was the terrace rings on cold crags, fixed above. Gallery cell 942,1578 (2,383 m, -0.4 °C) stays alpine grass: the world has no snow there.
+- **Consequences**: the contract kit's fixture world changes (`society/notables.json`, `society/society.json`: town plans read the refined ground) and 17 cases are re-blessed; near towns, glades that were sand are now grass that the fields layer may take (city cell 546,658 natural trees 444 → 214, orchards 5 → 26 trees).
+- Before/after renders: `out/review-gallery/after/v1/` (08, 08b, 12, 13, 14, 19; 20a–d from the cold world).
