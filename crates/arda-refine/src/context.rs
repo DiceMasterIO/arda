@@ -14,8 +14,11 @@ pub const N: i64 = 64;
 /// Cell neighbourhood radius gathered around the block's own cell. The
 /// design reads the 3 × 3 neighbours; C1 (Catmull-Rom) interpolation of cell
 /// fields at the block's three-square halo needs one more ring, and so do
-/// the far ends of the neighbours' channel edges.
-pub const R: i64 = 2;
+/// the far ends of the neighbours' channel edges. The trails of the eight
+/// neighbours read their crossings' four-neighbours (passes), one ring more
+/// again (review 3.4-10: with two rings, 4 % of halo trail squares differed
+/// between neighbouring blocks).
+pub const R: i64 = 3;
 /// Radius of cells whose channel pieces can reach into the block: a piece
 /// stays inside its cell plus its bow and half-width (under 30 squares).
 pub const EDGE_R: i64 = 1;

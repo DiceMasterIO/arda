@@ -74,13 +74,22 @@ pub fn contour_ft(m: f64) -> i16 {
     ft
 }
 
-/// Water depth in whole feet, at least one for any water.
+/// A global square coordinate snapped to 1/64 square, the grid the layout
+/// stores placements on (`output::fixed64` of the local coordinate gives the
+/// same value, since block origins are whole squares).
+#[must_use]
+pub fn snap64(v: f64) -> f64 {
+    (v * 64.0).round() / 64.0
+}
+
+/// Water depth in whole feet, rounded, at least one for any water (logic/09
+/// §linear-features; the old ceiling made 4.1 ft of water 5 ft, swum).
 #[must_use]
 pub fn depth_ft(p: &Phys) -> u8 {
     if p.water == Water::Dry {
         return 0;
     }
-    let ft = (p.depth_m / FOOT_M).ceil().clamp(1.0, 255.0);
+    let ft = (p.depth_m / FOOT_M + 0.5).floor().clamp(1.0, 255.0);
     #[allow(clippy::cast_possible_truncation, clippy::cast_sign_loss)]
     let d = ft as u8;
     d
@@ -317,6 +326,13 @@ pub fn refine(src: &dyn Source, cell: CellKey) -> Result<Block, RefineError> {
     );
     // Bare playa: no plants or rocks on salt crust and mudflat.
     all.retain(|it| ctx.pan_square(it.x, it.y).is_none());
+    // Snap to the layout's 1/64 square before anything reads a position, so
+    // the rules, the window filter and the placement agree on an item's
+    // square (review 3.4-10: 1.58 % of items shifted a square).
+    for it in &mut all {
+        it.x = snap64(it.x);
+        it.y = snap64(it.y);
+    }
     let illegal: std::collections::BTreeSet<usize> = sol.illegal.iter().copied().collect();
     block.rules = crate::output::square_rules(&block, &all, &illegal);
     block.items = all

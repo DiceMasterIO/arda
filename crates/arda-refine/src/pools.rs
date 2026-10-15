@@ -108,7 +108,7 @@ fn room(ctx: &Ctx, x: f64, y: f64) -> f64 {
                 1 => y0 + 64.0 - y,
                 _ => 0.0,
             };
-            best = best.min(gx.hypot(gy));
+            best = best.min((gx * gx + gy * gy).sqrt());
         }
     }
     best
@@ -173,19 +173,20 @@ pub fn pool(ctx: &Ctx, u: f64, v: f64) -> f64 {
     for j in j0 - 1..=j0 + 1 {
         for i in i0 - 1..=i0 + 1 {
             let (x, y, h) = site(ctx, i, j);
-            if (u - x).hypot(v - y) > reach {
+            if ((u - x) * (u - x) + (v - y) * (v - y)).sqrt() > reach {
                 continue;
             }
             // An ellipse up to twice as long as wide, at a random heading.
             let (c, s) = (signed(mix(h ^ 0x9006)), signed(mix(h ^ 0x9008)));
-            let n = c.hypot(s).max(1e-9);
+            let n = (c * c + s * s).sqrt().max(1e-9);
             let (c, s) = (c / n, s / n);
             let stretch = 1.0 + unit(mix(h ^ 0x9007));
             let Some(r) = radius(ctx, x, y, h, (1.0 + WARP) * stretch.sqrt()) else {
                 continue;
             };
             let (a, b) = ((u - x) * c + (v - y) * s, (v - y) * c - (u - x) * s);
-            let d = (a / stretch.sqrt()).hypot(b * stretch.sqrt());
+            let (sa, sb) = (a / stretch.sqrt(), b * stretch.sqrt());
+            let d = (sa * sa + sb * sb).sqrt();
             let bend = WARP * r * fbm(ctx.seed, 0x9005 ^ h, u, v, 1.5 * r, 2, 0.5);
             best = best.max(r - d - bend);
         }
