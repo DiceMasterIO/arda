@@ -291,3 +291,32 @@ fn fields_never_take_cliffs_or_beaches() {
     compose(&mut base, &mut rules, &mut owners, &road, Owner::Ways).unwrap();
     assert_eq!(owners[1], Owner::Ways);
 }
+
+/// Review 2026-10-15 (gallery 10): a town's moored boats lie on water no
+/// layer claims; its other dressing stays on its claims.
+#[test]
+fn a_towns_boats_float_on_unclaimed_water() {
+    use arda_tactical::layout::{AssetRef, Placement};
+    let mut base = TacticalLayout::new("t", 3, 1, "grass");
+    base.squares[2].water_depth_ft = 6;
+    let mut rules = RulesSidecar::empty(3, 1);
+    let mut owners: Vec<Owner> = base.squares.iter().map(Owner::of_base).collect();
+    let mut town = layer("planks", vec![true, true, false], Vec::new());
+    let at = |id: &str, x: f32| Placement {
+        asset: AssetRef::Id(id.into()),
+        x,
+        y: 0.5,
+        rotation: 0,
+        mirror: false,
+    };
+    town.layout.placements = vec![at("prop.rowboat", 2.5), at("veg.reeds", 2.5)];
+    compose(&mut base, &mut rules, &mut owners, &town, Owner::Town).unwrap();
+    let ids: Vec<String> = base
+        .placements
+        .iter()
+        .map(|p| format!("{:?}", p.asset))
+        .collect();
+    assert_eq!(ids.len(), 1, "{ids:?}");
+    assert!(ids[0].contains("prop.rowboat"));
+    assert_eq!(owners[2], Owner::Water);
+}

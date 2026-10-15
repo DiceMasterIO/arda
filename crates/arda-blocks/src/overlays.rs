@@ -373,6 +373,11 @@ pub fn compose_over(
     let bare = |i: usize| {
         owner == Owner::Ways && matches!(owners[i], Owner::Natural | Owner::Shore | Owner::Water)
     };
+    // A town's boats lie moored on the water beside its docks, which no
+    // layer claims (review 2026-10-15, gallery 10).
+    let afloat = |i: usize, p: &arda_tactical::layout::Placement| {
+        owner == Owner::Town && owners[i] == Owner::Water && vessel(&p.asset)
+    };
     let added: Vec<_> = layer
         .layout
         .placements
@@ -382,7 +387,7 @@ pub fn compose_over(
         .filter(|p| {
             let i = anchor(p.x, p.y);
             let mine = own(p);
-            claimed[i] || (mine && bare(i))
+            claimed[i] || (mine && bare(i)) || afloat(i, p)
         })
         .collect();
     layout.placements.extend(added);
@@ -400,6 +405,20 @@ pub fn compose_over(
             .filter(|l| claimed[anchor(l.x, l.y)]),
     );
     Ok(count)
+}
+
+/// Whether an asset is a boat (it floats where it is placed).
+fn vessel(asset: &arda_tactical::layout::AssetRef) -> bool {
+    match asset {
+        arda_tactical::layout::AssetRef::Id(id) => {
+            let family = id.split(".alt").next().unwrap_or(id);
+            matches!(
+                family,
+                "prop.rowboat" | "prop.sailboat" | "prop.canoe" | "prop.barge" | "prop.ferry_boat"
+            )
+        }
+        arda_tactical::layout::AssetRef::Query { .. } => false,
+    }
 }
 
 /// One provider method.
@@ -453,6 +472,8 @@ pub fn compose_all(
             );
         }
     }
+    // Worked ground keeps its headlands (logic/09 §reservations).
+    crate::headland::apply(layout, rules, owners);
     rules.edges.sort_by_key(|e| (e.axis, e.y, e.x));
     layout.walls.sort_by_key(|w| (w.axis, w.y, w.x));
     review.sort_unstable();

@@ -20,6 +20,7 @@
 
 pub mod crop;
 pub mod demo;
+pub mod headland;
 pub mod overlays;
 pub mod pipeline;
 pub mod society;
