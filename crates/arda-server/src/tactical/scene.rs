@@ -163,12 +163,18 @@ fn place_tokens(
 /// `GET /cell/{gx}/{gy}/scene`.
 pub(super) async fn cell_scene(
     State(state): State<Arc<AppState>>,
+    headers: axum::http::HeaderMap,
     path: Segments,
     query: Params,
 ) -> ServerResult<Response> {
     let p = segments(path, 2)?;
     let (gx, gy) = cell_of(&state, &p[0], &p[1])?;
     let q: BTreeMap<String, String> = params(query)?;
+    let cache = super::routes::TACTICAL_CACHE_CONTROL;
+    let etag = state.tactical.etags().of_request("cell.scene", &p, &q);
+    if let Some(r) = super::routes::revalidated(&headers, &etag, cache) {
+        return Ok(r);
+    }
     let night = match q.get("time").map(String::as_str) {
         None | Some("day") => false,
         Some("night") => true,
@@ -181,5 +187,9 @@ pub(super) async fn cell_scene(
     let o = opts(&q, &WINDOW_PPSQ, DEFAULT_PPSQ)?;
     let req = request(gx, gy, &o);
     let body = blocking(state, move |s| build(s, &req, night)).await?;
-    Ok(Json(body).into_response())
+    Ok(crate::etag::tagged(
+        Json(body).into_response(),
+        &etag,
+        cache,
+    ))
 }

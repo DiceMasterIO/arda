@@ -240,3 +240,45 @@ async fn a_render_is_cached_once_by_its_pyramid() {
     assert_eq!(png.status, StatusCode::OK);
     assert_eq!(s.tactical.build_counts(), [1, 1], "the PNG rendered again");
 }
+
+/// 3.6-11: an `ETag` names the request, not the bytes, so revalidating a
+/// cold server's image answers `304` without rendering or composing it;
+/// JSON bodies, the scene and dungeon images carry the same headers.
+#[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+async fn revalidation_never_renders_and_headers_agree() {
+    let (gx, gy) = CELL;
+    let uris = [
+        tile_uri(CELL, (0, 0)),
+        format!("/v1/tactical/cell/{gx}/{gy}.png?ppsq={PPSQ}"),
+        format!("/v1/tactical/cell/{gx}/{gy}"),
+        format!("/v1/tactical/cell/{gx}/{gy}/scene?time=night"),
+        "/v1/tactical/dungeon?seed=7".to_owned(),
+        "/v1/tactical/dungeon.png?seed=7&ppsq=64".to_owned(),
+        "/v1/tactical/layout/riverside.png?ppsq=64".to_owned(),
+    ];
+    let warm = fresh();
+    let mut tags = Vec::new();
+    for uri in &uris {
+        let r = fetch(Arc::clone(&warm), uri.clone()).await;
+        assert_eq!(r.status, StatusCode::OK, "{uri}");
+        assert_eq!(r.headers["cache-control"], "no-cache", "{uri}");
+        tags.push(r.headers["etag"].to_str().unwrap().to_owned());
+    }
+    let cold = fresh();
+    for (uri, tag) in uris.iter().zip(&tags) {
+        let request = Request::get(uri.as_str())
+            .header("if-none-match", tag.as_str())
+            .body(Body::empty())
+            .unwrap();
+        let r = send(Arc::clone(&cold), request).await;
+        assert_eq!(r.status, StatusCode::NOT_MODIFIED, "{uri}");
+        assert_eq!(r.headers["etag"], tag.as_str(), "{uri}");
+        assert_eq!(r.headers["cache-control"], "no-cache", "{uri}");
+    }
+    assert_eq!(
+        cold.tactical.build_counts(),
+        [0, 0],
+        "revalidation rendered"
+    );
+    assert_eq!(cold.tactical.cache_counts(), [0, 0, 0, 0]);
+}

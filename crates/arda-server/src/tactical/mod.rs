@@ -173,6 +173,8 @@ pub struct Tactical {
     lanes: raw::Lanes,
     /// Where the opt-in world grade reads world-map colours (goal 49).
     tint_source: Option<Arc<arda_midzoom::ReliefWorld>>,
+    /// Request-keyed `ETag`s (review 3.6-11).
+    etags: crate::etag::Etags,
 }
 
 impl std::fmt::Debug for Tactical {
@@ -228,7 +230,31 @@ impl Tactical {
             bodies: Mutex::new(ByteLru::new(limits.encoded_cache_bytes)),
             lanes: raw::Lanes::default(),
             tint_source: None,
+            etags: crate::etag::Etags::new(&[0; 32], world_seed, ""),
         })
+    }
+
+    /// Sets the `ETag`s every response is tagged with.
+    pub fn set_etags(&mut self, etags: crate::etag::Etags) {
+        self.etags = etags;
+    }
+
+    /// The `ETag`s every response is tagged with (review 3.6-11).
+    #[must_use]
+    pub const fn etags(&self) -> &crate::etag::Etags {
+        &self.etags
+    }
+
+    /// The `ETag` of `key`'s image (`what`: `png`, or `tile/{z}/{x}/{y}`):
+    /// the render's inputs, never its bytes (review 3.6-11).
+    #[must_use]
+    pub fn key_etag(&self, key: &RenderKey, what: &str) -> String {
+        let layout = blake3::Hash::from(key.layout).to_hex();
+        let look = format!(
+            "{} {} {:?} {}",
+            key.ppsq, key.grid, key.crop, key.world_grade
+        );
+        self.etags.of(what, &[&key.anchor, &layout, &look])
     }
 
     /// Replaces the block source.

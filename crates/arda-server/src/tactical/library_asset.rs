@@ -2,7 +2,7 @@
 //! loaded (stacked) library, so a consumer can draw effect and damage art
 //! (1.0 task 05).
 
-use super::routes::{image, log, TACTICAL_CACHE_CONTROL};
+use super::routes::{image, log, revalidated, TACTICAL_CACHE_CONTROL};
 use super::{Encoded, Hit};
 use crate::error::{ServerError, ServerResult};
 use crate::routes::{segments, Segments};
@@ -44,6 +44,10 @@ pub(super) async fn asset_png(
                 p[0]
             ))
         })?;
+    let etag = state.tactical.etags().of("library.asset", &[&id]);
+    if let Some(r) = revalidated(&headers, &etag, TACTICAL_CACHE_CONTROL) {
+        return Ok(r);
+    }
     let lib = state.tactical.library();
     let img = lib
         .asset(id)
@@ -55,6 +59,7 @@ pub(super) async fn asset_png(
     Ok(image(
         &headers,
         &encoded,
+        &etag,
         "image/png",
         TACTICAL_CACHE_CONTROL,
         Hit::Miss,

@@ -8,7 +8,7 @@ use crate::sheet_map::NpcAt;
 use crate::AppState;
 use axum::extract::rejection::JsonRejection;
 use axum::extract::{DefaultBodyLimit, Path, Query, State};
-use axum::http::header::{CACHE_CONTROL, CONTENT_TYPE, ETAG, IF_NONE_MATCH};
+use axum::http::header::{CONTENT_TYPE, ETAG, IF_NONE_MATCH};
 use axum::http::StatusCode;
 use axum::http::{HeaderMap, HeaderValue, Method};
 use axum::response::{IntoResponse, Response};
@@ -164,36 +164,36 @@ pub(crate) fn params(query: Params) -> ServerResult<BTreeMap<String, String>> {
 /// restarts on another world (review round 2 #44).
 pub const IMAGE_CACHE_CONTROL: &str = "no-cache";
 
-fn png(headers: &HeaderMap, bytes: &[u8]) -> Response {
-    image(headers, "image/png", bytes)
+/// An image tagged with its request-keyed `etag` (review 3.6-11),
+/// answering `304` when `If-None-Match` names it.
+fn image(headers: &HeaderMap, etag: &str, content_type: &'static str, bytes: &[u8]) -> Response {
+    if crate::etag::fresh(headers, etag) {
+        return crate::etag::not_modified(etag, IMAGE_CACHE_CONTROL);
+    }
+    crate::etag::tagged(
+        (
+            [(CONTENT_TYPE, HeaderValue::from_static(content_type))],
+            bytes.to_vec(),
+        )
+            .into_response(),
+        etag,
+        IMAGE_CACHE_CONTROL,
+    )
 }
 
-/// An image with a strong `ETag` (BLAKE3 of the bytes), answering `304`
-/// when `If-None-Match` names it.
-fn image(headers: &HeaderMap, content_type: &'static str, bytes: &[u8]) -> Response {
-    let etag = format!("\"{}\"", blake3::hash(bytes).to_hex());
-    let fresh = headers
-        .get(IF_NONE_MATCH)
-        .and_then(|v| v.to_str().ok())
-        .is_some_and(|v| v.split(',').any(|t| t.trim() == etag || t.trim() == "*"));
-    let etag = HeaderValue::from_str(&etag).unwrap_or(HeaderValue::from_static("\"\""));
-    let cache = HeaderValue::from_static(IMAGE_CACHE_CONTROL);
-    if fresh {
-        return (
-            StatusCode::NOT_MODIFIED,
-            [(ETAG, etag), (CACHE_CONTROL, cache)],
-        )
-            .into_response();
-    }
-    (
-        [
-            (CONTENT_TYPE, HeaderValue::from_static(content_type)),
-            (ETAG, etag),
-            (CACHE_CONTROL, cache),
-        ],
-        bytes.to_vec(),
-    )
-        .into_response()
+/// The request-keyed tag of an overview or relief image, and the early
+/// `304` when the client holds it (nothing is rendered).
+fn tag(
+    state: &AppState,
+    headers: &HeaderMap,
+    route: &str,
+    path: &[String],
+    q: &std::collections::BTreeMap<String, String>,
+) -> (String, Option<Response>) {
+    let etag = state.tactical.etags().of_request(route, path, q);
+    let early = crate::etag::fresh(headers, &etag)
+        .then(|| crate::etag::not_modified(&etag, IMAGE_CACHE_CONTROL));
+    (etag, early)
 }
 
 async fn not_found() -> ServerError {
@@ -328,6 +328,10 @@ async fn overview_png(
     query: Params,
 ) -> ServerResult<Response> {
     let q = params(query)?;
+    let (etag, early) = tag(&state, &headers, "overview.png", &[], &q);
+    if let Some(r) = early {
+        return Ok(r);
+    }
     let quality = state
         .overview
         .quality(q.get("quality").map(String::as_str))?;
@@ -339,7 +343,7 @@ async fn overview_png(
         s.overview.png(&s.query, quality, (style, society))
     })
     .await?;
-    Ok(png(&headers, &bytes))
+    Ok(image(&headers, &etag, "image/png", &bytes))
 }
 
 /// `?overlay=society|none`: the society layer (land use, roads, settlements)
@@ -389,6 +393,10 @@ async fn overview_tile(
         overlay_flag(&q)?,
     )?;
     let p = segments(path, 3)?;
+    let (etag, early) = tag(&state, &headers, "overview.tile", &p, &q);
+    if let Some(r) = early {
+        return Ok(r);
+    }
     let (y_text, format) = TileFormat::split(&p[2]).ok_or_else(|| {
         ServerError::NotFound("overview tiles are served as {y}.webp or {y}.png".into())
     })?;
@@ -407,7 +415,7 @@ async fn overview_tile(
             .tile(&s.query, (z, x, y), (format, oblique, labels, society))
     })
     .await?;
-    Ok(image(&headers, format.content_type(), &bytes))
+    Ok(image(&headers, &etag, format.content_type(), &bytes))
 }
 
 /// `/v1/tiles/relief/{z}/{x}/{y}.webp`: mid-zoom relief past native zoom.
@@ -417,8 +425,13 @@ async fn relief_tile(
     path: Segments,
     query: Params,
 ) -> ServerResult<Response> {
-    let labels = labels_flag(&params(query)?)?;
+    let q = params(query)?;
+    let labels = labels_flag(&q)?;
     let p = segments(path, 3)?;
+    let (etag, early) = tag(&state, &headers, "relief.tile", &p, &q);
+    if let Some(r) = early {
+        return Ok(r);
+    }
     let y_text = p[2]
         .strip_suffix(".webp")
         .ok_or_else(|| ServerError::NotFound("relief tiles are served as {y}.webp".into()))?;
@@ -428,7 +441,7 @@ async fn relief_tile(
         parse::<u32>("y", y_text)?,
     );
     let bytes = blocking(state, move |s| s.relief.tile(z, x, y, labels)).await?;
-    Ok(image(&headers, "image/webp", &bytes))
+    Ok(image(&headers, &etag, "image/webp", &bytes))
 }
 
 async fn npc_population(

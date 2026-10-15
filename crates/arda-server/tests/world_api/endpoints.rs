@@ -189,7 +189,9 @@ async fn world_images_are_revalidated_by_etag() {
         assert_eq!(first.status, StatusCode::OK, "{uri}");
         assert_eq!(first.headers["cache-control"], "no-cache", "{uri}");
         let etag = first.headers["etag"].to_str().unwrap().to_owned();
-        assert!(etag.starts_with('"') && etag.len() == 66, "{uri}: {etag}");
+        // Request-keyed, 128 bits of BLAKE3 as every tactical tag (review
+        // 3.6-11).
+        assert!(etag.starts_with('"') && etag.len() == 34, "{uri}: {etag}");
         let request = axum::http::Request::get(uri)
             .header("if-none-match", etag.as_str())
             .body(axum::body::Body::empty())

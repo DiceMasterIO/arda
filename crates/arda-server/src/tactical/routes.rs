@@ -10,11 +10,12 @@ use arda_tactical::TacticalLayout;
 use axum::body::{Body, Bytes};
 use axum::extract::rejection::BytesRejection;
 use axum::extract::{DefaultBodyLimit, State};
-use axum::http::header::{CACHE_CONTROL, CONTENT_TYPE, ETAG, IF_NONE_MATCH};
+use axum::http::header::CONTENT_TYPE;
 use axum::http::{HeaderMap, HeaderName, HeaderValue, StatusCode};
 use axum::response::{IntoResponse, Response};
 use axum::routing::{get, post};
 use axum::{Json, Router};
+use std::collections::BTreeMap;
 use std::sync::Arc;
 use std::time::Instant;
 
@@ -97,8 +98,8 @@ async fn prefetch(
 
 /// Render options parsed from `?ppsq=64|96|128&grid=0|1`; `origin` is
 /// refused (it only applies to `POST /render`).
-fn options(query: Params) -> ServerResult<(u32, bool)> {
-    let (ppsq, grid, origin) = options_with_origin(query)?;
+fn options(q: &BTreeMap<String, String>) -> ServerResult<(u32, bool)> {
+    let (ppsq, grid, origin) = options_with_origin(q)?;
     if origin.is_some() {
         return Err(ServerError::BadRequest(
             "origin applies only to POST /v1/tactical/render".into(),
@@ -108,8 +109,7 @@ fn options(query: Params) -> ServerResult<(u32, bool)> {
 }
 
 /// Render options plus `?origin=X,Y` in world squares.
-fn options_with_origin(query: Params) -> ServerResult<(u32, bool, Option<Anchor>)> {
-    let q = params(query)?;
+fn options_with_origin(q: &BTreeMap<String, String>) -> ServerResult<(u32, bool, Option<Anchor>)> {
     let origin = q
         .get("origin")
         .map(|o| Anchor::parse_origin(o).map_err(ServerError::BadRequest))
@@ -148,9 +148,12 @@ pub(super) fn log(route: &str, detail: &str, hit: Hit, bytes: usize, start: Inst
     ms
 }
 
+/// An image or body response tagged with its request-keyed `etag`
+/// (review 3.6-11), answering `304` when `If-None-Match` names it.
 pub(super) fn image(
     headers: &HeaderMap,
     encoded: &Encoded,
+    etag: &str,
     content_type: &'static str,
     cache_control: &'static str,
     hit: Hit,
@@ -160,31 +163,36 @@ pub(super) fn image(
         Hit::Hit => "hit",
         Hit::Miss => "miss",
     };
-    let etag = HeaderValue::from_str(&encoded.etag).unwrap_or(HeaderValue::from_static("\"\""));
     let timing = HeaderValue::from_str(&format!("tactical;dur={ms:.3}"))
         .unwrap_or(HeaderValue::from_static("tactical"));
-    let fresh = headers
-        .get(IF_NONE_MATCH)
-        .and_then(|v| v.to_str().ok())
-        .is_some_and(|v| {
-            v.split(',')
-                .any(|t| t.trim() == encoded.etag || t.trim() == "*")
-        });
+    let fresh = crate::etag::fresh(headers, etag);
     let (status, body) = if fresh {
         (StatusCode::NOT_MODIFIED, Body::empty())
     } else {
         (StatusCode::OK, Body::from(encoded.bytes.clone()))
     };
-    let mut response = (status, body).into_response();
+    let mut response = crate::etag::tagged((status, body).into_response(), etag, cache_control);
     let h = response.headers_mut();
     if !fresh {
         h.insert(CONTENT_TYPE, HeaderValue::from_static(content_type));
     }
-    h.insert(ETAG, etag);
-    h.insert(CACHE_CONTROL, HeaderValue::from_static(cache_control));
     h.insert(X_ARDA_CACHE, HeaderValue::from_static(hit_text));
     h.insert(SERVER_TIMING, timing);
     response
+}
+
+/// `304` for a revalidation that names `etag`, before any work is done.
+pub(super) fn revalidated(
+    headers: &HeaderMap,
+    etag: &str,
+    cache_control: &'static str,
+) -> Option<Response> {
+    crate::etag::fresh(headers, etag).then(|| {
+        let mut r = crate::etag::not_modified(etag, cache_control);
+        r.headers_mut()
+            .insert(X_ARDA_CACHE, HeaderValue::from_static("hit"));
+        r
+    })
 }
 
 async fn layouts(State(state): Shared) -> Response {
@@ -202,27 +210,51 @@ async fn layout(
 ) -> ServerResult<Response> {
     let start = Instant::now();
     let p = segments(path, 1)?;
+    let q = params(query)?;
     let Some(name) = p[0].strip_suffix(".png") else {
+        let etag = state.tactical.etags().of_request("layout", &p, &q);
+        if let Some(r) = revalidated(&headers, &etag, NAMED_CACHE_CONTROL) {
+            return Ok(r);
+        }
         let l = state.tactical.named(&p[0])?.clone();
-        return Ok((
-            [(CACHE_CONTROL, HeaderValue::from_static(NAMED_CACHE_CONTROL))],
-            Json(l),
-        )
-            .into_response());
+        return Ok(crate::etag::tagged(
+            Json(l).into_response(),
+            &etag,
+            NAMED_CACHE_CONTROL,
+        ));
     };
-    let (ppsq, grid) = options(query)?;
+    let (ppsq, grid) = options(&q)?;
     let name = name.to_owned();
+    let etag = named_etag(&state, &name, ppsq, grid, "png")?;
+    if let Some(r) = revalidated(&headers, &etag, NAMED_CACHE_CONTROL) {
+        return Ok(r);
+    }
     let detail = format!("png {name} ppsq={ppsq} grid={}", u8::from(grid));
     let (encoded, hit) = named_work(state, name, ppsq, grid, |t, l, k| t.png(l, k)).await?;
     let ms = log("layout", &detail, hit, encoded.bytes.len(), start);
     Ok(image(
         &headers,
         &encoded,
+        &etag,
         "image/png",
         NAMED_CACHE_CONTROL,
         hit,
         ms,
     ))
+}
+
+/// The render-keyed `ETag` of a built-in layout's image (`what`: `png`
+/// or a tile), so a posted copy of the layout shares it.
+fn named_etag(
+    state: &AppState,
+    name: &str,
+    ppsq: u32,
+    grid: bool,
+    what: &str,
+) -> ServerResult<String> {
+    let t = &state.tactical;
+    let key = t.key(t.named(name)?, Anchor::Name(name.to_owned()), ppsq, grid)?;
+    Ok(t.key_etag(&key, what))
 }
 
 /// Runs `work` on a built-in layout on the blocking pool.
@@ -260,8 +292,13 @@ async fn tile(
         parse::<u32>("x", &p[2])?,
         parse::<u32>("y", y_text)?,
     );
-    let (ppsq, grid) = options(query)?;
+    let (ppsq, grid) = options(&params(query)?)?;
     let name = p[0].clone();
+    let what = format!("tile/{}/{}/{}", zxy.0, zxy.1, zxy.2);
+    let etag = named_etag(&state, &name, ppsq, grid, &what)?;
+    if let Some(r) = revalidated(&headers, &etag, NAMED_CACHE_CONTROL) {
+        return Ok(r);
+    }
     let detail = format!(
         "tile {name} {}/{}/{} ppsq={ppsq} grid={}",
         zxy.0,
@@ -275,6 +312,7 @@ async fn tile(
     Ok(image(
         &headers,
         &encoded,
+        &etag,
         "image/webp",
         NAMED_CACHE_CONTROL,
         hit,
@@ -309,12 +347,19 @@ async fn render_posted(
             "POST /render takes a layout as application/json".into(),
         ));
     }
-    let (ppsq, grid, origin) = options_with_origin(query)?;
+    let (ppsq, grid, origin) = options_with_origin(&params(query)?)?;
     let text = std::str::from_utf8(&body)
         .map_err(|_| ServerError::BadRequest("layout body is not UTF-8".into()))?;
     let layout =
         TacticalLayout::from_json(text).map_err(|e| ServerError::BadRequest(e.to_string()))?;
     let anchor = origin.unwrap_or_else(|| Anchor::Name(layout.name.clone()));
+    // Keyed by the render, so a revalidation renders nothing and a posted
+    // built-in layout shares the named route's tag (review 3.6-11).
+    let key = state.tactical.key(&layout, anchor.clone(), ppsq, grid)?;
+    let etag = state.tactical.key_etag(&key, "png");
+    if let Some(r) = revalidated(&headers, &etag, POSTED_CACHE_CONTROL) {
+        return Ok(r);
+    }
     let detail = format!(
         "render {} {}x{} {anchor} ppsq={ppsq} grid={}",
         layout.name,
@@ -325,7 +370,6 @@ async fn render_posted(
     let (encoded, hit) = blocking(state, move |s| {
         let t = &s.tactical;
         t.admit(&layout, ppsq)?;
-        let key = t.key(&layout, anchor, ppsq, grid)?;
         t.png(&layout, &key)
     })
     .await?;
@@ -333,6 +377,7 @@ async fn render_posted(
     Ok(image(
         &headers,
         &encoded,
+        &etag,
         "image/png",
         POSTED_CACHE_CONTROL,
         hit,

@@ -19,7 +19,7 @@
 
 use super::block::BlockRequest;
 use super::cells::MAX_WINDOW_CELLS;
-use super::routes::{image, log, TACTICAL_CACHE_CONTROL};
+use super::routes::{image, log, revalidated, TACTICAL_CACHE_CONTROL};
 use super::{Encoded, Hit, DEFAULT_PPSQ, PPSQ_OPTIONS};
 use crate::error::{ServerError, ServerResult};
 use crate::routes::{blocking, params, parse, segments, Params, Segments};
@@ -126,9 +126,23 @@ pub(super) fn request(gx: u32, gy: u32, o: &Opts) -> BlockRequest {
     r
 }
 
-fn send(
+/// The request-keyed `ETag` of a world route (review 3.6-11), and the
+/// `304` answer when the client already holds it.
+fn tag(
+    state: &AppState,
     headers: &HeaderMap,
     route: &str,
+    path: &[String],
+    q: &BTreeMap<String, String>,
+) -> (String, Option<Response>) {
+    let etag = state.tactical.etags().of_request(route, path, q);
+    let early = revalidated(headers, &etag, TACTICAL_CACHE_CONTROL);
+    (etag, early)
+}
+
+fn send(
+    headers: &HeaderMap,
+    (route, etag): (&str, &str),
     detail: &str,
     (encoded, hit): (Arc<Encoded>, Hit),
     content_type: &'static str,
@@ -138,6 +152,7 @@ fn send(
     image(
         headers,
         &encoded,
+        etag,
         content_type,
         TACTICAL_CACHE_CONTROL,
         hit,
@@ -159,7 +174,12 @@ pub(super) async fn cell(
         None => (p[1].clone(), false),
     };
     let (gx, gy) = cell_of(&state, &p[0], &gy_text)?;
-    let o = opts(&params(query)?, &WINDOW_PPSQ, DEFAULT_PPSQ)?;
+    let q = params(query)?;
+    let o = opts(&q, &WINDOW_PPSQ, DEFAULT_PPSQ)?;
+    let (etag, early) = tag(&state, &headers, "cell", &p, &q);
+    if let Some(r) = early {
+        return Ok(r);
+    }
     let req = request(gx, gy, &o);
     let (_, world) = extent(&state);
     let detail = format!(
@@ -173,12 +193,19 @@ pub(super) async fn cell(
             s.tactical.world_png_look(&req, world, ppsq, look)
         })
         .await?;
-        return Ok(send(&headers, "cell.png", &detail, out, "image/png", start));
+        return Ok(send(
+            &headers,
+            ("cell.png", &etag),
+            &detail,
+            out,
+            "image/png",
+            start,
+        ));
     }
     let out = blocking(state, move |s| s.tactical.world_body(&req, world, ppsq)).await?;
     Ok(send(
         &headers,
-        "cell",
+        ("cell", &etag),
         &detail,
         out,
         "application/json",
@@ -204,7 +231,12 @@ pub(super) async fn cell_tile(
         parse::<u32>("x", &p[3])?,
         parse::<u32>("y", y_text)?,
     );
-    let o = opts(&params(query)?, &WINDOW_PPSQ, DEFAULT_PPSQ)?;
+    let q = params(query)?;
+    let o = opts(&q, &WINDOW_PPSQ, DEFAULT_PPSQ)?;
+    let (etag, early) = tag(&state, &headers, "cell.tile", &p, &q);
+    if let Some(r) = early {
+        return Ok(r);
+    }
     let req = request(gx, gy, &o);
     let (_, world) = extent(&state);
     let detail = format!(
@@ -218,7 +250,7 @@ pub(super) async fn cell_tile(
     .await?;
     Ok(send(
         &headers,
-        "cell.tile",
+        ("cell.tile", &etag),
         &detail,
         out,
         "image/webp",
@@ -283,13 +315,17 @@ pub(super) async fn window(
     let q = params(query)?;
     let o = opts(&q, &WINDOW_PPSQ, WINDOW_DEFAULT_PPSQ)?;
     let req = window_request(&state, &q, &o)?;
+    let (etag, early) = tag(&state, &headers, "window", &[], &q);
+    if let Some(r) = early {
+        return Ok(r);
+    }
     let detail = format!("window {},{} {}x{}", req.gsx0, req.gsy0, req.w, req.h);
     let ppsq = o.ppsq;
     let (_, world) = extent(&state);
     let out = blocking(state, move |s| s.tactical.world_body(&req, world, ppsq)).await?;
     Ok(send(
         &headers,
-        "window",
+        ("window", &etag),
         &detail,
         out,
         "application/json",
@@ -318,6 +354,10 @@ pub(super) async fn window_tile(
     let q = params(query)?;
     let o = opts(&q, &WINDOW_PPSQ, WINDOW_DEFAULT_PPSQ)?;
     let req = window_request(&state, &q, &o)?;
+    let (etag, early) = tag(&state, &headers, "window.tile", &p, &q);
+    if let Some(r) = early {
+        return Ok(r);
+    }
     let (_, world) = extent(&state);
     let detail = format!(
         "window {},{} {}x{} tile {}/{}/{} ppsq={}",
@@ -330,7 +370,7 @@ pub(super) async fn window_tile(
     .await?;
     Ok(send(
         &headers,
-        "window.tile",
+        ("window.tile", &etag),
         &detail,
         out,
         "image/webp",
@@ -348,6 +388,10 @@ pub(super) async fn window_png(
     let q = params(query)?;
     let o = opts(&q, &WINDOW_PPSQ, WINDOW_DEFAULT_PPSQ)?;
     let req = window_request(&state, &q, &o)?;
+    let (etag, early) = tag(&state, &headers, "window.png", &[], &q);
+    if let Some(r) = early {
+        return Ok(r);
+    }
     let (_, world) = extent(&state);
     let detail = format!(
         "window {},{} {}x{} ppsq={}",
@@ -360,7 +404,7 @@ pub(super) async fn window_png(
     .await?;
     Ok(send(
         &headers,
-        "window.png",
+        ("window.png", &etag),
         &detail,
         out,
         "image/png",

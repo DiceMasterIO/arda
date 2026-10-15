@@ -8,7 +8,7 @@
 //! 16–160). Images and scenes are drawn with the served library and world
 //! seed, like every other tactical image.
 
-use super::routes::{image, log, TACTICAL_CACHE_CONTROL};
+use super::routes::{image, log, revalidated, TACTICAL_CACHE_CONTROL};
 use super::world_routes::cell_of;
 use super::{Anchor, DEFAULT_PPSQ, PPSQ_OPTIONS};
 use crate::error::{ServerError, ServerResult};
@@ -75,22 +75,38 @@ fn build(state: &AppState, q: &BTreeMap<String, String>) -> ServerResult<Dungeon
 }
 
 /// `GET /dungeon`: the level, its rules sidecar and its description.
-pub(super) async fn dungeon(State(state): Shared, query: Params) -> ServerResult<Response> {
+pub(super) async fn dungeon(
+    State(state): Shared,
+    headers: HeaderMap,
+    query: Params,
+) -> ServerResult<Response> {
     let start = Instant::now();
     let q = params(query)?;
+    let etag = state.tactical.etags().of_request("dungeon", &[], &q);
+    if let Some(r) = revalidated(&headers, &etag, TACTICAL_CACHE_CONTROL) {
+        return Ok(r);
+    }
     let d = blocking(state, move |s| build(s, &q)).await?;
     log("dungeon", &d.layout.name, super::Hit::Miss, 0, start);
-    Ok((
-        [(axum::http::header::CACHE_CONTROL, TACTICAL_CACHE_CONTROL)],
-        Json(d),
-    )
-        .into_response())
+    Ok(crate::etag::tagged(
+        Json(d).into_response(),
+        &etag,
+        TACTICAL_CACHE_CONTROL,
+    ))
 }
 
 /// `GET /dungeon/scene`: the `arda-scene` scene of the level.
-pub(super) async fn dungeon_scene(State(state): Shared, query: Params) -> ServerResult<Response> {
+pub(super) async fn dungeon_scene(
+    State(state): Shared,
+    headers: HeaderMap,
+    query: Params,
+) -> ServerResult<Response> {
     let start = Instant::now();
     let q = params(query)?;
+    let etag = state.tactical.etags().of_request("dungeon.scene", &[], &q);
+    if let Some(r) = revalidated(&headers, &etag, TACTICAL_CACHE_CONTROL) {
+        return Ok(r);
+    }
     let scene = blocking(state, move |s| {
         let d = build(s, &q)?;
         arda_scene::build_scene(
@@ -103,7 +119,11 @@ pub(super) async fn dungeon_scene(State(state): Shared, query: Params) -> Server
     })
     .await?;
     log("dungeon_scene", &scene.name, super::Hit::Miss, 0, start);
-    Ok(Json(scene).into_response())
+    Ok(crate::etag::tagged(
+        Json(scene).into_response(),
+        &etag,
+        TACTICAL_CACHE_CONTROL,
+    ))
 }
 
 /// `GET /dungeon.png?ppsq=&grid=`: the painted level.
@@ -114,6 +134,10 @@ pub(super) async fn dungeon_png(
 ) -> ServerResult<Response> {
     let start = Instant::now();
     let q = params(query)?;
+    let etag = state.tactical.etags().of_request("dungeon.png", &[], &q);
+    if let Some(r) = revalidated(&headers, &etag, TACTICAL_CACHE_CONTROL) {
+        return Ok(r);
+    }
     let ppsq = match q.get("ppsq") {
         None => DEFAULT_PPSQ,
         Some(t) => {
@@ -153,6 +177,7 @@ pub(super) async fn dungeon_png(
     Ok(image(
         &headers,
         &encoded,
+        &etag,
         "image/png",
         TACTICAL_CACHE_CONTROL,
         hit,

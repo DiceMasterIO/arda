@@ -17,6 +17,7 @@ pub mod contract;
 pub mod derived;
 pub mod dto;
 pub mod error;
+pub mod etag;
 pub mod fine;
 pub mod flight;
 pub mod gazetteer;
@@ -254,6 +255,12 @@ impl AppState {
             .transpose()?;
         let query = WorldQuery::open(&config.world, config.query)?;
         let mut tactical = Tactical::open(&config.library, query.world().seed(), config.tactical)?;
+        // Request-keyed ETags (review 3.6-11).
+        tactical.set_etags(etag::Etags::new(
+            &etag::world_identity(&config.world)?,
+            query.world().seed(),
+            tactical.library_version(),
+        ));
         // Adapter A9: world-derived blocks from arda-refine composed with the
         // world's society overlays (logic/16 §api-tactical);
         // `with_block_source` can replace them.
