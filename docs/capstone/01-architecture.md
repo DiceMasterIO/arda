@@ -41,7 +41,7 @@ Tiers are derived from each crate's `[dependencies]` (dev-dependencies excluded)
 
 | Tier | Crate | Directory | Workspace dependencies (normal) | Responsibility |
 |---|---|---|---|---|
-| 0 | arda-core | `crates/arda-core/` | none (`crates/arda-core/Cargo.toml:10`) | Shared types, keyed PRNG, the only world byte codec (`crates/arda-core/src/lib.rs:1`) |
+| 0 | arda-core | `crates/arda-core/` | none (`crates/arda-core/Cargo.toml:10`) | Shared types, keyed PRNG, the only world byte codec (`crates/arda-core/src/lib.rs:1`); the climate-to-biome rules every layer shares, `biome` (tree and snow lines, evaporation demand, rock exposure, aspect; `crates/arda-core/src/biome/mod.rs`) |
 | 0 | arda-ids | `crates/arda-ids/` | none (`crates/arda-ids/Cargo.toml:10`) | Shared ids, canonical enums and the stable hash for product layers (`crates/arda-ids/src/lib.rs:1`) |
 | 0 | arda-names | `crates/arda-names/` | none (`crates/arda-names/Cargo.toml:10`) | Phonotactic naming languages (`crates/arda-names/src/lib.rs:1`) |
 | 0 | arda-society | `crates/arda-society/` | none (`crates/arda-society/Cargo.toml:10`) | Realm politics, economy, factions, history, campaign hooks (`crates/arda-society/src/lib.rs:3`) |
