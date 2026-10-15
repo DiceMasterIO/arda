@@ -314,13 +314,22 @@ fn placeholder_libraries_resolve_exactly_as_before() {
             for (i, p) in l.placements.iter().enumerate() {
                 let r = resolve(&lib, &l, i, 11).unwrap();
                 // The pre-variant rule: an id is one asset; a query picks
-                // among its matches by seed and index; the layout's turn.
+                // among its matches by seed and index (by world position
+                // with an origin, review 3.5-8); the layout's turn.
                 let legacy = match &p.asset {
                     AssetRef::Id(id) => lib.asset(id).unwrap(),
                     AssetRef::Query { class, tags } => {
                         let all = lib.query(*class, tags);
                         let n = all.len() as u64;
-                        let k = crate::noise::hash2(11 ^ 0x9E50, i64::try_from(i).unwrap(), 0) % n;
+                        let (a, b) = match origin {
+                            None => (i64::try_from(i).unwrap(), 0),
+                            Some([ox, oy]) => {
+                                #[allow(clippy::cast_possible_truncation)]
+                                let steps = |o: i64, v: f32| o * 64 + (v * 64.0).round() as i64;
+                                (steps(ox, p.x), steps(oy, p.y) ^ 0x5FA3_0000_0000)
+                            }
+                        };
+                        let k = crate::noise::hash2(11 ^ 0x9E50, a, b) % n;
                         all[usize::try_from(k).unwrap()]
                     }
                 };
@@ -357,4 +366,44 @@ fn an_upper_layer_family_replaces_the_lower_one() {
     let l = barrels(8, 8, &AssetRef::Id("prop.barrel".into()));
     l.check(&merged).unwrap();
     render(&l, &merged, 1, &plain(16)).unwrap();
+}
+
+/// Review 3.5-8: with a world origin, a query picks its family by the
+/// placement's world position, not its index, so two windows listing the
+/// same placement in different orders (and a body cut from the image's
+/// apron window) name the same asset.
+#[test]
+fn query_families_are_seam_stable_across_windows() {
+    let lib = placeholder();
+    let q = AssetRef::Query {
+        class: Some(crate::catalog::AssetClass::Vegetation),
+        tags: Vec::new(),
+    };
+    assert!(
+        lib.query(Some(crate::catalog::AssetClass::Vegetation), &[])
+            .len()
+            > 2
+    );
+    let mut big = TacticalLayout::new("world", 36, 4, "grass");
+    for x in 0..36 {
+        put(&mut big, q.clone(), x as f32 + 0.5, 1.5);
+    }
+    let (a, b) = (window(&big, 0, 24), window(&big, 12, 24));
+    let pa = picks(&lib, &a, 5);
+    let pb = picks(&lib, &b, 5);
+    // World columns 12..24: in `a` at x, in `b` at x - 12; both lists run
+    // in reverse.
+    for wx in 12..24_u32 {
+        let ia = a
+            .placements
+            .iter()
+            .position(|p| p.x == wx as f32 + 0.5)
+            .unwrap();
+        let ib = b
+            .placements
+            .iter()
+            .position(|p| p.x == (wx - 12) as f32 + 0.5)
+            .unwrap();
+        assert_eq!(pa[ia], pb[ib], "world column {wx}");
+    }
 }

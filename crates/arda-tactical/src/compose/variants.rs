@@ -7,8 +7,9 @@
 //! that names a take (`prop.barrel.alt2`) pins exactly that asset.
 //!
 //! A [`AssetRef::Query`] first picks among the families of its matches by
-//! the seed and placement index (as it always has), then among the chosen
-//! family's matching takes by position.
+//! the seed and the placement's world position (its index when the layout
+//! has no origin, as it always did), then among the chosen family's
+//! matching takes by position.
 //!
 //! Floor-layer props (bridge decks, dock planks) of one family whose
 //! squares touch form a *structure* that draws a single take, keyed by
@@ -133,7 +134,13 @@ struct Choice<'a> {
     floor: Option<&'a str>,
 }
 
-fn choice<'a>(lib: &'a Library, p: &Placement, index: usize, seed: u64) -> Option<Choice<'a>> {
+fn choice<'a>(
+    lib: &'a Library,
+    layout: &TacticalLayout,
+    p: &Placement,
+    index: usize,
+    seed: u64,
+) -> Option<Choice<'a>> {
     let all = candidates(lib, &p.asset);
     let (members, family): (Vec<&Asset>, Option<&str>) = match &p.asset {
         AssetRef::Id(id) => {
@@ -149,7 +156,7 @@ fn choice<'a>(lib: &'a Library, p: &Placement, index: usize, seed: u64) -> Optio
             (members, family)
         }
         AssetRef::Query { .. } => {
-            let family = pick_family(&all, seed, index)?;
+            let family = pick_family(&all, seed, family_key(layout, p, index))?;
             let members = all
                 .into_iter()
                 .filter(|a| family_base(&a.id) == family)
@@ -280,7 +287,7 @@ pub fn resolve_all<'a>(
         .placements
         .iter()
         .enumerate()
-        .map(|(i, p)| choice(lib, p, i, seed))
+        .map(|(i, p)| choice(lib, layout, p, i, seed))
         .collect();
     let groups = structures(layout, &choices);
     let mut members: BTreeMap<usize, Vec<usize>> = BTreeMap::new();
@@ -351,7 +358,7 @@ pub fn resolve<'a>(
     seed: u64,
 ) -> Option<Resolved<'a>> {
     let p = layout.placements.get(index)?;
-    let c = choice(lib, p, index, seed)?;
+    let c = choice(lib, layout, p, index, seed)?;
     if c.floor.is_some() {
         return resolve_all(lib, layout, seed)
             .into_iter()
@@ -382,10 +389,24 @@ fn pose(a: &Asset, p: &Placement, h: u64) -> (u8, bool) {
     (pct, (h >> 32) & 1 == 1)
 }
 
-/// The family a query placement draws from, picked by seed and index
-/// among its matches' families in order of first appearance. Without
-/// takes this is the pick among the matches themselves.
-fn pick_family<'a>(all: &[&'a Asset], seed: u64, index: usize) -> Option<&'a str> {
+/// What a query's family pick hashes: the placement's world position when
+/// the layout has an origin (so every window, and a body cut from a wider
+/// one, names the same family; review 3.5-8), else its index as before.
+fn family_key(layout: &TacticalLayout, p: &Placement, index: usize) -> (i64, i64) {
+    match layout.origin {
+        Some(_) => {
+            let (x, y) = world_steps(layout, p);
+            (x, y ^ 0x5FA3_0000_0000)
+        }
+        None => (i64::try_from(index).unwrap_or(0), 0),
+    }
+}
+
+/// The family a query placement draws from, picked by seed and
+/// [`family_key`] among its matches' families in order of first
+/// appearance. Without takes this is the pick among the matches
+/// themselves.
+fn pick_family<'a>(all: &[&'a Asset], seed: u64, (a, b): (i64, i64)) -> Option<&'a str> {
     let mut families: Vec<&str> = Vec::new();
     for a in all {
         let f = family_base(&a.id);
@@ -397,7 +418,7 @@ fn pick_family<'a>(all: &[&'a Asset], seed: u64, index: usize) -> Option<&'a str
     if n == 0 {
         return None;
     }
-    let pick = hash2(seed ^ 0x9E50, i64::try_from(index).unwrap_or(0), 0) % n;
+    let pick = hash2(seed ^ 0x9E50, a, b) % n;
     families.get(usize::try_from(pick).ok()?).copied()
 }
 
