@@ -13,15 +13,15 @@ use super::{mix, rgb, sea, smooth, soft_q12, ONE};
 use super::{relief_term, shore_share};
 
 /// Depth (mm) where the smoothed depth starts to replace the raw one.
-const SMOOTH_FROM_MM: i64 = 500;
+const SMOOTH_FROM_MM: i64 = 300;
 /// Depth (mm) where it fully has.
-const SMOOTH_FULL_MM: i64 = 12_000;
+const SMOOTH_FULL_MM: i64 = 3_000;
 /// Depth (mm) beyond which smoothing is not needed (ramp stops are far apart).
 const SMOOTH_DEEP_MM: i64 = 150_000;
 /// Depth (mm) up to which seafloor relief light is at full strength.
-const RELIEF_FULL_MM: i64 = 30_000;
+const RELIEF_FULL_MM: i64 = 25_000;
 /// Depth (mm) from which there is none.
-const RELIEF_NONE_MM: i64 = 200_000;
+const RELIEF_NONE_MM: i64 = 130_000;
 
 /// Q12 weight of the smoothed depth in the ramp at raw `depth_mm`.
 pub(in crate::atlas) fn smoothing_weight(depth_mm: i64) -> i64 {
@@ -89,7 +89,7 @@ mod tests {
 
     #[test]
     fn open_sea_relief_is_gone_so_channels_leave_no_arcs() {
-        for depth in [250_000, 500_000, 2_000_000] {
+        for depth in [150_000, 500_000, 2_000_000] {
             let flat = sea_soft(depth, depth, (0, 0));
             for broad in [(3_000, -2_500), (-4_000, 1_000), (900, 900)] {
                 assert_eq!(sea_soft(depth, depth, broad), flat, "depth {depth}");
@@ -115,8 +115,8 @@ mod tests {
     #[test]
     fn the_coastal_strip_keeps_its_raw_depth() {
         assert_eq!(smoothing_weight(0), 0);
-        assert_eq!(smoothing_weight(500), 0);
-        assert_eq!(sea_soft(300, 40_000, (0, 0)), sea(300, (0, 0)));
+        assert_eq!(smoothing_weight(300), 0);
+        assert_eq!(sea_soft(200, 40_000, (0, 0)), sea(200, (0, 0)));
     }
 
     #[test]
@@ -128,7 +128,7 @@ mod tests {
             last = r;
             assert!((0..=ONE).contains(&smoothing_weight(d)));
         }
-        assert!(wants_smoothing(20_000) && !wants_smoothing(300) && !wants_smoothing(500_000));
+        assert!(wants_smoothing(20_000) && !wants_smoothing(200) && !wants_smoothing(500_000));
         assert!(wants_relief(100_000) && !wants_relief(300_000));
     }
 

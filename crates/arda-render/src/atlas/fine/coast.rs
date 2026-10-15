@@ -52,7 +52,7 @@ impl FineAtlas {
     }
 
     /// Depth (mm) of the seabed around a point, averaged over two rings of
-    /// eight taps at 125 m and 250 m plus the point (inside the window margin): the smoothed depth the
+    /// eight taps at 150 m and 300 m plus the point (inside the 312 m window margin): the smoothed depth the
     /// recipe-9 ramp reads away from the coast. Land taps count as zero.
     fn smoothed_depth(&self, qx: i128, qy: i128) -> Result<i64, RenderError> {
         let tap = |dx: i128, dy: i128| -> Result<i64, RenderError> {
@@ -62,7 +62,7 @@ impl FineAtlas {
         };
         let mut sum = tap(0, 0)?;
         let mut count = 1_i64;
-        for r in [5 * CELL_UM / 4, 5 * CELL_UM / 2] {
+        for r in [3 * CELL_UM / 2, 3 * CELL_UM] {
             // Eight directions: the axes and the unit-length diagonals.
             let d = r * 7_071 / 10_000;
             for (dx, dy) in [
