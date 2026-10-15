@@ -293,6 +293,18 @@ These items were added in the 2026-10-10 audit. Each records what exists and wha
 | OI-42 | Multi-world serving | One `--world <dir>` per process (`crates/arda-server/src/main.rs:1-2`, `:17-19`). | Multiple worlds per process, or a world id in any `/v1` route (`crates/arda-server/src/routes.rs:28-76`). Image cache-control assumes URLs that do not name the world (`crates/arda-server/src/routes.rs:157-161`). |
 | OI-43 | Sampled block archive (closed 2026-10-13) | Retired: `arda generate` no longer writes `blocks/`; `World::block`, `export_block`, the 24-tile vocabulary and the zstd block format are deleted; `arda export --block` is a hidden flag that fails with the replacement hint. Older worlds with `blocks/` still load (the folder is ignored). | Nothing remains. |
 
+## Open items recorded on `fix/settlement-realism` (2026-10-15)
+
+Found while fixing review 3.3 (settlements, roads, realms) and measuring on a 250 × 500 km legacy world.
+
+| ID | Item | Exists | Does not exist |
+|---|---|---|---|
+| OI-44 | Default-size worlds cannot be settled | `arda settle` runs on MICRO and on a 250 × 500 km world (4,203 settlements, 20 realms). | A settled 500 × 1000 km world: on the default legacy seed-42 world naming fails with `no unused stream name left in this scope (key 278)` (`crates/arda-names/src/scope.rs` `place_name`), at `main` and on this branch alike, so realm caps, notables size and head-city size at default scale are projected, not measured. |
+| OI-45 | Large-city plan windows in overlays | `arda_people::town::plan_radius_for` widens a city's plan window with its people (12 m per square root of a person; review 3.3-11). | `crates/arda-blocks/src/society/town.rs` and `crates/arda-midzoom/src/land/town.rs` still pick the plans near a window with `plan_radius_m(tier)`, so a city above about 48,000 can be missed at its outer streets; they belong to the overlays work. |
+| OI-46 | Paged people queries rebuild skeletons | `World::generator` keeps 16 population skeletons; the NPC resolver uses it (review 3.3-10). | `crates/arda-server/src/npcs/page.rs` (`Inputs::generator`) still builds a skeleton per settlement per page. Server admission still charges the whole `notables.json` at twice its size although it is read lazily (`crates/arda-server/src/admission.rs` `Resident::measure`). |
+| OI-47 | Settle statistics use libm | Generation in `arda-settle` is integer; the rank-size fit uses the crate's own `num::ln`. | The remaining floating point in `stats.rs` (`f64` medians, sinuosities, `town_pattern`'s `hypot`/`sqrt`) and the render path; `stats.json` is not pinned cross-platform (review 3.3-15, "22 libm sites"). |
+| OI-48 | Realm balance at scale | On MICRO seeds the realms meet logic/08 Invariants 5a. | On the 250 × 500 km world the people shares are 17–111 per mille (largest/smallest ≈ 6.5, above 2.5) and the land shares exceed 4.5×, at `main` (14 realms) and on this branch (20); seat count and balancing were tuned on MICRO only. |
+
 ## Scope boundaries and conditional extensions
 
 These are explicit future choices, not hidden blockers for the map pipeline.

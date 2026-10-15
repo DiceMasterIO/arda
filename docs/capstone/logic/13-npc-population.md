@@ -40,7 +40,7 @@ Every random draw comes from a stream keyed by BLAKE3 of `"arda-npc/v1"`, world 
 
 ### §npc-storage
 
-Only notables are stored (as full `Npc` records inside `Population`); every other inhabitant is derivable (goal 56). The service stores nothing: it recomputes the skeleton from the town plan and caches populations in a bounded cache (16 §api-cache). Stored size is O(notables) = O(settlements) because notable counts are bounded per tier (§npc-notables).
+Only notables are stored (as full `Npc` records inside `Population`); every other inhabitant is derivable (goal 56). The service stores nothing: it recomputes the skeleton from the town plan and keeps the skeletons of the most recently used settlements (`Generator::into_owned` gives a generator that owns its inputs; `arda_people::World::generator` keeps 16), so a commoner lookup does not rebuild its settlement (review 3.3-10). Stored size is O(notables) = O(settlements) because notable counts are bounded per tier (§npc-notables); `notables.json` is written one settlement a line behind an index and read lazily (logic/21 §build-write), and each settlement's notables carry the fingerprint of the plan buildings they were generated in, checked when the service draws the plan again (logic/21 §build-read-path).
 
 ### §npc-households
 

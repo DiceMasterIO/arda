@@ -25,11 +25,11 @@ Code cites rules as `// logic/08 §<rule>`, for example `// logic/08 §settle-re
 The frame every product layer uses at world scale. It is the `arda-server` cell contract frame (`crates/arda-server/API.md`, "Coordinates"), restated here because it is normative for every crate:
 
 - World metres: x east, y south, origin at the modeled domain's north-west corner.
-- Global cell `(gx, gy)` is the 100 m lattice **node** at `(100·gx, 100·gy)` m. Its footprint is the 100 m square centred on the node: `[100·gx − 50, 100·gx + 50) × [100·gy − 50, 100·gy + 50)`.
-- A settlement, crossing or pass that sits "at a cell" is stored with `cell_x = gx`, `cell_y = gy` and `x_m = 100·gx`, `y_m = 100·gy`. Positions that are not cell-snapped (polyline vertices) are integer metres in the same frame.
-- Road, realm-border and river polylines are lists of `[x_m, y_m]` integer pairs. A polyline through cells passes through their nodes; a border between cells runs on footprint edges (`100·g ± 50`).
+- Global cell `(gx, gy)` covers `[100·gx, 100·gx + 100) × [100·gy, 100·gy + 100)`; its centre is `(100·gx + 50, 100·gy + 50)` (`crates/arda-server/API.md` "Coordinates", vocabulary I1). The fine lattice's node `(0, 0)` lies at the centre of cell `(0, 0)`.
+- A settlement, crossing or pass that sits "at a cell" is stored with `cell_x = gx`, `cell_y = gy` and `x_m = 100·gx + 50`, `y_m = 100·gy + 50`. Positions that are not cell-snapped are integer metres in the same frame.
+- Road and river polylines are lists of `[x_m, y_m]` integer pairs through cell centres; realm borders run on cell edges (`100·g`).
 
-Source: the generator samples fine terrain at the nodes (`logic/02`), and the server contract states the node convention. The current `arda-settle` code writes `x_m = 100·gx + 50` (a cell-corner convention); that is one of the inconsistencies listed in the integration plan and must be changed to this rule before merge.
+Source: the server contract and the code agree on the cell-centre frame; an earlier draft of this rule used a node frame (`x_m = 100·gx`), which nothing implements (review 3.3-15, logic/08 drift).
 
 ### §settle-suitability
 
@@ -54,17 +54,24 @@ A cell is refused outright (score 0, never a settlement centre) when any of thes
 1. terrain is sea or lake, or cover is marsh, rock or ice; or cover-derived class is snow, cliff or beach;
 2. slope > 14°;
 3. too cold to farm (mean temperature below the crop limit);
-4. height above the nearest watercourse < 1.5 m.
+4. height above the nearest watercourse < 1.5 m. Where the stored HAND is the generator's "no downstream channel" placeholder (`u16::MAX`), the height is measured above the level of the nearest open water instead (sea level, a lake's spill level, a channel bed; `hand.rs`); land with no water anywhere on the grid is refused (review 3.3-3). The same measured height decides arable land and floodplain meadow.
 
 ### §settle-sites
 
-Site tags are bit flags per cell (goal 34), written as lowercase strings on the settlement record: `river`, `lake`, `coast`, `harbour` (sheltered bay with depth), `estuary`, `navigable` (order ≥ 4, artifact), `confluence`, `ford` (stream 2–14 m wide with gentle banks, artifact), `bridge` (a crossing site too wide to ford), `pass` (a saddle between basins on a road profile), `defensible` (prominence ≥ 30 m), `hill`, `forest`, `marsh` (adjacent), `mountain`, `ore` (rock cover plus relief: a documented proxy, no geology layer exists), `timber`, `fish`, `salt`, `spring` (channel head within 300 m, assumed). The tags drive functions, history hooks and names (15-naming §name-site-suffix).
+Site tags are bit flags per cell (goal 34), written as lowercase strings on the settlement record: `river`, `lake`, `coast`, `harbour`, `estuary`, `navigable`, `confluence`, `ford` (stream 2–14 m wide with gentle banks, artifact), `bridge_site` (a crossing site too wide to ford), `pass` (a saddle between basins), `defensible` (prominence ≥ 40 m), `hill` (≥ 20 m), `forest`, `marsh` (adjacent), `mountain`, `ore` (rock cover plus relief: a documented proxy, no geology layer exists), `timber`, `fish`, `salt`, `spring` (channel head within 300 m, assumed). The tags drive functions, history hooks and names (15-naming §name-site-suffix).
+
+Port tags are tested, not proxied (review 3.3-1; values assumed, tunable):
+
+- `navigable`: a reach at least 25 m wide carrying at least 28.7 m³/s, the discharge at which `d = 0.27·Q^0.39` gives a 1 m deep channel, whatever its Strahler order.
+- `harbour`: a coast cell at most 5 m above the sea on a slope of at most 6°, open to the sea through one to four of sixteen 4 km rays, with water at least 3 m deep within 300 m.
+- `estuary`: a channel of order ≥ 3 beside the sea.
+- The three spread to land within 300 m (`estuary` 500 m) reached without standing more than 10 m above the water level they name, so a quay never lands on the bluff above it.
 
 ### §settle-tiers
 
-- Population `P = density × land area`, density from the world config (default 15 people/km², `logic/01`).
+- Population `P = density × carrying land`, density from the world config (default 15 people/km², `logic/01`). Carrying land weighs each land hectare: arable ×2, other habitable ground (a cell with a site score) ×1, land nobody can live on ×¼ (assumed, tunable; review 3.3-13). On a land about a third arable and a fifth other habitable ground (the MICRO worlds) the weights average one; a fertile lowland holds more people than its area, rock and ice fewer.
 - 30 % live in towns and cities, 47 % in villages, the rest in hamlets (artifact: "three tenths", "just under half"; 47 % assumed within that phrase).
-- Town sizes follow rank-size: the town of rank r has `P_urban / (r · H_n)` people, with as many towns as keep the smallest ≥ `TOWN_MIN` (artifact rule; `H_n` is the harmonic number that makes the list sum to `P_urban`).
+- The number of towns is as many as the rank-size rule `P_urban / (r · H_n)` fills while the smallest is ≥ `TOWN_MIN` (artifact rule). Their sizes are not that list (review 3.3-12): once villages and hamlets stand, each town's weight is its hinterland (rural people within 24 km whose nearest town it is, plus 300) times its site advantage (harbour +0.6 or estuary +0.4, navigable +0.5, confluence +0.3 or ford/bridge +0.2, pass +0.25, defensible +0.15, ore +0.25, salt +0.2), and `P_urban` is shared in proportion to the weight raised to 5/2 (agglomeration), none below `TOWN_MIN` (`townsize.rs`; all assumed, tunable). The rank-size check (Invariants 4) therefore tests an outcome.
 - Tier bounds (canonical for every crate):
 
 | Tier | Population | Source |
@@ -74,7 +81,7 @@ Site tags are bit flags per cell (goal 34), written as lowercase strings on the 
 | town | 1,000–7,999 | assumed, tunable (`TOWN_MIN`) |
 | city | ≥ 8,000 | assumed, tunable (`CITY_MIN`) |
 
-- One or two cities per realm (goal 35): the seat is a primate city (§realm-seats). A third would-be city in a realm is demoted to a town with population `CITY_MIN − 1`, seats never; the surplus goes to that realm's villages proportionally. This runs after the partition.
+- One or two cities per realm (goal 35): the seat is a primate city (§realm-seats). A third would-be city in a realm is demoted to a town with population `CITY_MIN − 1`, seats never; the surplus goes to that realm's villages proportionally (up to their tier ceiling), then its towns (up to `CITY_MIN − 1`), then its seat, so nobody is deleted (review 3.3-9). This runs right after the partition, before land use (`primacy::cap`).
 
 ### §settle-placement
 
@@ -87,8 +94,8 @@ Greedy, best site first, within each tier, in the order towns (by rank), village
 | village to village | ≥ 2,000 m | artifact |
 | hamlet to anything | ≥ 900 m | artifact "just under a kilometre" |
 
-- Towns weigh `harbour` and `navigable` sites far above villages do (×3 for towns vs ×1; assumed, tunable).
-- A better site gets a larger settlement within its tier (rank order follows score order).
+- Towns weigh `harbour` and `navigable` sites far above villages do (×3 for towns vs ×1; assumed, tunable). Town sites also score `ore` (+60) and `salt` (+60); villages and hamlets score `ore` (+60/+40), `salt` (+60/+30), `fish` (+30/+20), `timber` (+20/+20), `pass` (+40/+20) and `defensible` (+40/+20) (review 3.3-13; assumed, tunable).
+- A better-farmed site gets a larger village or hamlet; towns are sized by hinterland and site (§settle-tiers).
 - Distances are exact integer Euclidean distances between nodes.
 - `SettlementId` is 1-based in placement order. Ties in score break by the lower `(gy, gx)`.
 
@@ -118,8 +125,11 @@ Land-use codes (u8, canonical; `fields` and `town` read them):
 | 5 | woodland | managed woodland kept on slopes |
 | 6 | mill | a water mill site |
 | 7 | mine | a mine or quarry head |
+| 8 | meadow | hay meadow on low, wet floodplain grass near villages and hamlets |
+| 9 | fallow | a field resting in the three-field rotation: one in three by `H(seed, "fallow", gx, gy)` (`landuse::fallow`; review 3.3-15) |
+| 10 | farmstead | a hamlet's built cells |
 
-The raster keeps these eight codes. Finer classes used at 5-ft scale by feat/tactical-fields (`meadow`, `fallow`, `quarry`, `farmstead`, and `wild` for code 0) are derived inside the fields layer from these codes plus local terrain and a hash; they are never written to `landuse.bin`. The mapping is: 0 → wild; 1 → built (farmstead for a hamlet's built cells); 2 → arable, or fallow for one field in three by `H(seed, "fallow", gx, gy)`, or meadow on field cells with wetness ≥ 0.6; 3 → pasture; 4 → orchard; 5 → woodland; 6 → mill; 7 → mine, or quarry on rock cover (thresholds assumed, tunable).
+The raster stores these eleven codes (`arda_ids::LandUse`; an earlier draft kept eight and derived meadow, fallow and farmstead in the fields layer). The fields layer still derives `quarry` (code 7 on rock cover) and `wild` (code 0).
 
 ### §roads
 
@@ -134,22 +144,27 @@ Least-effort routes over a cost surface (artifact, "Roads"):
 | bare rock, snow | "many times": 12 | artifact; value assumed |
 | cliff | "almost prohibitive": 200 | artifact; value assumed |
 | slope | multiplier `1 + (g/0.3)²` below a 30 % grade, `4·(g/0.3)⁴` above | artifact shape; exponents assumed |
+| grade beyond the class's maximum sustained grade (table below) | `+25 % × (g − g_max)²` per step, `g` in whole per cent (review 3.3-7) | assumed, tunable |
 | watercourse crossing | fording 10 m ≈ 1 km of detour, 50 m ≈ 4 km, linear between and beyond | artifact |
 | lake, sea | impassable, except a ferry edge (below) | artifact; goal 04 |
 | existing road | 30 % of the cost of its ground | artifact rule ("cheap"); value assumed, tunable |
 | ferry crossing of open water | 25 % per cell plus a 20 km landing charge | assumed, tunable |
 
-Build order, top down (artifact): trunk (highway) = minimum spanning set of least-cost town-to-town routes; trunks pushed from the nearest town to each map edge where land leaves the map; each village to its nearest town (road); each hamlet to its nearest village (track); footpaths between neighbouring villages within 4 km not already joined (assumed). Routes are 8-connected A* over integer costs with ties broken by `(gy, gx)`. Only the cells a route adds become a new road object; a route falling onto an existing road reuses it (no parallel duplicates).
+Build order, top down (artifact): trunk (highway) = minimum spanning set of least-cost town-to-town routes; then loops: each pair of neighbouring towns (each town's four nearest), nearest first, whose way over the network runs beyond 2× their straight distance gets a direct highway when one exists within 1.6× (review 3.3-6; assumed, tunable); trunks pushed from the nearest town to each map edge where land leaves the map; each village to the cheapest of its three nearest towns (road); each hamlet to the cheapest of its three nearest villages or towns (track); footpaths between neighbouring villages within 4 km, routed over the ground without the road discount and recorded only when they add cells of their own (assumed). Routes are 8-connected A* over integer costs with ties broken by `(gy, gx)`. Only the cells a route adds become a new road object; a route falling onto an existing road reuses it (no parallel duplicates). Each road records `steep_m`, the metres of its route on 100 m steps steeper than its class sustains: where the tactical road switches back (goal 37).
+
+Ferry legs are not road: their open-water cells are never written to `roads.bin` or to road segments (segments break at the water; review 3.3-15); the network keeps them apart and the crossing objects record them.
 
 Road classes (canonical for every crate):
 
 | Class | Society raster code | Cell `RoadClass` | Tactical surface width | Verge each side | Max sustained grade | Bridge deck | Source |
 |---|---|---|---|---|---|---|---|
 | none | 0 | `None` (0) | — | — | — | — | |
-| footpath | 1 | `Track` (1) | 1 square | 0 | 25 % | 2 squares | goal 37; widths from feat/tactical-ways `ClassSpec`, assumed, tunable |
-| track | 2 | `Track` (1) | 2 squares | 0.5 | 14 % | 2 | same |
-| road | 3 | `Road` (2) | 3 squares, 4 where settlement wealth ≥ 160 | 1 | 10 % | 3 | same |
-| highway | 4 | `Highway` (3) | 5 squares, with side ditches | 1 | 8 % | 4 | same |
+| footpath | 4 | `Track` (1) | 1 square | 0 | 25 % | 2 squares | goal 37; widths from feat/tactical-ways `ClassSpec`, assumed, tunable |
+| track | 1 | `Track` (1) | 2 squares | 0.5 | 14 % | 2 | same |
+| road | 2 | `Road` (2) | 3 squares, 4 where settlement wealth ≥ 160 | 1 | 10 % | 3 | same |
+| highway | 3 | `Highway` (3) | 5 squares, with side ditches | 1 | 8 % | 4 | same |
+
+The raster code is `arda_ids::RoadClass::code` (the world's stored codes with footpath appended, convention I3); importance is `RoadClass::rank` (footpath < track < road < highway), never the code. An earlier draft numbered the codes by importance.
 
 Every crate reads widths from this table; feat/tactical-fields' own half-widths (2.0, 1.5, 1.05, 0.55 squares) must be replaced by it. Road surface ground keys: highway `cobbles`, road `gravel`, track and footpath `dirt` (from feat/tactical-fields; assumed). Above the maximum sustained grade the tactical road switchbacks (goal 37).
 
@@ -157,7 +172,7 @@ The stored world `Cell::road` has no footpath value and is never rewritten by th
 
 ### §crossings
 
-Every place a road meets a watercourse, lake or sea is a crossing object (artifact). Classification (artifact rule, widths assumed, tunable):
+Every place a road meets a watercourse at least 2 m wide, or a ferry leg crosses a lake or the sea, is a crossing object (artifact). Narrower channels are ditches and rills a road steps over on a culvert: no crossing (review 3.3-14; assumed, tunable). Classification (artifact rule, widths assumed, tunable):
 
 | Width | Near a settlement (≤ 1 km) or on a highway | Elsewhere |
 |---|---|---|
@@ -166,7 +181,7 @@ Every place a road meets a watercourse, lake or sea is a crossing object (artifa
 | > 50 m (wide) | bridge only on a highway within 1 km of a town | ferry |
 | lake or sea | ferry | ferry |
 
-A crossing's position is the node of the first water cell the route enters. Its `order` and `width_m` are that cell's.
+A crossing's position is the centre of the widest cell of its stretch of water. Its `order` and `width_m` are that cell's.
 
 ### §passes
 
@@ -176,24 +191,24 @@ Where a route climbs over a ridge, the high point of its profile is a pass objec
 
 Realms follow [06 — Society generation](06-society-generation.md) steps 1–3:
 
-1. Seat count `N = max(2, min(P / 24,000, H / 60,000 ha, towns / 3))` when there are ≥ 2 towns, else 1, with `H` the habitable land (suitability > 0). A capital city of 8,000 needs a realm three times its size, and a core of 600 km² (both assumed, tunable; they replace logic/06's `P/8,000`, which gave seats too small to hold a city, goal 35). Seats are chosen among the larger half of the towns so they stand apart and share the land (goal 38; `seats.rs`, `market.rs`):
+1. Seat count `N = max(2, min(P / 24,000, H / 60,000 ha, towns / 3))` when there are ≥ 2 towns, else 1, with `H` the habitable land (suitability > 0). A capital city of 8,000 needs a realm three times its size, and a core of 600 km² (both assumed, tunable; they replace logic/06's `P/8,000`, which gave seats too small to hold a city, goal 35). Seats are chosen among the larger half of the towns by standing (their site-score rank on the rank-size head, `Placement::standing`, not the size their hinterland gave them) so they stand apart and share the land (goal 38; `seats.rs`, `market.rs`):
    - the largest town is the first seat; each further seat maximises `d² · population`, with `d` its travel cost to the nearest chosen seat over a coarse lattice of about 20,000 blocks where a step costs its length plus 8 m per metre of climb (assumed, tunable);
    - each seat then moves to another town of its own market area (least lattice cost) when that cuts the sum of squared deviations of the areas' shares from `1/N` to 95 % or less; shares weigh people ¾ and land ¼ (assumed, tunable);
    - a market area with fewer than 16,000 people (⅔ of 24,000) has no real core: `N` drops by one and the choice runs again, down to 2.
-   Each seat gains `capital`. **Primate capitals** (`primacy.rs`): in a market area of ≥ 12,000 people, its towns keep their people `U` and follow rank-size with the seat first, `h / r` with `h = U / H_n`; the seat holds at least `CITY_MIN` (a primate city), and when it grows by a factor `f` the other towns' head grows by `f^¼` (court elasticity, assumed, tunable). The people come from the area's villages and hamlets, scaled in proportion within their tier bounds. This runs right after placement, before land use, so fields and roads serve the final populations; towns and cities are then re-ranked by population.
-2. Allegiance: every settlement swears to the seat cheapest to reach over the road-and-terrain cost surface; ties break by the seat's rank (logic/06).
-3. Territory: every land cell joins the realm of its cheapest seat (a multi-source least-cost flood over the same surface, ties by seat rank). Borders snap to a river (order ≥ 3) or a ridge line when one lies within 2 cells (logic/06), by reassigning the cells between the raw border and the feature.
-4. Realm id is 1-based in seat rank order (the capital's population, largest first). The realm raster stores `u16` per cell (0 on water), so a world may hold at most 65,535 realms.
+   Each seat gains `capital`. **Primate capitals** (`primacy.rs`): realms are the final partition (step 3), drawn right after the seats are chosen, so no town is sized for a realm it does not end up in (review 3.3-8). In a realm of ≥ 12,000 people the seat first trades places with any larger town of its realm, then holds at least `CITY_MIN` (a primate city) and at least a quarter of its realm's people; when it grows by a factor `f` each other town grows by `f^¼` (court elasticity), keeping its order (all assumed, tunable). The people come from the realm's villages and hamlets, scaled in proportion within their tier bounds. In a smaller realm the seat only trades places with any larger member. This and the city cap (§settle-tiers) run before land use, so fields and roads serve the final populations; towns and cities are then re-ranked by population.
+2. Allegiance: every settlement swears to the seat whose territory its cell lies in.
+3. Territory (`realms::territory`): every land cell joins the realm of its cheapest seat, a multi-source least-cost flood over the terrain cost surface (before land use exists, so with no road discount and without the over-grade toll, which is for road building), with a toll for stepping over a river of order ≥ 3 or onto a ridge crest; ties go to the earlier seat. Borders snap to a river (order ≥ 3) or a ridge line when one lies within 2 cells (logic/06), by reassigning the cells between the raw border and the feature; when snapping would leave less of the border on a line than the raw partition had, the raw partition stands.
+4. Realm id is 1-based in seat rank order (the capital's final population, largest first; `realms::finish`). The realm raster stores `u16` per cell (0 on water), so a world may hold at most 65,535 realms.
 
 ## Steps
 
 1. Admit resources (Trigger). Stitch every area into one grid by reading areas uncached, one at a time.
 2. Suitability and refusals (§settle-suitability, §settle-refusals); site tags (§settle-sites).
 3. Culture regions: a 6.4 km lattice (64 cells) where each lattice node reads its 3 × 3 lattice neighbourhood (about 19 km) and takes one of the canonical culture keys `heartland`, `highland`, `sylvan`, `coastal`, `southern`, `borderland` (the `arda-npc` `cultures.json` keys; lattice size assumed, tunable). A settlement's culture is its node's.
-4. Tiers and placement (§settle-tiers, §settle-placement), then functions, wealth and building mix (§settle-functions, §settle-building-mix).
-5. Land use (§landuse).
-6. Roads, crossings and passes (§roads, §crossings, §passes).
-7. Realms (§realm-seats: seats and primate capitals right after step 4, the partition here), then the city cap (§settle-tiers) and capital refresh.
+4. Tiers and placement (§settle-tiers, §settle-placement), with town sizes from hinterland and site.
+5. Realms (§realm-seats): seats, the territory, primate capitals and the city cap (§settle-tiers); then functions, wealth and building mix (§settle-functions, §settle-building-mix).
+6. Land use (§landuse).
+7. Roads, crossings and passes (§roads, §crossings, §passes); realms are ranked and their records built, and seats gain `capital`.
 8. Names: every settlement, river, peak, pass, region and realm is named through [15 — Naming](15-naming.md). Until `arda-names` merges, the crate's local generator stands in and must use the same keys.
 9. Write `society/` (Outcomes). Render the overlay on request (goal 41; Outcomes).
 
@@ -227,7 +242,8 @@ Each is a test (goal numbers in brackets):
 6. Tier bounds: every settlement's population lies in its tier's range [35].
 7. Carrying capacity: world-wide field area per inhabitant is 0.8 ha ± 10 %, and farmland (fields + orchards + pasture) per inhabitant is within [0.8, 1.5] ha [39; artifact "close to a hectare"].
 8. Housing: for every settlement, `capacity_estimate(buildings) ≥ population` with the per-key capacities of [10 — Town layout](10-town-layout.md) §town-capacity [55].
-9. Roads: every mainland settlement is connected to every other through the network; no road cell is lake or sea unless it is part of a ferry crossing; every crossing lies on a watercourse, lake or sea cell; the median sinuosity (route length / straight distance) of village-to-town roads on ground with median slope < 5° is in [1.2, 1.4] [37; artifact].
+9. Roads: every mainland settlement is connected to every other through the network and its ferry legs; no road raster cell is lake or sea (ferry legs are kept apart); every crossing lies on a watercourse at least 2 m wide, a lake or the sea; the median sinuosity (route length / straight distance) of village-to-town roads (class `road`) on ground with median slope < 5° is in [1.2, 1.4] [37; artifact].
+9a. Loops: neighbouring towns are not joined only by a way more than twice their straight distance, unless the direct way is itself beyond 1.6 times it; every footpath adds cells of its own [37; review 3.3-6].
 10. No parallel duplicates: no two road objects share a cell except at their junction cell [37].
 11. Realms: every land cell has exactly one realm id; each realm's cells form one 8-connected component or a component per island; there are ≥ 2 realms when there are ≥ 2 towns; each realm's seat lies inside it [38; logic/06].
 12. Ids: settlement ids are 1..n without gaps; road, crossing, pass and realm ids likewise.
@@ -242,7 +258,7 @@ Export consumption (logic/04 §overlay): overview PNGs read `landuse.bin`, `sett
 
 | File | Content | Consumers |
 |---|---|---|
-| `settlements.json` | `{format_version, seed, width_cells, height_cells, settlements: [Settlement]}` | town, npc, society, names, server |
+| `settlements.json` | `{format_version, seed, width_cells, height_cells, settlements: [Settlement], stamp}`; `stamp` is the generation stamp `{id, seed, arda_version, world_arda_version, recipe_version, world_json}` (`stamp.rs`): `world_json` digests the world's `world.json` and `id` digests the stamp and every byte the stage wrote. `arda society build` records `id` (`society.json` and `notables.json` `settle_stamp`, logic/21), and readers refuse files that do not match (review 3.3-4) | town, npc, society, names, server |
 | `roads.json` | `{format_version, roads: [Road], crossings: [Crossing], passes: [Pass], unreachable: [id]}` | ways, server |
 | `realms.json` | `{format_version, realms: [Realm]}` | society, server |
 | `features.json` | named rivers, peaks and regions (`{id, name, kind, anchor_m, …}`) | names, server |
