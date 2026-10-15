@@ -385,6 +385,23 @@ pub struct Doline {
     pub depth_dm: u16,
 }
 
+/// Where the formed channel runs inside one 100 m river cell (recipe 9,
+/// review 3.2-14): the lowest node of the 39.0625 m fine lattice within the
+/// cell's footprint. The published hydrology routes on the 100 m cells, so
+/// without it only the channel's planform class survived; consumers can
+/// place the channel at its formed position instead of the cell centre.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub struct Thalweg {
+    /// The river cell.
+    pub cell: CellCoord,
+    /// East offset of the thalweg from the cell centre, decimetres.
+    pub dx_dm: i16,
+    /// South offset of the thalweg from the cell centre, decimetres.
+    pub dy_dm: i16,
+    /// Fine-lattice bed height at the thalweg, millimetres.
+    pub bed_mm: i32,
+}
+
 /// Every stored water form of one area (`areas/<ax>_<ay>/water.bin`).
 #[derive(Debug, Clone, PartialEq, Eq, Default)]
 pub struct AreaWater {
@@ -398,6 +415,9 @@ pub struct AreaWater {
     pub dolines: Vec<Doline>,
     /// Dry arid-basin floors (recipe 7): row runs sorted by `(y, x0)`.
     pub pans: Vec<PanRun>,
+    /// Formed channel positions in river cells (recipe 9), sorted by
+    /// `(y, x)`, one per cell.
+    pub thalwegs: Vec<Thalweg>,
 }
 
 #[cfg(test)]

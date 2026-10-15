@@ -334,6 +334,24 @@ fn generate_world_inner(
     // area, once lake origins found in any area are known.
     let mut forms = Vec::new();
     let mut origins = std::collections::BTreeMap::new();
+    // Recipe 9 also stores where the formed channel runs in each river cell
+    // (review 3.2-14), read from the copied fine terrain.
+    let recipe_version = fine.map_or(0, |(_, d)| d.recipe_version);
+    let mut thalweg_reader = if water.is_some() && recipe_version >= 9 {
+        let path = out.join(arda_core::formats::manifest::FINE_TERRAIN_PATH);
+        Some(
+            arda_core::TerrainFileReader::open(
+                std::fs::File::open(&path).map_err(|source| GenError::Write {
+                    path: path.display().to_string(),
+                    source,
+                })?,
+                1 << 20,
+            )
+            .map_err(fine_input::FineInputError::from)?,
+        )
+    } else {
+        None
+    };
     for &area in &coords {
         let tile = prepared.tile(area)?;
         let (mut cells, objects) = area_output::compose(
@@ -354,7 +372,7 @@ fn generate_world_inner(
         }
         write_area(area, &cells, &objects, &output, &mut writes)?;
         if let Some(features) = water {
-            let w = water_forms::area_water(
+            let mut w = water_forms::area_water(
                 area,
                 &cells,
                 &objects,
@@ -362,6 +380,16 @@ fn generate_world_inner(
                 &shared.lakes,
                 &mut origins,
             );
+            if let Some(reader) = &mut thalweg_reader {
+                let mut node = |x_um: i64, y_um: i64| {
+                    reader
+                        .sample(arda_core::TerrainPoint { x_um, y_um })
+                        .ok()
+                        .flatten()
+                        .map(arda_core::HeightMm::raw)
+                };
+                w.thalwegs = water_forms::thalwegs(area, &objects, &mut node);
+            }
             let ids: Vec<_> = objects.lakes.iter().map(|l| l.global_id).collect();
             forms.push((area, ids, w));
         }
@@ -371,13 +399,16 @@ fn generate_world_inner(
         let path = Path::new("areas").join(area.dir_name()).join("water.bin");
         // Recipe 7 adds saline flags and playas (layout version 2); recipe 6
         // keeps writing version 1 byte for byte.
-        let bytes = if fine.is_some_and(|(_, d)| d.recipe_version >= 7) {
+        let bytes = if recipe_version >= 9 {
+            arda_core::encode_water_v3(&w)
+        } else if recipe_version >= 7 {
             arda_core::encode_water_v2(&w)
         } else {
             arda_core::encode_water(&w)
         };
         write_file(&output, &path, &bytes, &mut writes)?;
     }
+    drop(thalweg_reader);
     writes.global(&shared, &index)?;
     global_output::write(&output, &mut shared, &index)?;
     // Completed flow/receiver caches and all file readers must close before scratch

@@ -46,7 +46,9 @@ pub use formats::shore::{
     Island, IslandCause, Landform, LandformCause, LandformKind, ShoreClass, ShoreLayer, SHORE_PATH,
 };
 pub use formats::terrain::{TerrainFileError, TerrainFileReader, TerrainFileWriter};
-pub use formats::water::{decode_water, encode_water, encode_water_v2, WATER_MAGIC};
+pub use formats::water::{
+    decode_water, encode_water, encode_water_v2, encode_water_v3, WATER_MAGIC,
+};
 pub use formats::FORMAT_VERSION;
 pub use hydrology::{BasinId, Litres};
 pub use objects::{AreaObjects, Lake, RiverSegment, Terminus};

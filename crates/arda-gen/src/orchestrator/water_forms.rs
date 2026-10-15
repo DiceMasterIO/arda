@@ -19,7 +19,7 @@ use std::collections::BTreeMap;
 use arda_core::hydrology::{channel_width_dm, GlobalLake};
 use arda_core::water::{
     bankfull_depth_cm, AreaWater, ChannelPattern, DeltaForm, Doline, LakeForm, LakeOrigin, PanKind,
-    PanRun, SegmentForm,
+    PanRun, SegmentForm, Thalweg,
 };
 use arda_core::{AreaCells, AreaCoord, AreaObjects, BasinId, CellCoord, Litres, AREA_CELLS};
 
@@ -394,6 +394,101 @@ mod tests {
     }
 }
 
+/// Fine lattice spacing, micrometres (logic/02 §fine-formation).
+const FINE_UM: i64 = crate::formation::FINE_SPACING_UM;
+
+/// Recipe 9 (review 3.2-14): the formed thalweg of every river cell of an
+/// area: the lowest fine-lattice node within the cell's 100 m footprint,
+/// read through `node(x_um, y_um)` (the fine height of the node at that
+/// position). Sorted by `(y, x)`, one per cell; cells whose nodes cannot
+/// be read are skipped.
+pub fn thalwegs(
+    area: AreaCoord,
+    objects: &AreaObjects,
+    node: &mut dyn FnMut(i64, i64) -> Option<i32>,
+) -> Vec<Thalweg> {
+    let mut cells: Vec<CellCoord> = objects
+        .rivers
+        .iter()
+        .flat_map(|r| r.course.iter().copied())
+        .collect();
+    cells.sort_unstable_by_key(|c| (c.y(), c.x()));
+    cells.dedup();
+    let (ox, oy) = (i64::from(area.x) * 512, i64::from(area.y) * 512);
+    let half = CELL_UM / 2;
+    let span = |c: i64| (c - half).div_euclid(FINE_UM) + 1..=(c + half).div_euclid(FINE_UM);
+    cells
+        .into_iter()
+        .filter_map(|c| {
+            let (cx, cy) = (
+                (i64::from(c.x()) + ox) * CELL_UM,
+                (i64::from(c.y()) + oy) * CELL_UM,
+            );
+            let mut best: Option<(i32, i64, i64)> = None;
+            for ny in span(cy) {
+                for nx in span(cx) {
+                    let (x, y) = (nx * FINE_UM, ny * FINE_UM);
+                    if x < 0 || y < 0 {
+                        continue;
+                    }
+                    if let Some(z) = node(x, y) {
+                        if best.is_none_or(|(b, _, _)| z < b) {
+                            best = Some((z, x - cx, y - cy));
+                        }
+                    }
+                }
+            }
+            let (bed_mm, dx, dy) = best?;
+            Some(Thalweg {
+                cell: c,
+                dx_dm: i16::try_from(dx / 100_000).ok()?,
+                dy_dm: i16::try_from(dy / 100_000).ok()?,
+                bed_mm,
+            })
+        })
+        .collect()
+}
+
 #[cfg(test)]
 #[path = "water_forms_arid_tests.rs"]
 mod arid_tests;
+
+#[cfg(test)]
+mod thalweg_tests {
+    use super::*;
+    use arda_core::hydrology::ReachId;
+    use arda_core::{RiverSegment, Terminus};
+
+    /// A channel running north-south 31 m east of the cell centres of
+    /// column 10: the thalweg is the fine node nearest it (15.6 m east, the
+    /// node at 26 × 39.0625 m), not the cell centre.
+    #[test]
+    fn thalwegs_find_the_formed_channel_inside_the_cell() {
+        let course: Vec<CellCoord> = (5..9).map(|y| CellCoord::new(10, y).unwrap()).collect();
+        let objects = AreaObjects {
+            rivers: vec![RiverSegment {
+                global_id: ReachId(1),
+                id: 1,
+                order: 1,
+                width_dm: 40,
+                discharge: arda_core::DischargeMilli::new(1_000),
+                feeds: None,
+                ends: Terminus::Sea,
+                course: course.clone(),
+            }],
+            ..AreaObjects::default()
+        };
+        let channel_x = 10 * CELL_UM + 31_250_000;
+        let mut node = |x: i64, y: i64| {
+            let off = i32::try_from((x - channel_x).abs() / 1_000_000).ok()?;
+            Some(5_000 + off * 10 - i32::try_from(y / 1_000_000).ok()?)
+        };
+        let t = thalwegs(AreaCoord { x: 0, y: 0 }, &objects, &mut node);
+        assert_eq!(t.len(), 4);
+        for (tw, c) in t.iter().zip(&course) {
+            assert_eq!(tw.cell, *c);
+            assert_eq!(tw.dx_dm, 156, "the fine node beside the channel");
+            assert!(tw.dy_dm.abs() <= 500);
+        }
+    }
+}

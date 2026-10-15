@@ -13,13 +13,17 @@
 //! deltas, dolines, pans), lake rows of 3 bytes (origin u8, terminal u8,
 //! saline u8) and pan rows of 7 bytes (y u16, x0 u16, len u16, kind u8).
 //! Earlier recipes keep writing version 1 byte for byte.
+//!
+//! Version 3 (recipe 9) is version 2 plus a sixth count (thalwegs) and
+//! thalweg rows of 12 bytes (x u16, y u16, dx dm i16, dy dm i16, bed mm
+//! i32), sorted by `(y, x)` (review 3.2-14).
 
 use super::{put_u16, put_u32, take_u16, take_u32, take_u8};
 use crate::coords::CellCoord;
 use crate::error::FormatError;
 use crate::water::{
     AreaWater, ChannelPattern, DeltaForm, Doline, LakeForm, LakeOrigin, PanKind, PanRun,
-    SegmentForm,
+    SegmentForm, Thalweg,
 };
 
 /// Leading bytes of every water-forms layer.
@@ -28,8 +32,12 @@ pub const WATER_MAGIC: &[u8; 8] = b"ARDAWTR\0";
 pub const WATER_VERSION: u32 = 1;
 /// Layout version with saline flags and playa runs (recipe 7).
 pub const WATER_VERSION_ARID: u32 = 2;
+/// Layout version with formed thalwegs (recipe 9).
+pub const WATER_VERSION_THALWEG: u32 = 3;
 const HEADER: usize = 8 + 4 + 16;
 const HEADER_V2: usize = HEADER + 4;
+const HEADER_V3: usize = HEADER_V2 + 4;
+const THALWEG: usize = 12;
 const SEGMENT: usize = 19;
 const LAKE: usize = 2;
 const LAKE_V2: usize = 3;
@@ -50,8 +58,15 @@ pub fn encode_water_v2(w: &AreaWater) -> Vec<u8> {
     encode(w, WATER_VERSION_ARID)
 }
 
+/// Encodes one area's water forms in layout version 3 (recipe 9).
+#[must_use]
+pub fn encode_water_v3(w: &AreaWater) -> Vec<u8> {
+    encode(w, WATER_VERSION_THALWEG)
+}
+
 fn encode(w: &AreaWater, version: u32) -> Vec<u8> {
     let v2 = version >= WATER_VERSION_ARID;
+    let v3 = version >= WATER_VERSION_THALWEG;
     let mut out = Vec::with_capacity(
         HEADER_V2
             + w.segments.len() * SEGMENT
@@ -70,6 +85,9 @@ fn encode(w: &AreaWater, version: u32) -> Vec<u8> {
     ];
     if v2 {
         counts.push(w.pans.len());
+    }
+    if v3 {
+        counts.push(w.thalwegs.len());
     }
     for n in counts {
         put_u32(&mut out, u32::try_from(n).unwrap_or(u32::MAX));
@@ -109,6 +127,15 @@ fn encode(w: &AreaWater, version: u32) -> Vec<u8> {
             out.push(p.kind as u8);
         }
     }
+    if v3 {
+        for t in &w.thalwegs {
+            put_u16(&mut out, t.cell.x());
+            put_u16(&mut out, t.cell.y());
+            out.extend(t.dx_dm.to_le_bytes());
+            out.extend(t.dy_dm.to_le_bytes());
+            out.extend(t.bed_mm.to_le_bytes());
+        }
+    }
     out
 }
 
@@ -134,24 +161,26 @@ pub fn decode_water(bytes: &[u8], path: &str) -> Result<AreaWater, FormatError> 
     }
     let mut at = 8;
     let version = take_u32(bytes, &mut at);
-    if version != WATER_VERSION && version != WATER_VERSION_ARID {
+    if !(WATER_VERSION..=WATER_VERSION_THALWEG).contains(&version) {
         return Err(FormatError::UnknownDiscriminant {
             path: path.to_owned(),
             field: "water version",
             value: u16::try_from(version).unwrap_or(u16::MAX),
         });
     }
-    let v2 = version == WATER_VERSION_ARID;
-    let (header, lake_row) = if v2 {
-        (HEADER_V2, LAKE_V2)
-    } else {
-        (HEADER, LAKE)
+    let v2 = version >= WATER_VERSION_ARID;
+    let v3 = version >= WATER_VERSION_THALWEG;
+    let (header, lake_row) = match (v2, v3) {
+        (_, true) => (HEADER_V3, LAKE_V2),
+        (true, false) => (HEADER_V2, LAKE_V2),
+        _ => (HEADER, LAKE),
     };
     if bytes.len() < header {
         return Err(eof(header));
     }
-    let mut counts = [0_usize; 5];
-    for c in counts.iter_mut().take(if v2 { 5 } else { 4 }) {
+    let mut counts = [0_usize; 6];
+    let stored = 4 + usize::from(v2) + usize::from(v3);
+    for c in counts.iter_mut().take(stored) {
         *c = take_u32(bytes, &mut at) as usize;
     }
     let expected = counts[0]
@@ -160,6 +189,7 @@ pub fn decode_water(bytes: &[u8], path: &str) -> Result<AreaWater, FormatError> 
         .and_then(|v| v.checked_add(counts[2].checked_mul(DELTA)?))
         .and_then(|v| v.checked_add(counts[3].checked_mul(DOLINE)?))
         .and_then(|v| v.checked_add(counts[4].checked_mul(PAN)?))
+        .and_then(|v| v.checked_add(counts[5].checked_mul(THALWEG)?))
         .and_then(|v| v.checked_add(header))
         .ok_or_else(|| eof(usize::MAX))?;
     if bytes.len() != expected {
@@ -249,6 +279,27 @@ pub fn decode_water(bytes: &[u8], path: &str) -> Result<AreaWater, FormatError> 
     {
         return Err(unknown("pan run order", 0));
     }
+    let take_i16 = |at: &mut usize| i16::from_le_bytes(take_u16(bytes, at).to_le_bytes());
+    for _ in 0..counts[5] {
+        let (x, y) = (take_u16(bytes, &mut at), take_u16(bytes, &mut at));
+        let (dx_dm, dy_dm) = (take_i16(&mut at), take_i16(&mut at));
+        let bed_mm = i32::from_le_bytes(take_u32(bytes, &mut at).to_le_bytes());
+        if dx_dm.abs() > 500 || dy_dm.abs() > 500 {
+            return Err(unknown("thalweg offset", 0));
+        }
+        w.thalwegs.push(Thalweg {
+            cell: cell(x, y)?,
+            dx_dm,
+            dy_dm,
+            bed_mm,
+        });
+    }
+    if w.thalwegs
+        .windows(2)
+        .any(|t| (t[0].cell.y(), t[0].cell.x()) >= (t[1].cell.y(), t[1].cell.x()))
+    {
+        return Err(unknown("thalweg order", 0));
+    }
     Ok(w)
 }
 
@@ -292,6 +343,7 @@ mod tests {
                 depth_dm: 120,
             }],
             pans: Vec::new(),
+            thalwegs: Vec::new(),
         }
     }
 
@@ -351,6 +403,41 @@ mod tests {
         let mut unordered = w.clone();
         unordered.pans.swap(0, 2);
         assert!(decode_water(&encode_water_v2(&unordered), "w").is_err());
+    }
+
+    /// Review 3.2-14: recipe 9 stores where the formed channel runs in each
+    /// river cell; earlier layouts keep their bytes.
+    #[test]
+    fn thalweg_layout_round_trips_and_older_layouts_keep_their_bytes() {
+        let mut w = arid();
+        w.thalwegs = vec![
+            Thalweg {
+                cell: CellCoord::new(5, 9).unwrap(),
+                dx_dm: -390,
+                dy_dm: 0,
+                bed_mm: 12_345,
+            },
+            Thalweg {
+                cell: CellCoord::new(6, 9).unwrap(),
+                dx_dm: 0,
+                dy_dm: 390,
+                bed_mm: -2,
+            },
+        ];
+        let bytes = encode_water_v3(&w);
+        assert_eq!(
+            bytes.len(),
+            HEADER_V3 + 2 * SEGMENT + 2 * LAKE_V2 + DELTA + DOLINE + 3 * PAN + 2 * THALWEG
+        );
+        assert_eq!(decode_water(&bytes, "w").unwrap(), w);
+        // Version 2 ignores thalwegs, byte for byte as before.
+        assert_eq!(encode_water_v2(&w), encode_water_v2(&arid()));
+        let mut unordered = w.clone();
+        unordered.thalwegs.swap(0, 1);
+        assert!(decode_water(&encode_water_v3(&unordered), "w").is_err());
+        let mut far = w;
+        far.thalwegs[0].dx_dm = 501;
+        assert!(decode_water(&encode_water_v3(&far), "w").is_err());
     }
 
     #[test]
