@@ -8,6 +8,7 @@ use arda_refine::Source;
 use arda_settle::model::Settlement;
 use arda_settle::roads::Road;
 use arda_town::geom::{v2, Vec2};
+use arda_town::plan::grid::SQUARE_M;
 use arda_town::site::EnteringRoad;
 use arda_town::{TerrainInput, TownPlan, TownSite};
 use std::sync::Arc;
@@ -89,10 +90,13 @@ pub fn roads_near(roads: &[Road], centre: Vec2, radius_m: f64) -> Vec<EnteringRo
     out
 }
 
-/// The terrain around `(x_m, y_m)` as `arda-town` reads it: heights and
-/// open water from the world's cells, the refined rivers arda-refine draws
-/// (their centrelines and widths, and their water square for square), and
-/// the settlement stage's roads.
+/// The terrain around `(x_m, y_m)` as `arda-town` reads it: heights from
+/// the world's cells; the water arda-refine draws, square for square: its
+/// lake and sea shores ([`arda_refine::region::WaterRegion::standing`],
+/// review 3.3-2: not whole 100 m cells) and its rivers (their centrelines
+/// and widths, and their water); and the settlement stage's roads. A plan
+/// on it never stands a building on water the tactical map shows (review
+/// 3.5-3); marsh pools, at most a foot deep, are made ground.
 ///
 /// # Errors
 /// [`PeopleError::World`] when a layer fails to load.
@@ -106,14 +110,42 @@ pub fn terrain(
     let pieces = crate::rivers::pieces_around(src, at, radius_m + 300.0)?;
     let rivers = crate::rivers::lines(&pieces, v2(at.0, at.1));
     let river = Arc::new(arda_refine::water::RiverWater::new(pieces));
-    let (hs, ws) = (Arc::clone(&s), Arc::clone(&s));
+    let standing = Arc::new(standing_region(src, at, radius_m + 300.0)?);
+    let hs = Arc::clone(&s);
     let height: arda_town::site::Field = Box::new(move |p: Vec2| hs.height_m(p.x, p.y));
-    let water: arda_town::site::Mask =
-        Box::new(move |p: Vec2| ws.open_water_at(p.x, p.y) || crate::rivers::in_water(&river, p));
+    let water: arda_town::site::Mask = Box::new(move |p: Vec2| {
+        let (u, v) = (p.x / SQUARE_M, p.y / SQUARE_M);
+        standing.standing(u, v, false).is_some() || crate::rivers::in_water(&river, p)
+    });
     let mut t = TerrainInput::from_height(height, water, 5.0);
     t.rivers = rivers;
     t.roads = roads_near(roads, v2(at.0, at.1), radius_m);
     Ok(t)
+}
+
+/// The refined lake and sea water of the squares within `radius_m` of
+/// `at` (clamped into the world).
+fn standing_region(
+    src: &dyn Source,
+    (x_m, y_m): (f64, f64),
+    radius_m: f64,
+) -> Result<arda_refine::region::WaterRegion, PeopleError> {
+    let (w, h) = src.cells_wide_high();
+    let n = arda_refine::context::N;
+    #[allow(clippy::cast_possible_truncation)] // world metres fit i64
+    let sq = |m: f64, max: i64| ((m / SQUARE_M).floor() as i64).clamp(0, max * n - 1);
+    let squares = (
+        sq(x_m - radius_m, w),
+        sq(y_m - radius_m, h),
+        sq(x_m + radius_m, w),
+        sq(y_m + radius_m, h),
+    );
+    arda_refine::region::WaterRegion::gather(
+        src,
+        squares,
+        arda_refine::region::RiverStyle::default(),
+    )
+    .map_err(|e| PeopleError::World(e.to_string()))
 }
 
 /// The settlement's town plan, or `None` when the planner refuses the site
