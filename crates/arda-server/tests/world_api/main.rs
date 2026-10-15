@@ -25,6 +25,7 @@ mod prefetch;
 mod realms;
 mod relief;
 mod schemas;
+mod seams;
 mod serving;
 mod society_cells;
 mod support;

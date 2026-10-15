@@ -77,7 +77,7 @@ pub struct Terrain<'a> {
     layout: &'a TacticalLayout,
     frame: Frame,
     ppsq: f32,
-    /// Lowest elevation; heights are stored relative to it for precision.
+    /// The datum heights are stored above: sea level (0) for every layout.
     pub base: i32,
     elev: Vec<f32>,
     flat: Vec<bool>,
@@ -88,12 +88,12 @@ impl<'a> Terrain<'a> {
     /// Builds the field. Flat maps skip every per-pixel cost.
     #[must_use]
     pub fn new(layout: &'a TacticalLayout, frame: &Frame, seed: u64) -> Self {
-        let base = layout
-            .squares
-            .iter()
-            .map(|s| i32::from(s.elevation_ft))
-            .min()
-            .unwrap_or(0);
+        // Heights are kept above sea level, not above the layout's lowest
+        // square: a base that depends on the layout's extent rounded the
+        // same world point differently in a cell and in a window holding
+        // it (logic/16 Invariant 5). Elevations fit f32 to well under a
+        // 1/256-ft unit at every height a world reaches.
+        let base = 0;
         let (w, h) = (i64::from(layout.width), i64::from(layout.height));
         let elev = smoothed(layout, base);
         let at = |x: i64, y: i64| {

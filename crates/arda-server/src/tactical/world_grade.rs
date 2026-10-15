@@ -54,41 +54,63 @@ impl Tactical {
             usize::try_from((hi - lo[a]).div_euclid(step) + 2).unwrap_or(2)
         };
         let size = (points(0), points(1));
+        // Read `GROW` points more on every side, so a water point's land
+        // fill sees the same neighbours whatever the window (review
+        // 3.6-10: a cell and its window graded a few bytes apart).
+        let pad = GROW;
+        let padded = (size.0 + 2 * pad, size.1 + 2 * pad);
+        #[allow(clippy::cast_possible_wrap)] // a few points
+        let back = pad as i64 * step;
         let lattice = arda_midzoom::world_lattice(
             rw,
-            (lo[0] * SQUARE_UM, lo[1] * SQUARE_UM),
+            ((lo[0] - back) * SQUARE_UM, (lo[1] - back) * SQUARE_UM),
             step * SQUARE_UM,
-            size,
+            padded,
         )
         .map_err(|e| ServerError::Internal(format!("world grade: {e}")))?;
+        let filled = land_colours(&lattice.colours, &lattice.land, padded);
+        let inner = |v: &[[u8; 3]]| -> Vec<[u8; 3]> {
+            (pad..pad + size.1)
+                .flat_map(|y| (pad..pad + size.0).map(move |x| (x, y)))
+                .filter_map(|(x, y)| v.get(y * padded.0 + x).copied())
+                .collect()
+        };
+        let land: Vec<bool> = (pad..pad + size.1)
+            .flat_map(|y| (pad..pad + size.0).map(move |x| (x, y)))
+            .filter_map(|(x, y)| lattice.land.get(y * padded.0 + x).copied())
+            .collect();
+        let colours = inner(&lattice.colours);
         // Rivers are lines on the world map; its own blue-teal (the light
         // channel band) stands in for them. Lakes and sea keep their colour.
         let river = [66, 142, 166];
-        let water = lattice
-            .colours
+        let water = colours
             .iter()
-            .zip(&lattice.land)
+            .zip(&land)
             .map(|(&c, &land)| if land { river } else { c })
             .collect();
         Ok(WorldTint {
             origin: lo,
             step: TINT_STEP_SQ,
             size,
-            ground: land_colours(&lattice.colours, &lattice.land, size),
+            ground: inner(&filled),
             water,
             strength_q12: DEFAULT_STRENGTH_Q12,
         })
     }
 }
 
+/// Lattice steps a water point's land fill grows.
+const GROW: usize = 4;
+
 /// Ground colours with world water points replaced by the mean of their
-/// land neighbours (grown a few steps, then the lattice's land mean), so a
-/// tactical bank the world draws as water is not tinted blue. A lattice
-/// with no land at all keeps a neutral world shore sand.
+/// land neighbours (grown [`GROW`] steps), so a tactical bank the world
+/// draws as water is not tinted blue. A point no land reaches keeps a
+/// neutral world shore sand (not the lattice's own mean, which depended
+/// on the window).
 fn land_colours(colours: &[[u8; 3]], land: &[bool], (w, h): (usize, usize)) -> Vec<[u8; 3]> {
     let mut out = colours.to_vec();
     let mut known = land.to_vec();
-    for _ in 0..4 {
+    for _ in 0..GROW {
         let (prev, prev_known) = (out.clone(), known.clone());
         for y in 0..h {
             for x in 0..w {
@@ -115,18 +137,7 @@ fn land_colours(colours: &[[u8; 3]], land: &[bool], (w, h): (usize, usize)) -> V
             }
         }
     }
-    let (mut sum, mut n) = ([0_u64; 3], 0_u64);
-    for (c, _) in out.iter().zip(&known).filter(|(_, k)| **k) {
-        for (s, v) in sum.iter_mut().zip(c) {
-            *s += u64::from(*v);
-        }
-        n += 1;
-    }
-    let fallback = if n > 0 {
-        sum.map(|s| u8::try_from(s / n).unwrap_or(255))
-    } else {
-        [220, 201, 154]
-    };
+    let fallback = [220, 201, 154];
     for (c, k) in out.iter_mut().zip(&known) {
         if !k {
             *c = fallback;
