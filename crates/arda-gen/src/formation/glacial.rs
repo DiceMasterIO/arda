@@ -38,6 +38,19 @@ const MORAINE_MM: i64 = 15_000;
 /// # Errors
 /// Allocation failure.
 pub fn trough_lakes(g: &mut Lattice) -> Result<Vec<(i64, i64)>, FormationError> {
+    trough_lakes_recipe(g, false)
+}
+
+/// [`trough_lakes`]; with `v9` (recipe 9, review 3.1-2) the trough floor
+/// follows the pre-glacial valley profile, overdeepened by the trough depth,
+/// instead of a flat slot hung from the moraine lip for up to 30 km, and the
+/// cross-section rises from that floor to the highest ground of each
+/// cross-section (`min(z, floor + (r/R)² (top − floor))`), so the trough
+/// meets the valley sides without a wall at its rim.
+///
+/// # Errors
+/// Allocation failure.
+pub fn trough_lakes_recipe(g: &mut Lattice, v9: bool) -> Result<Vec<(i64, i64)>, FormationError> {
     let (w, h) = (g.width, g.height);
     let n = w * h;
     let d_m = g.spacing_um / 1_000_000;
@@ -120,33 +133,10 @@ pub fn trough_lakes(g: &mut Lattice) -> Result<Vec<(i64, i64)>, FormationError> 
             continue;
         }
         let radius = (half_width_m / d_m.max(1)).max(1);
-        for (k, &p) in path.iter().enumerate() {
-            let s = k as i64;
-            // Along-valley shape: ramps in over the first 15% (behind the
-            // lip) and out over the last 40% (towards the glacier head).
-            let ramp_in = (s * 1000 / (m * 15 / 100).max(1)).min(1000);
-            let ramp_out = ((m - s) * 1000 / (m * 40 / 100).max(1)).min(1000);
-            let along = ramp_in.min(ramp_out);
-            let (px, py) = ((p % w) as i64, (p / w) as i64);
-            for dy in -radius..=radius {
-                for dx in -radius..=radius {
-                    let r2 = dx * dx + dy * dy;
-                    if r2 > radius * radius {
-                        continue;
-                    }
-                    let (x, y) = (px + dx, py + dy);
-                    if x < 1 || y < 1 || x >= w as i64 - 1 || y >= h as i64 - 1 {
-                        continue;
-                    }
-                    let j = (y as usize) * w + x as usize;
-                    // U-shaped cross-section: flat floor, walls near the edge.
-                    let across = 1000 - r2 * r2 * 1000 / (radius * radius * radius * radius);
-                    let floor = lip - depth_mm * along / 1000 * across / 1000;
-                    if i64::from(g.z[j]) > floor && g.z[j] > 0 {
-                        g.z[j] = i32::try_from(floor).unwrap_or(g.z[j]);
-                    }
-                }
-            }
+        if v9 {
+            carve_profiled(g, &path, radius, depth_mm);
+        } else {
+            carve_slot(g, &path, radius, (lip, depth_mm));
         }
         // The trough's sink: its lowest carved cell (lake bed or fjord floor),
         // protected from the drainage guarantees that run after carving.
@@ -186,9 +176,145 @@ pub fn trough_lakes(g: &mut Lattice) -> Result<Vec<(i64, i64)>, FormationError> 
     Ok(sinks)
 }
 
+/// Recipes 6-8 trough carve: a floor `lip − depth·along·across` hung from
+/// the moraine lip (review 3.1-2 keeps it for those recipes).
+fn carve_slot(g: &mut Lattice, path: &[usize], radius: i64, (lip, depth_mm): (i64, i64)) {
+    let (w, h) = (g.width, g.height);
+    let m = path.len() as i64;
+    for (k, &p) in path.iter().enumerate() {
+        let s = k as i64;
+        // Along-valley shape: ramps in over the first 15% (behind the
+        // lip) and out over the last 40% (towards the glacier head).
+        let ramp_in = (s * 1000 / (m * 15 / 100).max(1)).min(1000);
+        let ramp_out = ((m - s) * 1000 / (m * 40 / 100).max(1)).min(1000);
+        let along = ramp_in.min(ramp_out);
+        let (px, py) = ((p % w) as i64, (p / w) as i64);
+        for dy in -radius..=radius {
+            for dx in -radius..=radius {
+                let r2 = dx * dx + dy * dy;
+                if r2 > radius * radius {
+                    continue;
+                }
+                let (x, y) = (px + dx, py + dy);
+                if x < 1 || y < 1 || x >= w as i64 - 1 || y >= h as i64 - 1 {
+                    continue;
+                }
+                let j = (y as usize) * w + x as usize;
+                // U-shaped cross-section: flat floor, walls near the edge.
+                let across = 1000 - r2 * r2 * 1000 / (radius * radius * radius * radius);
+                let floor = lip - depth_mm * along / 1000 * across / 1000;
+                if i64::from(g.z[j]) > floor && g.z[j] > 0 {
+                    g.z[j] = i32::try_from(floor).unwrap_or(g.z[j]);
+                }
+            }
+        }
+    }
+}
+
+/// Cells of the disc of `radius` cells around `p`, with their squared
+/// distance in cells, inside the lattice's one-cell margin.
+fn disc(w: usize, h: usize, p: usize, radius: i64) -> impl Iterator<Item = (usize, i64)> {
+    let (px, py) = ((p % w) as i64, (p / w) as i64);
+    (-radius..=radius).flat_map(move |dy| {
+        (-radius..=radius).filter_map(move |dx| {
+            let r2 = dx * dx + dy * dy;
+            let (x, y) = (px + dx, py + dy);
+            (r2 <= radius * radius && x >= 1 && y >= 1 && x < w as i64 - 1 && y < h as i64 - 1)
+                .then(|| ((y as usize) * w + x as usize, r2))
+        })
+    })
+}
+
+/// Recipe-9 trough carve (see [`trough_lakes_recipe`]).
+fn carve_profiled(g: &mut Lattice, path: &[usize], radius: i64, depth_mm: i64) {
+    let (w, h) = (g.width, g.height);
+    let m = path.len() as i64;
+    // The pre-glacial valley floor and each cross-section's top, read
+    // before this trough lowers anything.
+    let bed: Vec<i64> = path.iter().map(|&p| i64::from(g.z[p])).collect();
+    let top: Vec<i64> = path
+        .iter()
+        .map(|&p| {
+            disc(w, h, p, radius)
+                .map(|(j, _)| i64::from(g.z[j]))
+                .max()
+                .unwrap_or(0)
+        })
+        .collect();
+    for (k, &p) in path.iter().enumerate() {
+        let s = k as i64;
+        let ramp_in = (s * 1000 / (m * 15 / 100).max(1)).min(1000);
+        let ramp_out = ((m - s) * 1000 / (m * 40 / 100).max(1)).min(1000);
+        let floor = bed[k] - depth_mm * ramp_in.min(ramp_out) / 1000;
+        let rise = (top[k] - floor).max(0);
+        for (j, r2) in disc(w, h, p, radius) {
+            let target = floor + rise * r2 / (radius * radius);
+            if i64::from(g.z[j]) > target && g.z[j] > 0 {
+                g.z[j] = i32::try_from(target).unwrap_or(g.z[j]);
+            }
+        }
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    /// The synthetic glacier valley of the test below.
+    fn glacier_valley() -> Lattice {
+        let (w, h) = (97, 241);
+        let mut g = Lattice::new(w, h, 250_000_000).unwrap();
+        for y in 0..h {
+            for x in 0..w {
+                let valley = ((x as i64 - 48).abs() * 30_000) as i32;
+                let fall = (3_600_000 - y as i64 * 16_000) as i32;
+                g.z[y * w + x] = if y >= h - 3 { -50_000 } else { fall + valley };
+            }
+        }
+        g
+    }
+
+    /// Largest height step between 8-neighbours over land, mm.
+    fn max_step(g: &Lattice) -> i64 {
+        let (w, h) = (g.width, g.height);
+        (0..w * h)
+            .filter(|&i| g.z[i] > 0)
+            .flat_map(|i| {
+                (0..8).filter_map(move |k| {
+                    super::super::drainage::neighbour(i, w, h, k)
+                        .filter(|&j| g.z[j] > 0)
+                        .map(|j| (i64::from(g.z[i]) - i64::from(g.z[j])).abs())
+                })
+            })
+            .max()
+            .unwrap_or(0)
+    }
+
+    /// Review 3.1-2: the recipe-7 trough is a flat slot hung from the lip,
+    /// meeting the valley sides in walls hundreds of metres high. Recipe 9
+    /// follows the valley profile and meets the sides smoothly, and still
+    /// leaves a closed basin behind the lip.
+    #[test]
+    fn recipe_9_troughs_have_no_rim_walls() {
+        let before = max_step(&glacier_valley());
+        let mut v7 = glacier_valley();
+        trough_lakes_recipe(&mut v7, false).unwrap();
+        let mut v9 = glacier_valley();
+        let sinks = trough_lakes_recipe(&mut v9, true).unwrap();
+        let (s7, s9) = (max_step(&v7), max_step(&v9));
+        eprintln!("largest step: valley {before} mm, recipe 7 {s7} mm, recipe 9 {s9} mm");
+        assert!(s7 > 200_000, "recipe 7 trough walls: {s7} mm");
+        // U-trough walls stay steep, but no step exceeds about 31° at this
+        // 250 m spacing (150 m per cell), against kilometre-high walls.
+        assert!(s9 < 150_000, "recipe 9 trough sides: {s9} mm");
+        assert!(!sinks.is_empty(), "recipe 9 still carves a basin");
+        let w = v9.width;
+        let deepest = (0..v9.height)
+            .map(|y| v9.z[y * w + 48] - glacier_valley().z[y * w + 48])
+            .min()
+            .unwrap();
+        assert!(deepest < -20_000, "recipe 9 overdeepening {deepest} mm");
+    }
 
     #[test]
     fn a_large_glacier_valley_gets_a_closed_basin_behind_its_lip() {

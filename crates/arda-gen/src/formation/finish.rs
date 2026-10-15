@@ -238,7 +238,7 @@ pub(super) fn run(mut g: Lattice, ctx: Context<'_>) -> Result<Formed, FormationE
     // logic/02 §fine-formation glacial lakes: deliberately closed trough
     // basins. Overlapping carve discs also leave secondary hollows, so the
     // drainage guarantees run again with each trough's sink protected.
-    let troughs = glacial::trough_lakes(&mut g)?;
+    let troughs = glacial::trough_lakes_recipe(&mut g, v9)?;
     // The guarantees run once more, with each trough's sink protected: the
     // fine fill also grades the pockets the sampled pass levelled, which it
     // leaves exactly flat, and the last sampled pass keeps the published
