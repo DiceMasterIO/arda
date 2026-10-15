@@ -71,6 +71,12 @@ pub struct RulesCellDto {
     #[serde(default, skip_serializing_if = "Option::is_none")]
     #[ts(optional)]
     pub deck: Option<bool>,
+    /// The deck's walking level in feet (absolute, 5-ft steps) where a deck
+    /// spans the square; the scene stands creatures there (review 3.6-6).
+    /// Added in 0.9; `ext.deck_elevation_ft` carries the same value.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[ts(optional)]
+    pub deck_elevation_ft: Option<i16>,
     /// Layer extras: `feature`, `road_class`, `deck_elevation_ft` (ways),
     /// `crop`, `field`, `furrow` (fields), `building` (town).
     #[serde(default, skip_serializing_if = "Option::is_none")]

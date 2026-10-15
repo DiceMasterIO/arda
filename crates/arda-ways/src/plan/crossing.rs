@@ -327,9 +327,19 @@ pub(super) fn finish(
     let stone = l.kind == CrossingKind::Bridge
         && (ways[wi].class == RoadClass::Highway
             || (ways[wi].class == RoadClass::Road && ways[wi].wealth >= 80));
+    // The banks as the map draws them when the terrain knows (review
+    // 3.6-6: decks read the coarse surface and stood -40..+95 ft off the
+    // refined banks).
     let bank = |a: i64| {
         let p = from_axes(east_west, (a as f64 + 0.5) * SQUARE_M, across_c);
-        terrain.height_m(p[0], p[1])
+        #[allow(clippy::cast_possible_truncation)] // world squares fit i64
+        let (gx, gy) = (
+            (p[0] / SQUARE_M).floor() as i64,
+            (p[1] / SQUARE_M).floor() as i64,
+        );
+        terrain
+            .play_ft(gx, gy)
+            .map_or_else(|| terrain.height_m(p[0], p[1]), |ft| f64::from(ft) * 0.3048)
     };
     let deck_m = bank(span.0).max(bank(span.1)) + if stone { 0.6 } else { 0.3 };
     let plan = CrossingPlan {

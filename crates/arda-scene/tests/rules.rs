@@ -311,6 +311,9 @@ fn format_2_bridge_deck_and_parapet_follow_the_sidecar() {
     }
     let s = l.scene_with(&r);
     assert_eq!(s.movement_at(Sq(1, 1)), Movement::Normal);
+    // Walked at the deck's level, not on the river bed (review 3.6-6).
+    assert_eq!(s.elevation_ft.0[4], 15);
+    assert_eq!(s.elevation_ft.0[1], 0);
     assert_eq!(s.movement_at(Sq(1, 0)), Movement::Swim);
     assert_eq!(s.path_cost(Sq(0, 1), Sq(2, 1)), Some(10));
     assert!(s.line_of_sight(Sq(1, 0), Sq(1, 2)));

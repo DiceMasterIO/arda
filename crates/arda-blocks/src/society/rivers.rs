@@ -78,6 +78,8 @@ pub struct WaysTerrain<'a> {
     src: &'a dyn Source,
     channels: Vec<arda_ways::RiverChannel>,
     wet: RefCell<BTreeMap<CellKey, bool>>,
+    /// The refined play elevation (decks meet the banks, review 3.6-6).
+    play: RefCell<arda_refine::heights::Heights>,
 }
 
 impl<'a> WaysTerrain<'a> {
@@ -104,6 +106,7 @@ impl<'a> WaysTerrain<'a> {
             src,
             channels,
             wet: RefCell::new(BTreeMap::new()),
+            play: RefCell::new(arda_refine::heights::Heights::new()),
         }
     }
 }
@@ -123,6 +126,10 @@ impl arda_ways::Terrain for WaysTerrain<'_> {
 
     fn river_water(&self, gx: i64, gy: i64) -> bool {
         self.water.is_water(gx, gy)
+    }
+
+    fn play_ft(&self, gx: i64, gy: i64) -> Option<i16> {
+        self.play.borrow_mut().elevation_ft(self.src, gx, gy).ok()
     }
 
     fn wet_ground(&self, gx: i64, gy: i64) -> bool {

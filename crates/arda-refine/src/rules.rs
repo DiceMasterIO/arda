@@ -100,6 +100,7 @@ impl SquareRules {
             lightly_obscured: RulesCell::flag(self.lightly_obscured),
             blocks_movement: None,
             deck: None,
+            deck_elevation_ft: None,
             ext: None,
         }
     }

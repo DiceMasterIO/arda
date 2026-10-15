@@ -223,7 +223,7 @@ impl SquareRules {
             c.set_ext("road_class", rc);
         }
         if let Some(d) = self.deck_elevation_ft {
-            c.set_ext("deck_elevation_ft", serde_json::Value::from(d));
+            c.set_deck_level(d);
         }
         c
     }

@@ -2,7 +2,7 @@
 
 use crate::error::SceneError;
 use crate::rle::Grid;
-use crate::sidecar::RulesSidecar;
+use crate::sidecar::{RulesCell, RulesSidecar};
 use crate::types::{BlockerKind, CoverLevel, Movement, Obscurement, VisionBlocker};
 use arda_tactical::catalog::{Asset, Layer};
 use arda_tactical::compose;
@@ -304,7 +304,20 @@ pub fn derive(
             }
         })
         .collect();
-    let elevation: Vec<i16> = layout.squares.iter().map(|s| s.elevation_ft).collect();
+    // A deck is walked at its own level, not the ground or bed beneath
+    // (review 3.6-6).
+    let elevation: Vec<i16> = layout
+        .squares
+        .iter()
+        .enumerate()
+        .map(|(i, s)| {
+            let deck = rules
+                .and_then(|r| r.squares.get(i))
+                .filter(|_| bridged.get(i).copied().unwrap_or(false))
+                .and_then(RulesCell::deck_level_ft);
+            deck.unwrap_or(s.elevation_ft)
+        })
+        .collect();
     let cliff: Vec<bool> = layout
         .squares
         .iter()

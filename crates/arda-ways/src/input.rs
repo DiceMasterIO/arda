@@ -251,6 +251,15 @@ pub trait Terrain {
         false
     }
 
+    /// The play elevation the map draws at global square `(gx, gy)`, in
+    /// feet, when the caller knows it (the refined terrain): a bridge deck
+    /// is set from it, so the deck meets the banks the map shows (review
+    /// 3.6-6). `None` by default: decks follow [`Terrain::height_m`].
+    fn play_ft(&self, gx: i64, gy: i64) -> Option<i16> {
+        let _ = (gx, gy);
+        None
+    }
+
     /// Whether the ground at global square `(gx, gy)` is wet enough for
     /// water to stand in a ditch (a marsh or low floodplain cell). Dry by
     /// default: ditches then hold no pools.

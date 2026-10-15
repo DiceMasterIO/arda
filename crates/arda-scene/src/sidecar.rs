@@ -130,6 +130,13 @@ pub struct RulesCell {
     /// `true` means it is walked, not waded or swum, whatever the depth.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub deck: Option<bool>,
+    /// The deck's walking level, feet (absolute, 5-ft steps), on a square
+    /// a deck spans: creatures stand here, not on the ground or bed below
+    /// (review 3.6-6). Typed since format 2 grew it; layers also keep the
+    /// `ext.deck_elevation_ft` they wrote before, which the scene reads
+    /// when this is absent.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub deck_elevation_ft: Option<i16>,
     /// Layer-specific extras the scene does not interpret.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub ext: Option<RulesExt>,
@@ -154,6 +161,7 @@ impl RulesCell {
         self.lightly_obscured = upper.lightly_obscured.or(self.lightly_obscured);
         self.blocks_movement = upper.blocks_movement.or(self.blocks_movement);
         self.deck = upper.deck.or(self.deck);
+        self.deck_elevation_ft = upper.deck_elevation_ft.or(self.deck_elevation_ft);
         if let Some(up) = &upper.ext {
             let mine = self.ext.get_or_insert_with(RulesExt::new);
             for (k, v) in up {
@@ -177,6 +185,26 @@ impl RulesCell {
     #[must_use]
     pub fn stated_cover(c: CoverLevel) -> Option<CoverLevel> {
         (c > CoverLevel::None).then_some(c)
+    }
+
+    /// The deck level the cell states: the typed field, else the
+    /// `ext.deck_elevation_ft` older layers wrote.
+    #[must_use]
+    pub fn deck_level_ft(&self) -> Option<i16> {
+        self.deck_elevation_ft.or_else(|| {
+            self.ext
+                .as_ref()?
+                .get("deck_elevation_ft")?
+                .as_i64()
+                .and_then(|v| i16::try_from(v).ok())
+        })
+    }
+
+    /// States a deck's walking level: the typed field and, for readers of
+    /// the untyped extra, `ext.deck_elevation_ft`.
+    pub fn set_deck_level(&mut self, ft: i16) {
+        self.deck_elevation_ft = Some(ft);
+        self.set_ext("deck_elevation_ft", serde_json::Value::from(ft));
     }
 
     /// Sets one `ext` key.

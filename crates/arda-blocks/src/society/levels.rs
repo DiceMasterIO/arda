@@ -148,7 +148,7 @@ pub fn state(
                 }
                 if dock {
                     if let Some(c) = rules.squares.get_mut(i) {
-                        c.set_ext("deck_elevation_ft", serde_json::Value::from(level));
+                        c.set_deck_level(level);
                     }
                 } else if let Some(sq) = part.squares.get_mut(i) {
                     sq.elevation_ft = level;
