@@ -72,8 +72,8 @@
       "headers": {},
       "schema": "AreaCells",
       "body": {
-        "sha256": "f55b7604fd9dcabe0c48eb307a4b581bca88d2b43cd2ad37f5ca7d17e7cb1310",
-        "bytes": 36133585
+        "sha256": "47613bcc0d694dc877e66402072d051ce9755a081b9c60faa932b163ff07c5b6",
+        "bytes": 36134942
       }
     },
     {
@@ -86,7 +86,7 @@
       "headers": {},
       "schema": null,
       "body": {
-        "sha256": "8391eb7466bb6deaa97cc9eaad08029aa0acde28306eb844bed6136180c43a49",
+        "sha256": "f88e14c48a68e3670abb6c39ff15f1c63fb90055dcb4f3985f298ba7473d06da",
         "bytes": 27001292
       }
     },
@@ -121,12 +121,12 @@
       "content_type": "image/png",
       "headers": {
         "cache-control": "no-cache",
-        "etag": "\"4443b1500d3955f1871a15f24033734de25a86d4ac44c70a780484603e6edd32\""
+        "etag": "\"fd56c453561fc391e7deb16862ba0c204ad9cedb0b9f0a7c09795f3d7752df00\""
       },
       "schema": null,
       "body": {
-        "sha256": "9cf660fd0d7c168ffb332e739b1917ffda94a7ac4464ff580ddc82b834492ec2",
-        "bytes": 1945537
+        "sha256": "d3fe7ff4cb832e51009c8d5abcc2f4d45c53a6abf8028bfc1562de6b96282fb9",
+        "bytes": 1947278
       }
     },
     {
@@ -138,12 +138,12 @@
       "content_type": "image/webp",
       "headers": {
         "cache-control": "no-cache",
-        "etag": "\"528583a5a8aadf92588ae8b4a9a25988f92c529c6e93ce9b7222623e7fee7765\""
+        "etag": "\"204a51830c1bb006864b9743b4d0f730c86768182cead3008e9d92f162cc9f2f\""
       },
       "schema": null,
       "body": {
-        "sha256": "f4b7aea54e9f54c59ffe9da56629f51669291f4de79d02855b8e2c68e1445075",
-        "bytes": 45418
+        "sha256": "f76f6452d8dbc695ef55b9d133c9659f0b478def98a33f78feec16805c1a36f6",
+        "bytes": 46020
       }
     },
     {
@@ -155,7 +155,7 @@
       "status": 304,
       "content_type": null,
       "headers": {
-        "etag": "\"528583a5a8aadf92588ae8b4a9a25988f92c529c6e93ce9b7222623e7fee7765\""
+        "etag": "\"204a51830c1bb006864b9743b4d0f730c86768182cead3008e9d92f162cc9f2f\""
       },
       "schema": null,
       "body": {
@@ -172,12 +172,12 @@
       "content_type": "image/webp",
       "headers": {
         "cache-control": "no-cache",
-        "etag": "\"9fd8c5db817464fbfc862aa4a5b968ea75341e5f050c54d73e3bff8b76810726\""
+        "etag": "\"866a223f8b394d44a5b979f035c33d5bcd5bf4577fccea06e8edebea1c9c881a\""
       },
       "schema": null,
       "body": {
-        "sha256": "97062a8515bd475830a322dace82052879b62b852d498c2367aa524e53e877b6",
-        "bytes": 45372
+        "sha256": "ce388ebbad4667b96fea6b921063a126d4fc5358c5509b4e335adc5ed49b3087",
+        "bytes": 45974
       }
     },
     {
@@ -189,12 +189,12 @@
       "content_type": "image/png",
       "headers": {
         "cache-control": "no-cache",
-        "etag": "\"84dfd53500ad99acaf83ffde54247a0ccfcb096e7eb2174860ec0f8a25737683\""
+        "etag": "\"a3912043dc31daa7dcc8a5b036327ac4001328370fa583c0bdaaf285c4356d6a\""
       },
       "schema": null,
       "body": {
-        "sha256": "5356fb2986e591a64a37c7f5988babb8ced33feff7a8c673f707c7eea3ced7e0",
-        "bytes": 59237
+        "sha256": "9d8400b248d8109c424495261facd795c34cde581ea4d4fa8966319ae16c8419",
+        "bytes": 59856
       }
     },
     {
@@ -206,12 +206,12 @@
       "content_type": "image/webp",
       "headers": {
         "cache-control": "no-cache",
-        "etag": "\"85c684eaed55f81707939671c881be5c65a2da8b890f6464358b89221327c375\""
+        "etag": "\"821649e36deefa11c0b3807af30a8962935e4dcc1235d9cff7702f9d78152190\""
       },
       "schema": null,
       "body": {
-        "sha256": "b335e72e5120b062f2527a73d0b6dba7fa92bef78fcefcdf80146cbcafefeaa3",
-        "bytes": 82964
+        "sha256": "da7f99f817014c0ca405444f9a91567f57d62fd85fcfb4a516e275eee3c855ae",
+        "bytes": 78022
       }
     },
     {
@@ -350,12 +350,12 @@
       "content_type": "image/png",
       "headers": {
         "cache-control": "no-cache",
-        "etag": "\"c64dbb9dfc9243bb0b0724867a5808f2\""
+        "etag": "\"ff29b5473ffd17fe758881db0adf5079\""
       },
       "schema": null,
       "body": {
-        "sha256": "f8f5261d08bfb2c52132c4129c779ecf0304da5fe84fa632d68fd225bcb66ed7",
-        "bytes": 33597944
+        "sha256": "f1f66fccd939ae83f344d9833e5e42c889e1f2c447faf4f24df4520e94a4dc78",
+        "bytes": 30461101
       }
     },
     {
@@ -367,7 +367,7 @@
       "status": 304,
       "content_type": null,
       "headers": {
-        "etag": "\"c64dbb9dfc9243bb0b0724867a5808f2\""
+        "etag": "\"ff29b5473ffd17fe758881db0adf5079\""
       },
       "schema": null,
       "body": {
@@ -384,12 +384,12 @@
       "content_type": "image/webp",
       "headers": {
         "cache-control": "no-cache",
-        "etag": "\"c2b110572ab7f962918289a89fe35cd5\""
+        "etag": "\"a17c816b697a2ac8601b3a073dd22118\""
       },
       "schema": null,
       "body": {
-        "sha256": "bf027f5db51e23e21cbd30b6be664bce4f049daf12d7b3c78912b4c3098f297c",
-        "bytes": 415698
+        "sha256": "34d42ae90e3897d56bcc7accaacd501112fd4ff4f68e552b1deb5dad8cbca669",
+        "bytes": 404952
       }
     },
     {
@@ -404,8 +404,8 @@
       },
       "schema": "TacticalBlockDto",
       "body": {
-        "sha256": "e41a3ff47fe1924bd6037282b318986046f9795ee89ae134972db93c2358fac5",
-        "bytes": 1475965
+        "sha256": "9bf5a8ea6e9c38b28e843be4bb3a16a7a284f275e3dac2931711e3a03f1b7ba1",
+        "bytes": 1473601
       }
     },
     {
@@ -417,12 +417,12 @@
       "content_type": "image/png",
       "headers": {
         "cache-control": "no-cache",
-        "etag": "\"38b686dc931e1b2ebe4277e6cd1c2615\""
+        "etag": "\"9b844a5a978ef9885aae7867bcf99fb9\""
       },
       "schema": null,
       "body": {
-        "sha256": "095020c05fd7ad9d28249bb1993324f4b884c157c4ce221b21543c0b67531d54",
-        "bytes": 17353182
+        "sha256": "9998010a71f08bb3a9e2a5718320ef9f214d49cc3a034830369300aeeebd2407",
+        "bytes": 16791999
       }
     },
     {
@@ -434,12 +434,12 @@
       "content_type": "image/webp",
       "headers": {
         "cache-control": "no-cache",
-        "etag": "\"110307e672acb3d93f4e471c208b6068\""
+        "etag": "\"bff4fe09a516f9ec0048f342b4bc68c8\""
       },
       "schema": null,
       "body": {
-        "sha256": "995689fb00e0f84ef1320e7509cbc4cb251e578e7f55da61bfb2b79252c1a489",
-        "bytes": 274304
+        "sha256": "59559524105e36cb173a9278fc3bff5c539a3b79abf41e837e5924001388ae32",
+        "bytes": 271056
       }
     },
     {
