@@ -50,6 +50,10 @@ pub struct TacticalScene {
     pub scene: arda_scene::Scene,
     /// NPC tokens.
     pub tokens: Vec<Token>,
+    /// The release that generated the scene (`server_version`). Added in
+    /// 0.9; absent before.
+    #[serde(default)]
+    pub generator_version: String,
 }
 
 /// Builds the scene of `req` with tokens, from the block the cell body
@@ -83,6 +87,7 @@ pub fn build(
         },
         scene,
         tokens,
+        generator_version: crate::versions::SERVER_VERSION.to_owned(),
     })
 }
 

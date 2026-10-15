@@ -62,6 +62,10 @@ pub struct BakeAccepted {
     pub state: BakeState,
     /// Where to poll: `/v1/tactical/bake/{job_id}`.
     pub status_url: String,
+    /// The release that bakes it (`server_version`); part of the job id.
+    /// Added in 0.9; absent before.
+    #[serde(default)]
+    pub generator_version: String,
 }
 
 /// `GET /v1/tactical/bake/{id}` (TS `BakeStatus`).
@@ -90,6 +94,10 @@ pub struct BakeStatus {
     pub total_bytes: u32,
     /// Why the job failed, when `failed`, else `null`.
     pub error: Option<ApiErrorBody>,
+    /// The release that bakes it (`server_version`); part of the job id.
+    /// Added in 0.9; absent before.
+    #[serde(default)]
+    pub generator_version: String,
 }
 
 /// A checked bake request.
@@ -119,12 +127,14 @@ struct Canonical<'a> {
 }
 
 /// The job id of `req`: the first 32 hex digits of the BLAKE3 hash of the
-/// world seed, the library version and the canonical request JSON.
+/// generator (release) version, the world seed, the library version and
+/// the canonical request JSON, so another release bakes under another id
+/// (review 3.6-12).
 ///
 /// # Errors
 /// [`ServerError::Internal`] if the request cannot be serialised.
 pub fn job_id(
-    world_seed: u64,
+    (generator, world_seed): (&str, u64),
     library_version: &str,
     req: &BakeRequestParsed,
 ) -> ServerResult<String> {
@@ -140,6 +150,8 @@ pub fn job_id(
         .map_err(|e| ServerError::Internal(format!("bake json: {e}")))?;
     let mut h = blake3::Hasher::new();
     h.update(b"arda-server/tactical-bake/v1");
+    h.update(generator.as_bytes());
+    h.update(&[0]);
     h.update(&world_seed.to_le_bytes());
     h.update(library_version.as_bytes());
     h.update(&[0]);
@@ -165,15 +177,17 @@ mod tests {
 
     #[test]
     fn job_ids_are_content_addressed() {
-        let a = job_id(42, "v1", &req("grass")).unwrap();
+        let g = "0.9.0";
+        let a = job_id((g, 42), "v1", &req("grass")).unwrap();
         assert_eq!(a.len(), 32);
         assert!(a.bytes().all(|b| b.is_ascii_hexdigit()));
-        assert_eq!(a, job_id(42, "v1", &req("grass")).unwrap());
-        assert_ne!(a, job_id(43, "v1", &req("grass")).unwrap());
-        assert_ne!(a, job_id(42, "v2", &req("grass")).unwrap());
-        assert_ne!(a, job_id(42, "v1", &req("dirt")).unwrap());
+        assert_eq!(a, job_id((g, 42), "v1", &req("grass")).unwrap());
+        assert_ne!(a, job_id((g, 43), "v1", &req("grass")).unwrap());
+        assert_ne!(a, job_id((g, 42), "v2", &req("grass")).unwrap());
+        assert_ne!(a, job_id((g, 42), "v1", &req("dirt")).unwrap());
+        assert_ne!(a, job_id(("0.9.1", 42), "v1", &req("grass")).unwrap());
         let mut graded = req("grass");
         graded.world_grade = true;
-        assert_ne!(a, job_id(42, "v1", &graded).unwrap());
+        assert_ne!(a, job_id((g, 42), "v1", &graded).unwrap());
     }
 }

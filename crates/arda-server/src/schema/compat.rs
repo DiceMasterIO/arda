@@ -241,6 +241,9 @@ fn node(cx: &mut Cx<'_>, at: &str, old: &Value, new: &Value) {
     properties(cx, at, o, n);
     for key in ["items", "additionalProperties"] {
         match (o.get(key), n.get(key)) {
+            // Opening a closed object only lets more through (review
+            // 3.6-12: response schemas are open).
+            (Some(Value::Bool(false)), None) if key == "additionalProperties" => {}
             (Some(a), Some(b)) => node(cx, &format!("{at}/{key}"), a, b),
             (Some(a), None) => cx.push(at, format!("{key} {a} removed")),
             _ => {}
@@ -468,6 +471,19 @@ mod tests {
         new.versions
             .insert("scene_format".to_owned(), "2".to_owned());
         assert!(unexcused(&old, &new, &open).is_empty());
+    }
+
+    #[test]
+    fn opening_a_closed_object_passes() {
+        let mut old = base();
+        old["additionalProperties"] = json!(false);
+        let open = &crate::versions::is_open;
+        assert!(diff("Body", &old, &base(), open).is_empty());
+        let mut items = base();
+        items["additionalProperties"] = json!({"type": "string"});
+        let mut gone = base();
+        gone["additionalProperties"] = json!(true);
+        assert!(diff("Body", &items, &gone, open).len() == 1);
     }
 
     #[test]

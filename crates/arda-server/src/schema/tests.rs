@@ -240,3 +240,32 @@ fn every_open_enum_exists_and_the_policy_page_lists_it() {
         );
     }
 }
+
+/// Review 3.6-12: a response schema is open (no `additionalProperties:
+/// false` anywhere), so a field added in a minor release, which the
+/// versioning policy calls additive, never fails a strict validator. Only
+/// schemas that are also request bodies stay closed, since the server
+/// refuses unknown fields there.
+#[test]
+fn response_schemas_are_open() {
+    fn closed(v: &Value) -> bool {
+        match v {
+            Value::Object(m) => {
+                m.get("additionalProperties") == Some(&Value::Bool(false)) || m.values().any(closed)
+            }
+            Value::Array(a) => a.iter().any(closed),
+            _ => false,
+        }
+    }
+    for e in catalog().unwrap() {
+        let request = e.routes.iter().any(|r| r.contains("(request)"));
+        assert_eq!(
+            closed(&e.schema),
+            request,
+            "{}: closed {} for routes {:?}",
+            e.name,
+            closed(&e.schema),
+            e.routes
+        );
+    }
+}

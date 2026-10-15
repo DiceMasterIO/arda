@@ -92,6 +92,15 @@ macro_rules! catalog {
                 schema: doc::<$t>($name)?,
             } ),*];
             out.sort_by(|a, b| a.name.cmp(b.name));
+            for e in &mut out {
+                // Responses are open (review 3.6-12): a field added in a
+                // minor release is additive, so no strict validator may
+                // refuse it. Request bodies stay closed: the server refuses
+                // unknown fields there.
+                if !e.routes.iter().any(|r| r.contains("(request)")) {
+                    open_up(&mut e.schema);
+                }
+            }
             Ok(out)
         }
     };
@@ -163,6 +172,20 @@ catalog! {
         ["Gazetteer.features[]", "society/gazetteer.json"];
     "GazetteerPoint" => arda_settle::gazetteer::GazetteerPoint, "gazetteer_format", Stable, ["Gazetteer.features[]"];
     "SchemaIndex" => SchemaIndex, "schema_index_format", Stable, ["GET /v1/schema"];
+}
+
+/// Drops every `additionalProperties: false` in `v`.
+fn open_up(v: &mut Value) {
+    match v {
+        Value::Object(m) => {
+            if m.get("additionalProperties") == Some(&Value::Bool(false)) {
+                m.remove("additionalProperties");
+            }
+            m.values_mut().for_each(open_up);
+        }
+        Value::Array(a) => a.iter_mut().for_each(open_up),
+        _ => {}
+    }
 }
 
 fn pretty(v: &Value) -> ServerResult<String> {

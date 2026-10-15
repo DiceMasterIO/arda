@@ -157,3 +157,15 @@ async fn tokens_stand_once_at_work_by_day_and_never_on_furniture() {
         assert!(!seen.is_empty(), "{time}: no tokens around the town");
     }
 }
+
+/// Review 3.6-12: tactical bodies name the release that generated them,
+/// an additive field.
+#[tokio::test]
+async fn bodies_and_scenes_name_their_generator() {
+    let (gx, gy) = TOWN;
+    let release = arda_server::versions::SERVER_VERSION;
+    let body = ok(&format!("/v1/tactical/cell/{gx}/{gy}")).await;
+    assert_eq!(body["generator_version"], release);
+    let scene = ok(&format!("/v1/tactical/cell/{gx}/{gy}/scene")).await;
+    assert_eq!(scene["generator_version"], release);
+}

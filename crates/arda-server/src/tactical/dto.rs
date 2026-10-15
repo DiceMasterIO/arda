@@ -84,6 +84,11 @@ pub struct TacticalBlockDto {
     pub scene: Option<serde_json::Value>,
     /// Tile pyramid geometry at the requested ppsq.
     pub tiles: TacticalTilesDto,
+    /// The release that generated the body (`server_version`): blocks,
+    /// scenes and images follow the serving build, not the world's
+    /// generator (versioning.md). Added in 0.9; absent before.
+    #[serde(default)]
+    pub generator_version: String,
 }
 
 /// Version of the tactical block envelope (logic/16 §api-versioning).

@@ -249,6 +249,7 @@ impl Tactical {
             meta: block.meta.clone(),
             scene: Some(scene),
             tiles: tiles_dto_sized(block.layout.width, block.layout.height, key.ppsq),
+            generator_version: crate::versions::SERVER_VERSION.to_owned(),
         };
         let bytes =
             serde_json::to_vec(&dto).map_err(|e| ServerError::Internal(format!("json: {e}")))?;

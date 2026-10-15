@@ -154,6 +154,9 @@ async fn an_unedited_bake_equals_the_cell_tiles_and_caches_nothing() {
         json!([i64::from(RIVER.0) * 64, i64::from(RIVER.1) * 64])
     );
     assert!(status["error"].is_null());
+    // Review 3.6-12: which release baked it.
+    let release = arda_server::versions::SERVER_VERSION;
+    assert_eq!(status["generator_version"], release);
     assert_eq!(
         a.tactical.cache_counts(),
         before,
@@ -173,6 +176,7 @@ async fn an_unedited_bake_equals_the_cell_tiles_and_caches_nothing() {
     let again = post(&a, &body(&layout)).await;
     assert_eq!(again.status, StatusCode::OK);
     assert_eq!(again.json()["job_id"], id.as_str());
+    assert_eq!(again.json()["generator_version"], release);
     assert_eq!(again.json()["state"], "done");
     // Determinism: a fresh server bakes the same id and bytes.
     let b = fresh(1);

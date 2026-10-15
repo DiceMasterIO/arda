@@ -76,7 +76,8 @@ async fn submit(
     let (id, parsed) = blocking(Arc::clone(&state), move |s| {
         let t = &s.tactical;
         let parsed = t.check_bake(&request, s.query.cells())?;
-        let id = job_id(t.world_seed(), t.library_version(), &parsed)?;
+        let release = crate::versions::SERVER_VERSION;
+        let id = job_id((release, t.world_seed()), t.library_version(), &parsed)?;
         Ok((id, parsed))
     })
     .await?;

@@ -145,6 +145,7 @@ fn status_of(id: &str, e: &Entry) -> BakeStatus {
         tile_count,
         total_bytes,
         error,
+        generator_version: crate::versions::SERVER_VERSION.to_owned(),
     }
 }
 
@@ -205,6 +206,7 @@ impl Baker {
             status_url: format!("/v1/tactical/bake/{id}"),
             job_id: id,
             state,
+            generator_version: crate::versions::SERVER_VERSION.to_owned(),
         };
         let mut q = self.shared.lock();
         if let Some(e) = q.store.get(&id) {
