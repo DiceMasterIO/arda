@@ -30,6 +30,10 @@ pub const PLAN_CACHE: u64 = 64;
 pub const PLAN_BYTES: u64 = 4 << 20;
 /// Parsed `society/` files are charged at this multiple of their size.
 pub const SOCIETY_FACTOR: u64 = 2;
+/// An indexed `notables.json`'s header line (its index) is charged at
+/// this multiple of its size: parsed, every notable id is a vector entry
+/// and a map entry, about three times its text (assumed).
+pub const NOTABLES_INDEX_FACTOR: u64 = 3;
 /// Shore layers held: two refine-source generations and the relief world.
 pub const SHORE_COPIES: u64 = 3;
 
@@ -72,7 +76,7 @@ impl Resident {
         let plan = largest_plan.map_or(0, |b| b.saturating_mul(2));
         Self {
             library: library_bytes(library),
-            society: dir_bytes(&world_dir.join("society")).saturating_mul(SOCIETY_FACTOR),
+            society: society_bytes(&world_dir.join("society")),
             shore: u64::from(cells.0)
                 * u64::from(cells.1)
                 * std::mem::size_of::<arda_core::ShoreClass>() as u64
@@ -112,6 +116,38 @@ pub fn library_bytes(library: &Library) -> u64 {
     images + textures
 }
 
+/// The parsed `society/` files: each at [`SOCIETY_FACTOR`] times its size,
+/// except an indexed `notables.json` (format 2, read lazily by
+/// `arda_people::Notables`), whose header index is parsed at startup
+/// ([`NOTABLES_INDEX_FACTOR`]) and whose settlement lines are parsed on
+/// first use and then kept, so they stay charged at [`SOCIETY_FACTOR`]
+/// (OI-51).
+fn society_bytes(dir: &Path) -> u64 {
+    let notables = dir.join("notables.json");
+    let all = dir_bytes(dir);
+    let Some(header) = indexed_header(&notables) else {
+        return all.saturating_mul(SOCIETY_FACTOR);
+    };
+    let rest = all.saturating_sub(header);
+    rest.saturating_mul(SOCIETY_FACTOR)
+        .saturating_add(header.saturating_mul(NOTABLES_INDEX_FACTOR))
+}
+
+/// Bytes of the header line of an indexed `notables.json`, newline
+/// included; `None` for a missing file or a format-1 one.
+fn indexed_header(path: &Path) -> Option<u64> {
+    use std::io::BufRead;
+    let file = std::fs::File::open(path).ok()?;
+    let mut line = Vec::new();
+    std::io::BufReader::new(file)
+        .read_until(b'\n', &mut line)
+        .ok()?;
+    let text = std::str::from_utf8(&line).ok()?;
+    text.trim_end()
+        .ends_with("\"settlements\":[")
+        .then(|| u64::try_from(line.len()).unwrap_or(u64::MAX))
+}
+
 fn dir_bytes(dir: &Path) -> u64 {
     std::fs::read_dir(dir).map_or(0, |entries| {
         entries
@@ -133,6 +169,31 @@ mod tests {
         assert!(p >= COMPOSE_SLOTS as u64 * COMPOSE_TRANSIENT_BYTES);
         assert!(p >= refine_source::admitted_bytes() + PLAN_CACHE * PLAN_BYTES);
         assert!(p < 2 << 30, "{p}");
+    }
+
+    #[test]
+    fn the_notables_index_and_its_lines_are_charged_apart() {
+        // OI-51: an indexed `notables.json` holds its parsed header index
+        // from startup and each settlement's line once it is asked for.
+        let lib = Library::load_stack(&std::path::PathBuf::from(concat!(
+            env!("CARGO_MANIFEST_DIR"),
+            "/../../assets/tactical/placeholder"
+        )))
+        .unwrap();
+        let dir = std::env::temp_dir().join(format!("arda-admission-{}", std::process::id()));
+        let soc = dir.join("society");
+        std::fs::create_dir_all(&soc).unwrap();
+        let mut header = "{\"format_version\":2,\"index\":[],\"settlements\":[".to_owned();
+        header.insert_str(1, &" ".repeat(1000 - header.len()));
+        let body = "x".repeat(9000);
+        std::fs::write(soc.join("notables.json"), format!("{header}\n{body}")).unwrap();
+        std::fs::write(soc.join("settlements.json"), "y".repeat(500)).unwrap();
+        let r = Resident::measure(&lib, &dir, (8, 8), None);
+        std::fs::remove_dir_all(&dir).unwrap();
+        assert_eq!(
+            r.society,
+            500 * SOCIETY_FACTOR + 1001 * NOTABLES_INDEX_FACTOR + 9000 * SOCIETY_FACTOR
+        );
     }
 
     #[test]
