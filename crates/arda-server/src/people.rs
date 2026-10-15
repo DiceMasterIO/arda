@@ -109,7 +109,10 @@ pub(crate) async fn npcs(State(state): Shared, path: Segments) -> ServerResult<R
     blocking(state, move |s| {
         let w = people(s)?;
         w.files.settlement(id).map_err(people_error)?;
-        let body = json!({ "settlement_id": id.to_string(), "npcs": w.notables_of(id) });
+        // A stale plan or an unreadable notables line is an error, not an
+        // empty list (review 3.3-5, 3.3-10).
+        let npcs = w.try_notables_of(id).map_err(people_error)?;
+        let body = json!({ "settlement_id": id.to_string(), "npcs": npcs });
         s.npc_response(&body, NpcAt::List("/npcs", None))
     })
     .await

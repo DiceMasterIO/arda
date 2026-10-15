@@ -125,6 +125,12 @@ pub struct Society {
     pub economy: Economy,
     /// History.
     pub history: History,
+    /// The generation stamp id (`arda_settle::stamp::Stamp::id`) of the
+    /// settlement files this society was built from, set by `arda society
+    /// build`; readers refuse a society whose stamp is not the settlement
+    /// files' (review 3.3-4). Absent in older files.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub settle_stamp: Option<String>,
 }
 
 /// Simulates the society of `world` for `seed`. Deterministic: the same
@@ -245,6 +251,7 @@ pub fn simulate_society(seed: u64, world: &WorldSettlements) -> Result<Society, 
         settlements,
         economy: econ.economy,
         history: hist.history,
+        settle_stamp: None,
     })
 }
 

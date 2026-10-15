@@ -23,6 +23,7 @@
 
 pub mod build;
 pub mod files;
+pub mod notables;
 pub mod people;
 pub mod rivers;
 pub mod shared;
@@ -30,7 +31,8 @@ pub mod terrain;
 pub mod town;
 
 pub use build::{build, compute, BuildReport, Built};
-pub use files::{NotablesFile, SocietyFiles, StoredNotable};
+pub use files::{SocietyFiles, StoredNotable};
+pub use notables::{Notables, NotablesFile};
 pub use people::World;
 
 /// Why a settlement product could not be derived.
@@ -68,6 +70,10 @@ pub enum PeopleError {
     /// The settlement stage failed.
     #[error(transparent)]
     Settle(#[from] arda_settle::SettleError),
+    /// A stored file was built from other inputs than the files beside it
+    /// or the world it is served with (review 3.3-4, 3.3-5).
+    #[error("stale: {0}")]
+    Stale(String),
 }
 
 impl PeopleError {

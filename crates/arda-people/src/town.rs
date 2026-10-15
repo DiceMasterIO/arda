@@ -247,6 +247,16 @@ pub fn plan_specs(plan: &TownPlan, population: u32, wealth: u8) -> Vec<arda_npc:
     out
 }
 
+/// Fingerprint of the buildings a settlement's notables are generated in:
+/// 32 hex digits of a digest of their specs (ids, functions, capacities,
+/// slots, wealth). `arda society build` stores it beside the notables; a
+/// plan the server draws again must give the same (review 3.3-5).
+#[must_use]
+pub fn fingerprint(specs: &[arda_npc::BuildingSpec]) -> String {
+    let bytes = serde_json::to_vec(specs).unwrap_or_default();
+    arda_settle::stamp::hex(&arda_ids::hash::digest(&[&bytes]))
+}
+
 fn pad_housing(out: &mut Vec<arda_npc::BuildingSpec>, population: u32, site: u64, wealth: u8) {
     let capacity = arda_town::plan::spec::capacity(arda_town::BuildingFunction::Cottage);
     let mut housed: u64 = out.iter().map(|b| u64::from(b.capacity)).sum();

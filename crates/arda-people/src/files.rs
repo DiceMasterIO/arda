@@ -10,8 +10,8 @@ use serde::{Deserialize, Serialize};
 use std::collections::BTreeMap;
 use std::path::{Path, PathBuf};
 
-/// Version of `notables.json`.
-pub const NOTABLES_FORMAT: u32 = 1;
+pub use crate::notables::{NotablesFile, NOTABLES_FORMAT};
+
 /// The society simulation's output, written by `arda society build`.
 pub const SOCIETY_FILE: &str = "society.json";
 /// The stored notables, written by `arda society build`.
@@ -26,19 +26,13 @@ pub struct StoredNotable {
     /// Where its buildings came from: `plan` (arda-town) or `mix` (the
     /// settlement's estimated building mix).
     pub buildings: String,
+    /// Fingerprint of the plan buildings the notables were generated in
+    /// (`town::fingerprint`), so a plan the server draws again can be
+    /// checked against them (review 3.3-5); `None` for `mix`.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub plan_fingerprint: Option<String>,
     /// The notables, in id order.
     pub npcs: Vec<Npc>,
-}
-
-/// `notables.json`.
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
-pub struct NotablesFile {
-    /// Format version.
-    pub format_version: u32,
-    /// World seed, a decimal string.
-    pub seed: String,
-    /// Per settlement, in settlement order.
-    pub settlements: Vec<StoredNotable>,
 }
 
 /// Everything read from `<world>/society/`.

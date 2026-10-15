@@ -40,6 +40,7 @@ pub mod roads;
 pub mod route;
 pub mod seats;
 pub mod snap;
+pub mod stamp;
 pub mod stats;
 pub mod suitability;
 pub mod synthetic;
@@ -57,7 +58,8 @@ use std::path::{Path, PathBuf};
 /// Directory under the world that holds this stage's files.
 pub const SOCIETY_DIR: &str = "society";
 
-/// Every society file as `(name, bytes)`, in write order.
+/// Every society file as `(name, bytes)`, in write order, stamped as a run
+/// over a bare grid ([`stamp::Provenance::detached`]).
 ///
 /// # Errors
 /// Serialisation errors.
@@ -67,22 +69,35 @@ pub fn encode(
     seed: u64,
     s: &Society,
 ) -> Result<Vec<(&'static str, Vec<u8>)>, SettleError> {
+    encode_stamped(dir, g, s, &stamp::Provenance::detached(seed))
+}
+
+/// Every society file as `(name, bytes)`, in write order, with the
+/// generation stamp of `prov` in `settlements.json` (review 3.3-4).
+///
+/// # Errors
+/// Serialisation errors.
+pub fn encode_stamped(
+    dir: &Path,
+    g: &Grid,
+    s: &Society,
+    prov: &stamp::Provenance,
+) -> Result<Vec<(&'static str, Vec<u8>)>, SettleError> {
     let v = output::FORMAT_VERSION;
     let at = |name: &str| dir.join(name);
     let (w, h) = (g.width, g.height);
-    Ok(vec![
+    let mut settlements = output::SettlementsFile {
+        format_version: v,
+        seed: prov.seed,
+        width_cells: num::u32_of(g.width),
+        height_cells: num::u32_of(g.height),
+        settlements: s.settlements.clone(),
+        stamp: None,
+    };
+    let mut files = vec![
         (
             "settlements.json",
-            output::json_bytes(
-                &at("settlements.json"),
-                &output::SettlementsFile {
-                    format_version: v,
-                    seed,
-                    width_cells: num::u32_of(g.width),
-                    height_cells: num::u32_of(g.height),
-                    settlements: s.settlements.clone(),
-                },
-            )?,
+            output::json_bytes(&at("settlements.json"), &settlements)?,
         ),
         (
             "roads.json",
@@ -144,10 +159,15 @@ pub fn encode(
             "stats.json",
             output::json_bytes(&at("stats.json"), &s.stats)?,
         ),
-    ])
+    ];
+    let parts: Vec<&[u8]> = files.iter().map(|(_, b)| b.as_slice()).collect();
+    settlements.stamp = Some(prov.stamp(&parts));
+    files[0].1 = output::json_bytes(&at("settlements.json"), &settlements)?;
+    Ok(files)
 }
 
-/// Writes every society file into `dir` (created if missing).
+/// Writes every society file into `dir` (created if missing), stamped as a
+/// run over a bare grid.
 ///
 /// Every file is encoded before the first is written, so a failure while
 /// encoding (an allocation refused on a large world) leaves `dir` as it
@@ -156,7 +176,20 @@ pub fn encode(
 /// # Errors
 /// I/O and serialisation errors.
 pub fn write(dir: &Path, g: &Grid, seed: u64, s: &Society) -> Result<(), SettleError> {
-    let files = encode(dir, g, seed, s)?;
+    write_stamped(dir, g, s, &stamp::Provenance::detached(seed))
+}
+
+/// [`write`] with the generation stamp of `prov`.
+///
+/// # Errors
+/// I/O and serialisation errors.
+pub fn write_stamped(
+    dir: &Path,
+    g: &Grid,
+    s: &Society,
+    prov: &stamp::Provenance,
+) -> Result<(), SettleError> {
+    let files = encode_stamped(dir, g, s, prov)?;
     std::fs::create_dir_all(dir).map_err(|e| SettleError::io(dir, e))?;
     for (name, bytes) in files {
         let path = dir.join(name);
@@ -179,6 +212,8 @@ pub fn generate(world_dir: &Path, budget: u64) -> Result<(Society, PathBuf), Set
     };
     let society = run(&g, params)?;
     let dir = world_dir.join(SOCIETY_DIR);
-    write(&dir, &g, params.seed, &society)?;
+    let prov = stamp::Provenance::of_world(&world, world_dir)
+        .map_err(|e| SettleError::io(&world_dir.join("world.json"), e))?;
+    write_stamped(&dir, &g, &society, &prov)?;
     Ok((society, dir))
 }

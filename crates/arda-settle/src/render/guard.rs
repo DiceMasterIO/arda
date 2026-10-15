@@ -88,6 +88,7 @@ mod tests {
                 width_cells: 10,
                 height_cells: 10,
                 settlements: vec![],
+                stamp: None,
             },
             roads: RoadsFile {
                 format_version: 1,

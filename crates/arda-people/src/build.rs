@@ -2,9 +2,8 @@
 //! with the plan buildings as its explicit buildings (A14), and stores the
 //! notables of every settlement (goal 56: only notables are stored).
 
-use crate::files::{
-    self, NotablesFile, StoredNotable, NOTABLES_FILE, NOTABLES_FORMAT, SOCIETY_FILE,
-};
+use crate::files::{StoredNotable, NOTABLES_FILE, NOTABLES_FORMAT, SOCIETY_FILE};
+use crate::notables::NotablesFile;
 use crate::people::{slot, BuildingSource};
 use crate::shared::SharedSource;
 use crate::{town, PeopleError};
@@ -46,7 +45,9 @@ pub fn build(world_dir: &Path) -> Result<BuildReport, PeopleError> {
     let built = compute(world_dir)?;
     let dir = world_dir.join("society");
     arda_society::output::write_json(&built.society, &dir.join(SOCIETY_FILE))?;
-    files::write(&dir.join(NOTABLES_FILE), &built.notables)?;
+    let path = dir.join(NOTABLES_FILE);
+    let bytes = crate::notables::encode(&path, &built.notables)?;
+    std::fs::write(&path, bytes).map_err(|e| PeopleError::io(&path, e))?;
     Ok(built.report)
 }
 
@@ -75,7 +76,10 @@ pub fn compute(world_dir: &Path) -> Result<Built, PeopleError> {
     }
     let mut world = WorldSettlements::read_dir(&dir)?;
     world.buildings = explicit;
-    let society = arda_society::simulate_society(seed, &world)?;
+    let mut society = arda_society::simulate_society(seed, &world)?;
+    // The settlement files this society belongs to (review 3.3-4).
+    let stamp = files.settlements.stamp.as_ref().map(|s| s.id.clone());
+    society.settle_stamp.clone_from(&stamp);
     let mut stored = Vec::with_capacity(report.settlements);
     for ((s, record), (plan, soc)) in files
         .settlements
@@ -88,6 +92,8 @@ pub fn compute(world_dir: &Path) -> Result<Built, PeopleError> {
             Some(b) => (b, BuildingSource::Plan),
             None => (town::mix_specs(s, &soc.buildings), BuildingSource::Mix),
         };
+        let plan_fingerprint =
+            (source == BuildingSource::Plan).then(|| town::fingerprint(&buildings));
         let profile: arda_npc::SettlementProfile = serde_json::from_value(record.clone())
             .map_err(|e| PeopleError::format(&dir.join("settlements.json"), e))?;
         let slots: Vec<_> = soc.roles.iter().map(slot).collect();
@@ -97,6 +103,7 @@ pub fn compute(world_dir: &Path) -> Result<Built, PeopleError> {
         stored.push(StoredNotable {
             settlement_id: s.id,
             buildings: source.key().to_string(),
+            plan_fingerprint,
             npcs: pop.npcs,
         });
     }
@@ -106,6 +113,8 @@ pub fn compute(world_dir: &Path) -> Result<Built, PeopleError> {
         notables: NotablesFile {
             format_version: NOTABLES_FORMAT,
             seed: seed.to_string(),
+            settle_stamp: stamp,
+            index: Vec::new(),
             settlements: stored,
         },
     })

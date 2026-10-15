@@ -38,6 +38,10 @@ pub struct SettlementsFile {
     pub height_cells: u32,
     /// Settlements by id.
     pub settlements: Vec<Settlement>,
+    /// Which world and code this run settled from (review 3.3-4); absent in
+    /// files written before stamps existed.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub stamp: Option<crate::stamp::Stamp>,
 }
 
 /// `roads.json`.
