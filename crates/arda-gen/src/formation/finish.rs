@@ -91,7 +91,12 @@ pub(super) fn run(mut g: Lattice, ctx: Context<'_>) -> Result<Formed, FormationE
         }
         // logic/02 §fine-formation terraces: lowland terraces, bluffs and
         // flat interfluves on the infilled coastal lowland.
-        terrace::apply(&mut g, &relief_q8, base_seed ^ 0x7E44_0000)?;
+        terrace::apply_recipe(
+            &mut g,
+            &relief_q8,
+            base_seed ^ 0x7E44_0000,
+            view.recipe >= super::Recipe::V9,
+        )?;
         // logic/02 §fine-formation bathymetry: passive shelves shallow
         // toward the margin profile, seen through the same macro warp.
         let shelf_view = MacroView {

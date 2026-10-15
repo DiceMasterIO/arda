@@ -106,6 +106,28 @@ fn flood_depth_mm(km2: u64) -> i64 {
 /// # Errors
 /// Allocation failure.
 pub fn apply(g: &mut Lattice, relief_q8: &[u8], seed: u64) -> Result<usize, FormationError> {
+    apply_recipe(g, relief_q8, seed, false)
+}
+
+/// Smoothing radius of the recipe-9 interfluve compression, metres.
+const PLAIN_SMOOTH_M: i64 = 625;
+
+/// [`apply`]; with `v9` (recipe 9, review 3.1-9) the interfluve
+/// compression above the bluff is smoothed over [`PLAIN_SMOOTH_M`] rather
+/// than ~80 m. It is measured against each cell's own river, so two cells
+/// either side of a divide whose rivers lie at different heights are
+/// compressed by different amounts: 55% of the river height difference,
+/// a scarp along every divide. The terrace staircase itself keeps the
+/// short smoothing.
+///
+/// # Errors
+/// Allocation failure.
+pub fn apply_recipe(
+    g: &mut Lattice,
+    relief_q8: &[u8],
+    seed: u64,
+    v9: bool,
+) -> Result<usize, FormationError> {
     let (w, h) = (g.width, g.height);
     let n = w * h;
     let flow = super::flow::route(g)?;
@@ -142,6 +164,8 @@ pub fn apply(g: &mut Lattice, relief_q8: &[u8], seed: u64) -> Result<usize, Form
     let area = flow.area;
     let base = g.z.clone();
     let mut delta: Vec<i32> = alloc(n)?;
+    // Recipe 9: the interfluve compression part of `delta`.
+    let mut plain: Vec<i32> = if v9 { alloc(n)? } else { Vec::new() };
     for i in 0..n {
         let c = chan[i] as usize;
         if c == i || u64::from(area[c]) < min_cells || base[c] < MIN_RIVER_MM {
@@ -180,6 +204,13 @@ pub fn apply(g: &mut Lattice, relief_q8: &[u8], seed: u64) -> Result<usize, Form
             / 10_000;
         let mapped = staircase(hand + shift, d, steps) - shift;
         delta[i] = i32::try_from((mapped - hand) * lowland / 256).unwrap_or(0);
+        if v9 {
+            let top = d * BASE_D_Q8 / 256 + (d * STEP_D_Q8 / 256).max(1) * steps;
+            let above = (hand + shift - top).max(0);
+            let squeeze = -above * (4_096 - PLAIN_KEEP_Q12) / 4_096 * lowland / 256;
+            plain[i] = i32::try_from(squeeze).unwrap_or(0);
+            delta[i] -= plain[i];
+        }
     }
     drop(chan);
     drop(area);
@@ -193,6 +224,15 @@ pub fn apply(g: &mut Lattice, relief_q8: &[u8], seed: u64) -> Result<usize, Form
         .max(1);
     let (mut tmp, mut smooth) = (alloc(n)?, alloc(n)?);
     blur_into(&delta, w, h, r, &mut tmp, &mut smooth);
+    if v9 {
+        let wide = usize::try_from(PLAIN_SMOOTH_M * 1_000_000 / g.spacing_um)
+            .unwrap_or(1)
+            .max(1);
+        blur_into(&plain, w, h, wide, &mut tmp, &mut delta);
+        for (s, &p) in smooth.iter_mut().zip(&delta) {
+            *s += p;
+        }
+    }
     drop(tmp);
     let mut changed = 0;
     for ((z, &b), &dz) in g.z.iter_mut().zip(&base).zip(&smooth) {
@@ -282,6 +322,53 @@ mod tests {
             }
         }
         assert!(pits * 100 < w * h, "{pits} pits");
+    }
+
+    /// Two lowland valleys whose rivers lie 28-50 m apart in height, east to
+    /// the sea, meeting at a divide.
+    fn valleys_at_two_heights() -> Lattice {
+        let (w, h) = (512, 256);
+        let mut g = Lattice::new(w, h, 39_062_500).unwrap();
+        for y in 0..h {
+            for x in 0..w {
+                let run = (w - 1 - x) as i64;
+                let a = 2_000 + 10 * run + 300 * (y as i64 - 40).abs();
+                let b = 30_000 + 40 * run + 300 * (y as i64 - 216).abs();
+                g.z[y * w + x] = if x + 1 == w {
+                    -5_000
+                } else {
+                    i32::try_from(a.min(b)).unwrap()
+                };
+            }
+        }
+        g
+    }
+
+    /// Largest step between vertical neighbours, mm, inland of the coast.
+    fn max_row_step(g: &Lattice) -> i64 {
+        let w = g.width;
+        (1..g.height)
+            .flat_map(|y| (0..w - 4).map(move |x| (x, y)))
+            .map(|(x, y)| (i64::from(g.z[y * w + x]) - i64::from(g.z[(y - 1) * w + x])).abs())
+            .max()
+            .unwrap()
+    }
+
+    /// Review 3.1-9: compressing each interfluve against its own river
+    /// leaves a scarp along the divide between valleys at different
+    /// heights. Recipe 9 smooths the compression across the divide.
+    #[test]
+    fn recipe_9_terraces_leave_no_scarp_along_divides() {
+        let before = max_row_step(&valleys_at_two_heights());
+        let lowland = vec![0_u8; 512 * 256];
+        let mut v7 = valleys_at_two_heights();
+        apply_recipe(&mut v7, &lowland, 5, false).unwrap();
+        let mut v9 = valleys_at_two_heights();
+        apply_recipe(&mut v9, &lowland, 5, true).unwrap();
+        let (s7, s9) = (max_row_step(&v7), max_row_step(&v9));
+        eprintln!("largest cross-valley step: before {before}, recipe 7 {s7}, recipe 9 {s9} mm");
+        assert!(s7 > 3 * before, "recipe 7 scarp at the divide: {s7} mm");
+        assert!(s9 * 3 < s7, "recipe 9 divide: {s9} mm");
     }
 
     #[test]
