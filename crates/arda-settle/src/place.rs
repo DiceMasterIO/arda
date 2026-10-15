@@ -2,9 +2,10 @@
 //! people settle").
 //!
 //! Population is the region's density times its land. Three tenths live in
-//! towns sized by the rank-size rule, just under half in villages of a few
-//! hundred, the rest in hamlets. Placement is greedy, best site first, within
-//! each tier, with the artifact's spacing disks.
+//! towns (as many as the rank-size rule fills, sized by hinterland and
+//! site in `townsize.rs`), just under half in villages of a few hundred,
+//! the rest in hamlets. Placement is greedy, best site first, within each
+//! tier, with the artifact's spacing disks.
 
 use crate::central;
 use crate::error::SettleError;
@@ -53,6 +54,23 @@ pub struct Placement {
     pub target_population: u64,
     /// People the site list could not house.
     pub unplaced: u64,
+    /// The rank-size head `P_urban / H_n`: a town's standing as a seat is
+    /// `head / rank` in site-score order (`seats::choose_by`), whatever
+    /// its hinterland makes of its size.
+    pub head: u64,
+}
+
+impl Placement {
+    /// A town's standing as a seat: [`Placement::head`] over its rank in
+    /// site-score order (0 for villages and hamlets).
+    #[must_use]
+    pub fn standing(&self, s: &Settlement) -> u64 {
+        if s.rank == 0 {
+            0
+        } else {
+            self.head / u64::from(s.rank)
+        }
+    }
 }
 
 /// Harmonic number H(n) in millionths.
@@ -186,25 +204,31 @@ pub fn place(
     let urban = target * URBAN_PM / 1000;
     let villages = target * VILLAGE_PM / 1000;
     let hamlets = target - urban - villages;
-    let (towns, p1) = rank_size(urban);
+    let (towns, head) = rank_size(urban);
 
     let mut out: Vec<Settlement> = Vec::new();
     let mut buckets = Buckets::new(g.width);
     let mut placed_people = 0_u64;
-    // Towns by central-place logic (`central.rs`), best site first, so the
-    // first is the largest.
+    // Towns by central-place logic (`central.rs`), best site first. The
+    // rank-size rule gives only how many towns the urban people fill; their
+    // sizes come from their hinterlands and sites once the villages and
+    // hamlets stand (`townsize.rs`; review 3.3-12).
     for (k, t) in central::place_towns(g, sites, suit, p.seed, towns)?
         .into_iter()
         .enumerate()
     {
         let rank = u64::try_from(k + 1).unwrap_or(u64::MAX);
-        let pop = u32::try_from(p1 / rank).unwrap_or(u32::MAX);
-        let tier = Tier::of_town(pop);
         let (x, y) = g.xy(t.cell);
-        placed_people += u64::from(pop);
-        buckets.add(x, y, tier);
+        buckets.add(x, y, Tier::Town);
         out.push(new_settlement(
-            g, sites, t.cell, tier, pop, t.score, rank, 0,
+            g,
+            sites,
+            t.cell,
+            Tier::Town,
+            TOWN_MIN,
+            t.score,
+            rank,
+            0,
         ));
     }
     for (tier_ix, budget) in [(1_usize, villages), (2, hamlets)] {
@@ -276,6 +300,12 @@ pub fn place(
         }
         placed_people += used;
     }
+    crate::townsize::size(&mut out, urban);
+    placed_people += out
+        .iter()
+        .filter(|s| s.tier.is_urban())
+        .map(|s| u64::from(s.population))
+        .sum::<u64>();
     for (n, s) in out.iter_mut().enumerate() {
         s.id = arda_ids::SettlementId(u64::try_from(n + 1).unwrap_or(0));
     }
@@ -283,6 +313,7 @@ pub fn place(
         settlements: out,
         target_population: target,
         unplaced: target.saturating_sub(placed_people),
+        head,
     })
 }
 

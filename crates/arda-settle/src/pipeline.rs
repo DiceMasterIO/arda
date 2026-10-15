@@ -58,18 +58,28 @@ pub fn run(g: &Grid, params: PlaceParams) -> Result<Society, SettleError> {
     let sites = tags::compute(g, seed)?;
     let suit = suitability::compute(g, &sites)?;
     let placement = place::place(g, &sites, &suit, params)?;
-    let mut settlements = placement.settlements;
+    let mut settlements = placement.settlements.clone();
     // Realm seats and primate capitals come before land use, so fields and
     // roads serve the final populations (logic/08 §realm-seats).
     let urban = settlements.iter().filter(|s| s.tier.is_urban()).count();
     let people: u64 = settlements.iter().map(|s| u64::from(s.population)).sum();
     let habitable = u64::try_from(suit.score.iter().filter(|&&v| v > 0).count()).unwrap_or(0);
     let lat = Lattice::new(g.width, g.height, |i| g.is_land(i), |i| g.height_mm[i]);
-    let seat_list = seats::choose(
-        &lat,
-        &settlements,
-        seats::seat_count(people, habitable, urban),
-    );
+    // Seats are chosen by the towns' standing (their site-score rank on
+    // the rank-size head), as if every town held what its standing gives
+    // it; the sizes their hinterlands gave them come into play after.
+    let standing: Vec<Settlement> = settlements
+        .iter()
+        .map(|s| {
+            let mut v = s.clone();
+            if v.tier.is_urban() {
+                v.population = u32::try_from(placement.standing(s)).unwrap_or(u32::MAX);
+            }
+            v
+        })
+        .collect();
+    let seat_list = seats::choose(&lat, &standing, seats::seat_count(people, habitable, urban));
+    drop(standing);
     drop(lat);
     // The final partition comes first, over the terrain alone, so the
     // primate capitals and the city cap size every town by the realm it

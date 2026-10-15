@@ -44,6 +44,7 @@ pub mod stats;
 pub mod suitability;
 pub mod synthetic;
 pub mod tags;
+pub mod townsize;
 pub mod trunk;
 
 pub use error::SettleError;

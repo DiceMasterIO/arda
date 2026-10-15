@@ -150,14 +150,18 @@ fn towns_keep_their_distance_and_follow_rank_size() {
         }
     }
     let st = &f.society.stats;
+    // Town sizes are an outcome of hinterland and site, not a rank-size
+    // formula (review 3.3-12). This small world has five towns and two
+    // realms, so two primate capitals of 8,000 stand over three market
+    // towns of about 1,200: a steep, primate-bent list. The full rank-size
+    // band (logic/08 Invariants 4) is checked on MICRO worlds
+    // (`realms_micro.rs`); here the list must fall clearly and fit a line.
     assert!(
-        (-1.1..=-0.9).contains(&st.rank_size_slope),
+        (-1.6..=-0.6).contains(&st.rank_size_slope),
         "{}",
         st.rank_size_slope
     );
-    // Primate capitals (one city per realm, `primacy.rs`) bend the top of
-    // the list, so the fit is looser than a pure rank-size list's.
-    assert!(st.rank_size_r2 > 0.8, "{}", st.rank_size_r2);
+    assert!(st.rank_size_r2 > 0.7, "{}", st.rank_size_r2);
     let hamlets = st.count_by_tier["hamlet"];
     let villages = st.count_by_tier["village"];
     assert!(hamlets > villages && villages > towns.len() as u64);

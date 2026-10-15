@@ -1,16 +1,15 @@
-//! Primate capitals: rank-size within each realm (`logic/08` §settle-tiers,
-//! §realm-seats; goal 35 "one or two cities per realm").
+//! Primate capitals (`logic/08` §settle-tiers, §realm-seats; goal 35 "one
+//! or two cities per realm").
 //!
-//! A realm keeps the townspeople its towns were placed with, `U`. Within
-//! the realm the towns follow the rank-size rule with the seat first: the
-//! town of rank `r` holds `h / r` with `h = U / H_n`. A capital draws
-//! court, garrison and trade beyond what the rule gives it (Jefferson's
-//! primate city), so it holds at least a city's population, [`CITY_MIN`];
-//! the court's trade lifts the realm's other towns a little too
-//! ([`court_head`]). The people they draw come from the realm's villages
-//! and hamlets, which shrink in proportion but never below their tier's
-//! floor. No town falls below [`TOWN_MIN`]. Because each realm's list is a rank-size list, the union
-//! over the land still fits the rule (logic/08 Invariants 4).
+//! Towns come out of placement sized by their hinterlands and sites
+//! (`townsize.rs`). A capital draws court, garrison and trade beyond that
+//! (Jefferson's primate city), so it holds at least a city's population,
+//! [`CITY_MIN`]; the court's trade lifts the realm's other towns a little
+//! too ([`court_head`]), keeping their order. The people they draw come
+//! from the realm's villages and hamlets, which shrink in proportion but
+//! never below their tier's floor. No town falls below [`TOWN_MIN`]. No
+//! rank-size list is imposed, so the rank-size check over the land
+//! (logic/08 Invariants 4) tests the outcome (review 3.3-12).
 //!
 //! A realm too small to feed a city (fewer than half of
 //! [`PEOPLE_PER_REALM`](crate::seats::PEOPLE_PER_REALM) people) keeps its
@@ -30,26 +29,16 @@ use crate::seats::PEOPLE_PER_REALM;
 /// At most this many cities per realm (goal 35).
 pub const MAX_CITIES: usize = 2;
 
-/// Harmonic number H(n) in millionths.
-fn harmonic_micro(n: u64) -> u64 {
-    (1..=n).map(|k| 1_000_000 / k).sum()
-}
-
-/// The rank-size head of a realm's towns once its capital has grown into
-/// a city: the court's trade lifts the other towns by the fourth root of
-/// the capital's growth (an elasticity of ¼, assumed, tunable), so the
-/// realm's list keeps its shape below a primate capital and the union over
-/// the land keeps a rank-size slope near −1.
-fn court_head(head: u64) -> u64 {
-    let cap = u64::from(CITY_MIN);
-    if head == 0 || head >= cap {
-        return head;
+/// A town of `old` people in a realm whose capital grew from `was` to
+/// `now`: the court's trade lifts it by the fourth root of the capital's
+/// growth, `old · (now / was)^¼` (an elasticity of ¼, assumed, tunable).
+fn court_head(old: u64, was: u64, now: u64) -> u64 {
+    if was == 0 || now <= was {
+        return old;
     }
-    let h = u128::from(head);
-    let v = h * h * h * u128::from(cap);
-    u64::try_from(isqrt128(isqrt128(v)))
-        .unwrap_or(head)
-        .max(head)
+    let o = u128::from(old);
+    let v = o * o * o * o * u128::from(now) / u128::from(was);
+    u64::try_from(isqrt128(isqrt128(v))).unwrap_or(old).max(old)
 }
 
 fn isqrt128(v: u128) -> u128 {
@@ -120,57 +109,58 @@ fn rescale_rural(settlements: &mut [Settlement], members: &[usize], want: u64) {
     }
 }
 
-/// Resizes towns and rural settlements realm by realm. `realm_of[k]` is the
+/// Grows each realm's seat into a primate capital. `realm_of[k]` is the
 /// seat slot settlement `k` swears to and `seats[slot]` the seat's index.
+///
+/// The seat first trades places with any larger town of its realm (the
+/// court draws the realm's first town); it then holds at least
+/// [`CITY_MIN`], and when it grows by a factor `f` the realm's other towns
+/// grow by `f^¼` ([`court_head`]). Their order and relative sizes, which
+/// came from their hinterlands and sites (`townsize.rs`), are kept: no
+/// rank-size list is imposed (review 3.3-12). The people come from the
+/// realm's villages and hamlets.
 pub fn apply(settlements: &mut [Settlement], seats: &[usize], realm_of: &[usize]) {
     for (slot, &seat) in seats.iter().enumerate() {
-        if !settlements[seat].tier.is_urban() {
-            continue;
-        }
         let members: Vec<usize> = (0..settlements.len())
             .filter(|&k| realm_of[k] == slot)
             .collect();
+        seat_first(settlements, seat, &members);
+        if !settlements[seat].tier.is_urban() {
+            continue;
+        }
         let people: u64 = members
             .iter()
             .map(|&k| u64::from(settlements[k].population))
             .sum();
         if people < PEOPLE_PER_REALM / 2 {
-            seat_first(settlements, seat, &members);
             continue;
         }
-        let mut towns: Vec<usize> = members
+        let was = u64::from(settlements[seat].population).max(1);
+        let now = was.max(u64::from(CITY_MIN));
+        let towns: Vec<usize> = members
             .iter()
             .copied()
             .filter(|&k| k != seat && settlements[k].tier.is_urban())
             .collect();
-        towns.sort_by(|&a, &b| {
-            settlements[b]
-                .population
-                .cmp(&settlements[a].population)
-                .then(settlements[a].id.cmp(&settlements[b].id))
-        });
-        towns.insert(0, seat);
-        let urban: u64 = towns
-            .iter()
-            .map(|&k| u64::from(settlements[k].population))
-            .sum();
-        let n = u64::try_from(towns.len()).unwrap_or(1);
-        let head = court_head(urban * 1_000_000 / harmonic_micro(n).max(1));
-        let mut placed = 0_u64;
-        for (r, &k) in towns.iter().enumerate() {
-            let rank = u64::try_from(r + 1).unwrap_or(1);
-            let floor = if r == 0 { CITY_MIN } else { TOWN_MIN };
-            let pop = u32::try_from(head / rank).unwrap_or(u32::MAX).max(floor);
-            settlements[k].population = pop;
-            settlements[k].tier = Tier::of_town(pop);
-            placed += u64::from(pop);
+        let mut urban = now;
+        settlements[seat].population = u32::try_from(now).unwrap_or(u32::MAX);
+        settlements[seat].tier = Tier::of_town(settlements[seat].population);
+        for &k in &towns {
+            let old = u64::from(settlements[k].population);
+            // old · (now / was)^¼, kept below the seat.
+            let grown = court_head(old, was, now)
+                .min(now - 1)
+                .max(u64::from(TOWN_MIN));
+            settlements[k].population = u32::try_from(grown).unwrap_or(u32::MAX);
+            settlements[k].tier = Tier::of_town(settlements[k].population);
+            urban += grown;
         }
         let rural: Vec<usize> = members
             .iter()
             .copied()
             .filter(|&k| !settlements[k].tier.is_urban())
             .collect();
-        rescale_rural(settlements, &rural, people.saturating_sub(placed));
+        rescale_rural(settlements, &rural, people.saturating_sub(urban));
     }
     rerank(settlements);
 }
