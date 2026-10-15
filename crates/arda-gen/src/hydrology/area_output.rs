@@ -335,12 +335,21 @@ pub fn compose<R: RoutingStore, F: FlowStore>(
                 } else {
                     context.charge(2)?;
                     let reference_terrain = routing.read(reference).map_err(AreaError::Routing)?;
-                    let height = reference_terrain.height();
                     let channel = flow.read(reference).map_err(AreaError::Flow)?;
-                    let q = channel.metrics.scalar_annual / YEAR;
-                    if q < 40 || channel.lake.is_some() || reference_terrain.is_marine() {
-                        return Err(AreaError::Invalid("HAND reference is not a dry channel"));
-                    }
+                    // A recipe-9 reference may be standing water (review
+                    // 3.2-6): height is then measured to the lake surface or
+                    // to sea level, and no channel discharge applies.
+                    let (height, q) = if reference_terrain.is_marine() {
+                        (0, 0)
+                    } else if channel.lake.is_some() {
+                        (channel.surface_mm, 0)
+                    } else {
+                        let q = channel.metrics.scalar_annual / YEAR;
+                        if q < 40 {
+                            return Err(AreaError::Invalid("HAND reference is not a channel"));
+                        }
+                        (reference_terrain.height(), q)
+                    };
                     water.hand_mm =
                         u32::try_from((i64::from(terrain.height()) - i64::from(height)).max(0))
                             .map_err(|_| AreaError::Limit)?;

@@ -469,8 +469,14 @@ pub fn solve_with(
         return Err(SharedError::Invalid("fine export callback disagreement"));
     }
     solution.balance = balance;
-    let metrics_work = flow_metrics::run(&mut routes, &mut flow, &lakes, limits.metrics)
-        .map_err(SharedError::Metrics)?;
+    let metrics_work = flow_metrics::run_with(
+        &mut routes,
+        &mut flow,
+        &lakes,
+        limits.metrics,
+        physics.hand_to_standing_water,
+    )
+    .map_err(SharedError::Metrics)?;
     flow.flush()?;
     routes.flush()?;
     Ok(SharedArtifacts {

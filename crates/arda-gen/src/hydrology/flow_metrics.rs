@@ -92,6 +92,7 @@ struct Pass<'a, R: RoutingStore, F: FlowStore> {
     work: MetricsWork,
     lakes: Vec<LakeState>,
     edges: Vec<Option<MetricEdge>>,
+    hand_to_water: bool,
 }
 impl<R: RoutingStore, F: FlowStore> Pass<'_, R, F> {
     fn tick(&mut self, n: u64) -> Result<(), R::Error, F::Error> {
@@ -229,7 +230,8 @@ fn stream_order(maximum: u8, ties: u64, starts: bool) -> Option<u8> {
 /// Drainage follows zero original edges as well as positive final edges, with
 /// connected lakes collapsed before stream-order propagation. There is no
 /// downstream reconvergence in the contracted underlying tree. HAND stops at
-/// standing water and exterior; it never crosses a collapsed lake.
+/// standing water and exterior; it never crosses a collapsed lake
+/// ([`run_with`] can anchor it on the standing water instead).
 ///
 /// # Errors
 /// Rejects mismatched extents, nonfresh scratch, bad memberships/adjacency, graph
@@ -239,6 +241,22 @@ pub fn run<R: RoutingStore, F: FlowStore>(
     flow: &mut F,
     lakes: &[GlobalLake],
     limits: MetricsLimits,
+) -> Result<MetricsWork, R::Error, F::Error> {
+    run_with(routing, flow, lakes, limits, false)
+}
+
+/// [`run`]; with `hand_to_water` (recipe 9, review 3.2-6) a dry cell that
+/// drains into a lake or the sea, with no channel nearer, takes that
+/// standing water as its HAND reference instead of none.
+///
+/// # Errors
+/// As [`run`].
+pub fn run_with<R: RoutingStore, F: FlowStore>(
+    routing: &mut R,
+    flow: &mut F,
+    lakes: &[GlobalLake],
+    limits: MetricsLimits,
+    hand_to_water: bool,
 ) -> Result<MetricsWork, R::Error, F::Error> {
     if routing.extent() != flow.extent() {
         return Err(MetricsError::Invalid("extent mismatch"));
@@ -288,6 +306,7 @@ pub fn run<R: RoutingStore, F: FlowStore>(
         work: MetricsWork::default(),
         lakes: states,
         edges: Vec::new(),
+        hand_to_water,
     };
     pass.tick(count)?;
     pass.validate_fresh()?;

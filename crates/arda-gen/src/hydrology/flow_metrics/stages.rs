@@ -301,24 +301,31 @@ impl<R: RoutingStore, F: FlowStore> Pass<'_, R, F> {
                     let Some(to) = edge.to else {
                         continue;
                     };
-                    if self.terrain(to)?.is_marine() {
-                        continue;
-                    }
-                    let downstream = self.read(to)?;
-                    if downstream.lake.is_some() {
-                        continue;
-                    }
-                    let Some(channel) = downstream.metrics.hand_at else {
-                        continue;
-                    };
                     let (x, y) = self.routing.extent().coordinates(at);
                     let (tx, ty) = self.routing.extent().coordinates(to);
                     let step = if x == tx || y == ty { 100_000 } else { 141_400 };
-                    let distance = downstream
-                        .metrics
-                        .hand_distance_mm
-                        .checked_add(step)
-                        .ok_or(MetricsError::Overflow)?;
+                    // Recipe 9: standing water downstream is itself the
+                    // reference (review 3.2-6).
+                    let downstream = if self.terrain(to)?.is_marine() {
+                        None
+                    } else {
+                        Some(self.read(to)?).filter(|d| d.lake.is_none())
+                    };
+                    let (channel, distance) = match downstream {
+                        None if !self.hand_to_water => continue,
+                        None => (to, step),
+                        Some(downstream) => {
+                            let Some(channel) = downstream.metrics.hand_at else {
+                                continue;
+                            };
+                            let distance = downstream
+                                .metrics
+                                .hand_distance_mm
+                                .checked_add(step)
+                                .ok_or(MetricsError::Overflow)?;
+                            (channel, distance)
+                        }
+                    };
                     let key = (distance, self.routing.extent().anchor_key(channel));
                     if best.is_none_or(|(d, c)| key < (d, self.routing.extent().anchor_key(c))) {
                         best = Some((distance, channel));

@@ -15,6 +15,7 @@ use arda_core::{
 use std::collections::BTreeMap;
 
 mod limits;
+mod standing;
 const YEAR: u128 = 31_536_000;
 struct Fixture {
     routing: MemoryPages,
