@@ -36,9 +36,7 @@ pub fn climate_recipe9(grid: &ContinentGrid, band: LatitudeBand) -> ContinentCli
             } else {
                 i64::from(grid.get(x, y).raw())
             };
-            let t = sea_level_centi(lat)
-                - elev * 650 / 1_000_000
-                - i64::from(dist[i].min(CONTINENTALITY_CAP_KM));
+            let t = sea_level_centi(lat) - elev * 650 / 1_000_000 - continentality_centi(dist[i]);
             let t = i16::try_from(t.clamp(-30_000, 30_000)).unwrap_or(0);
             temperature.push(t);
             regime.push(if t < 300 {
@@ -179,6 +177,21 @@ fn steady_rainfall(
         .collect();
     (rainfall, moisture)
 }
+
+/// Continentality cooling of the annual mean, centi-°C, at `km` from the
+/// sea: 1 centi-°C per km to 300 km (as recipe 7), then a quarter of that
+/// to 1,500 km, 6 °C in all. Recipe 7 stopped at 3 °C 300 km inland, so a
+/// continental interior was no colder than its margins (review 3.2-17).
+/// The stored `ocean_distance_km` stays capped at 300 km.
+#[must_use]
+pub fn continentality_centi(km: u32) -> i64 {
+    let near = i64::from(km.min(CONTINENTALITY_CAP_KM));
+    let far = i64::from(km.min(FAR_CAP_KM).saturating_sub(CONTINENTALITY_CAP_KM));
+    near + far / 4
+}
+
+/// Distance beyond which continentality no longer grows, km.
+const FAR_CAP_KM: u32 = 1_500;
 
 /// Whether the prevailing wind at `lat_mdeg` blows from the east: the
 /// trades within 30° of the equator and the polar easterlies beyond 60°.

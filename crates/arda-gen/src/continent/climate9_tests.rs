@@ -133,3 +133,25 @@ fn recipe_9_trade_winds_put_the_rain_shadow_on_the_west() {
     assert!(easterly(20_000) && easterly(-20_000) && easterly(70_000));
     assert!(!easterly(45_000) && !easterly(-35_000));
 }
+
+/// Review 3.2-17: recipe 7's continentality stops at 300 km (3 °C), so an
+/// interior 800 km from the sea is as warm as one 300 km inland.
+#[test]
+fn recipe_9_continental_interiors_keep_cooling_past_300_km() {
+    let (w, h) = (1_600, 5);
+    let g = strip(w, h);
+    let t = |c: &ContinentClimate, x: i32| {
+        i32::from(c.temperature[usize::try_from(2 * w + x).unwrap()])
+    };
+    let (c7, c9) = (climate_recipe7(&g, MID), climate_recipe9(&g, MID));
+    // 300 km from the western sea, and 795 km from the eastern rim.
+    let (near, far) = (304, 804);
+    let (d7, d9) = (t(&c7, near) - t(&c7, far), t(&c9, near) - t(&c9, far));
+    eprintln!("300 km minus 795 km inland: recipe 7 {d7}, recipe 9 {d9} centi-°C");
+    assert_eq!(d7, 0, "recipe 7 is capped");
+    let expected = continentality_centi(795) - continentality_centi(300);
+    assert_eq!(i64::from(d9), expected, "recipe 9 keeps cooling");
+    assert_eq!(expected, 123);
+    assert_eq!(continentality_centi(100), 100);
+    assert_eq!(continentality_centi(5_000), 600);
+}
