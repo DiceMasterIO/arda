@@ -77,6 +77,8 @@ pub struct Entry {
     pub ppsq: u32,
     /// Whether the world grade applies.
     pub world_grade: bool,
+    /// Posted items the bake ignores.
+    pub ignored: super::bake_dto::BakeIgnored,
     /// Where the job stands.
     pub slot: Slot,
 }
@@ -203,12 +205,14 @@ mod tests {
             ppsq: 64,
             world_grade: false,
             layout: arda_tactical::TacticalLayout::new("c", 64, 64, "grass"),
+            ignored: super::super::bake_dto::BakeIgnored::default(),
         });
         Entry {
             gx: 1,
             gy: 2,
             ppsq: 64,
             world_grade: false,
+            ignored: super::super::bake_dto::BakeIgnored::default(),
             slot: Slot::Queued(req),
         }
     }

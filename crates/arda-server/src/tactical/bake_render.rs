@@ -71,6 +71,7 @@ impl Tactical {
             gy,
             ppsq,
             world_grade: body.world_grade.unwrap_or(false),
+            ignored: super::splice::ignored(&layout),
             layout,
         })
     }

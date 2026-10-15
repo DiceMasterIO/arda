@@ -35,6 +35,20 @@ pub struct BakeRequest {
     pub layout: TacticalLayoutDto,
 }
 
+/// Posted items a bake could not place in its cell (review 3.6-9): walls
+/// off the cell's edges, placements and lights anchored outside it. A
+/// bake ignores them, and says so here, instead of dropping them silently.
+#[derive(Debug, Clone, Copy, Default, PartialEq, Eq, Serialize, Deserialize, TS, JsonSchema)]
+pub struct BakeIgnored {
+    /// Wall segments on no edge of the cell.
+    pub walls: u32,
+    /// Placements anchored outside the cell (a placement on its east or
+    /// south border line belongs to the neighbour).
+    pub placements: u32,
+    /// Lights placed outside the cell.
+    pub lights: u32,
+}
+
 /// Where a bake job stands.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, TS, JsonSchema)]
 #[serde(rename_all = "snake_case")]
@@ -66,6 +80,10 @@ pub struct BakeAccepted {
     /// Added in 0.9; absent before.
     #[serde(default)]
     pub generator_version: String,
+    /// Posted items the bake ignores (none for a body the cell route
+    /// sent). Added in 0.9; absent before.
+    #[serde(default)]
+    pub ignored: BakeIgnored,
 }
 
 /// `GET /v1/tactical/bake/{id}` (TS `BakeStatus`).
@@ -98,6 +116,9 @@ pub struct BakeStatus {
     /// Added in 0.9; absent before.
     #[serde(default)]
     pub generator_version: String,
+    /// Posted items the bake ignores. Added in 0.9; absent before.
+    #[serde(default)]
+    pub ignored: BakeIgnored,
 }
 
 /// A checked bake request.
@@ -113,6 +134,8 @@ pub struct BakeRequestParsed {
     pub world_grade: bool,
     /// The posted cell layout.
     pub layout: TacticalLayout,
+    /// Posted items the bake ignores ([`super::splice::ignored`]).
+    pub ignored: BakeIgnored,
 }
 
 /// The canonical request the job id hashes: every option resolved.
@@ -172,6 +195,7 @@ mod tests {
             ppsq: 64,
             world_grade: false,
             layout,
+            ignored: BakeIgnored::default(),
         }
     }
 

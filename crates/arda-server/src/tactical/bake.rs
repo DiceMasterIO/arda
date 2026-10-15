@@ -146,6 +146,7 @@ fn status_of(id: &str, e: &Entry) -> BakeStatus {
         total_bytes,
         error,
         generator_version: crate::versions::SERVER_VERSION.to_owned(),
+        ignored: e.ignored,
     }
 }
 
@@ -201,12 +202,14 @@ impl Baker {
                 "baking is off on this server (--bake-workers 0)".into(),
             ));
         }
+        let ignored = req.ignored;
         let accepted = |id: String, state| BakeAccepted {
             format_version: BAKE_FORMAT,
             status_url: format!("/v1/tactical/bake/{id}"),
             job_id: id,
             state,
             generator_version: crate::versions::SERVER_VERSION.to_owned(),
+            ignored,
         };
         let mut q = self.shared.lock();
         if let Some(e) = q.store.get(&id) {
@@ -226,6 +229,7 @@ impl Baker {
             gy: req.gy,
             ppsq: req.ppsq,
             world_grade: req.world_grade,
+            ignored: req.ignored,
             slot: Slot::Queued(Arc::new(req)),
         };
         q.store.queue(id.clone(), entry);

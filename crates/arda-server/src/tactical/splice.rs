@@ -6,52 +6,37 @@
 //! block source, exactly as the cell route does, replaces its centre with
 //! the posted layout and renders the apron window cropped to the cell.
 //!
-//! [`splice`]'s rules, in squares local to the apron:
+//! [`splice`]'s rules, in squares local to the apron, are those of the cut
+//! the cell route sends (`arda_blocks::crop`, review 3.6-9), so whatever a
+//! client edits in the body it got lands, and an unedited post reproduces
+//! the apron exactly:
 //!
 //! - **Squares** inside the cell come from the post, the rest from the apron.
-//! - **Walls, placements and lights** go by their anchor: a wall by the
-//!   square `x, y` it belongs to, a placement or light by its position,
-//!   which must lie strictly inside the cell (a position on the cell's
-//!   border line belongs to the apron). Items anchored inside the cell come
-//!   from the post, the rest from the apron, so an item straddling the edge
-//!   is drawn exactly once. Posted items anchored outside are ignored.
-//!   The border rule matters: the block source clips placements to a block
-//!   in world coordinates and then rounds them to 1/64 square, so an item
-//!   a hair outside a cell can round onto its edge in the apron block while
-//!   the cell's own block leaves it out, and the other way round.
-//! - **Order** is kept: each apron item anchored inside the cell is
-//!   replaced, in turn, by the next posted item; spare posted items follow
-//!   the apron's, and spare apron slots are dropped. An unedited post
-//!   therefore reproduces the apron layout exactly, item order included
-//!   (the compositor resolves asset queries by placement index).
+//! - **Walls** go by their edge: every edge of the cell, its four border
+//!   edges included, comes from the post (a wall a client removes from
+//!   the cell's border is gone, one it adds stands); other edges from the
+//!   apron.
+//! - **Placements and lights** go by their position, half-open as the cut:
+//!   one on the cell's west or north border line is the cell's, one on its
+//!   east or south line the neighbour's. Items anchored in the cell come
+//!   from the post, the rest from the apron, so an item straddling the
+//!   edge is drawn exactly once.
+//! - Posted items the cell does not hold (a wall off its edges, a
+//!   placement or light anchored outside it) cannot be baked into this
+//!   cell: they are counted in the job's `ignored`, never dropped silently
+//!   ([`ignored`]).
+//! - **Order** is kept: each apron item in the cell is replaced, in turn,
+//!   by the next posted item; spare posted items follow the apron's, and
+//!   spare apron slots are dropped. An unedited post therefore reproduces
+//!   the apron layout exactly, item order included.
 //! - **Name, size and origin** are the apron's.
 
+use super::bake_dto::BakeIgnored;
 use crate::error::{ServerError, ServerResult};
+use arda_blocks::Cut;
 use arda_tactical::TacticalLayout;
 
-/// The cell rectangle inside the apron, in apron squares.
-#[derive(Debug, Clone, Copy)]
-struct Rect {
-    x0: u32,
-    y0: u32,
-    w: u32,
-    h: u32,
-}
-
-impl Rect {
-    fn holds_square(self, x: u32, y: u32) -> bool {
-        x >= self.x0 && x - self.x0 < self.w && y >= self.y0 && y - self.y0 < self.h
-    }
-
-    /// Whether a point in squares lies strictly inside the rectangle; a
-    /// point on its border belongs to the apron.
-    fn holds_point(self, x: f32, y: f32) -> bool {
-        let (x0, y0) = (self.x0 as f32, self.y0 as f32);
-        x > x0 && x < x0 + self.w as f32 && y > y0 && y < y0 + self.h as f32
-    }
-}
-
-/// Keeps `apron`'s items anchored outside `rect` and replaces the inside
+/// Keeps `apron`'s items anchored outside the cell and replaces the inside
 /// ones with `posted` (already in apron squares), in the documented order.
 fn merge<T: Clone>(apron: &[T], posted: Vec<T>, inside: impl Fn(&T) -> bool) -> Vec<T> {
     let mut posted = posted.into_iter();
@@ -67,8 +52,41 @@ fn merge<T: Clone>(apron: &[T], posted: Vec<T>, inside: impl Fn(&T) -> bool) -> 
     out
 }
 
+/// The posted items a bake of `cell` cannot place in it: walls off its
+/// edges, placements and lights anchored outside it (review 3.6-9).
+#[must_use]
+pub fn ignored(cell: &TacticalLayout) -> BakeIgnored {
+    let local = Cut {
+        x: 0,
+        y: 0,
+        w: cell.width,
+        h: cell.height,
+    };
+    let count = |n: usize| u32::try_from(n).unwrap_or(u32::MAX);
+    BakeIgnored {
+        walls: count(
+            cell.walls
+                .iter()
+                .filter(|w| local.edge(w.x, w.y, w.axis).is_none())
+                .count(),
+        ),
+        placements: count(
+            cell.placements
+                .iter()
+                .filter(|p| !local.holds(p.x, p.y))
+                .count(),
+        ),
+        lights: count(
+            cell.lights
+                .iter()
+                .filter(|l| !local.holds(l.x, l.y))
+                .count(),
+        ),
+    }
+}
+
 /// `apron` with its `cell.width × cell.height` squares at `at` (apron
-/// squares) and the items anchored there replaced by `cell`'s.
+/// squares) and the edges and items of the cell replaced by `cell`'s.
 ///
 /// # Errors
 /// [`ServerError::InvalidLayout`] when `cell` does not fit inside `apron`
@@ -78,9 +96,9 @@ pub fn splice(
     cell: &TacticalLayout,
     at: (u32, u32),
 ) -> ServerResult<TacticalLayout> {
-    let rect = Rect {
-        x0: at.0,
-        y0: at.1,
+    let rect = Cut {
+        x: at.0,
+        y: at.1,
         w: cell.width,
         h: cell.height,
     };
@@ -108,16 +126,13 @@ pub fn splice(
             d.clone_from_slice(s);
         }
     }
-    let local = Rect {
-        x0: 0,
-        y0: 0,
-        ..rect
-    };
+    let local = Cut { x: 0, y: 0, ..rect };
+    #[allow(clippy::cast_precision_loss)] // window offsets are small
     let (dx, dy) = (at.0 as f32, at.1 as f32);
     let walls = cell
         .walls
         .iter()
-        .filter(|w| local.holds_square(w.x, w.y))
+        .filter(|w| local.edge(w.x, w.y, w.axis).is_some())
         .map(|w| {
             let mut w = w.clone();
             w.x += at.0;
@@ -125,11 +140,13 @@ pub fn splice(
             w
         })
         .collect();
-    out.walls = merge(&apron.walls, walls, |w| rect.holds_square(w.x, w.y));
+    out.walls = merge(&apron.walls, walls, |w| {
+        rect.edge(w.x, w.y, w.axis).is_some()
+    });
     let placements = cell
         .placements
         .iter()
-        .filter(|p| local.holds_point(p.x, p.y))
+        .filter(|p| local.holds(p.x, p.y))
         .map(|p| {
             let mut p = p.clone();
             p.x += dx;
@@ -137,13 +154,11 @@ pub fn splice(
             p
         })
         .collect();
-    out.placements = merge(&apron.placements, placements, |p| {
-        rect.holds_point(p.x, p.y)
-    });
+    out.placements = merge(&apron.placements, placements, |p| rect.holds(p.x, p.y));
     let lights = cell
         .lights
         .iter()
-        .filter(|l| local.holds_point(l.x, l.y))
+        .filter(|l| local.holds(l.x, l.y))
         .map(|l| {
             let mut l = *l;
             l.x += dx;
@@ -151,7 +166,7 @@ pub fn splice(
             l
         })
         .collect();
-    out.lights = merge(&apron.lights, lights, |l| rect.holds_point(l.x, l.y));
+    out.lights = merge(&apron.lights, lights, |l| rect.holds(l.x, l.y));
     Ok(out)
 }
 
@@ -212,62 +227,25 @@ mod tests {
         l
     }
 
-    /// The `w × h` squares of `apron` at `at`, with the items anchored there
-    /// moved to cell squares.
+    /// The `w × h` cut of `apron` at `at`, as the cell route sends it.
     fn cut(apron: &TacticalLayout, at: (u32, u32), (w, h): (u32, u32)) -> TacticalLayout {
-        let rect = Rect {
-            x0: at.0,
-            y0: at.1,
+        let c = Cut {
+            x: at.0,
+            y: at.1,
             w,
             h,
         };
-        let mut c = TacticalLayout::new("cell", w, h, "grass");
-        for y in 0..h {
-            for x in 0..w {
-                let src = ((at.1 + y) * apron.width + at.0 + x) as usize;
-                c.squares[(y * w + x) as usize] = apron.squares[src].clone();
-            }
-        }
-        let (dx, dy) = (at.0 as f32, at.1 as f32);
-        c.walls = apron
-            .walls
-            .iter()
-            .filter(|s| rect.holds_square(s.x, s.y))
-            .map(|s| WallSegment {
-                x: s.x - at.0,
-                y: s.y - at.1,
-                ..s.clone()
-            })
-            .collect();
-        c.placements = apron
-            .placements
-            .iter()
-            .filter(|p| rect.holds_point(p.x, p.y))
-            .map(|p| Placement {
-                x: p.x - dx,
-                y: p.y - dy,
-                ..p.clone()
-            })
-            .collect();
-        c.lights = apron
-            .lights
-            .iter()
-            .filter(|l| rect.holds_point(l.x, l.y))
-            .map(|l| LightSource {
-                x: l.x - dx,
-                y: l.y - dy,
-                ..*l
-            })
-            .collect();
-        c
+        arda_blocks::crop::layout(apron, c, "cell")
     }
 
     #[test]
     fn splicing_the_aprons_own_centre_reproduces_it_exactly() {
         let a = apron();
         let c = cut(&a, (3, 2), (4, 4));
-        assert_eq!(c.walls.len(), 2);
-        assert_eq!(c.placements.len(), 2);
+        // The east border edge (7, 2) and the prop on the west border line
+        // (3, 4) are the cell's (the cut's rules).
+        assert_eq!(c.walls.len(), 3);
+        assert_eq!(c.placements.len(), 3);
         assert_eq!(c.lights.len(), 1);
         assert_eq!(splice(&a, &c, (3, 2)).unwrap(), a);
         // Every position, including the corners of the apron.
@@ -301,16 +279,25 @@ mod tests {
     fn straddling_items_come_from_exactly_one_source() {
         let a = apron();
         let mut c = cut(&a, (3, 2), (4, 4));
-        // Posted items anchored outside the cell are ignored: the apron's
-        // own copy of a prop just past the east edge stays, once.
+        // Posted items anchored outside the cell are ignored and counted:
+        // the apron's own copy of a prop just past the east edge stays,
+        // once.
         c.placements.push(prop("d", 4.0, 1.0));
-        c.walls.push(wall(4, 0));
+        c.walls.push(wall(5, 0));
         // A new prop straddling the west edge, anchored inside.
         c.placements.push(prop("tree", 0.5, 1.0));
-        // A posted prop on the west border line stays the apron's.
+        // A posted prop on the west border line is the cell's.
         c.placements.push(prop("g", 0.0, 2.0));
         // Remove the inside light; add none.
         c.lights.clear();
+        assert_eq!(
+            ignored(&c),
+            BakeIgnored {
+                walls: 1,
+                placements: 1,
+                lights: 0
+            }
+        );
         let out = splice(&a, &c, (3, 2)).unwrap();
         let ids: Vec<_> = out
             .placements
@@ -330,10 +317,30 @@ mod tests {
                 ("e", 2.99, 4.0),
                 ("f", 3.0, 4.0),
                 ("tree", 3.5, 3.0),
+                ("g", 3.0, 4.0),
             ]
         );
         assert_eq!(out.walls, a.walls);
         assert_eq!(out.lights, vec![light(8.0, 1.0)]);
+    }
+
+    /// Review 3.6-9: an edit on the cell's border is baked, not dropped.
+    #[test]
+    fn border_edits_are_kept() {
+        let a = apron();
+        let mut c = cut(&a, (3, 2), (4, 4));
+        // Take the wall off the east border edge, add one on the south.
+        c.walls.retain(|w| (w.x, w.y) != (4, 0));
+        c.walls.push(WallSegment {
+            axis: EdgeAxis::Horizontal,
+            ..wall(2, 4)
+        });
+        assert_eq!(ignored(&c), BakeIgnored::default());
+        let out = splice(&a, &c, (3, 2)).unwrap();
+        let edges: Vec<_> = out.walls.iter().map(|w| (w.x, w.y, w.axis)).collect();
+        assert!(!edges.contains(&(7, 2, EdgeAxis::Vertical)), "{edges:?}");
+        assert!(edges.contains(&(5, 6, EdgeAxis::Horizontal)), "{edges:?}");
+        assert_eq!(out.walls.len(), a.walls.len());
     }
 
     #[test]

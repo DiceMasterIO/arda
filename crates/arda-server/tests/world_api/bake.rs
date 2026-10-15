@@ -157,6 +157,9 @@ async fn an_unedited_bake_equals_the_cell_tiles_and_caches_nothing() {
     // Review 3.6-12: which release baked it.
     let release = arda_server::versions::SERVER_VERSION;
     assert_eq!(status["generator_version"], release);
+    // Review 3.6-9: nothing of the cell route's own body is ignored.
+    let none = json!({"walls": 0, "placements": 0, "lights": 0});
+    assert_eq!(status["ignored"], none);
     assert_eq!(
         a.tactical.cache_counts(),
         before,
@@ -177,6 +180,19 @@ async fn an_unedited_bake_equals_the_cell_tiles_and_caches_nothing() {
     assert_eq!(again.status, StatusCode::OK);
     assert_eq!(again.json()["job_id"], id.as_str());
     assert_eq!(again.json()["generator_version"], release);
+    // A placement anchored outside the cell cannot be baked into it: the
+    // job says so instead of dropping it silently.
+    let mut outside = layout.clone();
+    outside["placements"]
+        .as_array_mut()
+        .unwrap()
+        .push(json!({"asset": {"id": "prop.barrel"}, "x": 70.5, "y": 3.5}));
+    let r = post(&a, &body(&outside)).await;
+    assert_eq!(r.status, StatusCode::ACCEPTED);
+    assert_eq!(
+        r.json()["ignored"],
+        json!({"walls": 0, "placements": 1, "lights": 0})
+    );
     assert_eq!(again.json()["state"], "done");
     // Determinism: a fresh server bakes the same id and bytes.
     let b = fresh(1);
