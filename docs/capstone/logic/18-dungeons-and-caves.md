@@ -54,7 +54,7 @@ All draws come from a SplitMix64 stream seeded `mix(seed ^ 0xD06E0B)` (`crates/a
 
 ### §dgn-zones
 
-Every square belongs to a zone: `ROCK` 0, `CORRIDOR` 1, rooms, prison cells and the cavern from 2 (`crates/arda-dungeon/src/grid.rs:16-21`); squares outside the map read as rock (`:57-62`). A wall stands on every unit edge between two different zones, except edges in `open` (cave mouth) and openings: rock faces are always `Run`; a floor/floor edge is an arch (no wall), a door or gate from `openings`, or a `Run` (`crates/arda-dungeon/src/grid.rs:110-142`). Corridors share one zone, so crossing corridors merge without walls (`crates/arda-dungeon/src/grid.rs:7-9`).
+Every square belongs to a zone: `ROCK` 0, `CORRIDOR` 1, rooms, prison cells and the cavern from 2 (`crates/arda-dungeon/src/grid.rs:16-21`); squares outside the map read as rock (`:57-62`). A wall stands on every unit edge between two different zones, except edges in `open` (cave mouth) and openings: rock faces are always `Run`; a floor/floor edge is an arch (no wall), a door or gate from `openings`, or a `Run` (`crates/arda-dungeon/src/grid.rs:110-142`). Corridors share one zone, so crossing corridors merge without walls (`crates/arda-dungeon/src/grid.rs:7-9`). Every cave wall is tagged `natural` (`crates/arda-dungeon/src/cave.rs`, after the walls): the compositor draws the rock faces as smoothed outlines instead of square steps (11 §natural-walls, OI-38); the edges, the sidecar and the scene walls stay on the square grid. Built dungeon walls carry no such tag.
 
 ### §dgn-rooms
 

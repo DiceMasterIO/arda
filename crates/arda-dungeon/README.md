@@ -126,4 +126,6 @@ is a follow-up.
 
 - One level per map; stairs mark the links to other levels, which the
   caller generates with its own seeds.
-- Walls follow square edges, so cave walls are stepped rather than curved.
+- Walls follow square edges. Cave walls are tagged `natural` and drawn as
+  smoothed rock outlines, but their edges (rules, sight, scene walls) stay
+  stepped (OI-38).
