@@ -436,6 +436,8 @@ impl LandWindow {
             let s = CELL_TONE_Q12 * (ONE - smooth(70_000, 160_000, pixel_um / 1_000)) / ONE;
             out = tone::tint(out, tone::soften(cells.at(m[0], m[1]), s));
         }
+        // Field walls stand back from the roads (review 2026-10-15).
+        let by_road = self.works.roads.as_ref().is_some_and(|r| r.verge(px, py));
         if let Some(parcels) = &self.works.parcels {
             let q = [m[0] / SQUARE_M, m[1] / SQUARE_M];
             let sq = Sq::containing(q);
@@ -450,7 +452,9 @@ impl LandWindow {
                 Some(hit) if parcels.worked(hit.site) => {
                     let px_m = self.works.grid.pixel_m;
                     out = parcels.paint_tone(out, hit, at, px_m, self.works.parcel_strength);
-                    out = parcels.paint_wall(out, hit, at, px_m, self.works.parcel_strength);
+                    if !by_road {
+                        out = parcels.paint_wall(out, hit, at, px_m, self.works.parcel_strength);
+                    }
                     canopy = if parcels.woodland(hit.site) { ONE } else { 0 };
                     let tree = parcels.orchard_tree(hit.site, at, self.works.grid.pixel_m);
                     if tree > 0 {
@@ -464,7 +468,7 @@ impl LandWindow {
                         let s = floor * self.works.parcel_strength / ONE * 35 / 100;
                         out = tone::tint(out, tone::soften(t, s));
                     }
-                    if let Some(h) = hit {
+                    if let Some(h) = hit.filter(|_| !by_road) {
                         out = parcels.paint_wall(
                             out,
                             h,

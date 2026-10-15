@@ -215,3 +215,37 @@ fn coarse_pixels_still_show_highways_but_not_footpaths() {
     assert!(highway > 50, "{highway}");
     assert_eq!(footpath, 0);
 }
+
+#[test]
+fn field_walls_stand_back_from_the_roads() {
+    // review 2026-10-15 (gallery 07): hedges on the road's own cut showed
+    // along both its edges, an outlined tube.
+    let roads = vec![Road {
+        id: 1,
+        class: RoadClass::Track,
+        segments: vec![vec![[0, 500], [2000, 500]]],
+        wealth: 128,
+    }];
+    let heights = flat_surroundings(24);
+    let grid = PixelGrid {
+        origin: (0, 0),
+        size: (64, 64),
+        pixel_m: SQUARE_M,
+    };
+    // The track runs along y = 500 m, row 320 of the grid: off it here.
+    let raster = RoadRaster::build(grid, &roads, &heights, SEED, &|_, _| false);
+    assert!(!raster.verge(10, 10));
+    let grid = PixelGrid {
+        origin: (0, 300),
+        size: (64, 40),
+        pixel_m: SQUARE_M,
+    };
+    let raster = RoadRaster::build(grid, &roads, &heights, SEED, &|_, _| false);
+    let rows: Vec<usize> = (0..40).filter(|&y| raster.verge(10, y)).collect();
+    let covered: Vec<usize> = (0..40)
+        .filter(|&y| raster.paint([100, 120, 60], 10, y) != [100, 120, 60])
+        .collect();
+    assert!(!covered.is_empty());
+    // The verge is the covered rows and one beside each edge.
+    assert_eq!(rows.len(), covered.len() + 2, "{rows:?} {covered:?}");
+}

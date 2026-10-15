@@ -27,12 +27,14 @@ pub const CLASSES: [RoadClass; 4] = [
 ];
 
 /// Surface colours, seen from above: packed earth for lanes, gravel and
-/// cobbles paler on the larger classes.
+/// cobbles a little paler on the larger classes. Earth tones a step from
+/// the fields', not a pale band (review 2026-10-15, gallery 07: roads read
+/// as pale outlined tubes).
 const SURFACE: [[i64; 3]; 4] = [
-    [150, 132, 98],
-    [156, 136, 100],
-    [170, 154, 120],
-    [178, 164, 132],
+    [138, 120, 88],
+    [142, 123, 90],
+    [156, 140, 108],
+    [166, 152, 122],
 ];
 
 /// Smallest drawn half-width, pixels, and the pixel size (m) above which
@@ -188,10 +190,10 @@ impl RoadRaster {
         let mut out = rgb;
         for (k, &v) in c.iter().enumerate() {
             if v > 0 {
-                // Roads keep a little of the ground's light.
+                // Roads keep some of the ground's light and grain.
                 let mut paint = SURFACE[k];
                 for (p, &g) in paint.iter_mut().zip(&rgb) {
-                    *p = (*p * 7 + i64::from(g) * 3) / 10;
+                    *p = (*p * 3 + i64::from(g) * 2) / 5;
                 }
                 #[allow(clippy::cast_possible_truncation)] // within [0, ONE]
                 let alpha = (f64::from(v) * INK[k]) as i64;
@@ -199,6 +201,19 @@ impl RoadRaster {
             }
         }
         out
+    }
+
+    /// Whether a road covers pixel `(px, py)` or one of its four
+    /// neighbours: field walls stand back from the road there rather than
+    /// show along both its edges (review 2026-10-15, gallery 07).
+    #[must_use]
+    pub fn verge(&self, px: usize, py: usize) -> bool {
+        let any = |x: usize, y: usize| self.at(x, y).is_some_and(|c| c.iter().any(|&v| v > 0));
+        any(px, py)
+            || any(px + 1, py)
+            || any(px, py + 1)
+            || px.checked_sub(1).is_some_and(|x| any(x, py))
+            || py.checked_sub(1).is_some_and(|y| any(px, y))
     }
 
     /// The highest class covering at least half the pixel.
