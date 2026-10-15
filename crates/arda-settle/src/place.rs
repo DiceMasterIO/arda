@@ -1,7 +1,9 @@
 //! Settlement placement by carrying capacity (spec step 3; artifact "Where
 //! people settle").
 //!
-//! Population is the region's density times its land. Three tenths live in
+//! Population is the region's density times its carrying land
+//! ([`carrying_ha`]: arable land counts double, barren land a quarter).
+//! Three tenths live in
 //! towns (as many as the rank-size rule fills, sized by hinterland and
 //! site in `townsize.rs`), just under half in villages of a few hundred,
 //! the rest in hamlets. Placement is greedy, best site first, within each
@@ -93,6 +95,34 @@ pub fn rank_size(urban: u64) -> (u64, u64) {
     best
 }
 
+/// Carrying weight of a land cell in hundredths (assumed, tunable;
+/// review 3.3-13): arable land feeds twice an average hectare, other
+/// habitable land (a settlement site, pasture, woods) an average one,
+/// and land nobody can live on (rock, ice, marsh, steep or flooded ground)
+/// a quarter, for herds and gathering. On a land of about a third arable
+/// and a fifth other habitable ground (the MICRO worlds) the weights
+/// average one, so the world's density keeps its meaning there.
+const CARRYING_PCT: [u64; 3] = [200, 100, 25];
+
+/// The land's carrying capacity in hectare-equivalents: the population is
+/// the world's density times this, not times the bare land area.
+#[must_use]
+pub fn carrying_ha(g: &Grid, sites: &Sites, suit: &Suitability) -> u64 {
+    let pct: u64 = (0..g.len())
+        .filter(|&i| g.is_land(i))
+        .map(|i| {
+            if sites.tags[i] & tags::ARABLE != 0 {
+                CARRYING_PCT[0]
+            } else if suit.score[i] > 0 {
+                CARRYING_PCT[1]
+            } else {
+                CARRYING_PCT[2]
+            }
+        })
+        .sum();
+    pct / 100
+}
+
 /// Spatial buckets of placed settlements, 1 km on a side.
 struct Buckets {
     wide: i64,
@@ -173,8 +203,10 @@ fn jitter(seed: u64, i: usize) -> i64 {
 /// higher). Towns use the central-place toll instead (`central.rs`).
 const TOLL: [(u32, u32); 3] = [(0, 0), (5000, 110), (2500, 70)];
 
-/// Village and hamlet site score: harbours and river nodes add a little.
-/// Towns are scored by `central::town_score`.
+/// Village and hamlet site score: harbours and river nodes add a little,
+/// and so do the resources a village lives on (ore, salt, fish, timber), a
+/// pass on a road and a defensible height (review 3.3-13). Towns are
+/// scored by `central::town_score`.
 fn tier_score(base: u16, bits: u32, tier: usize, jitter: i64) -> u32 {
     let bonus = |bit: u32, v: [i64; 3]| if bits & bit != 0 { v[tier] } else { 0 };
     let s = i64::from(base)
@@ -183,8 +215,12 @@ fn tier_score(base: u16, bits: u32, tier: usize, jitter: i64) -> u32 {
         + bonus(tags::ESTUARY, [150, 40, 0])
         + bonus(tags::CONFLUENCE, [160, 60, 0])
         + bonus(tags::FORD | tags::BRIDGE, [80, 50, 0])
-        + bonus(tags::DEFENSIBLE, [40, 20, 0])
-        + bonus(tags::PASS, [60, 20, 0])
+        + bonus(tags::DEFENSIBLE, [40, 40, 20])
+        + bonus(tags::PASS, [60, 40, 20])
+        + bonus(tags::ORE, [0, 60, 40])
+        + bonus(tags::SALT, [0, 60, 30])
+        + bonus(tags::FISH, [0, 30, 20])
+        + bonus(tags::TIMBER, [0, 20, 20])
         + jitter;
     sat_u32(s)
 }
@@ -199,8 +235,7 @@ pub fn place(
     suit: &Suitability,
     p: PlaceParams,
 ) -> Result<Placement, SettleError> {
-    let land_km2_x100 = ui(g.land_cells());
-    let target = u64::try_from(land_km2_x100).unwrap_or(0) * u64::from(p.density_per_km2) / 100;
+    let target = carrying_ha(g, sites, suit) * u64::from(p.density_per_km2) / 100;
     let urban = target * URBAN_PM / 1000;
     let villages = target * VILLAGE_PM / 1000;
     let hamlets = target - urban - villages;

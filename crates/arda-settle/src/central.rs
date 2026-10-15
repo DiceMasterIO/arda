@@ -70,9 +70,14 @@ pub fn town_score(base: u16, catchment_pm: i64, bits: u32, jitter: i64) -> u32 {
     } else {
         0
     };
+    // A navigable reach, a defensible height, a pass on the road and the
+    // ore and salt trades each draw a market (review 3.3-13); a pass and a
+    // height also enlarge the town they hold (`townsize::advantage_pm`).
     let extra = if has(tags::NAVIGABLE) { 80 } else { 0 }
         + if has(tags::DEFENSIBLE) { 30 } else { 0 }
-        + if has(tags::PASS) { 40 } else { 0 };
+        + if has(tags::PASS) { 40 } else { 0 }
+        + if has(tags::ORE) { 60 } else { 0 }
+        + if has(tags::SALT) { 60 } else { 0 };
     let catch = rise(catchment_pm, 50, 450);
     sat_u32(i64::from(base) * 45 / 100 + catch * 55 / 100 + port + node + extra + jitter)
 }
