@@ -294,3 +294,41 @@ fn plan_draws_reserve_their_estimate_within_the_plan_budget() {
         );
     }
 }
+
+/// Callers asking at once for a plan nobody has drawn share one draw: the
+/// later ones wait for it and get the same plan (a cold block's town and
+/// fields layers ask for the same plans together).
+#[test]
+fn concurrent_requests_for_one_plan_share_its_draw() {
+    let world = arda_people::World::open(society_dir()).unwrap();
+    let id = world
+        .files
+        .settlements
+        .settlements
+        .iter()
+        .filter(|s| s.tier == arda_settle::model::Tier::Village)
+        .max_by_key(|s| (s.population, s.id.get()))
+        .unwrap()
+        .id
+        .get();
+    let start = std::sync::Barrier::new(4);
+    let plans: Vec<_> = std::thread::scope(|scope| {
+        let handles: Vec<_> = (0..4)
+            .map(|_| {
+                scope.spawn(|| {
+                    start.wait();
+                    world.plan(id).unwrap()
+                })
+            })
+            .collect();
+        handles.into_iter().map(|h| h.join().unwrap()).collect()
+    });
+    assert!(plans[0].is_some(), "village {id} has no plan");
+    for p in &plans[1..] {
+        assert!(
+            Arc::ptr_eq(&plans[0], p),
+            "village {id}'s plan was drawn twice"
+        );
+    }
+    assert_eq!(world.drawing_plan_bytes().unwrap(), 0);
+}

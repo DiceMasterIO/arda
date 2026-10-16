@@ -70,6 +70,10 @@ struct Plans {
     tick: u64,
     cache: PlanCache,
     drawing: u64,
+    /// Settlements whose plan is being drawn now: another caller waits for
+    /// that draw instead of drawing the same plan again (a cold block's
+    /// town and fields layers ask for the same plans at once).
+    in_flight: BTreeSet<u64>,
     /// [`PLAN_CACHE_BYTES`], or a test's smaller budget.
     budget: u64,
 }
@@ -122,6 +126,8 @@ fn draw_apart<T: Send>(draw: impl FnOnce() -> T + Send) -> Result<T, PeopleError
 struct Reserved<'a> {
     world: &'a World,
     bytes: u64,
+    /// The settlement being drawn, no longer in flight once dropped.
+    id: u64,
 }
 
 impl Drop for Reserved<'_> {
@@ -132,6 +138,7 @@ impl Drop for Reserved<'_> {
             .lock()
             .unwrap_or_else(std::sync::PoisonError::into_inner);
         g.drawing = g.drawing.saturating_sub(self.bytes);
+        g.in_flight.remove(&self.id);
         drop(g);
         self.world.drawn.notify_all();
     }
@@ -247,6 +254,7 @@ impl World {
                 tick: 0,
                 cache: BTreeMap::new(),
                 drawing: 0,
+                in_flight: BTreeSet::new(),
                 budget: PLAN_CACHE_BYTES,
             }),
             drawn: Condvar::new(),
@@ -290,13 +298,17 @@ impl World {
                     hit.0 = tick;
                     return Ok(Arc::clone(&hit.1));
                 }
-                g.evict(estimate, false);
-                if g.drawing == 0 || cache_bytes(&g.cache) + g.drawing + estimate <= g.budget {
-                    g.drawing += estimate;
-                    break Reserved {
-                        world: self,
-                        bytes: estimate,
-                    };
+                if !g.in_flight.contains(&id) {
+                    g.evict(estimate, false);
+                    if g.drawing == 0 || cache_bytes(&g.cache) + g.drawing + estimate <= g.budget {
+                        g.drawing += estimate;
+                        g.in_flight.insert(id);
+                        break Reserved {
+                            world: self,
+                            bytes: estimate,
+                            id,
+                        };
+                    }
                 }
                 g = self
                     .drawn

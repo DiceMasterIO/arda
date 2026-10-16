@@ -31,11 +31,6 @@ fn wet(inputs: &FieldInputs<'_>, s: Sq) -> bool {
 /// bank while a river bank is in reach.
 const OPEN_WATER_M: f64 = 2.0;
 
-fn open_water(inputs: &FieldInputs<'_>, s: Sq) -> bool {
-    let m = s.centre_m();
-    inputs.terrain.sample(m[0], m[1]).water_depth_m >= OPEN_WATER_M
-}
-
 /// Bank squares in and up to [`BANK_REACH`] around the cell, nearest the
 /// centre first, each with the axis
 /// towards the water (the mean offset of wet squares within 7 squares).
@@ -46,22 +41,34 @@ fn banks(inputs: &FieldInputs<'_>, net: &RoadNet, cell: (i64, i64)) -> Vec<(Sq, 
     // The refined river wanders up to a cell from settle's straight one:
     // its banks are looked for that far out (review 3.5-10).
     let (lo, hi) = (4 - BANK_REACH, CELL_SQUARES - 4 + BANK_REACH);
+    // Every square the scan reads (the bank squares and their 7-square
+    // neighbourhoods), sampled once with its road clearance, in parallel
+    // (goal 50: the scan read each square up to 225 times and asked the
+    // road net square by square, about 50 ms of a cold block).
+    let depths = Depths::sample(
+        inputs,
+        net,
+        (x0 + lo - BANK_PAD, y0 + lo - BANK_PAD),
+        hi - lo + 2 * BANK_PAD,
+    );
+    let wet = |s: Sq| depths.depth(inputs, s) > 0.0;
+    let open_water = |s: Sq| depths.depth(inputs, s) >= OPEN_WATER_M;
     for y in (y0 + lo)..(y0 + hi) {
         for x in (x0 + lo)..(x0 + hi) {
             let s = Sq::new(x, y);
-            if wet(inputs, s) || net.near(s.centre(), 3.0) {
+            if wet(s) || depths.near_road(net, s) {
                 continue;
             }
             let edge = [(0, 1), (1, 0), (0, -1), (-1, 0)]
                 .into_iter()
-                .any(|(dx, dy)| wet(inputs, s.offset(dx, dy)));
+                .any(|(dx, dy)| wet(s.offset(dx, dy)));
             if !edge {
                 continue;
             }
             let mut v = [0.0, 0.0];
             for dy in -7..=7_i64 {
                 for dx in -7..=7_i64 {
-                    if wet(inputs, s.offset(dx, dy)) {
+                    if wet(s.offset(dx, dy)) {
                         #[allow(clippy::cast_precision_loss)] // small offsets
                         {
                             v[0] += dx as f64;
@@ -76,14 +83,73 @@ fn banks(inputs: &FieldInputs<'_>, net: &RoadNet, cell: (i64, i64)) -> Vec<(Sq, 
             // on the coast instead.
             let shore = [(0, 1), (1, 0), (0, -1), (-1, 0)]
                 .into_iter()
-                .all(|(dx, dy)| {
-                    !wet(inputs, s.offset(dx, dy)) || open_water(inputs, s.offset(dx, dy))
-                });
+                .all(|(dx, dy)| !wet(s.offset(dx, dy)) || open_water(s.offset(dx, dy)));
             out.push(((shore, dist), s, super::axis_towards(v)));
         }
     }
     out.sort_by_key(|(d, s, _)| (*d, *s));
     out.into_iter().map(|(_, s, d)| (s, d)).collect()
+}
+
+/// Squares sampled around a bank scan's area: its neighbourhood reach.
+const BANK_PAD: i64 = 8;
+
+/// Squares a bank stays clear of a road by, in the scan.
+const BANK_ROAD_SQ: f64 = 3.0;
+
+/// Water depths of a square area, and whether each square lies within
+/// [`BANK_ROAD_SQ`] of a road, sampled once.
+struct Depths {
+    origin: (i64, i64),
+    side: i64,
+    depth: Vec<(f64, bool)>,
+}
+
+impl Depths {
+    fn sample(inputs: &FieldInputs<'_>, net: &RoadNet, origin: (i64, i64), side: i64) -> Self {
+        use rayon::prelude::*;
+        let depth = (0..side * side)
+            .into_par_iter()
+            .map(|i| {
+                let s = Sq::new(origin.0 + i % side, origin.1 + i / side);
+                let m = s.centre_m();
+                (
+                    inputs.terrain.sample(m[0], m[1]).water_depth_m,
+                    net.near(s.centre(), BANK_ROAD_SQ),
+                )
+            })
+            .collect();
+        Self {
+            origin,
+            side,
+            depth,
+        }
+    }
+
+    fn stored(&self, s: Sq) -> Option<(f64, bool)> {
+        let (x, y) = (s.x - self.origin.0, s.y - self.origin.1);
+        ((0..self.side).contains(&x) && (0..self.side).contains(&y))
+            .then(|| usize::try_from(y * self.side + x).ok())
+            .flatten()
+            .and_then(|i| self.depth.get(i).copied())
+    }
+
+    /// The depth at `s`, sampled now when it lies outside the area.
+    fn depth(&self, inputs: &FieldInputs<'_>, s: Sq) -> f64 {
+        self.stored(s).map_or_else(
+            || {
+                let m = s.centre_m();
+                inputs.terrain.sample(m[0], m[1]).water_depth_m
+            },
+            |(d, _)| d,
+        )
+    }
+
+    /// Whether `s` lies within [`BANK_ROAD_SQ`] of a road.
+    fn near_road(&self, net: &RoadNet, s: Sq) -> bool {
+        self.stored(s)
+            .map_or_else(|| net.near(s.centre(), BANK_ROAD_SQ), |(_, n)| n)
+    }
 }
 
 /// Mean water-surface height a few squares out from the bank on one side.

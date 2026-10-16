@@ -289,6 +289,21 @@ fn fields_tier(t: arda_settle::model::Tier) -> arda_fields::Tier {
     }
 }
 
+/// Numbers each [`fields`] call, so a thread's remembered river water
+/// ([`LAST_WATER`]) is never read by another call (another world's cache).
+static FIELDS_CALLS: std::sync::atomic::AtomicU64 = std::sync::atomic::AtomicU64::new(0);
+
+/// Per thread: the [`fields`] call, cell and river water last read.
+type LastWater = Option<(
+    u64,
+    arda_refine::CellKey,
+    std::sync::Arc<arda_refine::water::RiverWater>,
+)>;
+
+thread_local! {
+    static LAST_WATER: std::cell::RefCell<LastWater> = const { std::cell::RefCell::new(None) };
+}
+
 /// Fields, pasture, orchards, mills and farmsteads from the land-use
 /// raster. Culture, region and wealth are fixed so the layer depends only
 /// on global inputs (goal 46).
@@ -330,13 +345,31 @@ pub fn fields(
     // The rivers the map draws (refine's channels), not settle's straight
     // lines: mills stand on the real bank, farms and mines keep off the
     // real water (review 3.5-10). A failed read counts as dry.
+    // Each thread keeps the water of the cell it read last for this call,
+    // so the partition's hundreds of thousands of samples do not all
+    // contend for the shared cache's lock (goal 50: they took most of a
+    // cold block's fields time); the water is the cache's, so no byte
+    // changes.
+    let call = FIELDS_CALLS.fetch_add(1, std::sync::atomic::Ordering::Relaxed);
     let river = |x: f64, y: f64| {
         #[allow(clippy::cast_possible_truncation)] // world squares fit i64
         let (gx, gy) = ((x / SQUARE_M).floor() as i64, (y / SQUARE_M).floor() as i64);
         let cell = arda_refine::CellKey::new(gx.div_euclid(64), gy.div_euclid(64));
-        channels
-            .water_at(&world.src, cell)
-            .is_ok_and(|w| w.is_water(gx, gy))
+        let hit = LAST_WATER.with(|last| {
+            last.borrow()
+                .as_ref()
+                .filter(|(c, k, _)| *c == call && *k == cell)
+                .map(|(_, _, w)| w.is_water(gx, gy))
+        });
+        if let Some(wet) = hit {
+            return wet;
+        }
+        let Ok(w) = channels.water_at(&world.src, cell) else {
+            return false;
+        };
+        let wet = w.is_water(gx, gy);
+        LAST_WATER.with(|last| *last.borrow_mut() = Some((call, cell, w)));
+        wet
     };
     let terrain = |x: f64, y: f64| TerrainSample {
         height_m: s.height_m(x, y),
