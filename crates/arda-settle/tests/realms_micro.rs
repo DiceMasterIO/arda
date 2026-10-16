@@ -48,18 +48,22 @@ fn world_dir(seed: u64) -> PathBuf {
     dir
 }
 
-fn settle(seed: u64) -> Society {
+fn settle(seed: u64) -> (Society, usize, usize) {
     let world = arda::World::load(&world_dir(seed)).unwrap();
     let grid = arda_settle::load::load_grid(&world, MEMORY_BUDGET).unwrap();
     let params = arda_settle::PlaceParams {
         seed: world.seed(),
         density_per_km2: u32::from(world.manifest().config.mean_density_per_km2()),
     };
-    arda_settle::run(&grid, params).unwrap()
+    (
+        arda_settle::run(&grid, params).unwrap(),
+        grid.width,
+        grid.height,
+    )
 }
 
 fn check(seed: u64) {
-    let s = settle(seed);
+    let (s, width, height) = settle(seed);
     let st = &s.stats;
     let r = &st.realm;
     let n = s.realms.realms.len();
@@ -68,6 +72,13 @@ fn check(seed: u64) {
         st.rank_size_slope, st.rank_size_r2
     );
     assert!(n >= 2, "seed {seed}: {n} realms");
+    // Invariant 11: realms are solid, no landmass beyond an islet is ruled
+    // from across the sea.
+    let broken = arda_settle::landmass::broken(width, height, &s.realms.map, n);
+    assert!(
+        broken.is_empty(),
+        "seed {seed}: realms {broken:?} not solid"
+    );
     // Goal 35: one or two cities per realm, and the seat is one of them.
     assert_eq!(r.cities_per_realm.len(), n);
     for (k, &c) in r.cities_per_realm.iter().enumerate() {

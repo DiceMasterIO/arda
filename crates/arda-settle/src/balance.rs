@@ -18,11 +18,14 @@
 //! Realms balance within their landmass: realms joined by land borders
 //! form a group (a continent, a large island) and share that group's people
 //! and land; a realm alone on its island cannot grow past its shore and
-//! keeps a zero offset.
+//! keeps a zero offset. No seat floods onto another seat's landmass from
+//! the sea (`landmass.rs`), so a realm never rules a seated land across a
+//! strait.
 
 use crate::cost::{self, CostSurface};
 use crate::error::SettleError;
 use crate::grid::{filled, Grid, OFFSETS8};
+use crate::landmass;
 use crate::model::Settlement;
 use crate::roads::RoadClass;
 use std::cmp::Reverse;
@@ -48,14 +51,19 @@ const LAND_RATIO_PCT: u64 = 350;
 const FAIR_LAND_PCT: u64 = 175;
 
 /// Owner (seat slot + 1) of every cell and its cost, from a flood whose
-/// seats start at `offsets`; ties go to the lower slot.
+/// seats start at `offsets`; ties go to the lower slot. `mass` is the
+/// seated landmass of every cell ([`landmass::seated`]): no seat lands
+/// from the water on a landmass that holds a seat other than its own, so
+/// a realm never rules a seated land across the sea.
 fn flood(
     g: &Grid,
     cs: &CostSurface,
     ridge: &[bool],
+    mass: &[u16],
     seats: &[usize],
     offsets: &[u64],
 ) -> Result<(Vec<u16>, Vec<u64>), SettleError> {
+    let home: Vec<u16> = seats.iter().map(|&c| mass[c]).collect();
     let mut best = filled(g.len(), u64::MAX, "allegiance cost")?;
     let mut map = filled(g.len(), 0_u16, "realm map")?;
     let mut heap = BinaryHeap::new();
@@ -76,6 +84,10 @@ fn flood(
             let Some(b) = g.at(ax + dx, ay + dy) else {
                 continue;
             };
+            let foreign = mass[b] != 0 && home.get(usize::from(id) - 1) != Some(&mass[b]);
+            if foreign && g.is_water(a) {
+                continue;
+            }
             let Some(mut c) = cost::travel(g, cs, a, b, (dx, dy), RoadClass::Road) else {
                 continue;
             };
@@ -200,8 +212,9 @@ pub fn partition(
     settlements: &[Settlement],
 ) -> Result<Vec<u16>, SettleError> {
     let n = seats.len();
+    let mass = landmass::seated(g, seats)?;
     let mut offsets = vec![0_u64; n];
-    let (first, best) = flood(g, cs, ridge, seats, &offsets)?;
+    let (first, best) = flood(g, cs, ridge, &mass, seats, &offsets)?;
     // The step is the mean cost from a land cell to its seat: a realm's
     // reach, in the flood's own units.
     let (sum, count) = (0..g.len())
@@ -244,7 +257,7 @@ pub fn partition(
                 }
             }
         }
-        let (map, _) = flood(g, cs, ridge, seats, &trial)?;
+        let (map, _) = flood(g, cs, ridge, &mass, seats, &trial)?;
         let (land, people) = tally(g, &map, settlements, n);
         for (gr, w) in groups.iter_mut().zip(shares.iter_mut()) {
             if gr.done || gr.step < floor {
@@ -276,7 +289,7 @@ pub fn partition(
     }
     // The groups were judged on floods that also moved the others; draw the
     // partition of the offsets kept, which every seat must still hold.
-    let (map, _) = flood(g, cs, ridge, seats, &offsets)?;
+    let (map, _) = flood(g, cs, ridge, &mass, seats, &offsets)?;
     let kept = seats
         .iter()
         .enumerate()

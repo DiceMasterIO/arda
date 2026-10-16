@@ -1,10 +1,13 @@
 //! Realms (spec step 6; `logic/06` steps 1–3).
 //!
-//! 1. Seats are chosen in `seats.rs` (spread, balanced large towns).
+//! 1. Seats are chosen in `seats.rs` (spread, balanced large towns); a
+//!    landmass beyond an islet with a town but no seat gains one, and a
+//!    starved seat is dropped ([`settle`], `landmass.rs`).
 //! 2. Allegiance ([`territory`]): every cell swears to the seat cheapest to
 //!    reach over the terrain cost surface, each seat starting with an
 //!    offset that balances the realms' people and land (`balance.rs`;
-//!    OI-53); ties go to the earlier seat. This runs right after placement, so the
+//!    OI-53); ties go to the earlier seat. No seat floods onto another
+//!    seat's landmass from the sea. This runs right after placement, so the
 //!    primate capitals and the city cap (`primacy.rs`) size towns by the
 //!    realm they really end up in (review 3.3-8).
 //! 3. Borders: crossing a river of order ≥ 3 or a ridge crest carries a
@@ -14,12 +17,14 @@
 //!    by their capitals, so realm 1 has the largest; settlements take the
 //!    realm of their cell.
 //!
-//! Every land cell belongs to exactly one realm, so borders are closed.
+//! Every land cell belongs to exactly one realm, so borders are closed, and
+//! every realm is solid: one piece around its seat plus at most islets.
 
 use crate::balance;
 use crate::cost::CostSurface;
 use crate::error::SettleError;
 use crate::grid::{filled, Grid};
+use crate::landmass;
 use crate::model::Settlement;
 use crate::snap;
 use crate::tags::Sites;
@@ -168,6 +173,51 @@ pub fn territory(
         natural_all_pm,
         natural_land_pm,
     })
+}
+
+/// Seats dropped at most because the partition starved their realms (each
+/// drop draws the partition again).
+const MAX_SEAT_DROPS: usize = 3;
+
+/// The final seats and their territory, from the seats chosen (settlement
+/// indices). First every landmass that is more than an islet and holds a
+/// town but no seat gets its largest town as a seat (`landmass.rs`; the
+/// islet threshold falls as seats are added, so this repeats until no
+/// landmass qualifies). Then a seat the balanced partition cannot give a
+/// fair share of its landmass's people is dropped and the land
+/// partitioned again (OI-53); such a seat shares its landmass with
+/// another, so no landmass loses its last seat. `standing` is
+/// `settlements` with every town at its standing, the size the seats were
+/// chosen by.
+///
+/// # Errors
+/// [`SettleError::Reserve`] when a raster cannot be allocated.
+pub fn settle(
+    g: &Grid,
+    sites: &Sites,
+    cs: &CostSurface,
+    mut seats: Vec<usize>,
+    settlements: &[Settlement],
+    standing: &[Settlement],
+) -> Result<(Vec<usize>, Territory), SettleError> {
+    loop {
+        let extra = landmass::island_seats(g, standing, &seats, seats.len())?;
+        if extra.is_empty() {
+            break;
+        }
+        seats.extend(extra);
+    }
+    let mut drops = 0;
+    loop {
+        let t = territory(g, sites, cs, &seats, settlements)?;
+        match balance::starved(g, &t.map, settlements, seats.len()) {
+            Some(slot) if seats.len() > 2 && drops < MAX_SEAT_DROPS => {
+                seats.remove(slot);
+                drops += 1;
+            }
+            _ => return Ok((seats, t)),
+        }
+    }
 }
 
 /// Ranks the realms of a territory by their seats' final population

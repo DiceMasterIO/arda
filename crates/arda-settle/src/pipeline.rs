@@ -1,6 +1,5 @@
 //! The stage pipeline: each step reads only earlier outputs.
 
-use crate::balance;
 use crate::cost::CostSurface;
 use crate::crossings::{self, Crossing, Pass};
 use crate::culture::CultureMap;
@@ -22,10 +21,6 @@ use crate::seats;
 use crate::stats::{self, Stats};
 use crate::suitability;
 use crate::tags;
-
-/// Seats dropped at most because the partition starved their realms (each
-/// drop draws the partition again).
-const MAX_SEAT_DROPS: usize = 3;
 
 /// Everything the stage produces.
 #[derive(Debug, Clone)]
@@ -83,29 +78,19 @@ pub fn run(g: &Grid, params: PlaceParams) -> Result<Society, SettleError> {
             v
         })
         .collect();
-    let mut seat_list = seats::choose(&lat, &standing, seats::seat_count(people, habitable, urban));
-    drop(standing);
+    let seat_list = seats::choose(&lat, &standing, seats::seat_count(people, habitable, urban));
     drop(lat);
     // The final partition comes first, over the terrain alone, so the
     // primate capitals and the city cap size every town by the realm it
-    // ends up in (review 3.3-8, 3.3-9). A seat the balanced partition
-    // cannot give a fair share of its landmass's people is dropped and the
-    // land partitioned again (OI-53).
-    let territory = {
-        let terrain = CostSurface::terrain(g, &sites, seed)?;
-        let mut drops = 0;
-        loop {
-            let t = realms::territory(g, &sites, &terrain, &seat_list, &settlements)?;
-            let starved = balance::starved(g, &t.map, &settlements, seat_list.len());
-            match starved {
-                Some(slot) if seat_list.len() > 2 && drops < MAX_SEAT_DROPS => {
-                    seat_list.remove(slot);
-                    drops += 1;
-                }
-                _ => break t,
-            }
-        }
-    };
+    // ends up in (review 3.3-8, 3.3-9). A landmass beyond an islet with a
+    // town but no seat gains one, so no realm rules it across the sea; a
+    // seat the balanced partition cannot give a fair share of its
+    // landmass's people is dropped and the land partitioned again (OI-53).
+    let terrain = CostSurface::terrain(g, &sites, seed)?;
+    let (seat_list, territory) =
+        realms::settle(g, &sites, &terrain, seat_list, &settlements, &standing)?;
+    drop(terrain);
+    drop(standing);
     let slots = territory.slots(g, &settlements);
     primacy::apply(&mut settlements, &seat_list, &slots);
     primacy::cap(&mut settlements, &seat_list, &slots);
