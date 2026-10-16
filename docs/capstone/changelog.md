@@ -2,6 +2,15 @@
 generated_date: 2026-08-24
 ---
 
+## 2026-10-15 - Overview and area look: legible names, city symbols, smooth coasts, clean sea
+- **Names and symbols scale with the output** (`arda-settle` `render::scale`): the society overlay draws settlement symbols at `clamp(width / 1280, 0.6, 2.4)` (1.6 at 2,048 px; strokes keep the page scale), and a pyramid level's names are laid out at 1.6 (level 4), 1.3 (level 5) and the page size from level 6 on, growing 0.2 per coarser level to 2.2, with halos and the symbol clearance scaled to match. Relief tiles at level 6 and finer are unchanged. A city reads as a walled ring with a red core, a town as a red disc, at a size a 2,048 px overview shows.
+- **`GET /v1/overview.png?labels=1`** (opt-in; `overview.png` deliberately drew no text, logic/04 §overlay, and keeps its exact bytes without it): draws the gazetteer's names with the layout of the pyramid level of that size, so `quality=4096` (a 2,048 x 4,096 image on the review world) equals the stitched level-4 tiles pixel for pixel. Up to quality 4,096; 400 for the oblique look, a world without a gazetteer, or a bad value. Response shape unchanged.
+- **Recipe-9 Atlas sea** (recipes 5-8 untouched): the open-sea arcs and ripples were the saved seabed's carved submarine channels aliasing in the 1 km point-sampled relief gradients, and the pale and dark round blobs near Sidkesk were its flat-floored pits and sub-metre bars read raw by the depth ramp. The ramp now reads a 17-tap smoothed depth from 0.3 m to 3 m depth (none beyond 150 m), relief light fades from 25 m to nothing at 130 m, and stored tidal-flat and estuary tints ramp over a cell instead of stepping on the 100 m class grid. Depth shading stays.
+- **Recipe-9 coast in area exports**: the waterline is a coverage anti-aliased contour of the smoothing spline (one pixel ramp), not the sign of the bilinear 39 m field at a single sample per 12.5 m pixel, so area exports draw the smooth shore the overview averages to.
+- **Re-blessed** (own commits): `tests/golden/micro-42-recipe9.txt` (only `atlas-overview-4k.png` moves; terrain, areas, hydrology keep their bytes; recipes 5-8 unchanged); the contract kit.
+- **Not fixed here**: the drowned-valley streaks and thin pale shoal rims in shallow water are in the saved bathymetry (generator); the CLI `arda export --overview` still draws no names (symbols are larger).
+- **Before → after** (review world, seed 42 MICRO recipe 9): `out/review-gallery/after/v4/01..05`.
+
 ## 2026-10-15 - Tactical terrain look: forest on steep slopes, beaches at the water, cliffs along the contours
 Review gallery 2026-10-15 (main 352435b, MICRO 42 recipe 9), images 08, 12, 13 and 19, and a snow check on a 58–72°N MICRO world.
 
