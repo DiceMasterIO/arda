@@ -18,7 +18,7 @@ use arda_settle::render::layers::{
 };
 use arda_settle::render::legend::{self, BorderStyle, Key};
 use arda_settle::render::palette::Palette;
-use arda_settle::render::political::{LINE, LINE_PX};
+use arda_settle::render::political::{band_width, BAND_MAX_PX, BAND_MIN_PX, LINE, LINE_PX};
 use arda_settle::render::{Society, View};
 use arda_settle::roads::RoadClass;
 use arda_settle::{run, synthetic, PlaceParams};
@@ -97,6 +97,114 @@ fn no_two_realms_share_a_colour_and_neighbours_stand_apart() {
     let p = Palette::of(&soc.realms);
     let colours: BTreeSet<[u8; 3]> = soc.realms.realms.iter().map(|r| p.colour(r.id)).collect();
     assert_eq!(colours.len(), soc.realms.realms.len());
+}
+
+/// sRGB byte colour as OKLab (test-only: uses libm).
+fn oklab(c: [u8; 3]) -> [f64; 3] {
+    let lin = |v: u8| {
+        let v = f64::from(v) / 255.0;
+        if v <= 0.04045 {
+            v / 12.92
+        } else {
+            ((v + 0.055) / 1.055).powf(2.4)
+        }
+    };
+    let (r, g, b) = (lin(c[0]), lin(c[1]), lin(c[2]));
+    let l = (0.412_221_470_8 * r + 0.536_332_536_3 * g + 0.051_445_992_9 * b).cbrt();
+    let m = (0.211_903_498_2 * r + 0.680_699_545_1 * g + 0.107_396_956_6 * b).cbrt();
+    let s = (0.088_302_461_9 * r + 0.281_718_837_6 * g + 0.629_978_700_5 * b).cbrt();
+    [
+        0.210_454_255_3 * l + 0.793_617_785 * m - 0.004_072_046_8 * s,
+        1.977_998_495_1 * l - 2.428_592_205 * m + 0.450_593_709_9 * s,
+        0.025_904_037_1 * l + 0.782_771_766_2 * m - 0.808_675_766 * s,
+    ]
+}
+
+fn delta_e(a: [u8; 3], b: [u8; 3]) -> f64 {
+    let (x, y) = (oklab(a), oklab(b));
+    ((x[0] - y[0]).powi(2) + (x[1] - y[1]).powi(2) + (x[2] - y[2]).powi(2)).sqrt()
+}
+
+/// Smallest OKLab gap between any two of `cols`.
+fn min_gap(cols: &[[u8; 3]]) -> f64 {
+    let mut m = f64::INFINITY;
+    for (i, a) in cols.iter().enumerate() {
+        for b in &cols[i + 1..] {
+            m = m.min(delta_e(*a, *b));
+        }
+    }
+    m
+}
+
+/// The Atlas ground (olive lowland) a band must not vanish into.
+const GROUND: [u8; 3] = [120, 130, 56];
+
+#[test]
+fn every_pair_of_realms_differs_perceptually_and_neighbours_more() {
+    // 0.12 OKLab is about six just-noticeable differences (0.02): clearly
+    // two colours at a glance, which is what a default-size world (12
+    // realms) gets. The full sixteen keep 0.10; neighbours, which the
+    // assignment pulls apart, keep 0.2.
+    for n in 2..=16_u64 {
+        let graph = grid_graph(n, 4);
+        let ids: Vec<u64> = graph.keys().copied().collect();
+        let p = Palette::assign(&ids, &graph);
+        let cols: Vec<[u8; 3]> = ids.iter().map(|&id| p.colour(id)).collect();
+        let floor = 0.12;
+        let gap = min_gap(&cols);
+        assert!(gap >= floor, "{n} realms: closest pair {gap:.3}");
+        for (a, ns) in &graph {
+            for b in ns {
+                let d = delta_e(p.colour(*a), p.colour(*b));
+                assert!(d >= 0.20, "{n} realms: neighbours {a},{b} only {d:.3}");
+            }
+        }
+        for c in &cols {
+            let g = delta_e(*c, GROUND);
+            assert!(
+                g >= 0.12,
+                "{n} realms: a colour {c:?} sits on the ground ({g:.3})"
+            );
+        }
+    }
+    let soc = society();
+    let p = Palette::of(&soc.realms);
+    let cols: Vec<[u8; 3]> = soc.realms.realms.iter().map(|r| p.colour(r.id)).collect();
+    assert!(min_gap(&cols) >= 0.12);
+    for r in &soc.realms.realms {
+        for nb in &r.neighbours {
+            assert!(delta_e(p.colour(r.id), p.colour(*nb)) >= 0.20);
+        }
+    }
+}
+
+#[test]
+fn the_band_is_a_visible_fraction_of_the_long_edge() {
+    let at = |fw: f32, fh: f32| {
+        band_width(&View {
+            pw: fw,
+            ph: fh,
+            fw,
+            fh,
+            ox: 0.0,
+            oy: 0.0,
+            gw: 100,
+            gh: 100,
+            s: 1.0,
+        })
+    };
+    // The default world is tall: 1940 x 4096.
+    let b = at(1940.0, 4096.0);
+    assert!(b >= 24.0, "{b} px on a 4096 px map");
+    assert!(b / 4096.0 >= 0.005 && b / 4096.0 <= 0.008);
+    assert!(
+        at(4096.0, 1940.0) - b == 0.0,
+        "the long edge, not the width"
+    );
+    // Sensible bounds at both extremes; whole-image size, not a tile's.
+    assert!((at(256.0, 256.0) - BAND_MIN_PX).abs() < 1e-3);
+    assert!((at(1e7, 1e7) - BAND_MAX_PX).abs() < 1e-3);
+    assert!(at(8192.0, 8192.0) > at(4096.0, 4096.0));
 }
 
 fn view(soc: &Society, m_per_px: f32) -> View {

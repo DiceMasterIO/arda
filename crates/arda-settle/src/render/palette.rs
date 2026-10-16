@@ -1,29 +1,66 @@
-//! One colour per realm (logic/16 §political-map): as many hues as the
-//! world has realms, evenly spaced round the OKLab hue circle (less the
-//! olive and green of lowland relief) in three
-//! lightness steps, then assigned so that neighbouring realms are as far
-//! apart as the set allows. No colour is used twice, so two realms never
-//! read as one country.
+//! One colour per realm (logic/16 §political-map): a hand-curated
+//! categorical palette of sixteen strongly distinct hues, none of them
+//! the olive or green of lowland relief (every one is at least 0.15
+//! OKLab from the Atlas ground), then assigned so that neighbouring
+//! realms are as far apart as the set allows.
 //!
-//! The arithmetic is `+ − × ÷` and `sqrt` only (cosine, sine and the sRGB
-//! gamma by series and Newton steps), so the colours, which `/v1/realms`
-//! serves, round alike on every platform.
+//! The first twelve (a default-size world) are the best twelve of the
+//! hand-picked families, listed farthest-first, and the last four are the
+//! farthest additions to them; every pair of the sixteen is at least 0.12
+//! OKLab apart. A world of `n <= 16` realms takes the first `n`, so no two
+//! realms share a hue family. Beyond sixteen the set is
+//! extended deterministically with a deep (dark) and then a pale variant
+//! of each, and past forty-eight the whole run repeats.
+//!
+//! The arithmetic is `+ − × ÷` and `sqrt` only (the sRGB gamma by Newton
+//! steps, the colours as stored OKLab triples), so the colours, which
+//! `/v1/realms` serves, round alike on every platform.
 
 use crate::canvas::Rgb;
 use crate::output::RealmsFile;
 use std::collections::BTreeMap;
 
-/// Chroma of a realm colour before it is pulled into the sRGB gamut.
-const CHROMA: f64 = 0.19;
-/// Lightness steps (OKLab `L`) taken in turn round the hue circle.
-const LIGHTNESS: [f64; 3] = [0.64, 0.55, 0.72];
-/// Hue of the first colour, degrees (a brick red).
-const FIRST_HUE_DEG: f64 = 28.0;
-/// OKLab hue arc left out, `[start, width]` degrees: the olive and green
-/// of lowland relief, where a band would vanish into the ground.
-const GAP_DEG: [f64; 2] = [95.0, 65.0];
-/// Weight of lightness in [`delta`].
-const L_WEIGHT: f64 = 0.5;
+/// The base palette as OKLab `[L, a, b]`, farthest-first, with the sRGB
+/// hex each was designed as.
+pub const BASE: [[f64; 3]; 16] = [
+    // navy #1c3a94
+    [0.387_084, -0.011_961, -0.151_893],
+    // lemon yellow #f5dc2e
+    [0.888_580, -0.031_524, 0.172_178],
+    // hot pink #ff4fa3
+    [0.695_024, 0.222_176, -0.018_224],
+    // periwinkle #8d9bf0
+    [0.713_292, 0.012_307, -0.124_334],
+    // umber #6e3f22
+    [0.418_425, 0.049_297, 0.060_598],
+    // orange #ff8a1f
+    [0.748_128, 0.099_908, 0.144_654],
+    // turquoise #27d3c5
+    [0.783_085, -0.130_362, -0.014_005],
+    // crimson #c4122f
+    [0.523_600, 0.188_578, 0.075_765],
+    // charcoal #25252c
+    [0.267_428, 0.003_451, -0.012_450],
+    // orchid #b04fd0
+    [0.603_957, 0.148_573, -0.139_381],
+    // steel blue #4f6d8f
+    [0.525_524, -0.019_760, -0.061_282],
+    // rose #f7a8be
+    [0.813_928, 0.096_562, 0.002_151],
+    // plum #5e1f55
+    [0.357_463, 0.103_410, -0.050_963],
+    // cerulean #1e88e5
+    [0.617_879, -0.054_649, -0.157_573],
+    // berry #9b1b6e
+    [0.469_926, 0.174_160, -0.040_711],
+    // mauve #9e6b8a
+    [0.590_956, 0.073_851, -0.023_129],
+];
+/// Realms the base palette serves without variants.
+pub const BASE_LEN: usize = BASE.len();
+/// Most realms served with colours distinct from each other (base, deep
+/// and pale); past this the run repeats.
+pub const DISTINCT_MAX: usize = BASE_LEN * 3;
 /// Most swap rounds of the neighbour refinement.
 const ROUNDS: usize = 12;
 /// Above this many realms the swap refinement is skipped (it is quadratic).
@@ -54,7 +91,7 @@ impl Palette {
     #[must_use]
     pub fn assign(ids: &[u64], neighbours: &BTreeMap<u64, Vec<u64>>) -> Self {
         let n = ids.len();
-        let colours: Vec<[f64; 3]> = (0..n).map(|k| candidate(k, n)).collect();
+        let colours: Vec<[f64; 3]> = (0..n).map(candidate).collect();
         let index: BTreeMap<u64, usize> = ids.iter().enumerate().map(|(k, &id)| (id, k)).collect();
         // Neighbour pairs as index pairs, each once.
         let mut pairs: Vec<(usize, usize)> = Vec::new();
@@ -172,59 +209,25 @@ fn refine(slot: &mut [usize], pairs: &[(usize, usize)], colours: &[[f64; 3]]) {
     }
 }
 
-/// Colour `k` of `n` as OKLab: hues evenly round the circle, lightness
-/// stepping so hue neighbours also differ in value.
-fn candidate(k: usize, n: usize) -> [f64; 3] {
-    let turn = k as f64 / n.max(1) as f64;
-    // Spread over the circle less the terrain's olive and green arc.
-    let mut deg = FIRST_HUE_DEG + turn * (360.0 - GAP_DEG[1]);
-    if deg >= GAP_DEG[0] {
-        deg += GAP_DEG[1];
+/// Colour `k` of the run as OKLab: the base set, then its deep variants,
+/// then its pale ones, then round again.
+fn candidate(k: usize) -> [f64; 3] {
+    let k = k % DISTINCT_MAX;
+    let [l, a, b] = BASE[k % BASE_LEN];
+    match k / BASE_LEN {
+        0 => [l, a, b],
+        // Deep: darker, a little less chroma.
+        1 => [l * 0.72, a * 0.9, b * 0.9],
+        // Pale: lifted towards white, chroma eased.
+        _ => [l + (1.0 - l) * 0.45, a * 0.75, b * 0.75],
     }
-    let h = deg / 360.0 * std::f64::consts::TAU;
-    let l = if n < 7 {
-        LIGHTNESS[0]
-    } else {
-        LIGHTNESS[k % 3]
-    };
-    let (c, s) = cos_sin(h);
-    // Pull the chroma in until the colour is inside sRGB.
-    let mut ch = CHROMA;
-    for _ in 0..40 {
-        let lab = [l, ch * c, ch * s];
-        if linear_rgb(lab).iter().all(|v| (0.0..=1.0).contains(v)) {
-            return lab;
-        }
-        ch *= 0.94;
-    }
-    [l, ch * c, ch * s]
 }
 
-/// OKLab difference with lightness at half weight: two realms of one hue
-/// family in different values still read as kin on a map, so hue and
-/// chroma carry the separation.
+/// OKLab distance (plain Euclid: the palette differs in value as well as
+/// hue, and the map is read at a glance).
 fn delta(a: &[f64; 3], b: &[f64; 3]) -> f64 {
-    let d = [(a[0] - b[0]) * L_WEIGHT, a[1] - b[1], a[2] - b[2]];
+    let d = [a[0] - b[0], a[1] - b[1], a[2] - b[2]];
     (d[0] * d[0] + d[1] * d[1] + d[2] * d[2]).sqrt()
-}
-
-/// Cosine and sine by range reduction and a Taylor series.
-fn cos_sin(x: f64) -> (f64, f64) {
-    let tau = std::f64::consts::TAU;
-    let mut x = x - (x / tau).floor() * tau;
-    if x > std::f64::consts::PI {
-        x -= tau;
-    }
-    let (mut c, mut s) = (0.0, 0.0);
-    let (mut tc, mut ts) = (1.0, x);
-    for k in 0..24 {
-        c += tc;
-        s += ts;
-        let k = f64::from(k);
-        tc *= -x * x / ((2.0 * k + 1.0) * (2.0 * k + 2.0));
-        ts *= -x * x / ((2.0 * k + 2.0) * (2.0 * k + 3.0));
-    }
-    (c, s)
 }
 
 /// OKLab to linear sRGB.
@@ -279,14 +282,6 @@ mod tests {
 
     #[test]
     fn the_series_match_libm() {
-        for k in 0..64 {
-            let x = f64::from(k) * 0.37 - 9.0;
-            let (c, s) = cos_sin(x);
-            assert!(
-                (c - x.cos()).abs() < 1e-12 && (s - x.sin()).abs() < 1e-12,
-                "{x}"
-            );
-        }
         for k in 1..100 {
             let x = f64::from(k) / 100.0;
             assert!((root_2_4(x) - x.powf(1.0 / 2.4)).abs() < 1e-12, "{x}");

@@ -17,6 +17,8 @@ use crate::output::NamesFile;
 
 /// Italic brown of glosses and heights.
 const GLOSS: Rgb = [104, 78, 56];
+/// How far a realm's own colour is darkened for its name (1.0 = as is).
+const REALM_INK: f32 = 0.62;
 /// Water blue.
 const WATER: Rgb = [28, 68, 128];
 /// Peaks named, highest first.
@@ -85,7 +87,7 @@ pub fn labels(
         let Some(r) = soc.realms.realms.iter().find(|r| r.id == u64::from(id)) else {
             continue;
         };
-        let col = shade(palette.colour(u64::from(id)), 0.45);
+        let col = shade(palette.colour(u64::from(id)), REALM_INK);
         let lines = [
             line(
                 &r.name,

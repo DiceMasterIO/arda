@@ -18,8 +18,15 @@ use crate::canvas::{Canvas, Rgb};
 use crate::output::RealmsFile;
 use std::collections::BTreeSet;
 
-/// Width of the inner band at scale 1, pixels.
+/// Width of the inner band of the legend swatch at scale 1, pixels.
 pub const BAND_PX: f32 = 11.0;
+/// Width of the inner band on the map as a fraction of the image's long
+/// edge (0.65 %: 27 px on a 4096 px world map, clearly a coloured edge).
+pub const BAND_FRAC: f32 = 0.0065;
+/// Narrowest map band, pixels.
+pub const BAND_MIN_PX: f32 = 10.0;
+/// Widest map band, pixels (so deep zooms do not flood the land).
+pub const BAND_MAX_PX: f32 = 90.0;
 /// Width of the pale halo under the border line at scale 1, pixels.
 pub const HALO_PX: f32 = 5.6;
 /// Width of the dash-dot border line at scale 1, pixels.
@@ -31,7 +38,7 @@ pub const HALO_ALPHA: f32 = 0.6;
 /// Colour of the dash-dot border line.
 pub const LINE: Rgb = [44, 22, 34];
 /// Opacity of the band at the border itself.
-pub const BAND_ALPHA: f32 = 0.95;
+pub const BAND_ALPHA: f32 = 1.0;
 /// Dash, gap, dot, gap at scale 1, pixels.
 pub const DASH_DOT: [f32; 4] = [8.0, 3.0, 1.2, 3.0];
 
@@ -99,7 +106,7 @@ impl PoliticalLayer {
                 borders.push(Border { pts, bbox });
             }
         }
-        let band = BAND_PX * v.s;
+        let band = band_width(v);
         let cell = band.max(4.0);
         let cols = (v.fw / cell).ceil().max(1.0) as usize;
         let rows = (v.fh / cell).ceil().max(1.0) as usize;
@@ -238,13 +245,23 @@ impl PoliticalLayer {
     }
 }
 
+/// Width in pixels of the map band for the whole image of `v`:
+/// [`BAND_FRAC`] of its long edge between [`BAND_MIN_PX`] and
+/// [`BAND_MAX_PX`]. It depends on the image (the zoom level's whole-world
+/// size) and never on a tile's own size, so tiles of one level agree.
+#[must_use]
+pub fn band_width(v: &View) -> f32 {
+    (BAND_FRAC * v.fw.max(v.fh)).clamp(BAND_MIN_PX, BAND_MAX_PX)
+}
+
 /// Opacity of the band `d` pixels inside a border, for a band `band`
 /// pixels wide: [`BAND_ALPHA`] at the border fading to nothing as
-/// `t^1.1`, `t = 1 − d / band` (kept to arithmetic as `t · (1 − 0.1(1 − t))`).
+/// `t^0.85`, `t = 1 − d / band` (kept to arithmetic as `t · (1 + 0.15(1 − t))`,
+/// a fuller shoulder than a straight fade so the colour holds inward).
 #[must_use]
 pub fn band_alpha(d: f32, band: f32) -> f32 {
     let t = (1.0 - d / band).max(0.0);
-    BAND_ALPHA * t * (1.0 - 0.1 * (1.0 - t))
+    BAND_ALPHA * t * (1.0 + 0.15 * (1.0 - t))
 }
 
 /// A dash-dot line along `pts`: long dash, gap, dot, gap ([`DASH_DOT`] at
