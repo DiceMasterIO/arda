@@ -483,3 +483,88 @@ fn globally_aligned_sky_context_has_equal_radiance_at_an_area_seam() {
             .unwrap(),
     );
 }
+
+/// Relief colour of shallow open sea at a pixel whose bilinear shore mix
+/// holds only a sliver of tidal-flat class: the cell it sits in is class 6,
+/// the pixel is almost a whole cell away from that cell's centre.
+fn sliver_of_flat(recipe: u16, flat: bool) -> [u8; 3] {
+    let context = field(
+        TerrainPoint {
+            x_um: -10_000_000_000,
+            y_um: -10_000_000_000,
+        },
+        1_000_000_000,
+        80,
+        80,
+        |_, _| -2_000,
+    );
+    let bounds = AtlasFineWorldBounds {
+        min: context.origin(),
+        max: TerrainPoint {
+            x_um: 69_000_000_000,
+            y_um: 69_000_000_000,
+        },
+    };
+    let mut atlas = FineAtlas::new(
+        AreaCoord::new(0, 0),
+        bounds,
+        context.clone(),
+        [false; 4],
+        Some(context),
+        true,
+    )
+    .unwrap();
+    atlas.set_recipe(recipe);
+    let n = SAMPLE_SIDE * SAMPLE_SIDE;
+    let mut shore = vec![0_u8; n];
+    if flat {
+        shore[11 * SAMPLE_SIDE + 11] = 6;
+    }
+    let (classes, wetness, moisture, forest) = (
+        vec![TerrainKind::Sea; n],
+        vec![0_u8; n],
+        vec![0_u8; n],
+        vec![0_u8; n],
+    );
+    let (temperature, heights, lake) = (vec![0_i16; n], vec![-2_000_i32; n], vec![0_i32; n]);
+    let saved = SavedFields {
+        classes: &classes,
+        wetness: &wetness,
+        moisture: &moisture,
+        forest_density: &forest,
+        temperature: &temperature,
+        heights: &heights,
+        lake_surface: &lake,
+        shore: &shore,
+        salt: &[],
+    };
+    let at = 10 * CELL_UM + 95_000_000;
+    atlas
+        .relief_surface_colour(
+            (at, at),
+            1_000_000,
+            ReliefGeometry {
+                height_mm: -2_000,
+                gradient_q12: (0, 0),
+                concavity_mm: 0,
+            },
+            ReliefSurface::Sea { depth_mm: 2_000 },
+            &saved,
+        )
+        .unwrap()
+}
+
+#[test]
+fn a_sliver_of_tidal_flat_class_does_not_tint_open_sea_at_relief_zoom() {
+    let plain = sliver_of_flat(9, false);
+    let faint = sliver_of_flat(9, true);
+    let spread: i32 = (0..3)
+        .map(|c| (i32::from(plain[c]) - i32::from(faint[c])).abs())
+        .sum();
+    assert!(spread <= 6, "{plain:?} vs {faint:?}");
+}
+
+#[test]
+fn earlier_recipes_keep_their_relief_sea_tint() {
+    assert_ne!(sliver_of_flat(8, false), sliver_of_flat(8, true));
+}

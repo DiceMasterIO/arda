@@ -172,7 +172,15 @@ impl FineAtlas {
                 } else {
                     i32::try_from(-depth_mm.max(0)).unwrap_or(i32::MIN)
                 };
-                self.sea_colour(qx, qy, height, &shore_mix)
+                // Recipe 9 feathers the shore tints by their plain bilinear
+                // weight, as the overview does; the older share-of-classified
+                // form would paint a sliver of tidal-flat class over open sea
+                // as a full-strength pale ghost patch.
+                if self.v9 {
+                    self.sea_colour_soft((qx, qy), height, &shore_mix)
+                } else {
+                    self.sea_colour(qx, qy, height, &shore_mix)
+                }
             }
             ReliefSurface::Land => {
                 // The tactical shore decides land; its ground stands
