@@ -5,8 +5,8 @@
 //! stored shore layer.
 
 use super::{
-    arid_near, lake_surface_near, saved_material, saved_temperature, shore_near, FineAtlas,
-    SavedFields, SavedMaterial, CELL_UM, KM_UM,
+    arid_near, lake_surface_near, land_distance_um, saved_material, saved_temperature, shore_near,
+    FineAtlas, SavedFields, SavedMaterial, CELL_UM, KM_UM,
 };
 use crate::atlas::invalid;
 use crate::RenderError;
@@ -40,6 +40,22 @@ pub enum ReliefSurface {
         /// Depth below sea level, millimetres.
         depth_mm: i64,
     },
+}
+
+/// Distance (µm) to the nearest dry sample within which a tidal flat is at
+/// full strength, and the distance from which there is none.
+const FLAT_FULL_UM: i128 = 150_000_000;
+const FLAT_NONE_UM: i128 = 300_000_000;
+
+/// Q12 reach of the tidal-flat tint at `land_um` from dry ground: a flat is
+/// shallows by the shore, so a stored flat class that lies out over open
+/// water (a shoal, or a cell's bilinear spill) fades out instead of
+/// painting a pale ghost patch.
+fn flat_reach_q12(land_um: Option<i128>) -> i64 {
+    let Some(d) = land_um else { return 0 };
+    let k = (FLAT_NONE_UM - d).clamp(0, FLAT_NONE_UM - FLAT_FULL_UM) * 4_096
+        / (FLAT_NONE_UM - FLAT_FULL_UM);
+    i64::try_from(k).unwrap_or(0)
 }
 
 impl FineAtlas {
@@ -177,6 +193,15 @@ impl FineAtlas {
                 // form would paint a sliver of tidal-flat class over open sea
                 // as a full-strength pale ghost patch.
                 if self.v9 {
+                    let mut shore_mix = shore_mix;
+                    shore_mix[6] = shore_mix[6]
+                        * flat_reach_q12(land_distance_um(
+                            x,
+                            y,
+                            (self.origin_x, self.origin_y),
+                            saved.classes,
+                        )?)
+                        / 4_096;
                     self.sea_colour_soft((qx, qy), height, &shore_mix)
                 } else {
                     self.sea_colour(qx, qy, height, &shore_mix)

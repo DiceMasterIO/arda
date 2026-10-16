@@ -9,8 +9,8 @@ mod shading;
 mod sky;
 pub use relief::{ReliefGeometry, ReliefSurface};
 use saved::{
-    arid_near, axis_positions, equivalent_delta, lake_surface_near, position, saved_material,
-    saved_temperature, shore_near,
+    arid_near, axis_positions, equivalent_delta, lake_surface_near, land_distance_um, position,
+    saved_material, saved_temperature, shore_near,
 };
 use sky::SkyShade;
 

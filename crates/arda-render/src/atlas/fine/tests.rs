@@ -488,6 +488,12 @@ fn globally_aligned_sky_context_has_equal_radiance_at_an_area_seam() {
 /// holds only a sliver of tidal-flat class: the cell it sits in is class 6,
 /// the pixel is almost a whole cell away from that cell's centre.
 fn sliver_of_flat(recipe: u16, flat: bool) -> [u8; 3] {
+    relief_sea(recipe, flat, 95_000_000, None)
+}
+
+/// Shallow relief sea at 10 cells + `into_um`, with sample (10, 10) a tidal
+/// flat when `flat`, and sample `land` (x, y) dry ground when given.
+fn relief_sea(recipe: u16, flat: bool, into_um: i128, land: Option<(usize, usize)>) -> [u8; 3] {
     let context = field(
         TerrainPoint {
             x_um: -10_000_000_000,
@@ -520,12 +526,11 @@ fn sliver_of_flat(recipe: u16, flat: bool) -> [u8; 3] {
     if flat {
         shore[11 * SAMPLE_SIDE + 11] = 6;
     }
-    let (classes, wetness, moisture, forest) = (
-        vec![TerrainKind::Sea; n],
-        vec![0_u8; n],
-        vec![0_u8; n],
-        vec![0_u8; n],
-    );
+    let mut classes = vec![TerrainKind::Sea; n];
+    if let Some((x, y)) = land {
+        classes[(y + 1) * SAMPLE_SIDE + x + 1] = TerrainKind::Land;
+    }
+    let (wetness, moisture, forest) = (vec![0_u8; n], vec![0_u8; n], vec![0_u8; n]);
     let (temperature, heights, lake) = (vec![0_i16; n], vec![-2_000_i32; n], vec![0_i32; n]);
     let saved = SavedFields {
         classes: &classes,
@@ -538,7 +543,7 @@ fn sliver_of_flat(recipe: u16, flat: bool) -> [u8; 3] {
         shore: &shore,
         salt: &[],
     };
-    let at = 10 * CELL_UM + 95_000_000;
+    let at = 10 * CELL_UM + into_um;
     atlas
         .relief_surface_colour(
             (at, at),
@@ -567,4 +572,15 @@ fn a_sliver_of_tidal_flat_class_does_not_tint_open_sea_at_relief_zoom() {
 #[test]
 fn earlier_recipes_keep_their_relief_sea_tint() {
     assert_ne!(sliver_of_flat(8, false), sliver_of_flat(8, true));
+}
+
+#[test]
+fn a_tidal_flat_out_over_open_water_is_not_tinted_but_one_by_the_shore_is() {
+    // The pixel sits on the flat's own sample node (full class weight).
+    let plain = relief_sea(9, false, 0, None);
+    let far = relief_sea(9, true, 0, None);
+    assert_eq!(far, plain, "no land near: {far:?} vs {plain:?}");
+    let by_land = relief_sea(9, true, 0, Some((10, 11)));
+    let dry_plain = relief_sea(9, false, 0, Some((10, 11)));
+    assert_ne!(by_land, dry_plain, "flat beside land keeps its tint");
 }

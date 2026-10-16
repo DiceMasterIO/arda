@@ -94,6 +94,43 @@ pub(super) fn shore_near(
     Ok(mix)
 }
 
+/// Distance in micrometres from a point to the nearest dry sample node within
+/// four cells, or `None` when none lies that near (or no class layer is
+/// saved). Open sea far from any shore has no nearest land.
+pub(super) fn land_distance_um(
+    x: i128,
+    y: i128,
+    origin: (i128, i128),
+    classes: &[TerrainKind],
+) -> Result<Option<i128>, RenderError> {
+    if classes.len() != SAMPLE_SIDE * SAMPLE_SIDE {
+        return Ok(None);
+    }
+    let (cx0, cy0) = (
+        (x - origin.0).div_euclid(CELL_UM),
+        (y - origin.1).div_euclid(CELL_UM),
+    );
+    let mut best: Option<i128> = None;
+    for cy in cy0 - 3..=cy0 + 4 {
+        for cx in cx0 - 3..=cx0 + 4 {
+            if !(-1..=512).contains(&cx) || !(-1..=512).contains(&cy) {
+                continue;
+            }
+            let i = sample_index(
+                i16::try_from(cx).map_err(|_| invalid("land x conversion"))?,
+                i16::try_from(cy).map_err(|_| invalid("land y conversion"))?,
+            )?;
+            if classes[i] != TerrainKind::Land {
+                continue;
+            }
+            let (dx, dy) = (origin.0 + cx * CELL_UM - x, origin.1 + cy * CELL_UM - y);
+            let d2 = dx * dx + dy * dy;
+            best = Some(best.map_or(d2, |b| b.min(d2)));
+        }
+    }
+    Ok(best.map(i128::isqrt))
+}
+
 /// Recipe-7 arid water around a point: bilinear Q12 weights of saline lake,
 /// salt crust and mudflat cells, and whether all four cells are land (dry
 /// ground below sea level inside the continent is land, not sea).
