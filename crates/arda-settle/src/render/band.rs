@@ -12,10 +12,16 @@
 //! What is drawn follows metres per pixel: land-use tone up to
 //! [`LAND_MAX_M`]; highways and roads at any scale, tracks up to
 //! [`TRACK_MAX_M`], footpaths up to [`FOOTPATH_MAX_M`]; settlement symbols
-//! by tier, strokes scaled like the offline page (`s = 1` at 2,048 pixels
+//! by tier, hamlets (and every road built to one) only up to
+//! [`super::scale::HAMLET_MAX_M`], strokes scaled like the offline page (`s = 1` at 2,048 pixels
 //! across, kept between 0.5 and 2) and symbols larger with the output width
 //! ([`super::scale::symbol_scale`]: 1.6 at 2,048 pixels, up to 2.4). No
 //! text: names are the gazetteer's.
+//!
+//! [`BandLayer::Political`] adds the political layer ([`super::political`]):
+//! realm edge bands under the roads and dash-dot borders over them, in
+//! ivory cased roads ([`RoadStyle::Ivory`]); [`BandLayer::Society`] keeps
+//! the classic red and yellow roads.
 #![allow(
     clippy::cast_possible_truncation,
     clippy::cast_sign_loss,
@@ -23,7 +29,8 @@
     clippy::cast_precision_loss
 )]
 
-use super::layers::{self, land_tone, RoadLines, Sym};
+use super::layers::{self, land_tone, RoadLines, RoadStyle, Sym};
+use super::political::PoliticalLayer;
 use super::{guard, Society, View};
 use crate::canvas::Canvas;
 use crate::error::SettleError;
@@ -46,6 +53,40 @@ const STRIP: usize = 128;
 /// Strips painted at once.
 const BATCH: usize = 8;
 
+/// Which layers the band overlay paints.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
+pub enum BandLayer {
+    /// Land tone, classic roads and settlement symbols.
+    #[default]
+    Society,
+    /// The society layer with ivory roads, plus realm edge bands and
+    /// dash-dot borders.
+    Political,
+}
+
+/// The realm per grid cell, narrow when every id fits a byte.
+enum RealmCells {
+    Narrow(Vec<u8>),
+    Wide(Vec<u16>),
+}
+
+impl RealmCells {
+    fn new(map: &[u16]) -> Self {
+        if map.iter().all(|&r| r <= u16::from(u8::MAX)) {
+            Self::Narrow(map.iter().map(|&r| u8::try_from(r).unwrap_or(0)).collect())
+        } else {
+            Self::Wide(map.to_vec())
+        }
+    }
+
+    fn at(&self, cell: usize) -> u16 {
+        match self {
+            Self::Narrow(v) => v.get(cell).map_or(0, |&r| u16::from(r)),
+            Self::Wide(v) => v.get(cell).copied().unwrap_or(0),
+        }
+    }
+}
+
 /// Land, roads and settlements over the finished rows of an overview.
 pub struct SocietyBandOverlay {
     codes: Vec<u8>,
@@ -57,14 +98,31 @@ pub struct SocietyBandOverlay {
     sym_s: f32,
     /// Samples per pixel axis for the land tone; 0 draws none.
     land_k: usize,
+    /// Road look.
+    road_style: RoadStyle,
+    /// The political layer and the realm per cell, when asked for.
+    political: Option<(PoliticalLayer, RealmCells)>,
 }
 
 impl SocietyBandOverlay {
-    /// Prepares the overlay of a `width × height` overview.
+    /// Prepares the society overlay of a `width × height` overview.
     ///
     /// # Errors
     /// [`SettleError::Format`] for inconsistent or off-world society files.
     pub fn new(soc: Society, width: u32, height: u32) -> Result<Self, SettleError> {
+        Self::with_layer(soc, width, height, BandLayer::Society)
+    }
+
+    /// Prepares the overlay of a `width × height` overview with `layer`.
+    ///
+    /// # Errors
+    /// [`SettleError::Format`] for inconsistent or off-world society files.
+    pub fn with_layer(
+        soc: Society,
+        width: u32,
+        height: u32,
+        layer: BandLayer,
+    ) -> Result<Self, SettleError> {
         guard::check(&soc)?;
         let (gw, gh) = soc.size;
         let (fw, fh) = (width as f32, height as f32);
@@ -88,9 +146,28 @@ impl SocietyBandOverlay {
             classes.insert(0, RoadClass::Footpath);
         }
         let seats: Vec<u64> = soc.realms.realms.iter().map(|r| r.seat).collect();
+        let hamlets = super::scale::shows_hamlets(m_per_px);
+        let skip = if hamlets {
+            std::collections::BTreeSet::new()
+        } else {
+            layers::hamlet_ids(&soc.settlements)
+        };
+        let (road_style, political) = match layer {
+            BandLayer::Society => (RoadStyle::Classic, None),
+            BandLayer::Political => {
+                let palette = super::palette::Palette::of(&soc.realms);
+                (
+                    RoadStyle::Ivory,
+                    Some((
+                        PoliticalLayer::new(&view, &soc.realms, palette),
+                        RealmCells::new(&soc.realm_map),
+                    )),
+                )
+            }
+        };
         Ok(Self {
-            lines: layers::road_lines(&view, &soc.roads),
-            syms: layers::symbol_list(&view, &soc.settlements, &seats),
+            lines: layers::road_lines(&view, &soc.roads, &skip),
+            syms: layers::symbol_list(&view, &soc.settlements, &seats, hamlets),
             codes: soc.codes,
             view,
             classes,
@@ -100,6 +177,8 @@ impl SocietyBandOverlay {
             } else {
                 (m_per_px / 100.0).ceil().clamp(1.0, 4.0) as usize
             },
+            road_style,
+            political,
         })
     }
 
@@ -119,8 +198,26 @@ impl SocietyBandOverlay {
         Self::new(Society::read(world_dir)?, width, height)
     }
 
+    /// Reads `world_dir/society/` and prepares the overlay with `layer`.
+    ///
+    /// # Errors
+    /// Society read errors and [`SettleError::Format`].
+    pub fn open_with(
+        world_dir: &Path,
+        (width, height): (u32, u32),
+        layer: BandLayer,
+    ) -> Result<Self, SettleError> {
+        Self::with_layer(Society::read(world_dir)?, width, height, layer)
+    }
+
+    /// The realm colours of the political layer, when it is painted.
+    #[must_use]
+    pub fn palette(&self) -> Option<&super::palette::Palette> {
+        self.political.as_ref().map(|(p, _)| p.palette())
+    }
+
     /// Paints the window of the image whose top-left pixel is `origin` onto
-    /// `c`: land tone, roads, then symbols.
+    /// `c`: land tone, realm bands, roads, border lines, then symbols.
     pub fn paint_window(&self, c: &mut Canvas, origin: (usize, usize)) {
         self.paint_with(c, origin, &self.lines, &self.syms);
     }
@@ -137,7 +234,13 @@ impl SocietyBandOverlay {
             land_tone_sampled(c, &v, &self.codes, self.land_k);
         }
         let o = (origin.0 as i64, origin.1 as i64);
-        layers::paint_roads(c, lines, v.s, o, &self.classes);
+        if let Some((layer, cells)) = &self.political {
+            layer.paint_band(c, &v, &|cell| cells.at(cell));
+        }
+        layers::paint_roads(c, lines, (v.s, self.road_style), o, &self.classes);
+        if let Some((layer, _)) = &self.political {
+            layer.paint_lines(c, o);
+        }
         layers::paint_symbols(c, syms, self.sym_s, o);
     }
 }

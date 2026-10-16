@@ -3,7 +3,10 @@
 
 use super::labels::{Placer, Rect};
 use super::mask::{chaikin, Mask};
-pub use super::roadlayer::{paint_roads, road_lines, road_style, roads, Line, RoadLines, CLASSES};
+use super::palette::Palette;
+pub use super::roadlayer::{
+    hamlet_ids, paint_roads, road_lines, road_style, Line, RoadLines, RoadLook, RoadStyle, CLASSES,
+};
 use super::View;
 use crate::canvas::{Canvas, Rgb};
 use crate::landuse::code;
@@ -11,30 +14,12 @@ use crate::model::Tier;
 use crate::output::{RealmsFile, RoadsFile, SettlementsFile};
 use std::collections::BTreeSet;
 
-/// Realm colours, muted for print.
-pub const REALM: [Rgb; 8] = [
-    [168, 52, 58],
-    [48, 86, 158],
-    [184, 134, 34],
-    [110, 62, 146],
-    [36, 128, 116],
-    [176, 92, 38],
-    [92, 124, 48],
-    [146, 60, 108],
-];
-
 /// Ink for symbols and ordinary text.
 pub const INK: Rgb = [38, 28, 22];
 /// Paper for halos and furniture.
 pub const PAPER: Rgb = [250, 245, 230];
 /// Red of towns and cities.
 pub const TOWN_RED: Rgb = [176, 38, 32];
-
-/// The colour of realm `id` (1-based).
-#[must_use]
-pub fn realm_colour(id: u16) -> Rgb {
-    REALM[usize::from(id.max(1) - 1) % REALM.len()]
-}
 
 /// A darker shade of a colour for text and lines.
 #[must_use]
@@ -128,28 +113,30 @@ pub fn realm_pixels(c: &Canvas, v: &View, map: &[u16]) -> Vec<u16> {
         .collect()
 }
 
-/// A soft tint over each realm, deepening into a ribbon along its land
-/// borders. Returns, per realm, the pixel deepest inside it (for its label).
-pub fn realm_tints(c: &mut Canvas, v: &View, rp: &[u16]) -> Vec<(u16, (f32, f32))> {
+/// Whether pixel `i` of a `w`-wide realm raster touches another realm.
+fn on_border(rp: &[u16], w: usize, h: usize, i: usize) -> bool {
+    let r = rp[i];
+    if r == 0 {
+        return false;
+    }
+    let (x, y) = (i % w, i / w);
+    [(1_i64, 0_i64), (-1, 0), (0, 1), (0, -1)]
+        .iter()
+        .any(|&(dx, dy)| {
+            let (nx, ny) = (x as i64 + dx, y as i64 + dy);
+            nx >= 0 && ny >= 0 && (nx as usize) < w && (ny as usize) < h && {
+                let o = rp[ny as usize * w + nx as usize];
+                o != 0 && o != r
+            }
+        })
+}
+
+/// The classic realm look: a soft tint over each realm, deepening into a
+/// ribbon along its land borders.
+pub fn realm_tints(c: &mut Canvas, v: &View, rp: &[u16], palette: &Palette) {
     let (w, h) = (c.width, c.height);
-    let border = |i: usize| {
-        let r = rp[i];
-        if r == 0 {
-            return false;
-        }
-        let (x, y) = (i % w, i / w);
-        [(1_i64, 0_i64), (-1, 0), (0, 1), (0, -1)]
-            .iter()
-            .any(|&(dx, dy)| {
-                let (nx, ny) = (x as i64 + dx, y as i64 + dy);
-                nx >= 0 && ny >= 0 && (nx as usize) < w && (ny as usize) < h && {
-                    let o = rp[ny as usize * w + nx as usize];
-                    o != 0 && o != r
-                }
-            })
-    };
     let ribbon = 16.0 * v.s;
-    let d = distance(w, h, border, ribbon + 1.0);
+    let d = distance(w, h, |i| on_border(rp, w, h, i), ribbon + 1.0);
     for i in 0..w * h {
         let r = rp[i];
         if r == 0 {
@@ -157,12 +144,21 @@ pub fn realm_tints(c: &mut Canvas, v: &View, rp: &[u16]) -> Vec<(u16, (f32, f32)
         }
         let t = (1.0 - d[i] / ribbon).max(0.0);
         let (x, y) = ((i % w) as i64, (i / w) as i64);
-        c.blend(x, y, realm_colour(r), 0.13);
+        let col = palette.colour(u64::from(r));
+        c.blend(x, y, col, 0.13);
         if t > 0.0 {
-            c.multiply(x, y, tint(realm_colour(r)), 0.62 * t * t);
+            c.multiply(x, y, tint(col), 0.62 * t * t);
         }
     }
-    // Deepest point of each realm, away from borders and the sea alike.
+}
+
+/// Label anchors: per realm id, a page pixel.
+pub type Anchors = [(u16, (f32, f32))];
+
+/// Per realm, the pixel deepest inside it, away from borders and the sea
+/// alike (where its label goes).
+#[must_use]
+pub fn realm_anchors(w: usize, h: usize, rp: &[u16]) -> Vec<(u16, (f32, f32))> {
     let edge = |i: usize| {
         let r = rp[i];
         let (x, y) = (i % w, i / w);
@@ -193,7 +189,7 @@ fn tint(c: Rgb) -> Rgb {
     c.map(|v| (255.0 - (255.0 - f32::from(v)) * 0.9).round() as u8)
 }
 
-/// Realm borders as dashed lines over a pale casing, smoothed.
+/// The classic realm borders: dashed lines over a pale casing, smoothed.
 pub fn realm_borders(c: &mut Canvas, v: &View, realms: &RealmsFile) {
     let mut seen: BTreeSet<Vec<[i64; 2]>> = BTreeSet::new();
     let mut casing = c.mask();
@@ -313,10 +309,16 @@ pub struct Sym {
     pub seat: bool,
 }
 
-/// Every settlement's symbol, small first (so big ones overdraw).
+/// Every settlement's symbol, small first (so big ones overdraw); with
+/// `hamlets` false (world scale, [`super::scale::shows_hamlets`]) cities,
+/// towns and villages only.
 #[must_use]
-pub fn symbol_list(v: &View, st: &SettlementsFile, seats: &[u64]) -> Vec<Sym> {
-    let mut list: Vec<_> = st.settlements.iter().collect();
+pub fn symbol_list(v: &View, st: &SettlementsFile, seats: &[u64], hamlets: bool) -> Vec<Sym> {
+    let mut list: Vec<_> = st
+        .settlements
+        .iter()
+        .filter(|x| hamlets || x.tier != Tier::Hamlet)
+        .collect();
     list.sort_by_key(|x| (x.tier, x.id));
     list.into_iter()
         .map(|x| Sym {
@@ -353,15 +355,16 @@ pub fn paint_symbols(c: &mut Canvas, list: &[Sym], s: f32, origin: (i64, i64)) {
     sym.paint_at(c, origin);
 }
 
-/// Every settlement's symbol, small first; reserves their boxes.
+/// Every settlement's symbol, small first (hamlets only with `hamlets`);
+/// reserves their boxes.
 pub fn settlements(
     c: &mut Canvas,
     v: &View,
-    st: &SettlementsFile,
-    seats: &[u64],
+    (st, seats): (&SettlementsFile, &[u64]),
+    hamlets: bool,
     pl: &mut Placer<'_>,
 ) {
-    let list = symbol_list(v, st, seats);
+    let list = symbol_list(v, st, seats, hamlets);
     paint_symbols(c, &list, v.s, (0, 0));
     for x in &list {
         pl.reserve(Rect::around(x.at, symbol_r(x.tier) * v.s + v.s));

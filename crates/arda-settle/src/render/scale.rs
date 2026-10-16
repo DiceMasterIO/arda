@@ -15,6 +15,23 @@ const SYMBOL_MIN: f32 = 0.6;
 /// Largest symbol and name scale.
 const MAX: f32 = 2.4;
 
+/// Metres per pixel above which hamlets, and the roads built to reach
+/// them, are left off (logic/04 §overlay). World-scale outputs (the
+/// offline page, overview exports and the overview pyramid of any world
+/// longer than 61 km on a 2,048 pixel image, or 123 km on the 4,096 pixel
+/// pyramid base, so every MICRO and default-size world) are coarser and show
+/// cities, towns and villages only; area exports and relief tiles are
+/// finer and show every hamlet. It is the tracks' own switch
+/// ([`super::band::TRACK_MAX_M`]), so a hamlet and its track come and go
+/// together.
+pub const HAMLET_MAX_M: f32 = 30.0;
+
+/// Whether an image at `m_per_px` metres per pixel shows hamlets.
+#[must_use]
+pub fn shows_hamlets(m_per_px: f32) -> bool {
+    m_per_px <= HAMLET_MAX_M
+}
+
 /// Scale of settlement symbols on an overview `width_px` pixels across.
 #[must_use]
 pub fn symbol_scale(width_px: f32) -> f32 {
@@ -51,6 +68,15 @@ mod tests {
     fn a_2048_overview_draws_names_and_symbols_clearly_bigger_than_page_size() {
         assert!((1.5..=1.7).contains(&symbol_scale(2_048.0)));
         assert!((1.5..=1.7).contains(&label_unit_for_width(2_048.0)));
+    }
+
+    #[test]
+    fn hamlets_show_at_area_scale_and_not_at_world_scale() {
+        // The default world (460 km) on a 4,096 px page: about 240 m/px.
+        assert!(!shows_hamlets(240.0));
+        // An 8K area export (6.25 m/px) and a 2K one (25 m/px).
+        assert!(shows_hamlets(6.25) && shows_hamlets(25.0));
+        assert!((HAMLET_MAX_M - super::super::band::TRACK_MAX_M).abs() < f32::EPSILON);
     }
 
     #[test]

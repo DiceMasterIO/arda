@@ -2,14 +2,17 @@
 //! step 9, goal 41).
 //!
 //! The overview comes from `arda::export_overview_with_quality_and_style`
-//! in Atlas style. Over it go quiet land-use tints, a soft tint per realm
-//! that deepens into a ribbon along its borders, dashed realm borders,
-//! roads by class with casings, settlement, mine, pass and peak symbols,
+//! in Atlas style. Over it go quiet land-use tints, the political layer
+//! (each realm's own colour as an inner band at its borders, and dark
+//! dash-dot border lines over a pale halo; [`political`]), ivory roads by
+//! class in sepia casings, settlement, mine, pass and peak symbols (no
+//! hamlets at world scale, [`scale::shows_hamlets`]),
 //! labels set by a greedy placer in anti-aliased serif type with halos
 //! (realms in letter-spaced small capitals, rivers in italic along their
 //! courses), and page furniture: a neatline, a title cartouche, a legend
 //! and a scale bar. Sizes scale with the image: `s = 1` at 2,048 pixels
-//! across.
+//! across. [`PageStyle::Classic`] keeps the earlier look (realm tints and
+//! ribbons, dashed borders, red and yellow roads).
 //!
 //! Drawing is floating point by nature; the casts between pixel indices
 //! and coordinates are bounded by the canvas size.
@@ -26,7 +29,10 @@ pub mod furniture;
 pub mod guard;
 pub mod labels;
 pub mod layers;
+pub mod legend;
 pub mod mask;
+pub mod palette;
+pub mod political;
 pub mod roadlayer;
 pub mod scale;
 mod text;
@@ -78,6 +84,12 @@ impl View {
         let x = ((px as f32 + self.ox + 0.5) * self.gw as f32 / self.fw) as usize;
         let y = ((py as f32 + self.oy + 0.5) * self.gh as f32 / self.fh) as usize;
         y.min(self.gh - 1) * self.gw + x.min(self.gw - 1)
+    }
+
+    /// Metres per pixel of the whole image (the coarser axis).
+    #[must_use]
+    pub fn m_per_px(&self) -> f32 {
+        (self.gw as f32 * 100.0 / self.fw).max(self.gh as f32 * 100.0 / self.fh)
     }
 
     /// Pixels per kilometre.
@@ -139,13 +151,66 @@ impl Society {
     }
 }
 
-/// Renders the overlay for `world` to `out`. With `full` the page is the
-/// whole overview; otherwise it is cropped to the land with a margin and
-/// room at one side for the legend.
+/// Look of the offline page.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
+pub enum PageStyle {
+    /// The political map: realm edge bands and dash-dot borders, ivory
+    /// cased roads, no area fill.
+    #[default]
+    Political,
+    /// The earlier look: a soft tint per realm deepening into a ribbon at
+    /// its borders, dashed borders, red highways and yellow roads.
+    Classic,
+}
+
+impl PageStyle {
+    /// The road and border looks of this page style.
+    #[must_use]
+    pub const fn looks(self) -> (layers::RoadStyle, legend::BorderStyle) {
+        match self {
+            Self::Political => (layers::RoadStyle::Ivory, legend::BorderStyle::EdgeBand),
+            Self::Classic => (layers::RoadStyle::Classic, legend::BorderStyle::Ribbon),
+        }
+    }
+}
+
+/// Options of [`render_with`] and [`draw_with`].
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
+pub struct PageOptions {
+    /// Keep the whole overview instead of cropping to the land.
+    pub full: bool,
+    /// Look of the page.
+    pub style: PageStyle,
+}
+
+/// Renders the overlay for `world` to `out` in the default political
+/// style. With `full` the page is the whole overview; otherwise it is
+/// cropped to the land with a margin and room at one side for the legend.
 ///
 /// # Errors
 /// Load, export, PNG and I/O errors.
 pub fn render(world_dir: &Path, out: &Path, quality: u32, full: bool) -> Result<(), SettleError> {
+    render_with(
+        world_dir,
+        out,
+        quality,
+        PageOptions {
+            full,
+            ..PageOptions::default()
+        },
+    )
+}
+
+/// [`render`] with every page option.
+///
+/// # Errors
+/// Load, export, PNG and I/O errors.
+pub fn render_with(
+    world_dir: &Path,
+    out: &Path,
+    quality: u32,
+    opts: PageOptions,
+) -> Result<(), SettleError> {
     let world = arda::World::load(world_dir)?;
     let q = arda::ImageQuality::new(quality).map_err(|e| SettleError::Png(e.to_string()))?;
     let tmp = guard::scratch_dir(&std::env::temp_dir())?;
@@ -155,7 +220,7 @@ pub fn render(world_dir: &Path, out: &Path, quality: u32, full: bool) -> Result<
     let _ = std::fs::remove_dir_all(&tmp);
     let mut canvas = base?;
     let society = Society::read(world_dir)?;
-    draw(&mut canvas, &society, world.seed(), full)?;
+    draw_with(&mut canvas, &society, world.seed(), opts)?;
     if let Some(dir) = out.parent().filter(|d| !d.as_os_str().is_empty()) {
         std::fs::create_dir_all(dir).map_err(|e| SettleError::io(dir, e))?;
     }
@@ -197,18 +262,40 @@ fn page(fw: usize, fh: usize, soc: &Society) -> (usize, usize, usize, usize) {
     )
 }
 
+/// Draws every layer of the overlay onto `c` (the full overview) in the
+/// default political style, cropping it to the page first unless `full`.
+///
+/// # Errors
+/// As [`draw_with`].
+pub fn draw(c: &mut Canvas, soc: &Society, seed: u64, full: bool) -> Result<(), SettleError> {
+    draw_with(
+        c,
+        soc,
+        seed,
+        PageOptions {
+            full,
+            ..PageOptions::default()
+        },
+    )
+}
+
 /// Draws every layer of the overlay onto `c` (the full overview), cropping
-/// it to the page first unless `full`.
+/// it to the page first unless `opts.full`.
 ///
 /// # Errors
 /// [`SettleError::Format`] for inconsistent or off-world inputs
 /// ([`guard::check`]); [`SettleError::Png`] if the embedded fonts fail to
 /// parse.
-pub fn draw(c: &mut Canvas, soc: &Society, seed: u64, full: bool) -> Result<(), SettleError> {
+pub fn draw_with(
+    c: &mut Canvas,
+    soc: &Society,
+    seed: u64,
+    opts: PageOptions,
+) -> Result<(), SettleError> {
     guard::check(soc)?;
     let (gw, gh) = soc.size;
     let (fw, fh) = (c.width, c.height);
-    let (ox, oy, w, h) = if full {
+    let (ox, oy, w, h) = if opts.full {
         (0, 0, fw, fh)
     } else {
         page(fw, fh, soc)
@@ -235,26 +322,74 @@ pub fn draw(c: &mut Canvas, soc: &Society, seed: u64, full: bool) -> Result<(), 
         gh,
         s: (fw as f32 / 2048.0).clamp(0.4, 8.0),
     };
+    let (road_style, border_style) = opts.style.looks();
+    let palette = palette::Palette::of(&soc.realms);
+    let hamlets = scale::shows_hamlets(v.m_per_px());
+    let skip = if hamlets {
+        std::collections::BTreeSet::new()
+    } else {
+        layers::hamlet_ids(&soc.settlements)
+    };
+    let lines = layers::road_lines(&v, &soc.roads, &skip);
+    let origin = (ox as i64, oy as i64);
     layers::land_use(c, &v, &soc.codes);
     let rp = layers::realm_pixels(c, &v, &soc.realm_map);
-    let anchors = layers::realm_tints(c, &v, &rp);
-    layers::realm_borders(c, &v, &soc.realms);
-    layers::roads(c, &v, &soc.roads);
+    let anchors = layers::realm_anchors(c.width, c.height, &rp);
+    match border_style {
+        legend::BorderStyle::EdgeBand => {
+            let layer = political::PoliticalLayer::new(&v, &soc.realms, palette.clone());
+            layer.paint_band(c, &v, &|cell| soc.realm_map[cell]);
+            layers::paint_roads(c, &lines, (v.s, road_style), origin, &layers::CLASSES);
+            layer.paint_lines(c, origin);
+        }
+        legend::BorderStyle::Ribbon => {
+            layers::realm_tints(c, &v, &rp, &palette);
+            layers::realm_borders(c, &v, &soc.realms);
+            layers::paint_roads(c, &lines, (v.s, road_style), origin, &layers::CLASSES);
+        }
+    }
     let fonts = font::Fonts::new()?;
     let mut pl = labels::Placer::new(&fonts, v.pw, v.ph, 2.3 * v.s);
     let land: Vec<bool> = rp.iter().map(|&r| r != 0).collect();
     let at = furniture::place(c, &v, &mut pl, &land);
     let seats: Vec<u64> = soc.realms.realms.iter().map(|r| r.seat).collect();
-    layers::settlements(c, &v, &soc.settlements, &seats, &mut pl);
+    layers::settlements(c, &v, (&soc.settlements, &seats), hamlets, &mut pl);
     let peaks = text::peaks(&v, &soc.names);
     let peak_px: Vec<(f32, f32)> = peaks.iter().map(|p| p.at).collect();
     layers::features(c, &v, &soc.codes, &soc.roads, &peak_px, &mut pl);
-    let inks = text::labels(&v, soc, &anchors, &peaks, &mut pl);
+    let inks = text::labels(&v, soc, (&anchors, &palette), &peaks, &mut pl);
     labels::paint(c, &inks, layers::PAPER, 0.82);
     text::features(c, &v, soc, &pl);
     let title = text::title(soc, seed, &v);
-    furniture::draw(c, &v, &fonts, at, &title);
+    let key = legend::Key {
+        roads: road_style,
+        borders: border_style,
+        hamlets,
+        realm_pair: realm_pair(soc, &palette),
+    };
+    furniture::draw(c, &v, &fonts, (at, &key), &title);
     Ok(())
+}
+
+/// Two neighbouring realms' colours for the legend's border swatch (the
+/// first realm with a neighbour, and that neighbour).
+fn realm_pair(soc: &Society, palette: &palette::Palette) -> [crate::canvas::Rgb; 2] {
+    let mut realms: Vec<_> = soc.realms.realms.iter().collect();
+    realms.sort_by_key(|r| r.id);
+    realms
+        .iter()
+        .find_map(|r| {
+            r.neighbours
+                .iter()
+                .min()
+                .map(|&n| [palette.colour(r.id), palette.colour(n)])
+        })
+        .unwrap_or_else(|| {
+            let one = realms
+                .first()
+                .map_or([150, 120, 90], |r| palette.colour(r.id));
+            [one, one]
+        })
 }
 
 fn decode(path: &Path) -> Result<Canvas, SettleError> {

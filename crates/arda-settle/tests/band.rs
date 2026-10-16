@@ -4,11 +4,18 @@
 
 use arda_render::BandOverlay;
 use arda_settle::canvas::Canvas;
-use arda_settle::render::band::SocietyBandOverlay;
+use arda_settle::render::band::{BandLayer, SocietyBandOverlay};
 use arda_settle::render::Society;
 use arda_settle::{run, synthetic, PlaceParams};
 
 fn overlay(width: u32, height: u32) -> SocietyBandOverlay {
+    overlay_with(width, height, BandLayer::Society)
+}
+
+/// Tests run in parallel: each society gets its own directory.
+static NEXT: std::sync::atomic::AtomicU64 = std::sync::atomic::AtomicU64::new(0);
+
+fn overlay_with(width: u32, height: u32, layer: BandLayer) -> SocietyBandOverlay {
     let params = PlaceParams {
         seed: 42,
         density_per_km2: 15,
@@ -16,8 +23,9 @@ fn overlay(width: u32, height: u32) -> SocietyBandOverlay {
     let grid = synthetic::landscape(params.seed).unwrap();
     let society = run(&grid, params).unwrap();
     let dir = std::env::temp_dir().join(format!(
-        "arda-settle-band-{}-{width}x{height}",
-        std::process::id()
+        "arda-settle-band-{}-{width}x{height}-{layer:?}-{}",
+        std::process::id(),
+        NEXT.fetch_add(1, std::sync::atomic::Ordering::Relaxed)
     ));
     let _ = std::fs::remove_dir_all(&dir);
     arda_settle::write(
@@ -29,7 +37,7 @@ fn overlay(width: u32, height: u32) -> SocietyBandOverlay {
     .unwrap();
     let soc = Society::read(&dir).unwrap();
     let _ = std::fs::remove_dir_all(&dir);
-    SocietyBandOverlay::new(soc, width, height).unwrap()
+    SocietyBandOverlay::with_layer(soc, width, height, layer).unwrap()
 }
 
 fn grey(width: usize, height: usize) -> Vec<u8> {
@@ -141,4 +149,73 @@ fn settlement_symbols_scale_with_the_output_width() {
     assert!(small < page && page < wide, "{small} {page} {wide}");
     assert!(wide >= 1.5, "a 2048 px overview draws cities big: {wide}");
     assert!(huge >= wide && huge <= 2.4);
+}
+
+/// Paints the window of `o` at `at` over a position-dependent grey.
+fn window(o: &SocietyBandOverlay, w: usize, h: usize, at: (usize, usize)) -> Canvas {
+    let mut c = Canvas {
+        width: w,
+        height: h,
+        rgb: (0..w * h)
+            .flat_map(|i| {
+                let (x, y) = (at.0 + i % w, at.1 + i / w);
+                let v = 90 + u8::try_from((x * 7 + y * 13) % 60).unwrap();
+                [v, v, v]
+            })
+            .collect(),
+    };
+    o.paint_window(&mut c, at);
+    c
+}
+
+#[test]
+fn political_tiles_join_without_a_seam() {
+    // 1,280 px for 64 km (50 m/px): an overview pyramid level, cut into
+    // 256 px slippy tiles. Each tile painted alone equals its place in a
+    // 2 × 2 block painted at once, and bands of rows equal the whole.
+    let (w, h) = (1280, 960);
+    let pol = overlay_with(1280, 960, BandLayer::Political);
+    let soc = overlay(1280, 960);
+    assert!(pol.palette().is_some() && soc.palette().is_none());
+    let whole = window(&pol, w, h, (0, 0));
+    assert_ne!(
+        whole.rgb,
+        window(&soc, w, h, (0, 0)).rgb,
+        "the political layer paints bands and borders"
+    );
+    assert_eq!(in_bands(&pol, (w, h), &[256, 512, 768]), {
+        let mut c = Canvas {
+            width: w,
+            height: h,
+            rgb: grey(w, h),
+        };
+        pol.paint_window(&mut c, (0, 0));
+        c.rgb
+    });
+    for (bx, by) in [(0, 0), (256, 256), (512, 256), (768, 512)] {
+        let block = window(&pol, 512, 512, (bx, by));
+        for (tx, ty) in [(0, 0), (256, 0), (0, 256), (256, 256)] {
+            let tile = window(&pol, 256, 256, (bx + tx, by + ty));
+            for r in 0..256 {
+                let a = &tile.rgb[r * 256 * 3..(r + 1) * 256 * 3];
+                let b = &block.rgb[((ty + r) * 512 + tx) * 3..((ty + r) * 512 + tx + 256) * 3];
+                assert_eq!(
+                    a,
+                    b,
+                    "tile ({},{}) row {r} differs from its block",
+                    bx + tx,
+                    by + ty
+                );
+            }
+        }
+        // And the block is the whole image's own pixels.
+        for r in 0..512.min(h - by) {
+            let a = &block.rgb[r * 512 * 3..(r * 512 + 512.min(w - bx)) * 3];
+            let b = &whole.rgb[((by + r) * w + bx) * 3..((by + r) * w + bx + 512.min(w - bx)) * 3];
+            assert_eq!(
+                a, b,
+                "block ({bx},{by}) row {r} differs from the whole image"
+            );
+        }
+    }
 }

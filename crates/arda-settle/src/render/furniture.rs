@@ -4,12 +4,11 @@
 
 use super::font::{Case, Face, Fonts, Style};
 use super::labels::{Placer, Rect};
-use super::layers::{road_style, Symbols, INK};
+use super::layers::INK;
+use super::legend::Key;
 use super::mask::Mask;
 use super::View;
 use crate::canvas::Canvas;
-use crate::model::Tier;
-use crate::roads::RoadClass;
 
 /// What the cartouche says.
 pub struct Title {
@@ -77,15 +76,15 @@ pub fn place(c: &Canvas, v: &View, pl: &mut Placer<'_>, land: &[bool]) -> (f32, 
     (x, y)
 }
 
-/// Draws the neatline, cartouche, legend and scale bar with the block at
-/// `at` (from [`place`]).
-pub fn draw(c: &mut Canvas, v: &View, fonts: &Fonts, at: (f32, f32), t: &Title) {
+/// Draws the neatline, cartouche, legend (of `key`) and scale bar with the
+/// block at `at` (from [`place`]).
+pub fn draw(c: &mut Canvas, v: &View, fonts: &Fonts, (at, key): ((f32, f32), &Key), t: &Title) {
     let s = v.s;
     let (bw, title_h, legend_h) = block(s);
     neatline(c, s);
     let (x, y) = at;
     cartouche(c, v, fonts, (x, y, bw, title_h), t);
-    legend(c, v, fonts, (x, y + title_h + 14.0 * s, bw, legend_h));
+    super::legend::draw(c, v, fonts, (x, y + title_h + 14.0 * s, bw, legend_h), key);
 }
 
 /// A paper margin with a heavy and a fine rule.
@@ -123,13 +122,13 @@ fn neatline(c: &mut Canvas, s: f32) {
     c.paint(&rule, [70, 50, 34], 1.0);
 }
 
-fn rect_stroke(m: &mut Mask, x: f32, y: f32, w: f32, h: f32, lw: f32) {
+pub(super) fn rect_stroke(m: &mut Mask, x: f32, y: f32, w: f32, h: f32, lw: f32) {
     let p = [(x, y), (x + w, y), (x + w, y + h), (x, y + h), (x, y)];
     m.polyline(&p, lw);
 }
 
 /// A paper panel with a double rule.
-fn panel(c: &mut Canvas, b: (f32, f32, f32, f32), s: f32) {
+pub(super) fn panel(c: &mut Canvas, b: (f32, f32, f32, f32), s: f32) {
     let (x, y, w, h) = b;
     let mut fill = Mask::new(x as i64 - 2, y as i64 - 2, w as usize + 4, h as usize + 4);
     for py in 0..fill.h {
@@ -156,7 +155,7 @@ fn panel(c: &mut Canvas, b: (f32, f32, f32, f32), s: f32) {
     c.paint(&rule, [70, 50, 34], 1.0);
 }
 
-fn text(
+pub(super) fn text(
     c: &mut Canvas,
     f: &Fonts,
     st: &Style,
@@ -183,7 +182,7 @@ fn cartouche(c: &mut Canvas, v: &View, f: &Fonts, b: (f32, f32, f32, f32), t: &T
     let title = Style::new(Face::DisplayBold, 38.0 * s)
         .tracked(0.06)
         .cased(Case::SmallCaps);
-    let sub = Style::new(Face::Italic, 17.0 * s);
+    let sub = Style::new(Face::Italic, 15.0 * s);
     let note = Style::new(Face::Regular, 12.5 * s);
     let cx = |st: &Style, s: &str| x + (w - f.width(st, s)) / 2.0;
     text(
@@ -195,22 +194,28 @@ fn cartouche(c: &mut Canvas, v: &View, f: &Fonts, b: (f32, f32, f32, f32), t: &T
         y + 58.0 * s,
         [60, 36, 26],
     );
-    text(
-        c,
-        f,
-        &sub,
-        &t.subtitle,
-        cx(&sub, &t.subtitle),
-        y + 90.0 * s,
-        INK,
-    );
+    // The realm list wraps to the panel's width (at most three lines).
+    let lines = wrap(f, &sub, &t.subtitle, w - 28.0 * s, 3);
+    let step = 17.0 * s;
+    for (k, l) in lines.iter().enumerate() {
+        text(
+            c,
+            f,
+            &sub,
+            l,
+            cx(&sub, l),
+            y + 82.0 * s + step * k as f32,
+            INK,
+        );
+    }
+    let note_y = (y + 82.0 * s + step * lines.len() as f32 + 6.0 * s).max(y + 118.0 * s);
     text(
         c,
         f,
         &note,
         &t.note,
         cx(&note, &t.note),
-        y + 124.0 * s,
+        note_y,
         [90, 70, 52],
     );
     // North arrow in the top right of the panel.
@@ -241,140 +246,25 @@ fn cartouche(c: &mut Canvas, v: &View, f: &Fonts, b: (f32, f32, f32, f32), t: &T
     );
 }
 
-fn legend(c: &mut Canvas, v: &View, f: &Fonts, b: (f32, f32, f32, f32)) {
-    let s = v.s;
-    panel(c, b, s);
-    let (x, y, w, h) = b;
-    let head = Style::new(Face::Bold, 15.0 * s)
-        .tracked(0.12)
-        .cased(Case::SmallCaps);
-    let body = Style::new(Face::Regular, 13.0 * s);
-    text(
-        c,
-        f,
-        &head,
-        "Legend",
-        x + (w - f.width(&head, "Legend")) / 2.0,
-        y + 28.0 * s,
-        [60, 36, 26],
-    );
-    let col = [x + 20.0 * s, x + w / 2.0 + 8.0 * s];
-    let row = |k: usize| y + 58.0 * s + k as f32 * 25.0 * s;
-    let mut sym = Symbols::new(x as i64, y as i64, w as usize, h as usize);
-    let places = [
-        (Tier::City, false, "City"),
-        (Tier::Town, false, "Town"),
-        (Tier::Village, false, "Village"),
-        (Tier::Hamlet, false, "Hamlet"),
-        (Tier::Town, true, "Realm seat"),
-    ];
-    for (k, &(tier, seat, label)) in places.iter().enumerate() {
-        sym.draw((col[0] + 10.0 * s, row(k) - 4.5 * s), tier, seat, s);
-        text(c, f, &body, label, col[0] + 28.0 * s, row(k), INK);
-    }
-    sym.paint(c);
-    for (k, (class, label)) in [
-        (RoadClass::Highway, "Highway"),
-        (RoadClass::Road, "Road"),
-        (RoadClass::Track, "Track"),
-        (RoadClass::Footpath, "Footpath"),
-    ]
-    .into_iter()
-    .enumerate()
-    {
-        let (cw, cc, fw, fc, dash) = road_style(class);
-        let yy = row(k) - 4.5 * s;
-        let seg = [(col[1], yy), (col[1] + 26.0 * s, yy)];
-        let mut m = Mask::new(x as i64, y as i64, w as usize, h as usize);
-        if cw > 0.0 {
-            m.polyline(&seg, cw * s);
-            c.paint(&m, cc, 0.95);
-            m.clear();
+/// `words` broken into lines no wider than `max` pixels in `st`, at most
+/// `most` lines (a word longer than a line keeps a line of its own).
+pub(super) fn wrap(f: &Fonts, st: &Style, words: &str, max: f32, most: usize) -> Vec<String> {
+    let mut lines: Vec<String> = Vec::new();
+    for word in words.split_whitespace() {
+        match lines.last_mut() {
+            Some(l) if f.width(st, &format!("{l} {word}")) <= max => {
+                l.push(' ');
+                l.push_str(word);
+            }
+            _ => lines.push(word.to_string()),
         }
-        match dash {
-            Some((on, off)) => m.dashed(&seg, fw * s, on * s, off * s, &mut 0.0),
-            None => m.polyline(&seg, fw * s),
-        }
-        c.paint(&m, fc, 1.0);
-        text(c, f, &body, label, col[1] + 34.0 * s, row(k), INK);
     }
-    // Border, mine, pass, peak.
-    let yy = row(4) - 4.5 * s;
-    let mut m = Mask::new(x as i64, y as i64, w as usize, h as usize);
-    m.dashed(
-        &[(col[1], yy), (col[1] + 26.0 * s, yy)],
-        1.9 * s,
-        9.0 * s,
-        4.5 * s,
-        &mut 0.0,
-    );
-    c.paint(&m, [92, 30, 78], 0.95);
-    text(c, f, &body, "Realm border", col[1] + 34.0 * s, row(4), INK);
-    let italic = Style::new(Face::Italic, 13.0 * s);
-    text(
-        c,
-        f,
-        &italic,
-        "River",
-        col[0] + 28.0 * s,
-        row(5),
-        [40, 84, 140],
-    );
-    let mut water = Mask::new(x as i64, y as i64, w as usize, h as usize);
-    let wave: Vec<(f32, f32)> = (0..=12)
-        .map(|k| {
-            let t = k as f32 / 12.0;
-            (
-                col[0] + t * 22.0 * s,
-                row(5) - 4.5 * s + (t * 6.3).sin() * 2.0 * s,
-            )
-        })
-        .collect();
-    water.polyline(&wave, 1.6 * s);
-    c.paint(&water, [60, 110, 170], 1.0);
-    text(
-        c,
-        f,
-        &body,
-        "Mine, pass, peak",
-        col[1] + 34.0 * s,
-        row(5),
-        INK,
-    );
-    let mut ink = Mask::new(x as i64, y as i64, w as usize, h as usize);
-    let (mx, my) = (col[1] + 5.0 * s, row(5) - 4.5 * s);
-    let r = 3.4 * s;
-    ink.segment((mx - r, my - r), (mx + r, my + r), 1.3 * s);
-    ink.segment((mx - r, my + r), (mx + r, my - r), 1.3 * s);
-    let px = col[1] + 15.0 * s;
-    ink.polyline(
-        &[
-            (px - 2.2 * s, my - 4.0 * s),
-            (px - 1.2 * s, my),
-            (px - 2.2 * s, my + 4.0 * s),
-        ],
-        1.2 * s,
-    );
-    ink.polyline(
-        &[
-            (px + 2.2 * s, my - 4.0 * s),
-            (px + 1.2 * s, my),
-            (px + 2.2 * s, my + 4.0 * s),
-        ],
-        1.2 * s,
-    );
-    let tx = col[1] + 25.0 * s;
-    ink.triangle(
-        (tx, my - 4.6 * s),
-        (tx - 4.2 * s, my + 2.8 * s),
-        (tx + 4.2 * s, my + 2.8 * s),
-    );
-    c.paint(&ink, [70, 46, 30], 1.0);
-    scale_bar(c, v, f, (x + 20.0 * s, y + h - 44.0 * s, w - 40.0 * s));
+    lines.truncate(most);
+    lines
 }
 
 /// Alternating 5 km blocks to a round length that fits `b.2` pixels.
-fn scale_bar(c: &mut Canvas, v: &View, f: &Fonts, b: (f32, f32, f32)) {
+pub(super) fn scale_bar(c: &mut Canvas, v: &View, f: &Fonts, b: (f32, f32, f32)) {
     let s = v.s;
     let (x, y, w) = b;
     let px_per_km = v.px_per_km();

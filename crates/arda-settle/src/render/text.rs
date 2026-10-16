@@ -5,8 +5,9 @@ use super::font::{Case, Face, Style};
 use super::furniture::Title;
 use super::labels::Rect;
 use super::labels::{Ink, Line, Placer};
-use super::layers::{realm_colour, shade, symbol_r, INK};
+use super::layers::{shade, symbol_r, Anchors, INK};
 use super::mask::chaikin;
+use super::palette::Palette;
 use super::tilelabels::{Labeler, HALO_OPACITY};
 use super::{Society, View};
 use crate::canvas::Rgb;
@@ -74,7 +75,7 @@ fn thousands(n: i32) -> String {
 pub fn labels(
     v: &View,
     soc: &Society,
-    anchors: &[(u16, (f32, f32))],
+    (anchors, palette): (&Anchors, &Palette),
     peaks: &[Peak],
     pl: &mut Placer<'_>,
 ) -> Vec<Ink> {
@@ -84,7 +85,7 @@ pub fn labels(
         let Some(r) = soc.realms.realms.iter().find(|r| r.id == u64::from(id)) else {
             continue;
         };
-        let col = shade(realm_colour(id), 0.45);
+        let col = shade(palette.colour(u64::from(id)), 0.45);
         let lines = [
             line(
                 &r.name,

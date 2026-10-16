@@ -38,7 +38,31 @@ fn the_overlay_draws_the_same_page_twice() {
     assert_eq!(a.rgb, b.rgb, "drawing is not deterministic");
     assert_eq!((a.width, a.height), (1280, 960));
     let changed = a.rgb.iter().zip(&blank.rgb).filter(|(x, y)| x != y).count();
-    assert!(changed > a.rgb.len() / 4, "only {changed} bytes changed");
+    // The political page fills no realm: land use, edge bands, roads,
+    // symbols, labels and furniture.
+    assert!(changed > a.rgb.len() / 10, "only {changed} bytes changed");
+    let mut classic = blank.clone();
+    render::draw_with(
+        &mut classic,
+        &soc,
+        params.seed,
+        render::PageOptions {
+            full: true,
+            style: render::PageStyle::Classic,
+        },
+    )
+    .unwrap();
+    let tinted = classic
+        .rgb
+        .iter()
+        .zip(&blank.rgb)
+        .filter(|(x, y)| x != y)
+        .count();
+    assert!(
+        tinted > a.rgb.len() / 4,
+        "classic tints every realm: {tinted}"
+    );
+    assert_ne!(classic.rgb, a.rgb);
     let page = draw(false);
     assert!(page.width <= 1280 && page.height <= 960 && page.width > 600);
 }

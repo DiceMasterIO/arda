@@ -1,6 +1,6 @@
 //! `arda-settle`: generate or render a world's settlements, roads and realms.
 
-use clap::{Parser, Subcommand};
+use clap::{Parser, Subcommand, ValueEnum};
 use std::path::PathBuf;
 use std::process::ExitCode;
 
@@ -36,7 +36,21 @@ enum Command {
         /// Keep the whole overview instead of cropping the page to the land.
         #[arg(long)]
         full_frame: bool,
+        /// Page look: `political` (realm edge bands, dash-dot borders,
+        /// ivory roads) or `classic` (realm tints, dashed borders, red and
+        /// yellow roads).
+        #[arg(long, value_enum, default_value_t = PageStyleArg::Political)]
+        style: PageStyleArg,
     },
+}
+
+/// `--style` of `render`.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, ValueEnum)]
+enum PageStyleArg {
+    /// Realm edge bands and dash-dot borders over ivory cased roads.
+    Political,
+    /// Realm tints and ribbons, dashed borders, red and yellow roads.
+    Classic,
 }
 
 fn main() -> ExitCode {
@@ -61,7 +75,20 @@ fn main() -> ExitCode {
             out,
             quality,
             full_frame,
-        } => arda_settle::render::render(&world, &out, quality, full_frame).map(|()| {
+            style,
+        } => arda_settle::render::render_with(
+            &world,
+            &out,
+            quality,
+            arda_settle::render::PageOptions {
+                full: full_frame,
+                style: match style {
+                    PageStyleArg::Political => arda_settle::render::PageStyle::Political,
+                    PageStyleArg::Classic => arda_settle::render::PageStyle::Classic,
+                },
+            },
+        )
+        .map(|()| {
             println!("wrote {}", out.display());
         }),
     };
