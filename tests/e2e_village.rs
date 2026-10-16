@@ -97,9 +97,9 @@ fn world() -> PathBuf {
     dir
 }
 
-fn format_one(path: &Path) {
+fn format_one(path: &Path, version: u64) {
     let v: Value = serde_json::from_slice(&std::fs::read(path).unwrap()).unwrap();
-    assert_eq!(v["format_version"], 1, "{}", path.display());
+    assert_eq!(v["format_version"], version, "{}", path.display());
 }
 
 /// Step 3: the riverine village with the largest population, ties by id.
@@ -311,10 +311,11 @@ fn a_village_tactical_map_with_its_people_is_served_over_http() {
         "realms.json",
         "names.json",
         "society.json",
-        "notables.json",
     ] {
-        format_one(&soc.join(f));
+        format_one(&soc.join(f), 1);
     }
+    // The indexed notables file (settle at scale) is format 2.
+    format_one(&soc.join("notables.json"), 2);
     for f in ["landuse.bin", "realms.bin", "roads.bin"] {
         assert!(soc.join(f).is_file(), "{f}");
     }
