@@ -202,6 +202,12 @@ fixture.
      that cuts the imbalance of the areas' shares (people ¾, land ¼) by a
      twentieth. If a market area holds fewer than 16,000 people, the land
      holds one realm fewer and the choice runs again.
+   - **Solid realms** (`landmass.rs`). A landmass (4-connected dry land)
+     with a town but no seat that holds a tenth of a fair realm's land or
+     more gets its largest town as a seat of its own, so no realm rules a
+     large island across the sea; smaller islets and land without a town
+     join the realm that reaches them cheapest. No seat floods from the
+     water onto a landmass that holds another seat.
    - **Primate capitals** (`primacy.rs`). In every market area of 12,000
      people or more, the towns keep their townspeople `U` and follow the
      rank-size rule with the seat first (`h / r`, `h = U / H_n`). The seat
