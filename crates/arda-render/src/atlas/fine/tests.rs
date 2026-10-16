@@ -488,12 +488,18 @@ fn globally_aligned_sky_context_has_equal_radiance_at_an_area_seam() {
 /// holds only a sliver of tidal-flat class: the cell it sits in is class 6,
 /// the pixel is almost a whole cell away from that cell's centre.
 fn sliver_of_flat(recipe: u16, flat: bool) -> [u8; 3] {
-    relief_sea(recipe, flat, 95_000_000, None)
+    relief_sea(recipe, flat, 95_000_000, None, 2_000)
 }
 
 /// Shallow relief sea at 10 cells + `into_um`, with sample (10, 10) a tidal
 /// flat when `flat`, and sample `land` (x, y) dry ground when given.
-fn relief_sea(recipe: u16, flat: bool, into_um: i128, land: Option<(usize, usize)>) -> [u8; 3] {
+fn relief_sea(
+    recipe: u16,
+    flat: bool,
+    into_um: i128,
+    land: Option<(usize, usize)>,
+    depth_mm: i32,
+) -> [u8; 3] {
     let context = field(
         TerrainPoint {
             x_um: -10_000_000_000,
@@ -502,7 +508,7 @@ fn relief_sea(recipe: u16, flat: bool, into_um: i128, land: Option<(usize, usize
         1_000_000_000,
         80,
         80,
-        |_, _| -2_000,
+        |_, _| -depth_mm,
     );
     let bounds = AtlasFineWorldBounds {
         min: context.origin(),
@@ -531,7 +537,7 @@ fn relief_sea(recipe: u16, flat: bool, into_um: i128, land: Option<(usize, usize
         classes[(y + 1) * SAMPLE_SIDE + x + 1] = TerrainKind::Land;
     }
     let (wetness, moisture, forest) = (vec![0_u8; n], vec![0_u8; n], vec![0_u8; n]);
-    let (temperature, heights, lake) = (vec![0_i16; n], vec![-2_000_i32; n], vec![0_i32; n]);
+    let (temperature, heights, lake) = (vec![0_i16; n], vec![-depth_mm; n], vec![0_i32; n]);
     let saved = SavedFields {
         classes: &classes,
         wetness: &wetness,
@@ -549,11 +555,13 @@ fn relief_sea(recipe: u16, flat: bool, into_um: i128, land: Option<(usize, usize
             (at, at),
             1_000_000,
             ReliefGeometry {
-                height_mm: -2_000,
+                height_mm: -depth_mm,
                 gradient_q12: (0, 0),
                 concavity_mm: 0,
             },
-            ReliefSurface::Sea { depth_mm: 2_000 },
+            ReliefSurface::Sea {
+                depth_mm: i64::from(depth_mm),
+            },
             &saved,
         )
         .unwrap()
@@ -577,10 +585,17 @@ fn earlier_recipes_keep_their_relief_sea_tint() {
 #[test]
 fn a_tidal_flat_out_over_open_water_is_not_tinted_but_one_by_the_shore_is() {
     // The pixel sits on the flat's own sample node (full class weight).
-    let plain = relief_sea(9, false, 0, None);
-    let far = relief_sea(9, true, 0, None);
+    let plain = relief_sea(9, false, 0, None, 400);
+    let far = relief_sea(9, true, 0, None, 400);
     assert_eq!(far, plain, "no land near: {far:?} vs {plain:?}");
-    let by_land = relief_sea(9, true, 0, Some((10, 11)));
-    let dry_plain = relief_sea(9, false, 0, Some((10, 11)));
+    let by_land = relief_sea(9, true, 0, Some((10, 11)), 400);
+    let dry_plain = relief_sea(9, false, 0, Some((10, 11)), 400);
     assert_ne!(by_land, dry_plain, "flat beside land keeps its tint");
+}
+
+#[test]
+fn a_flat_by_the_shore_fades_out_once_the_water_is_a_metre_deep() {
+    let shelf_plain = relief_sea(9, false, 0, Some((10, 11)), 1_500);
+    let shelf_flat = relief_sea(9, true, 0, Some((10, 11)), 1_500);
+    assert_eq!(shelf_plain, shelf_flat);
 }

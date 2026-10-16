@@ -44,18 +44,24 @@ pub enum ReliefSurface {
 
 /// Distance (µm) to the nearest dry sample within which a tidal flat is at
 /// full strength, and the distance from which there is none.
-const FLAT_FULL_UM: i128 = 150_000_000;
-const FLAT_NONE_UM: i128 = 300_000_000;
+const FLAT_FULL_UM: i128 = 100_000_000;
+const FLAT_NONE_UM: i128 = 150_000_000;
+/// Depth (mm) to which a flat tint is whole, and the depth from which none.
+const FLAT_DRY_MM: i64 = 300;
+const FLAT_DEEP_MM: i64 = 1_200;
 
 /// Q12 reach of the tidal-flat tint at `land_um` from dry ground: a flat is
 /// shallows by the shore, so a stored flat class that lies out over open
 /// water (a shoal, or a cell's bilinear spill) fades out instead of
 /// painting a pale ghost patch.
-fn flat_reach_q12(land_um: Option<i128>) -> i64 {
+fn flat_reach_q12(land_um: Option<i128>, depth_mm: i64) -> i64 {
     let Some(d) = land_um else { return 0 };
-    let k = (FLAT_NONE_UM - d).clamp(0, FLAT_NONE_UM - FLAT_FULL_UM) * 4_096
+    let near = (FLAT_NONE_UM - d).clamp(0, FLAT_NONE_UM - FLAT_FULL_UM) * 4_096
         / (FLAT_NONE_UM - FLAT_FULL_UM);
-    i64::try_from(k).unwrap_or(0)
+    // A flat dries or all but dries: past a metre the water is a shelf.
+    let wet = (FLAT_DEEP_MM - depth_mm).clamp(0, FLAT_DEEP_MM - FLAT_DRY_MM);
+    let dry = i128::from(wet) * 4_096 / i128::from(FLAT_DEEP_MM - FLAT_DRY_MM);
+    i64::try_from(near * dry / 4_096).unwrap_or(0)
 }
 
 impl FineAtlas {
@@ -195,12 +201,10 @@ impl FineAtlas {
                 if self.v9 {
                     let mut shore_mix = shore_mix;
                     shore_mix[6] = shore_mix[6]
-                        * flat_reach_q12(land_distance_um(
-                            x,
-                            y,
-                            (self.origin_x, self.origin_y),
-                            saved.classes,
-                        )?)
+                        * flat_reach_q12(
+                            land_distance_um(x, y, (self.origin_x, self.origin_y), saved.classes)?,
+                            -i64::from(height),
+                        )
                         / 4_096;
                     self.sea_colour_soft((qx, qy), height, &shore_mix)
                 } else {
