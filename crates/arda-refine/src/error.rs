@@ -8,6 +8,9 @@ pub enum RefineError {
     /// The world could not supply a layer.
     #[error("world layer unavailable: {0}")]
     Load(#[from] arda::LoadError),
+    /// A sibling source was asked for over a different world.
+    #[error("{0}")]
+    NotSibling(String),
     /// The fine terrain layer failed to read.
     #[error("fine terrain read failed: {0}")]
     Terrain(#[from] arda_core::TerrainFileError),

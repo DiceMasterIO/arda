@@ -51,8 +51,11 @@ pub struct WorldSource<'w> {
     wide: i64,
     high: i64,
     index: Mutex<BTreeMap<(i32, i32), Arc<AreaIndex>>>,
-    fine: Mutex<Option<Fine>>,
-    shore: Option<ShoreLayer>,
+    /// The verified fine-terrain reader and its memo, shared with every
+    /// [`WorldSource::sibling`].
+    fine: Arc<Mutex<Option<Fine>>>,
+    /// The verified shore layer, shared with every sibling.
+    shore: Option<Arc<ShoreLayer>>,
 }
 
 impl std::fmt::Debug for WorldSource<'_> {
@@ -99,9 +102,50 @@ impl<'w> WorldSource<'w> {
             wide,
             high,
             index: Mutex::new(BTreeMap::new()),
-            fine: Mutex::new(fine),
-            shore,
+            fine: Arc::new(Mutex::new(fine)),
+            shore: shore.map(Arc::new),
         })
+    }
+
+    /// A source over `world` — a fresh load of the same stored world, with
+    /// empty area caches — that shares this source's already verified
+    /// fine-terrain reader (and its memo) and shore layer instead of
+    /// opening and re-verifying them. Every read is a pure read of the
+    /// same files, so answers are unchanged; only the decoded areas are
+    /// new.
+    ///
+    /// # Errors
+    /// [`RefineError::World`] when `world` is not the same world (seed or
+    /// size differ).
+    pub fn sibling(&self, world: Arc<World>) -> Result<WorldSource<'static>, RefineError> {
+        let (mine, theirs) = (self.world.get().manifest(), world.manifest());
+        if (mine.seed, mine.areas_wide, mine.areas_high)
+            != (theirs.seed, theirs.areas_wide, theirs.areas_high)
+        {
+            return Err(RefineError::NotSibling(
+                "a sibling source must load the same world".into(),
+            ));
+        }
+        Ok(WorldSource {
+            world: WorldRef::Shared(world),
+            wide: self.wide,
+            high: self.high,
+            index: Mutex::new(BTreeMap::new()),
+            fine: Arc::clone(&self.fine),
+            shore: self.shore.clone(),
+        })
+    }
+
+    /// Whether `other` shares this source's fine-terrain reader and shore
+    /// layer ([`WorldSource::sibling`]).
+    #[must_use]
+    pub fn shares_layers_with(&self, other: &WorldSource<'_>) -> bool {
+        Arc::ptr_eq(&self.fine, &other.fine)
+            && match (&self.shore, &other.shore) {
+                (Some(a), Some(b)) => Arc::ptr_eq(a, b),
+                (None, None) => true,
+                _ => false,
+            }
     }
 
     /// The wrapped world.

@@ -32,12 +32,13 @@ pub const SOCIETY_FACTOR: u64 = 2;
 /// this multiple of its size: parsed, every notable id is a vector entry
 /// and a map entry, about three times its text (assumed).
 pub const NOTABLES_INDEX_FACTOR: u64 = 3;
-/// Shore layers held: two refine-source generations and the relief world.
-pub const SHORE_COPIES: u64 = 3;
+/// Shore layers held: the refine source's (shared by its area sources)
+/// and the relief world's.
+pub const SHORE_COPIES: u64 = 2;
 
 /// The tactical pipeline's fixed bounds: [`COMPOSE_SLOTS`] transient
-/// compositions, the refined-block cache, the refine source's two
-/// generations of decoded areas and the town-plan cache's byte budget.
+/// compositions, the refined-block cache, the refine source's decoded
+/// areas and the town-plan cache's byte budget.
 #[must_use]
 pub const fn pipeline_bytes() -> u64 {
     COMPOSE_SLOTS as u64 * COMPOSE_TRANSIENT_BYTES

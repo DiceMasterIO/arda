@@ -3,98 +3,80 @@
 //!
 //! [`arda_refine::WorldSource`] reads areas through [`arda::World::area`],
 //! whose cache is never evicted: a long session that pans the whole map
-//! would end up holding every decoded area. [`BoundedSource`] wraps a
-//! *generation*: a `WorldSource` over its own freshly loaded `World`. Once
-//! queries have touched [`REFINE_AREAS`] distinct areas, the next new area
-//! starts a new generation and the old one is freed when its last in-flight
-//! user finishes. Every read is a pure read of the stored world, so a
-//! generation change never changes an answer (bytes stay deterministic);
-//! it only costs re-reading the areas and the shore layer.
+//! would end up holding every decoded area. [`BoundedSource`] keeps one
+//! `WorldSource` per decoded area instead, each over its own freshly
+//! loaded `World` (a manifest read) and a [`WorldSource::sibling`] of the
+//! base source, so it shares the base's fine-terrain reader, which was
+//! verified once at open, and its shore layer. At most [`REFINE_AREAS`]
+//! areas are kept, least recently used evicted first; an evicted area is
+//! freed when its last in-flight reader finishes. Every read is a pure
+//! read of the stored world, so eviction never changes an answer (bytes
+//! stay deterministic); it only costs decoding the area again.
 //!
-//! Admission counts two generations ([`admitted_bytes`]): the live one and
-//! one still finishing.
+//! This replaced generations of six areas that reopened the whole world
+//! (re-verifying the 1.25 GB fine-terrain file of a default-size world,
+//! about 0.3 s, under the source's lock): readers spread over more areas
+//! than a generation held reopened it every few reads and never finished.
+//! Now opening an area costs a manifest read outside the lock, and only
+//! readers whose areas no longer fit [`REFINE_AREAS`] decode again.
 //!
-//! The bound must cover what concurrent readers touch at once: with more
-//! readers in distinct areas than a generation holds, every few reads
-//! start a generation that the next reader in another area replaces, and
-//! no reader makes progress (on a default-size world each opening also
-//! re-verifies the 1.25 GB fine-terrain file). Startup's town-plan warm-up
-//! therefore draws together only plans that read at most [`WARM_AREAS`]
-//! areas between them, inside [`BoundedSource::warming`], which lifts the
-//! bound to [`WARM_AREAS`] until it ends.
+//! Admission counts [`REFINE_AREAS`] kept areas, as many evicted ones still
+//! in use, and one fine memo ([`admitted_bytes`]).
 
 use arda::Cell;
 use arda_core::water::PanKind;
 use arda_core::{ShoreClass, AREA_CELLS};
 use arda_refine::source::{Edge, LakeInfo};
 use arda_refine::{CellKey, RefineError, Source, WorldSource};
-use std::collections::BTreeSet;
+use std::collections::BTreeMap;
 use std::path::{Path, PathBuf};
-use std::sync::atomic::{AtomicU64, AtomicUsize, Ordering};
+use std::sync::atomic::{AtomicU64, Ordering};
 use std::sync::{Arc, Mutex, MutexGuard, PoisonError};
 
-/// Distinct areas one generation decodes before the next starts.
-pub const REFINE_AREAS: usize = 6;
-/// Distinct areas one generation decodes while warming (startup, before
-/// any request), and the most the plans warmed together may read: room
-/// for two plans that each straddle an area corner. Within the two
-/// generations of [`REFINE_AREAS`] that admission counts.
-pub const WARM_AREAS: usize = 8;
-const _: () = assert!(WARM_AREAS <= 2 * REFINE_AREAS);
-/// Bound on one decoded area in a generation: its cells, objects and
-/// water, and the source's lake, pan and channel-edge index.
+/// Decoded areas kept: room for the serving lanes (two compositions, two
+/// prefetch workers, a bake) on one or two areas each, and for the
+/// startup warm-up's batches ([`WARM_AREAS`]).
+pub const REFINE_AREAS: usize = 8;
+/// The most distinct areas the plans warmed together at startup may read.
+pub const WARM_AREAS: usize = REFINE_AREAS;
+/// Bound on one decoded area: its cells, objects and water, and the
+/// source's lake, pan and channel-edge index.
 pub const AREA_BYTES: u64 =
     (AREA_CELLS as u64) * (AREA_CELLS as u64) * std::mem::size_of::<Cell>() as u64 + (3 << 20);
-/// Bound on a generation's fine-height memo (2²¹ samples in a hash map)
-/// and its fine-terrain reader.
+/// Bound on the shared fine-height memo (2²¹ samples in a hash map) and
+/// the fine-terrain reader.
 pub const FINE_MEMO_BYTES: u64 = 104 << 20;
 
 /// Worst-case resident bytes of the refine source, excluding the shore
-/// layer (world-dependent, counted at open): two generations of
-/// [`REFINE_AREAS`] areas and a fine memo each.
+/// layer (world-dependent, counted at open): [`REFINE_AREAS`] kept areas,
+/// as many evicted ones still being read, and the one fine memo.
 #[must_use]
 pub const fn admitted_bytes() -> u64 {
-    2 * (REFINE_AREAS as u64 * AREA_BYTES + FINE_MEMO_BYTES)
+    2 * REFINE_AREAS as u64 * AREA_BYTES + FINE_MEMO_BYTES
 }
 
-struct Generation {
-    source: Arc<WorldSource<'static>>,
-    areas: BTreeSet<(i64, i64)>,
+/// Kept area sources by area, with their last-use tick.
+#[derive(Default)]
+struct Areas {
+    tick: u64,
+    map: BTreeMap<(i64, i64), (u64, Arc<WorldSource<'static>>)>,
 }
 
 /// A refinement source over the world at a directory whose decoded areas
-/// stay within [`REFINE_AREAS`] per generation; see the module docs.
+/// stay within [`REFINE_AREAS`]; see the module docs.
 pub struct BoundedSource {
     dir: PathBuf,
     seed: u64,
     wide_high: (i64, i64),
     has_shore: bool,
-    current: Mutex<Generation>,
-    generations: std::sync::atomic::AtomicU64,
-    /// Distinct areas a generation decodes: [`REFINE_AREAS`], or
-    /// [`WARM_AREAS`] inside [`BoundedSource::warming`].
-    bound: AtomicUsize,
-}
-
-/// While alive, lets generations decode [`WARM_AREAS`] areas; dropping it
-/// restores [`REFINE_AREAS`] and frees a generation that grew past it.
-#[derive(Debug)]
-pub struct Warming<'a>(&'a BoundedSource);
-
-impl Drop for Warming<'_> {
-    fn drop(&mut self) {
-        self.0.bound.store(REFINE_AREAS, Ordering::SeqCst);
-        let mut g = self.0.lock();
-        if g.areas.len() > REFINE_AREAS {
-            // A failed reopen keeps the warm generation: still correct,
-            // only larger until the next new area replaces it.
-            if let Ok(source) = open_source(&self.0.dir) {
-                g.source = Arc::new(source);
-                g.areas.clear();
-                self.0.generations.fetch_add(1, Ordering::SeqCst);
-            }
-        }
-    }
+    /// The verified source: fine terrain, shore and biome frame; it never
+    /// decodes an area.
+    base: Arc<WorldSource<'static>>,
+    areas: Mutex<Areas>,
+    /// [`REFINE_AREAS`], or a test's smaller bound.
+    keep: usize,
+    area_opens: AtomicU64,
+    verifications: AtomicU64,
 }
 
 impl std::fmt::Debug for BoundedSource {
@@ -106,76 +88,109 @@ impl std::fmt::Debug for BoundedSource {
     }
 }
 
-fn open_source(dir: &Path) -> Result<WorldSource<'static>, RefineError> {
-    let world = arda::World::load(dir).map_err(RefineError::from)?;
-    WorldSource::shared(Arc::new(world))
+fn load(dir: &Path) -> Result<Arc<arda::World>, RefineError> {
+    Ok(Arc::new(arda::World::load(dir).map_err(RefineError::from)?))
 }
 
 impl BoundedSource {
-    /// Opens the world at `dir`.
+    /// Opens the world at `dir`, verifying its fine terrain and shore
+    /// layer once.
     ///
     /// # Errors
     /// The world or its fine terrain cannot load.
     pub fn open(dir: &Path) -> Result<Self, RefineError> {
-        let source = open_source(dir)?;
+        Self::keeping(dir, REFINE_AREAS)
+    }
+
+    /// [`BoundedSource::open`] keeping `keep` areas (tests of eviction).
+    ///
+    /// # Errors
+    /// As [`BoundedSource::open`].
+    #[doc(hidden)]
+    pub fn keeping(dir: &Path, keep: usize) -> Result<Self, RefineError> {
+        let base = WorldSource::shared(load(dir)?)?;
         Ok(Self {
             dir: dir.to_path_buf(),
-            seed: source.seed(),
-            wide_high: source.cells_wide_high(),
-            has_shore: source.has_shore(),
-            current: Mutex::new(Generation {
-                source: Arc::new(source),
-                areas: BTreeSet::new(),
-            }),
-            generations: AtomicU64::new(1),
-            bound: AtomicUsize::new(REFINE_AREAS),
+            seed: base.seed(),
+            wide_high: base.cells_wide_high(),
+            has_shore: base.has_shore(),
+            base: Arc::new(base),
+            areas: Mutex::new(Areas::default()),
+            keep: keep.max(1),
+            area_opens: AtomicU64::new(0),
+            verifications: AtomicU64::new(1),
         })
     }
 
-    /// Generations opened so far (tests).
+    /// Area sources opened so far, evictions included (tests).
     #[doc(hidden)]
     #[must_use]
-    pub fn generations(&self) -> u64 {
-        self.generations.load(Ordering::SeqCst)
+    pub fn area_opens(&self) -> u64 {
+        self.area_opens.load(Ordering::SeqCst)
     }
 
-    /// Lifts the area bound to [`WARM_AREAS`] until the guard drops, for
-    /// readers that touch at most that many areas together (startup
-    /// warm-up).
+    /// Times this source opened and verified the fine-terrain and shore
+    /// layers: once, at [`BoundedSource::open`] (tests).
+    #[doc(hidden)]
     #[must_use]
-    pub fn warming(&self) -> Warming<'_> {
-        self.bound.store(WARM_AREAS, Ordering::SeqCst);
-        Warming(self)
+    pub fn verifications(&self) -> u64 {
+        self.verifications.load(Ordering::SeqCst)
     }
 
-    fn lock(&self) -> MutexGuard<'_, Generation> {
-        self.current.lock().unwrap_or_else(PoisonError::into_inner)
+    /// Whether every kept area source shares the base's verified layers
+    /// (tests).
+    #[doc(hidden)]
+    #[must_use]
+    pub fn areas_share_layers(&self) -> bool {
+        self.lock()
+            .map
+            .values()
+            .all(|(_, s)| s.shares_layers_with(&self.base))
     }
 
-    /// The generation to read `at` from, starting a new one when `at`'s
-    /// area would be one too many for the current one.
+    fn lock(&self) -> MutexGuard<'_, Areas> {
+        self.areas.lock().unwrap_or_else(PoisonError::into_inner)
+    }
+
+    /// The source to read `at`'s area from, opening it on a miss (a
+    /// manifest read, outside the lock) and evicting the least recently
+    /// used area past [`REFINE_AREAS`].
     fn for_cell(&self, at: CellKey) -> Result<Arc<WorldSource<'static>>, RefineError> {
         let c = self.clamp(at);
         let n = i64::from(AREA_CELLS);
         let area = (c.x.div_euclid(n), c.y.div_euclid(n));
+        {
+            let mut g = self.lock();
+            g.tick += 1;
+            let tick = g.tick;
+            if let Some(hit) = g.map.get_mut(&area) {
+                hit.0 = tick;
+                return Ok(Arc::clone(&hit.1));
+            }
+        }
+        let fresh = Arc::new(self.base.sibling(load(&self.dir)?)?);
         let mut g = self.lock();
-        if g.areas.contains(&area) {
-            return Ok(Arc::clone(&g.source));
+        g.tick += 1;
+        let tick = g.tick;
+        if let Some(raced) = g.map.get_mut(&area) {
+            // Another reader opened it meanwhile: share theirs.
+            raced.0 = tick;
+            return Ok(Arc::clone(&raced.1));
         }
-        if g.areas.len() >= self.bound.load(Ordering::SeqCst) {
-            // Loading under the lock keeps one new generation at a time;
-            // it happens once per `bound` new areas.
-            g.source = Arc::new(open_source(&self.dir)?);
-            g.areas.clear();
-            self.generations.fetch_add(1, Ordering::SeqCst);
+        self.area_opens.fetch_add(1, Ordering::SeqCst);
+        g.map.insert(area, (tick, Arc::clone(&fresh)));
+        while g.map.len() > self.keep {
+            let oldest = g.map.iter().min_by_key(|(_, e)| e.0).map(|(k, _)| *k);
+            if let Some(k) = oldest {
+                g.map.remove(&k);
+            }
         }
-        g.areas.insert(area);
-        Ok(Arc::clone(&g.source))
+        Ok(fresh)
     }
 
-    /// The current generation, for reads that decode no area.
+    /// The verified base source, for reads that decode no area.
     fn any(&self) -> Arc<WorldSource<'static>> {
-        Arc::clone(&self.lock().source)
+        Arc::clone(&self.base)
     }
 }
 

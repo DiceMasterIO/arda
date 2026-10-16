@@ -271,11 +271,10 @@ impl AppState {
         // `with_block_source` can replace them.
         // One source for blocks, plans and overlays, its decoded areas
         // bounded (review 3.6-8; `refine_source`).
-        let bounded = std::sync::Arc::new(
+        let src = arda_people::shared::SharedSource(std::sync::Arc::new(
             refine_source::BoundedSource::open(&config.world)
                 .map_err(|e| ServerError::Internal(e.to_string()))?,
-        );
-        let src = arda_people::shared::SharedSource(std::sync::Arc::clone(&bounded) as _);
+        ));
         let society_dir = config.world.join("society");
         let people = if society_dir.join("settlements.json").exists() {
             Some(std::sync::Arc::new(
@@ -288,9 +287,8 @@ impl AppState {
         if let Some(w) = &people {
             // Towns and cities have the costliest plans: draw them now, so
             // their first tactical block is quick (goal 50): only plans
-            // that read WARM_AREAS areas between them at once, so the plans
-            // in flight fit one refine generation (`refine_source` docs).
-            let _warming = bounded.warming();
+            // that read WARM_AREAS areas between them at once, so the areas
+            // in flight fit the refine source (`refine_source` docs).
             w.warm_towns(refine_source::WARM_AREAS);
         }
         let overlays = people

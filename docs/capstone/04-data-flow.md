@@ -219,7 +219,7 @@ The pipeline has two halves. Three offline CLI batches write files under one wor
 | `WorldQuery.areas` / `derived` / `windows` | `crates/arda-server/src/query.rs:58` | `AreaCoord` | 1 GiB / 256 MiB / 512 MiB `ByteLru` (`:36`) | contract routes |
 | `SocietyCells` | `crates/arda-server/src/society_cells.rs:47` | global cell | 8 bytes per cell, decoded at start | never |
 | `arda_people::World` files, society, notables | `crates/arda-people/src/people.rs:43` | settlement / `NpcId` | read once at start | never |
-| `World.plans` | `crates/arda-people/src/people.rs:137` | settlement id | 64 entries and 768 MiB (`plan_bytes`: square grid plus twice the JSON), LRU by tick, newest always kept | `plan`, `warm_plans`, town overlay |
+| `World.plans` | `crates/arda-people/src/people.rs:137` | settlement id | 64 entries and 768 MiB with the draws' reservations (`plan_bytes`: square grid plus twice the JSON; `plan_estimate` reserved before a draw), LRU by tick, newest always kept | `plan`, `warm_plans`, town overlay |
 | `SocietyOverlays` roads/land use/channels | `crates/arda-blocks/src/society/mod.rs:91` | — | built at start; `ChannelCache` filled on use | ways overlay |
 | `Pipeline.cache` | `crates/arda-blocks/src/pipeline.rs:72` | `CellKey` | 256 refined blocks, LRU | `refined` |
 | `RefineBlocks.composed` / `demos` | `crates/arda-server/src/tactical/refine_blocks.rs:33` | `BlockRequest` / anchor | 256 MiB `ByteLru` / 16 anchors | `block`, `demo` |

@@ -98,17 +98,18 @@ docker run --rm -p 8787:8787 -v /abs/world:/worlds/world:ro arda:local
     transient encode: full-size PNG encodes and tile-pyramid builds run one at a time across
     both lanes (10 bytes a pixel at the pixel limit).
   - So is the tactical pipeline (review 3.6-8): two concurrent block compositions (192 MiB
-    each; further compositions wait), the 256 refined blocks (512 KiB each), two generations of
-    the refine source's decoded areas (it decodes at most 6 areas, then reopens the world, so
-    a long session never holds every area) and the town-plan cache (at most 64 plans and
-    768 MiB, a plan charged its square grid plus twice its JSON). Composed blocks are charged
+    each; further compositions wait), the 256 refined blocks (512 KiB each), the refine
+    source's decoded areas (it keeps 8, least recently used evicted, so a long session never
+    holds every area) and the town-plan budget (768 MiB for the cached plans, at most 64, each
+    charged its square grid plus twice its JSON, and the plans being drawn, each reserving an
+    estimate first; a draw that does not fit waits). Composed blocks are charged
     with their per-square `ext` maps (a town block about 3 MB). Once the world and library
     are open, the server adds what they hold (decoded library and scaled textures, parsed
     `society/` files at twice their size, the shore layer, the largest town plan drawn) and
     refuses to start above 16 GiB, naming each term; lower `--area-cache-mib` or
     `--fine-cache-mib` then. The startup line prints the admitted total. Defaults: about
     14.1 GiB of budgets, plus 0.15 GiB for the MICRO society world or about 1.4 GiB for a
-    default-size one (seed 42: 15,949 MiB admitted). The query caches (areas 256 MiB, derived
+    default-size one (seed 42: 15,854 MiB admitted). The query caches (areas 256 MiB, derived
     layers 128 MiB, fine windows 128 MiB), the overview caches (128 MiB each), the encoded
     PNG, tile and body caches (160 MiB each) and `--max-connections` (32) were trimmed to
     make room.

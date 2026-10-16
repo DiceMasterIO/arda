@@ -14,20 +14,31 @@ use arda_town::TownPlan;
 use std::collections::{BTreeMap, BTreeSet};
 use std::path::Path;
 use std::sync::atomic::{AtomicU64, Ordering};
-use std::sync::{Arc, Mutex};
+use std::sync::{Arc, Condvar, Mutex};
 
 /// Town plans kept in memory, at most.
 pub const PLAN_CACHE: usize = 64;
-/// Bytes of town plans kept in memory ([`plan_bytes`] each). A village's
-/// plan is a few MB; a default-size world's largest city holds a
+/// Bytes of town plans held in memory: cached ([`plan_bytes`] each) and
+/// being drawn ([`plan_estimate`] each, reserved before drawing). A
+/// village's plan is a few MB; a default-size world's largest city holds a
 /// half-gigabyte square grid, so the count alone does not bound memory.
-/// The most recently drawn plan stays even when it alone is larger.
+/// The most recently drawn plan stays even when it alone is larger, and a
+/// plan whose estimate alone is larger is drawn when no other is.
 pub const PLAN_CACHE_BYTES: u64 = 768 << 20;
-/// Warm-up batching's estimate of a town or city plan's [`plan_bytes`] a
-/// person: seed-42 plans measure 4 to 7.3 KiB (MICRO towns and cities; the
-/// default-size world's largest city, 91,535 people, is 509 MB). Only
-/// sizes batches; the cache's own bound is exact.
-pub const WARM_BYTES_PER_PERSON: u64 = 8 << 10;
+/// [`plan_estimate`]'s bytes a person.
+pub const PLAN_BYTES_PER_PERSON: u64 = 8 << 10;
+/// [`plan_estimate`]'s bytes for any plan.
+pub const PLAN_FLOOR_BYTES: u64 = 16 << 20;
+
+/// The bytes reserved while `s`'s plan is drawn: [`PLAN_BYTES_PER_PERSON`]
+/// a person plus [`PLAN_FLOOR_BYTES`]. Seed-42 plans stay under it: MICRO
+/// hamlets to 5.6 MB, villages to 16.1 MB, towns and cities 4 to 7.3 KiB
+/// a person; the default-size world's largest city, 91,535 people, is
+/// 509 MB against 767 MB.
+#[must_use]
+pub fn plan_estimate(s: &arda_settle::model::Settlement) -> u64 {
+    u64::from(s.population) * PLAN_BYTES_PER_PERSON + PLAN_FLOOR_BYTES
+}
 /// Population skeletons kept in memory (a city's is a few MB).
 const GENERATOR_CACHE: usize = 16;
 
@@ -53,6 +64,78 @@ impl BuildingSource {
 
 /// Settlement id to (last-use tick, plan, [`plan_bytes`]).
 type PlanCache = BTreeMap<u64, (u64, Arc<Option<TownPlan>>, u64)>;
+
+/// The plan cache and the bytes reserved by plans being drawn.
+struct Plans {
+    tick: u64,
+    cache: PlanCache,
+    drawing: u64,
+    /// [`PLAN_CACHE_BYTES`], or a test's smaller budget.
+    budget: u64,
+}
+
+impl Plans {
+    /// Evicts least recently used plans (sparing the newest when `spare`)
+    /// while the cache holds too many, or it and the draws, plus `extra`,
+    /// reserve more than the budget.
+    fn evict(&mut self, extra: u64, spare: bool) {
+        let floor = usize::from(spare);
+        while self.cache.len() > floor
+            && (self.cache.len() > PLAN_CACHE
+                || cache_bytes(&self.cache) + self.drawing + extra > self.budget)
+        {
+            let oldest = self.cache.iter().min_by_key(|(_, e)| e.0).map(|(k, _)| *k);
+            if let Some(k) = oldest {
+                self.cache.remove(&k);
+            }
+        }
+    }
+}
+
+/// Runs `draw` (a plan draw, parallel inside) in a pool of its own, from a
+/// thread outside every rayon pool. [`World::plan`] can wait for another
+/// draw's reservation, so a draw must never run where that wait can be
+/// stacked on top of it: a rayon worker drawing, or helping a draw, steals
+/// other jobs while it joins, and one of them may be a `plan` call that
+/// waits for the very draw below it on the same stack. The draw pool runs
+/// only draw work, and a plain thread waits for it without stealing.
+fn draw_apart<T: Send>(draw: impl FnOnce() -> T + Send) -> Result<T, PeopleError> {
+    static POOL: std::sync::OnceLock<Option<rayon::ThreadPool>> = std::sync::OnceLock::new();
+    let pool = POOL
+        .get_or_init(|| {
+            rayon::ThreadPoolBuilder::new()
+                .thread_name(|i| format!("arda-plan-{i}"))
+                .build()
+                .ok()
+        })
+        .as_ref()
+        .ok_or_else(|| PeopleError::World("the plan-drawing threads could not start".into()))?;
+    Ok(std::thread::scope(|scope| {
+        scope
+            .spawn(|| pool.install(draw))
+            .join()
+            .unwrap_or_else(|panic| std::panic::resume_unwind(panic))
+    }))
+}
+
+/// A draw's reservation, released when dropped (also on failure).
+struct Reserved<'a> {
+    world: &'a World,
+    bytes: u64,
+}
+
+impl Drop for Reserved<'_> {
+    fn drop(&mut self) {
+        let mut g = self
+            .world
+            .plans
+            .lock()
+            .unwrap_or_else(std::sync::PoisonError::into_inner);
+        g.drawing = g.drawing.saturating_sub(self.bytes);
+        drop(g);
+        self.world.drawn.notify_all();
+    }
+}
 
 /// Resident bytes charged for a town plan: its square grid exactly (it is
 /// not serialised) plus twice its JSON for everything else.
@@ -96,7 +179,9 @@ pub struct World {
     /// (review 3.3-10).
     pub notables: Option<Notables>,
     society_index: BTreeMap<u64, usize>,
-    plans: Mutex<(u64, PlanCache)>,
+    plans: Mutex<Plans>,
+    /// Signalled when a draw releases its reservation.
+    drawn: Condvar,
     generators: Mutex<(u64, GeneratorCache)>,
     /// Population skeletons built so far (cache misses of [`World::generator`]).
     skeletons_built: AtomicU64,
@@ -158,7 +243,13 @@ impl World {
             society,
             notables,
             society_index,
-            plans: Mutex::new((0, BTreeMap::new())),
+            plans: Mutex::new(Plans {
+                tick: 0,
+                cache: BTreeMap::new(),
+                drawing: 0,
+                budget: PLAN_CACHE_BYTES,
+            }),
+            drawn: Condvar::new(),
             generators: Mutex::new((0, BTreeMap::new())),
             skeletons_built: AtomicU64::new(0),
             largest_plan: AtomicU64::new(0),
@@ -172,30 +263,48 @@ impl World {
         self.src.seed()
     }
 
-    fn lock_plans(&self) -> Result<std::sync::MutexGuard<'_, (u64, PlanCache)>, PeopleError> {
-        let mut g = self
-            .plans
+    fn lock_plans(&self) -> Result<std::sync::MutexGuard<'_, Plans>, PeopleError> {
+        self.plans
             .lock()
-            .map_err(|_| PeopleError::World("plan cache poisoned".into()))?;
-        g.0 += 1;
-        Ok(g)
+            .map_err(|_| PeopleError::World("plan cache poisoned".into()))
     }
 
     /// The settlement's town plan (cached), or `None` without one.
     ///
+    /// A plan not cached is drawn once [`plan_estimate`] bytes are
+    /// reserved within [`PLAN_CACHE_BYTES`] beside the cache and the other
+    /// draws (evicting cached plans first); otherwise the call waits for a
+    /// draw to finish. A plan larger than the whole budget is drawn alone.
+    ///
     /// # Errors
     /// Unknown settlement, record or world failures.
     pub fn plan(&self, id: u64) -> Result<Arc<Option<TownPlan>>, PeopleError> {
-        {
-            let mut g = self.lock_plans()?;
-            let tick = g.0;
-            if let Some(hit) = g.1.get_mut(&id) {
-                hit.0 = tick;
-                return Ok(Arc::clone(&hit.1));
-            }
-        }
         let (s, record) = self.files.settlement(id)?;
-        let mut plan = town::plan(&self.src, s, record, &self.files.roads.roads)?;
+        let estimate = plan_estimate(s);
+        let reserved = {
+            let mut g = self.lock_plans()?;
+            loop {
+                g.tick += 1;
+                let tick = g.tick;
+                if let Some(hit) = g.cache.get_mut(&id) {
+                    hit.0 = tick;
+                    return Ok(Arc::clone(&hit.1));
+                }
+                g.evict(estimate, false);
+                if g.drawing == 0 || cache_bytes(&g.cache) + g.drawing + estimate <= g.budget {
+                    g.drawing += estimate;
+                    break Reserved {
+                        world: self,
+                        bytes: estimate,
+                    };
+                }
+                g = self
+                    .drawn
+                    .wait(g)
+                    .map_err(|_| PeopleError::World("plan cache poisoned".into()))?;
+            }
+        };
+        let mut plan = draw_apart(|| town::plan(&self.src, s, record, &self.files.roads.roads))??;
         if let (Some(p), Some(society)) = (plan.as_mut(), self.society.as_ref()) {
             town::read_history(p, society);
         }
@@ -203,17 +312,18 @@ impl World {
         let bytes = plan.as_ref().map_or(0, plan_bytes);
         self.largest_plan.fetch_max(bytes, Ordering::Relaxed);
         let plan = Arc::new(plan);
-        let mut g = self.lock_plans()?;
-        let tick = g.0;
-        g.1.insert(id, (tick, Arc::clone(&plan), bytes));
-        // The newest entry has the highest tick, so it is never the one
-        // evicted while others remain.
-        while g.1.len() > 1 && (g.1.len() > PLAN_CACHE || cache_bytes(&g.1) > PLAN_CACHE_BYTES) {
-            let oldest = g.1.iter().min_by_key(|(_, e)| e.0).map(|(k, _)| *k);
-            if let Some(k) = oldest {
-                g.1.remove(&k);
-            }
+        {
+            let mut g = self.lock_plans()?;
+            g.tick += 1;
+            let tick = g.tick;
+            g.cache.insert(id, (tick, Arc::clone(&plan), bytes));
+            // The plan now stands in for this draw's reservation, which
+            // goes when `reserved` drops; the newest entry is spared.
+            g.drawing = g.drawing.saturating_sub(estimate);
+            g.evict(0, true);
+            g.drawing += estimate;
         }
+        drop(reserved);
         Ok(plan)
     }
 
@@ -222,11 +332,23 @@ impl World {
     /// # Errors
     /// A poisoned cache.
     pub fn cached_plan_bytes(&self) -> Result<u64, PeopleError> {
-        let g = self
-            .plans
-            .lock()
-            .map_err(|_| PeopleError::World("plan cache poisoned".into()))?;
-        Ok(cache_bytes(&g.1))
+        Ok(cache_bytes(&self.lock_plans()?.cache))
+    }
+
+    /// Replaces [`PLAN_CACHE_BYTES`] for this world (tests of the bound).
+    #[doc(hidden)]
+    pub fn set_plan_budget(&self, bytes: u64) {
+        if let Ok(mut g) = self.lock_plans() {
+            g.budget = bytes;
+        }
+    }
+
+    /// Bytes reserved by plans being drawn now.
+    ///
+    /// # Errors
+    /// A poisoned cache.
+    pub fn drawing_plan_bytes(&self) -> Result<u64, PeopleError> {
+        Ok(self.lock_plans()?.drawing)
     }
 
     /// The largest [`plan_bytes`] drawn since opening, cached or not.
@@ -243,9 +365,10 @@ impl World {
     /// half its count or half its bytes ([`PLAN_CACHE_BYTES`]). A batch is
     /// the longest run of the next plans (at least one) that reads at most
     /// `max_areas` distinct areas ([`World::plan_areas`]), has at most one
-    /// plan per rayon thread, and whose [`WARM_BYTES_PER_PERSON`] estimate
-    /// fits what is left of the half budget. Failures are skipped: a plan
-    /// that cannot be drawn fails again, visibly, on request.
+    /// plan per rayon thread, and whose [`plan_estimate`]s fit the budget
+    /// beside the cache, so its draws need not wait for each other.
+    /// Failures are skipped: a plan that cannot be drawn fails again,
+    /// visibly, on request.
     pub fn warm_plans(
         &self,
         keep: impl Fn(arda_settle::model::Tier) -> bool + Sync,
@@ -258,22 +381,25 @@ impl World {
             .settlements
             .iter()
             .filter(|s| keep(s.tier))
-            .map(|s| (s.population, s.id.get(), self.plan_areas(s)))
+            .map(|s| {
+                let reads = self.plan_areas(s);
+                (s.population, s.id.get(), plan_estimate(s), reads)
+            })
             .collect();
-        todo.sort_unstable_by_key(|&(p, id, _)| (std::cmp::Reverse(p), id));
+        todo.sort_unstable_by_key(|&(p, id, _, _)| (std::cmp::Reverse(p), id));
         todo.truncate(PLAN_CACHE / 2);
         let threads = rayon::current_num_threads().max(1);
         let mut rest = todo.as_slice();
         while !rest.is_empty() {
             let room = match self.cached_plan_bytes() {
-                Ok(bytes) if bytes < PLAN_CACHE_BYTES / 2 => PLAN_CACHE_BYTES / 2 - bytes,
+                Ok(bytes) if bytes < PLAN_CACHE_BYTES / 2 => PLAN_CACHE_BYTES - bytes,
                 _ => break,
             };
             let mut areas = BTreeSet::new();
             let (mut n, mut estimate) = (0, 0_u64);
-            for (people, _, reads) in rest {
+            for (_, _, bytes, reads) in rest {
                 let joined: BTreeSet<_> = areas.union(reads).copied().collect();
-                let more = estimate + u64::from(*people) * WARM_BYTES_PER_PERSON;
+                let more = estimate + bytes;
                 if n > 0 && (joined.len() > max_areas || n >= threads || more > room) {
                     break;
                 }
@@ -281,7 +407,7 @@ impl World {
                 n += 1;
             }
             let (batch, later) = rest.split_at(n);
-            batch.par_iter().for_each(|&(_, id, _)| {
+            batch.par_iter().for_each(|&(_, id, _, _)| {
                 if let Ok(plan) = self.plan(id) {
                     if let Some(b) = plan.as_ref().as_ref().and_then(|p| p.buildings.first()) {
                         let _ = plan.as_ref().as_ref().map(|p| p.interior_salt(b));
