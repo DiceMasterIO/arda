@@ -31,7 +31,9 @@ impl Default for OverviewLimits {
         Self {
             max_quality_px: 8192,
             tile_base_px: 4096,
-            cache_bytes: 256 << 20,
+            // 128 MiB each since the server-startup fix (256 MiB before),
+            // to admit a default-size world's society files and town plans.
+            cache_bytes: 128 << 20,
         }
     }
 }

@@ -13,6 +13,15 @@
 //!
 //! Admission counts two generations ([`admitted_bytes`]): the live one and
 //! one still finishing.
+//!
+//! The bound must cover what concurrent readers touch at once: with more
+//! readers in distinct areas than a generation holds, every few reads
+//! start a generation that the next reader in another area replaces, and
+//! no reader makes progress (on a default-size world each opening also
+//! re-verifies the 1.25 GB fine-terrain file). Startup's town-plan warm-up
+//! therefore draws together only plans that read at most [`WARM_AREAS`]
+//! areas between them, inside [`BoundedSource::warming`], which lifts the
+//! bound to [`WARM_AREAS`] until it ends.
 
 use arda::Cell;
 use arda_core::water::PanKind;
@@ -21,10 +30,17 @@ use arda_refine::source::{Edge, LakeInfo};
 use arda_refine::{CellKey, RefineError, Source, WorldSource};
 use std::collections::BTreeSet;
 use std::path::{Path, PathBuf};
-use std::sync::{Arc, Mutex, PoisonError};
+use std::sync::atomic::{AtomicU64, AtomicUsize, Ordering};
+use std::sync::{Arc, Mutex, MutexGuard, PoisonError};
 
 /// Distinct areas one generation decodes before the next starts.
 pub const REFINE_AREAS: usize = 6;
+/// Distinct areas one generation decodes while warming (startup, before
+/// any request), and the most the plans warmed together may read: room
+/// for two plans that each straddle an area corner. Within the two
+/// generations of [`REFINE_AREAS`] that admission counts.
+pub const WARM_AREAS: usize = 8;
+const _: () = assert!(WARM_AREAS <= 2 * REFINE_AREAS);
 /// Bound on one decoded area in a generation: its cells, objects and
 /// water, and the source's lake, pan and channel-edge index.
 pub const AREA_BYTES: u64 =
@@ -55,6 +71,30 @@ pub struct BoundedSource {
     has_shore: bool,
     current: Mutex<Generation>,
     generations: std::sync::atomic::AtomicU64,
+    /// Distinct areas a generation decodes: [`REFINE_AREAS`], or
+    /// [`WARM_AREAS`] inside [`BoundedSource::warming`].
+    bound: AtomicUsize,
+}
+
+/// While alive, lets generations decode [`WARM_AREAS`] areas; dropping it
+/// restores [`REFINE_AREAS`] and frees a generation that grew past it.
+#[derive(Debug)]
+pub struct Warming<'a>(&'a BoundedSource);
+
+impl Drop for Warming<'_> {
+    fn drop(&mut self) {
+        self.0.bound.store(REFINE_AREAS, Ordering::SeqCst);
+        let mut g = self.0.lock();
+        if g.areas.len() > REFINE_AREAS {
+            // A failed reopen keeps the warm generation: still correct,
+            // only larger until the next new area replaces it.
+            if let Ok(source) = open_source(&self.0.dir) {
+                g.source = Arc::new(source);
+                g.areas.clear();
+                self.0.generations.fetch_add(1, Ordering::SeqCst);
+            }
+        }
+    }
 }
 
 impl std::fmt::Debug for BoundedSource {
@@ -87,7 +127,8 @@ impl BoundedSource {
                 source: Arc::new(source),
                 areas: BTreeSet::new(),
             }),
-            generations: std::sync::atomic::AtomicU64::new(1),
+            generations: AtomicU64::new(1),
+            bound: AtomicUsize::new(REFINE_AREAS),
         })
     }
 
@@ -95,7 +136,20 @@ impl BoundedSource {
     #[doc(hidden)]
     #[must_use]
     pub fn generations(&self) -> u64 {
-        self.generations.load(std::sync::atomic::Ordering::SeqCst)
+        self.generations.load(Ordering::SeqCst)
+    }
+
+    /// Lifts the area bound to [`WARM_AREAS`] until the guard drops, for
+    /// readers that touch at most that many areas together (startup
+    /// warm-up).
+    #[must_use]
+    pub fn warming(&self) -> Warming<'_> {
+        self.bound.store(WARM_AREAS, Ordering::SeqCst);
+        Warming(self)
+    }
+
+    fn lock(&self) -> MutexGuard<'_, Generation> {
+        self.current.lock().unwrap_or_else(PoisonError::into_inner)
     }
 
     /// The generation to read `at` from, starting a new one when `at`'s
@@ -104,17 +158,16 @@ impl BoundedSource {
         let c = self.clamp(at);
         let n = i64::from(AREA_CELLS);
         let area = (c.x.div_euclid(n), c.y.div_euclid(n));
-        let mut g = self.current.lock().unwrap_or_else(PoisonError::into_inner);
+        let mut g = self.lock();
         if g.areas.contains(&area) {
             return Ok(Arc::clone(&g.source));
         }
-        if g.areas.len() >= REFINE_AREAS {
+        if g.areas.len() >= self.bound.load(Ordering::SeqCst) {
             // Loading under the lock keeps one new generation at a time;
-            // it happens once per REFINE_AREAS new areas.
+            // it happens once per `bound` new areas.
             g.source = Arc::new(open_source(&self.dir)?);
             g.areas.clear();
-            self.generations
-                .fetch_add(1, std::sync::atomic::Ordering::SeqCst);
+            self.generations.fetch_add(1, Ordering::SeqCst);
         }
         g.areas.insert(area);
         Ok(Arc::clone(&g.source))
@@ -122,8 +175,7 @@ impl BoundedSource {
 
     /// The current generation, for reads that decode no area.
     fn any(&self) -> Arc<WorldSource<'static>> {
-        let g = self.current.lock().unwrap_or_else(PoisonError::into_inner);
-        Arc::clone(&g.source)
+        Arc::clone(&self.lock().source)
     }
 }
 

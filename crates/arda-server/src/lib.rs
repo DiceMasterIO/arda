@@ -197,17 +197,22 @@ impl ServerConfig {
     }
 }
 
-/// Serialised bytes of the most populous settlement's town plan.
+/// Resident bytes (`arda_people::people::plan_bytes`) of the largest town
+/// plan drawn: the warm-up draws the most populous towns and cities first;
+/// a world it drew nothing for has its most populous settlement's plan
+/// drawn here.
 fn largest_plan_bytes(w: &arda_people::World) -> Option<u64> {
-    let s = w
-        .files
-        .settlements
-        .settlements
-        .iter()
-        .max_by_key(|s| (s.population, std::cmp::Reverse(s.id.get())))?;
-    let plan = w.plan(s.id.get()).ok()?;
-    let plan = plan.as_ref().as_ref()?;
-    serde_json::to_vec(plan).ok().map(|v| v.len() as u64)
+    if w.largest_plan_drawn() == 0 {
+        let s = w
+            .files
+            .settlements
+            .settlements
+            .iter()
+            .max_by_key(|s| (s.population, std::cmp::Reverse(s.id.get())))?;
+        // A plan that cannot be drawn is never cached either.
+        let _ = w.plan(s.id.get());
+    }
+    Some(w.largest_plan_drawn())
 }
 
 /// Shared service state.
@@ -266,10 +271,11 @@ impl AppState {
         // `with_block_source` can replace them.
         // One source for blocks, plans and overlays, its decoded areas
         // bounded (review 3.6-8; `refine_source`).
-        let src = arda_people::shared::SharedSource(std::sync::Arc::new(
+        let bounded = std::sync::Arc::new(
             refine_source::BoundedSource::open(&config.world)
                 .map_err(|e| ServerError::Internal(e.to_string()))?,
-        ));
+        );
+        let src = arda_people::shared::SharedSource(std::sync::Arc::clone(&bounded) as _);
         let society_dir = config.world.join("society");
         let people = if society_dir.join("settlements.json").exists() {
             Some(std::sync::Arc::new(
@@ -281,8 +287,11 @@ impl AppState {
         };
         if let Some(w) = &people {
             // Towns and cities have the costliest plans: draw them now, so
-            // their first tactical block is quick (goal 50).
-            w.warm_towns();
+            // their first tactical block is quick (goal 50): only plans
+            // that read WARM_AREAS areas between them at once, so the plans
+            // in flight fit one refine generation (`refine_source` docs).
+            let _warming = bounded.warming();
+            w.warm_towns(refine_source::WARM_AREAS);
         }
         let overlays = people
             .as_ref()

@@ -24,8 +24,8 @@ docker run --rm -p 8787:8787 -v /abs/world:/worlds/world:ro arda:local
 | `--world <dir>` | required | World directory (holds `world.json`) |
 | `--port` | `8787` | TCP port |
 | `--host` | `127.0.0.1` | Bind address |
-| `--area-cache-mib` | `384` | Decoded-area cache budget (1024 before the serving-concurrency fix, review 3.6-8) |
-| `--fine-cache-mib` | `256` | Fine-terrain window cache budget (512 before review 3.6-8) |
+| `--area-cache-mib` | `256` | Decoded-area cache budget (1024 before the serving-concurrency fix, review 3.6-8; 384 before the server-startup fix) |
+| `--fine-cache-mib` | `128` | Fine-terrain window cache budget (512 before review 3.6-8; 256 before the server-startup fix) |
 | `--max-overview-px` | `8192` | Largest `overview.png` long edge clients may request |
 | `--tile-base-px` | `4096` | Tile-pyramid base edge; `256 · 2^max_zoom`, at least 512 |
 | `--library <dir>` | `assets/tactical/placeholder` | Tactical asset library (holds `catalog.json`), relative to the working directory. It is loaded once and validated with the arda-tactical loader; any validation issue stops startup |
@@ -76,7 +76,7 @@ docker run --rm -p 8787:8787 -v /abs/world:/worlds/world:ro arda:local
   headers.
 - **Connections.** A client must send a complete request head within
   `--header-timeout-s` (10 s), including between keep-alive requests, or it is
-  disconnected. At most `--max-connections` (64) are served at once; later
+  disconnected. At most `--max-connections` (32) are served at once; later
   clients wait in the listen backlog until one closes.
 - **Caching.** Caches are LRU with byte budgets: decoded areas, derived coast/river/lake
   layers, fine windows, overview PNGs and tiles.
@@ -100,15 +100,18 @@ docker run --rm -p 8787:8787 -v /abs/world:/worlds/world:ro arda:local
   - So is the tactical pipeline (review 3.6-8): two concurrent block compositions (192 MiB
     each; further compositions wait), the 256 refined blocks (512 KiB each), two generations of
     the refine source's decoded areas (it decodes at most 6 areas, then reopens the world, so
-    a long session never holds every area) and the 64 town plans (4 MiB each). Composed blocks
-    are charged with their per-square `ext` maps (a town block about 3 MB). Once the world and
-    library are open, the server adds what they hold (decoded library and scaled textures,
-    parsed `society/` files at twice their size, the shore layer, a town plan larger than
-    4 MiB) and refuses to start above 16 GiB, naming each term; lower `--area-cache-mib` or
+    a long session never holds every area) and the town-plan cache (at most 64 plans and
+    768 MiB, a plan charged its square grid plus twice its JSON). Composed blocks are charged
+    with their per-square `ext` maps (a town block about 3 MB). Once the world and library
+    are open, the server adds what they hold (decoded library and scaled textures, parsed
+    `society/` files at twice their size, the shore layer, the largest town plan drawn) and
+    refuses to start above 16 GiB, naming each term; lower `--area-cache-mib` or
     `--fine-cache-mib` then. The startup line prints the admitted total. Defaults: about
-    16.0 GiB of budgets plus 0.15 GiB for the MICRO society world. The query caches (areas
-    384 MiB, derived layers 128 MiB, fine windows 256 MiB) and the encoded PNG, tile and
-    body caches (160 MiB each) were trimmed to make room.
+    14.1 GiB of budgets, plus 0.15 GiB for the MICRO society world or about 1.4 GiB for a
+    default-size one (seed 42: 15,949 MiB admitted). The query caches (areas 256 MiB, derived
+    layers 128 MiB, fine windows 128 MiB), the overview caches (128 MiB each), the encoded
+    PNG, tile and body caches (160 MiB each) and `--max-connections` (32) were trimmed to
+    make room.
 
 ## Errors
 

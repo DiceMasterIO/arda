@@ -29,7 +29,7 @@ impl Default for ServeLimits {
     fn default() -> Self {
         Self {
             header_read_timeout: Duration::from_secs(10),
-            max_connections: 64,
+            max_connections: 32,
         }
     }
 }

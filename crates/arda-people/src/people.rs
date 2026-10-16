@@ -16,8 +16,18 @@ use std::path::Path;
 use std::sync::atomic::{AtomicU64, Ordering};
 use std::sync::{Arc, Mutex};
 
-/// Town plans kept in memory (each a few hundred kB).
-const PLAN_CACHE: usize = 64;
+/// Town plans kept in memory, at most.
+pub const PLAN_CACHE: usize = 64;
+/// Bytes of town plans kept in memory ([`plan_bytes`] each). A village's
+/// plan is a few MB; a default-size world's largest city holds a
+/// half-gigabyte square grid, so the count alone does not bound memory.
+/// The most recently drawn plan stays even when it alone is larger.
+pub const PLAN_CACHE_BYTES: u64 = 768 << 20;
+/// Warm-up batching's estimate of a town or city plan's [`plan_bytes`] a
+/// person: seed-42 plans measure 4 to 7.3 KiB (MICRO towns and cities; the
+/// default-size world's largest city, 91,535 people, is 509 MB). Only
+/// sizes batches; the cache's own bound is exact.
+pub const WARM_BYTES_PER_PERSON: u64 = 8 << 10;
 /// Population skeletons kept in memory (a city's is a few MB).
 const GENERATOR_CACHE: usize = 16;
 
@@ -41,7 +51,37 @@ impl BuildingSource {
     }
 }
 
-type PlanCache = BTreeMap<u64, (u64, Arc<Option<TownPlan>>)>;
+/// Settlement id to (last-use tick, plan, [`plan_bytes`]).
+type PlanCache = BTreeMap<u64, (u64, Arc<Option<TownPlan>>, u64)>;
+
+/// Resident bytes charged for a town plan: its square grid exactly (it is
+/// not serialised) plus twice its JSON for everything else.
+#[must_use]
+pub fn plan_bytes(plan: &TownPlan) -> u64 {
+    /// Counts bytes written, keeping none.
+    struct Count(u64);
+    impl std::io::Write for Count {
+        fn write(&mut self, buf: &[u8]) -> std::io::Result<usize> {
+            self.0 += buf.len() as u64;
+            Ok(buf.len())
+        }
+        fn flush(&mut self) -> std::io::Result<()> {
+            Ok(())
+        }
+    }
+    let g = &plan.grid;
+    let grid = std::mem::size_of_val(g.kind.as_slice())
+        + std::mem::size_of_val(g.street.as_slice())
+        + std::mem::size_of_val(g.plot.as_slice())
+        + std::mem::size_of_val(g.building.as_slice())
+        + std::mem::size_of_val(g.height.as_slice())
+        + std::mem::size_of_val(g.slope.as_slice())
+        + std::mem::size_of_val(g.depth.as_slice());
+    let mut json = Count(0);
+    // Serialising into a counter cannot fail; a failure charges the grid.
+    let _ = serde_json::to_writer(&mut json, plan);
+    (grid as u64).saturating_add(json.0.saturating_mul(2))
+}
 type GeneratorCache = BTreeMap<u64, (u64, Arc<Generator<'static>>)>;
 
 /// A world with its `society/` directory.
@@ -60,6 +100,8 @@ pub struct World {
     generators: Mutex<(u64, GeneratorCache)>,
     /// Population skeletons built so far (cache misses of [`World::generator`]).
     skeletons_built: AtomicU64,
+    /// The largest [`plan_bytes`] drawn since opening.
+    largest_plan: AtomicU64,
     /// Settlements whose plan, drawn again here, does not match the plan
     /// their stored notables were generated in (review 3.3-5).
     stale_plans: Mutex<BTreeSet<u64>>,
@@ -72,6 +114,10 @@ impl std::fmt::Debug for World {
             .field("society", &self.society.is_some())
             .finish_non_exhaustive()
     }
+}
+
+fn cache_bytes(cache: &PlanCache) -> u64 {
+    cache.values().map(|e| e.2).fold(0, u64::saturating_add)
 }
 
 impl World {
@@ -115,6 +161,7 @@ impl World {
             plans: Mutex::new((0, BTreeMap::new())),
             generators: Mutex::new((0, BTreeMap::new())),
             skeletons_built: AtomicU64::new(0),
+            largest_plan: AtomicU64::new(0),
             stale_plans: Mutex::new(BTreeSet::new()),
         })
     }
@@ -153,11 +200,15 @@ impl World {
             town::read_history(p, society);
         }
         self.check_plan(id, plan.as_ref())?;
+        let bytes = plan.as_ref().map_or(0, plan_bytes);
+        self.largest_plan.fetch_max(bytes, Ordering::Relaxed);
         let plan = Arc::new(plan);
         let mut g = self.lock_plans()?;
         let tick = g.0;
-        g.1.insert(id, (tick, Arc::clone(&plan)));
-        while g.1.len() > PLAN_CACHE {
+        g.1.insert(id, (tick, Arc::clone(&plan), bytes));
+        // The newest entry has the highest tick, so it is never the one
+        // evicted while others remain.
+        while g.1.len() > 1 && (g.1.len() > PLAN_CACHE || cache_bytes(&g.1) > PLAN_CACHE_BYTES) {
             let oldest = g.1.iter().min_by_key(|(_, e)| e.0).map(|(k, _)| *k);
             if let Some(k) = oldest {
                 g.1.remove(&k);
@@ -166,36 +217,107 @@ impl World {
         Ok(plan)
     }
 
+    /// Sum of the cached plans' [`plan_bytes`].
+    ///
+    /// # Errors
+    /// A poisoned cache.
+    pub fn cached_plan_bytes(&self) -> Result<u64, PeopleError> {
+        let g = self
+            .plans
+            .lock()
+            .map_err(|_| PeopleError::World("plan cache poisoned".into()))?;
+        Ok(cache_bytes(&g.1))
+    }
+
+    /// The largest [`plan_bytes`] drawn since opening, cached or not.
+    #[must_use]
+    pub fn largest_plan_drawn(&self) -> u64 {
+        self.largest_plan.load(Ordering::Relaxed)
+    }
+
     /// Draws and caches the plans of the most populous settlements of the
-    /// tiers `keep` selects (at most half the plan cache), with their
-    /// interior salts, so the first tactical request near a town or city
-    /// does not wait for its plan (goal 50). Failures are skipped: a plan
+    /// tiers `keep` selects, with their interior salts, so the first
+    /// tactical request near a town or city does not wait for its plan
+    /// (goal 50). Plans are drawn most populous first, in batches drawn
+    /// together (each plan still parallel inside) until the cache holds
+    /// half its count or half its bytes ([`PLAN_CACHE_BYTES`]). A batch is
+    /// the longest run of the next plans (at least one) that reads at most
+    /// `max_areas` distinct areas ([`World::plan_areas`]), has at most one
+    /// plan per rayon thread, and whose [`WARM_BYTES_PER_PERSON`] estimate
+    /// fits what is left of the half budget. Failures are skipped: a plan
     /// that cannot be drawn fails again, visibly, on request.
-    pub fn warm_plans(&self, keep: impl Fn(arda_settle::model::Tier) -> bool + Sync) {
+    pub fn warm_plans(
+        &self,
+        keep: impl Fn(arda_settle::model::Tier) -> bool + Sync,
+        max_areas: usize,
+    ) {
         use rayon::prelude::*;
-        let mut ids: Vec<(u32, u64)> = self
+        let mut todo: Vec<_> = self
             .files
             .settlements
             .settlements
             .iter()
             .filter(|s| keep(s.tier))
-            .map(|s| (s.population, s.id.get()))
+            .map(|s| (s.population, s.id.get(), self.plan_areas(s)))
             .collect();
-        ids.sort_unstable_by_key(|&(p, id)| (std::cmp::Reverse(p), id));
-        ids.truncate(PLAN_CACHE / 2);
-        ids.par_iter().for_each(|&(_, id)| {
-            if let Ok(plan) = self.plan(id) {
-                if let Some(b) = plan.as_ref().as_ref().and_then(|p| p.buildings.first()) {
-                    let _ = plan.as_ref().as_ref().map(|p| p.interior_salt(b));
+        todo.sort_unstable_by_key(|&(p, id, _)| (std::cmp::Reverse(p), id));
+        todo.truncate(PLAN_CACHE / 2);
+        let threads = rayon::current_num_threads().max(1);
+        let mut rest = todo.as_slice();
+        while !rest.is_empty() {
+            let room = match self.cached_plan_bytes() {
+                Ok(bytes) if bytes < PLAN_CACHE_BYTES / 2 => PLAN_CACHE_BYTES / 2 - bytes,
+                _ => break,
+            };
+            let mut areas = BTreeSet::new();
+            let (mut n, mut estimate) = (0, 0_u64);
+            for (people, _, reads) in rest {
+                let joined: BTreeSet<_> = areas.union(reads).copied().collect();
+                let more = estimate + u64::from(*people) * WARM_BYTES_PER_PERSON;
+                if n > 0 && (joined.len() > max_areas || n >= threads || more > room) {
+                    break;
                 }
+                (areas, estimate) = (joined, more);
+                n += 1;
             }
-        });
+            let (batch, later) = rest.split_at(n);
+            batch.par_iter().for_each(|&(_, id, _)| {
+                if let Ok(plan) = self.plan(id) {
+                    if let Some(b) = plan.as_ref().as_ref().and_then(|p| p.buildings.first()) {
+                        let _ = plan.as_ref().as_ref().map(|p| p.interior_salt(b));
+                    }
+                }
+            });
+            rest = later;
+        }
     }
 
     /// [`Self::warm_plans`] for the towns and cities.
-    pub fn warm_towns(&self) {
+    pub fn warm_towns(&self, max_areas: usize) {
         use arda_settle::model::Tier;
-        self.warm_plans(|t| matches!(t, Tier::Town | Tier::City));
+        self.warm_plans(|t| matches!(t, Tier::Town | Tier::City), max_areas);
+    }
+
+    /// The areas, as (column, row), whose cells drawing `s`'s plan reads:
+    /// those within its plan radius plus the terrain margin
+    /// ([`town::TERRAIN_MARGIN_M`]) and one cell.
+    #[must_use]
+    pub fn plan_areas(&self, s: &arda_settle::model::Settlement) -> BTreeSet<(i64, i64)> {
+        use crate::terrain::CELL_M;
+        let reach = town::plan_radius_for(s) + town::TERRAIN_MARGIN_M + CELL_M;
+        let (w, h) = self.src.cells_wide_high();
+        let per_area = i64::from(arda_core::AREA_CELLS);
+        // World metres fit i64 and f64 exactly.
+        #[allow(clippy::cast_possible_truncation, clippy::cast_precision_loss)]
+        let area = |m: i64, d: f64, cells: i64| {
+            let cell = ((m as f64 + d) / CELL_M).floor() as i64;
+            cell.clamp(0, cells - 1).div_euclid(per_area)
+        };
+        let (x0, x1) = (area(s.x_m, -reach, w), area(s.x_m, reach, w));
+        let (y0, y1) = (area(s.y_m, -reach, h), area(s.y_m, reach, h));
+        (y0..=y1)
+            .flat_map(|ay| (x0..=x1).map(move |ax| (ax, ay)))
+            .collect()
     }
 
     /// The settlement's profile for the NPC generator (adapter A2: the

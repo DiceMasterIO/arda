@@ -33,12 +33,15 @@ pub struct QueryLimits {
 impl Default for QueryLimits {
     fn default() -> Self {
         // Trimmed in 0.8.1+ (review 3.6-8) to admit the tactical
-        // pipeline's holders: still 29 areas, 38 derived layers and 36
-        // fine windows, against 1 GiB, 256 MiB and 512 MiB before.
+        // pipeline's holders, against 1 GiB, 256 MiB and 512 MiB before,
+        // and again by the server-startup fix (384 MiB areas and 256 MiB
+        // fine windows) to admit a default-size world's society files and
+        // town plans: still 19 areas, 38 derived layers and 18 fine
+        // windows.
         Self {
-            area_bytes: 384 << 20,
+            area_bytes: 256 << 20,
             derived_bytes: 128 << 20,
-            fine_bytes: 256 << 20,
+            fine_bytes: 128 << 20,
         }
     }
 }

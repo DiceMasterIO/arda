@@ -31,6 +31,9 @@ pub const fn plan_radius_m(tier: arda_settle::model::Tier) -> f64 {
 /// `√(p / 150 / π)` hectares, about `8.2·√p` m; half again for streets,
 /// walls, fields at the gate and the 300 m terrain margin's slack.
 const RADIUS_PER_ROOT_PERSON: f64 = 12.0;
+/// How far past its plan radius a settlement's terrain is read
+/// ([`terrain`]), metres.
+pub const TERRAIN_MARGIN_M: f64 = 300.0;
 
 /// Radius of terrain the plan of `s` sees, metres: its tier's
 /// ([`plan_radius_m`]), or more for a city whose people need more ground
@@ -139,11 +142,11 @@ pub fn terrain(
     radius_m: f64,
     roads: &[Road],
 ) -> Result<TerrainInput, PeopleError> {
-    let s = Arc::new(Surroundings::around(src, at, radius_m + 300.0)?);
-    let pieces = crate::rivers::pieces_around(src, at, radius_m + 300.0)?;
+    let s = Arc::new(Surroundings::around(src, at, radius_m + TERRAIN_MARGIN_M)?);
+    let pieces = crate::rivers::pieces_around(src, at, radius_m + TERRAIN_MARGIN_M)?;
     let rivers = crate::rivers::lines(&pieces, v2(at.0, at.1));
     let river = Arc::new(arda_refine::water::RiverWater::new(pieces));
-    let standing = Arc::new(standing_region(src, at, radius_m + 300.0)?);
+    let standing = Arc::new(standing_region(src, at, radius_m + TERRAIN_MARGIN_M)?);
     let hs = Arc::clone(&s);
     let height: arda_town::site::Field = Box::new(move |p: Vec2| hs.height_m(p.x, p.y));
     let water: arda_town::site::Mask = Box::new(move |p: Vec2| {

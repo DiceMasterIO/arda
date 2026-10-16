@@ -109,7 +109,7 @@ The pipeline has two halves. Three offline CLI batches write files under one wor
    - sheet mapping (`:207`)
    - `WorldQuery::open` (`:212`), which loads the world, the fine reader and the society rasters (`crates/arda-server/src/query.rs:78`)
    - `Tactical::open`, which loads and validates the library stack and pre-scales textures for every ppsq (`crates/arda-server/src/tactical/mod.rs:195`)
-2. When `society/settlements.json` exists, `arda_people::World::with_source` loads `society.json` and `notables.json` if present; `SocietyFiles` also reads `realms.json` and `gazetteer.json` when they exist (`crates/arda-server/src/lib.rs:220`, `crates/arda-people/src/people.rs:79`). `warm_towns` then pre-draws up to 32 plans for the most populous towns and cities (`crates/arda-server/src/lib.rs:231`, `crates/arda-people/src/people.rs:169`).
+2. When `society/settlements.json` exists, `arda_people::World::with_source` loads `society.json` and `notables.json` if present; `SocietyFiles` also reads `realms.json` and `gazetteer.json` when they exist (`crates/arda-server/src/lib.rs:220`, `crates/arda-people/src/people.rs:79`). `warm_towns` then pre-draws plans for the most populous towns and cities, in batches that read at most 8 areas between them, until the plan cache holds half its 64 plans or 768 MiB (`crates/arda-server/src/lib.rs:231`, `crates/arda-people/src/people.rs:169`).
 3. `SocietyOverlays::open` converts roads and crossings and reads `landuse.bin` (`crates/arda-server/src/lib.rs:233`, `crates/arda-blocks/src/society/mod.rs:115`). The same overlays feed the relief `Landscape` (`crates/arda-server/src/lib.rs:241`).
 4. `RefineBlocks::with_society` becomes the block source (`crates/arda-server/src/lib.rs:244`). `Overview::new` sets up the overview (`:247`). `Relief::open` follows (`:248`), and its `ReliefWorld` doubles as the tactical world-tint source (`:255`). When the world has `society/gazetteer.json`, `Relief::enable_labels` builds the `Labeler` and the overview shares it (`:257`–`:262`).
 5. Prefetch workers are not started at boot. The first `POST /prefetch` starts them (`crates/arda-server/src/tactical/prefetch.rs:230`). The bake worker (`--bake-workers`, 0 or 1) is likewise started by the first accepted `POST /v1/tactical/bake` (`crates/arda-server/src/tactical/bake.rs:215`, `crates/arda-server/src/tactical/bake.rs:233`); `ServerConfig::admit` refuses a bake result budget too small for one worst-case set (`crates/arda-server/src/lib.rs:154`).
@@ -219,7 +219,7 @@ The pipeline has two halves. Three offline CLI batches write files under one wor
 | `WorldQuery.areas` / `derived` / `windows` | `crates/arda-server/src/query.rs:58` | `AreaCoord` | 1 GiB / 256 MiB / 512 MiB `ByteLru` (`:36`) | contract routes |
 | `SocietyCells` | `crates/arda-server/src/society_cells.rs:47` | global cell | 8 bytes per cell, decoded at start | never |
 | `arda_people::World` files, society, notables | `crates/arda-people/src/people.rs:43` | settlement / `NpcId` | read once at start | never |
-| `World.plans` | `crates/arda-people/src/people.rs:137` | settlement id | 64 entries, LRU by tick | `plan`, `warm_plans`, town overlay |
+| `World.plans` | `crates/arda-people/src/people.rs:137` | settlement id | 64 entries and 768 MiB (`plan_bytes`: square grid plus twice the JSON), LRU by tick, newest always kept | `plan`, `warm_plans`, town overlay |
 | `SocietyOverlays` roads/land use/channels | `crates/arda-blocks/src/society/mod.rs:91` | — | built at start; `ChannelCache` filled on use | ways overlay |
 | `Pipeline.cache` | `crates/arda-blocks/src/pipeline.rs:72` | `CellKey` | 256 refined blocks, LRU | `refined` |
 | `RefineBlocks.composed` / `demos` | `crates/arda-server/src/tactical/refine_blocks.rs:33` | `BlockRequest` / anchor | 256 MiB `ByteLru` / 16 anchors | `block`, `demo` |
@@ -231,7 +231,7 @@ The pipeline has two halves. Three offline CLI batches write files under one wor
 | `Overview.pngs` / `tiles` / `base` | `crates/arda-server/src/overview.rs:118` | quality+style+society / zxy+format+oblique+labelled+society / (oblique, society) | `cache_bytes` each; `base` holds up to three decoded pyramids | `png`, `tile`, `base` |
 | `Relief.tiles`; `ReliefWorld` contexts | `crates/arda-server/src/relief.rs:39`, `crates/arda-midzoom/src/world.rs:22` | zxy+labelled | 128 MiB `ByteLru` | `tile` |
 | `area_builds` semaphore | `crates/arda-server/src/lib.rs:186` | — | 2 permits | `/area/.../cells` |
-| Connection semaphore | `crates/arda-server/src/serve.rs:47` | — | 64 connections | accept loop |
+| Connection semaphore | `crates/arda-server/src/serve.rs:47` | — | 32 connections | accept loop |
 | Viewer component state | React `useState` / `useAsync` (`apps/viewer/src/hooks.ts:38`) | — | per view | user actions; responses |
 | Viewer API base | `localStorage` (`apps/viewer/src/config.ts:13`) | one key | — | `saveApiBase` |
 

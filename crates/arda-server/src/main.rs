@@ -47,7 +47,7 @@ struct Args {
     #[arg(long, default_value_t = 10)]
     header_timeout_s: u64,
     /// Most connections served at once; further clients wait.
-    #[arg(long, default_value_t = 64)]
+    #[arg(long, default_value_t = arda_server::serve::ServeLimits::default().max_connections)]
     max_connections: usize,
     /// Background threads warming prefetched tactical cells (0 disables).
     #[arg(long, default_value_t = arda_server::tactical::prefetch::DEFAULT_WORKERS)]

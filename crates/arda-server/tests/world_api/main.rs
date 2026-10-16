@@ -28,6 +28,7 @@ mod schemas;
 mod seams;
 mod serving;
 mod society_cells;
+mod startup_scale;
 mod support;
 mod tactical;
 mod tactical_images;
