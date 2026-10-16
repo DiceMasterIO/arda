@@ -78,6 +78,17 @@ fn nearest_water(terrain: &TerrainInput, around: Vec2, radius: f64) -> Option<Ve
     None
 }
 
+/// How far from the site a bridge or a road junction may stand and still
+/// be the town's focal point: the built core's radius before any growth
+/// (`Params::for_site` at `grow` 1, so every attempt agrees), capped at
+/// the planner's old fixed reach. A feature farther out lies outside the
+/// settlement, and centring the plan on it would carry the market and
+/// the notables' houses off the settlement's own cell, which the world
+/// map marks as its built footprint.
+fn reach(site: &TownSite, cap: f64) -> f64 {
+    Params::for_site(site, 1.0).r_core.min(cap)
+}
+
 /// Finds the focal feature and the market position.
 #[must_use]
 pub fn find(site: &TownSite, terrain: &TerrainInput, params: &Params) -> Focal {
@@ -122,7 +133,7 @@ pub fn find(site: &TownSite, terrain: &TerrainInput, params: &Params) -> Focal {
     }
     crossings.sort_by(|a, b| a.0.dist(pos).total_cmp(&b.0.dist(pos)));
     if let Some(&(bridge, ri)) = crossings.first() {
-        if bridge.dist(pos) < 450.0 {
+        if bridge.dist(pos) < reach(site, 450.0) {
             let road = &roads[ri].1;
             let (_, sb) = geom::project(road, bridge);
             let len = geom::length(road);
@@ -163,7 +174,7 @@ pub fn find(site: &TownSite, terrain: &TerrainInput, params: &Params) -> Focal {
     }
     junctions.sort_by(|a, b| a.dist(pos).total_cmp(&b.dist(pos)));
     if let Some(&j) = junctions.first() {
-        if j.dist(pos) < 400.0 {
+        if j.dist(pos) < reach(site, 400.0) {
             return Focal {
                 kind: FocalKind::Crossroads,
                 feature: j,
@@ -316,4 +327,59 @@ fn dedupe(arms: &mut Vec<Arm>) {
         keep.push(a);
     }
     *arms = keep;
+}
+
+#[cfg(test)]
+#[allow(clippy::unwrap_used)]
+mod tests {
+    use super::*;
+    use crate::site::RiverLine;
+
+    /// Thornby (a village of 320 where two roads cross) with a river
+    /// running east–west `dy` metres south of its centre, across its
+    /// north–south road.
+    fn thornby_with_river(dy: f64) -> (TownSite, TerrainInput, Params) {
+        let (site, mut t) = crate::samples::thornby();
+        let p = site.position();
+        let river = vec![v2(p.x - 1500.0, p.y + dy), v2(p.x + 1500.0, p.y + dy)];
+        let line = river.clone();
+        t.water = Box::new(move |q| geom::dist_to(&line, q) < 4.0);
+        t.rivers.push(RiverLine {
+            points: river,
+            width_m: 8.0,
+        });
+        let params = Params::for_site(&site, 1.0);
+        (site, t, params)
+    }
+
+    #[test]
+    fn a_bridge_beyond_the_core_does_not_pull_the_village_off_its_site() {
+        let (site, t, params) = thornby_with_river(320.0);
+        assert!(320.0 > params.r_core, "core {}", params.r_core);
+        let f = find(&site, &t, &params);
+        assert_ne!(f.kind, FocalKind::Crossing, "{f:?}");
+        let off = f.market.dist(site.position());
+        assert!(
+            off <= params.r_core,
+            "market {off:.0} m from the site: {f:?}"
+        );
+    }
+
+    #[test]
+    fn a_bridge_within_the_core_is_the_focal() {
+        let (site, t, params) = thornby_with_river(90.0);
+        let f = find(&site, &t, &params);
+        assert_eq!(f.kind, FocalKind::Crossing, "{f:?}");
+        assert!(f.market.dist(site.position()) <= params.r_core, "{f:?}");
+    }
+
+    #[test]
+    fn the_reach_does_not_grow_with_the_core() {
+        let (site, t, _) = thornby_with_river(320.0);
+        for attempt in 0..6 {
+            let params = Params::for_site(&site, 1.0 + 0.2 * f64::from(attempt));
+            let f = find(&site, &t, &params);
+            assert_ne!(f.kind, FocalKind::Crossing, "attempt {attempt}: {f:?}");
+        }
+    }
 }

@@ -32,3 +32,4 @@ mod startup_scale;
 mod support;
 mod tactical;
 mod tactical_images;
+mod village_site;
