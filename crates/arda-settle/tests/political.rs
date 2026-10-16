@@ -31,7 +31,14 @@ fn society() -> Society {
     };
     let grid = synthetic::landscape(params.seed).unwrap();
     let society = run(&grid, params).unwrap();
-    let dir = std::env::temp_dir().join(format!("arda-settle-political-{}", std::process::id()));
+    // One directory per call: tests run in parallel in this process, and a
+    // shared one was removed under another test's read.
+    static CALLS: std::sync::atomic::AtomicU64 = std::sync::atomic::AtomicU64::new(0);
+    let call = CALLS.fetch_add(1, std::sync::atomic::Ordering::SeqCst);
+    let dir = std::env::temp_dir().join(format!(
+        "arda-settle-political-{}-{call}",
+        std::process::id()
+    ));
     let _ = std::fs::remove_dir_all(&dir);
     arda_settle::write(
         &dir.join(arda_settle::SOCIETY_DIR),
