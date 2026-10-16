@@ -458,3 +458,32 @@ fn explicit_quality_conflicts_with_legacy_resolution_flags_and_blocks() {
     ])
     .is_err());
 }
+
+#[test]
+fn society_political_parses_and_is_for_overviews_only() {
+    let cli = Cli::try_parse_from([
+        "arda",
+        "export",
+        "--world",
+        "saved",
+        "--out",
+        "exports",
+        "--overview",
+        "--society",
+        "political",
+    ])
+    .unwrap();
+    let Command::Export { society, .. } = cli.command else {
+        panic!("expected export")
+    };
+    assert_eq!(society, SocietyArg::Political);
+    assert_eq!(SocietyMode::from(society), SocietyMode::Political);
+    let political = ImageOptions {
+        society: Some(SocietyArg::Political),
+        ..ImageOptions::default()
+    };
+    assert!(political.validate(Format::Png, true, None).is_ok());
+    assert!(political
+        .validate(Format::Png, false, None)
+        .is_err_and(|e| e.to_string() == "--society political is valid only for overview exports"));
+}

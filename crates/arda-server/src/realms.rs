@@ -1,7 +1,8 @@
 //! Realm routes over `<world>/society/` (logic/16 §api-routes; OI-46):
 //!
 //! - `GET /v1/realms`: every realm of `realms.json`, without borders, with
-//!   the politics headline when `arda society build` has run;
+//!   the politics headline when `arda society build` has run and the
+//!   realm's political-map colour;
 //! - `GET /v1/realms/{id}`: one realm with borders, its politics, the
 //!   relations and events that involve it and its reigns.
 //!
@@ -15,6 +16,7 @@ use crate::routes::{blocking, parse, segments, Segments};
 use crate::schema::{RealmDetail, RealmList, RealmRuler, RealmSummary};
 use crate::AppState;
 use arda_settle::realms::Realm;
+use arda_settle::render::palette::Palette;
 use arda_society::RealmSociety;
 use axum::extract::State;
 use axum::response::{IntoResponse, Response};
@@ -36,7 +38,7 @@ fn ruler_name(given: &str, regnal: &str) -> String {
     }
 }
 
-fn summary(r: &Realm, politics: Option<&RealmSociety>) -> RealmSummary {
+fn summary(r: &Realm, politics: Option<&RealmSociety>, palette: &Palette) -> RealmSummary {
     RealmSummary {
         id: r.id.to_string(),
         name: r.name.clone(),
@@ -54,6 +56,7 @@ fn summary(r: &Realm, politics: Option<&RealmSociety>) -> RealmSummary {
             name: ruler_name(&p.state.ruler.given, &p.state.ruler.regnal),
             title: p.state.ruler.title.clone(),
         }),
+        colour: palette.hex(r.id),
     }
 }
 
@@ -67,6 +70,7 @@ fn politics_of(w: &arda_people::World, id: u64) -> Option<&RealmSociety> {
 pub(crate) async fn list(State(state): Shared) -> ServerResult<Response> {
     let body = blocking(state, move |s| {
         let w = people(s)?;
+        let palette = w.files.realms.as_ref().map(Palette::of).unwrap_or_default();
         let mut records: Vec<&Realm> = w
             .files
             .realms
@@ -77,7 +81,7 @@ pub(crate) async fn list(State(state): Shared) -> ServerResult<Response> {
         let realms = records
             .into_iter()
             .take(MAX_LISTED)
-            .map(|r| summary(r, politics_of(w, r.id)))
+            .map(|r| summary(r, politics_of(w, r.id), &palette))
             .collect();
         Ok(RealmList {
             format_version: crate::schema::REALM_FORMAT,

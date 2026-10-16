@@ -2,12 +2,14 @@
 //! land use, roads and settlements painted on, chosen by [`SocietyMode`].
 //!
 //! Overviews take the band overlay of `arda-settle` (land tone, roads by
-//! class, tier symbols); areas take the worked land of relief tiles
+//! class, tier symbols, and with [`SocietyMode::Political`] realm edge
+//! bands and borders); areas take the worked land of relief tiles
 //! ([`crate::land::export`]). Both stream; neither holds a page.
 
 use crate::land::export::AreaLandOverlay;
 use arda::{ExportError, ImageQuality, MapStyle, OverviewLook, World};
 use arda_render::{BandOverlay, RenderError};
+use arda_settle::render::band::{BandLayer, SocietyBandOverlay};
 use std::path::{Path, PathBuf};
 
 /// Whether an export carries the society layer.
@@ -21,6 +23,10 @@ pub enum SocietyMode {
     Auto,
     /// The society layer, or an error when the world has none.
     On,
+    /// The society layer with the political layer (realm edge bands,
+    /// dash-dot borders, ivory roads; logic/16 §political-map), or an
+    /// error when the world has no society. Overviews only.
+    Political,
 }
 
 /// Whether `world` has settled society files (`arda settle` ran).
@@ -44,13 +50,13 @@ fn wanted(world: &World, mode: SocietyMode, can_carry: bool) -> Result<bool, Exp
     match mode {
         SocietyMode::Off => Ok(false),
         SocietyMode::Auto => Ok(can_carry && has_society(world)),
-        SocietyMode::On if !has_society(world) => Err(overlay_error(
+        SocietyMode::On | SocietyMode::Political if !has_society(world) => Err(overlay_error(
             "the world has no society/ directory; run `arda settle` first",
         )),
-        SocietyMode::On if !can_carry => Err(overlay_error(
+        SocietyMode::On | SocietyMode::Political if !can_carry => Err(overlay_error(
             "the oblique look cannot carry the society layer",
         )),
-        SocietyMode::On => Ok(true),
+        SocietyMode::On | SocietyMode::Political => Ok(true),
     }
 }
 
@@ -69,10 +75,12 @@ pub fn export_overview(
     let overlay = if wanted(world, mode, !look.oblique)? {
         let m = world.manifest();
         let (w, h) = quality.overview_dimensions(m.areas_wide, m.areas_high)?;
-        Some(
-            arda_settle::render::band::SocietyBandOverlay::open(world.dir(), w, h)
-                .map_err(overlay_error)?,
-        )
+        let layer = if mode == SocietyMode::Political {
+            BandLayer::Political
+        } else {
+            BandLayer::Society
+        };
+        Some(SocietyBandOverlay::open_with(world.dir(), (w, h), layer).map_err(overlay_error)?)
     } else {
         None
     };
@@ -90,7 +98,8 @@ pub fn export_overview(
 ///
 /// # Errors
 /// As [`arda::export_area_with_overlay`]; `On` also refuses a world without
-/// society.
+/// society, and `Political` is refused: the political layer is drawn on
+/// overviews only (an area map is local; its realm is in the cell queries).
 pub fn export_area(
     world: &World,
     (ax, ay): (i32, i32),
@@ -99,6 +108,11 @@ pub fn export_area(
     style: MapStyle,
     mode: SocietyMode,
 ) -> Result<PathBuf, ExportError> {
+    if mode == SocietyMode::Political {
+        return Err(overlay_error(
+            "the political layer is drawn on overview exports only",
+        ));
+    }
     let overlay = if wanted(world, mode, true)? {
         AreaLandOverlay::open(world.dir(), (ax, ay), quality.pixels()).map_err(overlay_error)?
     } else {

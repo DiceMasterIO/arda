@@ -1,8 +1,9 @@
 //! Cached overview renders and the slippy tile pyramid cut from one of them.
 //!
 //! Renders reuse `arda_midzoom::export::export_overview` byte for byte, with the
-//! society layer (land use, roads, settlements) unless asked not to;
-//! one render runs at a time so peak memory stays that of a single export.
+//! society layer (land use, roads, settlements) unless asked not to, and
+//! the political layer (realm edge bands and borders) when asked for; one
+//! render runs at a time so peak memory stays that of a single export.
 
 use crate::cache::ByteLru;
 use crate::dto::TilePyramidDto;
@@ -83,6 +84,43 @@ impl Style {
     }
 }
 
+/// What is painted over the terrain of an overview render (`?overlay=`).
+#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
+pub enum Overlay {
+    /// The plain terrain (`none`).
+    None,
+    /// Land use, roads and settlements (`society`).
+    Society,
+    /// The society layer with ivory roads, realm edge bands and dash-dot
+    /// borders (`political`; logic/16 §political-map).
+    Political,
+}
+
+impl Overlay {
+    /// Parses `none`, `society` or `political`.
+    ///
+    /// # Errors
+    /// [`ServerError::BadRequest`] for other names.
+    pub fn parse(name: &str) -> ServerResult<Self> {
+        match name {
+            "none" => Ok(Self::None),
+            "society" => Ok(Self::Society),
+            "political" => Ok(Self::Political),
+            other => Err(ServerError::BadRequest(format!(
+                "overlay must be society, political or none, not {other:?}"
+            ))),
+        }
+    }
+
+    const fn mode(self) -> arda_midzoom::export::SocietyMode {
+        match self {
+            Self::None => arda_midzoom::export::SocietyMode::Off,
+            Self::Society => arda_midzoom::export::SocietyMode::On,
+            Self::Political => arda_midzoom::export::SocietyMode::Political,
+        }
+    }
+}
+
 /// Encoding of an overview tile (goal 68: WebP; PNG kept for compatibility).
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord)]
 pub enum TileFormat {
@@ -112,14 +150,14 @@ impl TileFormat {
 }
 
 /// Cache identity of an encoded overview tile:
-/// `(z, x, y, format, oblique, labelled, society)`.
-type TileKey = (u32, u32, u32, TileFormat, bool, bool, bool);
+/// `(z, x, y, format, oblique, labelled, overlay)`.
+type TileKey = (u32, u32, u32, TileFormat, bool, bool, Overlay);
 
-/// Cache identity of an overview PNG: `(quality, style, society, labelled)`.
-type PngKey = (u32, Style, bool, bool);
+/// Cache identity of an overview PNG: `(quality, style, overlay, labelled)`.
+type PngKey = (u32, Style, Overlay, bool);
 
-/// Cache identity of a decoded pyramid base: `(oblique, society)`.
-type BaseKey = (bool, bool);
+/// Cache identity of a decoded pyramid base: `(oblique, overlay)`.
+type BaseKey = (bool, Overlay);
 
 /// Overview renders, the decoded pyramid base and cut tiles, all bounded.
 pub struct Overview {
@@ -208,35 +246,35 @@ impl Overview {
         Ok(px)
     }
 
-    /// Whether a render carries the society layer: `requested` is the
-    /// `overlay` query (`Some(true)` for `society`, `Some(false)` for
-    /// `none`); absent, the layer is on when the world has `society/`. The
-    /// oblique look never carries it.
+    /// What a render carries: `requested` is the `overlay` query; absent,
+    /// the society layer when the world has `society/`, else none. The
+    /// oblique look never carries a layer.
     ///
     /// # Errors
-    /// [`ServerError::BadRequest`] when `society` is asked of a world that
-    /// has none, or of the oblique look.
-    pub fn society(
+    /// [`ServerError::BadRequest`] when `society` or `political` is asked
+    /// of a world that has no society, or of the oblique look.
+    pub fn overlay(
         query: &WorldQuery,
         style: Style,
-        requested: Option<bool>,
-    ) -> ServerResult<bool> {
+        requested: Option<Overlay>,
+    ) -> ServerResult<Overlay> {
         let has = arda_midzoom::export::has_society(query.world());
         match requested {
-            Some(false) => Ok(false),
-            None => Ok(has && style != Style::AtlasOblique),
-            Some(true) if style == Style::AtlasOblique => Err(ServerError::BadRequest(
-                "overlay=society cannot be combined with the oblique look".into(),
+            Some(Overlay::None) => Ok(Overlay::None),
+            None if has && style != Style::AtlasOblique => Ok(Overlay::Society),
+            None => Ok(Overlay::None),
+            Some(_) if style == Style::AtlasOblique => Err(ServerError::BadRequest(
+                "overlay=society or political cannot be combined with the oblique look".into(),
             )),
-            Some(true) if !has => Err(ServerError::BadRequest(
+            Some(_) if !has => Err(ServerError::BadRequest(
                 "this world has no society files; run `arda settle` or use overlay=none".into(),
             )),
-            Some(true) => Ok(true),
+            Some(layer) => Ok(layer),
         }
     }
 
-    /// The overview PNG at `quality_px`, rendering on a cache miss; `society`
-    /// (from [`Self::society`]) paints land use, roads and settlements.
+    /// The overview PNG at `quality_px`, rendering on a cache miss; `overlay`
+    /// (from [`Self::overlay`]) picks the layers painted over the terrain.
     /// `labels` (opt-in, `?labels=1`) then draws the gazetteer's names on
     /// the finished image, at most [`LABEL_MAX_QUALITY_PX`] on the long edge:
     /// the image is decoded whole to draw them.
@@ -249,7 +287,7 @@ impl Overview {
         &self,
         query: &WorldQuery,
         quality_px: u32,
-        (style, society): (Style, bool),
+        (style, overlay): (Style, Overlay),
         labels: bool,
     ) -> ServerResult<Arc<Vec<u8>>> {
         let labeler = if labels {
@@ -257,11 +295,11 @@ impl Overview {
         } else {
             None
         };
-        let key = (quality_px, style, society, labels);
+        let key = (quality_px, style, overlay, labels);
         if let Some(hit) = lock(&self.pngs)?.get(&key) {
             return Ok(hit);
         }
-        let plain = self.png_plain(query, quality_px, (style, society))?;
+        let plain = self.png_plain(query, quality_px, (style, overlay))?;
         let Some(labeler) = labeler else {
             return Ok(plain);
         };
@@ -312,9 +350,9 @@ impl Overview {
         &self,
         query: &WorldQuery,
         quality_px: u32,
-        (style, society): (Style, bool),
+        (style, overlay): (Style, Overlay),
     ) -> ServerResult<Arc<Vec<u8>>> {
-        let key = (quality_px, style, society, false);
+        let key = (quality_px, style, overlay, false);
         if let Some(hit) = lock(&self.pngs)?.get(&key) {
             return Ok(hit);
         }
@@ -322,13 +360,13 @@ impl Overview {
         if let Some(hit) = lock(&self.pngs)?.get(&key) {
             return Ok(hit);
         }
-        let bytes = Arc::new(render(query, quality_px, (style, society))?);
+        let bytes = Arc::new(render(query, quality_px, (style, overlay))?);
         let size = bytes.len();
         Ok(lock(&self.pngs)?.insert(key, bytes, size))
     }
 
-    fn base(&self, query: &WorldQuery, (oblique, society): BaseKey) -> ServerResult<Arc<Rgb>> {
-        if let Some(base) = lock(&self.base)?.get(&(oblique, society)) {
+    fn base(&self, query: &WorldQuery, (oblique, overlay): BaseKey) -> ServerResult<Arc<Rgb>> {
+        if let Some(base) = lock(&self.base)?.get(&(oblique, overlay)) {
             return Ok(Arc::clone(base));
         }
         let style = if oblique {
@@ -336,18 +374,18 @@ impl Overview {
         } else {
             Style::Atlas
         };
-        let png = self.png_plain(query, self.limits.tile_base_px, (style, society))?;
+        let png = self.png_plain(query, self.limits.tile_base_px, (style, overlay))?;
         let rgb = Arc::new(tiles::decode_rgb(&png)?);
         let mut slots = lock(&self.base)?;
-        Ok(Arc::clone(slots.entry((oblique, society)).or_insert(rgb)))
+        Ok(Arc::clone(slots.entry((oblique, overlay)).or_insert(rgb)))
     }
 
     /// Slippy tile `(z, x, y)` as a 256 px RGBA PNG or lossless WebP. Both
     /// encode the same pixels. `oblique` cuts the tile from the oblique
     /// pyramid (goal 24, opt-in) instead of the default one. `labels` draws
     /// the gazetteer's names when the world has them; the oblique pyramid
-    /// never carries labels (its ground is shifted). `society` cuts the
-    /// tile from the pyramid with land use, roads and settlements.
+    /// never carries labels (its ground is shifted). `overlay` picks the
+    /// pyramid: plain, with the society layer, or with the political layer.
     ///
     /// # Errors
     /// [`ServerError::NotFound`] outside the pyramid; render or encode failures.
@@ -355,10 +393,10 @@ impl Overview {
         &self,
         query: &WorldQuery,
         (z, x, y): (u32, u32, u32),
-        (format, oblique, labels, society): (TileFormat, bool, bool, bool),
+        (format, oblique, labels, overlay): (TileFormat, bool, bool, Overlay),
     ) -> ServerResult<Arc<Vec<u8>>> {
         let labeler = self.labels.get().filter(|_| labels && !oblique);
-        let key = (z, x, y, format, oblique, labeler.is_some(), society);
+        let key = (z, x, y, format, oblique, labeler.is_some(), overlay);
         if z > self.pyramid.max_zoom || x >= (1 << z) || y >= (1 << z) {
             return Err(ServerError::NotFound(format!(
                 "tile {z}/{x}/{y} is outside the pyramid (zoom 0..={})",
@@ -368,7 +406,7 @@ impl Overview {
         if let Some(hit) = lock(&self.tiles)?.get(&key) {
             return Ok(hit);
         }
-        let base = self.base(query, (oblique, society))?;
+        let base = self.base(query, (oblique, overlay))?;
         let mut rgba = tiles::cut(&base, self.pyramid.max_zoom, z, x, y)?;
         if let Some(l) = labeler {
             let origin = (i64::from(x) * 256, i64::from(y) * 256);
@@ -415,24 +453,19 @@ fn scratch_in(parent: &Path, stem: &str, next: &AtomicU64) -> ServerResult<Scrat
 fn render(
     query: &WorldQuery,
     quality_px: u32,
-    (style, society): (Style, bool),
+    (style, overlay): (Style, Overlay),
 ) -> ServerResult<Vec<u8>> {
     static NEXT: AtomicU64 = AtomicU64::new(0);
     let quality = ImageQuality::new(quality_px)
         .map_err(|e| ServerError::BadRequest(format!("quality: {e}")))?;
     let stem = format!("arda-server-{}", std::process::id());
     let dir = scratch_in(&std::env::temp_dir(), &stem, &NEXT)?;
-    let mode = if society {
-        arda_midzoom::export::SocietyMode::On
-    } else {
-        arda_midzoom::export::SocietyMode::Off
-    };
     let path = arda_midzoom::export::export_overview(
         query.world(),
         &dir.0,
         quality,
         (style.map_style(), style.look()),
-        mode,
+        overlay.mode(),
     )?;
     std::fs::read(&path).map_err(|e| ServerError::Internal(format!("reading render: {e}")))
 }

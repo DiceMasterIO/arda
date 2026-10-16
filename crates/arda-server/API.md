@@ -360,11 +360,17 @@ Returns the whole-world overview as PNG. It's the same bytes as
   north by half its height (coasts and sea stay exactly put), with gentle aerial
   perspective, valley occlusion and sky light. It is `arda export --style atlas-oblique`.
 
-- `overlay` is `society` or `none`. `society` paints land-use tone, roads by class and
-  settlement symbols from `<world>/society/` over the terrain (logic/04 §overlay); `none` is
-  the plain terrain. Absent, it is `society` when the world has society files and `none`
-  otherwise or with `atlas-oblique`. Asking for `society` of a world without society files, or
-  with `atlas-oblique`, is `400 bad_request`. No names are drawn on the overview itself.
+- `overlay` is `society`, `political` or `none`. `society` paints land-use tone, roads by
+  class and settlement symbols from `<world>/society/` over the terrain (logic/04 §overlay);
+  `political` paints the same with ivory cased roads, plus each realm's colour as an inner
+  band along its borders and the borders as dark dash-dot lines (logic/16 §political-map;
+  the colours are `colour` on `/v1/realms`); `none` is the plain terrain. Absent, it is
+  `society` when the world has society files and `none` otherwise or with `atlas-oblique`.
+  Asking for `society` or `political` of a world without society files, or with
+  `atlas-oblique`, is `400 bad_request`. No names are drawn on the overview itself.
+- The overview is world scale: hamlets, and the tracks built to them, are drawn only at
+  30 m per pixel or finer (any world longer than 61 km at 2048 px is coarser), so an overview
+  shows cities, towns and villages; area exports and relief tiles show hamlets.
 
 Renders are cached per `(quality, style, overlay)`, and only one render runs at a time.
 
@@ -394,8 +400,10 @@ is 4.
   to the tile, so a name crossing an edge is the same on both tiles. `?labels=0` leaves them
   off; the default is on, and cache keys include the flag, so the two never mix. Worlds without
   a gazetteer, and `?oblique=1`, carry none.
-- `?overlay=society|none` picks the pyramid the tile is cut from, as on `/v1/overview.png`
-  (default `society` when the world has it); cache keys include it, so the two never mix.
+- `?overlay=society|political|none` picks the pyramid the tile is cut from, as on
+  `/v1/overview.png` (default `society` when the world has it); cache keys include it, so they
+  never mix. Every tile is cut from one render, so the political bands and borders join
+  across tile edges.
 - `?oblique=1` (goal 24, opt-in) cuts the tile from the `atlas-oblique` render instead;
   `?oblique=0` or no parameter is the default pyramid, byte for byte. The relief levels
   past `max_zoom` are always top-down, so a client showing the oblique pyramid should not
@@ -483,7 +491,9 @@ curl -s 'http://localhost:8787/v1/gazetteer?min_rank=2' | jq '.features[] | {kin
   `society/realms.json` record without `borders` (`id`, `name`, `name_gloss`, `seat`, `culture`,
   `settlements`, `population`, `land_cells`, `neighbours`) plus, once `arda society build` has run,
   `style`, `rank`, `government_label` and `ruler` (`{name, title}`). Without `society.json` those four
-  keys are absent.
+  keys are absent. `colour` (`"#rrggbb"`) is the realm's colour on the political map
+  (`?overlay=political`); no two realms of a world share one, so a client can key its own
+  realm display to the same colours.
 - `GET /v1/realms/{id}`: `{record, politics, relations, events, reigns}`. `record` is the
   `realms.json` record with `borders` (polylines of `[x_m, y_m]`); `politics` is the realm today
   (style, government, ruler, vassals, levy, hooks) or null before `arda society build`;

@@ -85,6 +85,11 @@ pub struct RealmSummary {
     /// Present ruler; absent before `arda society build`.
     #[serde(skip_serializing_if = "Option::is_none")]
     pub ruler: Option<RealmRuler>,
+    /// The realm's colour on the political map (`#rrggbb`; the edge band
+    /// of `?overlay=political` overviews and tiles, logic/16
+    /// §political-map). No two realms of a world share one.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub colour: Option<String>,
 }
 
 /// `GET /v1/realms`.

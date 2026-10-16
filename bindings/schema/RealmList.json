@@ -21,6 +21,13 @@
     "RealmSummary": {
       "description": "One entry of `GET /v1/realms`: the `realms.json` record without\n`borders`, plus the politics headline when the society layer exists.",
       "properties": {
+        "colour": {
+          "description": "The realm's colour on the political map (`#rrggbb`; the edge band\nof `?overlay=political` overviews and tiles, logic/16\n§political-map). No two realms of a world share one.",
+          "type": [
+            "string",
+            "null"
+          ]
+        },
         "culture": {
           "description": "Culture of the seat.",
           "type": "string"

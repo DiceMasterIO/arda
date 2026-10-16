@@ -1,4 +1,4 @@
-//! Task 15: `?overlay=society|none` on `/v1/overview.png` and the overview
+//! Task 15: `?overlay=society|political|none` on `/v1/overview.png` and the overview
 //! tiles cut from it.
 
 use crate::support::{get_with, society_dir, society_state};
@@ -119,4 +119,50 @@ async fn overview_names_are_opt_in_and_only_add_pixels() {
     assert_eq!(bad.status, StatusCode::BAD_REQUEST);
     let oblique = get_with(state, &uri("&labels=1&style=atlas-oblique"), None).await;
     assert_eq!(oblique.status, StatusCode::BAD_REQUEST);
+}
+
+#[tokio::test]
+async fn political_overlay_paints_bands_and_its_tiles_join_into_the_render() {
+    let state = society_state();
+    let uri = |o: &str| format!("/v1/overview.png?quality=512{o}");
+    let soc = get_with(state.clone(), &uri("&overlay=society"), None).await;
+    let pol = get_with(state.clone(), &uri("&overlay=political"), None).await;
+    assert_eq!(pol.status, StatusCode::OK);
+    assert_ne!(pol.body, soc.body, "the political layer adds bands");
+    let again = get_with(state.clone(), &uri("&overlay=political"), None).await;
+    assert_eq!(again.body, pol.body, "deterministic");
+    // The default is unchanged by the new value.
+    let default = get_with(state.clone(), &uri(""), None).await;
+    assert_eq!(default.body, soc.body);
+    let oblique = get_with(
+        state.clone(),
+        &uri("&style=atlas-oblique&overlay=political"),
+        None,
+    )
+    .await;
+    assert_eq!(oblique.status, StatusCode::BAD_REQUEST);
+
+    // The pyramid base is 512 px (max zoom 1) and the MICRO world 256 ×
+    // 512: tiles 1/0/0 and 1/0/1 stacked are the political render itself.
+    let whole = decode_rgb(&pol.body).unwrap();
+    let mut stacked: Vec<u8> = Vec::new();
+    for y in 0..2 {
+        let t = get_with(
+            state.clone(),
+            &format!("/v1/tiles/overview/1/0/{y}.png?labels=0&overlay=political"),
+            None,
+        )
+        .await;
+        assert_eq!(t.status, StatusCode::OK);
+        let t = decode_rgb(&t.body).unwrap();
+        assert_eq!((t.width, t.height), (256, 256));
+        stacked.extend_from_slice(&t.pixels);
+    }
+    let w = whole.width as usize;
+    let mut window = Vec::new();
+    for row in 0..512 {
+        window.extend_from_slice(&whole.pixels[row * w * 3..(row * w + 256) * 3]);
+    }
+    assert_eq!(whole.width, 256, "MICRO is two areas wide");
+    assert_eq!(stacked, window, "adjacent tiles equal the 2× window");
 }

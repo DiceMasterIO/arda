@@ -49,6 +49,22 @@ async fn list_matches_realms_json() {
         assert_eq!(l["seat"], f["seat"]);
         assert_eq!(l["settlements"], f["settlements"]);
     }
+    // Every realm has its own political-map colour.
+    let colours: Vec<&str> = listed
+        .iter()
+        .map(|r| r["colour"].as_str().unwrap())
+        .collect();
+    for c in &colours {
+        assert!(c.len() == 7 && c.starts_with('#'), "{c}");
+    }
+    let mut distinct = colours.clone();
+    distinct.sort_unstable();
+    distinct.dedup();
+    assert_eq!(
+        distinct.len(),
+        colours.len(),
+        "no two realms share a colour"
+    );
     let settlements = ok("/v1/settlements").await;
     for s in settlements["settlements"].as_array().unwrap() {
         let realm = &s["realm_id"];

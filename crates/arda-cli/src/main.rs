@@ -129,7 +129,8 @@ enum Command {
         style: Option<Style>,
         /// Society layer on PNG exports: `auto` paints land use, roads and
         /// settlements when `<world>/society/` exists (run `arda settle`),
-        /// `off` writes the plain terrain.
+        /// `off` writes the plain terrain, `political` (overviews only) adds
+        /// realm edge bands and borders with ivory roads.
         #[arg(long, value_enum, default_value_t = SocietyArg::Auto)]
         society: SocietyArg,
         /// Directory to write into.
@@ -172,6 +173,10 @@ enum SocietyArg {
     Auto,
     /// Never.
     Off,
+    /// The society layer plus the political layer (realm edge bands,
+    /// dash-dot borders, ivory roads); overview exports only, and the
+    /// world must have `society/`.
+    Political,
 }
 
 impl From<SocietyArg> for SocietyMode {
@@ -179,6 +184,7 @@ impl From<SocietyArg> for SocietyMode {
         match value {
             SocietyArg::Auto => Self::Auto,
             SocietyArg::Off => Self::Off,
+            SocietyArg::Political => Self::Political,
         }
     }
 }
@@ -230,6 +236,9 @@ impl ImageOptions {
         }
         if self.look().oblique && !overview {
             bail!("--style atlas-oblique is valid only for overview exports");
+        }
+        if self.society == Some(SocietyArg::Political) && !overview {
+            bail!("--society political is valid only for overview exports");
         }
         Ok(())
     }

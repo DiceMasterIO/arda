@@ -3,7 +3,7 @@
 use crate::columnar;
 use crate::dto::{self, AreaLakes, AreaRivers, Health, Origin, TilePyramidDto, WorldInfo};
 use crate::error::{ServerError, ServerResult};
-use crate::overview::{Overview, Style, TileFormat};
+use crate::overview::{Overlay, Overview, Style, TileFormat};
 use crate::sheet_map::NpcAt;
 use crate::AppState;
 use axum::extract::rejection::JsonRejection;
@@ -338,27 +338,21 @@ async fn overview_png(
     let style = q
         .get("style")
         .map_or(Ok(Style::Atlas), |s| Style::parse(s))?;
-    let society = Overview::society(&state.query, style, overlay_flag(&q)?)?;
+    let overlay = Overview::overlay(&state.query, style, overlay_flag(&q)?)?;
     let labels = overview_labels_flag(&q)?;
     let bytes = blocking(state, move |s| {
-        s.overview.png(&s.query, quality, (style, society), labels)
+        s.overview.png(&s.query, quality, (style, overlay), labels)
     })
     .await?;
     Ok(image(&headers, &etag, "image/png", &bytes))
 }
 
-/// `?overlay=society|none`: the society layer (land use, roads, settlements)
-/// on overview renders and tiles; absent, it follows the world (on when it
-/// has `society/`).
-fn overlay_flag(q: &std::collections::BTreeMap<String, String>) -> ServerResult<Option<bool>> {
-    match q.get("overlay").map(String::as_str) {
-        None => Ok(None),
-        Some("society") => Ok(Some(true)),
-        Some("none") => Ok(Some(false)),
-        Some(other) => Err(ServerError::BadRequest(format!(
-            "overlay must be society or none, not {other:?}"
-        ))),
-    }
+/// `?overlay=society|political|none`: the society layer (land use, roads,
+/// settlements), that layer with the political one (realm edge bands and
+/// borders), or neither, on overview renders and tiles; absent, it follows
+/// the world (society when it has `society/`).
+fn overlay_flag(q: &std::collections::BTreeMap<String, String>) -> ServerResult<Option<Overlay>> {
+    q.get("overlay").map(|v| Overlay::parse(v)).transpose()
 }
 
 /// `?labels=1` draws the gazetteer's names on an `overview.png`; absent or
@@ -396,7 +390,7 @@ async fn overview_tile(
     let q = params(query)?;
     let oblique = crate::tactical::world_routes::flag(&q, "oblique")?;
     let labels = labels_flag(&q)?;
-    let society = Overview::society(
+    let overlay = Overview::overlay(
         &state.query,
         if oblique {
             Style::AtlasOblique
@@ -425,7 +419,7 @@ async fn overview_tile(
     }
     let bytes = blocking(state, move |s| {
         s.overview
-            .tile(&s.query, (z, x, y), (format, oblique, labels, society))
+            .tile(&s.query, (z, x, y), (format, oblique, labels, overlay))
     })
     .await?;
     Ok(image(&headers, &etag, format.content_type(), &bytes))
