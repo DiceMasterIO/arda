@@ -253,7 +253,7 @@ Each is a test (goal numbers in brackets):
 
 ## Outcomes & side effects
 
-Export consumption (logic/04 §overlay): overview PNGs read `landuse.bin`, `settlements.json`, `realms.json` (seats) and `roads.json` through `Society::read` (centrelines as saved, smoothed by Chaikin; classes by metres per pixel); area PNGs read the same files through `arda-people` and the tactical overlays (plans, `arda-ways` roads, field partition), so exports draw nothing the tactical layer would not.
+Export consumption (logic/04 §overlay): overview PNGs read `landuse.bin`, `settlements.json`, `realms.json` (seats; with the political layer also borders and neighbours, and `realms.bin`) and `roads.json` through `Society::read` (centrelines as saved, smoothed by Chaikin; classes by metres per pixel; hamlets and the roads built from them only at 30 m/px or finer, since a road object's `from` is the settlement it was built to connect and every track is built from a hamlet, §roads); area PNGs read the same files through `arda-people` and the tactical overlays (plans, `arda-ways` roads, field partition), so exports draw nothing the tactical layer would not.
 
 `<world>/society/`, each JSON file with `"format_version": 1` and the world `seed` as a decimal string:
 
@@ -267,7 +267,7 @@ Export consumption (logic/04 §overlay): overview PNGs read `landuse.bin`, `sett
 | `landuse.bin` | magic `ARDALND\0`, u32 version, u32 width, u32 height, then zstd(level 9) of `width·height` u8 codes followed by `width·height` u32 LE owner settlement ids (0 = none) | fields, town, server |
 | `roads.bin` | magic `ARDARDS\0`, same header, zstd of u8 society raster codes (§roads) | ways, refine, server |
 | `realms.bin` | magic `ARDARLM\0`, same header, zstd of u16 LE realm ids | society, server |
-| `overlay.png` (on request) | Atlas overview with tier symbols, road classes, realm borders and labels | maintainer, goal 41 |
+| `overlay.png` (on request) | `arda-settle render`: the political map over the Atlas overview (realm edge bands in one distinct colour per realm, dash-dot borders, ivory cased roads by class, tier symbols without hamlets at world scale, labels, legend; `--style classic` for the earlier tinted look; logic/16 §political-map) | maintainer, goal 41 |
 
 **Settlement record** (the `arda-npc` `SettlementProfile` fields first; extra fields are ignored by `SettlementProfile`, which does not deny unknown fields):
 
