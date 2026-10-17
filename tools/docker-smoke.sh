@@ -58,11 +58,19 @@ curl -fsS "$base/world" | grep -q '"seed"' || fail "/v1/world has no seed"
 lib="$(curl -fsS "$base/tactical/library")"
 echo "$lib" | grep -q '"assets"' || fail "/v1/tactical/library has no assets"
 logs="$(docker logs "$name" 2>&1)"
-# The banner prints the stacked library_version, top layer first.
+# The banner prints the stacked library_version, top layer first; read each
+# layer's version from its own catalog so a library bump needs no edit here.
+lib_version() {
+    sed -n 's/.*"library_version": *"\([^"]*\)".*/\1/p' "$1/catalog.json" | head -n 1
+}
+placeholder_version="$(lib_version "$root/assets/tactical/placeholder")"
+[ -n "$placeholder_version" ] || fail "no library_version in the placeholder catalog"
 if [ "$variant" = ai ]; then
-    want="tactical library 0.1.0:0.1.0+seed58,"
+    ai_version="$(lib_version "$ai")"
+    [ -n "$ai_version" ] || fail "no library_version in $ai/catalog.json"
+    want="tactical library $ai_version:$placeholder_version,"
 else
-    want="tactical library 0.1.0+seed58,"
+    want="tactical library $placeholder_version,"
 fi
 echo "$logs" | grep -qF "$want" || fail "expected banner '$want'"
 png="$(mktemp)"
