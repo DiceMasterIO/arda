@@ -1,0 +1,246 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Arda — worlds from the ground up</title>
+  <meta name="description" content="Arda grows a continent from one seed: mountains, rivers, realms and towns, down to the five-foot battle map. Deterministic world generation in Rust.">
+  <meta name="theme-color" content="#0e1316">
+  <meta property="og:title" content="Arda — worlds from the ground up">
+  <meta property="og:description" content="From a thousand kilometres to five feet, without a seam. Deterministic world generation for tabletop campaigns.">
+  <meta property="og:image" content="img/og.png">
+  <meta property="og:type" content="website">
+  <meta name="twitter:card" content="summary_large_image">
+  <link rel="icon" href="img/logo.svg" type="image/svg+xml">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,500;0,600;1,500&amp;family=Ubuntu+Sans:wght@400;500;600&amp;family=Ubuntu+Sans+Mono:wght@400;500&amp;display=swap">
+  <link rel="stylesheet" href="styles.css">
+  <script>document.documentElement.classList.add('js')</script>
+</head>
+<body>
+<a class="skip" href="#main">Skip to content</a>
+
+<header class="site-header">
+  <nav class="wrap nav" aria-label="Main">
+    <a class="brand" href="#top"><img src="img/logo.svg" alt="Arda" width="114" height="48"></a>
+    <div class="nav-links">
+      <a href="#showcase">Showcase</a>
+      <a href="#how">How it works</a>
+      <a href="#tutorial">Tutorial</a>
+      <a href="https://github.com/DiceMasterIO/arda">GitHub</a>
+    </div>
+    <a class="btn btn-primary" href="https://github.com/DiceMasterIO/arda/releases">Download 1.0</a>
+  </nav>
+</header>
+
+<main id="main">
+  <section id="top" class="hero">
+    <svg class="hero-contours" viewBox="0 0 1440 900" preserveAspectRatio="xMidYMid slice" aria-hidden="true" fill="none" stroke="#8DB89C" stroke-width="1">
+      <path d="M-40 640C180 560 260 700 470 620S760 420 930 470 1250 640 1480 560"/>
+      <path d="M-40 690C200 610 280 750 480 670S770 470 940 520 1260 690 1480 610"/>
+      <path d="M-40 740C210 660 300 800 490 720S780 520 950 570 1270 740 1480 660"/>
+      <path d="M-40 540C160 470 250 600 450 530S740 330 910 380 1240 540 1480 470"/>
+      <path d="M-40 440C140 380 240 500 430 440S720 240 890 290 1230 440 1480 380"/>
+      <path d="M120 300c80-60 200-60 260 0s-40 140-130 130-200-60-130-130z"/>
+      <path d="M160 310c50-36 130-36 170 0s-30 90-90 84-130-40-80-84z"/>
+      <path d="M1040 160c90-50 210-20 230 50s-90 120-180 100-130-110-50-150z"/>
+    </svg>
+    <div class="wrap hero-inner">
+      <div class="hero-copy">
+        <p class="eyebrow">Seed 42 · 500 × 1000 km · v1.0</p>
+        <h1>Every world<br>begins with<br><em>a single number.</em></h1>
+        <p class="hero-sub">Arda grows a continent from one seed: plates and mountains, wind and rain, rivers that find the sea, realms, towns and roads. Then it takes you all the way down to the five-foot square where your players stand.</p>
+        <div class="actions">
+          <a class="btn btn-primary" href="#tutorial">Forge your first world</a>
+          <a class="btn btn-ghost" href="#showcase">Walk through one</a>
+        </div>
+        <div class="prompt"><span aria-hidden="true">$</span><span>arda generate --seed 42 --micro --out worlds/w42</span></div>
+      </div>
+      <figure class="hero-figure">
+        <img src="img/continent-default.jpg" width="960" height="2027" alt="Atlas overview of a full-size generated continent: snow-capped ranges, green lowlands, roads and settlements in a deep blue sea">
+        <figcaption class="chip">500 × 1000 km · seed 42 · Atlas</figcaption>
+      </figure>
+    </div>
+  </section>
+
+  <section class="band" aria-labelledby="descent-h">
+    <div class="wrap descent">
+      <div class="section-head reveal">
+        <div class="stack">
+          <p class="eyebrow">The descent</p>
+          <h2 id="descent-h" class="h2">From a thousand kilometres to five feet, without a seam.</h2>
+        </div>
+        <p class="lede">One saved world answers at every scale. Zoom in and nothing is invented on the spot that contradicts what was above it.</p>
+      </div>
+      <ol class="reveal">
+        <li>
+          <img src="img/political.jpg" loading="lazy" width="1200" height="1200" alt="Political map: realm borders in colour bands, ivory roads and settlement dots">
+          <span class="scale">1 KM GRID</span>
+          <strong class="card-title">Continent &amp; realms</strong>
+          <span>Tectonic relief, climate by latitude, realms with borders and roads.</span>
+        </li>
+        <li>
+          <img src="img/area-coast.jpg" loading="lazy" width="1200" height="1200" alt="Area map of a green coast with a river mouth, shaded relief">
+          <span class="scale">100 M CELLS</span>
+          <strong class="card-title">Areas</strong>
+          <span>51.2 km tiles of eroded terrain, rainfall, rivers and lakes.</span>
+        </li>
+        <li>
+          <img src="img/town-coast.jpg" loading="lazy" width="1200" height="1200" alt="A coastal town with its fields, walls and roads seen from above">
+          <span class="scale">TOWN PLANS</span>
+          <strong class="card-title">Settlements</strong>
+          <span>Towns sized by their land, with fields, districts and history.</span>
+        </li>
+        <li>
+          <img src="img/city-streets.jpg" loading="lazy" width="1200" height="1200" alt="Tactical battle map of city streets: houses with furnished rooms, cobbled roads and a stream">
+          <span class="scale">5 FT SQUARES</span>
+          <strong class="card-title">Battle maps</strong>
+          <span>64 × 64 squares with walls, cover and difficult terrain.</span>
+        </li>
+      </ol>
+    </div>
+  </section>
+
+  <section id="showcase" aria-labelledby="showcase-h">
+    <div class="wrap showcase">
+      <div class="stack reveal">
+        <p class="eyebrow">Showcase · straight from the generator</p>
+        <h2 id="showcase-h" class="h2">Places nobody drew.</h2>
+        <p class="lede">Every map below was rendered by Arda 1.0 from a seed. No hand edits. The market, the docks and the cave all sit somewhere real in a generated world.</p>
+      </div>
+      <div class="filters" role="group" aria-label="Filter showcase">
+        <button type="button" data-filter="all" aria-pressed="true">All places</button>
+        <button type="button" data-filter="settlements" aria-pressed="false">Settlements</button>
+        <button type="button" data-filter="wilds" aria-pressed="false">Wilds</button>
+        <button type="button" data-filter="underground" aria-pressed="false">Underground</button>
+      </div>
+      <div class="gallery" id="gallery">
+        <figure class="shot big" data-cat="settlements"><button type="button"><img src="img/city-market.jpg" loading="lazy" width="1400" height="1400" alt="City market square with coloured stalls, cobbles and walled gardens"></button><figcaption><strong>City market</strong><span>cell 546, 658 · 64 × 64 squares</span></figcaption></figure>
+        <figure class="shot" data-cat="wilds"><button type="button"><img src="img/forest.jpg" loading="lazy" width="1200" height="1200" alt="Dense forest canopy over a rocky hillside"></button><figcaption><strong>Forest on a steep slope</strong><span>cell 716, 1423</span></figcaption></figure>
+        <figure class="shot" data-cat="settlements"><button type="button"><img src="img/manor.jpg" loading="lazy" width="1200" height="1200" alt="Manor house interior with rooms, furniture and partition walls"></button><figcaption><strong>Manor interior</strong><span>stone partitions, great hall</span></figcaption></figure>
+        <figure class="shot" data-cat="settlements"><button type="button"><img src="img/docks.jpg" loading="lazy" width="1200" height="1200" alt="Wooden docks with moored boats on deep water"></button><figcaption><strong>Port docks</strong><span>cell 544, 657 · moored boats</span></figcaption></figure>
+        <figure class="shot" data-cat="wilds"><button type="button"><img src="img/beach.jpg" loading="lazy" width="1200" height="1200" alt="Sandy beach between grassland and dark sea"></button><figcaption><strong>Coast and beach</strong><span>cell 778, 751</span></figcaption></figure>
+        <figure class="shot big" data-cat="settlements"><button type="button"><img src="img/town-fields.jpg" loading="lazy" width="1400" height="1400" alt="Edge of a town giving way to strip fields and a river"></button><figcaption><strong>Town edge and strip fields</strong><span>3 × 3 cells, seamless</span></figcaption></figure>
+        <figure class="shot" data-cat="settlements"><button type="button"><img src="img/village.jpg" loading="lazy" width="1200" height="1200" alt="Village houses with crofts, gardens and dirt yards"></button><figcaption><strong>Village crofts</strong><span>cell 537, 798 · kitchen gardens</span></figcaption></figure>
+        <figure class="shot" data-cat="wilds"><button type="button"><img src="img/snow.jpg" loading="lazy" width="1200" height="1200" alt="Snowfield broken by rocky ribs and boulders"></button><figcaption><strong>Snowbound crag</strong><span>cold world · cliff ribs</span></figcaption></figure>
+        <figure class="shot" data-cat="underground"><button type="button"><img src="img/dungeon.jpg" loading="lazy" width="1400" height="1050" alt="Dungeon of stone rooms and corridors"></button><figcaption><strong>Dungeon level</strong><span>seed 7 · loops and secret doors</span></figcaption></figure>
+        <figure class="shot" data-cat="underground"><button type="button"><img src="img/cave.jpg" loading="lazy" width="1400" height="1050" alt="Winding cave with pools of water"></button><figcaption><strong>Natural cave</strong><span>seed 7 · pools and streams</span></figcaption></figure>
+      </div>
+    </div>
+  </section>
+
+  <section id="how" class="paper" aria-labelledby="how-h">
+    <div class="wrap how">
+      <div class="section-head reveal">
+        <div class="stack">
+          <p class="eyebrow">How it works</p>
+          <h2 id="how-h" class="h2">Geology first. Then water. Then people.</h2>
+        </div>
+        <p>Arda builds a world the way a world is built: each layer only uses what the layer beneath it already settled.</p>
+      </div>
+      <ol class="steps reveal">
+        <li><span class="numeral" aria-hidden="true">i.</span><strong>Seed and shape</strong><span>A seed and an extent fix everything. Plates collide into ranges; winds by latitude carry the rain.</span></li>
+        <li><span class="numeral" aria-hidden="true">ii.</span><strong>Weather the land</strong><span>Hillslopes diffuse, glaciers carve troughs, and erosion runs across area edges so no seam becomes a wall.</span></li>
+        <li><span class="numeral" aria-hidden="true">iii.</span><strong>Let the water find its way</strong><span>Connected drainage and an annual water balance: lakes only where there is a basin and the rain to fill it.</span></li>
+        <li><span class="numeral" aria-hidden="true">iv.</span><strong>Settle it</strong><span>Towns where the land can feed them, ports where ships can reach, roads with grade limits, balanced realms.</span></li>
+        <li><span class="numeral" aria-hidden="true">v.</span><strong>Give it a past</strong><span>Named events, causal histories, notables and a gazetteer of seas, capes, forests and ranges.</span></li>
+        <li><span class="numeral" aria-hidden="true">vi.</span><strong>Serve every scale</strong><span>Atlas and political maps up to 32K, JSON, and battle maps on demand from a frozen <code>/v1</code> HTTP API.</span></li>
+      </ol>
+      <div class="principles reveal">
+        <div><strong>Deterministic</strong><span>Same seed, same configuration, same generator: the same world, byte for byte. CI checks a golden world on Linux, macOS and Windows.</span></div>
+        <div><strong>Saved, not re-rolled</strong><span>The world is written once as binary layers. Every map and export reads it back; higher resolution never changes the land.</span></div>
+        <div><strong>Built for the table</strong><span>Battle maps follow one rules contract: walls block, stones are difficult terrain, torchlight stops at walls.</span></div>
+      </div>
+    </div>
+  </section>
+
+  <section id="tutorial" aria-labelledby="tut-h">
+    <div class="wrap tutorial">
+      <div class="tutorial-intro reveal">
+        <p class="eyebrow">Tutorial · about ten minutes</p>
+        <h2 id="tut-h" class="h2">Your first world, start to battle map.</h2>
+        <p class="lede">Five steps take you from nothing to a populated continent and a five-foot grid you can drop into a VTT. Start with MICRO: eight areas, 102 × 204 km, ready in seconds.</p>
+        <p class="note">Drop <code>--micro</code> for a full 500 × 1000 km continent, or pick your own with <code>--size 300x600</code>. Full reference in the <a href="https://github.com/DiceMasterIO/arda#readme">README</a>.</p>
+        <img class="frame" src="img/town-fields.jpg" loading="lazy" width="1400" height="1400" alt="Town edge with strip fields and a river, as a tactical map">
+      </div>
+      <ol class="lesson">
+        <li><div class="body">
+          <strong>Install</strong>
+          <span>Grab a prebuilt binary from <a href="https://github.com/DiceMasterIO/arda/releases">Releases</a> (Linux, macOS, Windows), pull the Docker image, or build from source with stable Rust.</span>
+          <div class="code"><pre><code>git clone https://github.com/DiceMasterIO/arda.git
+cd arda
+cargo install --path crates/arda-cli --locked</code></pre></div>
+        </div></li>
+        <li><div class="body">
+          <strong>Generate the land</strong>
+          <span>Relief, climate, erosion, rivers and lakes, saved as binary layers under <code>worlds/w42/</code>.</span>
+          <div class="code"><pre><code>arda generate --seed 42 --micro --out worlds/w42</code></pre></div>
+        </div></li>
+        <li><div class="body">
+          <strong>Settle it</strong>
+          <span>Towns, roads, realms and names; then town plans, politics, history and notables.</span>
+          <div class="code"><pre><code>arda settle --world worlds/w42
+arda society build --world worlds/w42</code></pre></div>
+        </div></li>
+        <li><div class="body">
+          <strong>Draw the maps</strong>
+          <span>An Atlas overview, a political map, or any area at up to 32K.</span>
+          <div class="code"><pre><code>arda export --world worlds/w42 --overview --style atlas --out maps
+arda export --world worlds/w42 --overview --style atlas --society political --out maps/political
+arda export --world worlds/w42 --area 1,1 --style atlas --quality 16k --out maps</code></pre></div>
+        </div></li>
+        <li><div class="body">
+          <strong>Serve it and step inside</strong>
+          <span>Start the read-only server, then ask for the battle map of any 100 m cell.</span>
+          <div class="code"><pre><code>arda-server --world worlds/w42
+curl -o market.png http://127.0.0.1:8787/v1/tactical/cell/546/658.png</code></pre></div>
+        </div></li>
+      </ol>
+    </div>
+  </section>
+
+  <section class="band" aria-labelledby="under-h">
+    <div class="wrap under">
+      <div class="under-copy reveal">
+        <p class="eyebrow">And below it all</p>
+        <h2 id="under-h" class="h2">Dungeons and caves, on the same grid.</h2>
+        <p class="lede">Rooms with loops, locked and secret doors, stairs and torchlight; natural caverns with pools and streams. One command, one seed.</p>
+        <div class="code"><pre><code>arda dungeon --seed 7 --kind cave --out cave.json --render cave.png</code></pre></div>
+      </div>
+      <div class="under-pics reveal">
+        <img src="img/dungeon.jpg" loading="lazy" width="1400" height="1050" alt="Dungeon level: stone rooms joined by corridors">
+        <img src="img/cave.jpg" loading="lazy" width="1400" height="1050" alt="Natural cave with pools and a winding outline">
+      </div>
+    </div>
+  </section>
+
+  <section aria-labelledby="cta-h">
+    <div class="cta reveal">
+      <h2 id="cta-h" class="h2">Pick a number.<br><em>Find out what lives there.</em></h2>
+      <p class="lede">Arda is free and open source under Apache-2.0. Prebuilt for Linux, macOS and Windows, or as a container.</p>
+      <div class="actions" style="justify-content:center">
+        <a class="btn btn-primary" href="https://github.com/DiceMasterIO/arda/releases">Download Arda 1.0</a>
+        <a class="btn btn-ghost" href="https://github.com/DiceMasterIO/arda">Star on GitHub</a>
+      </div>
+      <code>docker pull ghcr.io/dicemasterio/arda:1.0.0</code>
+    </div>
+  </section>
+</main>
+
+<footer class="site-footer">
+  <div class="wrap">
+    <span class="brandline"><img src="img/logo.svg" alt="Arda" width="76" height="32"> Worlds from the ground up. · Apache-2.0</span>
+    <span>Showcase images: seed 42 and seed 7, Arda 1.0, AI art library.</span>
+  </div>
+</footer>
+
+<dialog class="lightbox" id="lightbox" aria-label="Enlarged map">
+  <button class="close" type="button" aria-label="Close">×</button>
+  <img alt="">
+  <p></p>
+</dialog>
+
+<script src="main.js" defer></script>
+</body>
+</html>
