@@ -117,7 +117,7 @@ checksum = "330a5ed07fa54e4702c9d6c4174f74427fc0ef6e214bbd677ae50a5099946470"
 
 [[package]]
 name = "arda"
-version = "0.8.1"
+version = "1.0.0"
 dependencies = [
  "arda-core",
  "arda-gen",
@@ -127,7 +127,7 @@ dependencies = [
 
 [[package]]
 name = "arda-art-import"
-version = "0.8.1"
+version = "1.0.0"
 dependencies = [
  "arda-tactical",
  "jpeg-decoder",
@@ -141,7 +141,7 @@ dependencies = [
 
 [[package]]
 name = "arda-blocks"
-version = "0.8.1"
+version = "1.0.0"
 dependencies = [
  "arda",
  "arda-core",
@@ -162,7 +162,7 @@ dependencies = [
 
 [[package]]
 name = "arda-cli"
-version = "0.8.1"
+version = "1.0.0"
 dependencies = [
  "anyhow",
  "arda",
@@ -179,7 +179,7 @@ dependencies = [
 
 [[package]]
 name = "arda-core"
-version = "0.8.1"
+version = "1.0.0"
 dependencies = [
  "blake3",
  "rand_chacha",
@@ -191,7 +191,7 @@ dependencies = [
 
 [[package]]
 name = "arda-dungeon"
-version = "0.8.1"
+version = "1.0.0"
 dependencies = [
  "arda-scene",
  "arda-tactical",
@@ -203,7 +203,7 @@ dependencies = [
 
 [[package]]
 name = "arda-fields"
-version = "0.8.1"
+version = "1.0.0"
 dependencies = [
  "arda-ids",
  "arda-scene",
@@ -216,7 +216,7 @@ dependencies = [
 
 [[package]]
 name = "arda-gen"
-version = "0.8.1"
+version = "1.0.0"
 dependencies = [
  "arda-core",
  "criterion",
@@ -229,7 +229,7 @@ dependencies = [
 
 [[package]]
 name = "arda-ids"
-version = "0.8.1"
+version = "1.0.0"
 dependencies = [
  "blake3",
  "schemars",
@@ -239,7 +239,7 @@ dependencies = [
 
 [[package]]
 name = "arda-midzoom"
-version = "0.8.1"
+version = "1.0.0"
 dependencies = [
  "arda",
  "arda-blocks",
@@ -261,7 +261,7 @@ dependencies = [
 
 [[package]]
 name = "arda-names"
-version = "0.8.1"
+version = "1.0.0"
 dependencies = [
  "schemars",
  "serde",
@@ -271,7 +271,7 @@ dependencies = [
 
 [[package]]
 name = "arda-npc"
-version = "0.8.1"
+version = "1.0.0"
 dependencies = [
  "arda-ids",
  "arda-names",
@@ -283,7 +283,7 @@ dependencies = [
 
 [[package]]
 name = "arda-people"
-version = "0.8.1"
+version = "1.0.0"
 dependencies = [
  "arda",
  "arda-core",
@@ -302,7 +302,7 @@ dependencies = [
 
 [[package]]
 name = "arda-refine"
-version = "0.8.1"
+version = "1.0.0"
 dependencies = [
  "arda",
  "arda-core",
@@ -318,7 +318,7 @@ dependencies = [
 
 [[package]]
 name = "arda-render"
-version = "0.8.1"
+version = "1.0.0"
 dependencies = [
  "arda-core",
  "png",
@@ -330,7 +330,7 @@ dependencies = [
 
 [[package]]
 name = "arda-scene"
-version = "0.8.1"
+version = "1.0.0"
 dependencies = [
  "arda-tactical",
  "png",
@@ -341,7 +341,7 @@ dependencies = [
 
 [[package]]
 name = "arda-server"
-version = "0.8.1"
+version = "1.0.0"
 dependencies = [
  "arda",
  "arda-blocks",
@@ -383,7 +383,7 @@ dependencies = [
 
 [[package]]
 name = "arda-settle"
-version = "0.8.1"
+version = "1.0.0"
 dependencies = [
  "ab_glyph",
  "arda",
@@ -404,7 +404,7 @@ dependencies = [
 
 [[package]]
 name = "arda-society"
-version = "0.8.1"
+version = "1.0.0"
 dependencies = [
  "blake3",
  "schemars",
@@ -415,7 +415,7 @@ dependencies = [
 
 [[package]]
 name = "arda-tactical"
-version = "0.8.1"
+version = "1.0.0"
 dependencies = [
  "blake3",
  "png",
@@ -427,7 +427,7 @@ dependencies = [
 
 [[package]]
 name = "arda-town"
-version = "0.8.1"
+version = "1.0.0"
 dependencies = [
  "arda-scene",
  "arda-tactical",
@@ -442,7 +442,7 @@ dependencies = [
 
 [[package]]
 name = "arda-ways"
-version = "0.8.1"
+version = "1.0.0"
 dependencies = [
  "arda-ids",
  "arda-scene",
@@ -454,14 +454,14 @@ dependencies = [
 
 [[package]]
 name = "arda-wfc"
-version = "0.8.1"
+version = "1.0.0"
 dependencies = [
  "thiserror 1.0.69",
 ]
 
 [[package]]
 name = "arda-workspace-tests"
-version = "0.8.1"
+version = "1.0.0"
 dependencies = [
  "arda",
  "arda-core",

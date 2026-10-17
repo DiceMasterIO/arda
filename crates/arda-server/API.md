@@ -158,7 +158,7 @@ curl http://127.0.0.1:8787/v1/health
 ```
 
 ```json
-{"status":"ok","contract_version":3,"seed":"42","server_version":"0.8.1"}
+{"status":"ok","contract_version":3,"seed":"42","server_version":"1.0.0"}
 ```
 
 `server_version` is the `arda-server` build answering (its Cargo package version). TS type: `Health`.
@@ -181,12 +181,12 @@ curl http://127.0.0.1:8787/v1/world
 ```
 
 ```json
-{"contract_version":3,"api_version":"v1","seed":"42","arda_version":"0.8.1","format_version":4,
+{"contract_version":3,"api_version":"v1","seed":"42","arda_version":"1.0.0","format_version":4,
  "size_km":{"width":102,"height":204},"latitude":{"south_deg":35,"north_deg":55},
  "areas_wide":2,"areas_high":4,"area_cells":512,"cell_size_m":100,"cells_wide":1024,"cells_high":2048,
  "fine_terrain":{"recipe_version":9,"spacing_m":39.0625},
  "tiles":{"tile_px":256,"max_zoom":4,"base_px":4096,"image_width_px":2048,"image_height_px":4096,"relief_max_zoom":12},
- "server_version":"0.8.1",
+ "server_version":"1.0.0",
  "versions":{"contract_version":3,"tactical_format":1,"layout_schema":1,"scene_format":1,"rules_sidecar_format":2,
    "bake_format":1,"npc_format":1,"npc_page_format":1,"settlement_format":1,"realm_format":1,"gazetteer_format":1,
    "schema_index_format":1,"columnar_layout_version":2,"library_catalogue_format":1,"sheet_mapping_format":1}}

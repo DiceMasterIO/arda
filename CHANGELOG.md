@@ -3,6 +3,54 @@
 Release notes for Arda. The design ledger (decisions, stage records and per-change detail)
 lives in `docs/capstone/changelog.md` and `docs/capstone/changelog.d/`.
 
+## 1.0.0 — 2026-10-16
+
+The first stable release. `/v1` is frozen under a written versioning policy, default-size worlds generate, settle and serve end to end, and the battle maps follow one rules contract.
+
+**Breaking changes and defaults**
+
+- **Fine terrain is the default.** `arda generate` now uses fine terrain recipe 9; `--terrain legacy` still works. Recipes 5–8 and legacy worlds replay byte-identically.
+- **The sampled block archive is retired.** Worlds no longer contain `blocks/`; `arda export --block` fails with a pointer to `arda-refine render` or `GET /v1/tactical/cell/{gx}/{gy}.png`. Older worlds with `blocks/` still load.
+- **Smaller server cache defaults** so a default-size world starts with no flags: `--max-connections` 32, `--area-cache-mib` 256, `--fine-cache-mib` 128, overview PNG and tile caches 128 MiB each, a 768 MiB plan cache.
+- **Stale society files are refused.** Settle writes a generation stamp; `society build` and the server check it.
+
+**API (`/v1`, frozen)**
+
+- Versioning policy (`docs/capstone/versioning.md`): 43 stable routes, 1 unstable, 6 debug; additive changes only; the deprecation window lasts until Arda and DiceMaster agree. A schema freeze guard checks every v1 schema against a committed baseline.
+- `server_version` and a `versions` map on `/v1/world` and `/v1/health`.
+- New routes: `GET /v1/realms` and `/v1/realms/{id}` (with each realm's map colour), `GET /v1/gazetteer`, `POST /v1/npc/generate`, `POST /v1/tactical/bake` with job status, tiles and delete, `GET /v1/tactical/library/asset/{id}.png`.
+- Overview tiles and `/v1/overview.png` take `?overlay=society|political|none` and `?labels=`; tactical bodies and bake jobs name their `generator_version`; ETags are keyed by request so a revalidation never renders.
+- A contract kit (`contract-kit/`): golden responses of the canonical world (MICRO seed 42, fine terrain, settled, society built) and a live checker for DiceMaster.
+
+**Worlds**
+
+- Recipe 9: stable hillslope diffusion, natural glacial troughs, flats graded without grid bias, rotated noise, realistic runoff, winds by latitude, no west-coast rain spike, fewer cliff coasts, no fine-terrain pits.
+- One shared climate-to-biome module for the world, the battle maps and the Atlas: boreal forest, ice at altitude, hemisphere-aware aspect, no slope or aspect seams at area edges.
+- Default-size worlds (500 × 1000 km) settle: names never run out, realms are balanced and territorially solid, and configured density means people per km² of land.
+- Settlements: ports only where ships can reach, the flood-clearance rule enforced, road networks with loops and grade limits, town sizes from their land, realm caps that move people instead of deleting them.
+- Richer history with named events, backstories and causal chains; a gazetteer of seas, bays, lakes, islands, capes, forests, marshes and ranges.
+
+**Battle maps**
+
+- A rules contract: layers state only what they know and the scene merges them, so tables, stalls, wells and boulders block again; small stones are difficult terrain.
+- Villages and towns stand on their own site, so a settlement's battle map shows its people.
+- Docks, whole buildings, level floors, wall-walks at +20 ft and continuous streets survive composition; image and scene come from one composition per window, with no seams.
+- Forest holds steep slopes, beaches stay at the water, cliffs follow the contours, snow matches the world, rivers follow their formed channels.
+- Torchlight stops at walls; furnished great halls and libraries; solid stone partitions in stone buildings; natural cave outlines.
+- Straight field strips with headlands, hairpin switchbacks, moored boats at docks, bridges that ramp to their banks, ferries across open water.
+- New art tiers: effect and damage overlays, thin partition walls and kitchen gardens (placeholders ship in the library; AI art is generated separately).
+
+**Maps**
+
+- A political map style: ivory cased roads, a colour band along every realm border with a distinct colour per realm, realm names in their colour; hamlets only on area maps.
+- Settlements, roads and land use on overview and area exports; legible names and city symbols; smooth anti-aliased coasts; a clean sea.
+
+**Serving and operations**
+
+- `arda-server` ships as a non-root Docker image with a `--probe` health check and clean SIGTERM shutdown; release automation builds binaries for four targets and a placeholder-library GHCR image.
+- A default-size world is ready in about 13 s; tile pyramids build once per key, abandoned requests are cancelled, background workers survive panics, and memory admission counts what the server actually holds.
+- Performance budgets run as one release gate (`tools/release-gates.sh`); the viewer has an npm licence policy and bundles its third-party notices; art generation has spend caps and never bills twice.
+
 ## 0.8.1 — 2026-10-09
 
 - **Houses read as houses.** Interior partitions are tagged and drawn thin (a library's `<kit>_partition` art when present, otherwise the kit squeezed to half thickness); outer walls and party walls between neighbours stay heavy, so a terraced row no longer reads as one building with many rooms. Scene rules are unchanged: every wall still blocks.

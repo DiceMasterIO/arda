@@ -7,9 +7,9 @@
     "terrain": "fine",
     "recipe_version": 9,
     "society": true,
-    "arda_version": "0.8.1",
-    "server_version": "0.8.1",
-    "world_json_blake3": "02aa986991f49dfb72097af8a6f67e3a6ae80595e11371914817de1eda108aef",
+    "arda_version": "1.0.0",
+    "server_version": "1.0.0",
+    "world_json_blake3": "08749ba50ab5b602c5294606a59b5bca327f561dd5645ad4fa7921ade442d38a",
     "world_fingerprint": "world.txt",
     "library": "placeholder",
     "library_version": "0.3.0+seed58",
@@ -121,7 +121,7 @@
       "content_type": "image/png",
       "headers": {
         "cache-control": "no-cache",
-        "etag": "\"319466f699b292a6193bde7906a5763b\""
+        "etag": "\"9e49c36de59270b3447418c9e8b6c10a\""
       },
       "schema": null,
       "body": {
@@ -138,7 +138,7 @@
       "content_type": "image/webp",
       "headers": {
         "cache-control": "no-cache",
-        "etag": "\"6172e55bd536f25788241fc00704168d\""
+        "etag": "\"425f91f06245477dd6cfd63a1821721d\""
       },
       "schema": null,
       "body": {
@@ -155,7 +155,7 @@
       "status": 304,
       "content_type": null,
       "headers": {
-        "etag": "\"6172e55bd536f25788241fc00704168d\""
+        "etag": "\"425f91f06245477dd6cfd63a1821721d\""
       },
       "schema": null,
       "body": {
@@ -172,7 +172,7 @@
       "content_type": "image/webp",
       "headers": {
         "cache-control": "no-cache",
-        "etag": "\"dfd276bebcd8f6fc9a2654f46376d66c\""
+        "etag": "\"c4336005072d970a30946a23d6b91a8a\""
       },
       "schema": null,
       "body": {
@@ -189,7 +189,7 @@
       "content_type": "image/png",
       "headers": {
         "cache-control": "no-cache",
-        "etag": "\"28f9a46f4ba728283f00273b74673ae8\""
+        "etag": "\"637bd9ff198ac5d14f2b1e37cbd3b42b\""
       },
       "schema": null,
       "body": {
@@ -206,7 +206,7 @@
       "content_type": "image/webp",
       "headers": {
         "cache-control": "no-cache",
-        "etag": "\"7ae00ef1622b1fe2de23c03c0df7d8c8\""
+        "etag": "\"4c7af2c8edae5b914cd470365f53e276\""
       },
       "schema": null,
       "body": {
@@ -350,7 +350,7 @@
       "content_type": "image/png",
       "headers": {
         "cache-control": "no-cache",
-        "etag": "\"32fe7bc465e9a71b20b30a09f39640b1\""
+        "etag": "\"b55cd411cee377d8a5057784d04c0e37\""
       },
       "schema": null,
       "body": {
@@ -367,7 +367,7 @@
       "status": 304,
       "content_type": null,
       "headers": {
-        "etag": "\"32fe7bc465e9a71b20b30a09f39640b1\""
+        "etag": "\"b55cd411cee377d8a5057784d04c0e37\""
       },
       "schema": null,
       "body": {
@@ -384,7 +384,7 @@
       "content_type": "image/webp",
       "headers": {
         "cache-control": "no-cache",
-        "etag": "\"5371b7e94e359ac70c90af867234e8a6\""
+        "etag": "\"e5b998710ab91df0f7828a9707a398f7\""
       },
       "schema": null,
       "body": {
@@ -404,7 +404,7 @@
       },
       "schema": "TacticalBlockDto",
       "body": {
-        "sha256": "f3c5596c96360a98c273317f3587d5924363677358bb21f56f0e6b4e4ca2234b",
+        "sha256": "6ca2a58e48100ea8cfd5e9d5463fe673de8e37c897b4115d51a81f69df1e5ccb",
         "bytes": 2106634
       }
     },
@@ -417,7 +417,7 @@
       "content_type": "image/png",
       "headers": {
         "cache-control": "no-cache",
-        "etag": "\"0fb6d849b0db4f408d4bf897b3308349\""
+        "etag": "\"99f0b3c5298330609ed6bb82c9ad43d1\""
       },
       "schema": null,
       "body": {
@@ -434,7 +434,7 @@
       "content_type": "image/webp",
       "headers": {
         "cache-control": "no-cache",
-        "etag": "\"6eb32d7a239d973c6691a2cd1f0ddf37\""
+        "etag": "\"f061d735cdc40a83698306de6b437f7b\""
       },
       "schema": null,
       "body": {
@@ -477,7 +477,7 @@
       "content_type": "image/png",
       "headers": {
         "cache-control": "no-cache",
-        "etag": "\"ced47641a8254a54f4fe33ade7303d8d\""
+        "etag": "\"838cb2b86593ade389cdf4d20bc6a25a\""
       },
       "schema": null,
       "body": {
@@ -497,7 +497,7 @@
       "status": 202,
       "content_type": "application/json",
       "headers": {
-        "location": "/v1/tactical/bake/f9cc0917c13bc5bc37772ffc6b7fcbc3"
+        "location": "/v1/tactical/bake/6fb0621ed343b47437d8dc6d33df82d2"
       },
       "schema": "BakeAccepted",
       "golden": "golden/tactical-bake.json"
@@ -506,7 +506,7 @@
       "id": "tactical-bake-delete",
       "route": "DELETE /v1/tactical/bake/{id}",
       "method": "DELETE",
-      "uri": "/v1/tactical/bake/f9cc0917c13bc5bc37772ffc6b7fcbc3",
+      "uri": "/v1/tactical/bake/6fb0621ed343b47437d8dc6d33df82d2",
       "uri_from_location_of": "tactical-bake",
       "status": 204,
       "content_type": null,
@@ -539,7 +539,7 @@
       "content_type": "image/png",
       "headers": {
         "cache-control": "no-cache",
-        "etag": "\"7966476da4b5092dd06fe71f291e0203\""
+        "etag": "\"69b59f4295a60b9577b4dbe44717f4dc\""
       },
       "schema": null,
       "body": {
