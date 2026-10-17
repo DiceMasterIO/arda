@@ -269,5 +269,6 @@ export function demoBlock(layout: TacticalLayoutDto, gx: number, gy: number): Ta
     meta: { source: "viewer-demo", from_layout: layout.name },
     scene: null,
     tiles: { tile_px: 512, ppsq: 64, image_width_px: layout.width * 64, image_height_px: layout.height * 64, max_zoom: 0, format: "webp" },
+    generator_version: "viewer-demo",
   };
 }

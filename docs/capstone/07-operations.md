@@ -202,7 +202,7 @@ Releases v0.5.0 to v0.8.1 were hand-made `release: Arda v<version>` commits with
 2. Add a `## <version> — <date>` section to `CHANGELOG.md`. `tools/release.sh --notes <version>` prints what the release page will show. The design ledger (`docs/capstone/changelog.md`, `changelog.d/`) is separate.
 3. Run `tools/release-gates.sh --with-benches` on the release machine (see "Release gates" below). CI never runs the gates. Its receipt is `target/release-gates/receipt-<commit>.md`; the script exits 0 when every gate is present and under budget, 1 otherwise (2 on a build error). Attach the receipt to the release notes or paste it under "Recorded measurements".
 4. Commit as `release: Arda v<version>`, tag `v<version>`, push the branch and the tag.
-5. The tag starts `.github/workflows/release.yml`: `verify` (tag equals the `Cargo.toml` version, `tools/release.sh --check`, a changelog section exists, fmt, clippy, `cargo test --workspace --locked`), then `binaries`, `image`, `release`. Review the **draft** release and publish it by hand.
+5. The tag starts `.github/workflows/release.yml`: `verify` (tag equals the `Cargo.toml` version, `tools/release.sh --check`, a changelog section exists, fmt, clippy; tests are `ci.yml`'s job on the same commit), then `binaries`, `image`, `release`. Review the **draft** release and publish it by hand.
 
 `tools/release.sh --check [version]` verifies all 54 version sites (workspace version, 21 path entries, 24 lockfile members, viewer package and lockfile, API.md, and the contract kit manifest's `arda_version` and `server_version`) without writing; it also runs in `verify`.
 

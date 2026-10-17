@@ -54,7 +54,9 @@ jobs:
           components: rustfmt, clippy
       - run: cargo fmt --all --check
       - run: cargo clippy --workspace --all-targets --locked -- -D warnings
-      - run: cargo test --workspace --locked
+      # No test run here: ci.yml tests every commit on three platforms, and the
+      # workspace suite takes about two hours on a hosted runner, past this job's
+      # timeout. The release gates (tools/release-gates.sh) run on the release machine.
 
   binaries:
     needs: verify
