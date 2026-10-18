@@ -30,9 +30,9 @@
 </p>
 
 <p align="center">
-  <img src="assets/branding/tactical-examples.jpg" alt="Twelve procedural tactical maps from one generated world: city, port town, village, hamlet, forest, woodland, mountain, snow peak, wetland, coast, dungeon and cave" width="900">
+  <img src="assets/branding/tactical-examples.jpg" alt="Twelve procedural tactical maps from Arda 1.0: city, port town, village, hamlet, forest, woodland, mountain, snow peak, wetland, coast, dungeon and cave" width="900">
   <br>
-  <sub>Procedural 64 × 64-square tactical maps from one generated world (MICRO seed 42), served by <code>arda-server</code> with an AI-generated art library: city, port town, village, hamlet; forest, woodland, mountain, snow peak; wetland, coast, dungeon, cave.</sub>
+  <sub>Procedural 64 × 64-square tactical maps from Arda 1.0 (MICRO seed 42; the snow peak from the same seed at <code>--latitude 58,72</code>), served by <code>arda-server</code> with an AI-generated art library: city, port town, village, hamlet; forest, woodland, mountain, snow peak; wetland, coast, dungeon, cave.</sub>
 </p>
 
 <p align="center">
