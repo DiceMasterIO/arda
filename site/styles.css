@@ -84,18 +84,43 @@ code, pre { font-family: var(--mono); }
 .nav-links a { color: var(--text-2); text-decoration: none; padding: 10px 0; }
 .nav-links a:hover { color: var(--parchment); }
 .nav .btn { font-size: 15px; padding: 11px 18px; }
-@media (max-width: 640px) {
+.support-links { display: flex; align-items: center; gap: 8px; }
+.support-link {
+  display: inline-flex; align-items: center; gap: 7px; min-height: 40px; padding: 0 12px;
+  border: 1px solid var(--support-border); border-radius: 6px; background: var(--support-bg);
+  color: var(--support-color); font-size: 14px; text-decoration: none; white-space: nowrap;
+}
+.support-link:hover { color: var(--support-color); border-color: var(--support-color); }
+.support-link:focus-visible { outline-color: var(--support-color); }
+.support-link svg { width: 16px; height: 16px; flex: none; }
+.support-patreon { --support-color: #ff9d91; --support-bg: #2d201e; --support-border: #68413b; }
+.support-coffee { --support-color: #f5dc7d; --support-bg: #292619; --support-border: #605536; }
+@media (max-width: 1100px) {
+  .support-link { width: 40px; padding: 0; justify-content: center; }
+  .support-link span { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
+}
+@media (max-width: 900px) {
   .nav { gap: 4px 16px; padding-block: 12px 4px; }
   .nav .brand img { height: 40px; }
   .nav .brand { order: 1; }
-  .nav .btn { order: 2; padding: 9px 14px; }
+  .support-links { order: 2; gap: 6px; }
+  .support-link { width: 38px; min-height: 38px; }
+  .nav .btn { order: 3; padding: 9px 14px; }
   .nav-links {
-    order: 3; flex: 1 0 100%; flex-wrap: nowrap; justify-content: space-between;
-    gap: 16px; overflow-x: auto; scrollbar-width: none;
+    order: 4; flex: 1 0 100%; flex-wrap: nowrap; justify-content: flex-start;
+    gap: 28px; overflow-x: auto; scrollbar-width: none;
   }
   .nav-links::-webkit-scrollbar { display: none; }
   .nav-links a { white-space: nowrap; padding: 12px 0; }
 }
+@media (max-width: 380px) {
+  .nav { gap: 4px 10px; }
+  .nav .brand img { height: 34px; }
+  .nav .btn { padding: 9px 11px; font-size: 14px; }
+  .nav .btn .ver { display: none; }
+  .nav-links { font-size: 14px; }
+}
+@media (max-width: 640px) { .nav-links { justify-content: space-between; gap: 12px; } }
 
 /* Hero */
 .hero { position: relative; overflow: hidden; }
