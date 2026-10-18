@@ -84,6 +84,18 @@ code, pre { font-family: var(--mono); }
 .nav-links a { color: var(--text-2); text-decoration: none; padding: 10px 0; }
 .nav-links a:hover { color: var(--parchment); }
 .nav .btn { font-size: 15px; padding: 11px 18px; }
+@media (max-width: 640px) {
+  .nav { gap: 4px 16px; padding-block: 12px 4px; }
+  .nav .brand img { height: 40px; }
+  .nav .brand { order: 1; }
+  .nav .btn { order: 2; padding: 9px 14px; }
+  .nav-links {
+    order: 3; flex: 1 0 100%; flex-wrap: nowrap; justify-content: space-between;
+    gap: 16px; overflow-x: auto; scrollbar-width: none;
+  }
+  .nav-links::-webkit-scrollbar { display: none; }
+  .nav-links a { white-space: nowrap; padding: 12px 0; }
+}
 
 /* Hero */
 .hero { position: relative; overflow: hidden; }
@@ -104,15 +116,17 @@ code, pre { font-family: var(--mono); }
   display: flex; align-items: center; gap: 12px; max-width: 100%;
   background: var(--panel); border: 1px solid var(--line-2); border-radius: 8px;
   padding: 14px 18px; font: 14px var(--mono); color: #d8d1bf;
-  overflow-x: auto; white-space: nowrap;
 }
-.prompt span:first-child { color: #6e8a7a; }
+.prompt > span:last-child { min-width: 0; }
+.prompt > span:last-child > span { white-space: nowrap; }
+.prompt span:first-child { color: #6e8a7a; align-self: flex-start; }
 .hero-figure { flex: 1 1 340px; position: relative; display: flex; justify-content: center; }
 .hero-figure img {
   width: 100%; max-width: 420px; aspect-ratio: 1 / 2.1; object-fit: cover;
   border-radius: 4px; border: 1px solid var(--frame);
   box-shadow: 0 40px 90px rgba(0, 0, 0, 0.55);
 }
+@media (max-width: 640px) { .hero-inner { gap: 40px; padding-block: 40px 64px; } .hero-figure img { max-width: 300px; } }
 .chip {
   position: absolute; bottom: 18px; left: 50%; transform: translateX(-50%);
   font: 12px var(--mono); letter-spacing: 0.08em; white-space: nowrap;
@@ -124,8 +138,10 @@ code, pre { font-family: var(--mono); }
 .descent { display: flex; flex-direction: column; gap: 48px; padding-block: 88px; }
 .descent ol {
   list-style: none; padding: 0;
-  display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 16px;
+  display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 16px;
 }
+@media (max-width: 900px) { .descent ol { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 28px 16px; } }
+@media (max-width: 380px) { .descent ol { grid-template-columns: 1fr; } }
 .descent li { display: flex; flex-direction: column; gap: 12px; }
 .descent img, .frame {
   width: 100%; aspect-ratio: 1; object-fit: cover;
@@ -147,9 +163,11 @@ code, pre { font-family: var(--mono); }
 .filters button:hover { border-color: var(--sage); }
 .filters button[aria-pressed="true"] { background: var(--parchment); color: var(--ink); border-color: var(--parchment); }
 .gallery {
-  display: grid; grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
+  display: grid; grid-template-columns: repeat(4, minmax(0, 1fr));
   grid-auto-flow: dense; gap: 14px;
 }
+@media (max-width: 1000px) { .gallery { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
+@media (max-width: 600px) { .gallery { grid-template-columns: 1fr; } }
 .shot {
   position: relative; border-radius: 4px; overflow: hidden;
   border: 1px solid var(--frame); background: var(--panel);
@@ -199,7 +217,8 @@ code, pre { font-family: var(--mono); }
 .steps strong { font-size: 18px; }
 .steps li > span:last-child { color: var(--paper-muted); font-size: 15px; }
 .steps code { font-size: 14px; }
-.principles { display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 32px; }
+.principles { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 32px; }
+@media (max-width: 760px) { .principles { grid-template-columns: 1fr; gap: 28px; } }
 .principles div { display: flex; flex-direction: column; gap: 8px; border-top: 2px solid var(--paper-ink); padding-top: 18px; }
 .principles strong { font-family: var(--display); font-size: 26px; font-weight: 600; }
 .principles span { color: var(--paper-muted); font-size: 15px; }
@@ -208,8 +227,9 @@ code, pre { font-family: var(--mono); }
 .tutorial { display: flex; flex-wrap: wrap; gap: 56px; padding-block: 104px; }
 .tutorial-intro { flex: 1 1 320px; min-width: 0; display: flex; flex-direction: column; gap: 16px; }
 .tutorial-intro .frame { max-width: 420px; margin-top: 12px; }
+@media (max-width: 1100px) { .tutorial-intro .frame { display: none; } }
 .tutorial-intro .note { font-size: 15px; color: var(--muted); }
-.lesson { flex: 999 1 560px; min-width: 0; list-style: none; padding: 0; display: flex; flex-direction: column; gap: 14px; counter-reset: lesson; }
+.lesson { flex: 999 1 660px; min-width: 0; list-style: none; padding: 0; display: flex; flex-direction: column; gap: 14px; counter-reset: lesson; }
 .lesson li {
   display: flex; gap: 20px; background: var(--panel);
   border: 1px solid var(--line-2); border-radius: 8px; padding: 24px;
@@ -226,14 +246,14 @@ code, pre { font-family: var(--mono); }
 .lesson strong { font-size: 18px; }
 .lesson .body > span { color: var(--muted); font-size: 15px; }
 .code {
-  position: relative; background: var(--code); border-radius: 6px;
+  display: flex; align-items: flex-start; background: var(--code); border-radius: 6px;
 }
 .code pre {
-  padding: 14px 16px; padding-right: 76px; overflow-x: auto;
+  flex: 1; min-width: 0; padding: 14px 16px; overflow-x: auto;
   font-size: 14px; color: #d8d1bf; line-height: 1.6;
 }
 .copy {
-  position: absolute; top: 8px; right: 8px; min-height: 32px;
+  flex: none; margin: 8px 8px 0 0; min-height: 32px;
   font: 500 12px var(--sans); padding: 6px 10px; border-radius: 4px; cursor: pointer;
   background: transparent; color: var(--text-2); border: 1px solid var(--ghost);
 }
@@ -258,6 +278,15 @@ code, pre { font-family: var(--mono); }
 .site-footer .brandline { display: flex; align-items: center; gap: 14px; }
 .site-footer img { height: 32px; width: auto; }
 
+@media (max-width: 640px) {
+  .descent, .under { padding-block: 64px; }
+  .showcase, .how, .tutorial { padding-block: 72px; }
+  .how { gap: 40px; }
+  .steps li { padding: 22px; }
+  .cta { padding-block: 80px; }
+  .wrap { padding-inline: 18px; }
+}
+
 /* Reveal on scroll */
 .js .reveal { opacity: 0; transform: translateY(18px); transition: opacity 0.8s ease, transform 0.8s ease; }
 .js .reveal.in { opacity: 1; transform: none; }
@@ -268,5 +297,6 @@ code, pre { font-family: var(--mono); }
 }
 
 @media (max-width: 560px) {
-  .code pre { padding: 46px 16px 14px; }
+  .lesson li { flex-direction: column; gap: 14px; padding: 20px; }
+  .code pre { font-size: 13px; }
 }
