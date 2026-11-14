@@ -127,3 +127,84 @@ fn links_are_symmetric_and_end_sealed() {
         }
     }
 }
+
+use arda_dungeon::site::sealed;
+use arda_tactical::layout::{AssetRef, TAG_SECRET};
+use arda_tactical::{render_with, Library, RenderOptions, Style, TacticalLayout, WallRole};
+use std::path::Path;
+use std::sync::OnceLock;
+
+fn lib() -> &'static Library {
+    static LIB: OnceLock<Library> = OnceLock::new();
+    LIB.get_or_init(|| {
+        let dir = Path::new(env!("CARGO_MANIFEST_DIR")).join("../../assets/tactical/placeholder");
+        Library::load(&dir).unwrap()
+    })
+}
+
+fn pixels(layout: &TacticalLayout) -> Vec<u8> {
+    let opts = RenderOptions {
+        ppsq: 32,
+        grid: false,
+        lighting: true,
+    };
+    render_with(layout, lib(), 7, &opts, &Style::default())
+        .unwrap()
+        .data
+}
+
+fn ids(l: &TacticalLayout) -> Vec<String> {
+    l.placements
+        .iter()
+        .filter_map(|p| match &p.asset {
+            AssetRef::Id(id) => Some(id.clone()),
+            AssetRef::Query { .. } => None,
+        })
+        .collect()
+}
+
+#[test]
+fn the_sealed_layout_swaps_only_the_stairs_down() {
+    let d = &chain(Kind::Dungeon, 1)[0];
+    let s = sealed(&d.layout);
+    s.check(lib()).unwrap();
+    assert!(ids(&d.layout).iter().any(|i| i == "prop.stairs_down"));
+    assert!(!ids(&s).iter().any(|i| i == "prop.stairs_down"));
+    assert_eq!(
+        ids(&s)
+            .iter()
+            .filter(|i| *i == "prop.stairs_sealed")
+            .count(),
+        1
+    );
+    assert_eq!(s.squares, d.layout.squares);
+    assert_eq!(s.walls, d.layout.walls);
+    assert_ne!(pixels(&s), pixels(&d.layout));
+}
+
+/// logic/18 §site-image: an unfound secret door is plain wall in every
+/// tactical image, so a level image never gives one away.
+#[test]
+fn a_secret_door_is_painted_as_a_plain_run() {
+    let d = (1..200_u64)
+        .map(|seed| {
+            generate(&Params {
+                seed,
+                kind: Kind::Dungeon,
+                width: 48,
+                height: 36,
+            })
+            .unwrap()
+        })
+        .find(|d| d.doors.iter().any(|g| g.secret))
+        .unwrap();
+    let mut plain = d.layout.clone();
+    for w in &mut plain.walls {
+        if w.kind == WallRole::Door && w.has_tag(TAG_SECRET) {
+            w.kind = WallRole::Run;
+            w.tags.retain(|t| t != TAG_SECRET);
+        }
+    }
+    assert_ne!(plain.walls, d.layout.walls);
+    assert_eq!(pixels(&plain), pixels(&d.layout));
+}

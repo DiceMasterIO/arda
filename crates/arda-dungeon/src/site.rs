@@ -4,6 +4,7 @@
 //! deepest level. Pure functions; where a site lies is the server's.
 
 use crate::{Dungeon, Exit, ExitKind};
+use arda_tactical::layout::{AssetRef, TacticalLayout};
 use arda_tactical::noise::{hash2, hash_str};
 use serde::{Deserialize, Serialize};
 
@@ -136,4 +137,18 @@ pub fn links(levels: &[Dungeon]) -> Vec<Vec<Link>> {
                 .collect()
         })
         .collect()
+}
+
+/// The layout the deepest level's image is drawn from: the stairs down
+/// under their slab (logic/18 §site-image). The level body keeps the
+/// layout as generated; only the image is sealed.
+#[must_use]
+pub fn sealed(layout: &TacticalLayout) -> TacticalLayout {
+    let mut out = layout.clone();
+    for p in &mut out.placements {
+        if matches!(&p.asset, AssetRef::Id(id) if id == "prop.stairs_down") {
+            p.asset = AssetRef::Id("prop.stairs_sealed".to_owned());
+        }
+    }
+    out
 }
