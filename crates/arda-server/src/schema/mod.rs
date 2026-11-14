@@ -110,7 +110,9 @@ use crate::columnar::AreaCells;
 use crate::contract::{CellSample, PointSample};
 use crate::dto::{AreaLakes, AreaRivers, Health, WorldInfo};
 use crate::error::{ApiError, NotYetError};
-use crate::npc_dto::{GenerateNpcRequest, Npc, NpcDemo, Population, PopulationRequest, Sheet};
+use crate::npc_dto::{
+    GenerateNpcRequest, Npc, NpcDemo, OccupationList, Population, PopulationRequest, Sheet,
+};
 use crate::npcs::dto::NpcPage;
 use crate::sites::dto::{SiteDto, SiteLevel, SiteList};
 use crate::tactical::bake::{BakeAccepted, BakeRequest, BakeStatus};
@@ -158,6 +160,7 @@ catalog! {
     "Population" => Population, "npc_format", Stable, ["POST /v1/npc/population"];
     "PopulationRequest" => PopulationRequest, "npc_format", Stable, ["POST /v1/npc/population (request)"];
     "GenerateNpcRequest" => GenerateNpcRequest, "npc_format", Stable, ["POST /v1/npc/generate (request)"];
+    "OccupationList" => OccupationList, "npc_format", Stable, ["GET /v1/npc/occupations"];
     "NpcDemo" => NpcDemo, "npc_format", Debug, ["GET /v1/npc/demo"];
     "SettlementList" => SettlementList, "settlement_format", Stable, ["GET /v1/settlements"];
     "SettlementDetail" => SettlementDetail, "settlement_format", Stable, ["GET /v1/settlements/{id}"];

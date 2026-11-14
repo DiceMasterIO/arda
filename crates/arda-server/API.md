@@ -1255,8 +1255,8 @@ own id (DiceMaster: `game:<uuid>`). Body (TS `GenerateNpcRequest`, JSON Schema
 | Field | Type | Default | Meaning |
 |---|---|---|---|
 | `seed` | decimal u64 string | `"0"` | Caller's salt, e.g. derived from its own uuid. Different salts give different people. |
-| `job` | occupation key | none | `occupations.json` `jobs`: `smith`, `farmer`, `priest`, `mayor`, `child`, … (96 keys). |
-| `office` | office kind | none | `occupations.json` `offices`: `reeve`, `high_priest`, `captain`, … The NPC holds it, is a notable and is addressed by its title. |
+| `job` | occupation key | none | A `kind: job` key of `GET /v1/npc/occupations`: `smith`, `farmer`, `priest`, `mayor`, `child`, … (96 keys). |
+| `office` | office kind | none | A `kind: office` key of `GET /v1/npc/occupations`: `reeve`, `high_priest`, `captain`, … The NPC holds it, is a notable and is addressed by its title. |
 | `rank` | `SocialRank` | none | `dependent`, `labourer`, `tradesfolk`, `master`, `gentry`, `noble` (logic/13 §npc-ranks). |
 | `ancestry` | SRD race key | culture's mix | `human`, `dwarf`, `elf`, `halfling`, `dragonborn`, `gnome`, `half-elf`, `half-orc`, `tiefling`. |
 | `sex` | `female` \| `male` | either | |
@@ -1297,6 +1297,39 @@ unknown `settlement_id` or a `settlement_id` on a world without `society/`; 413
 ability scores, background, equipment) and Arda does not consume it; this endpoint picks an
 Arda inhabitant by job and rank. The body is small and optional-everything so an adapter on
 DiceMaster's side can map its own fields onto it.
+
+### `GET /v1/npc/occupations`
+
+Every key `POST /v1/npc/generate` takes as `job` or `office`, with what a caller needs to
+choose one (logic/13 §npc-occupations). The list comes from the bundled tables, so the body is
+the same on every world, with or without `society/`; it changes only with a release's content.
+Response (TS `OccupationList`, JSON Schema `OccupationList.json`, family `npc_format`):
+
+```json
+{"occupations": [
+  {"key": "smith", "kind": "job", "label": "Master Smith", "label_female": null, "category": "craft",
+   "tiers": [{"tier": "hamlet", "rank": "tradesfolk"}, {"tier": "village", "rank": "tradesfolk"},
+             {"tier": "town", "rank": "master"}, {"tier": "city", "rank": "master"}]},
+  …
+  {"key": "reeve", "kind": "office", "label": "Reeve", "label_female": null, "category": null,
+   "tiers": [{"tier": "hamlet", "rank": "tradesfolk"}, …]}
+]}
+```
+
+- Order: every job (96), then every office (21), each in key order. `(kind, key)` is unique: a
+  few keys are both a job and an office (`reeve`, `elder`, `harbourmaster`, `steward`,
+  `lord`, …); send a `job` entry's key as `job` and an `office` entry's key as `office`.
+- `label`: a job's title (`Npc.job.title`), or an office's title without its place ("Reeve"
+  for "Reeve of Ifyil"). `label_female` is a job's female title where it differs.
+- `category`: a job's `JobCategory`; `null` for an office.
+- `tiers`, smallest first: a **job**'s tiers are exactly those `generate` accepts it in, and
+  `rank` is its `SocialRank` there, so `{"job", "tier", "rank"}` taken from one entry always
+  generates; any other tier is refused with `400` ("no hamlet has a mayor"). An **office** is
+  held in every tier; `rank` is the lowest rank of its holder there (a holder ranks at the
+  higher of their job's rank and the office's).
+- `child` is a job (rank `dependent`); `generate` never draws it unless it is asked for.
+
+Errors: none of its own.
 
 ```sh
 curl -s -X POST -H 'content-type: application/json' \

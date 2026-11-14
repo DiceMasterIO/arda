@@ -1,0 +1,232 @@
+{
+  "$defs": {
+    "JobCategory": {
+      "description": "Broad kind of work.",
+      "oneOf": [
+        {
+          "const": "agriculture",
+          "description": "Fields and herds.",
+          "type": "string"
+        },
+        {
+          "const": "craft",
+          "description": "Workshops and trades.",
+          "type": "string"
+        },
+        {
+          "const": "trade",
+          "description": "Buying and selling.",
+          "type": "string"
+        },
+        {
+          "const": "service",
+          "description": "Inns, kitchens and households.",
+          "type": "string"
+        },
+        {
+          "const": "religion",
+          "description": "Clergy.",
+          "type": "string"
+        },
+        {
+          "const": "military",
+          "description": "Soldiers and watch.",
+          "type": "string"
+        },
+        {
+          "const": "government",
+          "description": "Officials.",
+          "type": "string"
+        },
+        {
+          "const": "maritime",
+          "description": "Boats and docks.",
+          "type": "string"
+        },
+        {
+          "const": "extraction",
+          "description": "Mines and forests.",
+          "type": "string"
+        },
+        {
+          "const": "scholar",
+          "description": "Books and teaching.",
+          "type": "string"
+        },
+        {
+          "const": "labour",
+          "description": "Unskilled work.",
+          "type": "string"
+        },
+        {
+          "const": "nobility",
+          "description": "Nobles.",
+          "type": "string"
+        },
+        {
+          "const": "dependent",
+          "description": "Children and the retired.",
+          "type": "string"
+        }
+      ]
+    },
+    "Occupation": {
+      "description": "One key of the catalogue. `(kind, key)` is unique; `reeve`, `elder`,\n`harbourmaster` and others are both a job and an office.",
+      "properties": {
+        "category": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/JobCategory"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "description": "A job's category; `null` for an office."
+        },
+        "key": {
+          "description": "The key `POST /v1/npc/generate` takes.",
+          "type": "string"
+        },
+        "kind": {
+          "$ref": "#/$defs/OccupationKind",
+          "description": "Job or office."
+        },
+        "label": {
+          "description": "Display label: a job's title, an office's title without its place.",
+          "type": "string"
+        },
+        "label_female": {
+          "description": "A job's female title where it differs; otherwise `null`.",
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "tiers": {
+          "description": "Tiers the key is accepted in, smallest first, with its rank in\neach. A job outside them is refused (`bad_request`).",
+          "items": {
+            "$ref": "#/$defs/OccupationTier"
+          },
+          "type": "array"
+        }
+      },
+      "required": [
+        "key",
+        "kind",
+        "label",
+        "tiers"
+      ],
+      "type": "object"
+    },
+    "OccupationKind": {
+      "description": "Whether a key is a `job` or an `office` of `GenerateNpcRequest`.",
+      "oneOf": [
+        {
+          "const": "job",
+          "description": "An occupation: `GenerateNpcRequest.job`, `Npc.job.key`.",
+          "type": "string"
+        },
+        {
+          "const": "office",
+          "description": "A society office: `GenerateNpcRequest.office`.",
+          "type": "string"
+        }
+      ]
+    },
+    "OccupationTier": {
+      "description": "A tier a key is accepted in, and the rank it carries there.",
+      "properties": {
+        "rank": {
+          "$ref": "#/$defs/SocialRank",
+          "description": "A job's social rank in the tier; for an office, the lowest rank of\nits holder there (a holder ranks at the higher of job and office)."
+        },
+        "tier": {
+          "$ref": "#/$defs/Tier",
+          "description": "Settlement size class (`GenerateNpcRequest.tier`)."
+        }
+      },
+      "required": [
+        "tier",
+        "rank"
+      ],
+      "type": "object"
+    },
+    "SocialRank": {
+      "description": "Standing in local society.",
+      "oneOf": [
+        {
+          "const": "dependent",
+          "description": "Children and dependants.",
+          "type": "string"
+        },
+        {
+          "const": "labourer",
+          "description": "Labourers, hands and servants.",
+          "type": "string"
+        },
+        {
+          "const": "tradesfolk",
+          "description": "Journeymen, clerks and small traders.",
+          "type": "string"
+        },
+        {
+          "const": "master",
+          "description": "Masters, owners and minor officials.",
+          "type": "string"
+        },
+        {
+          "const": "gentry",
+          "description": "Clergy leads, officers and magistrates.",
+          "type": "string"
+        },
+        {
+          "const": "noble",
+          "description": "Lords and ladies.",
+          "type": "string"
+        }
+      ]
+    },
+    "Tier": {
+      "description": "Settlement size class.",
+      "oneOf": [
+        {
+          "const": "hamlet",
+          "description": "Hamlet.",
+          "type": "string"
+        },
+        {
+          "const": "village",
+          "description": "Village.",
+          "type": "string"
+        },
+        {
+          "const": "town",
+          "description": "Town.",
+          "type": "string"
+        },
+        {
+          "const": "city",
+          "description": "City.",
+          "type": "string"
+        }
+      ]
+    }
+  },
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "description": "Body of `GET /v1/npc/occupations`: every key `POST /v1/npc/generate`\ntakes as `job` or `office`. Every job, then every office, each in key\norder; the same on every world (bundled data).",
+  "properties": {
+    "occupations": {
+      "description": "The catalogue.",
+      "items": {
+        "$ref": "#/$defs/Occupation"
+      },
+      "type": "array"
+    }
+  },
+  "required": [
+    "occupations"
+  ],
+  "title": "OccupationList",
+  "type": "object"
+}
