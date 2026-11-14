@@ -154,6 +154,11 @@ pub fn place(d: &Dungeon, scene: &Scene, seed: u64) -> Vec<Trap> {
             if let Some(&(x, y)) = free.iter().find(|s| fits(s)) {
                 trap.squares = vec![(x, y)];
                 trap.affected = vec![(x + 1, y), (x + 2, y), (x + 1, y + 1), (x + 2, y + 1)];
+            } else if let Some(&s) = free.iter().find(|s| !used.contains(s)) {
+                // No room for the 10-ft square: a pit takes its place, so
+                // the level keeps its count.
+                trap.kind = SINGLE[rng.index(4)];
+                trap.squares = vec![s];
             }
         } else if let Some(&s) = free.iter().find(|s| !used.contains(s)) {
             trap.squares = vec![s];
