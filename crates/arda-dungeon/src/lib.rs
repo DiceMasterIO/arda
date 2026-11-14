@@ -30,6 +30,7 @@ mod dress;
 mod grid;
 mod rng;
 pub mod site;
+pub mod traps;
 
 use arda_scene::RulesSidecar;
 use arda_tactical::layout::EdgeAxis;
