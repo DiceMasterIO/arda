@@ -117,3 +117,25 @@ fn kitchen_garden_pieces_are_in_the_library() {
     let frame = catalog.assets.iter().find(|a| a.id == "prop.cold_frame");
     assert_eq!(frame.map(|a| (a.footprint.w, a.footprint.h)), Some((2, 1)));
 }
+
+/// logic/18 §site-entrance: a party stands on and around a site's
+/// entrance, so the entrance props never block.
+#[test]
+fn site_props_exist_and_do_not_block() {
+    let (catalog, _) = generate(DEFAULT_SEED);
+    for (id, size) in [
+        ("prop.site_entrance", (1, 2)),
+        ("prop.cave_mouth", (2, 2)),
+        ("prop.stairs_sealed", (1, 2)),
+    ] {
+        let a = catalog
+            .assets
+            .iter()
+            .find(|a| a.id == id)
+            .unwrap_or_else(|| panic!("{id} missing"));
+        assert_eq!((a.footprint.w, a.footprint.h), size, "{id}");
+        if id != "prop.stairs_sealed" {
+            assert!(!a.blocks_movement, "{id} blocks movement");
+        }
+    }
+}
