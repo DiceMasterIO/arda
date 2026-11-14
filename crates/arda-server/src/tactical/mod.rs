@@ -102,8 +102,9 @@ impl TacticalLimits {
     #[must_use]
     pub fn admitted_bytes(&self) -> u64 {
         let caches = self.render_cache_bytes + self.pyramid_cache_bytes;
-        // PNGs, tiles and JSON bodies, plus the composed-block cache.
-        let encoded = 3 * self.encoded_cache_bytes + refine_blocks::COMPOSED_CACHE_BYTES;
+        // PNGs, tiles and JSON bodies; the composed-block cache is the
+        // pipeline's (`admission::pipeline_bytes`).
+        let encoded = 3 * self.encoded_cache_bytes;
         (caches + encoded) as u64
             + self.transient_render_bytes()
             + self.transient_encode_bytes()
@@ -232,6 +233,17 @@ impl Tactical {
             tint_source: None,
             etags: crate::etag::Etags::new(&[0; 32], world_seed, ""),
         })
+    }
+
+    /// Replaces the limits and cache budgets, emptying the caches: a memory
+    /// ceiling fits them once the library is open ([`crate::ceiling`]).
+    pub fn set_limits(&mut self, limits: TacticalLimits) {
+        self.limits = limits;
+        self.renders = Mutex::new(ByteLru::new(limits.render_cache_bytes));
+        self.pyramids = Mutex::new(ByteLru::new(limits.pyramid_cache_bytes));
+        self.pngs = Mutex::new(ByteLru::new(limits.encoded_cache_bytes));
+        self.tiles = Mutex::new(ByteLru::new(limits.encoded_cache_bytes));
+        self.bodies = Mutex::new(ByteLru::new(limits.encoded_cache_bytes));
     }
 
     /// Sets the `ETag`s every response is tagged with.

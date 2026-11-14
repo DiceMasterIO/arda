@@ -5,7 +5,7 @@
 
 use crate::support::{config, society_dir, society_state};
 use arda_refine::{CellKey, Source, WorldSource};
-use arda_server::admission::{pipeline_bytes, Resident};
+use arda_server::admission::{pipeline_bytes, PipelineLimits, Resident};
 use arda_server::refine_source::{BoundedSource, REFINE_AREAS};
 use arda_server::tactical::block::BlockRequest;
 use arda_server::tactical::cells::APRON;
@@ -116,7 +116,7 @@ fn the_default_config_is_admitted_with_the_measured_world() {
     eprintln!(
         "admitted {} MiB (pipeline {} MiB) + resident {:?} = {} MiB of {} MiB",
         c.admitted_bytes() >> 20,
-        pipeline_bytes() >> 20,
+        pipeline_bytes(&PipelineLimits::default()) >> 20,
         s.resident,
         need >> 20,
         MEMORY_CEILING_BYTES >> 20
@@ -231,7 +231,7 @@ fn the_plan_cache_is_bounded_in_bytes_and_admits_its_largest_plan() {
         bytes >= 2 * json + plan.grid.kind.len() as u64,
         "{bytes} vs {json}"
     );
-    assert!(pipeline_bytes() >= arda_people::people::PLAN_CACHE_BYTES);
+    assert!(pipeline_bytes(&PipelineLimits::default()) >= arda_people::people::PLAN_CACHE_BYTES);
 }
 
 #[test]

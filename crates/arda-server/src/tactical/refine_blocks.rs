@@ -46,7 +46,8 @@ const DEMO_ANCHORS: usize = 16;
 pub struct RefineBlocks {
     pipeline: Pipeline,
     composed: Mutex<ByteLru<BlockRequest, Block>>,
-    /// At most [`COMPOSE_SLOTS`] compositions at a time.
+    /// At most [`COMPOSE_SLOTS`] compositions at a time, or the ceiling's
+    /// count.
     slots: Gate,
     demos: Mutex<BTreeMap<[i64; 2], Arc<DemoOverlays>>>,
     society: Option<Arc<dyn Overlays>>,
@@ -88,12 +89,26 @@ impl RefineBlocks {
     }
 
     /// Blocks over an opened world, with its overlays (the society's and
-    /// the sites' entrances) when given.
+    /// the sites' entrances) when given, under the pipeline budgets
+    /// `limits` (a memory ceiling lowers them, [`crate::ceiling`]).
     #[must_use]
-    pub fn with_society(src: SharedSource, society: Option<Arc<dyn Overlays>>) -> Self {
-        let mut b = Self::new(pipeline(Box::new(src)));
-        b.society = society;
-        b
+    pub fn with_society(
+        src: SharedSource,
+        society: Option<Arc<dyn Overlays>>,
+        limits: &crate::admission::PipelineLimits,
+    ) -> Self {
+        let seed = super::key::render_seed(
+            arda_refine::Source::seed(&src),
+            &super::Anchor::Origin(0, 0),
+        );
+        let pipeline = Pipeline::new(Box::new(src), limits.refined_blocks).with_art_seed(seed);
+        Self {
+            pipeline,
+            composed: Mutex::new(ByteLru::new(limits.composed_cache_bytes)),
+            slots: Gate::new(limits.compose_slots.max(1)),
+            demos: Mutex::new(BTreeMap::new()),
+            society,
+        }
     }
 
     fn demo(&self, at: [i64; 2]) -> Result<Arc<DemoOverlays>, BlockError> {

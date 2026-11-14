@@ -24,12 +24,13 @@ docker run --rm -p 8787:8787 -v /abs/world:/worlds/world:ro arda:local
 | `--world <dir>` | required | World directory (holds `world.json`) |
 | `--port` | `8787` | TCP port |
 | `--host` | `127.0.0.1` | Bind address |
+| `--memory-mib` | none | Per-process memory ceiling, MiB; also `ARDA_MEMORY_MIB` (the flag wins). The worst case the server admits stays under it and every budget not set by a flag derives from it; see [Memory ceiling](#memory-ceiling). Without it the ceiling is 16,384 MiB and every budget keeps its default |
 | `--area-cache-mib` | `256` | Decoded-area cache budget (1024 before the serving-concurrency fix, review 3.6-8; 384 before the server-startup fix) |
 | `--fine-cache-mib` | `128` | Fine-terrain window cache budget (512 before review 3.6-8; 256 before the server-startup fix) |
 | `--max-overview-px` | `8192` | Largest `overview.png` long edge clients may request |
 | `--tile-base-px` | `4096` | Tile-pyramid base edge; `256 · 2^max_zoom`, at least 512 |
 | `--library <dir>` | `assets/tactical/placeholder` | Tactical asset library (holds `catalog.json`), relative to the working directory. It is loaded once and validated with the arda-tactical loader; any validation issue stops startup |
-| `--prefetch-workers` | `2` | Background threads warming prefetched tactical cells (at most 8; `0` disables prefetch). Each worker is admitted against the 16 GiB ceiling as one more transient render |
+| `--prefetch-workers` | `2` | Background threads warming prefetched tactical cells (at most 8; `0` disables prefetch). Each worker lane is admitted against the ceiling (16 GiB, or `--memory-mib`) as one more transient render |
 | `--probe` | off | Health probe for container healthchecks: `GET /v1/health` on loopback at `--port`; exit 0 on `200`, 1 otherwise. Serves nothing and needs no `--world` |
 | `--sheet-mapping <file>` | none | Sheet mapping that reshapes every served NPC into a game's schema (see [Sheet mapping](#sheet-mapping)). Checked at startup; a bad file stops the server |
 
@@ -113,6 +114,54 @@ docker run --rm -p 8787:8787 -v /abs/world:/worlds/world:ro arda:local
     layers 128 MiB, fine windows 128 MiB), the overview caches (128 MiB each), the encoded
     PNG, tile and body caches (160 MiB each) and `--max-connections` (32) were trimmed to
     make room.
+
+### Memory ceiling
+
+`--memory-mib <MiB>` (or `ARDA_MEMORY_MIB`, which the image's default entry reads too) caps
+one process: admission holds the worst case (every budget above, plus what the world and
+library hold) under it instead of under 16,384 MiB, and the budgets derive from it (logic/16
+§api-memory).
+
+- **What derives.** Each of these sits at a floor plus one shared fraction of the way to its
+  default, the largest fraction that fits: the area, derived-layer and fine-window caches,
+  the overview and relief tile caches, the tactical render, pyramid and encoded caches, the
+  largest render (`max_render_px`), `--max-connections`, concurrent area builds, concurrent
+  compositions, the composed- and refined-block caches, the town-plan budget and, with baking
+  on, `--bake-result-mib`. A flag given on the command line (`--area-cache-mib`,
+  `--fine-cache-mib`, `--max-connections`, `--bake-result-mib`) keeps its value. The floors:
+  areas 64 MiB, derived layers and fine windows 32 MiB each, overview and relief tiles 32 MiB
+  each, renders 96 MiB (one 64-px cell), pyramids 128 MiB (its pyramid), encoded caches 32 MiB
+  each, renders up to one cell with its apron at 64 px per square (23.7 Mpx), 8 connections,
+  1 area build, 2 compositions, composed blocks 32 MiB, 64 refined blocks, town plans 128 MiB;
+  baking, one worst-case cell set.
+- **Fixed.** The pyramid base (`--tile-base-px`), the relief working set (768 MiB), the
+  refine source's decoded areas (312 MiB), one area build (512 MiB), 48 MiB a connection and
+  the transient render and encode of each lane at the fitted render size do not shrink further;
+  nor do the world's and library's residents.
+- **Too small.** Below the least ceiling the server refuses to start:
+  `--memory-mib 4608 is below the 5507 MiB this world, library and these flags need at
+  least (library 89 MiB, society 773 MiB, shore 85 MiB, largest town plan 462 MiB, …)`.
+- **What a small ceiling costs.** A render larger than the fitted `max_render_px` is refused
+  with `413 payload_too_large` (at the floor, a 96 or 128 px cell, or a window wider than one
+  cell at 64 px); smaller caches evict sooner; prefetch renders fewer neighbour images ahead
+  (it renders only what fits the render and pyramid caches beside the open cell), so view
+  tiles of a neighbour are drawn on demand.
+- **Least ceilings, DiceMaster's profile** (prefetch on, baking off, placeholder library):
+  the 500 × 1,000 km seed-42 world `out/site-renders/full42` needs **5,507 MiB**; the MICRO
+  seed-42 society world (the contract kit's) **4,282 MiB**. With baking on, add the bake lane
+  (one transient render and one worst-case cell set, about 750 MiB at the floor).
+- **Measured** (Ryzen 9 9950X3D, release build, 150-cell walk at 64 px per square: open a
+  cell, read 12 view tiles, prefetch its ring, step to a neighbour; then the same walk again):
+
+  | World, ceiling | Open | Idle RSS | Peak RSS | Prefetched cell JSON p50 / p95 | View tiles p95 | Re-walk: cell bodies missed |
+  |---|---|---|---|---|---|---|
+  | full42, none (13,839 MiB admitted) | 16.5 s | 2,586 MiB | 6,764 MiB | 2.6 / 224 ms | 1,325 ms | not measured |
+  | full42, 5,507 MiB | 14.4 s | 2,360 MiB | 2,723 MiB | 1.1 / 42 ms (re-walk 65 ms) | 86 ms | 11 of 118 |
+  | MICRO, none (12,614 MiB admitted) | 2.3 s | 883 MiB | 5,346 MiB | 3.5 / 334 ms (re-walk 7.5 ms) | 1,321 ms | 0 of 150 |
+  | MICRO, 4,608 MiB | 2.9 s | 700 MiB | 1,609 MiB | 1.2 / 276 ms (re-walk 332 ms) | 3.2 ms | 33 of 150 |
+
+  The default's slow view tiles come from prefetch: with the default caches it renders up to
+  ten neighbour images per step, competing with the request for cores.
 
 ## Errors
 

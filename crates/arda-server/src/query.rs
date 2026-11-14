@@ -111,6 +111,14 @@ impl WorldQuery {
         })
     }
 
+    /// Replaces the cache budgets, emptying the caches: a memory ceiling
+    /// fits them once the world is open ([`crate::ceiling`]).
+    pub fn set_limits(&mut self, limits: QueryLimits) {
+        self.areas = Mutex::new(ByteLru::new(limits.area_bytes));
+        self.derived = Mutex::new(ByteLru::new(limits.derived_bytes));
+        self.windows = Mutex::new(ByteLru::new(limits.fine_bytes));
+    }
+
     /// The stored world.
     #[must_use]
     pub fn world(&self) -> &World {

@@ -14,7 +14,8 @@
 
 use crate::refine_source;
 use crate::tactical::refine_blocks::{
-    COMPOSE_SLOTS, COMPOSE_TRANSIENT_BYTES, REFINED_BLOCKS, REFINED_BLOCK_BYTES,
+    COMPOSED_CACHE_BYTES, COMPOSE_SLOTS, COMPOSE_TRANSIENT_BYTES, REFINED_BLOCKS,
+    REFINED_BLOCK_BYTES,
 };
 use crate::tactical::world_routes::WINDOW_PPSQ;
 use crate::tactical::PPSQ_OPTIONS;
@@ -36,15 +37,42 @@ pub const NOTABLES_INDEX_FACTOR: u64 = 3;
 /// and the relief world's.
 pub const SHORE_COPIES: u64 = 2;
 
-/// The tactical pipeline's fixed bounds: [`COMPOSE_SLOTS`] transient
-/// compositions, the refined-block cache, the refine source's decoded
-/// areas and the town-plan cache's byte budget.
+/// Budgets of the tactical pipeline. The defaults are the bounds the
+/// server has always kept; a memory ceiling ([`crate::ceiling`]) lowers
+/// them.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub struct PipelineLimits {
+    /// Compositions running at once ([`COMPOSE_SLOTS`]).
+    pub compose_slots: usize,
+    /// Bytes of composed blocks kept ([`COMPOSED_CACHE_BYTES`]).
+    pub composed_cache_bytes: usize,
+    /// Refined blocks kept ([`REFINED_BLOCKS`]).
+    pub refined_blocks: usize,
+    /// Bytes of town plans kept ([`PLAN_CACHE_BYTES`]).
+    pub plan_cache_bytes: u64,
+}
+
+impl Default for PipelineLimits {
+    fn default() -> Self {
+        Self {
+            compose_slots: COMPOSE_SLOTS,
+            composed_cache_bytes: COMPOSED_CACHE_BYTES,
+            refined_blocks: REFINED_BLOCKS,
+            plan_cache_bytes: PLAN_CACHE_BYTES,
+        }
+    }
+}
+
+/// The tactical pipeline's bounds under `limits`: that many transient
+/// compositions, the composed- and refined-block caches, the refine
+/// source's decoded areas and the town-plan cache's byte budget.
 #[must_use]
-pub const fn pipeline_bytes() -> u64 {
-    COMPOSE_SLOTS as u64 * COMPOSE_TRANSIENT_BYTES
-        + REFINED_BLOCKS as u64 * REFINED_BLOCK_BYTES
+pub const fn pipeline_bytes(limits: &PipelineLimits) -> u64 {
+    limits.compose_slots as u64 * COMPOSE_TRANSIENT_BYTES
+        + limits.composed_cache_bytes as u64
+        + limits.refined_blocks as u64 * REFINED_BLOCK_BYTES
         + refine_source::admitted_bytes()
-        + PLAN_CACHE_BYTES
+        + limits.plan_cache_bytes
 }
 
 /// What the opened world and library hold, measured at startup.
@@ -164,7 +192,7 @@ mod tests {
 
     #[test]
     fn the_pipeline_bound_counts_every_holder() {
-        let p = pipeline_bytes();
+        let p = pipeline_bytes(&PipelineLimits::default());
         assert!(p >= COMPOSE_SLOTS as u64 * COMPOSE_TRANSIENT_BYTES);
         assert!(p >= refine_source::admitted_bytes() + PLAN_CACHE_BYTES);
         assert!(p < 2 << 30, "{p}");
