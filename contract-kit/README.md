@@ -126,7 +126,7 @@ a changed image and its 304, an unreachable server).
 
 ## Cases
 
-54 cases over 41 of the 42 stable routes of `docs/capstone/versioning.md`, at MICRO-42 places
+61 cases over 48 of the 49 stable routes of `docs/capstone/versioning.md`, at MICRO-42 places
 picked from the fixture: village 10
 (Ifyil, realm 3), its cell (479, 1245), building 10.2, commoner `10.2.1`, the open-sea cell
 (5, 5); the scene cases read town 2's cell (732, 1081), where notables stand by day and by
@@ -143,7 +143,7 @@ night, so the kit exercises token shapes.
 | Battle map | `tactical-cell`, `tactical-scene-day`, `tactical-scene-night`, `tactical-cell-png` (+ `-304`), `tactical-cell-tile`, `tactical-window` (2 × 1), `tactical-window-png`, `tactical-window-tile` |
 | Warm, bake, library | `tactical-prefetch`, `tactical-bake`, `tactical-bake-delete`, `tactical-library` |
 | Dungeon | `dungeon`, `dungeon-png`, `dungeon-scene` |
-| People | `npc-notable`, `npc-commoner-ref`, `npc-commoner-id`, `npcs`, `npcs-realm-job`, `building-residents`, `building-workers`, `npc-population`, `npc-generate` |
+| People | `npc-notable`, `npc-commoner-ref`, `npc-commoner-id`, `npcs`, `npcs-realm-job`, `building-residents`, `building-workers`, `npc-population`, `npc-generate`, `npc-occupations` |
 | Shapes | `schema-index`, `schema-file` |
 | Errors | `error-no-block`, `error-out-of-range`, `error-npc-not-found`, `error-bad-request`, `error-bake-not-found` |
 
