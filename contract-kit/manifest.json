@@ -404,8 +404,8 @@
       },
       "schema": "TacticalBlockDto",
       "body": {
-        "sha256": "e24225b5dc0c54f2219805a71378b5b23014a37b4367424059b7fea16150bdbb",
-        "bytes": 2106634
+        "sha256": "e1349d7180d60c7b363c05c82772a71677509621b7f406cfa590f7b75b11154c",
+        "bytes": 1949332
       }
     },
     {
