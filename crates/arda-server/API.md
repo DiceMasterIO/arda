@@ -790,7 +790,10 @@ type: `TacticalScene` (adapter A12):
   (`Runs<T>`, `[count, value][]` row-major, the counts summing to `width × height`):
   `movement` (`MovementDto`: `normal`, `difficult`, `wade`, `swim`, `impassable`), `climb`
   (bit `d` set, `d` = 0 N … 7 NW, means that step needs climbing), `cover` (`CoverLevelDto`),
-  `obscured` (`ObscurementDto`: `clear`, `light`, `heavy`), `elevation_ft`, `water_depth_ft`;
+  `obscured` (`ObscurementDto`: `clear`, `light`, `heavy`; on natural ground a wood's floor
+  is `light` under two or more trunks, a thicket of woody understory is `heavy`, and only
+  sight-blocking props, walls and rock are `heavy` otherwise: logic/09 §rules-sidecar),
+  `elevation_ft`, `water_depth_ft`;
   then `walls` (`SceneWallDto`: `kind`, `open?`, `points` as `[x, y]` grid vertices,
   `blocks_sight`, `blocks_movement`, `blocks_light`, `cover`, `kit`, `locked?` (`true` on a
   locked door, gate or secret door)), `vision_blockers`,

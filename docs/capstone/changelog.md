@@ -2,6 +2,21 @@
 generated_date: 2026-08-24
 ---
 
+## 2026-11-14 - implement: 2026-11-14-thicket-obscurement
+key: implement/2026-11-14-thicket-obscurement@Q2
+
+- What: refine marks only thickets heavily obscured, for DiceMaster, whose ruling of 2026-11-14 keeps the SRD rule that a heavily obscured square blocks sight.
+- Approach: a thicket is 4 or more woody understory items (`TreeSmall`, `Undergrowth` but ferns) anchored within 2 squares of a square's centre, dry; 2 or more large trunks within 2.4 squares is light, however many. One pure function, `output::sight`, replaces the inline canopy count in `square_rules`.
+- Rejected: keeping a canopy threshold for heavy at a higher count (a closed canopy is overhead foliage, not eye-level cover; any count leaves the interior of a dense wood blind).
+- Rejected: a thicket from the cell's `forest_density` or `Woods::edge` fields (coarse; the placed items are what the picture shows and what the scene's cover reads).
+- Rejected: light from understory alone; the ruling concerns `heavy`, and scrub would read differently from today with no ask behind it.
+- Tuning: candidate counts and radii measured on 14 cells of the kit world from the placements (4 dense woods, 3 mid-density woods, 2 cleared, 3 scrub, 1 grass); 4 within 2 squares gives 0 to 1 % of a dense wood and 1 to 3 % of a scrubby edge.
+- Measured on the kit world, before and after: cell (479, 1245) heavy 90.7 % → 0.2 %, light 9.3 % → 99.8 %, squares visible within 60 ft of its centre 8/440 → 440/440; dense woods (632, 1160), (560, 776), (560, 1160) heavy 88.8, 90.0, 86.8 % → 0.0, 0.0, 1.1 %.
+- Kit: `tactical-cell`, `tactical-scene-day`, `tactical-scene-night` goldens and the `tactical-window` hash re-recorded; every image, dungeon and site case unchanged.
+- Tests: `output::tests` (closed canopy light, a thicket heavy, three shrubs or ferns no thicket, the 2-square radius, water and reeds, open ground clear).
+- Process: the user was away; spec and plan written from the DiceMaster session's brief without the approval gates; the pull request is the gate.
+- `logic/09` §rules-sidecar: the two rows and the thicket definition. `API.md` scene `obscured`. `arda-refine` README.
+
 ## 2026-11-14 - implement: 2026-11-14-dungeon-sites
 key: implement/2026-11-14-dungeon-sites@Q12
 

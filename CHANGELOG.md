@@ -3,6 +3,12 @@
 Release notes for Arda. The design ledger (decisions, stage records and per-change detail)
 lives in `docs/capstone/changelog.md` and `docs/capstone/changelog.d/`.
 
+## Unreleased
+
+**Content changes (flagged per the versioning policy)**
+
+- Forest obscurement. Only a thicket is heavily obscured now: four or more small trees or woody shrubs (not ferns) within 2 squares of a square's centre. A wood's floor under two or more trunks is lightly obscured however closed the canopy (until now four trunks within 2.4 squares made it heavy). The canopy obscures in the rules sidecar (`blocks_sight`, `lightly_obscured`) and the scene (`obscured`) of tactical cells, windows, prefetches and bakes. On the contract kit's forest cell (479, 1245) `heavy` falls from 90.7 % of the squares to 0.2 %, and from its centre a creature sees every square within 60 ft instead of 1.8 % of them. No shape, image or dungeon body changes; the kit's `tactical-cell`, `tactical-scene-day`, `tactical-scene-night` and `tactical-window` bodies are re-recorded.
+
 ## 1.1.1 — 2026-11-14
 
 Dependency security updates. No API, format or content change from 1.1.0, which was tagged but not published; 1.1.1 is the first published release with the dungeon and cave sites described under 1.1.0.

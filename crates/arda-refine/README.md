@@ -108,7 +108,8 @@ Each map is written as three files.
   - `difficult`: undergrowth, scrub, scree, mud, marsh, reed bed, snow, ice, cliff (climbing), logs, or wading water;
   - `water_depth_ft`;
   - `cover`: `half` for a slender trunk or large rock, `three_quarters` for a thick trunk or boulder;
-  - `blocks_sight`: four or more large trunks within 2.4 squares, which counts as dense canopy;
+  - `blocks_sight`: a thicket, four or more small trees or woody shrubs (not ferns) within 2 squares (logic/09 §rules-sidecar);
+  - `lightly_obscured`: two or more large trunks within 2.4 squares (a wood's canopy), or a reed bed;
   - `blocks_movement`: always false for natural ground;
   - `deck`: never set.
 - **`*.meta.json`** is this crate's own review record (format `arda-refine.meta/2`): the name, the size, the relaxed flag, the `review` square indices, and per-block WFC attempts and repairs. It also holds `placements`, running parallel to the layout's placements, each with its semantic tag (`tree:broadleaf:large`, `rock:boulder`, `water_plant:reeds` and so on), cover and difficulty.
