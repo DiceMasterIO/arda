@@ -3,7 +3,9 @@
 Release notes for Arda. The design ledger (decisions, stage records and per-change detail)
 lives in `docs/capstone/changelog.md` and `docs/capstone/changelog.d/`.
 
-## Unreleased
+## 1.1.0 — 2026-11-14
+
+Dungeon and cave sites. The server places sites on the world it serves and serves each one whole: the record, its levels chained from the surface to a sealed bottom, a danger tier per level and its traps. Additive under `/v1`; no existing response shape changes.
 
 **API (`/v1`, additive)**
 
