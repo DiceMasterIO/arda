@@ -35,6 +35,7 @@ pub mod routes;
 pub mod schema;
 pub mod serve;
 pub mod sheet_map;
+pub mod sites;
 pub mod society_cells;
 pub mod tactical;
 pub mod tiles;
