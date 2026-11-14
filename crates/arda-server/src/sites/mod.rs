@@ -13,6 +13,7 @@ use arda_ids::SettlementId;
 use arda_settle::model::{Settlement, Tier};
 use arda_tactical::Library;
 use place::{CellFacts, Chosen, Seat, SeatRank};
+use rayon::prelude::*;
 
 /// A site's id: stable as long as the site keeps its kind and entrance
 /// cell. A decimal string on the wire.
@@ -179,8 +180,11 @@ impl Sites {
             })
             .collect();
         let cell = |x: u32, y: u32| facts[(y * size.0 + x) as usize];
+        // Each site's levels are generated and their scenes built
+        // independently, so the sites are settled in parallel; the sort
+        // below fixes the order.
         let mut sites: Vec<Site> = place::choose(seed, size, &cell, &seats)
-            .into_iter()
+            .into_par_iter()
             .filter_map(|c| build(seed, &c, library))
             .collect();
         sites.sort_by_key(|s| s.id);
