@@ -88,6 +88,7 @@ Implemented (registered in `crates/arda-server/src/routes.rs` and `src/tactical/
 | `GET /v1/tactical/bake/{id}/tiles/{z}/{x}/{y}.webp` | 512 px lossless WebP tile of the baked set, `Cache-Control: no-store` | §api-tiles |
 | `DELETE /v1/tactical/bake/{id}` | `204`; frees the set | §api-cache |
 | `GET /v1/tactical/dungeon?seed=\|gx=&gy=[&kind=&w=&h=]`, `/dungeon.png`, `/dungeon/scene` | `DungeonDto`, PNG, `SceneDto` | 18 |
+| `GET /v1/sites[?bbox=&kind=]`, `/v1/sites/{id}`, `/v1/sites/{id}/levels/{n}`, `{n}.png[?ppsq=&grid=]`, `{n}/scene` | `SiteList`, `Site`, `SiteLevel`, PNG, `SceneDto`: the world's dungeon and cave sites, placed in `AppState::open` before the listener binds (family `site_format` 1) | 18 §site-place, §site-serve |
 
 `?demo_overlays=` and `?demo_at=` on the tactical cell, window and prefetch routes are debug options (versioning.md).
 

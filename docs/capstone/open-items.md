@@ -319,6 +319,18 @@ Found while fixing review 3.4 (tactical refinement) and the climate-to-biome sea
 | OI-58 | Blocks still relaxed by fixed features | Block frames are solved so the WFC can complete them (corner stars, chained edge checks, bent masks; logic/09 §wfc): MICRO 42 recipe 9, every ninth land cell, 24 → 1 relaxed block of 7,574. | The remaining block fails on two fixed squares inside it whose vertex masks cannot meet (scree or rock beside a reed-bed pool, `fixed::vertex_masks`); the relaxation order there (cliffs, then shores) does not cover pool banks. |
 | OI-59 | Square-size literals outside core | `arda_core::SQUARE_SIZE_UM` and `BLOCK_SQUARES` state the square size once; `arda-refine` and `arda-midzoom` derive from them. | `crates/arda-fields/src/geom.rs`, `crates/arda-blocks/src/society/mod.rs`, `crates/arda-blocks/src/demo/layers.rs`, `crates/arda-town/src/plan/grid.rs`, `crates/arda-ways/src/input.rs` and `crates/arda-server/src/tactical/world_grade.rs` keep their own `100.0 / 64.0` or `1_562_500` (crates owned by other work at the time). |
 
+## Open items recorded on `feat/dungeon-sites` (2026-11-14)
+
+Left open by the dungeon and cave sites feature (logic/18 §site-place to §site-serve).
+
+| ID | Item | Exists | Does not exist |
+|---|---|---|---|
+| OI-60 | Three SRD sample traps are never placed | `TrapKind` and `SiteTrapKind` list all eleven SRD 5.1 sample traps; eight are placed (`crates/arda-dungeon/src/traps.rs:81`). | `fire_breathing_statue`, `rolling_sphere` and `sphere_of_annihilation` need a statue square and facing, or a path, which a trap record of `squares` cannot carry. Placing them adds fields and bumps `site_format`. |
+| OI-61 | Trap art | A consumer draws found traps with its own art; Arda paints no trap. | Trap props per kind in the tactical library, served by `GET /v1/tactical/library/asset/{id}.png`. |
+| OI-62 | Site names | `Site` carries `settlement_id` for dungeons; DiceMaster names sites. | A `name` and `name_gloss` from `arda-names`: settlements take their language from their culture, and a cave in a world without `society/` has none, so naming needs its own rule. |
+| OI-63 | Site placement cost on a default-size world | Placement runs in `AppState::open` as one sequential pass over every area and holds one `CellFacts` per cell until the sites are chosen (`crates/arda-server/src/sites/mod.rs:111`); on the MICRO fixture a release server reaches `/v1/health` in 2.3 s, placement included. | A measurement on a 500 × 1000 km world (none exists on the development machine): start time with about 200 areas read, and the transient of about 200 MB, which admission does not count. If it is slow, place per area in parallel. |
+| OI-64 | AI-library art for the site props | Placeholder `prop.site_entrance`, `prop.cave_mouth`, `prop.stairs_sealed` and their `tools/art-gen` prompt families (`tools/art-gen/expansion.mjs`). | Generated art for them in the AI library; until then the placeholder art is used through the library stack. |
+
 ## Scope boundaries and conditional extensions
 
 These are explicit future choices, not hidden blockers for the map pipeline.

@@ -15,7 +15,7 @@ The rules are held by tests:
 
 ## Route review (1.0 freeze)
 
-Every route `crates/arda-server/src/routes.rs` and `crates/arda-server/src/tactical/routes.rs` (with `tactical/bake_routes.rs`) register, one row per method and documented path. Paths that share a registered route are listed apart: `/cell/{gx}/{gy}` also serves `{gy}.png`, `/layout/{file}` serves `{name}` and `{name}.png`, and every `tiles/{z}/{x}/{y}` route takes the format as the suffix of `{y}`. Checked by hand against both routers on 2026-10-13: 50 rows, of which **43 stable**, **1 unstable** and **6 debug**. `HEAD` is answered wherever `GET` is, and `OPTIONS` is the CORS preflight; neither has a row.
+Every route `crates/arda-server/src/routes.rs` and `crates/arda-server/src/tactical/routes.rs` (with `tactical/bake_routes.rs`) register, one row per method and documented path. Paths that share a registered route are listed apart: `/cell/{gx}/{gy}` also serves `{gy}.png`, `/layout/{file}` serves `{name}` and `{name}.png`, `/sites/{id}/levels/{file}` serves `{n}` and `{n}.png`, and every `tiles/{z}/{x}/{y}` route takes the format as the suffix of `{y}`. Checked by hand against both routers on 2026-10-13, with the five site routes (`crates/arda-server/src/sites/routes.rs`) added on 2026-11-14: 55 rows, of which **48 stable**, **1 unstable** and **6 debug**. `HEAD` is answered wherever `GET` is, and `OPTIONS` is the CORS preflight; neither has a row.
 
 Stability:
 
@@ -77,6 +77,11 @@ Every route can also answer `500 internal`; the table lists the other codes. "Di
 | `GET /v1/tactical/dungeon` | stable | `DungeonDto` | `tactical_format`, `layout_schema`, `rules_sidecar_format` | `bad_request`, `out_of_range` | yes |
 | `GET /v1/tactical/dungeon.png` | stable | PNG | — (content) | `bad_request`, `out_of_range`, `payload_too_large`, `resource_limit` | yes |
 | `GET /v1/tactical/dungeon/scene` | stable | `SceneDto` | `scene_format` | `bad_request`, `out_of_range` | yes |
+| `GET /v1/sites` | stable | `SiteList` | `site_format` | `bad_request` | yes |
+| `GET /v1/sites/{id}` | stable | `Site` | `site_format` | `not_found` | yes |
+| `GET /v1/sites/{id}/levels/{n}` | stable | `SiteLevel` | `site_format`, `tactical_format`, `layout_schema`, `rules_sidecar_format` | `bad_request`, `not_found` | yes |
+| `GET /v1/sites/{id}/levels/{n}.png` | stable | PNG | — (content) | `bad_request`, `not_found`, `payload_too_large`, `resource_limit` | yes |
+| `GET /v1/sites/{id}/levels/{n}/scene` | stable | `SceneDto` | `scene_format` | `bad_request`, `not_found` | yes |
 
 Unstable and debug surface inside stable routes:
 
@@ -104,6 +109,7 @@ Unstable and debug surface inside stable routes:
 | `settlement_format` | `format_version` (list) | 1 | `SettlementList`, `SettlementDetail`, `Settlement`, `SettlementSociety`, `TownPlan`, `SettlementNpcs` |
 | `realm_format` | `format_version` (list) | 1 | `RealmList`, `RealmDetail`, `Realm`, `RealmSociety`, `Relation`, `Event` |
 | `gazetteer_format` | `format_version` | 1 | `Gazetteer`, `GazetteerFeature`, `GazetteerPoint` |
+| `site_format` | `format_version` (list) | 1 | `SiteList`, `Site`, `SiteLevelRef`, `SiteLevel`, `SiteLink`, `SiteTrap` (added in 1.1; absent from `versions` on older servers: such a world has no sites) |
 | `schema_index_format` | `format_version` | 1 | `SchemaIndex` |
 | `columnar_layout_version` | header word at offset 8 | 2 | the `?format=bin` `ARDACOLS` area layout |
 | `library_catalogue_format` | `catalog.json` `format_version` | 1 | the tactical library this server loads (not a response) |

@@ -18,7 +18,7 @@ Deterministic offline tabletop world generator in a Rust 2021 Cargo workspace (2
 | arda-scene | SRD movement/sight/cover/light scene from a `TacticalLayout` | `crates/arda-scene/src/lib.rs:51` |
 | arda | Public world facade: generate, `World` load/query, exports | `crates/arda/src/lib.rs:44`, `crates/arda/src/world.rs:34` |
 | arda-art-import | Raw AI images to a valid tactical asset library | `crates/arda-art-import/src/lib.rs:97` |
-| arda-dungeon | Dungeon and cave battle maps | `crates/arda-dungeon/src/lib.rs:227` |
+| arda-dungeon | Dungeon and cave battle maps; site levels, links and traps | `crates/arda-dungeon/src/lib.rs:227` |
 | arda-fields | 5-ft land use around settlements | `crates/arda-fields/src/lib.rs:43` |
 | arda-ways | 5-ft roads, verges, bridges, fords, ferries, toll houses | `crates/arda-ways/src/lib.rs:101` |
 | arda-town | Town street/plot plans and 5-ft building blocks; `arda-town` binary | `crates/arda-town/src/plan/mod.rs:60`, `crates/arda-town/src/main.rs:260` |
@@ -74,7 +74,7 @@ Deterministic offline tabletop world generator in a Rust 2021 Cargo workspace (2
 | File | What it is |
 |---|---|
 | `contract-dicemaster.md` (local only) | Arda ↔ DiceMaster contract; ignored by Git. |
-| [open-items.md](open-items.md) | Open work only: current state, remaining scope, work queue and items OI-32 … OI-59. |
+| [open-items.md](open-items.md) | Open work only: current state, remaining scope, work queue and items OI-32 … OI-64. |
 | [versioning.md](versioning.md) | `/v1` versioning and compatibility policy: route stability review, version families, enums, deprecation, output stability, freeze guard. |
 | [standards.md](standards.md) | Normative coding rules. |
 | [integration-plan.md](integration-plan.md) | Merge order, adapters and end-to-end acceptance test for the product branches. |
