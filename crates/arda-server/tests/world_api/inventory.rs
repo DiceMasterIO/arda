@@ -140,6 +140,12 @@ fn probes(ids: &Ids) -> Vec<(&'static str, &'static str, String, Option<&'static
             Some(r#"{"seed":"7"}"#),
         ),
         (
+            "GET /v1/npc/occupations",
+            "GET",
+            "/v1/npc/occupations".into(),
+            None,
+        ),
+        (
             "GET /v1/gazetteer",
             "GET",
             "/v1/gazetteer?min_rank=2".into(),

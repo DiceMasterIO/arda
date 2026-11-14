@@ -8,11 +8,13 @@
 //! an `arda-ids` u64 and travels as a decimal string.
 
 mod input;
+mod occupations;
 mod sheet;
 
 pub use input::{
     Biome, BuildingFunction, BuildingSpec, SettlementFunction, SettlementProfile, Tier, Tongue,
 };
+pub use occupations::{Occupation, OccupationKind, OccupationList, OccupationTier};
 pub use sheet::{
     Ability, Attack, AttackKind, Background, Coins, Item, SaveBonus, Sheet, SheetKind, SkillBonus,
     SpellRef, Spellcasting,

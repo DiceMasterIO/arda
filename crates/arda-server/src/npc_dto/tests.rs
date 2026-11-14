@@ -93,3 +93,10 @@ fn generate_requests_match_their_mirror() {
     let empty: GenerateNpcRequest = same(&crate::npc::GenerateNpcRequest::default());
     assert_eq!(serde_json::to_string(&empty).unwrap(), "{}");
 }
+
+#[test]
+fn the_occupation_catalogue_matches_its_mirror() {
+    let list = serde_json::json!({ "occupations": arda_npc::occupations().unwrap() });
+    let mirror: OccupationList = same(&list);
+    assert_eq!(mirror.occupations.len(), 117);
+}

@@ -231,6 +231,21 @@ pub(crate) async fn generate_route(
     .await
 }
 
+/// `GET /v1/npc/occupations` (logic/13 §npc-occupations): every job and
+/// office key `POST /v1/npc/generate` takes, from the bundled tables, so
+/// the body is the same on every world.
+pub(crate) async fn occupations_route() -> ServerResult<Json<Occupations>> {
+    Ok(Json(Occupations {
+        occupations: arda_npc::occupations()?,
+    }))
+}
+
+/// Body of `GET /v1/npc/occupations` (TS and schema: `OccupationList`).
+#[derive(Debug, Serialize)]
+pub(crate) struct Occupations {
+    occupations: Vec<arda_npc::Occupation>,
+}
+
 /// Parses an NPC id path segment: the decimal u64 string.
 ///
 /// # Errors

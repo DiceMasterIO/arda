@@ -114,6 +114,9 @@ pub struct LandJob {
 /// A society office (a notable slot's `kind`, logic/14 §soc-offices).
 #[derive(Debug, Clone, Deserialize)]
 pub struct OfficeData {
+    /// Display label: the office's title without its place
+    /// (`roles.json` "Reeve of {settlement}" is "Reeve").
+    pub label: String,
     /// Lowest social rank of the holder, 0–5.
     pub rank: u8,
     /// Rank where the tier differs from `rank`.

@@ -2,6 +2,21 @@
 generated_date: 2026-08-24
 ---
 
+## 2026-11-14 - implement: 2026-11-14-occupation-keys
+key: implement/2026-11-14-occupation-keys@Q3
+
+- What: `GET /v1/npc/occupations` serves every job and office key `POST /v1/npc/generate` takes, so DiceMaster does not pin a hand copy of the 96 occupation keys.
+- Approach: a pure `arda_npc::occupations()` (`one/catalog.rs`) built from the bundled tables and the generator's own tier rule (`layout::reachable`), so the list cannot drift from what `generate` accepts; the server serves it as `OccupationList` in family `npc_format`.
+- Rejected: a published JSON schema enum of the keys only (no labels, tiers or ranks, and a schema change for every content change).
+- Rejected: separate `jobs` and `offices` arrays; one list with `kind` answers "job or office" per key, and `(kind, key)` is unique where seven keys are both.
+- Rejected: a `notable` flag per tier (whether a holder can be a notable): not asked for, and "can be" is a weaker promise than the filter it would advertise.
+- Office labels: a new `label` per office in `occupations.json`, its `roles.json` title without the place; `arda-npc` does not depend on `arda-society`.
+- Task 1: `occupations()`, `Occupation`, `OccupationKind`, `OccupationTier`; office labels; `tests/occupation_catalog.rs` proves every listed job, tier and rank generates, no unlisted tier does, and every office generates in all four tiers at or above its rank.
+- Task 2: route, mirror DTOs (`npc_dto/occupations.rs`), schema entry, four TS bindings, inventory probe, `world_api/occupations.rs`.
+- Task 3: contract-kit case `npc-occupations` (61 cases over 48 of 49 stable routes); `schema-index` golden gained the entry; no other golden changed.
+- Process: the user was away; spec and plan were written from the DiceMaster session's brief without the approval gates, and the pull request is the gate.
+- `logic/13`: §npc-occupations. `logic/16`: route row. `09-interfaces.md`: edge, row and payload section. `02-models.md`: four entities. `01-architecture.md`: route row. `versioning.md`: one stable row (56 rows, 49 stable), `npc_format` covers `OccupationList`. `API.md` and the kit README.
+
 ## 2026-11-14 - implement: 2026-11-14-dungeon-sites
 key: implement/2026-11-14-dungeon-sites@Q12
 

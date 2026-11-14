@@ -181,6 +181,15 @@
       "url": "/v1/schema/NpcPage.json"
     },
     {
+      "family": "npc_format",
+      "name": "OccupationList",
+      "routes": [
+        "GET /v1/npc/occupations"
+      ],
+      "stability": "stable",
+      "url": "/v1/schema/OccupationList.json"
+    },
+    {
       "family": "contract_version",
       "name": "PointSample",
       "routes": [
