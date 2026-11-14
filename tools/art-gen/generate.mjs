@@ -449,7 +449,11 @@ function client(server, delays = readRetryDelays) {
       try {
         response = await fetch(`${server}${path}`, {
           method,
-          headers: form ? undefined : body === undefined ? undefined : { "content-type": "application/json" },
+          // Slopify refuses a form post without this header: it takes it for another page's form.
+          headers: {
+            "x-slopify-client": "script",
+            ...(form || body === undefined ? {} : { "content-type": "application/json" }),
+          },
           body: form ?? (body === undefined ? undefined : JSON.stringify(body)),
         });
         break;
