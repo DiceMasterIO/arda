@@ -561,6 +561,75 @@
       "golden": "golden/dungeon-scene.json"
     },
     {
+      "id": "sites",
+      "route": "GET /v1/sites",
+      "method": "GET",
+      "uri": "/v1/sites",
+      "status": 200,
+      "content_type": "application/json",
+      "headers": {
+        "cache-control": "no-cache"
+      },
+      "schema": "SiteList",
+      "golden": "golden/sites.json"
+    },
+    {
+      "id": "site",
+      "route": "GET /v1/sites/{id}",
+      "method": "GET",
+      "uri": "/v1/sites/843248882254414071",
+      "status": 200,
+      "content_type": "application/json",
+      "headers": {
+        "cache-control": "no-cache"
+      },
+      "schema": "Site",
+      "golden": "golden/site.json"
+    },
+    {
+      "id": "site-level",
+      "route": "GET /v1/sites/{id}/levels/{n}",
+      "method": "GET",
+      "uri": "/v1/sites/843248882254414071/levels/2",
+      "status": 200,
+      "content_type": "application/json",
+      "headers": {
+        "cache-control": "no-cache"
+      },
+      "schema": "SiteLevel",
+      "golden": "golden/site-level.json"
+    },
+    {
+      "id": "site-level-png",
+      "route": "GET /v1/sites/{id}/levels/{n}.png",
+      "method": "GET",
+      "uri": "/v1/sites/843248882254414071/levels/2.png?ppsq=64",
+      "status": 200,
+      "content_type": "image/png",
+      "headers": {
+        "cache-control": "no-cache",
+        "etag": "\"3eab8cae4004d492be24f279d2e876c3\""
+      },
+      "schema": null,
+      "body": {
+        "sha256": "b4a202b5ffe9f48455435a722b9918175180f09da499919723691c266ef8ddb1",
+        "bytes": 10610974
+      }
+    },
+    {
+      "id": "site-level-scene",
+      "route": "GET /v1/sites/{id}/levels/{n}/scene",
+      "method": "GET",
+      "uri": "/v1/sites/843248882254414071/levels/2/scene",
+      "status": 200,
+      "content_type": "application/json",
+      "headers": {
+        "cache-control": "no-cache"
+      },
+      "schema": "SceneDto",
+      "golden": "golden/site-level-scene.json"
+    },
+    {
       "id": "npc-notable",
       "route": "GET /v1/npc/{npc_id}",
       "method": "GET",
