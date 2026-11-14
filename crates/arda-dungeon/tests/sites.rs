@@ -51,3 +51,79 @@ fn tiers_rise_by_one_per_level_and_stay_in_the_srd_bands() {
         [2, 3, 4]
     );
 }
+
+use arda_dungeon::check::is_floor;
+use arda_dungeon::site::{links, Link, LinkTo};
+use arda_dungeon::{generate, Dungeon, ExitKind, Kind, Params};
+
+fn chain(kind: Kind, n: u32) -> Vec<Dungeon> {
+    (1..=n)
+        .map(|level| {
+            let (width, height) = LEVEL_SIZES[(level as usize - 1).min(2)];
+            generate(&Params {
+                seed: level_seed(42, 9, level, 0),
+                kind,
+                width,
+                height,
+            })
+            .unwrap()
+        })
+        .collect()
+}
+
+fn way_up(ls: &[Link]) -> &Link {
+    ls.iter().find(|l| l.kind != ExitKind::StairsDown).unwrap()
+}
+
+fn down(ls: &[Link]) -> &Link {
+    ls.iter().find(|l| l.kind == ExitKind::StairsDown).unwrap()
+}
+
+#[test]
+fn links_are_symmetric_and_end_sealed() {
+    for kind in [Kind::Dungeon, Kind::Cave] {
+        for n in 1..=3 {
+            let levels = chain(kind, n);
+            let all = links(&levels);
+            assert_eq!(all.len(), levels.len());
+            for (i, ls) in all.iter().enumerate() {
+                assert_eq!(ls.len(), levels[i].exits.len());
+                let up = way_up(ls);
+                if i == 0 {
+                    assert_eq!(up.to, LinkTo::Surface);
+                } else {
+                    let above = down(&all[i - 1]);
+                    let level = u32::try_from(i).unwrap();
+                    assert_eq!(
+                        up.to,
+                        LinkTo::Level {
+                            level,
+                            x: above.x,
+                            y: above.y
+                        }
+                    );
+                    assert_eq!(
+                        above.to,
+                        LinkTo::Level {
+                            level: level + 1,
+                            x: up.x,
+                            y: up.y
+                        }
+                    );
+                }
+                if i + 1 == levels.len() {
+                    assert_eq!(down(ls).to, LinkTo::Sealed);
+                }
+                for l in ls {
+                    if let LinkTo::Level { level, x, y } = l.to {
+                        let there = &levels[level as usize - 1];
+                        assert!(is_floor(&there.layout, i64::from(x), i64::from(y)));
+                    }
+                }
+            }
+            let flat: Vec<&Link> = all.iter().flatten().collect();
+            assert_eq!(flat.iter().filter(|l| l.to == LinkTo::Sealed).count(), 1);
+            assert_eq!(flat.iter().filter(|l| l.to == LinkTo::Surface).count(), 1);
+        }
+    }
+}
