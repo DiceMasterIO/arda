@@ -50,6 +50,10 @@ pub enum Owner {
     Ways,
     /// Streets, plots, buildings and walls, from arda-town.
     Town,
+    /// A dungeon or cave entrance and the clear ground around it
+    /// (logic/18 §site-entrance): above every other claim, so a party can
+    /// always stand there.
+    Site,
 }
 
 impl Owner {
@@ -65,6 +69,7 @@ impl Owner {
             Self::Water => "water",
             Self::Ways => "ways",
             Self::Town => "town",
+            Self::Site => "site",
         }
     }
 
@@ -144,7 +149,7 @@ pub struct OverlayLayer {
     pub review: Vec<bool>,
 }
 
-/// Supplies the ways, fields and town layers of a window. Every method
+/// Supplies the ways, fields, town and site layers of a window. Every method
 /// must be a pure function of global coordinates and the seed, so that
 /// neighbouring windows agree (goal 46). A provider without a layer
 /// answers `Ok(None)`.
@@ -170,6 +175,14 @@ pub trait Overlays: Send + Sync + std::fmt::Debug {
     /// # Errors
     /// [`BlocksError::Overlay`].
     fn town(&self, _ctx: &OverlayCtx<'_>) -> Result<Option<OverlayLayer>, BlocksError> {
+        Ok(None)
+    }
+
+    /// Dungeon and cave entrances (logic/18 §site-entrance).
+    ///
+    /// # Errors
+    /// [`BlocksError::Overlay`].
+    fn sites(&self, _ctx: &OverlayCtx<'_>) -> Result<Option<OverlayLayer>, BlocksError> {
         Ok(None)
     }
 }
@@ -257,9 +270,11 @@ pub fn compose_over(
             // standing fringe (a shore or marsh edge at most
             // `MADE_GROUND_FT` deep) is made ground; a way fills water up
             // to `WAY_FILL_FT`.
-            let made_ground =
-                (owner == Owner::Town && rank(i) == Owner::Town && base_ft <= MADE_GROUND_FT)
-                    || (owner == Owner::Ways && rank(i) == Owner::Ways && base_ft <= WAY_FILL_FT);
+            // An entrance stands on whatever ground its cell has: its
+            // few squares are made ground at any depth.
+            let made_ground = owner == Owner::Site
+                || (owner == Owner::Town && rank(i) == Owner::Town && base_ft <= MADE_GROUND_FT)
+                || (owner == Owner::Ways && rank(i) == Owner::Ways && base_ft <= WAY_FILL_FT);
             let outranks = owners[i] < rank(i) || (made_ground && owners[i] == Owner::Water);
             layer.owned[i] && outranks && (keeps_water || base_ft == 0 || made_ground)
         })
@@ -424,7 +439,8 @@ fn vessel(asset: &arda_tactical::layout::AssetRef) -> bool {
 /// One provider method.
 type LayerFn = fn(&dyn Overlays, &OverlayCtx<'_>) -> Result<Option<OverlayLayer>, BlocksError>;
 
-/// Applies the providers' layers in the fixed order ways, fields, town.
+/// Applies the providers' layers in the fixed order ways, fields, town,
+/// sites.
 /// Returns the names of the layers that claimed at least one square.
 ///
 /// # Errors
@@ -438,14 +454,15 @@ pub fn compose_all(
 ) -> Result<Applied, BlocksError> {
     let mut applied = Vec::new();
     let mut review = Vec::new();
-    let steps: [(Owner, LayerFn); 3] = [
+    let steps: [(Owner, LayerFn); 4] = [
         (Owner::Ways, |o, c| o.ways(c)),
         (Owner::Fields, |o, c| o.fields(c)),
         (Owner::Town, |o, c| o.town(c)),
+        (Owner::Site, |o, c| o.sites(c)),
     ];
     // Each provider reads only the context, never another's layer, so the
-    // three run at once (goal 50) on the shared, bounded rayon pool (review
-    // 3.6-12: not three threads per window); they are composed in the
+    // four run at once (goal 50) on the shared, bounded rayon pool (review
+    // 3.6-12: not a thread each per window); they are composed in the
     // fixed order.
     let layers: Vec<Result<Option<OverlayLayer>, BlocksError>> = {
         use rayon::prelude::*;
