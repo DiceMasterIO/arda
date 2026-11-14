@@ -29,6 +29,7 @@ pub mod check;
 mod dress;
 mod grid;
 mod rng;
+pub mod site;
 
 use arda_scene::RulesSidecar;
 use arda_tactical::layout::EdgeAxis;
