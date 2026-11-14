@@ -8,8 +8,14 @@ use arda_scene::RulesSidecar;
 use arda_tactical::layout::{AssetRef, Placement};
 use std::sync::Arc;
 
-/// Squares cleared around the entrance square on every side.
+/// Squares guaranteed passable around the entrance square on every side.
 pub const CLEAR: i64 = 2;
+
+/// Squares the layer claims on every side: one more than [`CLEAR`],
+/// because a blocking tree or rock is up to 3 × 3 and reaches one square
+/// past the square it is anchored in. Claiming removes what is anchored
+/// in the ring, so nothing left can reach the guaranteed squares.
+const CLAIM: i64 = CLEAR + 1;
 
 /// One site's entrance.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -33,8 +39,8 @@ pub fn layer(ctx: &OverlayCtx<'_>, entrances: &[Entrance]) -> Option<OverlayLaye
     let mut owned = vec![false; ctx.base.squares.len()];
     for e in entrances {
         let (ex, ey) = (e.gsx - ctx.gsx0, e.gsy - ctx.gsy0);
-        for y in (ey - CLEAR).max(0)..=(ey + CLEAR).min(h - 1) {
-            for x in (ex - CLEAR).max(0)..=(ex + CLEAR).min(w - 1) {
+        for y in (ey - CLAIM).max(0)..=(ey + CLAIM).min(h - 1) {
+            for x in (ex - CLAIM).max(0)..=(ex + CLAIM).min(w - 1) {
                 let Ok(i) = usize::try_from(y * w + x) else {
                     continue;
                 };
