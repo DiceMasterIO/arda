@@ -22,7 +22,10 @@ use crate::input::{
 use crate::npc::{Npc, NpcId, Sex, SocialRank};
 use crate::plan::Plan;
 
+mod catalog;
 mod layout;
+
+pub use catalog::{occupations, Occupation, OccupationKind, OccupationTier};
 
 use layout::{buildings, notable_source, office_building, office_slot, reachable, route, Route};
 
