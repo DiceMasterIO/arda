@@ -87,7 +87,7 @@
       "1": 415,
       "2": 467,
       "3": 318,
-      "4": 34,
+      "4": 43,
       "5": 57,
       "6": 37,
       "7": 27
@@ -75837,6 +75837,141 @@
       },
       "prompt": "Top-down battle-map asset for a tabletop fantasy grid map, in a rich hand-painted style: confident painterly brushwork, fine dark ink outlines, crisp small detail and a muted, earthy, slightly warm palette. Strictly orthographic view from directly overhead: no perspective, no horizon, no tilted or isometric angle. Soft light from the top-left, so upper-left edges catch highlights and lower-right edges fall into gentle form shading; no cast shadow and no drop shadow anywhere. No text, no letters, no numbers, no grid lines, no frame, no border, no vignette, no watermark, no signature. Subject: a flight of stone steps descending into darkness, seen from directly above, seen from directly above. Its outline is about twice as long as it is wide (5 by 10 feet), its long axis running top to bottom. Grey stone treads, light at the bottom edge, each step darker towards the top edge, which ends in black shadow. Exactly one subject, centred, filling about 70% of the frame's shorter side, on a fully transparent background (a PNG with a real alpha channel, background: transparent; no white or colour behind the subject); nothing else in the image: no floor, no ground patch, no base or rug under it, no other objects, no shadow."
     },
+    "prop.stairs_sealed": {
+      "class": "prop",
+      "template": "arda-prop",
+      "format": "9:16",
+      "footprint": [
+        1,
+        2
+      ],
+      "pixels": [
+        128,
+        256
+      ],
+      "layer": "prop",
+      "height_ft": 0,
+      "functions": [],
+      "tags": {
+        "biome": [
+          "temperate"
+        ],
+        "culture": [],
+        "wealth": [
+          "poor",
+          "modest"
+        ],
+        "function": [],
+        "free": [
+          "dungeon",
+          "stairs",
+          "sealed"
+        ]
+      },
+      "blocks_movement": false,
+      "blocks_sight": false,
+      "difficult_terrain": true,
+      "cover": "none",
+      "file": "props/prop.stairs_sealed.png",
+      "status": "new",
+      "tier": 4,
+      "values": {
+        "Subject": "a stone stairwell closed by a heavy stone slab, seen from directly above",
+        "Shape": "Its outline is about twice as long as it is wide (5 by 10 feet), its long axis running top to bottom.",
+        "Detail": "Grey side walls, a flat fitted slab covering the steps, a strip of black shadow at the top edge."
+      },
+      "prompt": "Top-down battle-map asset for a tabletop fantasy grid map, in a rich hand-painted style: confident painterly brushwork, fine dark ink outlines, crisp small detail and a muted, earthy, slightly warm palette. Strictly orthographic view from directly overhead: no perspective, no horizon, no tilted or isometric angle. Soft light from the top-left, so upper-left edges catch highlights and lower-right edges fall into gentle form shading; no cast shadow and no drop shadow anywhere. No text, no letters, no numbers, no grid lines, no frame, no border, no vignette, no watermark, no signature. Subject: a stone stairwell closed by a heavy stone slab, seen from directly above, seen from directly above. Its outline is about twice as long as it is wide (5 by 10 feet), its long axis running top to bottom. Grey side walls, a flat fitted slab covering the steps, a strip of black shadow at the top edge. Exactly one subject, centred, filling about 70% of the frame's shorter side, on a fully transparent background (a PNG with a real alpha channel, background: transparent; no white or colour behind the subject); nothing else in the image: no floor, no ground patch, no base or rug under it, no other objects, no shadow."
+    },
+    "prop.site_entrance": {
+      "class": "prop",
+      "template": "arda-prop",
+      "format": "9:16",
+      "footprint": [
+        1,
+        2
+      ],
+      "pixels": [
+        128,
+        256
+      ],
+      "layer": "prop",
+      "height_ft": 0,
+      "functions": [],
+      "tags": {
+        "biome": [
+          "temperate"
+        ],
+        "culture": [],
+        "wealth": [
+          "poor",
+          "modest"
+        ],
+        "function": [],
+        "free": [
+          "site",
+          "entrance",
+          "dungeon"
+        ]
+      },
+      "blocks_movement": false,
+      "blocks_sight": false,
+      "difficult_terrain": false,
+      "cover": "none",
+      "file": "props/prop.site_entrance.png",
+      "status": "new",
+      "tier": 4,
+      "values": {
+        "Subject": "a stone stair head descending into the ground inside a low stone kerb, seen from directly above",
+        "Shape": "Its outline is about twice as long as it is wide (5 by 10 feet), its long axis running top to bottom.",
+        "Detail": "Grey treads darkening towards the top edge, a low kerb of dressed stone around the opening, grass at the edges."
+      },
+      "prompt": "Top-down battle-map asset for a tabletop fantasy grid map, in a rich hand-painted style: confident painterly brushwork, fine dark ink outlines, crisp small detail and a muted, earthy, slightly warm palette. Strictly orthographic view from directly overhead: no perspective, no horizon, no tilted or isometric angle. Soft light from the top-left, so upper-left edges catch highlights and lower-right edges fall into gentle form shading; no cast shadow and no drop shadow anywhere. No text, no letters, no numbers, no grid lines, no frame, no border, no vignette, no watermark, no signature. Subject: a stone stair head descending into the ground inside a low stone kerb, seen from directly above, seen from directly above. Its outline is about twice as long as it is wide (5 by 10 feet), its long axis running top to bottom. Grey treads darkening towards the top edge, a low kerb of dressed stone around the opening, grass at the edges. Exactly one subject, centred, filling about 70% of the frame's shorter side, on a fully transparent background (a PNG with a real alpha channel, background: transparent; no white or colour behind the subject); nothing else in the image: no floor, no ground patch, no base or rug under it, no other objects, no shadow."
+    },
+    "prop.cave_mouth": {
+      "class": "prop",
+      "template": "arda-prop",
+      "format": "1:1",
+      "footprint": [
+        2,
+        2
+      ],
+      "pixels": [
+        256,
+        256
+      ],
+      "layer": "prop",
+      "height_ft": 0,
+      "functions": [],
+      "tags": {
+        "biome": [
+          "temperate"
+        ],
+        "culture": [],
+        "wealth": [
+          "poor",
+          "modest"
+        ],
+        "function": [],
+        "free": [
+          "site",
+          "entrance",
+          "cave"
+        ]
+      },
+      "blocks_movement": false,
+      "blocks_sight": false,
+      "difficult_terrain": false,
+      "cover": "none",
+      "file": "props/prop.cave_mouth.png",
+      "status": "new",
+      "tier": 4,
+      "values": {
+        "Subject": "a dark cave opening under a rock lip in a rocky outcrop, seen from directly above",
+        "Shape": "Its outline is roughly round or square, about 10 feet across.",
+        "Detail": "Grey weathered rock along the top edge, a rounded black opening below it, scree at the sides."
+      },
+      "prompt": "Top-down battle-map asset for a tabletop fantasy grid map, in a rich hand-painted style: confident painterly brushwork, fine dark ink outlines, crisp small detail and a muted, earthy, slightly warm palette. Strictly orthographic view from directly overhead: no perspective, no horizon, no tilted or isometric angle. Soft light from the top-left, so upper-left edges catch highlights and lower-right edges fall into gentle form shading; no cast shadow and no drop shadow anywhere. No text, no letters, no numbers, no grid lines, no frame, no border, no vignette, no watermark, no signature. Subject: a dark cave opening under a rock lip in a rocky outcrop, seen from directly above, seen from directly above. Its outline is roughly round or square, about 10 feet across. Grey weathered rock along the top edge, a rounded black opening below it, scree at the sides. Exactly one subject, centred, filling about 70% of the frame's shorter side, on a fully transparent background (a PNG with a real alpha channel, background: transparent; no white or colour behind the subject); nothing else in the image: no floor, no ground patch, no base or rug under it, no other objects, no shadow."
+    },
     "prop.torch_sconce": {
       "class": "prop",
       "template": "arda-prop",
@@ -75926,6 +76061,144 @@
         "Detail": "Dished, chipped treads fading into a black opening at the top edge."
       },
       "prompt": "Top-down battle-map asset for a tabletop fantasy grid map, in a rich hand-painted style: confident painterly brushwork, fine dark ink outlines, crisp small detail and a muted, earthy, slightly warm palette. Strictly orthographic view from directly overhead: no perspective, no horizon, no tilted or isometric angle. Soft light from the top-left, so upper-left edges catch highlights and lower-right edges fall into gentle form shading; no cast shadow and no drop shadow anywhere. No text, no letters, no numbers, no grid lines, no frame, no border, no vignette, no watermark, no signature. Subject: worn stone stairs going down between two low side walls, seen from directly above. Its outline is about twice as long as it is wide (5 by 10 feet), its long axis running top to bottom. Dished, chipped treads fading into a black opening at the top edge. Exactly one subject, centred, filling about 70% of the frame's shorter side, on a fully transparent background (a PNG with a real alpha channel, background: transparent; no white or colour behind the subject); nothing else in the image: no floor, no ground patch, no base or rug under it, no other objects, no shadow."
+    },
+    "prop.stairs_sealed.alt1": {
+      "class": "prop",
+      "template": "arda-prop",
+      "format": "9:16",
+      "footprint": [
+        1,
+        2
+      ],
+      "pixels": [
+        128,
+        256
+      ],
+      "layer": "prop",
+      "height_ft": 0,
+      "functions": [],
+      "tags": {
+        "biome": [
+          "temperate"
+        ],
+        "culture": [],
+        "wealth": [
+          "poor",
+          "modest"
+        ],
+        "function": [],
+        "free": [
+          "dungeon",
+          "stairs",
+          "sealed"
+        ]
+      },
+      "blocks_movement": false,
+      "blocks_sight": false,
+      "difficult_terrain": true,
+      "cover": "none",
+      "file": "props/prop.stairs_sealed.alt1.png",
+      "status": "new",
+      "tier": 4,
+      "variant_of": "prop.stairs_sealed",
+      "values": {
+        "Subject": "stairs going down blocked by a mortared stone seal",
+        "Shape": "Its outline is about twice as long as it is wide (5 by 10 feet), its long axis running top to bottom.",
+        "Detail": "Chipped treads at the bottom edge vanish under a pale block wall laid flat across the well."
+      },
+      "prompt": "Top-down battle-map asset for a tabletop fantasy grid map, in a rich hand-painted style: confident painterly brushwork, fine dark ink outlines, crisp small detail and a muted, earthy, slightly warm palette. Strictly orthographic view from directly overhead: no perspective, no horizon, no tilted or isometric angle. Soft light from the top-left, so upper-left edges catch highlights and lower-right edges fall into gentle form shading; no cast shadow and no drop shadow anywhere. No text, no letters, no numbers, no grid lines, no frame, no border, no vignette, no watermark, no signature. Subject: stairs going down blocked by a mortared stone seal, seen from directly above. Its outline is about twice as long as it is wide (5 by 10 feet), its long axis running top to bottom. Chipped treads at the bottom edge vanish under a pale block wall laid flat across the well. Exactly one subject, centred, filling about 70% of the frame's shorter side, on a fully transparent background (a PNG with a real alpha channel, background: transparent; no white or colour behind the subject); nothing else in the image: no floor, no ground patch, no base or rug under it, no other objects, no shadow."
+    },
+    "prop.site_entrance.alt1": {
+      "class": "prop",
+      "template": "arda-prop",
+      "format": "9:16",
+      "footprint": [
+        1,
+        2
+      ],
+      "pixels": [
+        128,
+        256
+      ],
+      "layer": "prop",
+      "height_ft": 0,
+      "functions": [],
+      "tags": {
+        "biome": [
+          "temperate"
+        ],
+        "culture": [],
+        "wealth": [
+          "poor",
+          "modest"
+        ],
+        "function": [],
+        "free": [
+          "site",
+          "entrance",
+          "dungeon"
+        ]
+      },
+      "blocks_movement": false,
+      "blocks_sight": false,
+      "difficult_terrain": false,
+      "cover": "none",
+      "file": "props/prop.site_entrance.alt1.png",
+      "status": "new",
+      "tier": 4,
+      "variant_of": "prop.site_entrance",
+      "values": {
+        "Subject": "worn steps leading down under a fallen lintel in open ground",
+        "Shape": "Its outline is about twice as long as it is wide (5 by 10 feet), its long axis running top to bottom.",
+        "Detail": "Mossy treads, a broken stone lintel across the top edge, black shadow below it."
+      },
+      "prompt": "Top-down battle-map asset for a tabletop fantasy grid map, in a rich hand-painted style: confident painterly brushwork, fine dark ink outlines, crisp small detail and a muted, earthy, slightly warm palette. Strictly orthographic view from directly overhead: no perspective, no horizon, no tilted or isometric angle. Soft light from the top-left, so upper-left edges catch highlights and lower-right edges fall into gentle form shading; no cast shadow and no drop shadow anywhere. No text, no letters, no numbers, no grid lines, no frame, no border, no vignette, no watermark, no signature. Subject: worn steps leading down under a fallen lintel in open ground, seen from directly above. Its outline is about twice as long as it is wide (5 by 10 feet), its long axis running top to bottom. Mossy treads, a broken stone lintel across the top edge, black shadow below it. Exactly one subject, centred, filling about 70% of the frame's shorter side, on a fully transparent background (a PNG with a real alpha channel, background: transparent; no white or colour behind the subject); nothing else in the image: no floor, no ground patch, no base or rug under it, no other objects, no shadow."
+    },
+    "prop.cave_mouth.alt1": {
+      "class": "prop",
+      "template": "arda-prop",
+      "format": "1:1",
+      "footprint": [
+        2,
+        2
+      ],
+      "pixels": [
+        256,
+        256
+      ],
+      "layer": "prop",
+      "height_ft": 0,
+      "functions": [],
+      "tags": {
+        "biome": [
+          "temperate"
+        ],
+        "culture": [],
+        "wealth": [
+          "poor",
+          "modest"
+        ],
+        "function": [],
+        "free": [
+          "site",
+          "entrance",
+          "cave"
+        ]
+      },
+      "blocks_movement": false,
+      "blocks_sight": false,
+      "difficult_terrain": false,
+      "cover": "none",
+      "file": "props/prop.cave_mouth.alt1.png",
+      "status": "new",
+      "tier": 4,
+      "variant_of": "prop.cave_mouth",
+      "values": {
+        "Subject": "a low cave mouth between two boulders",
+        "Shape": "Its outline is roughly round or square, about 10 feet across.",
+        "Detail": "Two lichen-spotted boulders at the top corners, a black hollow between them, trampled earth in front."
+      },
+      "prompt": "Top-down battle-map asset for a tabletop fantasy grid map, in a rich hand-painted style: confident painterly brushwork, fine dark ink outlines, crisp small detail and a muted, earthy, slightly warm palette. Strictly orthographic view from directly overhead: no perspective, no horizon, no tilted or isometric angle. Soft light from the top-left, so upper-left edges catch highlights and lower-right edges fall into gentle form shading; no cast shadow and no drop shadow anywhere. No text, no letters, no numbers, no grid lines, no frame, no border, no vignette, no watermark, no signature. Subject: a low cave mouth between two boulders, seen from directly above. Its outline is roughly round or square, about 10 feet across. Two lichen-spotted boulders at the top corners, a black hollow between them, trampled earth in front. Exactly one subject, centred, filling about 70% of the frame's shorter side, on a fully transparent background (a PNG with a real alpha channel, background: transparent; no white or colour behind the subject); nothing else in the image: no floor, no ground patch, no base or rug under it, no other objects, no shadow."
     },
     "prop.torch_sconce.alt1": {
       "class": "prop",
@@ -76017,6 +76290,144 @@
         "Detail": "Wedge-shaped treads curling towards a black hole near the top edge."
       },
       "prompt": "Top-down battle-map asset for a tabletop fantasy grid map, in a rich hand-painted style: confident painterly brushwork, fine dark ink outlines, crisp small detail and a muted, earthy, slightly warm palette. Strictly orthographic view from directly overhead: no perspective, no horizon, no tilted or isometric angle. Soft light from the top-left, so upper-left edges catch highlights and lower-right edges fall into gentle form shading; no cast shadow and no drop shadow anywhere. No text, no letters, no numbers, no grid lines, no frame, no border, no vignette, no watermark, no signature. Subject: a narrow spiral of rough stone steps leading down into the dark, seen from directly above. Its outline is about twice as long as it is wide (5 by 10 feet), its long axis running top to bottom. Wedge-shaped treads curling towards a black hole near the top edge. Exactly one subject, centred, filling about 70% of the frame's shorter side, on a fully transparent background (a PNG with a real alpha channel, background: transparent; no white or colour behind the subject); nothing else in the image: no floor, no ground patch, no base or rug under it, no other objects, no shadow."
+    },
+    "prop.stairs_sealed.alt2": {
+      "class": "prop",
+      "template": "arda-prop",
+      "format": "9:16",
+      "footprint": [
+        1,
+        2
+      ],
+      "pixels": [
+        128,
+        256
+      ],
+      "layer": "prop",
+      "height_ft": 0,
+      "functions": [],
+      "tags": {
+        "biome": [
+          "temperate"
+        ],
+        "culture": [],
+        "wealth": [
+          "poor",
+          "modest"
+        ],
+        "function": [],
+        "free": [
+          "dungeon",
+          "stairs",
+          "sealed"
+        ]
+      },
+      "blocks_movement": false,
+      "blocks_sight": false,
+      "difficult_terrain": true,
+      "cover": "none",
+      "file": "props/prop.stairs_sealed.alt2.png",
+      "status": "new",
+      "tier": 4,
+      "variant_of": "prop.stairs_sealed",
+      "values": {
+        "Subject": "a sealed stair shaft under a cracked capstone",
+        "Shape": "Its outline is about twice as long as it is wide (5 by 10 feet), its long axis running top to bottom.",
+        "Detail": "One large weathered capstone with a hairline crack, low side walls, darkness at the top edge."
+      },
+      "prompt": "Top-down battle-map asset for a tabletop fantasy grid map, in a rich hand-painted style: confident painterly brushwork, fine dark ink outlines, crisp small detail and a muted, earthy, slightly warm palette. Strictly orthographic view from directly overhead: no perspective, no horizon, no tilted or isometric angle. Soft light from the top-left, so upper-left edges catch highlights and lower-right edges fall into gentle form shading; no cast shadow and no drop shadow anywhere. No text, no letters, no numbers, no grid lines, no frame, no border, no vignette, no watermark, no signature. Subject: a sealed stair shaft under a cracked capstone, seen from directly above. Its outline is about twice as long as it is wide (5 by 10 feet), its long axis running top to bottom. One large weathered capstone with a hairline crack, low side walls, darkness at the top edge. Exactly one subject, centred, filling about 70% of the frame's shorter side, on a fully transparent background (a PNG with a real alpha channel, background: transparent; no white or colour behind the subject); nothing else in the image: no floor, no ground patch, no base or rug under it, no other objects, no shadow."
+    },
+    "prop.site_entrance.alt2": {
+      "class": "prop",
+      "template": "arda-prop",
+      "format": "9:16",
+      "footprint": [
+        1,
+        2
+      ],
+      "pixels": [
+        128,
+        256
+      ],
+      "layer": "prop",
+      "height_ft": 0,
+      "functions": [],
+      "tags": {
+        "biome": [
+          "temperate"
+        ],
+        "culture": [],
+        "wealth": [
+          "poor",
+          "modest"
+        ],
+        "function": [],
+        "free": [
+          "site",
+          "entrance",
+          "dungeon"
+        ]
+      },
+      "blocks_movement": false,
+      "blocks_sight": false,
+      "difficult_terrain": false,
+      "cover": "none",
+      "file": "props/prop.site_entrance.alt2.png",
+      "status": "new",
+      "tier": 4,
+      "variant_of": "prop.site_entrance",
+      "values": {
+        "Subject": "an old crypt stair cut into the turf between two stone posts",
+        "Shape": "Its outline is about twice as long as it is wide (5 by 10 feet), its long axis running top to bottom.",
+        "Detail": "Narrow steps, two squat posts at the bottom edge, the top edge lost in darkness."
+      },
+      "prompt": "Top-down battle-map asset for a tabletop fantasy grid map, in a rich hand-painted style: confident painterly brushwork, fine dark ink outlines, crisp small detail and a muted, earthy, slightly warm palette. Strictly orthographic view from directly overhead: no perspective, no horizon, no tilted or isometric angle. Soft light from the top-left, so upper-left edges catch highlights and lower-right edges fall into gentle form shading; no cast shadow and no drop shadow anywhere. No text, no letters, no numbers, no grid lines, no frame, no border, no vignette, no watermark, no signature. Subject: an old crypt stair cut into the turf between two stone posts, seen from directly above. Its outline is about twice as long as it is wide (5 by 10 feet), its long axis running top to bottom. Narrow steps, two squat posts at the bottom edge, the top edge lost in darkness. Exactly one subject, centred, filling about 70% of the frame's shorter side, on a fully transparent background (a PNG with a real alpha channel, background: transparent; no white or colour behind the subject); nothing else in the image: no floor, no ground patch, no base or rug under it, no other objects, no shadow."
+    },
+    "prop.cave_mouth.alt2": {
+      "class": "prop",
+      "template": "arda-prop",
+      "format": "1:1",
+      "footprint": [
+        2,
+        2
+      ],
+      "pixels": [
+        256,
+        256
+      ],
+      "layer": "prop",
+      "height_ft": 0,
+      "functions": [],
+      "tags": {
+        "biome": [
+          "temperate"
+        ],
+        "culture": [],
+        "wealth": [
+          "poor",
+          "modest"
+        ],
+        "function": [],
+        "free": [
+          "site",
+          "entrance",
+          "cave"
+        ]
+      },
+      "blocks_movement": false,
+      "blocks_sight": false,
+      "difficult_terrain": false,
+      "cover": "none",
+      "file": "props/prop.cave_mouth.alt2.png",
+      "status": "new",
+      "tier": 4,
+      "variant_of": "prop.cave_mouth",
+      "values": {
+        "Subject": "a cleft in a rock face opening into darkness",
+        "Shape": "Its outline is roughly round or square, about 10 feet across.",
+        "Detail": "A jagged dark slit widening towards the bottom edge, pale rock either side."
+      },
+      "prompt": "Top-down battle-map asset for a tabletop fantasy grid map, in a rich hand-painted style: confident painterly brushwork, fine dark ink outlines, crisp small detail and a muted, earthy, slightly warm palette. Strictly orthographic view from directly overhead: no perspective, no horizon, no tilted or isometric angle. Soft light from the top-left, so upper-left edges catch highlights and lower-right edges fall into gentle form shading; no cast shadow and no drop shadow anywhere. No text, no letters, no numbers, no grid lines, no frame, no border, no vignette, no watermark, no signature. Subject: a cleft in a rock face opening into darkness, seen from directly above. Its outline is roughly round or square, about 10 feet across. A jagged dark slit widening towards the bottom edge, pale rock either side. Exactly one subject, centred, filling about 70% of the frame's shorter side, on a fully transparent background (a PNG with a real alpha channel, background: transparent; no white or colour behind the subject); nothing else in the image: no floor, no ground patch, no base or rug under it, no other objects, no shadow."
     },
     "prop.torch_sconce.alt2": {
       "class": "prop",

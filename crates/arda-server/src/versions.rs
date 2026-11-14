@@ -56,6 +56,11 @@ pub struct VersionsDto {
     pub library_catalogue_format: u32,
     /// `--sheet-mapping` file `version` this server reads.
     pub sheet_mapping_format: u32,
+    /// Site bodies (`SiteList.format_version`). Added in 1.1: optional in
+    /// the schema, so the frozen `WorldInfo` shape gains no required
+    /// property.
+    #[serde(default)]
+    pub site_format: u32,
 }
 
 impl VersionsDto {
@@ -78,13 +83,14 @@ impl VersionsDto {
             columnar_layout_version: crate::columnar::LAYOUT_VERSION,
             library_catalogue_format: arda_tactical::catalog::FORMAT_VERSION,
             sheet_mapping_format: crate::sheet_map::spec::VERSION,
+            site_format: crate::sites::dto::SITE_FORMAT,
         }
     }
 
     /// Every family as `(key, version)`, in field order; the key is the
     /// JSON field name.
     #[must_use]
-    pub const fn entries(&self) -> [(&'static str, u32); 15] {
+    pub const fn entries(&self) -> [(&'static str, u32); 16] {
         [
             ("contract_version", self.contract_version),
             ("tactical_format", self.tactical_format),
@@ -101,6 +107,7 @@ impl VersionsDto {
             ("columnar_layout_version", self.columnar_layout_version),
             ("library_catalogue_format", self.library_catalogue_format),
             ("sheet_mapping_format", self.sheet_mapping_format),
+            ("site_format", self.site_format),
         ]
     }
 }

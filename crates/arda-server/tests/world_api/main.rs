@@ -27,6 +27,7 @@ mod relief;
 mod schemas;
 mod seams;
 mod serving;
+mod sites;
 mod society_cells;
 mod startup_scale;
 mod support;

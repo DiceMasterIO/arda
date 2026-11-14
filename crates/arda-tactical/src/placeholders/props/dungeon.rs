@@ -400,6 +400,56 @@ pub fn stairs_down(r: &mut Relief, seed: u64, s: f32) {
     flight(r, seed, s, true);
 }
 
+/// Sealed stairs (1 × 2): the flight down under a stone slab (logic/18
+/// §site-image).
+pub fn stairs_sealed(r: &mut Relief, seed: u64, s: f32) {
+    flight(r, seed, s, true);
+    let (w, h) = (r.width as f32, r.height as f32);
+    stone_rect(
+        r,
+        seed ^ 41,
+        (w / 2.0, h * 0.45),
+        (s * 0.34, h * 0.34),
+        tone(STONE, 0.95),
+        13.0,
+    );
+}
+
+/// Site entrance (1 × 2): a stair head descending north behind a stone
+/// kerb, for the surface map (logic/18 §site-entrance).
+pub fn site_entrance(r: &mut Relief, seed: u64, s: f32) {
+    flight(r, seed, s, true);
+    let w = r.width as f32;
+    stone_rect(
+        r,
+        seed ^ 21,
+        (w / 2.0, s * 0.05),
+        (s * 0.46, s * 0.05),
+        tone(STONE, 0.8),
+        14.0,
+    );
+}
+
+/// Cave mouth (2 × 2): a dark opening under a rock lip to the north.
+pub fn cave_mouth(r: &mut Relief, seed: u64, _s: f32) {
+    let (w, h) = (r.width as f32, r.height as f32);
+    stone_rect(
+        r,
+        seed ^ 31,
+        (w / 2.0, h * 0.2),
+        (w * 0.46, h * 0.18),
+        tone(STONE, 0.7),
+        18.0,
+    );
+    r.part(
+        Bounds(0.0, 0.0, w, h),
+        crate::placeholders::paint::rbox(w / 2.0, h * 0.58, w * 0.3, h * 0.3, w * 0.2),
+        solid([14, 12, 12]),
+        level(0.0),
+        NO_INK,
+    );
+}
+
 /// Torch sconce: an iron bracket on the north edge holding a burning torch.
 pub fn torch_sconce(r: &mut Relief, seed: u64, s: f32) {
     let cx = s / 2.0;

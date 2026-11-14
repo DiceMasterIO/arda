@@ -1,0 +1,140 @@
+{
+  "$defs": {
+    "DungeonKindDto": {
+      "description": "What was generated.",
+      "oneOf": [
+        {
+          "const": "dungeon",
+          "description": "Built rooms and corridors.",
+          "type": "string"
+        },
+        {
+          "const": "cave",
+          "description": "Natural caverns.",
+          "type": "string"
+        }
+      ]
+    },
+    "Site": {
+      "description": "A dungeon or cave site.",
+      "properties": {
+        "cell": {
+          "description": "The entrance cell `[gx, gy]`.",
+          "items": {
+            "format": "uint32",
+            "minimum": 0,
+            "type": "integer"
+          },
+          "maxItems": 2,
+          "minItems": 2,
+          "type": "array"
+        },
+        "entrance_gs": {
+          "description": "The entrance square in world squares (64 per cell), `[x, y]`.",
+          "items": {
+            "format": "int64",
+            "type": "integer"
+          },
+          "maxItems": 2,
+          "minItems": 2,
+          "type": "array"
+        },
+        "id": {
+          "description": "Stable id, a decimal string.",
+          "type": "string"
+        },
+        "kind": {
+          "$ref": "#/$defs/DungeonKindDto",
+          "description": "Dungeon or cave."
+        },
+        "levels": {
+          "description": "1 to 3 levels, in depth order.",
+          "items": {
+            "$ref": "#/$defs/SiteLevelRef"
+          },
+          "type": "array"
+        },
+        "settlement_id": {
+          "description": "The settlement a dungeon hangs on, a decimal string; null for a cave.",
+          "type": [
+            "string",
+            "null"
+          ]
+        }
+      },
+      "required": [
+        "id",
+        "kind",
+        "entrance_gs",
+        "cell",
+        "levels"
+      ],
+      "type": "object"
+    },
+    "SiteLevelRef": {
+      "description": "One level of a site, as the site record names it.",
+      "properties": {
+        "danger_tier": {
+          "description": "SRD 5.1 trap-table character-level band, 1 to 4.",
+          "format": "uint8",
+          "maximum": 255,
+          "minimum": 0,
+          "type": "integer"
+        },
+        "height": {
+          "description": "Height in squares: 24, 36 or 56.",
+          "format": "uint32",
+          "minimum": 0,
+          "type": "integer"
+        },
+        "level": {
+          "description": "1-based depth.",
+          "format": "uint32",
+          "minimum": 0,
+          "type": "integer"
+        },
+        "seed": {
+          "description": "Seed, a decimal string.",
+          "type": "string"
+        },
+        "width": {
+          "description": "Width in squares: 32, 48 or 72.",
+          "format": "uint32",
+          "minimum": 0,
+          "type": "integer"
+        }
+      },
+      "required": [
+        "level",
+        "seed",
+        "width",
+        "height",
+        "danger_tier"
+      ],
+      "type": "object"
+    }
+  },
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "description": "`GET /v1/sites`.",
+  "properties": {
+    "format_version": {
+      "description": "Version of the site bodies ([`SITE_FORMAT`]).",
+      "format": "uint32",
+      "minimum": 0,
+      "type": "integer"
+    },
+    "sites": {
+      "description": "The sites, by id.",
+      "items": {
+        "$ref": "#/$defs/Site"
+      },
+      "type": "array"
+    }
+  },
+  "required": [
+    "format_version",
+    "sites"
+  ],
+  "title": "SiteList",
+  "type": "object"
+}

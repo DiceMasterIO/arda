@@ -2126,6 +2126,22 @@ fam("prop.stairs_down", M([1, 2], 0, "rough", [], { free: ["dungeon", "stairs", 
   ["worn stone stairs going down between two low side walls", "Dished, chipped treads fading into a black opening at the top edge."],
   ["a narrow spiral of rough stone steps leading down into the dark", "Wedge-shaped treads curling towards a black hole near the top edge."],
 ]);
+fam("prop.stairs_sealed", M([1, 2], 0, "rough", [], { free: ["dungeon", "stairs", "sealed"], culture: [] }), 4, [
+  ["a stone stairwell closed by a heavy stone slab, seen from directly above", "Grey side walls, a flat fitted slab covering the steps, a strip of black shadow at the top edge."],
+  ["stairs going down blocked by a mortared stone seal", "Chipped treads at the bottom edge vanish under a pale block wall laid flat across the well."],
+  ["a sealed stair shaft under a cracked capstone", "One large weathered capstone with a hairline crack, low side walls, darkness at the top edge."],
+]);
+// Site entrances on the surface map (logic/18 §site-entrance): floor layer, never blocking.
+fam("prop.site_entrance", M([1, 2], 0, "clear", [], { free: ["site", "entrance", "dungeon"], culture: [] }), 4, [
+  ["a stone stair head descending into the ground inside a low stone kerb, seen from directly above", "Grey treads darkening towards the top edge, a low kerb of dressed stone around the opening, grass at the edges."],
+  ["worn steps leading down under a fallen lintel in open ground", "Mossy treads, a broken stone lintel across the top edge, black shadow below it."],
+  ["an old crypt stair cut into the turf between two stone posts", "Narrow steps, two squat posts at the bottom edge, the top edge lost in darkness."],
+]);
+fam("prop.cave_mouth", M([2, 2], 0, "clear", [], { free: ["site", "entrance", "cave"], culture: [] }), 4, [
+  ["a dark cave opening under a rock lip in a rocky outcrop, seen from directly above", "Grey weathered rock along the top edge, a rounded black opening below it, scree at the sides."],
+  ["a low cave mouth between two boulders", "Two lichen-spotted boulders at the top corners, a black hollow between them, trampled earth in front."],
+  ["a cleft in a rock face opening into darkness", "A jagged dark slit widening towards the bottom edge, pale rock either side."],
+]);
 fam("prop.torch_sconce", M([1, 1], 0, "clear", [], { free: ["dungeon", "wall_light"], culture: [] }), 4, [
   ["an iron wall sconce holding a burning torch, seen from directly above", "A small iron bracket at the top edge of the frame, a wooden torch with a bright orange flame at its tip."],
   ["a rusty ring sconce with a smoking pitch torch", "Iron ring fixed at the top edge, a torch wrapped in dark rags, a small flame."],

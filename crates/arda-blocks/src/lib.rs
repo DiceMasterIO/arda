@@ -23,6 +23,7 @@ pub mod demo;
 pub mod headland;
 pub mod overlays;
 pub mod pipeline;
+pub mod sites;
 pub mod society;
 
 pub use crop::Cut;

@@ -3,6 +3,20 @@
 Release notes for Arda. The design ledger (decisions, stage records and per-change detail)
 lives in `docs/capstone/changelog.md` and `docs/capstone/changelog.d/`.
 
+## Unreleased
+
+**API (`/v1`, additive)**
+
+- Dungeon and cave sites. `GET /v1/sites` (with `?bbox=` and `?kind=`), `GET /v1/sites/{id}`, and `GET /v1/sites/{id}/levels/{n}` with `.png` and `/scene`. A site is a stable id, its kind, its entrance square, the settlement a dungeon hangs on and 1 to 3 levels with seed, size and danger tier. A level body wraps the level as `/v1/tactical/dungeon` serves it and adds a link per exit (surface, the next level's arrival square, or sealed) and its traps (SRD 5.1 sample-trap kinds and squares). New version family `site_format` 1 in `versions`. All five routes are stable and in the contract kit.
+- Sites are placed when the server opens, before it listens; every level of every site is generated and its scene built at placement, so no site points at a level that fails.
+- The placeholder library gains `prop.site_entrance`, `prop.cave_mouth` and `prop.stairs_sealed`. `library_version` is unchanged (`0.3.0+seed58`): it seeds the compositor, so existing images keep their bytes.
+
+**Content changes (flagged per the versioning policy)**
+
+- Surface tactical maps change in the cells that hold a site entrance: `GET /v1/tactical/cell/{gx}/{gy}` and its `.png`, `/scene` and tiles, `GET /v1/tactical/window` and its images, and bakes of those cells now show the entrance on cleared ground. Every other cell is unchanged.
+- `GET /v1/tactical/library` lists the three new props; `GET /v1/world` `versions` gains `site_format`; `GET /v1/schema` lists `Site`, `SiteList` and `SiteLevel`.
+- `GET /v1/tactical/dungeon`, `.png` and `/scene` are unchanged, byte for byte.
+
 ## 1.0.0 — 2026-10-16
 
 The first stable release. `/v1` is frozen under a written versioning policy, default-size worlds generate, settle and serve end to end, and the battle maps follow one rules contract.

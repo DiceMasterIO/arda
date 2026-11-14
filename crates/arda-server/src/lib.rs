@@ -35,6 +35,7 @@ pub mod routes;
 pub mod schema;
 pub mod serve;
 pub mod sheet_map;
+pub mod sites;
 pub mod society_cells;
 pub mod tactical;
 pub mod tiles;
@@ -242,6 +243,8 @@ pub struct AppState {
     /// What the opened world and library hold beyond the configured
     /// budgets, admitted at startup ([`admission::Resident`]).
     pub resident: admission::Resident,
+    /// The world's dungeon and cave sites, placed at open.
+    pub sites: sites::Sites,
 }
 
 impl AppState {
@@ -291,6 +294,15 @@ impl AppState {
             // in flight fit the refine source (`refine_source` docs).
             w.warm_towns(refine_source::WARM_AREAS);
         }
+        // logic/18 §site-place: placed here, before the listener binds, so
+        // `/v1/health` never answers ahead of the site set.
+        let sites = sites::Sites::place(
+            &query,
+            people
+                .as_deref()
+                .map(|w| w.files.settlements.settlements.as_slice()),
+            tactical.library(),
+        )?;
         let overlays = people
             .as_ref()
             .map(|w| arda_blocks::society::SocietyOverlays::open(std::sync::Arc::clone(w)))
@@ -302,8 +314,29 @@ impl AppState {
         let land = overlays
             .as_ref()
             .map(|o| arda_midzoom::Landscape::new(std::sync::Arc::clone(o)));
+        // logic/18 §site-entrance: the sites' entrances compose over the
+        // society's layers, and alone on a world without `society/`. Relief
+        // tiles keep the society alone: entrances are tactical detail.
+        let entrances = sites
+            .all()
+            .iter()
+            .map(|s| {
+                let [gsx, gsy] = s.entrance_gs();
+                arda_blocks::sites::Entrance {
+                    gsx,
+                    gsy,
+                    cave: s.kind == arda_dungeon::Kind::Cave,
+                }
+            })
+            .collect();
+        let society = overlays.map(|o| o as std::sync::Arc<dyn arda_blocks::overlays::Overlays>);
         tactical.set_block_source(Box::new(
-            tactical::refine_blocks::RefineBlocks::with_society(src, overlays),
+            tactical::refine_blocks::RefineBlocks::with_society(
+                src,
+                Some(std::sync::Arc::new(arda_blocks::sites::SiteOverlays::new(
+                    society, entrances,
+                ))),
+            ),
         ));
         let overview = overview::Overview::new(&query, config.overview)?;
         let relief = relief::Relief::open_with(
@@ -331,6 +364,7 @@ impl AppState {
         config.admit_resident(&resident)?;
         Ok(Self {
             resident,
+            sites,
             query,
             overview,
             relief,

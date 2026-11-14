@@ -1084,6 +1084,90 @@ The `arda-scene` scene of the level (`SceneDto`), built with its rules sidecar a
 and opaque, closed doors solid (`locked` ones flagged), secret doors as `kind: "secret"`, water
 `wade`/`swim`, rubble and scree `difficult`.
 
+### Dungeon and cave sites
+
+A world's dungeons and caves, placed by the server when it opens, before it listens: `/v1/health`
+never answers ahead of them. The set is a pure function of the world and the serving build
+(`(seed, server_version)`); nothing is stored. Dungeons hang on settlements (every city and town,
+one village in ten), 200 m to 1.6 km away; caves sit at the foot of steep ground. A world without
+`society/` has caves only. `versions.site_format` (1) on `/v1/world` covers these bodies; a server
+without that key has no sites. Every route carries `Cache-Control: no-cache` and an `ETag`.
+
+#### `GET /v1/sites[?bbox=x0,y0,x1,y1&kind=dungeon|cave]`
+
+`SiteList`: `format_version` and `sites`, ordered by id. `bbox` is in whole metres and keeps the
+sites whose entrance square lies in the box; `kind` keeps one kind. A box with no site, or outside
+the world, answers `200` with an empty list. `400 bad_request` for a malformed `bbox` or `kind`.
+
+#### `GET /v1/sites/{id}`
+
+One `Site`:
+
+| Field | Meaning |
+|---|---|
+| `id` | Stable id, a decimal string: a site keeps it as long as it keeps its kind and entrance cell |
+| `kind` | `dungeon` or `cave` |
+| `entrance_gs` | The entrance square `[x, y]` in world squares (64 per cell): the cell's centre square, passable dry ground, with two clear squares around it |
+| `cell` | The entrance cell `[gx, gy]`; its tactical map draws `prop.site_entrance` or `prop.cave_mouth` just north of the entrance square |
+| `settlement_id` | The settlement a dungeon hangs on, a decimal string; `null` for a cave |
+| `levels` | 1 to 3 `SiteLevelRef`, in depth order: `level` (from 1), `seed` (decimal string), `width`, `height` (32 x 24, 48 x 36 or 72 x 56, never smaller than the level above), `danger_tier` |
+
+`danger_tier` is 1 to 4, the character-level bands of the SRD 5.1 trap tables (levels 1-4, 5-10,
+11-16, 17-20). Level 1 is tier 1 when a town or city lies within 15 km, else 2; each level down
+adds 1. Every level of every listed site generates and builds its scene: the server checks each
+when it places the site. `404 not_found` for an unknown id.
+
+#### `GET /v1/sites/{id}/levels/{n}`
+
+`SiteLevel`, level `n` (from 1):
+
+- `site_id`, `level`, `danger_tier`.
+- `dungeon`: the level exactly as `GET /v1/tactical/dungeon?seed=&kind=&w=&h=` serves it for the
+  level's seed, the site's kind and the level's size.
+- `links`: one per exit, in `dungeon.exits` order: the exit's `kind`, `x`, `y`, and `to`:
+  `surface` (level 1's way up; arrive on the site's `entrance_gs`), `level` (with `level`, `to_x`,
+  `to_y`: the arrival square there) or `sealed` (the deepest level's stairs down). Links are
+  symmetric: a level's stairs down lead to the next level's way up, which leads back to the same
+  stairs square. Every arrival square is passable floor.
+- `traps`: `id` (`t1`, `t2`, ...; stable per level), `kind`, `squares` (the `[x, y]` squares that
+  trigger it), and where the kind has them `affected` (the squares hit, on `falling_net` and
+  `collapsing_roof`) or `door` (`x`, `y`, `axis`: the locked door of `dungeon.doors` whose lock
+  holds a `poison_needle`; its `squares` are the two squares the door stands between).
+
+`kind` is one of the SRD 5.1 sample traps: `collapsing_roof`, `falling_net`,
+`fire_breathing_statue`, `simple_pit`, `hidden_pit`, `locking_pit`, `spiked_pit`, `poison_darts`,
+`poison_needle`, `rolling_sphere`, `sphere_of_annihilation`. The enum is closed.
+`fire_breathing_statue`, `rolling_sphere` and `sphere_of_annihilation` are never placed under
+`site_format` 1; placing them will bump the family. Arda places traps and resolves nothing: no DC,
+damage or depth is carried. Every trap square is normal-movement dry floor, more than 2 squares
+from every exit, on neither side of a door (but a needle's own), and shared with no other trap.
+Traps may lie on `spawn_hints` squares.
+
+`404 not_found` for an unknown site, level 0 or a level past the last; `400 bad_request` when `n`
+is not a number.
+
+#### `GET /v1/sites/{id}/levels/{n}.png[?ppsq=64|96|128&grid=0|1]`
+
+The level painted, as `/v1/tactical/dungeon.png` paints it, with one difference: on the deepest
+level the stairs down are drawn sealed (`prop.stairs_sealed`). The body's `dungeon.layout` still
+lists `prop.stairs_down` there. The image is safe to send to players whole: every tactical image
+draws a `secret` door as a plain run of its wall kit, and no trap is ever painted. There is no
+reveal parameter; a client draws found doors and traps itself (door art is
+`GET /v1/tactical/library/asset/{id}.png`).
+
+#### `GET /v1/sites/{id}/levels/{n}/scene`
+
+The level's `SceneDto`, as `/v1/tactical/dungeon/scene`, built with the seed the image is drawn
+with.
+
+```sh
+B=http://127.0.0.1:8787/v1
+curl -s "$B/sites?kind=dungeon" | jq '.sites[0]'
+ID=$(curl -s "$B/sites" | jq -r '.sites[0].id')
+curl -s "$B/sites/$ID/levels/1" | jq '{links, traps}'
+curl -s "$B/sites/$ID/levels/1.png?ppsq=64" -o level.png
+```
+
 ### Timing (goal 50; release, MICRO seed 42, `ppsq=64`, 32 threads)
 
 | Request | Cold | Warm |

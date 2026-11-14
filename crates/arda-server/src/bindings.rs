@@ -17,6 +17,10 @@ use crate::error::{ApiError, ApiErrorBody, NotYetError, ServerError, ServerResul
 use crate::npc_dto as npc;
 use crate::npcs::dto::{NpcEntry, NpcPage};
 use crate::schema::{SchemaIndex, SchemaIndexEntry};
+use crate::sites::dto::{
+    SiteDto, SiteLevel, SiteLevelRef, SiteLink, SiteLinkTo, SiteList, SiteTrap, SiteTrapDoor,
+    SiteTrapKind,
+};
 use crate::tactical::bake::{BakeAccepted, BakeRequest, BakeState, BakeStatus};
 use crate::tactical::bake_dto::BakeIgnored;
 use crate::tactical::dto::{
@@ -229,6 +233,15 @@ exported!(
     DungeonExitKindDto,
     DungeonExitDto,
     DungeonDto,
+    SiteList,
+    SiteDto,
+    SiteLevelRef,
+    SiteLevel,
+    SiteLinkTo,
+    SiteLink,
+    SiteTrapKind,
+    SiteTrapDoor,
+    SiteTrap,
     Stability,
     SchemaIndexEntry,
     SchemaIndex,

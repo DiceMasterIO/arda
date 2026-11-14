@@ -2,6 +2,90 @@
 generated_date: 2026-08-24
 ---
 
+## 2026-11-14 - implement: 2026-11-14-dungeon-sites
+key: implement/2026-11-14-dungeon-sites@Q12
+
+- What: `arda-server` places dungeon and cave sites on the world it serves and serves each site whole (record, listing, levels with chain, danger tier and traps, level image and scene, entrance on the surface map), for the DiceMaster VTT.
+- Approach: the server owns sites end to end. Placement runs in `AppState::open` before the listener binds and is held in memory; pure level logic lives in `arda-dungeon` (`site.rs`, `traps.rs`); the entrance is a fourth overlay layer in `arda-blocks`; five routes under `/v1/sites` with family `site_format` 1.
+- Rejected: a `?site=&level=` selector on the dungeon routes (mixes site concerns into the frozen `DungeonDto`).
+- Rejected: sites stored by `arda settle` (existing worlds need a rebuild; a stored seed can fail under another release's generator).
+- Rejected: a test sweep as the only guarantee that levels generate; placement generates every level and its scene and drops a site after 8 failed seeds.
+- Rejected: a `sealed_stairs` exit kind; the level body carries a link per exit (`surface`, `level`, `sealed`) and `DungeonExitKindDto` is untouched.
+- Rejected: all eleven SRD traps now; a needle on a chest (it sits in a locked door's lock); a pit depth field.
+- Rejected: `?reveal=` or a hidden/shown switch on the level image; DiceMaster overlaying the seal; `prop.stairs_down` as entrance art.
+- Rejected: cave density by tile size; depth-only tiers; a challenge-rating cap; routes under `/v1/tactical/sites`.
+- Out of scope: placing `fire_breathing_statue`, `rolling_sphere`, `sphere_of_annihilation` (OI-60); trap art (OI-61); site names (OI-62); final AI art for the three props (OI-64); viewer UI; tile pyramids for level images; the DiceMaster repo.
+- Divergence from the spec: `library_version` stays `0.3.0+seed58` (spec R17, R19 said it changes). The compositor seeds texture picks from that string, so changing it re-rolls every render and breaks the dungeon golden renders the request forbids touching.
+- Divergence: cave odds are 0.3, not 0.4. The canonical MICRO fixture (recipe 9) gave 47 caves at 0.4; it has 21 dungeons.
+- Divergence: the entrance layer claims 3 squares around the entrance square and guarantees 2, so blocking scatter anchored beside the clear ground cannot reach it.
+- Divergence: an area trap that finds no 2 × 2 becomes a pit, so a level keeps its count.
+- Divergence: `bbox` takes whole metres, as `/v1/gazetteer` does.
+- Task 1: placeholder props `prop.site_entrance`, `prop.cave_mouth`, `prop.stairs_sealed`; art-gen prompt families.
+- Task 2: `site::level_sizes`, `level_seed`, `danger_tier`.
+- Task 3: `site::links`.
+- Task 4: `traps::place` and `TrapKind`.
+- Task 5: `site::sealed`; a test pins that a `secret` door paints as a plain run.
+- Task 6: `Owner::Site`, `Overlays::sites`, `sites::layer`, `SiteOverlays`.
+- Task 7: `sites::place::choose`, `Sites::place`, `settle`.
+- Task 8: DTOs, five handlers, `site_format`, three schemas, nine TS bindings, inventory probes.
+- Task 9: entrances wired into the server's block source.
+- Task 10: five contract-kit cases, `API.md`, `arda-dungeon/README.md`, `CHANGELOG.md`.
+- Diff `0021024b..HEAD` on `feat/dungeon-sites`: `crates/arda-tactical/src/placeholders/{mod.rs,specs.rs,tests.rs,props/dungeon.rs}`; `assets/tactical/placeholder/{catalog.json,props/prop.cave_mouth.png,props/prop.site_entrance.png,props/prop.stairs_sealed.png}`; `tools/art-gen/{expansion.mjs,prompts.json}`; `crates/arda-dungeon/src/{lib.rs,site.rs,traps.rs}`, `tests/{sites.rs,traps.rs}`, `README.md`; `crates/arda-blocks/src/{lib.rs,overlays.rs,sites.rs}`, `tests/sites.rs`; `crates/arda-server/src/{lib.rs,routes.rs,versions.rs,bindings.rs,schema/mod.rs,tactical/refine_blocks.rs,tactical/routes.rs,sites/mod.rs,sites/place.rs,sites/dto.rs,sites/routes.rs}`, `tests/world_api/{sites.rs,inventory.rs,endpoints.rs,main.rs}`, `API.md`; `crates/arda-cli/tests/tactical.rs`; `bindings/ts/arda/**`, `bindings/schema/**`; `contract-kit/manifest.json`, `contract-kit/golden/**`; `CHANGELOG.md`.
+- Unchanged, verified: `crates/arda-dungeon/tests/golden/renders.txt`; every dungeon and tactical contract-kit case byte for byte; the schema freeze guard without a re-baseline. Three existing kit goldens gained additions only (`world`, `tactical-library`, `schema-index`).
+- `logic/18-dungeons-and-caves.md`: absorbed the feature as rules §site-place, §site-levels, §site-links, §site-traps, §site-image, §site-entrance, §site-serve; triggers, unhappy paths, invariants and D12 updated; §dgn-site-seed no longer says no caller chooses sites.
+- `09-interfaces.md`: five produced `http` edges, rows and payload sections; no `to` written (quarry is not initialised here; no edge was confirmed).
+- `02-models.md`: `SiteList`, `Site`, `SiteLevelRef`, `SiteLevel`, `SiteLinkTo`, `SiteLink`, `SiteTrapKind`, `SiteTrapDoor`, `SiteTrap`; the site relationship.
+- `01-architecture.md`: Communication rows for the five routes; placement and `SiteOverlays` in the composition of `AppState::open`.
+- `versioning.md`: five stable route rows (55 rows, 48 stable), the `site_format` family row.
+- `logic/16-service-api.md`: the site routes in the route table.
+- `contract-dicemaster.md` (local): three rows under "What DiceMaster calls".
+- `open-items.md`: OI-60 to OI-64; `00-index.md` row updated.
+- Not updated: `logic/11-tactical-art-compositor.md` (it does not enumerate props); `06-testing.md` and `03-conventions.md` remain stale from before this feature.
+- Review loop: 3 rounds; 12 findings, 6 confirmed (4 fixed, 2 recorded), 5 refuted, 1 holds; dry at rounds 2 and 3. A thirteenth, a pinned asset count in `arda-cli`'s tests, was found by the full workspace run and fixed.
+- Left open: start time and memory of placement on a default-size world are unmeasured (OI-63); `413` on the level PNG and a placement read failure have no test of their own.
+
+## 2026-11-14 - plan: 2026-11-14-dungeon-sites
+key: plan/2026-11-14-dungeon-sites@Q12
+
+- `features/2026-11-14-dungeon-sites/plan.md`: written and approved; 10 tasks.
+- Tasks: 1 three placeholder props; 2 level sizes, seeds and tiers; 3 links; 4 traps; 5 the sealed image; 6 the entrance overlay layer; 7 placement over the world; 8 serve the sites; 9 entrances on the surface map; 10 contract kit, reference and release notes.
+- File map: `arda-tactical` placeholders and the committed placeholder library; `arda-dungeon` `site.rs`, `traps.rs`; `arda-blocks` `sites.rs`, `overlays.rs`; `arda-server` `sites/{mod,place,dto,routes}.rs`, `lib.rs`, `routes.rs`, `versions.rs`, `schema/mod.rs`, `bindings.rs`, `query.rs`, `tactical/refine_blocks.rs`; `bindings/`; `contract-kit/`; `versioning.md`, `API.md`, `CHANGELOG.md`.
+- Constraints pinned: dungeon routes keep their bytes and `arda-dungeon` goldens are never re-blessed; no existing schema changes shape; nothing stored on disk; hand-rolled hashes and RNG only; no `unwrap` outside tests; the schema baseline is not re-blessed.
+- Spec corrected during planning and approved with the plan: R14 no longer forbids traps on spawn squares (DiceMaster skips trap squares); the dungeon ring is 2–16 cells; density is per km² of world extent with MICRO at 35–70 sites; R15 records that the compositor already paints secret doors as wall; cave mouths sit at the foot of the steepest cell.
+- Measured on `out/micro42`: village odds 1/10, steep ≥ 15°, walkable < 15°, cave odds 0.4.
+- Taken from the DiceMaster session's review: placement verifies the scene with the render seed; the 8-attempt rule is unit-tested through a function argument.
+- Left as is: flat optional fields on `SiteLink` and `SiteTrap`, not tagged unions.
+- Branch: `feat/dungeon-sites` from `main`.
+
+## 2026-11-14 - groom: 2026-11-14-dungeon-sites
+key: groom/2026-11-14-dungeon-sites@Q12
+
+- `features/2026-11-14-dungeon-sites/spec.md`: written; 19 requirements for dungeon and cave sites served to DiceMaster.
+- Chosen: `arda-server` computes sites in `AppState::open` and holds them in memory; levels are served by new routes `/v1/sites`, `/v1/sites/{id}`, `/v1/sites/{id}/levels/{n}` with `.png` and `/scene` under a new family `site_format` 1.
+- Rejected: a `?site=&level=` selector on the dungeon routes; sites stored by `arda settle`; routes under `/v1/tactical/sites`.
+- Density: about 1 site per 400 km²; dungeons on cities, towns and 1 village in 10; caves by a hash threshold over fixed 32-cell tiles. Rejected: sparse, dense, density by tile size.
+- Danger tier: 1 to 4, the SRD 5.1 trap tables' level bands; base by distance to a town or city (15 km), plus 1 per level. Rejected: depth only; a challenge-rating cap.
+- Every level generates by construction: placement generates each level and its scene, re-derives a failing seed up to 8 times, drops a site that still fails. Rejected: a test sweep alone.
+- Chain: one link per exit (`surface`, `level`, `sealed`); `DungeonDto` unchanged. Rejected: a `sealed_stairs` exit kind.
+- Traps: eight SRD kinds placed, eleven in the closed enum; `affected` on net and roof; poison needle on a locked door's edge. Rejected: all eleven now; a needle on a chest; a pit depth field.
+- Level image: secret doors always painted as wall, no traps, no reveal parameter; `prop.stairs_sealed` on the deepest level. Rejected: `?reveal=` (interviewer's recommendation), a hidden/shown switch, DiceMaster overlaying the seal.
+- Surface entrance: new props `prop.site_entrance` and `prop.cave_mouth`; `library_version` changes. Rejected: `prop.stairs_down` for both.
+- Consumer requirements from the DiceMaster session were put to the user before being recorded (trap record additions, readiness, scene check, symmetric links, traps clear of arrivals, `settlement_id`).
+- Deferred: OI-60 the three unplaced trap kinds; OI-61 trap art in the library; OI-62 site names.
+- Out of scope: viewer UI for sites, tile pyramids for level images, final AI art, anything in the DiceMaster repo.
+- Left open: `quarry` is not initialised in this repo, so no cross-repo edge was confirmed and no `to` is recorded for the new routes.
+
+## 2026-11-14 - map: all
+key: map/all@3ebe6f657223
+
+- `01-architecture.md`: regenerated (covered paths changed). Dependency rows gain `arda-ids` on arda-fields and arda-ways and `arda-core` on arda-blocks; `pmath` joins the arda-ids surface; Pages workflow row added; 157 `file:line` cites moved to the working tree.
+- `02-models.md`: regenerated (covered paths changed). New entities `AlphaMode`, `Cut`, `NotableIndex`, `Notables`, `BakeIgnored`, `Stamp`, an Entities row for `EffectDto`; 24 entities' field tables updated; `notables.json` recorded as format 2; 217 cites moved.
+- `09-interfaces.md`: regenerated (covered paths changed). Edge and row added for `GET /v1/tactical/library/asset/{id}.png`, whose section gains a field table; 53 cites moved. No `to` or `from` written.
+- `logic/18-dungeons-and-caves.md`: regenerated (covered paths changed). `/dungeon` and `/dungeon/scene` carry request ETags; the scene is built with the image's render seed; invariant added for natural cave walls.
+- Scope: the four chapters the dungeon-sites feature grooms against, refreshed on request before grooming; the other stale files (03-08, logic/07, 17, 19-22, uiux/02-system, open-items) were not refreshed in this run.
+- Method: types diffed between the stamp and the working tree; each cite remapped through `git diff` from the commit that last wrote its line; cites landing in rewritten code checked by hand.
+- Not folded: written on branch `feat/home-page`, not the default branch.
+
 ## 2026-10-16 - Villages stand on their own cell: a far bridge or junction no longer carries the plan away
 - **arda-town (`plan::focal::find`)**: the release gate `e2e_village` failed with "no NPC tokens on the village block": the most populous riverine village of seed-42 MICRO recipe 6 (id 21, 475 people, cell 570,702) had its market, green and every notable's house 200 to 300 m west of its own cell. Root cause: the planner took the nearest road-river crossing within a fixed 450 m (a road junction within 400 m) as the town's focal point and put the market 70 to 140 m from it, whatever the settlement's size, so a village or hamlet whose bridge lay outside it was drawn around that bridge, off the cell the world map marks as its built footprint (logic/10 §town-footprint: the centre cell receives the market). Unchanged since v0.2.0; this week's settlement and road changes routed village 21's roads away from the river beside it, so the nearest crossing became a track's bridge 308 m away (at ba069cfe the gate's village had its bridge 101 m from its centre). A crossing or junction is now the focal point only within the built core's radius of the site (`r_core` at the first attempt's size, capped at the old 450 m / 400 m); farther out the plan keeps its market at the site (a junction there, else the nearest road). Seed-42 MICRO recipe 9: 91 of 704 planned villages and hamlets had their market beyond their core radius from the site (up to 436 m, a hamlet of 12 people 352 m away); now none outside harbours and castles. Harbour shores (up to 270 m for a coastal hamlet) are not bounded yet.
 - **Cold block budget (goal 50)**: with the tokens back, the same gate failed its cold 64 px block budget (540 to 560 ms against 500 on a loaded 32-core machine, where ba069cfe took 384 ms). Bisected: c6a5717b (fields follow the ways' smooth roads and the refined rivers) took the cold block to 3.3 s, a1622724 (boxed road segments) brought it to about 600 ms. The fields layer was the window's critical path (about 240 ms of a 92-square apron window): a watermill's bank scan (28 squares beyond its cell since c6a5717b) asked the road net square by square and re-sampled every square up to 225 times (51 ms for one mill), the partition's half a million terrain samples each took the shared river-water cache's lock, and the fields and town layers drew the same cold town plan twice at once. Now the bank scan samples its area and road clearance once, in parallel (`arda-fields` `compounds::mill::Depths`); each thread remembers the river water of the cell it read last for that call (`arda-blocks` `society::layers::fields`); and `World::plan` lets a caller wait for a draw of the same plan already in flight instead of drawing it again (`Plans::in_flight`). No byte changes (the contract kit's bodies are unchanged). Measured on the same loaded machine: cold block 470 ms, cold quarter window 160 ms (from 540 to 560 and 220 to 255).

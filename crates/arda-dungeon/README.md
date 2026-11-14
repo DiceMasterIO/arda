@@ -118,14 +118,24 @@ walkable yet unreachable with every door opened) and `floating_doors(layout)`
 ## World tie-in
 
 `site_seed(world_seed, gx, gy, salt)` gives a stable seed per world cell;
-the server's `?gx=&gy=` form uses it. Choosing *where* a world has dungeon
-entrances (crypt entrances near settlements, cave mouths on steep slopes)
-is a follow-up.
+the server's `?gx=&gy=` form uses it.
+
+Where a world has sites is the server's (`arda-server` `sites`,
+`GET /v1/sites`): dungeons beside settlements, caves at the foot of steep
+ground. This crate holds what a site adds to single levels and reads no
+world:
+
+- `site.rs`: how many levels a site has and their sizes, each level's
+  seed, the danger tier (the SRD 5.1 trap tables' level bands), the links
+  between exits, and the sealed layout the deepest level's image is drawn
+  from.
+- `traps.rs`: where a level's traps lie, by SRD 5.1 sample-trap kind.
 
 ## Limits
 
-- One level per map; stairs mark the links to other levels, which the
-  caller generates with its own seeds.
+- One level per map. A site chains 1 to 3 of them through
+  `site::links`; a caller without a site generates levels with its own
+  seeds.
 - Walls follow square edges. Cave walls are tagged `natural` and drawn as
   smoothed rock outlines, but their edges (rules, sight, scene walls) stay
   stepped (OI-38).

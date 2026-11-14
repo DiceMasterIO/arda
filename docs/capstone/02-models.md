@@ -1,8 +1,8 @@
 ---
-generated_at_commit: b6cae7350f6b
-generated_date: 2026-10-13
+generated_at_commit: aa6fb7e88970
+generated_date: 2026-11-14
 capstone_version: 7.0.1
-content_hash: 20a7311aab49
+content_hash: 237e4761cc83
 paths_covered:
   - ":(top)crates/*/src/**"
 ---
@@ -15,7 +15,7 @@ Headings. A type name that occurs in more than one crate is written bare for one
 
 ## Entities
 
-Storage values: `HTTP JSON; ts-rs bindings/ts/arda/<Name>.ts` means the type is in the ts-rs export list (`crates/arda-server/src/bindings.rs:96`) and has a committed generated TypeScript file; `society/...` paths are under a world directory; "read view" means a crate-local deserialisation of another crate's file.
+Storage values: `HTTP JSON; ts-rs bindings/ts/arda/<Name>.ts` means the type is in the ts-rs export list (`crates/arda-server/src/bindings.rs:99`) and has a committed generated TypeScript file; `society/...` paths are under a world directory; "read view" means a crate-local deserialisation of another crate's file.
 
 | Name | Definition site | Storage | Purpose |
 |---|---|---|---|
@@ -31,10 +31,10 @@ Storage values: `HTTP JSON; ts-rs bindings/ts/arda/<Name>.ts` means the type is 
 | ContinentOverview | `crates/arda-core/src/continent.rs:58` | continent/overview.bin | The whole persisted 1 km grid, row-major. |
 | ContinentRiver | `crates/arda-core/src/continent.rs:70` | continent/objects.bin | A continent-scale river (`logic/01` §Q7): catchment above the feature-02 threshold, whole course at 1 km resolution. |
 | ContinentObjects | `crates/arda-core/src/continent.rs:87` | continent/objects.bin | Every object stored in `continent/objects.bin`. |
-| AreaCoord | `crates/arda-core/src/coords.rs:15` | in-memory | Index of a 51.2 km area tile within the continent. |
-| CellCoord | `crates/arda-core/src/coords.rs:40` | in-memory | Index of a 100 m cell within one area tile. |
-| KmCoord | `crates/arda-core/src/coords.rs:80` | in-memory | Index of a 1 km cell within the continent working grid. |
-| GlobalCell | `crates/arda-core/src/coords.rs:118` | global hydrology and area geometry | Absolute coordinate on the shared 100 m terrain grid. |
+| AreaCoord | `crates/arda-core/src/coords.rs:23` | in-memory | Index of a 51.2 km area tile within the continent. |
+| CellCoord | `crates/arda-core/src/coords.rs:46` | in-memory | Index of a 100 m cell within one area tile. |
+| KmCoord | `crates/arda-core/src/coords.rs:88` | in-memory | Index of a 1 km cell within the continent working grid. |
+| GlobalCell | `crates/arda-core/src/coords.rs:135` | global hydrology and area geometry | Absolute coordinate on the shared 100 m terrain grid. |
 | HeightMm | `crates/arda-core/src/fixed.rs:9` | in-memory | Elevation in millimetres above sea level; negative below. |
 | TempCentiC | `crates/arda-core/src/fixed.rs:36` | in-memory | Temperature in hundredths of a degree Celsius. |
 | RainfallMm | `crates/arda-core/src/fixed.rs:60` | in-memory | Annual rainfall in millimetres. |
@@ -83,13 +83,13 @@ Storage values: `HTTP JSON; ts-rs bindings/ts/arda/<Name>.ts` means the type is 
 | SeedKey | `crates/arda-core/src/rng.rs:50` | in-memory | The full key for one random stream. |
 | TerrainPoint | `crates/arda-core/src/terrain.rs:11` | in-memory; canonical fine-field diagnostic | A physical position in absolute micrometres. |
 | TerrainField | `crates/arda-core/src/terrain.rs:73` | in-memory; canonical fine-field diagnostic | Owned lattice heights with closed first-to-last coverage on each axis. |
-| ChannelPattern | `crates/arda-core/src/water.rs:275` | `areas/AX_AY/water.bin` | Planform of a river segment. |
-| LakeOrigin | `crates/arda-core/src/water.rs:301` | `areas/AX_AY/water.bin` | Geological origin of a lake basin. |
-| SegmentForm | `crates/arda-core/src/water.rs:337` | `areas/AX_AY/water.bin` | Stored form of one area river segment, in the order of the area's rivers. |
-| LakeForm | `crates/arda-core/src/water.rs:355` | `areas/AX_AY/water.bin` | Stored form of one area lake fragment, in the order of the area's lakes. |
-| DeltaForm | `crates/arda-core/src/water.rs:368` | `areas/AX_AY/water.bin` | A river-mouth delta whose apex lies in this area. |
-| Doline | `crates/arda-core/src/water.rs:379` | `areas/AX_AY/water.bin` | A karst doline (closed solution hollow) below the 100 m cell scale. |
-| AreaWater | `crates/arda-core/src/water.rs:390` | `areas/AX_AY/water.bin` | Every stored water form of one area (`areas/<ax>_<ay>/water.bin`). |
+| ChannelPattern | `crates/arda-core/src/water.rs:278` | `areas/AX_AY/water.bin` | Planform of a river segment. |
+| LakeOrigin | `crates/arda-core/src/water.rs:304` | `areas/AX_AY/water.bin` | Geological origin of a lake basin. |
+| SegmentForm | `crates/arda-core/src/water.rs:340` | `areas/AX_AY/water.bin` | Stored form of one area river segment, in the order of the area's rivers. |
+| LakeForm | `crates/arda-core/src/water.rs:359` | `areas/AX_AY/water.bin` | Stored form of one area lake fragment, in the order of the area's lakes. |
+| DeltaForm | `crates/arda-core/src/water.rs:372` | `areas/AX_AY/water.bin` | A river-mouth delta whose apex lies in this area. |
+| Doline | `crates/arda-core/src/water.rs:383` | `areas/AX_AY/water.bin` | A karst doline (closed solution hollow) below the 100 m cell scale. |
+| AreaWater | `crates/arda-core/src/water.rs:411` | `areas/AX_AY/water.bin` | Every stored water form of one area (`areas/<ax>_<ay>/water.bin`). |
 | Hand | `crates/arda-gen/src/area/fields.rs:78` | in-memory; local diagnostic path | Height above the nearest downstream watercourse, plus how much water that watercourse carries. |
 | Basin | `crates/arda-gen/src/area/fill.rs:16` | in-memory; local diagnostic path | A filled depression: the cells under water and how deep. |
 | Filled | `crates/arda-gen/src/area/fill.rs:27` | in-memory; local diagnostic helper | The routing surface plus the basins that produced it. |
@@ -101,8 +101,8 @@ Storage values: `HTTP JSON; ts-rs bindings/ts/arda/<Name>.ts` means the type is 
 | TileBundle | `crates/arda-gen/src/continent/bundles.rs:142` | in-memory | One area tile's inputs, computed from coarse data and the seed only. |
 | ContinentClimate | `crates/arda-gen/src/continent/climate.rs:12` | in-memory | Per-cell climate fields, row-major over the 1 km grid. |
 | ContinentHydrology | `crates/arda-gen/src/continent/hydrology.rs:20` | in-memory | The continent drainage tree and its per-cell loads. |
-| ContinentGrid | `crates/arda-gen/src/continent/mod.rs:38` | in-memory | The 1 km continent working grid (`logic/01` step 4). |
-| Continent | `crates/arda-gen/src/continent/mod.rs:119` | in-memory | Everything the continent stage knows, threaded to bundles and areas (feature 03 §Q2 — closes the computes-and-discards seam). |
+| ContinentGrid | `crates/arda-gen/src/continent/mod.rs:39` | in-memory | The 1 km continent working grid (`logic/01` step 4). |
+| Continent | `crates/arda-gen/src/continent/mod.rs:120` | in-memory | Everything the continent stage knows, threaded to bundles and areas (feature 03 §Q2 — closes the computes-and-discards seam). |
 | SimExtent | `crates/arda-gen/src/continent/plates.rs:8` | in-memory | The 4 km simulation domain, roughly twice the visible continent. |
 | Plate | `crates/arda-gen/src/continent/plates.rs:31` | in-memory | One tectonic plate. |
 | MarineBoundary | `crates/arda-gen/src/hydrology/types.rs:8` | prepared in-memory/private files | Actual domain sides which can seed marine connectivity. |
@@ -126,12 +126,12 @@ Storage values: `HTTP JSON; ts-rs bindings/ts/arda/<Name>.ts` means the type is 
 | LakeOut | `crates/arda-render/src/json.rs:42` | export JSON | Local area lake DTO and module-scoped copied global lake DTO |
 | AreaOut | `crates/arda-render/src/json.rs:63` | export JSON | Versioned area JSON payload |
 | ChannelEdgeOut | `crates/arda-render/src/json.rs:78` | export JSON | Global centerline endpoints, widths and mean discharge |
-| OverviewRaster | `crates/arda-render/src/overview.rs:44` | in-memory buffered renderer | Overview-sized buffer that never retains an area's cell grid. |
+| OverviewRaster | `crates/arda-render/src/overview.rs:45` | in-memory buffered renderer | Overview-sized buffer that never retains an area's cell grid. |
 | RasterBand | `crates/arda-render/src/overview/streaming.rs:429` | in-memory streaming helper | 256 output rows plus at most 14 halo rows on each side for RGB and feature classifications |
 | ImageQuality | `crates/arda-render/src/quality.rs:7` | in-memory render request | PNG edge length: an area's side or an overview's longest edge. |
-| OverviewLook | `crates/arda/src/export_quality.rs:138` | in-memory | Opt-in looks of an overview render. |
-| MapStyle | `crates/arda/src/lib.rs:32` | in-memory render request | Cartographic presentation applied to PNG exports. |
-| ExportFormat | `crates/arda/src/lib.rs:100` | in-memory | Output format for `export` (`mockup/03`). |
+| OverviewLook | `crates/arda/src/export_quality.rs:147` | in-memory | Opt-in looks of an overview render. |
+| MapStyle | `crates/arda/src/lib.rs:33` | in-memory render request | Cartographic presentation applied to PNG exports. |
+| ExportFormat | `crates/arda/src/lib.rs:102` | in-memory | Output format for `export` (`mockup/03`). |
 | World | `crates/arda/src/world.rs:19` | in-memory | An immutable stored world; layer caches fill only when queried. |
 | Area | `crates/arda/src/world/area.rs:6` | in-memory | One loaded area tile. |
 | Biome (arda-ids) | `crates/arda-ids/src/biome.rs:14` | wire/file JSON value | The biome a settlement reports, serialised snake_case. |
@@ -161,36 +161,37 @@ Storage values: `HTTP JSON; ts-rs bindings/ts/arda/<Name>.ts` means the type is 
 | Stress | `crates/arda-names/src/preset/mod.rs:17` | in-memory; embedded in records (serde) | Where the main stress falls. |
 | FamilyStyle | `crates/arda-names/src/preset/mod.rs:29` | in-memory; embedded in records (serde) | How family names are formed; weights live in `Spec::family`. |
 | Preset | `crates/arda-names/src/preset/mod.rs:156` | in-memory; embedded in records (serde) | A culture or ancestry preset. |
-| NameScope | `crates/arda-names/src/scope.rs:21` | in-memory; embedded in records (serde) | The set of names already used in a scope. |
+| NameScope | `crates/arda-names/src/scope.rs:29` | in-memory; embedded in records (serde) | The set of names already used in a scope. |
 | Tongue (arda-names) | `crates/arda-names/src/tongue.rs:18` | in-memory; embedded in records (serde) | Everything needed to rebuild a place's local language. |
 | PlaceKind | `crates/arda-names/src/types.rs:12` | in-memory; embedded in records (serde) | What kind of place is being named. |
-| SiteTag | `crates/arda-names/src/types.rs:107` | in-memory; embedded in records (serde) | A site tag, as `arda-settle` records them for each settlement. |
-| PlaceSpec | `crates/arda-names/src/types.rs:174` | in-memory; embedded in records (serde) | What to name. |
-| Part | `crates/arda-names/src/types.rs:224` | in-memory; embedded in records (serde) | One morpheme of a name, kept so names can be derived from names. |
-| Name (arda-names) | `crates/arda-names/src/types.rs:235` | in-memory; embedded in records (serde) | A generated name. |
-| CrossingKind | `crates/arda-settle/src/crossings.rs:21` | `society/roads.json` | How a road gets over water. |
-| Crossing | `crates/arda-settle/src/crossings.rs:32` | `society/roads.json` | One crossing object. |
-| Pass | `crates/arda-settle/src/crossings.rs:56` | `society/roads.json` | One pass object. |
+| SiteTag | `crates/arda-names/src/types.rs:110` | in-memory; embedded in records (serde) | A site tag, as `arda-settle` records them for each settlement. |
+| PlaceSpec | `crates/arda-names/src/types.rs:177` | in-memory; embedded in records (serde) | What to name. |
+| Part | `crates/arda-names/src/types.rs:227` | in-memory; embedded in records (serde) | One morpheme of a name, kept so names can be derived from names. |
+| Name (arda-names) | `crates/arda-names/src/types.rs:238` | in-memory; embedded in records (serde) | A generated name. |
+| CrossingKind | `crates/arda-settle/src/crossings.rs:22` | `society/roads.json` | How a road gets over water. |
+| Crossing | `crates/arda-settle/src/crossings.rs:33` | `society/roads.json` | One crossing object. |
+| Pass | `crates/arda-settle/src/crossings.rs:57` | `society/roads.json` | One pass object. |
 | Tier (arda-settle) | `crates/arda-settle/src/model.rs:12` | `society/settlements.json` | Settlement size class (`arda-npc` `Tier`). |
 | Function | `crates/arda-settle/src/model.rs:50` | `society/settlements.json` | What a settlement lives on (`arda-npc` `SettlementFunction`). |
 | Settlement | `crates/arda-settle/src/model.rs:87` | `society/settlements.json` | One settlement, as written to `society/settlements.json`. |
 | SettlementsFile | `crates/arda-settle/src/output.rs:28` | `society/settlements.json` | `settlements.json`. |
-| RoadsFile | `crates/arda-settle/src/output.rs:45` | `society/roads.json` | `roads.json`. |
-| RealmsFile | `crates/arda-settle/src/output.rs:58` | `society/realms.json` | `realms.json`. |
-| NamedRiver | `crates/arda-settle/src/output.rs:67` | `society/names.json` | A named river. |
-| NamedPeak | `crates/arda-settle/src/output.rs:87` | `society/names.json` | A named mountain. |
-| NamedRegion | `crates/arda-settle/src/output.rs:100` | `society/names.json` | A named culture region. |
-| NamesFile | `crates/arda-settle/src/output.rs:116` | `society/names.json` | `names.json`. |
+| Stamp | `crates/arda-settle/src/stamp.rs:21` | `society/settlements.json` | The generation stamp in `settlements.json`. |
+| RoadsFile | `crates/arda-settle/src/output.rs:49` | `society/roads.json` | `roads.json`. |
+| RealmsFile | `crates/arda-settle/src/output.rs:62` | `society/realms.json` | `realms.json`. |
+| NamedRiver | `crates/arda-settle/src/output.rs:71` | `society/names.json` | A named river. |
+| NamedPeak | `crates/arda-settle/src/output.rs:91` | `society/names.json` | A named mountain. |
+| NamedRegion | `crates/arda-settle/src/output.rs:104` | `society/names.json` | A named culture region. |
+| NamesFile | `crates/arda-settle/src/output.rs:120` | `society/names.json` | `names.json`. |
 | GazetteerFeature | `crates/arda-settle/src/gazetteer/mod.rs:136` | `society/gazetteer.json` | A named natural feature with anchor, label path, extent, rank and first zoom. |
 | GazetteerFile | `crates/arda-settle/src/gazetteer/mod.rs:171` | `society/gazetteer.json` | `gazetteer.json`. |
 | GazetteerPoint | `crates/arda-settle/src/gazetteer/list.rs:13` | `GET /v1/gazetteer` | A settlement as a map point (`kind` hamlet to city, `at_m`, `rank` 2 to 5). |
 | GazetteerList | `crates/arda-settle/src/gazetteer/list.rs:88` | `GET /v1/gazetteer` | `{format_version, features: [GazetteerFeature or GazetteerPoint]}`. |
-| Gazetteer | `crates/arda-settle/src/gazetteer/list.rs:88` | HTTP JSON; schema name of `GazetteerList` (`crates/arda-server/src/schema/mod.rs:161`) | `GET /v1/gazetteer`: natural features and settlements together, filtered. |
+| Gazetteer | `crates/arda-settle/src/gazetteer/list.rs:88` | HTTP JSON; schema name of `GazetteerList` (`crates/arda-server/src/schema/mod.rs:170`) | `GET /v1/gazetteer`: natural features and settlements together, filtered. |
 | GazetteerItem | `crates/arda-settle/src/gazetteer/list.rs:40` | `GET /v1/gazetteer` | One list entry: a `GazetteerFeature` or a `GazetteerPoint`, untagged. |
 | RealmStats | `crates/arda-settle/src/realm_stats.rs:15` | `society/stats.json` | The realm summary written into `stats.json`. |
-| Realm | `crates/arda-settle/src/realms.rs:38` | `society/realms.json` | One realm, as written to `society/realms.json`. |
-| Road | `crates/arda-settle/src/roads.rs:27` | `society/roads.json` | One road object: the new cells a route added to the network. |
-| Terrain | `crates/arda-settle/src/roads.rs:58` | `society/roads.json` | Terrain class of a route, by the median slope along it. |
+| Realm | `crates/arda-settle/src/realms.rs:40` | `society/realms.json` | One realm, as written to `society/realms.json`. |
+| Road | `crates/arda-settle/src/roads.rs:29` | `society/roads.json` | One road object: the new cells a route added to the network. |
+| Terrain | `crates/arda-settle/src/roads.rs:66` | `society/roads.json` | Terrain class of a route, by the median slope along it. |
 | Spread | `crates/arda-settle/src/stats.rs:19` | `society/stats.json` | Distribution of one measure over a set of routes. |
 | Stats | `crates/arda-settle/src/stats.rs:52` | `society/stats.json` | The summary written to `stats.json` and printed by the CLI. |
 | BuildingRef | `crates/arda-society/src/buildings.rs:15` | in-memory | One building as society sees it. |
@@ -203,7 +204,7 @@ Storage values: `HTTP JSON; ts-rs bindings/ts/arda/<Name>.ts` means the type is 
 | TradeFlow | `crates/arda-society/src/economy/trade.rs:30` | `society/society.json` | One settlement-to-settlement shipment of one good per year. |
 | Ledger | `crates/arda-society/src/economy/trade.rs:56` | `society/society.json` | Where each load of one settlement went. |
 | HistoryHook | `crates/arda-society/src/history/lore.rs:17` | `society/society.json` | One line of settlement history. |
-| EventKind | `crates/arda-society/src/history/mod.rs:23` | `society/society.json` | What happened. |
+| EventKind | `crates/arda-society/src/history/mod.rs:26` | `society/society.json` | What happened. |
 | Event | `crates/arda-society/src/history/mod.rs:58` | `society/society.json` | One timeline entry. |
 | Dynasty | `crates/arda-society/src/history/mod.rs:120` | `society/society.json` | A ruling house. |
 | Reign | `crates/arda-society/src/history/mod.rs:139` | `society/society.json` | One reign. |
@@ -223,17 +224,17 @@ Storage values: `HTTP JSON; ts-rs bindings/ts/arda/<Name>.ts` means the type is 
 | Realm (arda-society) | `crates/arda-society/src/input.rs:237` | read view of `society/*.json` | One realm (`realms.json`, `logic/06` "State transitions"). |
 | BuildingSpec (arda-society) | `crates/arda-society/src/input.rs:256` | read view of `society/*.json` | An explicit building (vocabulary.md I5–I7): `function` is a plain snake_case key; a workshop's craft is the free tag `craft:<name>`. |
 | WorldSettlements | `crates/arda-society/src/input.rs:272` | read view of `society/*.json` | Everything society is built from. |
-| SettlementSociety | `crates/arda-society/src/lib.rs:61` | `society/society.json` | Society of one settlement. |
-| RealmSociety | `crates/arda-society/src/lib.rs:100` | `society/society.json` | A realm today with its region-level plot hooks. |
-| Society | `crates/arda-society/src/lib.rs:110` | `society/society.json` | The whole society layer of a world. |
+| SettlementSociety | `crates/arda-society/src/lib.rs:62` | `society/society.json` | Society of one settlement. |
+| RealmSociety | `crates/arda-society/src/lib.rs:102` | `society/society.json` | A realm today with its region-level plot hooks. |
+| Society | `crates/arda-society/src/lib.rs:112` | `society/society.json` | The whole society layer of a world. |
 | Faction | `crates/arda-society/src/politics/factions.rs:19` | `society/society.json` | One faction. |
 | FactionStance | `crates/arda-society/src/politics/factions.rs:46` | `society/society.json` | How two factions stand. |
 | FactionRelation | `crates/arda-society/src/politics/factions.rs:73` | `society/society.json` | Stance between factions `a < b` (by id) of one settlement. |
-| Ruler | `crates/arda-society/src/politics/realm.rs:20` | `society/society.json` | The present ruler of a realm. |
-| Vassal | `crates/arda-society/src/politics/realm.rs:41` | `society/society.json` | A vassal lord. |
+| Ruler | `crates/arda-society/src/politics/realm.rs:21` | `society/society.json` | The present ruler of a realm. |
+| Vassal | `crates/arda-society/src/politics/realm.rs:43` | `society/society.json` | A vassal lord. |
 | RealmState | `crates/arda-society/src/politics/realm.rs:69` | `society/society.json` | One realm today. |
-| Stance | `crates/arda-society/src/politics/relations.rs:16` | `society/society.json` | How two realms stand. |
-| Relation | `crates/arda-society/src/politics/relations.rs:45` | `society/society.json` | Relation between realms `a < b`. |
+| Stance | `crates/arda-society/src/politics/relations.rs:17` | `society/society.json` | How two realms stand. |
+| Relation | `crates/arda-society/src/politics/relations.rs:47` | `society/society.json` | Relation between realms `a < b`. |
 | SettlementsFile (arda-society) | `crates/arda-society/src/read.rs:23` | read view of `society/*.json` | — |
 | RoadsFile (arda-society) | `crates/arda-society/src/read.rs:29` | read view of `society/*.json` | — |
 | RealmsFile (arda-society) | `crates/arda-society/src/read.rs:35` | read view of `society/*.json` | — |
@@ -327,23 +328,25 @@ Storage values: `HTTP JSON; ts-rs bindings/ts/arda/<Name>.ts` means the type is 
 | SpellRef (arda-npc) | `crates/arda-npc/src/sheet/mod.rs:134` | `society/notables.json` (notables); regenerated otherwise | A spell known or prepared. |
 | Spellcasting (arda-npc) | `crates/arda-npc/src/sheet/mod.rs:143` | `society/notables.json` (notables); regenerated otherwise | Spellcasting block. |
 | Sheet (arda-npc) | `crates/arda-npc/src/sheet/mod.rs:160` | `society/notables.json` (notables); regenerated otherwise | A full SRD 5.1 sheet. |
-| BuildReport | `crates/arda-people/src/build.rs:18` | in-memory | What a build produced. |
-| StoredNotable | `crates/arda-people/src/files.rs:22` | `society/notables.json` | One settlement's stored notables (goal 56: only notables are stored; commoners are regenerated). |
-| NotablesFile | `crates/arda-people/src/files.rs:34` | `society/notables.json` | `notables.json`. |
-| SocietyFiles | `crates/arda-people/src/files.rs:45` | in-memory | Everything read from `<world>/society/`. |
-| BuildingSource | `crates/arda-people/src/people.rs:22` | in-memory | Where a settlement's buildings come from. |
-| World (arda-people) | `crates/arda-people/src/people.rs:43` | in-memory | A world with its `society/` directory. |
+| BuildReport | `crates/arda-people/src/build.rs:17` | in-memory | What a build produced. |
+| StoredNotable | `crates/arda-people/src/files.rs:23` | `society/notables.json` | One settlement's stored notables (goal 56: only notables are stored; commoners are regenerated). |
+| NotablesFile | `crates/arda-people/src/notables.rs:49` | `society/notables.json` | `notables.json`. |
+| NotableIndex | `crates/arda-people/src/notables.rs:32` | `society/notables.json` header line | One settlement's entry in the header index. |
+| Notables | `crates/arda-people/src/notables.rs:114` | in-memory over `society/notables.json` | A `notables.json` opened for lazy reading. |
+| SocietyFiles | `crates/arda-people/src/files.rs:40` | in-memory | Everything read from `<world>/society/`. |
+| BuildingSource | `crates/arda-people/src/people.rs:47` | in-memory | Where a settlement's buildings come from. |
+| World (arda-people) | `crates/arda-people/src/people.rs:178` | in-memory | A world with its `society/` directory. |
 | Surroundings | `crates/arda-people/src/terrain.rs:21` | in-memory | World cells around a point, with the river channels among them. |
 | FallbackKind | `crates/arda-town/src/block/fallback.rs:23` | in-memory (block JSON when serialised) | What kind of key was replaced. |
 | Fallback | `crates/arda-town/src/block/fallback.rs:36` | in-memory (block JSON when serialised) | One recorded substitution. |
-| Window | `crates/arda-town/src/block/mod.rs:43` | in-memory (block JSON when serialised) | A window of global squares. |
-| BlockBuilding | `crates/arda-town/src/block/mod.rs:56` | in-memory (block JSON when serialised) | A plan building as seen by one block. |
-| SquareRules | `crates/arda-town/src/block/mod.rs:73` | in-memory (block JSON when serialised) | Per-square rules, mirroring `arda-scene` `RulesSidecar` format 2 names. |
-| Cover (arda-town) | `crates/arda-town/src/block/mod.rs:91` | in-memory (block JSON when serialised) | SRD cover levels (I16). |
-| TownBlock | `crates/arda-town/src/block/mod.rs:104` | in-memory (block JSON when serialised) | A tactical block and its sidecar. |
-| TownFill | `crates/arda-town/src/block/wfc/mod.rs:31` | in-memory (block JSON when serialised) | How the town fabric inside the plan is filled. |
-| Relaxed | `crates/arda-town/src/block/wfc/mod.rs:42` | in-memory (block JSON when serialised) | A problem that fell back to the relaxed fill, for review (goal 47). |
-| Report | `crates/arda-town/src/block/wfc/mod.rs:60` | in-memory (block JSON when serialised) | Counts of WFC problems and relaxed fills, for review and the gates. |
+| Window | `crates/arda-town/src/block/mod.rs:45` | in-memory (block JSON when serialised) | A window of global squares. |
+| BlockBuilding | `crates/arda-town/src/block/mod.rs:58` | in-memory (block JSON when serialised) | A plan building as seen by one block. |
+| SquareRules | `crates/arda-town/src/block/mod.rs:75` | in-memory (block JSON when serialised) | Per-square rules, mirroring `arda-scene` `RulesSidecar` format 2 names. |
+| Cover (arda-town) | `crates/arda-town/src/block/mod.rs:93` | in-memory (block JSON when serialised) | SRD cover levels (I16). |
+| TownBlock | `crates/arda-town/src/block/mod.rs:106` | in-memory (block JSON when serialised) | A tactical block and its sidecar. |
+| TownFill | `crates/arda-town/src/block/wfc/mod.rs:32` | in-memory (block JSON when serialised) | How the town fabric inside the plan is filled. |
+| Relaxed | `crates/arda-town/src/block/wfc/mod.rs:43` | in-memory (block JSON when serialised) | A problem that fell back to the relaxed fill, for review (goal 47). |
+| Report | `crates/arda-town/src/block/wfc/mod.rs:61` | in-memory (block JSON when serialised) | Counts of WFC problems and relaxed fills, for review and the gates. |
 | BuildingFunction (arda-town) | `crates/arda-town/src/function.rs:14` | in-memory; `GET /v1/settlements/{id}/plan` JSON | A building function key (vocabulary `function:*`). |
 | Vec2 | `crates/arda-town/src/geom.rs:12` | in-memory; `GET /v1/settlements/{id}/plan` JSON | A point or vector in world metres. |
 | Side | `crates/arda-town/src/plan/grid.rs:272` | in-memory; `GET /v1/settlements/{id}/plan` JSON | A side of a rectangle or the direction a front faces. |
@@ -385,24 +388,24 @@ Storage values: `HTTP JSON; ts-rs bindings/ts/arda/<Name>.ts` means the type is 
 | Failure | `crates/arda-wfc/src/solve.rs:86` | in-memory | Every attempt failed; the caller applies its relaxed fill. |
 | Block (arda-refine) | `crates/arda-refine/src/block.rs:35` | in-memory | One refined 64 × 64 block. |
 | Class (arda-refine) | `crates/arda-refine/src/classes.rs:8` | in-memory | A natural ground class, assigned to square corners by the WFC. |
-| Map | `crates/arda-refine/src/output.rs:102` | `layout.json` + `meta.json` (arda-refine CLI) | A layout plus its rules sidecar and metadata. |
+| Map | `crates/arda-refine/src/output.rs:86` | `layout.json` + `meta.json` (arda-refine CLI) | A layout plus its rules sidecar and metadata. |
 | WaterRegion | `crates/arda-refine/src/region.rs:69` | in-memory | Water geometry over a region of global squares. |
 | PlacementMeta | `crates/arda-refine/src/rules.rs:23` | `meta.json` / sidecar JSON | Metadata for one placement, parallel to the layout's placements. |
 | BlockMeta | `crates/arda-refine/src/rules.rs:34` | `meta.json` / sidecar JSON | How one block was generated. |
 | MapMeta | `crates/arda-refine/src/rules.rs:47` | `meta.json` / sidecar JSON | The refiner's metadata beside a layout. |
-| SquareRules (arda-refine) | `crates/arda-refine/src/rules.rs:68` | `meta.json` / sidecar JSON | Full per-square rules as the refiner computes them. |
+| SquareRules (arda-refine) | `crates/arda-refine/src/rules.rs:73` | `meta.json` / sidecar JSON | Full per-square rules as the refiner computes them. |
 | Kind | `crates/arda-refine/src/scatter.rs:22` | in-memory | What a placement stands for, independent of art. |
 | Item (arda-refine) | `crates/arda-refine/src/scatter.rs:47` | in-memory | One placed item in global square units. |
-| CellKey | `crates/arda-refine/src/source.rs:15` | in-memory | A global 100 m cell coordinate. |
-| Edge (arda-refine) | `crates/arda-refine/src/source.rs:38` | in-memory | One saved channel centreline step between neighbouring cells. |
-| LakeInfo | `crates/arda-refine/src/source.rs:53` | in-memory | A lake as seen from one of its cells. |
+| CellKey | `crates/arda-refine/src/source.rs:17` | in-memory | A global 100 m cell coordinate. |
+| Edge (arda-refine) | `crates/arda-refine/src/source.rs:40` | in-memory | One saved channel centreline step between neighbouring cells. |
+| LakeInfo | `crates/arda-refine/src/source.rs:55` | in-memory | A lake as seen from one of its cells. |
 | Water | `crates/arda-refine/src/terrain.rs:15` | in-memory | Which water, if any, covers a square. |
 | TileId (arda-refine) | `crates/arda-refine/src/tiles.rs:20` | in-memory | Index of a tile in `vocabulary`. |
-| WorldSource | `crates/arda-refine/src/world_source.rs:48` | in-memory | A stored world as a refinement source. |
-| Group (arda-refine) | `crates/arda-refine/src/coastwet.rs:38` | `arda-refine` coastwet report JSON | Counts for one group of sampled land cells in the coast and wetness report. |
-| PoolStats | `crates/arda-refine/src/coastwet.rs:61` | `arda-refine` coastwet report JSON | Pool statistics over the blocks sampled in one report group. |
-| Strip (arda-refine) | `crates/arda-refine/src/coastwet.rs:77` | `arda-refine` coastwet report JSON | Coast strip width statistics for one shore class. |
-| Report (arda-refine) | `crates/arda-refine/src/coastwet.rs:90` | `arda-refine` coastwet report JSON | The whole coast and wetness report: groups, shore-class shares and strip widths. |
+| WorldSource | `crates/arda-refine/src/world_source.rs:49` | in-memory | A stored world as a refinement source. |
+| Group (arda-refine) | `crates/arda-refine/src/coastwet.rs:39` | `arda-refine` coastwet report JSON | Counts for one group of sampled land cells in the coast and wetness report. |
+| PoolStats | `crates/arda-refine/src/coastwet.rs:62` | `arda-refine` coastwet report JSON | Pool statistics over the blocks sampled in one report group. |
+| Strip (arda-refine) | `crates/arda-refine/src/coastwet.rs:78` | `arda-refine` coastwet report JSON | Coast strip width statistics for one shore class. |
+| Report (arda-refine) | `crates/arda-refine/src/coastwet.rs:91` | `arda-refine` coastwet report JSON | The whole coast and wetness report: groups, shore-class shares and strip widths. |
 | FallbackKind (arda-ways) | `crates/arda-ways/src/fallback.rs:14` | in-memory; sidecar JSON when serialised | What kind of key was substituted. |
 | Fallback (arda-ways) | `crates/arda-ways/src/fallback.rs:25` | in-memory; sidecar JSON when serialised | One recorded substitution. |
 | RoadClass (arda-ways) | `crates/arda-ways/src/input.rs:21` | in-memory input | Road class with the canonical stored codes (vocabulary I3): `none = 0, track = 1, road = 2, highway = 3, footpath = 4`. |
@@ -411,14 +414,14 @@ Storage values: `HTTP JSON; ts-rs bindings/ts/arda/<Name>.ts` means the type is 
 | CrossingKind (arda-ways) | `crates/arda-ways/src/input.rs:167` | in-memory input | How a road gets over water (`arda-settle` `CrossingKind`). |
 | Crossing (arda-ways) | `crates/arda-ways/src/input.rs:178` | in-memory input | One crossing object (`arda-settle` `Crossing`). |
 | RiverChannel | `crates/arda-ways/src/input.rs:207` | in-memory input | A river channel at 5-ft resolution: centreline, bank-to-bank width and thalweg depth. |
-| CrossingReport | `crates/arda-ways/src/lib.rs:36` | in-memory; sidecar JSON when serialised | A resolved crossing, for reports. |
-| WaysReport | `crates/arda-ways/src/lib.rs:58` | in-memory; sidecar JSON when serialised | What `apply_ways` did, beyond the sidecar. |
+| CrossingReport | `crates/arda-ways/src/lib.rs:37` | in-memory; sidecar JSON when serialised | A resolved crossing, for reports. |
+| WaysReport | `crates/arda-ways/src/lib.rs:59` | in-memory; sidecar JSON when serialised | What `apply_ways` did, beyond the sidecar. |
 | Feature | `crates/arda-ways/src/sidecar.rs:23` | in-memory; sidecar JSON when serialised | What a square is, as far as ways are concerned. |
 | Cover (arda-ways) | `crates/arda-ways/src/sidecar.rs:60` | in-memory; sidecar JSON when serialised | SRD cover a square grants (vocabulary I16). |
 | SquareRules (arda-ways) | `crates/arda-ways/src/sidecar.rs:78` | in-memory; sidecar JSON when serialised | Per-square rules. |
-| EdgeRole (arda-ways) | `crates/arda-ways/src/sidecar.rs:114` | in-memory; sidecar JSON when serialised | Why an edge exists. |
-| EdgeRule (arda-ways) | `crates/arda-ways/src/sidecar.rs:126` | in-memory; sidecar JSON when serialised | Movement and sight rules for one wall segment of the layout. |
-| Sidecar | `crates/arda-ways/src/sidecar.rs:144` | in-memory; sidecar JSON when serialised | The sidecar document. |
+| EdgeRole (arda-ways) | `crates/arda-ways/src/sidecar.rs:121` | in-memory; sidecar JSON when serialised | Why an edge exists. |
+| EdgeRule (arda-ways) | `crates/arda-ways/src/sidecar.rs:133` | in-memory; sidecar JSON when serialised | Movement and sight rules for one wall segment of the layout. |
+| Sidecar | `crates/arda-ways/src/sidecar.rs:151` | in-memory; sidecar JSON when serialised | The sidecar document. |
 | CompoundKind | `crates/arda-fields/src/compounds/mod.rs:59` | in-memory; sidecar JSON when serialised | What a compound is. |
 | Fallback (arda-fields) | `crates/arda-fields/src/degrade.rs:18` | in-memory; sidecar JSON when serialised | One substitution, counted over the layout. |
 | FieldKind | `crates/arda-fields/src/fields.rs:15` | in-memory; sidecar JSON when serialised | What a field is used for. |
@@ -435,41 +438,42 @@ Storage values: `HTTP JSON; ts-rs bindings/ts/arda/<Name>.ts` means the type is 
 | SrdCover | `crates/arda-fields/src/sidecar.rs:19` | in-memory; sidecar JSON when serialised | SRD cover levels in the canonical spelling (`vocabulary.md`, I16). |
 | Sidecar (arda-fields) | `crates/arda-fields/src/sidecar.rs:47` | in-memory; sidecar JSON when serialised | SRD rules and records for one window. |
 | SquareRules (arda-fields) | `crates/arda-fields/src/sidecar.rs:74` | in-memory; sidecar JSON when serialised | Rules of one square, with the `RulesSidecar` field names (I9). |
-| EdgeRules | `crates/arda-fields/src/sidecar.rs:103` | in-memory; sidecar JSON when serialised | Rules of one edge segment. |
-| FieldRecord | `crates/arda-fields/src/sidecar.rs:128` | in-memory; sidecar JSON when serialised | A field record. |
-| CompoundRecord | `crates/arda-fields/src/sidecar.rs:149` | in-memory; sidecar JSON when serialised | A compound record. |
+| EdgeRules | `crates/arda-fields/src/sidecar.rs:107` | in-memory; sidecar JSON when serialised | Rules of one edge segment. |
+| FieldRecord | `crates/arda-fields/src/sidecar.rs:132` | in-memory; sidecar JSON when serialised | A field record. |
+| CompoundRecord | `crates/arda-fields/src/sidecar.rs:153` | in-memory; sidecar JSON when serialised | A compound record. |
 | DemoOverlays | `crates/arda-blocks/src/demo/mod.rs:33` | in-memory | Overlays built from the synthetic samples, anchored at a world cell. |
-| Owner | `crates/arda-blocks/src/overlays.rs:28` | in-memory | Who reserves a square, in rising precedence (logic/09 §reservations: town 1 > ways 2 > water 3 > fields 4 > natural ground). |
-| OverlayCtx | `crates/arda-blocks/src/overlays.rs:75` | in-memory | What an overlay provider sees: the window in world squares, the world seed, the refined base layout and the library the result must resolve against. |
-| OverlayLayer | `crates/arda-blocks/src/overlays.rs:94` | in-memory | One overlay's contribution to a window. |
-| Composed | `crates/arda-blocks/src/pipeline.rs:23` | in-memory | A composed window: what the compositor draws and what the scene reads. |
-| Pipeline | `crates/arda-blocks/src/pipeline.rs:70` | in-memory | Refines and composes tactical windows of one world. |
-| LandUseRaster | `crates/arda-blocks/src/society/layers.rs:84` | in-memory | The world's land-use raster, one code per 100 m cell. |
-| SocietyOverlays | `crates/arda-blocks/src/society/mod.rs:91` | in-memory | The world's society as the three overlay layers. |
+| Owner | `crates/arda-blocks/src/overlays.rs:36` | in-memory | Who reserves a square, in rising precedence (logic/09 §reservations: town 1 > ways 2 > water 3 > fields 4 > natural ground). |
+| OverlayCtx | `crates/arda-blocks/src/overlays.rs:107` | in-memory | What an overlay provider sees: the window in world squares, the world seed, the refined base layout and the library the result must resolve against. |
+| OverlayLayer | `crates/arda-blocks/src/overlays.rs:126` | in-memory | One overlay's contribution to a window. |
+| Composed | `crates/arda-blocks/src/pipeline.rs:30` | in-memory | A composed window: what the compositor draws and what the scene reads. |
+| Pipeline | `crates/arda-blocks/src/pipeline.rs:78` | in-memory | Refines and composes tactical windows of one world. |
+| Cut | `crates/arda-blocks/src/crop.rs:27` | in-memory | A sub-window `[x, x + w) × [y, y + h)` in a layout's own squares. |
+| LandUseRaster | `crates/arda-blocks/src/society/layers.rs:89` | in-memory | The world's land-use raster, one code per 100 m cell. |
+| SocietyOverlays | `crates/arda-blocks/src/society/mod.rs:92` | in-memory | The world's society as the three overlay layers. |
 | Catalog | `crates/arda-tactical/src/catalog.rs:15` | library `catalog.json` | A whole asset library: metadata plus every asset record. |
 | TagVocabulary | `crates/arda-tactical/src/catalog.rs:34` | library `catalog.json` | The controlled vocabularies that asset tags are checked against. |
 | Asset | `crates/arda-tactical/src/catalog.rs:52` | library `catalog.json` | One asset record. |
 | AssetClass | `crates/arda-tactical/src/catalog.rs:141` | library `catalog.json` | The asset classes of goal 59. |
-| Footprint | `crates/arda-tactical/src/catalog.rs:168` | library `catalog.json` | Footprint in squares. |
-| Anchor | `crates/arda-tactical/src/catalog.rs:178` | library `catalog.json` | A pivot point, in squares from the image's top-left corner. |
-| Tags | `crates/arda-tactical/src/catalog.rs:189` | library `catalog.json` | Classification tags. |
-| PlacementRules | `crates/arda-tactical/src/catalog.rs:210` | library `catalog.json` | Placement rules for dressing (goal 64 consumes these). |
-| Cover (arda-tactical) | `crates/arda-tactical/src/catalog.rs:231` | library `catalog.json` | SRD cover levels. |
-| Light | `crates/arda-tactical/src/catalog.rs:248` | library `catalog.json` | A light source. |
-| Layer | `crates/arda-tactical/src/catalog.rs:258` | library `catalog.json` | Render layers, drawn in declaration order (goal 62). |
-| WallPiece | `crates/arda-tactical/src/catalog.rs:276` | library `catalog.json` | Membership of a wall kit. |
-| WallRole | `crates/arda-tactical/src/catalog.rs:288` | library `catalog.json` | Wall-kit piece roles. |
+| Footprint | `crates/arda-tactical/src/catalog.rs:184` | library `catalog.json` | Footprint in squares. |
+| Anchor | `crates/arda-tactical/src/catalog.rs:194` | library `catalog.json` | A pivot point, in squares from the image's top-left corner. |
+| Tags | `crates/arda-tactical/src/catalog.rs:205` | library `catalog.json` | Classification tags. |
+| PlacementRules | `crates/arda-tactical/src/catalog.rs:226` | library `catalog.json` | Placement rules for dressing (goal 64 consumes these). |
+| Cover (arda-tactical) | `crates/arda-tactical/src/catalog.rs:247` | library `catalog.json` | SRD cover levels. |
+| Light | `crates/arda-tactical/src/catalog.rs:264` | library `catalog.json` | A light source. |
+| Layer | `crates/arda-tactical/src/catalog.rs:274` | library `catalog.json` | Render layers, drawn in declaration order (goal 62). |
+| WallPiece | `crates/arda-tactical/src/catalog.rs:292` | library `catalog.json` | Membership of a wall kit. |
+| WallRole | `crates/arda-tactical/src/catalog.rs:304` | library `catalog.json` | Wall-kit piece roles. |
 | TacticalLayout | `crates/arda-tactical/src/layout.rs:15` | layout JSON (`*.layout.json`, `layout.json`) | A W × H battle map. |
 | Square | `crates/arda-tactical/src/layout.rs:43` | layout JSON (`*.layout.json`, `layout.json`) | One 5-ft square. |
 | EdgeAxis | `crates/arda-tactical/src/layout.rs:69` | layout JSON (`*.layout.json`, `layout.json`) | Which edge of a square a segment lies on. |
 | WallSegment | `crates/arda-tactical/src/layout.rs:80` | layout JSON (`*.layout.json`, `layout.json`) | A wall-kit edge feature. |
-| AssetRef | `crates/arda-tactical/src/layout.rs:141` | layout JSON (`*.layout.json`, `layout.json`) | An asset chosen by id or by a deterministic tag query. |
-| Placement | `crates/arda-tactical/src/layout.rs:161` | layout JSON (`*.layout.json`, `layout.json`) | A prop or vegetation placement. |
-| LightSource | `crates/arda-tactical/src/layout.rs:179` | layout JSON (`*.layout.json`, `layout.json`) | A light source not attached to an asset. |
+| AssetRef | `crates/arda-tactical/src/layout.rs:146` | layout JSON (`*.layout.json`, `layout.json`) | An asset chosen by id or by a deterministic tag query. |
+| Placement | `crates/arda-tactical/src/layout.rs:166` | layout JSON (`*.layout.json`, `layout.json`) | A prop or vegetation placement. |
+| LightSource | `crates/arda-tactical/src/layout.rs:184` | layout JSON (`*.layout.json`, `layout.json`) | A light source not attached to an asset. |
 | RulesSidecar | `crates/arda-scene/src/sidecar.rs:37` | rules sidecar JSON (format 2) | Per-square rules produced beside a layout. |
 | EdgeRole | `crates/arda-scene/src/sidecar.rs:56` | rules sidecar JSON (format 2) | Why a rules edge exists. |
 | EdgeRule | `crates/arda-scene/src/sidecar.rs:73` | rules sidecar JSON (format 2) | Movement and sight rules for one unit edge, in layout edge coordinates (as `WallSegment`: `x`, `y` and `axis`). |
-| RulesCell | `crates/arda-scene/src/sidecar.rs:94` | rules sidecar JSON (format 2) | One square's rules. |
+| RulesCell | `crates/arda-scene/src/sidecar.rs:101` | rules sidecar JSON (format 2) | One square's rules. |
 | Sq | `crates/arda-scene/src/types.rs:16` | scene JSON (format 1) | A square, as `[x, y]` in JSON. |
 | Movement | `crates/arda-scene/src/types.rs:35` | scene JSON (format 1) | How a creature moves through a square (SRD 5.1, "Movement"). |
 | CoverLevel | `crates/arda-scene/src/types.rs:62` | scene JSON (format 1) | SRD 5.1 degrees of cover, ordered from least to most protective. |
@@ -489,15 +493,15 @@ Storage values: `HTTP JSON; ts-rs bindings/ts/arda/<Name>.ts` means the type is 
 | TokenSlot | `crates/arda-scene/src/types.rs:322` | scene JSON (format 1) | Where an NPC's token stands on the map. |
 | Kind (arda-dungeon) | `crates/arda-dungeon/src/lib.rs:54` | in-memory | What to generate. |
 | Params | `crates/arda-dungeon/src/lib.rs:88` | in-memory | Generation parameters. |
-| Purpose | `crates/arda-dungeon/src/lib.rs:119` | in-memory | The purpose of a built room, which decides its dressing. |
-| Room | `crates/arda-dungeon/src/lib.rs:142` | in-memory | A room: its purpose and its floor rectangle in squares. |
-| Door (arda-dungeon) | `crates/arda-dungeon/src/lib.rs:159` | in-memory | A door on a square edge, in layout edge terms (as `WallSegment`). |
-| ExitKind | `crates/arda-dungeon/src/lib.rs:175` | in-memory | A way in or out of the level. |
-| Exit | `crates/arda-dungeon/src/lib.rs:186` | in-memory | An exit: its kind and the square a token arrives on. |
-| Dungeon | `crates/arda-dungeon/src/lib.rs:197` | in-memory; `out/dungeon/layout.json` via CLI | A generated level. |
+| Purpose | `crates/arda-dungeon/src/lib.rs:121` | in-memory | The purpose of a built room, which decides its dressing. |
+| Room | `crates/arda-dungeon/src/lib.rs:144` | in-memory | A room: its purpose and its floor rectangle in squares. |
+| Door (arda-dungeon) | `crates/arda-dungeon/src/lib.rs:161` | in-memory | A door on a square edge, in layout edge terms (as `WallSegment`). |
+| ExitKind | `crates/arda-dungeon/src/lib.rs:177` | in-memory | A way in or out of the level. |
+| Exit | `crates/arda-dungeon/src/lib.rs:188` | in-memory | An exit: its kind and the square a token arrives on. |
+| Dungeon | `crates/arda-dungeon/src/lib.rs:199` | in-memory; `out/dungeon/layout.json` via CLI | A generated level. |
 | HeightTile | `crates/arda-midzoom/src/height.rs:11` | in-memory | Refined heights on a lattice `n` times finer than the stored one. |
-| Landscape | `crates/arda-midzoom/src/land/mod.rs:54` | in-memory | A world's society data as relief tiles read it. |
-| LandWindow | `crates/arda-midzoom/src/land/mod.rs:142` | in-memory | Everything one window's land layer reads. |
+| Landscape | `crates/arda-midzoom/src/land/mod.rs:55` | in-memory | A world's society data as relief tiles read it. |
+| LandWindow | `crates/arda-midzoom/src/land/mod.rs:143` | in-memory | Everything one window's land layer reads. |
 | Works | `crates/arda-midzoom/src/land/mod.rs:153` | in-memory | The worked land of a pixel window apart from relief: parcels, coarse land-use tone, roads and settlement plans; shared by `LandWindow` and `AreaLandOverlay`. |
 | AreaLandOverlay | `crates/arda-midzoom/src/land/export.rs:33` | in-memory | The society layer of one area export. |
 | Tone | `crates/arda-midzoom/src/land/tone.rs:15` | in-memory | What a piece of worked land shows from above. |
@@ -508,12 +512,13 @@ Storage values: `HTTP JSON; ts-rs bindings/ts/arda/<Name>.ts` means the type is 
 | Rgba | `crates/arda-midzoom/src/tile.rs:28` | in-memory | A rendered RGBA window. |
 | WindowWater | `crates/arda-midzoom/src/water.rs:36` | in-memory | The water of one relief window. |
 | ReliefWorld | `crates/arda-midzoom/src/world.rs:22` | in-memory | A world ready for relief rendering. |
-| Manifest (arda-art-import) | `crates/arda-art-import/src/manifest.rs:36` | `import.toml` | The whole manifest. |
-| LibrarySection | `crates/arda-art-import/src/manifest.rs:51` | `import.toml` | `library`. |
-| GradeSection | `crates/arda-art-import/src/manifest.rs:71` | `import.toml` | `grade`. |
-| AssetEntry | `crates/arda-art-import/src/manifest.rs:85` | `import.toml` | `[asset]`: matches a raw file by `file` name, or every file whose parsed id is `id` when `file` is absent. |
-| HoleMode | `crates/arda-art-import/src/manifest.rs:138` | `import.toml` | What to do with backdrop-coloured pockets the border flood cannot reach. |
-| ShadowMode | `crates/arda-art-import/src/manifest.rs:148` | `import.toml` | What to do with a detected baked shadow. |
+| Manifest (arda-art-import) | `crates/arda-art-import/src/manifest.rs:37` | `import.toml` | The whole manifest. |
+| LibrarySection | `crates/arda-art-import/src/manifest.rs:52` | `import.toml` | `library`. |
+| GradeSection | `crates/arda-art-import/src/manifest.rs:72` | `import.toml` | `grade`. |
+| AssetEntry | `crates/arda-art-import/src/manifest.rs:86` | `import.toml` | `[asset]`: matches a raw file by `file` name, or every file whose parsed id is `id` when `file` is absent. |
+| AlphaMode | `crates/arda-art-import/src/manifest.rs:144` | `import.toml` | Where an effect's transparency comes from. |
+| HoleMode | `crates/arda-art-import/src/manifest.rs:154` | `import.toml` | What to do with backdrop-coloured pockets the border flood cannot reach. |
+| ShadowMode | `crates/arda-art-import/src/manifest.rs:164` | `import.toml` | What to do with a detected baked shadow. |
 | Status | `crates/arda-art-import/src/report.rs:11` | `report.json` | Whether an asset made it into the catalogue. |
 | AssetReport | `crates/arda-art-import/src/report.rs:21` | `report.json` | One processed raw file. |
 | Skipped | `crates/arda-art-import/src/report.rs:38` | `report.json` | A raw file that could not be mapped to an asset. |
@@ -549,7 +554,7 @@ Storage values: `HTTP JSON; ts-rs bindings/ts/arda/<Name>.ts` means the type is 
 | AreaLakes | `crates/arda-server/src/dto.rs:238` | HTTP JSON; ts-rs `bindings/ts/arda/AreaLakes.ts` | `/v1/area/{ax}/{ay}/lakes`. |
 | ApiError | `crates/arda-server/src/error.rs:80` | HTTP JSON; ts-rs `bindings/ts/arda/ApiError.ts` | JSON body of every error response. |
 | NotYetError | `crates/arda-server/src/error.rs:87` | HTTP JSON; ts-rs `bindings/ts/arda/NotYetError.ts` | The 501 body of a feature whose source crate does not exist yet. |
-| ApiErrorBody | `crates/arda-server/src/error.rs:88` | HTTP JSON; ts-rs `bindings/ts/arda/ApiErrorBody.ts` | Machine-readable code, HTTP status and human message. |
+| ApiErrorBody | `crates/arda-server/src/error.rs:96` | HTTP JSON; ts-rs `bindings/ts/arda/ApiErrorBody.ts` | Machine-readable code, HTTP status and human message. |
 | GenerateNpcRequest (npc.rs runtime) | `crates/arda-server/src/npc.rs:39` | HTTP JSON (runtime body) | Body of `POST /v1/npc/generate` (TS: `GenerateNpcRequest`). |
 | PopulationRequest (npc.rs runtime) | `crates/arda-server/src/npc.rs:75` | HTTP JSON (runtime body) | Body of `POST /v1/npc/population` (TS: `PopulationRequest`). |
 | NpcDemo (npc.rs runtime) | `crates/arda-server/src/npc.rs:86` | HTTP JSON (runtime body) | Body of `GET /v1/npc/demo` (TS: `NpcDemo`). |
@@ -569,7 +574,7 @@ Storage values: `HTTP JSON; ts-rs bindings/ts/arda/<Name>.ts` means the type is 
 | SocialRank | `crates/arda-server/src/npc_dto/mod.rs:113` | HTTP JSON; ts-rs `bindings/ts/arda/SocialRank.ts` | Standing in local society. |
 | Lifestyle | `crates/arda-server/src/npc_dto/mod.rs:131` | HTTP JSON; ts-rs `bindings/ts/arda/Lifestyle.ts` | SRD 5.1 lifestyle. |
 | Ideal | `crates/arda-server/src/npc_dto/mod.rs:151` | HTTP JSON; ts-rs `bindings/ts/arda/Ideal.ts` | An ideal and its alignment lean. |
-| Personality | `crates/arda-server/src/npc_dto/mod.rs:160` | HTTP JSON; ts-rs `bindings/ts/arda/Personality.ts` | Personality. |
+| Personality | `crates/arda-server/src/npc_dto/mod.rs:165` | HTTP JSON; ts-rs `bindings/ts/arda/Personality.ts` | Personality. |
 | RelationKind | `crates/arda-server/src/npc_dto/mod.rs:183` | HTTP JSON; ts-rs `bindings/ts/arda/RelationKind.ts` | How two people are related. |
 | Relationship | `crates/arda-server/src/npc_dto/mod.rs:209` | HTTP JSON; ts-rs `bindings/ts/arda/Relationship.ts` | One relationship: `other` is this person's `kind`. |
 | Npc | `crates/arda-server/src/npc_dto/mod.rs:219` | HTTP JSON; ts-rs `bindings/ts/arda/Npc.ts` | One inhabitant with a full SRD 5.1 sheet (`logic/13` §npc-game-schema). |
@@ -614,34 +619,36 @@ Storage values: `HTTP JSON; ts-rs bindings/ts/arda/<Name>.ts` means the type is 
 | TacticalLayoutSummary | `crates/arda-server/src/tactical/dto.rs:29` | HTTP JSON; ts-rs `bindings/ts/arda/TacticalLayoutSummary.ts` | One built-in layout. |
 | TacticalTilesDto | `crates/arda-server/src/tactical/dto.rs:42` | HTTP JSON; ts-rs `bindings/ts/arda/TacticalTilesDto.ts` | Tile pyramid geometry of one render. |
 | TacticalBlockDto | `crates/arda-server/src/tactical/dto.rs:60` | HTTP JSON; ts-rs `bindings/ts/arda/TacticalBlockDto.ts` | `GET /v1/tactical/cell/{gx}/{gy}` and `GET /v1/tactical/window`: one world-derived block or window (logic/16 §api-tactical). |
-| TacticalLayoutDto | `crates/arda-server/src/tactical/dto.rs:97` | HTTP JSON; ts-rs `bindings/ts/arda/TacticalLayoutDto.ts` | Mirror of `arda_tactical::TacticalLayout`: a W × H battle map. |
-| SquareDto | `crates/arda-server/src/tactical/dto.rs:125` | HTTP JSON; ts-rs `bindings/ts/arda/SquareDto.ts` | One 5-ft square. |
-| EdgeAxisDto | `crates/arda-server/src/tactical/dto.rs:150` | HTTP JSON; ts-rs `bindings/ts/arda/EdgeAxisDto.ts` | Which edge of a square a segment lies on. |
-| WallRoleDto | `crates/arda-server/src/tactical/dto.rs:160` | HTTP JSON; ts-rs `bindings/ts/arda/WallRoleDto.ts` | Wall-kit piece roles; layouts use the edge roles `run`, `door`, `window`, `gate`. |
-| AssetClassDto | `crates/arda-server/src/tactical/dto.rs:184` | HTTP JSON; ts-rs `bindings/ts/arda/AssetClassDto.ts` | Catalogue asset classes. |
-| WallSegmentDto | `crates/arda-server/src/tactical/dto.rs:200` | HTTP JSON; ts-rs `bindings/ts/arda/WallSegmentDto.ts` | A wall-kit edge feature. |
-| AssetRefDto | `crates/arda-server/src/tactical/dto.rs:220` | HTTP JSON; ts-rs `bindings/ts/arda/AssetRefDto.ts` | An asset chosen by id or by a deterministic tag query. |
-| PlacementDto | `crates/arda-server/src/tactical/dto.rs:236` | HTTP JSON; ts-rs `bindings/ts/arda/PlacementDto.ts` | A prop or vegetation placement. |
-| LightSourceDto | `crates/arda-server/src/tactical/dto.rs:254` | HTTP JSON; ts-rs `bindings/ts/arda/LightSourceDto.ts` | A light source not attached to an asset. |
-| TacticalLibraryDto | `crates/arda-server/src/tactical/library_dto.rs:12` | HTTP JSON; ts-rs `bindings/ts/arda/TacticalLibraryDto.ts` | The loaded asset library, summarised. |
-| GroundKeyDto | `crates/arda-server/src/tactical/library_dto.rs:29` | HTTP JSON; ts-rs `bindings/ts/arda/GroundKeyDto.ts` | One ground key and how many texture variants back it. |
-| WallKitDto | `crates/arda-server/src/tactical/library_dto.rs:40` | HTTP JSON; ts-rs `bindings/ts/arda/WallKitDto.ts` | One wall kit and the roles it has pieces for. |
-| LibraryAssetDto | `crates/arda-server/src/tactical/library_dto.rs:49` | HTTP JSON; ts-rs `bindings/ts/arda/LibraryAssetDto.ts` | One placeable asset. |
-| PrefetchRequest | `crates/arda-server/src/tactical/prefetch.rs:44` | HTTP JSON; ts-rs `bindings/ts/arda/PrefetchRequest.ts` | Body of `POST /v1/tactical/prefetch` (TS `PrefetchRequest`). |
-| PrefetchStatus | `crates/arda-server/src/tactical/prefetch.rs:67` | HTTP JSON; ts-rs `bindings/ts/arda/PrefetchStatus.ts` | What happened to one neighbour. |
-| PrefetchCell | `crates/arda-server/src/tactical/prefetch.rs:78` | HTTP JSON; ts-rs `bindings/ts/arda/PrefetchCell.ts` | One neighbour of a prefetch. |
-| PrefetchAccepted | `crates/arda-server/src/tactical/prefetch.rs:91` | HTTP JSON; ts-rs `bindings/ts/arda/PrefetchAccepted.ts` | `202` body of `POST /v1/tactical/prefetch` (TS `PrefetchAccepted`). |
+| TacticalLayoutDto | `crates/arda-server/src/tactical/dto.rs:102` | HTTP JSON; ts-rs `bindings/ts/arda/TacticalLayoutDto.ts` | Mirror of `arda_tactical::TacticalLayout`: a W × H battle map. |
+| SquareDto | `crates/arda-server/src/tactical/dto.rs:130` | HTTP JSON; ts-rs `bindings/ts/arda/SquareDto.ts` | One 5-ft square. |
+| EdgeAxisDto | `crates/arda-server/src/tactical/dto.rs:155` | HTTP JSON; ts-rs `bindings/ts/arda/EdgeAxisDto.ts` | Which edge of a square a segment lies on. |
+| WallRoleDto | `crates/arda-server/src/tactical/dto.rs:165` | HTTP JSON; ts-rs `bindings/ts/arda/WallRoleDto.ts` | Wall-kit piece roles; layouts use the edge roles `run`, `door`, `window`, `gate`. |
+| AssetClassDto | `crates/arda-server/src/tactical/dto.rs:189` | HTTP JSON; ts-rs `bindings/ts/arda/AssetClassDto.ts` | Catalogue asset classes. |
+| WallSegmentDto | `crates/arda-server/src/tactical/dto.rs:205` | HTTP JSON; ts-rs `bindings/ts/arda/WallSegmentDto.ts` | A wall-kit edge feature. |
+| AssetRefDto | `crates/arda-server/src/tactical/dto.rs:225` | HTTP JSON; ts-rs `bindings/ts/arda/AssetRefDto.ts` | An asset chosen by id or by a deterministic tag query. |
+| PlacementDto | `crates/arda-server/src/tactical/dto.rs:241` | HTTP JSON; ts-rs `bindings/ts/arda/PlacementDto.ts` | A prop or vegetation placement. |
+| LightSourceDto | `crates/arda-server/src/tactical/dto.rs:259` | HTTP JSON; ts-rs `bindings/ts/arda/LightSourceDto.ts` | A light source not attached to an asset. |
+| TacticalLibraryDto | `crates/arda-server/src/tactical/library_dto.rs:13` | HTTP JSON; ts-rs `bindings/ts/arda/TacticalLibraryDto.ts` | The loaded asset library, summarised. |
+| EffectDto | `crates/arda-server/src/tactical/library_dto.rs:40` | HTTP JSON; ts-rs `bindings/ts/arda/EffectDto.ts` | One effect set: a transparent texture or decal with numbered variants. |
+| GroundKeyDto | `crates/arda-server/src/tactical/library_dto.rs:55` | HTTP JSON; ts-rs `bindings/ts/arda/GroundKeyDto.ts` | One ground key and how many texture variants back it. |
+| WallKitDto | `crates/arda-server/src/tactical/library_dto.rs:66` | HTTP JSON; ts-rs `bindings/ts/arda/WallKitDto.ts` | One wall kit and the roles it has pieces for. |
+| LibraryAssetDto | `crates/arda-server/src/tactical/library_dto.rs:75` | HTTP JSON; ts-rs `bindings/ts/arda/LibraryAssetDto.ts` | One placeable asset. |
+| PrefetchRequest | `crates/arda-server/src/tactical/prefetch.rs:48` | HTTP JSON; ts-rs `bindings/ts/arda/PrefetchRequest.ts` | Body of `POST /v1/tactical/prefetch` (TS `PrefetchRequest`). |
+| PrefetchStatus | `crates/arda-server/src/tactical/prefetch.rs:71` | HTTP JSON; ts-rs `bindings/ts/arda/PrefetchStatus.ts` | What happened to one neighbour. |
+| PrefetchCell | `crates/arda-server/src/tactical/prefetch.rs:82` | HTTP JSON; ts-rs `bindings/ts/arda/PrefetchCell.ts` | One neighbour of a prefetch. |
+| PrefetchAccepted | `crates/arda-server/src/tactical/prefetch.rs:95` | HTTP JSON; ts-rs `bindings/ts/arda/PrefetchAccepted.ts` | `202` body of `POST /v1/tactical/prefetch` (TS `PrefetchAccepted`). |
 | BakeRequest | `crates/arda-server/src/tactical/bake_dto.rs:15` | HTTP JSON; ts-rs `bindings/ts/arda/BakeRequest.ts` | Body of `POST /v1/tactical/bake` (TS `BakeRequest`). |
-| BakeState | `crates/arda-server/src/tactical/bake_dto.rs:41` | HTTP JSON; ts-rs `bindings/ts/arda/BakeState.ts` | Where a bake job stands. |
-| BakeAccepted | `crates/arda-server/src/tactical/bake_dto.rs:55` | HTTP JSON; ts-rs `bindings/ts/arda/BakeAccepted.ts` | `202` (or `200` once finished) body of `POST /v1/tactical/bake`. |
-| BakeStatus | `crates/arda-server/src/tactical/bake_dto.rs:69` | HTTP JSON; ts-rs `bindings/ts/arda/BakeStatus.ts` | `GET /v1/tactical/bake/{id}`. |
+| BakeState | `crates/arda-server/src/tactical/bake_dto.rs:55` | HTTP JSON; ts-rs `bindings/ts/arda/BakeState.ts` | Where a bake job stands. |
+| BakeIgnored | `crates/arda-server/src/tactical/bake_dto.rs:42` | HTTP JSON; ts-rs `bindings/ts/arda/BakeIgnored.ts` | Posted items a bake could not place in its cell. |
+| BakeAccepted | `crates/arda-server/src/tactical/bake_dto.rs:69` | HTTP JSON; ts-rs `bindings/ts/arda/BakeAccepted.ts` | `202` (or `200` once finished) body of `POST /v1/tactical/bake`. |
+| BakeStatus | `crates/arda-server/src/tactical/bake_dto.rs:91` | HTTP JSON; ts-rs `bindings/ts/arda/BakeStatus.ts` | `GET /v1/tactical/bake/{id}`. |
 | CoverLevelDto | `crates/arda-server/src/tactical/rules_dto.rs:15` | HTTP JSON; ts-rs `bindings/ts/arda/CoverLevelDto.ts` | SRD 5.1 degrees of cover. |
 | EdgeRoleDto | `crates/arda-server/src/tactical/rules_dto.rs:29` | HTTP JSON; ts-rs `bindings/ts/arda/EdgeRoleDto.ts` | Why a rules edge exists. |
 | RulesCellDto | `crates/arda-server/src/tactical/rules_dto.rs:45` | HTTP JSON; ts-rs `bindings/ts/arda/RulesCellDto.ts` | One square's rules; an absent field means "no opinion". |
-| EdgeRuleDto | `crates/arda-server/src/tactical/rules_dto.rs:84` | HTTP JSON; ts-rs `bindings/ts/arda/EdgeRuleDto.ts` | Movement and sight rules of one unit edge. |
-| RulesSidecarDto | `crates/arda-server/src/tactical/rules_dto.rs:109` | HTTP JSON; ts-rs `bindings/ts/arda/RulesSidecarDto.ts` | The per-square rules sidecar, format 2. |
-| SceneTime | `crates/arda-server/src/tactical/scene.rs:27` | HTTP JSON; ts-rs `bindings/ts/arda/SceneTime.ts` | Time of day a scene's tokens are placed for. |
-| TacticalScene | `crates/arda-server/src/tactical/scene.rs:37` | HTTP JSON; ts-rs `bindings/ts/arda/TacticalScene.ts` | `GET /v1/tactical/cell/{gx}/{gy}/scene`: the scene of one block and the NPCs on it. |
+| EdgeRuleDto | `crates/arda-server/src/tactical/rules_dto.rs:90` | HTTP JSON; ts-rs `bindings/ts/arda/EdgeRuleDto.ts` | Movement and sight rules of one unit edge. |
+| RulesSidecarDto | `crates/arda-server/src/tactical/rules_dto.rs:115` | HTTP JSON; ts-rs `bindings/ts/arda/RulesSidecarDto.ts` | The per-square rules sidecar, format 2. |
+| SceneTime | `crates/arda-server/src/tactical/scene.rs:29` | HTTP JSON; ts-rs `bindings/ts/arda/SceneTime.ts` | Time of day a scene's tokens are placed for. |
+| TacticalScene | `crates/arda-server/src/tactical/scene.rs:39` | HTTP JSON; ts-rs `bindings/ts/arda/TacticalScene.ts` | `GET /v1/tactical/cell/{gx}/{gy}/scene`: the scene of one block and the NPCs on it. |
 | Runs | `crates/arda-server/src/tactical/scene_dto.rs:19` | HTTP JSON; ts-rs `bindings/ts/arda/Runs.ts` | A row-major per-square layer as runs `[[count, value], …]`, expanding to `width × height` values (`arda_scene::Grid`). |
 | SqDto | `crates/arda-server/src/tactical/scene_dto.rs:23` | HTTP JSON; ts-rs `bindings/ts/arda/SqDto.ts` | A square `[x, y]` (column, row) in the scene's own squares. |
 | MovementDto | `crates/arda-server/src/tactical/scene_dto.rs:28` | HTTP JSON; ts-rs `bindings/ts/arda/MovementDto.ts` | How a creature moves through a square (SRD 5.1 "Movement"). |
@@ -659,8 +666,8 @@ Storage values: `HTTP JSON; ts-rs bindings/ts/arda/<Name>.ts` means the type is 
 | SpawnHintsDto | `crates/arda-server/src/tactical/scene_dto.rs:201` | HTTP JSON; ts-rs `bindings/ts/arda/SpawnHintsDto.ts` | Where tokens may be put. |
 | TokenSlotDto | `crates/arda-server/src/tactical/scene_dto.rs:213` | HTTP JSON; ts-rs `bindings/ts/arda/TokenSlotDto.ts` | Where an NPC's token stands (scene token slot). |
 | SceneDto | `crates/arda-server/src/tactical/scene_dto.rs:227` | HTTP JSON; ts-rs `bindings/ts/arda/SceneDto.ts` | `arda-scene` `Scene` format 1: everything the game needs to run a map. |
-| TokenKind | `crates/arda-server/src/tactical/tokens.rs:16` | HTTP JSON; ts-rs `bindings/ts/arda/TokenKind.ts` | Why a token stands where it does. |
-| Token | `crates/arda-server/src/tactical/tokens.rs:26` | HTTP JSON; ts-rs `bindings/ts/arda/Token.ts` | One token on the scene. |
+| TokenKind | `crates/arda-server/src/tactical/tokens.rs:29` | HTTP JSON; ts-rs `bindings/ts/arda/TokenKind.ts` | Why a token stands where it does. |
+| Token | `crates/arda-server/src/tactical/tokens.rs:39` | HTTP JSON; ts-rs `bindings/ts/arda/Token.ts` | One token on the scene. |
 | DungeonDto | `crates/arda-server/src/tactical/dungeon_dto.rs:19` | HTTP JSON; ts-rs `bindings/ts/arda/DungeonDto.ts` | `GET /v1/tactical/dungeon`: mirror of `arda_dungeon::Dungeon`. |
 | DungeonParamsDto | `crates/arda-server/src/tactical/dungeon_dto.rs:37` | HTTP JSON; ts-rs `bindings/ts/arda/DungeonParamsDto.ts` | Mirror of `arda_dungeon::Params`, `seed` a decimal string. |
 | DungeonKindDto | `crates/arda-server/src/tactical/dungeon_dto.rs:51` | HTTP JSON; ts-rs `bindings/ts/arda/DungeonKindDto.ts` | Dungeon or cave. |
@@ -669,8 +676,17 @@ Storage values: `HTTP JSON; ts-rs bindings/ts/arda/<Name>.ts` means the type is 
 | DungeonDoorDto | `crates/arda-server/src/tactical/dungeon_dto.rs:103` | HTTP JSON; ts-rs `bindings/ts/arda/DungeonDoorDto.ts` | A door on a square edge, in layout edge terms. |
 | DungeonExitKindDto | `crates/arda-server/src/tactical/dungeon_dto.rs:119` | HTTP JSON; ts-rs `bindings/ts/arda/DungeonExitKindDto.ts` | A way in or out of the level. |
 | DungeonExitDto | `crates/arda-server/src/tactical/dungeon_dto.rs:131` | HTTP JSON; ts-rs `bindings/ts/arda/DungeonExitDto.ts` | An exit: its kind and the floor square a token arrives on. |
-| SchemaIndex | `crates/arda-server/src/schema/mod.rs:181` | HTTP JSON; ts-rs `bindings/ts/arda/SchemaIndex.ts` | `GET /v1/schema`: the catalogue of published schemas (`index.json`). |
-| SchemaIndexEntry | `crates/arda-server/src/schema/mod.rs:197` | HTTP JSON; ts-rs `bindings/ts/arda/SchemaIndexEntry.ts` | One schema in `SchemaIndex`: name, URL, version family, stability and routes. |
+| SiteList | `crates/arda-server/src/sites/dto.rs:25` | HTTP JSON; ts-rs `bindings/ts/arda/SiteList.ts` | `GET /v1/sites`. |
+| Site | `crates/arda-server/src/sites/dto.rs:35` | HTTP JSON; ts-rs `bindings/ts/arda/Site.ts` | A dungeon or cave site (Rust `SiteDto`). |
+| SiteLevelRef | `crates/arda-server/src/sites/dto.rs:53` | HTTP JSON; ts-rs `bindings/ts/arda/SiteLevelRef.ts` | One level of a site, as the site record names it. |
+| SiteLevel | `crates/arda-server/src/sites/dto.rs:68` | HTTP JSON; ts-rs `bindings/ts/arda/SiteLevel.ts` | `GET /v1/sites/{id}/levels/{n}`. |
+| SiteLinkTo | `crates/arda-server/src/sites/dto.rs:88` | HTTP JSON; ts-rs `bindings/ts/arda/SiteLinkTo.ts` | Where a link leads. |
+| SiteLink | `crates/arda-server/src/sites/dto.rs:99` | HTTP JSON; ts-rs `bindings/ts/arda/SiteLink.ts` | One exit of a level and where it leads. |
+| SiteTrapKind | `crates/arda-server/src/sites/dto.rs:127` | HTTP JSON; ts-rs `bindings/ts/arda/SiteTrapKind.ts` | The SRD 5.1 sample traps. |
+| SiteTrapDoor | `crates/arda-server/src/sites/dto.rs:155` | HTTP JSON; ts-rs `bindings/ts/arda/SiteTrapDoor.ts` | A door edge, as in `dungeon.doors`. |
+| SiteTrap | `crates/arda-server/src/sites/dto.rs:166` | HTTP JSON; ts-rs `bindings/ts/arda/SiteTrap.ts` | One trap. |
+| SchemaIndex | `crates/arda-server/src/schema/mod.rs:204` | HTTP JSON; ts-rs `bindings/ts/arda/SchemaIndex.ts` | `GET /v1/schema`: the catalogue of published schemas (`index.json`). |
+| SchemaIndexEntry | `crates/arda-server/src/schema/mod.rs:220` | HTTP JSON; ts-rs `bindings/ts/arda/SchemaIndexEntry.ts` | One schema in `SchemaIndex`: name, URL, version family, stability and routes. |
 
 ## Fields and types
 
@@ -1281,6 +1297,7 @@ Required `no` marks an `Option` field, a serde default, a field omitted when emp
 | deltas | `DeltaForm[]` | yes | Deltas with their apex in this area. |
 | dolines | `Doline[]` | yes | Karst dolines in this area. |
 | pans | `PanRun[]` | yes | Dry arid-basin floors (recipe 7): row runs sorted by `(y, x0)`. |
+| thalwegs | `Vec<Thalweg>` | yes | Formed channel positions in river cells (recipe 9), sorted by `(y, x)`, one per cell (`Thalweg`, `crates/arda-core/src/water.rs:398`). |
 
 ### Hand
 
@@ -2114,6 +2131,18 @@ Required `no` marks an `Option` field, a serde default, a field omitted when emp
 | width_cells | `u32` | yes | Grid cells across (100 m each). |
 | height_cells | `u32` | yes | Grid cells down. |
 | settlements | `Settlement[]` | yes | Settlements by id. |
+| stamp | `Option<Stamp>` | no | Which world and code this run settled from; absent in files written before stamps existed.; serde default; omitted when empty/none |
+
+### Stamp
+
+| Field | Type | Required | Notes |
+|---|---|---|---|
+| id | `String` | yes | Digest of the fields below and of every file the stage wrote (with this stamp left out of `settlements.json`), 32 hex digits. |
+| seed | `String` | yes | World seed, a decimal string. |
+| arda_version | `String` | yes | Version of the code that settled the world (`arda-settle`). |
+| world_arda_version | `String` | yes | Version of the code that generated the world (`world.json`). |
+| recipe_version | `Option<u32>` | yes | Fine-terrain recipe of the world, when it has fine terrain. |
+| world_json | `String` | yes | Digest of the world's `world.json`, 32 hex digits, or `DETACHED`. |
 
 ### RoadsFile
 
@@ -2224,7 +2253,7 @@ Required `no` marks an `Option` field, a serde default, a field omitted when emp
 
 ### Gazetteer
 
-`Gazetteer` is the published schema name of `GazetteerList` (`"Gazetteer" => arda_settle::gazetteer::GazetteerList`, `crates/arda-server/src/schema/mod.rs:231`), the body of `GET /v1/gazetteer`; its fields are those of `GazetteerList` above.
+`Gazetteer` is the published schema name of `GazetteerList` (`"Gazetteer" => arda_settle::gazetteer::GazetteerList`, `crates/arda-server/src/schema/mod.rs:254`), the body of `GET /v1/gazetteer`; its fields are those of `GazetteerList` above.
 
 | Field | Type | Required | Notes |
 |---|---|---|---|
@@ -2276,6 +2305,7 @@ Required `no` marks an `Option` field, a serde default, a field omitted when emp
 | relief_m | `i32` | yes | Height range along the whole route, metres (open ground is < 150). |
 | terrain | `Terrain` | yes | Ground the whole route crosses, by its median slope. |
 | segments | `[i64; 2][][]` | yes | New stretches as polylines of `[x_m, y_m]` cell centres. |
+| steep_m | `u64` | no | Metres of the whole route on 100 m steps steeper than its class sustains (`cost::max_grade_pct`). 0 on older files.; serde default |
 
 ### Terrain
 
@@ -2680,6 +2710,7 @@ Required `no` marks an `Option` field, a serde default, a field omitted when emp
 | settlements | `SettlementSociety[]` | yes | Settlements, in input order. |
 | economy | `Economy` | yes | World economy. |
 | history | `History` | yes | History. |
+| settle_stamp | `Option<String>` | no | The generation stamp id (`Stamp.id`) of the settlement files this society was built from, set by `arda society build`; readers refuse a society whose stamp is not the settlement files'.; serde default; omitted when empty/none |
 
 ### Faction
 
@@ -3717,6 +3748,7 @@ Required `no` marks an `Option` field, a serde default, a field omitted when emp
 | settlement_id | `arda_ids::SettlementId` | yes | The settlement. |
 | buildings | `String` | yes | Where its buildings came from: `plan` (arda-town) or `mix` (the settlement's estimated building mix). |
 | npcs | `Npc[]` | yes | The notables, in id order. |
+| plan_fingerprint | `Option<String>` | no | Fingerprint of the plan buildings the notables were generated in (`town::fingerprint`); `None` for `mix`.; serde default; omitted when empty/none |
 
 ### NotablesFile
 
@@ -3724,7 +3756,33 @@ Required `no` marks an `Option` field, a serde default, a field omitted when emp
 |---|---|---|---|
 | format_version | `u32` | yes | Format version. |
 | seed | `String` | yes | World seed, a decimal string. |
+| settle_stamp | `Option<String>` | no | Stamp id of the settlement files the notables were built from (`Stamp.id`); absent in older files.; serde default; omitted when empty/none |
+| index | `NotableIndex[]` | no | Per settlement, in settlement order: where its line is. Empty in format 1.; serde default |
 | settlements | `StoredNotable[]` | yes | Per settlement, in settlement order. |
+
+### NotableIndex
+
+| Field | Type | Required | Notes |
+|---|---|---|---|
+| settlement_id | `SettlementId` | yes | The settlement. |
+| plan_fingerprint | `Option<String>` | no | Fingerprint of the plan its notables were generated in.; serde default; omitted when empty/none |
+| npcs | `NpcId[]` | yes | Its notables' ids, in order. |
+| at | `u64` | yes | Offset of its line after the header line, bytes. |
+| len | `u64` | yes | Length of its line, bytes (without the separator). |
+
+### Notables
+
+| Field | Type | Required | Notes |
+|---|---|---|---|
+| path | `PathBuf` | yes | — |
+| format_version | `u32` | yes | — |
+| seed | `String` | yes | — |
+| settle_stamp | `Option<String>` | no | Stamp id of the settlement files it was built from. |
+| index | `Vec<NotableIndex>` | yes | — |
+| body | `u64` | yes | — |
+| by_settlement | `BTreeMap<u64, usize>` | yes | — |
+| by_npc | `BTreeMap<NpcId, usize>` | yes | — |
+| lines | `Vec<OnceLock<StoredNotable>>` | yes | — |
 
 ### SocietyFiles
 
@@ -3751,10 +3809,14 @@ Required `no` marks an `Option` field, a serde default, a field omitted when emp
 | src | `SharedSource` | yes | The world's cells, shared with the tactical pipeline. |
 | files | `SocietyFiles` | yes | The settlement stage's files. |
 | society | `Option<Society>` | no | `society.json`, when `arda society build` has run. |
-| notables | `Option<NotablesFile>` | no | `notables.json`, when `arda society build` has run. |
-| notable_index | `BTreeMap<NpcId, (usize, usize)>` | yes | — |
+| notables | `Option<Notables>` | no | `notables.json`, when `arda society build` has run. |
 | society_index | `BTreeMap<u64, usize>` | yes | — |
-| plans | `Mutex<(u64, PlanCache)>` | yes | — |
+| plans | `Mutex<Plans>` | yes | — |
+| drawn | `Condvar` | yes | — |
+| generators | `Mutex<(u64, GeneratorCache)>` | yes | — |
+| skeletons_built | `AtomicU64` | yes | — |
+| largest_plan | `AtomicU64` | yes | — |
+| stale_plans | `Mutex<BTreeSet<u64>>` | yes | — |
 
 ### Surroundings
 
@@ -4274,7 +4336,6 @@ Required `no` marks an `Option` field, a serde default, a field omitted when emp
 | cover | `CoverRule` | yes | Cover. |
 | blocks_sight | `bool` | yes | Heavily obscured by canopy. |
 | lightly_obscured | `bool` | yes | Lightly obscured: a thinner canopy or reeds. |
-| blocks_movement | `bool` | yes | Impassable. |
 | review | `bool` | yes | Relaxed-fill square needing review. |
 
 ### Kind
@@ -4339,8 +4400,8 @@ Required `no` marks an `Option` field, a serde default, a field omitted when emp
 | wide | `i64` | yes | — |
 | high | `i64` | yes | — |
 | index | `Mutex<BTreeMap<(i32, i32), Arc<AreaIndex>>>` | yes | — |
-| fine | `Mutex<Option<Fine>>` | yes | — |
-| shore | `Option<ShoreLayer>` | no | The world's shore layer, read at open; `Source::shore` answers `ShoreClass::None` without it. |
+| fine | `Arc<Mutex<Option<Fine>>>` | yes | — |
+| shore | `Option<Arc<ShoreLayer>>` | no | The world's shore layer, read at open; `Source::shore` answers `ShoreClass::None` without it. |
 
 ### Group (arda-refine)
 
@@ -4503,6 +4564,8 @@ Required `no` marks an `Option` field, a serde default, a field omitted when emp
 | deck_elevation_ft | `Option<i16>` | no | Deck surface elevation in feet (absolute, 5-ft steps), when `deck`.; serde default; omitted when empty/none |
 | feature | `Feature` | no | The square's role for this stage.; serde default; omitted when empty/none |
 | road_class | `Option<RoadClass>` | no | Road class of the surface, verge or crossing.; serde default; omitted when empty/none |
+| building | `Option<String>` | no | The building on the square, a `BuildingId` as a decimal string (toll houses and waystations; goal 45).; serde default; omitted when empty/none |
+| building_function | `Option<String>` | no | The building's function: `toll_house` or `waystation`.; serde default; omitted when empty/none |
 
 ### EdgeRole (arda-ways)
 
@@ -4666,6 +4729,7 @@ Required `no` marks an `Option` field, a serde default, a field omitted when emp
 | crop | `Option<Crop>` | no | Crop, where farmed.; omitted when empty/none |
 | furrow | `Option<[f32; 2]>` | no | Furrow direction (unit vector, y south), where ploughed.; omitted when empty/none |
 | field | `Option<String>` | no | Field id (a u64 as a string), where in a field.; omitted when empty/none |
+| building | `Option<(String, &'static str)>` | no | The compound building on the square: its `BuildingId` as a decimal string and its function (goal 45).; omitted when empty/none |
 
 ### EdgeRules
 
@@ -4714,7 +4778,7 @@ Required `no` marks an `Option` field, a serde default, a field omitted when emp
 
 | Field | Type | Required | Notes |
 |---|---|---|---|
-| value | enum | yes | accepted: Natural, Verge, Fields, Croft, Water, Ways, Town |
+| value | enum | yes | accepted: Natural, Shore, Verge, Fields, Croft, Water, Ways, Town |
 
 ### OverlayCtx
 
@@ -4736,7 +4800,7 @@ Required `no` marks an `Option` field, a serde default, a field omitted when emp
 | rules | `RulesSidecar` | yes | Its rules, format 2, same size. |
 | owned | `bool[]` | yes | Row-major: the squares it reserves. |
 | soft | `bool[]` | yes | Row-major: owned squares claimed only at the layer's soft precedence (`Owner::soft`); empty for none. |
-| elevation | `bool` | yes | Whether claimed squares take the layer's elevation (a layer built on the world's terrain) or keep the base's (a layer built on synthetic terrain, such as the demo samples). |
+| elevation | `bool[]` | yes | Row-major: claimed squares that take the layer's elevation, where the layer knows the height (a town's levelled floors and squares, a wall-walk); every other claimed square keeps the refined base's. |
 | review | `bool[]` | yes | Row-major: squares filled by a relaxed fill and marked for review (goal 47; the town WFC's `TownBlock::relaxed`); empty for none. |
 
 ### Composed
@@ -4755,6 +4819,16 @@ Required `no` marks an `Option` field, a serde default, a field omitted when emp
 |---|---|---|---|
 | src | `Box<dyn Source + Send + Sync>` | yes | — |
 | cache | `Mutex<BlockCache>` | yes | — |
+| art_seed | `Option<u64>` | no | The compositor seed placements are resolved with when their catalogue rules fold into the sidecar; the world seed unless set. |
+
+### Cut
+
+| Field | Type | Required | Notes |
+|---|---|---|---|
+| x | `u32` | yes | — |
+| y | `u32` | yes | — |
+| w | `u32` | yes | — |
+| h | `u32` | yes | — |
 
 ### LandUseRaster
 
@@ -5000,6 +5074,7 @@ Required `no` marks an `Option` field, a serde default, a field omitted when emp
 | lightly_obscured | `Option<bool>` | no | Lightly obscured (moderate foliage, reeds), logic/09 §rules-sidecar.; serde default; omitted when empty/none |
 | blocks_movement | `Option<bool>` | no | Overrides whether the square blocks movement: `true` makes it impassable (cliff face, thicket), `false` clears prop blocking.; serde default; omitted when empty/none |
 | deck | `Option<bool>` | no | Overrides whether a walkable deck (bridge, jetty) spans the square: `true` means it is walked, not waded or swum, whatever the depth.; serde default; omitted when empty/none |
+| deck_elevation_ft | `Option<i16>` | no | The deck's walking level, feet (absolute, 5-ft steps), on a square a deck spans: creatures stand here, not on the ground or bed below.; serde default; omitted when empty/none |
 | ext | `Option<RulesExt>` | no | Layer-specific extras the scene does not interpret.; serde default; omitted when empty/none |
 
 ### Sq
@@ -5378,6 +5453,13 @@ Required `no` marks an `Option` field, a serde default, a field omitted when emp
 | fixed_pose | `Option<bool>` | no | Adds (or removes) the free tag `fixed_pose`: the compositor draws the vegetation cut-out at its catalogued size and orientation, without the hashed scale and diagonal transpose. |
 | shadow | `Option<ShadowMode>` | no | Shadow handling: `strip` (default) or `keep` (never strip, still flag). |
 | holes | `Option<HoleMode>` | no | Enclosed backdrop-coloured pockets: `clear` (any size) or `keep` (never). |
+| alpha | `Option<AlphaMode>` | no | Effect art only: where the transparency comes from. Default: the file's alpha, or luminance when an opaque file has a black border.; serde default |
+
+### AlphaMode
+
+| Field | Type | Required | Notes |
+|---|---|---|---|
+| value | enum | yes | accepted: source, luminance |
 
 ### HoleMode
 
@@ -6220,6 +6302,7 @@ Required `no` marks an `Option` field, a serde default, a field omitted when emp
 | population, land_cells | `u64` | yes | |
 | style, rank, government_label | `Option<String>` | no | Absent before `arda society build`. |
 | ruler | `Option<RealmRuler>` | no | `{name, title}`; absent before `arda society build`. |
+| colour | `Option<String>` | no | The realm's colour on the political map (`#rrggbb`); no two realms of a world share one.; omitted when empty/none |
 
 ### RealmDetail
 
@@ -6301,6 +6384,7 @@ Required `no` marks an `Option` field, a serde default, a field omitted when emp
 | rules | `Option<RulesSidecar>` | no | Per-square rules, `arda-scene` format 2, the layout's size. |
 | origin | `[i64; 2]` | yes | The layout's top-left square in world squares (64 per cell, I2). |
 | meta | `BTreeMap<String, String>` | yes | Provenance, for example `source`, `relaxed` and `overlays`. |
+| review | `Vec<u32>` | yes | Row-major squares a relaxed fill laid, marked for review (goal 47).; serde skip |
 
 ### TacticalLayouts
 
@@ -6346,6 +6430,7 @@ Required `no` marks an `Option` field, a serde default, a field omitted when emp
 | meta | `std::collections::BTreeMap<String, String>` | yes | Provenance: `source`, `relaxed`, `overlays`, `demo_at`, …. |
 | scene | `Option<serde_json::Value>` | no | Scene data from the same layout (`arda-scene` `Scene`, format 1: movement, climb, cover, obscurement, walls, lights, regions, spawn hints), or `null` when not requested. |
 | tiles | `TacticalTilesDto` | yes | Tile pyramid geometry at the requested ppsq. |
+| generator_version | `String` | no | The release that generated the body (`server_version`). Added in 0.9.; serde default |
 
 ### TacticalLayoutDto
 
@@ -6527,6 +6612,14 @@ Required `no` marks an `Option` field, a serde default, a field omitted when emp
 |---|---|---|---|
 | value | enum | yes | accepted: queued, running, done, failed |
 
+### BakeIgnored
+
+| Field | Type | Required | Notes |
+|---|---|---|---|
+| walls | `u32` | yes | Wall segments on no edge of the cell. |
+| placements | `u32` | yes | Placements anchored outside the cell (one on its east or south border line belongs to the neighbour). |
+| lights | `u32` | yes | Lights placed outside the cell. |
+
 ### BakeAccepted
 
 | Field | Type | Required | Notes |
@@ -6535,6 +6628,8 @@ Required `no` marks an `Option` field, a serde default, a field omitted when emp
 | job_id | `String` | yes | Content-addressed job id (32 hex digits). |
 | state | `BakeState` | yes | Where the job stands now. |
 | status_url | `String` | yes | `/v1/tactical/bake/{job_id}`. |
+| generator_version | `String` | no | The release that bakes it (`server_version`); part of the job id. Added in 0.9.; serde default |
+| ignored | `BakeIgnored` | no | Posted items the bake ignores. Added in 0.9.; serde default |
 
 ### BakeStatus
 
@@ -6551,6 +6646,8 @@ Required `no` marks an `Option` field, a serde default, a field omitted when emp
 | tile_count | `u32` | yes | Tiles in the set once `done`, else 0. |
 | total_bytes | `u32` | yes | Encoded bytes of the set once `done`, else 0. |
 | error | `Option<ApiErrorBody>` | yes | Why the job failed, when `failed`, else `null`. |
+| generator_version | `String` | no | The release that bakes it (`server_version`); part of the job id. Added in 0.9.; serde default |
+| ignored | `BakeIgnored` | no | Posted items the bake ignores. Added in 0.9.; serde default |
 
 ### CoverLevelDto
 
@@ -6575,6 +6672,7 @@ Required `no` marks an `Option` field, a serde default, a field omitted when emp
 | lightly_obscured | `Option<bool>` | no | Lightly obscured.; serde default; omitted when empty/none |
 | blocks_movement | `Option<bool>` | no | Impassable.; serde default; omitted when empty/none |
 | deck | `Option<bool>` | no | A walkable deck (bridge, jetty) over the square.; serde default; omitted when empty/none |
+| deck_elevation_ft | `Option<i16>` | no | The deck's walking level in feet (absolute, 5-ft steps) where a deck spans the square. Added in 0.9; `ext.deck_elevation_ft` carries the same value.; serde default; omitted when empty/none |
 | ext | `Option<BTreeMap<String, serde_json::Value>>` | no | Layer extras: `feature`, `road_class`, `deck_elevation_ft` (ways), `crop`, `field`, `furrow` (fields), `building` (town).; serde default; omitted when empty/none |
 
 ### EdgeRuleDto
@@ -6614,6 +6712,7 @@ Required `no` marks an `Option` field, a serde default, a field omitted when emp
 | time | `SceneTime` | yes | `day` or `night`. |
 | scene | `arda_scene::Scene` | yes | The `arda-scene` scene (format 1), described by `SceneDto`. |
 | tokens | `Token[]` | yes | NPC tokens. |
+| generator_version | `String` | no | The release that generated the scene (`server_version`). Added in 0.9.; serde default |
 
 ### Runs
 
@@ -6847,6 +6946,87 @@ Required `no` marks an `Option` field, a serde default, a field omitted when emp
 | x | `u32` | yes | Column. |
 | y | `u32` | yes | Row. |
 
+
+### SiteList
+
+| Field | Type | Required | Notes |
+|---|---|---|---|
+| format_version | `u32` | yes | `SITE_FORMAT` (1). |
+| sites | `Site[]` | yes | The sites, by id. |
+
+### Site
+
+| Field | Type | Required | Notes |
+|---|---|---|---|
+| id | `String` | yes | Stable id, a decimal string. |
+| kind | `DungeonKindDto` | yes | accepted: dungeon, cave |
+| entrance_gs | `[i64; 2]` | yes | The entrance square in world squares (64 per cell). |
+| cell | `[u32; 2]` | yes | The entrance cell `[gx, gy]`. |
+| settlement_id | `Option<String>` | yes | The settlement a dungeon hangs on; null for a cave. |
+| levels | `SiteLevelRef[]` | yes | 1 to 3 levels, in depth order. |
+
+### SiteLevelRef
+
+| Field | Type | Required | Notes |
+|---|---|---|---|
+| level | `u32` | yes | 1-based depth. |
+| seed | `String` | yes | Seed, a decimal string. |
+| width | `u32` | yes | 32, 48 or 72. |
+| height | `u32` | yes | 24, 36 or 56. |
+| danger_tier | `u8` | yes | SRD 5.1 trap-table level band, 1 to 4. |
+
+### SiteLevel
+
+| Field | Type | Required | Notes |
+|---|---|---|---|
+| site_id | `String` | yes | The site. |
+| level | `u32` | yes | 1-based depth. |
+| danger_tier | `u8` | yes | SRD level band, 1 to 4. |
+| dungeon | `DungeonDto` | yes | The level, as `GET /v1/tactical/dungeon` serves it. |
+| links | `SiteLink[]` | yes | One link per exit, in `dungeon.exits` order. |
+| traps | `SiteTrap[]` | yes | The level's traps. |
+
+### SiteLinkTo
+
+| Field | Type | Required | Notes |
+|---|---|---|---|
+| value | enum | yes | accepted: surface, level, sealed |
+
+### SiteLink
+
+| Field | Type | Required | Notes |
+|---|---|---|---|
+| kind | `DungeonExitKindDto` | yes | The exit's kind. |
+| x | `u32` | yes | The exit's column. |
+| y | `u32` | yes | The exit's row. |
+| to | `SiteLinkTo` | yes | Where it leads. |
+| level | `Option<u32>` | no | Destination level, when `to` is `level`.; serde default; omitted when empty/none |
+| to_x | `Option<u32>` | no | Arrival column there.; serde default; omitted when empty/none |
+| to_y | `Option<u32>` | no | Arrival row there.; serde default; omitted when empty/none |
+
+### SiteTrapKind
+
+| Field | Type | Required | Notes |
+|---|---|---|---|
+| value | enum | yes | accepted: collapsing_roof, falling_net, fire_breathing_statue, simple_pit, hidden_pit, locking_pit, spiked_pit, poison_darts, poison_needle, rolling_sphere, sphere_of_annihilation |
+
+### SiteTrapDoor
+
+| Field | Type | Required | Notes |
+|---|---|---|---|
+| x | `u32` | yes | Square column. |
+| y | `u32` | yes | Square row. |
+| axis | `EdgeAxisDto` | yes | Which edge. |
+
+### SiteTrap
+
+| Field | Type | Required | Notes |
+|---|---|---|---|
+| id | `String` | yes | Stable per level: `t1`, `t2`, …. |
+| kind | `SiteTrapKind` | yes | Which SRD trap. |
+| squares | `[u32; 2][]` | yes | The squares that trigger it; for a poison needle, the two squares its door stands between. |
+| affected | `[u32; 2][]` | no | The squares hit (falling net, collapsing roof).; serde default; omitted when empty/none |
+| door | `Option<SiteTrapDoor>` | no | The locked door whose lock holds a poison needle.; serde default; omitted when empty/none |
 ### SchemaIndex
 
 | Field | Type | Required | Notes |
@@ -6874,19 +7054,19 @@ Required `no` marks an `Option` field, a serde default, a field omitted when emp
 
 `World` (`crates/arda/src/world.rs:19`) owns its `Manifest`, a derived `HydrologyDomain` and one `BTreeMap<AreaCoord, OnceLock<Area>>` cache. `World::load` (`crates/arda/src/world.rs:33`) fills empty slots only; `area()` caches a requested `Area` (`crates/arda/src/world.rs:204`), `read_area()` returns owned uncached data (`crates/arda/src/world.rs:220`). Each `Area` owns cells, objects and the optional `AreaWater` forms (`crates/arda/src/world/area.rs:6`); `World::shore` reads the optional `ShoreLayer` (`crates/arda/src/world.rs:177`) and `World::fine_terrain` the canonical fine lattice (`crates/arda/src/world.rs:133`).
 
-`AreaWater.segments` and `.lakes` are positional: one `SegmentForm` per `RiverSegment` and one `LakeForm` per `Lake`, in the area's object order (`crates/arda-core/src/water.rs:390`).
+`AreaWater.segments` and `.lakes` are positional: one `SegmentForm` per `RiverSegment` and one `LakeForm` per `Lake`, in the area's object order (`crates/arda-core/src/water.rs:411`).
 
 `BasinNodeRow.parent` and child-table spans describe physical containment, independently of annual wet occupancy. `GlobalLake.basin` is shared by every local `Lake.global_id` fragment; `GlobalReach.id` is shared by `RiverSegment.global_id` and by `SharedCrossing.reach`. `AnnualCatchment` keeps original contributing ownership separate from final drainage. `ReceivingAccount::Lake` can name a dry physical basin; `representative_lake` names actual positive-depth water. `SharedCrossing` is a directed D8 adjacency across areas whose undirected `CrossingId` sorts endpoints by `(x,y)`. `JunctionId` names a dry coordinate without a table (`crates/arda-core/src/hydrology.rs:32`); tagged point reaches represent physical terminals (`crates/arda-core/src/hydrology.rs:28`). `AreaHydrologyContext` carries the global records one area needs, including neighbouring channel halos; reading an area does not fetch referenced downstream identities outside it (`crates/arda-core/src/hydrology.rs:333`). Local fragment IDs are `u32`; continent river IDs stay continent-local `u16` (`crates/arda-core/src/objects.rs:49`, `crates/arda-core/src/continent.rs:70`).
 
 Published generation runs accepted `Continent` → one evolved `SharedTerrain` → immutable `PreparedTerrain` slices → shared routing and annual support → per-area composition through `SolvedCell` (`crates/arda-gen/src/area/prepare.rs:12`, `crates/arda-gen/src/hydrology/types.rs:31`, `crates/arda-gen/src/area/shared_compose.rs:15`). `TileBundle`, `WaterGrid`, `Basin` and `Filled` remain local diagnostic data, not published water authority. `Plate` is transient generation state.
 
-`Cell.road` and `Cell.built_by` keep their defaults in generation; no generator stage writes them (`crates/arda-core/src/cell.rs:137`). Roads, land-use ownership and realms live in separate `society/` rasters that the server overlays onto each `CellSample` (`crates/arda-server/src/contract/convert.rs:169`).
+`Cell.road` and `Cell.built_by` keep their defaults in generation; no generator stage writes them (`crates/arda-core/src/cell.rs:140`). Roads, land-use ownership and realms live in separate `society/` rasters that the server overlays onto each `CellSample` (`crates/arda-server/src/contract/convert.rs:172`).
 
 ### Settlements, roads, realms, names (arda-settle)
 
-`Settlement.realm_id` → `Realm.id`; `Realm.seat` and `Realm.settlements[]` → `Settlement.id`; `Realm.neighbours[]` → `Realm.id` (`crates/arda-settle/src/model.rs:87`, `crates/arda-settle/src/realms.rs:39`). `Road.from` and `Road.to` → `Settlement.id`, with `Road.to_edge` naming a map edge when `to` is absent (`crates/arda-settle/src/roads.rs:27`). `Pass.road_id` → `Road.id` (`crates/arda-settle/src/crossings.rs:56`). `Crossing` carries its road class and river name but no road id (`crates/arda-settle/src/crossings.rs:32`). `Settlement.tongue` is the `arda-names` `Tongue` its name was drawn in (`crates/arda-settle/src/model.rs:133`). Every id is an `arda-ids` newtype (`SettlementId`, `RealmId`), 1-based in placement order.
+`Settlement.realm_id` → `Realm.id`; `Realm.seat` and `Realm.settlements[]` → `Settlement.id`; `Realm.neighbours[]` → `Realm.id` (`crates/arda-settle/src/model.rs:87`, `crates/arda-settle/src/realms.rs:40`). `Road.from` and `Road.to` → `Settlement.id`, with `Road.to_edge` naming a map edge when `to` is absent (`crates/arda-settle/src/roads.rs:29`). `Pass.road_id` → `Road.id` (`crates/arda-settle/src/crossings.rs:57`). `Crossing` carries its road class and river name but no road id (`crates/arda-settle/src/crossings.rs:33`). `Settlement.tongue` is the `arda-names` `Tongue` its name was drawn in (`crates/arda-settle/src/model.rs:133`). Every id is an `arda-ids` newtype (`SettlementId`, `RealmId`), 1-based in placement order.
 
-The rasters `landuse.bin` (code + owning settlement id per cell), `realms.bin` (realm id per cell, 0 on water) and `roads.bin` (road code per cell) are aligned to the 100 m world cell grid stitched by `Grid` (`crates/arda-settle/src/grid.rs:27`, `crates/arda-settle/src/output.rs:245`, `crates/arda-settle/src/output.rs:294`, `crates/arda-settle/src/output.rs:340`).
+The rasters `landuse.bin` (code + owning settlement id per cell), `realms.bin` (realm id per cell, 0 on water) and `roads.bin` (road code per cell) are aligned to the 100 m world cell grid stitched by `Grid` (`crates/arda-settle/src/grid.rs:27`, `crates/arda-settle/src/output.rs:249`, `crates/arda-settle/src/output.rs:298`, `crates/arda-settle/src/output.rs:344`).
 
 ### Society, history, offices, factions (arda-society)
 
@@ -6894,54 +7074,54 @@ The rasters `landuse.bin` (code + owning settlement id per cell), `realms.bin` (
 
 ### People: NPCs, households, sheets, ranks (arda-npc, arda-people, arda-ids)
 
-`Population` (`crates/arda-npc/src/population.rs:51`) owns `Household[]`, the stored notable `Npc[]` and a `RosterEntry[]` with one entry per inhabitant; `RosterEntry.job` indexes `Population.job_keys`. `Npc.household` → `Household.id`; `Household.members[]` → `Npc.id`; `Npc.home_building` and `Npc.workplace_building` → `BuildingSpec.id`; `Npc.employer` → `Npc.id`; `Relationship.other` → `Npc.id`; `Npc.sheet` is an owned `Sheet`; `Npc.social_rank` is the `SocialRank` enum (`crates/arda-npc/src/npc.rs:292`). `NpcId::from_parts(settlement, building, index)` derives a world-unique id from the `arda-ids` subseed (`crates/arda-ids/src/ids.rs:116`).
+`Population` (`crates/arda-npc/src/population.rs:51`) owns `Household[]`, the stored notable `Npc[]` and a `RosterEntry[]` with one entry per inhabitant; `RosterEntry.job` indexes `Population.job_keys`. `Npc.household` → `Household.id`; `Household.members[]` → `Npc.id`; `Npc.home_building` and `Npc.workplace_building` → `BuildingSpec.id`; `Npc.employer` → `Npc.id`; `Relationship.other` → `Npc.id`; `Npc.sheet` is an owned `Sheet`; `Npc.social_rank` is the `SocialRank` enum (`crates/arda-npc/src/npc.rs:292`). `NpcId::from_parts(settlement, building, index)` derives a world-unique id from the `arda-ids` subseed (`crates/arda-ids/src/ids.rs:140`).
 
-The society's `NpcRole` becomes an `arda-npc` `NotableSlot` in `arda_people::slot` (`crates/arda-people/src/people.rs:281`), and `Generator::with_notables` binds the slots to inhabitants (`crates/arda-npc/src/lib.rs:76`). `StoredNotable` groups one settlement's notables with the source of its buildings (`plan` or `mix`) (`crates/arda-people/src/files.rs:23`). Commoners are never stored: `World::population` regenerates them from the seed, profile, buildings and slots (`crates/arda-people/src/people.rs:253`).
+The society's `NpcRole` becomes an `arda-npc` `NotableSlot` in `arda_people::slot` (`crates/arda-people/src/people.rs:719`), and `Generator::with_notables` binds the slots to inhabitants (`crates/arda-npc/src/lib.rs:76`). `StoredNotable` groups one settlement's notables with the source of its buildings (`plan` or `mix`) (`crates/arda-people/src/files.rs:23`). Commoners are never stored: `World::population` regenerates them from the seed, profile, buildings and slots (`crates/arda-people/src/people.rs:519`).
 
 ### Town plans (arda-town)
 
-`TownPlan` (`crates/arda-town/src/plan/types.rs:293`) owns `Street[]`, `Bridge[]`, an optional `MarketSquare`, `Plot[]`, districts as `(DistrictKind, PlotId[])`, optional `TownWall` and `CastleWard`, `Building[]` and `Fabric`. `Plot.street` → `Street.id`; `Building.plot` → `Plot.id`; `Building.doors[]` are owned `Door` values. `TownPlan.site` is the settlement id. Plan buildings become `arda-npc` `BuildingSpec`s in `plan_specs` (`crates/arda-people/src/town.rs:175`) and `arda-society` `BuildingSpec`s in `society_buildings` (`crates/arda-people/src/town.rs:220`); town tactical squares carry `ext.building` with the plan building id as a string (`crates/arda-town/src/block/mod.rs:526`).
+`TownPlan` (`crates/arda-town/src/plan/types.rs:293`) owns `Street[]`, `Bridge[]`, an optional `MarketSquare`, `Plot[]`, districts as `(DistrictKind, PlotId[])`, optional `TownWall` and `CastleWard`, `Building[]` and `Fabric`. `Plot.street` → `Street.id`; `Building.plot` → `Plot.id`; `Building.doors[]` are owned `Door` values. `TownPlan.site` is the settlement id. Plan buildings become `arda-npc` `BuildingSpec`s in `plan_specs` (`crates/arda-people/src/town.rs:247`) and `arda-society` `BuildingSpec`s in `society_buildings` (`crates/arda-people/src/town.rs:302`); town tactical squares carry `ext.building` with the plan building id as a string (`crates/arda-town/src/block/mod.rs:547`).
 
 ### Tactical layout, blocks, scene, tokens, lights
 
-`TacticalLayout` (`crates/arda-tactical/src/layout.rs:15`) owns `Square[]` (row-major, `width × height`), `WallSegment[]`, `Placement[]`, `LightSource[]` and an optional world `origin`. `Placement.asset` is an `AssetRef`: an `Asset.id` of the loaded `Catalog` or a deterministic class/tag query (`crates/arda-tactical/src/layout.rs:141`); `Square.ground` names a catalogue ground key. `RulesSidecar` (`crates/arda-scene/src/sidecar.rs:37`) is parallel to the layout: `squares[]` in the same row-major order plus edge rules.
+`TacticalLayout` (`crates/arda-tactical/src/layout.rs:15`) owns `Square[]` (row-major, `width × height`), `WallSegment[]`, `Placement[]`, `LightSource[]` and an optional world `origin`. `Placement.asset` is an `AssetRef`: an `Asset.id` of the loaded `Catalog` or a deterministic class/tag query (`crates/arda-tactical/src/layout.rs:146`); `Square.ground` names a catalogue ground key. `RulesSidecar` (`crates/arda-scene/src/sidecar.rs:37`) is parallel to the layout: `squares[]` in the same row-major order plus edge rules.
 
-`arda-refine` produces one `Block` per 100 m cell (64 × 64 squares) and a `Map` of `TacticalLayout` + `RulesSidecar` + `MapMeta` (`crates/arda-refine/src/block.rs:35`, `crates/arda-refine/src/output.rs:102`). `arda-blocks` `Pipeline` caches refined blocks and composes overlay layers (ways, then fields, then town) by `Owner` precedence into `Composed` (`crates/arda-blocks/src/pipeline.rs:23`, `crates/arda-blocks/src/overlays.rs:28`, `crates/arda-blocks/src/overlays.rs:296`). `SocietyOverlays` fills those layers from `society/` (`crates/arda-blocks/src/society/mod.rs:91`).
+`arda-refine` produces one `Block` per 100 m cell (64 × 64 squares) and a `Map` of `TacticalLayout` + `RulesSidecar` + `MapMeta` (`crates/arda-refine/src/block.rs:35`, `crates/arda-refine/src/output.rs:86`). `arda-blocks` `Pipeline` caches refined blocks and composes overlay layers (ways, then fields, then town) by `Owner` precedence into `Composed` (`crates/arda-blocks/src/pipeline.rs:30`, `crates/arda-blocks/src/overlays.rs:36`, `crates/arda-blocks/src/overlays.rs:432`). `SocietyOverlays` fills those layers from `society/` (`crates/arda-blocks/src/society/mod.rs:92`).
 
-`build_scene` turns a layout, its library and an optional sidecar into a `Scene` (`crates/arda-scene/src/lib.rs:51`); `Scene.lights` are derived from the layout and its placed assets (`crates/arda-scene/src/lib.rs:89`); `Scene.tokens` are `TokenSlot`s. The server wraps one scene and its `Token[]` in `TacticalScene` (`crates/arda-server/src/tactical/scene.rs:39`); each `Token` names a stored notable (`npc_id`), its settlement and plan building, placed at the workplace by day and at home by night (`crates/arda-server/src/tactical/tokens.rs:79`). The server's internal `Block` (`crates/arda-server/src/tactical/block.rs:20`) is the source of `TacticalBlockDto`.
+`build_scene` turns a layout, its library and an optional sidecar into a `Scene` (`crates/arda-scene/src/lib.rs:51`); `Scene.lights` are derived from the layout and its placed assets (`crates/arda-scene/src/lib.rs:89`); `Scene.tokens` are `TokenSlot`s. The server wraps one scene and its `Token[]` in `TacticalScene` (`crates/arda-server/src/tactical/scene.rs:39`); each `Token` names a stored notable (`npc_id`), its settlement and plan building, placed at the workplace by day and at home by night (`crates/arda-server/src/tactical/tokens.rs:153`). The server's internal `Block` (`crates/arda-server/src/tactical/block.rs:20`) is the source of `TacticalBlockDto`.
 
 ### Dungeon, midzoom, art import
 
-`Dungeon` owns an ordinary `TacticalLayout`, a `RulesSidecar`, `Room[]`, `Door[]` and `Exit[]`, all a function of `Params` (`crates/arda-dungeon/src/lib.rs:199`, `crates/arda-dungeon/src/lib.rs:229`). `ReliefWorld` combines `WorldTerrain`, an `arda-refine` `WorldSource` for water geometry and an optional `Landscape` that wraps `arda-blocks` `SocietyOverlays` (`crates/arda-midzoom/src/world.rs:22`, `crates/arda-midzoom/src/land/mod.rs:55`). `arda-art-import` reads `Manifest` (`import.toml`) and writes an `arda-tactical` `Catalog` plus a `Report` (`crates/arda-art-import/src/manifest.rs:36`, `crates/arda-art-import/src/report.rs:58`).
+A site (`Site`, `crates/arda-server/src/sites/mod.rs:53`: `SiteId`, kind, entrance cell, optional `SettlementId`, `LevelRef[]`) references its levels by seed and size and its settlement by id; `Sites` holds them in memory, ordered by id (`:80`). A level's `Link[]` and `Trap[]` are derived per request (`crates/arda-dungeon/src/site.rs:82`, `crates/arda-dungeon/src/traps.rs:41`). `Dungeon` owns an ordinary `TacticalLayout`, a `RulesSidecar`, `Room[]`, `Door[]` and `Exit[]`, all a function of `Params` (`crates/arda-dungeon/src/lib.rs:199`, `crates/arda-dungeon/src/lib.rs:229`). `ReliefWorld` combines `WorldTerrain`, an `arda-refine` `WorldSource` for water geometry and an optional `Landscape` that wraps `arda-blocks` `SocietyOverlays` (`crates/arda-midzoom/src/world.rs:22`, `crates/arda-midzoom/src/land/mod.rs:55`). `arda-art-import` reads `Manifest` (`import.toml`) and writes an `arda-tactical` `Catalog` plus a `Report` (`crates/arda-art-import/src/manifest.rs:37`, `crates/arda-art-import/src/report.rs:58`).
 
 ### Wire DTOs (arda-server)
 
-`TacticalBlockDto` composes `TacticalLayoutDto`, optional `RulesSidecarDto`, a scene value described by `SceneDto` and `TacticalTilesDto` (`crates/arda-server/src/tactical/dto.rs:60`). `NpcPage` owns `NpcEntry[]`, each wrapping an `Npc` (`crates/arda-server/src/npcs/dto.rs:32`). `SettlementList.settlements[]` and `SettlementDetail.record` are `arda-settle` `Settlement`; `SettlementDetail.society` is `SettlementSociety`; `SettlementNpcs.npcs[]` is `Npc` (`crates/arda-server/src/schema/bodies.rs:20`). `ApiError` wraps `ApiErrorBody`; `NotYetError` adds `planned_source` (`crates/arda-server/src/error.rs:80`, `crates/arda-server/src/error.rs:96`). `PrefetchAccepted.cells[]` are `PrefetchCell`s with a `PrefetchStatus` (`crates/arda-server/src/tactical/prefetch.rs:78`). `DungeonDto` mirrors `arda_dungeon::Dungeon` with `TacticalLayoutDto` and `RulesSidecarDto` parts (`crates/arda-server/src/tactical/dungeon_dto.rs:19`). `SchemaIndex` owns `SchemaIndexEntry[]` and is built by `index()` (`crates/arda-server/src/schema/mod.rs:181`).
+`TacticalBlockDto` composes `TacticalLayoutDto`, optional `RulesSidecarDto`, a scene value described by `SceneDto` and `TacticalTilesDto` (`crates/arda-server/src/tactical/dto.rs:60`). `NpcPage` owns `NpcEntry[]`, each wrapping an `Npc` (`crates/arda-server/src/npcs/dto.rs:32`). `SettlementList.settlements[]` and `SettlementDetail.record` are `arda-settle` `Settlement`; `SettlementDetail.society` is `SettlementSociety`; `SettlementNpcs.npcs[]` is `Npc` (`crates/arda-server/src/schema/bodies.rs:20`). `ApiError` wraps `ApiErrorBody`; `NotYetError` adds `planned_source` (`crates/arda-server/src/error.rs:80`, `crates/arda-server/src/error.rs:96`). `PrefetchAccepted.cells[]` are `PrefetchCell`s with a `PrefetchStatus` (`crates/arda-server/src/tactical/prefetch.rs:82`). `DungeonDto` mirrors `arda_dungeon::Dungeon` with `TacticalLayoutDto` and `RulesSidecarDto` parts (`crates/arda-server/src/tactical/dungeon_dto.rs:19`). `SchemaIndex` owns `SchemaIndexEntry[]` and is built by `index()` (`crates/arda-server/src/schema/mod.rs:204`).
 
 ## Boundaries
 
 | Representation | Produced by | Consumed by | Conversion site |
 |---|---|---|---|
 | Binary world (`world.json`, `areas/`, `continent/`, `hydrology/`, `terrain/`; a `blocks/` folder in a pre-1.0 world is ignored) | `arda-gen` writers | `arda` `World` | codecs in `crates/arda-core/src/formats/`; `World::load` `crates/arda/src/world.rs:33` |
-| `CellSample` / `PointSample` (contract 3) | `arda-server` | HTTP clients, viewer | `cell_sample` `crates/arda-server/src/contract/convert.rs:187`; society overlay `crates/arda-server/src/contract/convert.rs:169`, rasters `crates/arda-server/src/society_cells.rs:47` |
+| `CellSample` / `PointSample` (contract 3) | `arda-server` | HTTP clients, viewer | `cell_sample` `crates/arda-server/src/contract/convert.rs:190`; society overlay `crates/arda-server/src/contract/convert.rs:172`, rasters `crates/arda-server/src/society_cells.rs:47` |
 | `AreaCells` JSON / `ARDACOLS` v2 binary | `arda-server` | viewer | `build` `crates/arda-server/src/columnar.rs:262`, `encode` `crates/arda-server/src/columnar.rs:287` |
 | Export JSON (`AreaOut` schema 2) | `arda-render` | `arda export` files | `crates/arda-render/src/json.rs:63`, `crates/arda-render/src/hydrology_json.rs:145` |
-| `society/settlements.json`, `roads.json`, `realms.json`, `names.json`, `stats.json`, three rasters | `arda-settle` domain types | readers below | `encode` `crates/arda-settle/src/lib.rs:62`, `write` `crates/arda-settle/src/lib.rs:156` |
-| `arda-society` input view of `society/*.json` | `WorldSettlements::read_dir` | `simulate_society` | `crates/arda-society/src/read.rs:75`, `crates/arda-society/src/lib.rs:136` |
-| `SocietyFiles` (typed + raw JSON records) | `arda-people` | town, NPC, server routes | `crates/arda-people/src/files.rs:46`; raw record → `TownSite` `crates/arda-people/src/town.rs:33`; raw record → `SettlementProfile` `crates/arda-people/src/people.rs:201` |
-| `society/society.json`, `society/notables.json` | `arda society build` | `arda-people` `World` | written `crates/arda-people/src/build.rs:48`; read `crates/arda-people/src/people.rs:85` |
-| settle roads/land use → `arda-ways` / `arda-fields` inputs | `arda-blocks` | overlay layers | `crates/arda-blocks/src/society/layers.rs:26`, `crates/arda-blocks/src/society/layers.rs:99`, `crates/arda-blocks/src/society/layers.rs:282` |
+| `society/settlements.json`, `roads.json`, `realms.json`, `names.json`, `stats.json`, three rasters | `arda-settle` domain types | readers below | `encode` `crates/arda-settle/src/lib.rs:68`, `write` `crates/arda-settle/src/lib.rs:180` |
+| `arda-society` input view of `society/*.json` | `WorldSettlements::read_dir` | `simulate_society` | `crates/arda-society/src/read.rs:75`, `crates/arda-society/src/lib.rs:142` |
+| `SocietyFiles` (typed + raw JSON records) | `arda-people` | town, NPC, server routes | `crates/arda-people/src/files.rs:40`; raw record → `TownSite` `crates/arda-people/src/town.rs:70`; raw record → `SettlementProfile` `crates/arda-people/src/people.rs:466` |
+| `society/society.json`, `society/notables.json` | `arda society build` | `arda-people` `World` | written `crates/arda-people/src/build.rs:47`; read `crates/arda-people/src/people.rs:234` |
+| settle roads/land use → `arda-ways` / `arda-fields` inputs | `arda-blocks` | overlay layers | `crates/arda-blocks/src/society/layers.rs:29`, `crates/arda-blocks/src/society/layers.rs:104`, `crates/arda-blocks/src/society/layers.rs:310` |
 | `arda-npc` domain JSON ↔ `npc_dto` mirrors | handlers serialise domain types | ts-rs / schemars | mirror rule `crates/arda-server/src/npc_dto/mod.rs:1`; page wire form `crates/arda-server/src/npcs/dto.rs:1` |
 | `arda-tactical` `TacticalLayout` ↔ `TacticalLayoutDto` | handlers | ts-rs / schemars | `crates/arda-server/src/tactical/dto.rs:1` |
 | `arda-scene` `Scene` ↔ `SceneDto`; `RulesSidecar` ↔ `RulesSidecarDto` | handlers | ts-rs / schemars | `crates/arda-server/src/tactical/scene_dto.rs:1`, `crates/arda-server/src/tactical/rules_dto.rs:1` |
 | `arda-dungeon` `Dungeon` ↔ `DungeonDto` | handlers | ts-rs / schemars | `crates/arda-server/src/tactical/dungeon_dto.rs:1` |
 | Arda NPC JSON → mapped sheet JSON | `--sheet-mapping` `MappingFile` | HTTP clients | `SheetMapping::reshape` `crates/arda-server/src/sheet_map/mod.rs:224` |
-| Rust DTOs → TypeScript | ts-rs | `apps/viewer` | `crates/arda-server/src/bindings.rs:96` |
-| Rust DTOs → JSON Schema draft 2020-12 | schemars | `GET /v1/schema` | `crates/arda-server/src/schema/mod.rs:115` |
+| Rust DTOs → TypeScript | ts-rs | `apps/viewer` | `crates/arda-server/src/bindings.rs:99` |
+| Rust DTOs → JSON Schema draft 2020-12 | schemars | `GET /v1/schema` | `crates/arda-server/src/schema/mod.rs:124` |
 
-TypeScript bindings. `bindings/ts/arda/` holds one generated `<Name>.ts` per type in the `exported!` list plus `index.ts`, which also exports `API_VERSION` and one upper-cased constant per `VersionsDto` field, `CONTRACT_VERSION` first (`crates/arda-server/src/bindings.rs:76`, `crates/arda-server/src/bindings.rs:79`). The test `committed_bindings_are_fresh` fails when the committed files differ from ts-rs output; `ARDA_BLESS_BINDINGS=1` rewrites them (`crates/arda-server/src/bindings.rs:237`). `u64_ids_are_strings_not_bigints` asserts no generated file uses `bigint` (`crates/arda-server/src/bindings.rs:270`). Only `arda-server` depends on ts-rs; domain crates stay free of it, which is why the server keeps wire mirrors (`crates/arda-server/src/npc_dto/mod.rs:3`). JSON Schemas in `bindings/schema/` come from the same Rust types through schemars, including the domain types `Settlement`, `SettlementSociety`, `TownPlan`, `Realm`, `RealmSociety`, `Relation`, `Event` and the gazetteer types behind their `schema` features (`crates/arda-server/src/schema/mod.rs:115`).
+TypeScript bindings. `bindings/ts/arda/` holds one generated `<Name>.ts` per type in the `exported!` list plus `index.ts`, which also exports `API_VERSION` and one upper-cased constant per `VersionsDto` field, `CONTRACT_VERSION` first (`crates/arda-server/src/bindings.rs:79`, `crates/arda-server/src/bindings.rs:82`). The test `committed_bindings_are_fresh` fails when the committed files differ from ts-rs output; `ARDA_BLESS_BINDINGS=1` rewrites them (`crates/arda-server/src/bindings.rs:242`). `u64_ids_are_strings_not_bigints` asserts no generated file uses `bigint` (`crates/arda-server/src/bindings.rs:275`). Only `arda-server` depends on ts-rs; domain crates stay free of it, which is why the server keeps wire mirrors (`crates/arda-server/src/npc_dto/mod.rs:3`). JSON Schemas in `bindings/schema/` come from the same Rust types through schemars, including the domain types `Settlement`, `SettlementSociety`, `TownPlan`, `Realm`, `RealmSociety`, `Relation`, `Event` and the gazetteer types behind their `schema` features (`crates/arda-server/src/schema/mod.rs:124`).
 
-Mirror exceptions. `TacticalBlockDto.scene` is typed `Option<serde_json::Value>` and documented as `SceneDto` in the schema catalog (`crates/arda-server/src/tactical/dto.rs:84`); `TacticalScene.scene` is the domain `arda_scene::Scene` (`crates/arda-server/src/tactical/scene.rs:39`). Settlement routes assemble bodies as `serde_json::Value` from the stored raw records; `SettlementList`, `SettlementDetail` and `SettlementNpcs` exist for schemars only (`crates/arda-server/src/schema/bodies.rs:1`, `crates/arda-server/src/people.rs:51`). The runtime `PopulationRequest (npc.rs runtime)` and `NpcDemo (npc.rs runtime)` embed domain types; their TypeScript form comes from the `npc_dto` mirrors (`crates/arda-server/src/npc.rs:5`).
+Mirror exceptions. `TacticalBlockDto.scene` is typed `Option<serde_json::Value>` and documented as `SceneDto` in the schema catalog (`crates/arda-server/src/tactical/dto.rs:84`); `TacticalScene.scene` is the domain `arda_scene::Scene` (`crates/arda-server/src/tactical/scene.rs:39`). Settlement routes assemble bodies as `serde_json::Value` from the stored raw records; `SettlementList`, `SettlementDetail` and `SettlementNpcs` exist for schemars only (`crates/arda-server/src/schema/bodies.rs:1`, `crates/arda-server/src/people.rs:54`). The runtime `PopulationRequest (npc.rs runtime)` and `NpcDemo (npc.rs runtime)` embed domain types; their TypeScript form comes from the `npc_dto` mirrors (`crates/arda-server/src/npc.rs:5`).
 
 Ids. Every `arda-ids` id serialises as a decimal JSON string and deserialises from a string or a non-negative integer (`crates/arda-ids/src/ids.rs:1`). `arda-society` writes its u64 fields through `crate::ids::str`; `arda-town` `TownPlan.seed` through `crate::ids` (field notes above).
 
@@ -6952,35 +7132,35 @@ Core codecs write explicit little-endian fields; Rust padding is never persisted
 | Data | Rule | Site |
 |---|---|---|
 | `GenerateConfig` | axes 64–4000 km, density 1–200, ordered latitudes within −80..80; serde alone bypasses it, so `World::load` re-runs the constructor | `crates/arda-core/src/config.rs:73`, `crates/arda/src/world.rs:36` |
-| `Manifest` | format major exactly 4; area dimensions must match the validated config; fine recipe 1–8; a recipe-5 manifest beside `terrain/shore.bin` reads as recipe 6 | `crates/arda-core/src/formats/manifest.rs:139`, `crates/arda/src/world.rs:45`, `crates/arda/src/world.rs:52`, `crates/arda-core/src/formats/manifest.rs:156` |
+| `Manifest` | format major exactly 4; area dimensions must match the validated config; fine recipe 1–8; a recipe-5 manifest beside `terrain/shore.bin` reads as recipe 6 | `crates/arda-core/src/formats/manifest.rs:154`, `crates/arda/src/world.rs:45`, `crates/arda/src/world.rs:52`, `crates/arda-core/src/formats/manifest.rs:171` |
 | Hydrology rows | each `structure!` row carries its invariant (canonical crossing pair, spill consistency, annual/mean pairing, model revision 2) | `crates/arda-core/src/formats/hydrology.rs:248`–`crates/arda-core/src/formats/hydrology.rs:386` |
-| Continent acceptance | land fraction 250–900 per mille | `crates/arda-gen/src/orchestrator.rs:70` |
+| Continent acceptance | land fraction 250–900 per mille | `crates/arda-gen/src/orchestrator.rs:71` |
 | `ImageQuality`, overview sizes | 512–32,768 px; `k`/`K` suffix; exact overview axes 1–32,768 and ≤ 134,217,728 px buffered | `crates/arda-render/src/quality.rs:21`, `crates/arda-render/src/quality.rs:71`, `crates/arda-render/src/overview.rs:88`, `crates/arda-render/src/overview.rs:316` |
-| `society/*.bin` rasters | magic, format version 1, `0 < w·h ≤ 2^28` before allocation, exact decompressed length | `crates/arda-settle/src/output.rs:189` |
+| `society/*.bin` rasters | magic, format version 1, `0 < w·h ≤ 2^28` before allocation, exact decompressed length | `crates/arda-settle/src/output.rs:193` |
 | `society/*.json` for society | `format_version` must equal 1 | `crates/arda-society/src/read.rs:56` |
 | Server rasters | `landuse.bin`, `realms.bin`, `roads.bin` must match the world's cell dimensions | `crates/arda-server/src/society_cells.rs:47` |
 | NPC content tables | compiled-in JSON parsed, then cross-file references (job stat blocks and others) must resolve | `crates/arda-npc/src/data/mod.rs:88` |
 | `PopulationRequest` | population ≤ 50,000, buildings ≤ 20,000, body ≤ 2 MiB; unknown fields refused | `crates/arda-server/src/npc.rs:26`, `crates/arda-server/src/npc.rs:149`, `crates/arda-server/src/npc.rs:74` |
-| `PrefetchRequest` | radius 1–2 (default 1), queue ≤ 64 cells, workers ≤ 8 | `crates/arda-server/src/tactical/prefetch.rs:31`, `crates/arda-server/src/tactical/prefetch.rs:204` |
+| `PrefetchRequest` | radius 1–2 (default 1), queue ≤ 64 cells, workers ≤ 8 | `crates/arda-server/src/tactical/prefetch.rs:35`, `crates/arda-server/src/tactical/prefetch.rs:249` |
 | `BakeRequest` | unknown fields refused; body ≤ 4 MiB; layout exactly 64 × 64 at the cell's origin and valid for the library (422); ppsq 64/96/128; queue ≤ 8 jobs (503 `busy`) | `crates/arda-server/src/tactical/bake_render.rs:24`, `crates/arda-server/src/tactical/bake.rs:35` |
 | Wire mirrors | `#[serde(deny_unknown_fields)]` on `npc_dto`, `NpcPage`, `Token` and others; tests re-serialise domain JSON through each mirror | `crates/arda-server/src/npc_dto/mod.rs:1` |
-| Asset catalogue | validator over catalogue and images; library directory check at load | `crates/arda-tactical/src/validate.rs:121`, `crates/arda-tactical/src/library.rs:89` |
-| `TacticalLayout` | sizes, ground keys, wall kits and roles, placements and rotations checked against the library (422 `invalid_layout`) | `crates/arda-tactical/src/layout.rs:264`, `crates/arda-server/src/error.rs:5` |
-| `RulesSidecar` | dimensions match the layout | `crates/arda-scene/src/sidecar.rs:236` |
-| Art-import manifest | `deny_unknown_fields` on every TOML section | `crates/arda-art-import/src/manifest.rs:36` |
+| Asset catalogue | validator over catalogue and images; library directory check at load | `crates/arda-tactical/src/validate.rs:127`, `crates/arda-tactical/src/library.rs:89` |
+| `TacticalLayout` | sizes, ground keys, wall kits and roles, placements and rotations checked against the library (422 `invalid_layout`) | `crates/arda-tactical/src/layout.rs:269`, `crates/arda-server/src/error.rs:5` |
+| `RulesSidecar` | dimensions match the layout | `crates/arda-scene/src/sidecar.rs:290` |
+| Art-import manifest | `deny_unknown_fields` on every TOML section | `crates/arda-art-import/src/manifest.rs:37` |
 | `--sheet-mapping` file | parsed, checked, then dry-run against probe NPCs | `crates/arda-server/src/sheet_map/mod.rs:158` |
 
 No validation library is used beyond serde attributes; every rule above is hand-written.
 
 ## Schema
 
-No database or migration layer exists. Version authorities are separate: world format major 4 (`crates/arda-core/src/formats/mod.rs:19`), hydrology model revision 2 (`crates/arda-core/src/formats/hydrology.rs:19`), export JSON schema 2 (`crates/arda-render/src/json.rs:12`), canonical fine terrain file 1.0 (`crates/arda-core/src/formats/terrain.rs:20`), world contract 3 and API `v1` (`crates/arda-server/src/contract/mod.rs:31`, `crates/arda-server/src/dto.rs:12`), tactical envelope 1 and layout schema 1 (`crates/arda-server/src/tactical/dto.rs:90`), scene format 1 (`crates/arda-scene/src/types.rs:12`), rules sidecar format 2 (`crates/arda-scene/src/sidecar.rs:32`), society files 1 (`crates/arda-settle/src/output.rs:15`, `crates/arda-society/src/lib.rs:57`, `crates/arda-people/src/files.rs:14`), catalogue format 1 (`crates/arda-tactical/src/catalog.rs:10`), refine metadata `arda-refine.meta/2` (`crates/arda-refine/src/rules.rs:13`).
+No database or migration layer exists. Version authorities are separate: world format major 4 (`crates/arda-core/src/formats/mod.rs:19`), hydrology model revision 2 (`crates/arda-core/src/formats/hydrology.rs:19`), export JSON schema 2 (`crates/arda-render/src/json.rs:12`), canonical fine terrain file 1.0 (`crates/arda-core/src/formats/terrain.rs:20`), world contract 3 and API `v1` (`crates/arda-server/src/contract/mod.rs:31`, `crates/arda-server/src/dto.rs:12`), tactical envelope 1 and layout schema 1 (`crates/arda-server/src/tactical/dto.rs:95`), scene format 1 (`crates/arda-scene/src/types.rs:12`), rules sidecar format 2 (`crates/arda-scene/src/sidecar.rs:32`), society files 1 (`crates/arda-settle/src/output.rs:15`, `crates/arda-society/src/lib.rs:57`), notables file 2 (`crates/arda-people/src/notables.rs:28`; format 1 still read), catalogue format 1 (`crates/arda-tactical/src/catalog.rs:10`), refine metadata `arda-refine.meta/2` (`crates/arda-refine/src/rules.rs:13`).
 
 ### World directory
 
 | File | Layout | Codec |
 |---|---|---|
-| world.json | `Manifest` in serde field order; `river_count` defaults to 0 and `fine_terrain` is omitted when absent | `crates/arda-core/src/formats/manifest.rs:67`, `crates/arda-core/src/formats/manifest.rs:98` |
+| world.json | `Manifest` in serde field order; `river_count` defaults to 0 and `fine_terrain` is omitted when absent | `crates/arda-core/src/formats/manifest.rs:67`, `crates/arda-core/src/formats/manifest.rs:113` |
 | areas/AX_AY/cells.bin | no header; 262,144 rows × 39 bytes | `crates/arda-core/src/formats/cells.rs:17` |
 | areas/AX_AY/objects.bin | `ARDAOBJ\0`, u16 section count; tags rivers=1, lakes=2, channels=3, global=4; river prefix 34 B + 4 B/cell, lake prefix 29 B + 4 B/member | `crates/arda-core/src/formats/area_objects_v4.rs:17`, `crates/arda-core/src/formats/area_objects_v4.rs:24` |
 | area objects global context | `ARDACTX4`, model revision, four u32 counts; 28-byte header | `crates/arda-core/src/formats/hydrology.rs:23`, `crates/arda-core/src/formats/hydrology/context.rs:68` |
@@ -7004,31 +7184,31 @@ Every `hydrology/*.bin` begins with the 32-byte header `ARDAHYD4`, kind u32, rec
 
 ### society/ directory
 
-Written by `arda settle` except the last two rows, which `arda society build` adds. JSON files are pretty-printed serde output of the types named (`crates/arda-settle/src/lib.rs:62`, `crates/arda-people/src/files.rs:85`).
+Written by `arda settle` except the last two rows, which `arda society build` adds. JSON files are pretty-printed serde output of the types named (`crates/arda-settle/src/lib.rs:68`, `crates/arda-people/src/files.rs:79`).
 
 | File | Content | Codec |
 |---|---|---|
-| settlements.json | `SettlementsFile` { format_version, seed (decimal string), width_cells, height_cells, `Settlement[]` } | `crates/arda-settle/src/output.rs:28` |
-| roads.json | `RoadsFile` { format_version, `Road[]`, `Crossing[]`, `Pass[]` } | `crates/arda-settle/src/output.rs:45` |
-| realms.json | `RealmsFile` { format_version, `Realm[]` } | `crates/arda-settle/src/output.rs:58` |
+| settlements.json | `SettlementsFile` { format_version, seed (decimal string), width_cells, height_cells, `Settlement[]`, optional `Stamp` } | `crates/arda-settle/src/output.rs:28` |
+| roads.json | `RoadsFile` { format_version, `Road[]`, `Crossing[]`, `Pass[]` } | `crates/arda-settle/src/output.rs:49` |
+| realms.json | `RealmsFile` { format_version, `Realm[]` } | `crates/arda-settle/src/output.rs:62` |
 | gazetteer.json | `GazetteerFile` { format_version, `GazetteerFeature[]` } | `crates/arda-settle/src/gazetteer/mod.rs:171` |
-| names.json | `NamesFile` { format_version, `NamedRiver[]`, `NamedPeak[]`, `NamedRegion[]` } | `crates/arda-settle/src/output.rs:116` |
+| names.json | `NamesFile` { format_version, `NamedRiver[]`, `NamedPeak[]`, `NamedRegion[]` } | `crates/arda-settle/src/output.rs:120` |
 | stats.json | `Stats` with nested `RealmStats` | `crates/arda-settle/src/stats.rs:52` |
-| landuse.bin | `ARDALND\0`, version u32 = 1, width u32, height u32, then zstd level 9 of u8 code per cell followed by u32 LE owner per cell | `crates/arda-settle/src/output.rs:17`, `crates/arda-settle/src/output.rs:245` |
-| realms.bin | `ARDARLM\0`, same 20-byte header, zstd of u16 LE realm id per cell (0 on water) | `crates/arda-settle/src/output.rs:19`, `crates/arda-settle/src/output.rs:294` |
-| roads.bin | `ARDARDS\0`, same header, zstd of u8 road code per cell | `crates/arda-settle/src/output.rs:21`, `crates/arda-settle/src/output.rs:340` |
-| society.json | `Society` | `crates/arda-people/src/build.rs:48` |
-| notables.json | `NotablesFile` { format_version 1, seed string, `StoredNotable[]` } | `crates/arda-people/src/files.rs:35`, `crates/arda-people/src/build.rs:49` |
+| landuse.bin | `ARDALND\0`, version u32 = 1, width u32, height u32, then zstd level 9 of u8 code per cell followed by u32 LE owner per cell | `crates/arda-settle/src/output.rs:17`, `crates/arda-settle/src/output.rs:249` |
+| realms.bin | `ARDARLM\0`, same 20-byte header, zstd of u16 LE realm id per cell (0 on water) | `crates/arda-settle/src/output.rs:19`, `crates/arda-settle/src/output.rs:298` |
+| roads.bin | `ARDARDS\0`, same header, zstd of u8 road code per cell | `crates/arda-settle/src/output.rs:21`, `crates/arda-settle/src/output.rs:344` |
+| society.json | `Society` | `crates/arda-people/src/build.rs:47` |
+| notables.json | Format 2: a header line `NotablesFile` { format_version 2, seed string, `settle_stamp`, `NotableIndex[]` }, then one compact `StoredNotable` per line; the whole file parses as one `NotablesFile`. Format 1 (pretty, no index) is read whole. | `crates/arda-people/src/notables.rs:49`, `crates/arda-people/src/notables.rs:70`, `crates/arda-people/src/build.rs:114` |
 
 ### Other files
 
 | File | Content | Site |
 |---|---|---|
 | library `catalog.json` | `Catalog` beside the asset images | `crates/arda-tactical/src/library.rs:14` |
-| `import.toml` / `report.json` | art-import `Manifest` in; `Report` out | `crates/arda-art-import/src/manifest.rs:36`, `crates/arda-art-import/src/output.rs:287` |
+| `import.toml` / `report.json` | art-import `Manifest` in; `Report` out | `crates/arda-art-import/src/manifest.rs:37`, `crates/arda-art-import/src/output.rs:288` |
 | `layout.json` / `meta.json` | `arda-refine` CLI: `TacticalLayout` and `MapMeta` | `crates/arda-refine/src/bin/arda-refine.rs:122`, `crates/arda-refine/src/bin/arda-refine.rs:130` |
 | `out/dungeon/layout.json` | dungeon `TacticalLayout` from `arda dungeon` | `crates/arda-cli/src/dungeon.rs:31` |
 | compiled-in tables | `crates/arda-npc/data/{srd,content}/*.json`, `crates/arda-society/data/*.json` via `include_str!` | `crates/arda-npc/src/data/mod.rs:45`, `crates/arda-society/src/tables.rs:344` |
 | `ARDACOLS` v2 (HTTP only) | 48-byte header (magic, layout version, contract version, ax, ay, gx0, gy0, width, height, column count, data offset), column table, 4-byte aligned column data | `crates/arda-server/src/columnar.rs:16`, `crates/arda-server/src/columnar.rs:287` |
 
-Server caches (tactical blocks, JSON bodies, image pyramids, town plans) are in-memory (`crates/arda-blocks/src/pipeline.rs:70`, `crates/arda-people/src/people.rs:137`); the only server file writes outside tests are overview renders in a per-request scratch directory under the system temp directory, removed on drop (`crates/arda-server/src/overview.rs:312`, `crates/arda-server/src/overview.rs:349`).
+Server caches (tactical blocks, JSON bodies, image pyramids, town plans) are in-memory (`crates/arda-blocks/src/pipeline.rs:78`, `crates/arda-people/src/people.rs:289`); the only server file writes outside tests are overview renders in a per-request scratch directory under the system temp directory, removed on drop (`crates/arda-server/src/overview.rs:427`, `crates/arda-server/src/overview.rs:464`).

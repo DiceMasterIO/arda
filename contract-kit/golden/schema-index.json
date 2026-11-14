@@ -285,6 +285,7 @@
       "name": "SceneDto",
       "routes": [
         "GET /v1/tactical/dungeon/scene",
+        "GET /v1/sites/{id}/levels/{n}/scene",
         "TacticalBlockDto.scene",
         "TacticalScene.scene"
       ],
@@ -354,6 +355,34 @@
       ],
       "stability": "stable",
       "url": "/v1/schema/Sheet.json"
+    },
+    {
+      "family": "site_format",
+      "name": "Site",
+      "routes": [
+        "GET /v1/sites/{id}",
+        "SiteList.sites"
+      ],
+      "stability": "stable",
+      "url": "/v1/schema/Site.json"
+    },
+    {
+      "family": "site_format",
+      "name": "SiteLevel",
+      "routes": [
+        "GET /v1/sites/{id}/levels/{n}"
+      ],
+      "stability": "stable",
+      "url": "/v1/schema/SiteLevel.json"
+    },
+    {
+      "family": "site_format",
+      "name": "SiteList",
+      "routes": [
+        "GET /v1/sites"
+      ],
+      "stability": "stable",
+      "url": "/v1/schema/SiteList.json"
     },
     {
       "family": "tactical_format",
