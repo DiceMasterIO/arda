@@ -194,3 +194,59 @@ fn a_world_without_society_has_caves_only() {
         assert_eq!(s.levels[0].danger_tier, 2);
     }
 }
+
+/// logic/18 §site-entrance: a party can stand on and around the entrance
+/// and walk away from it.
+#[tokio::test]
+#[allow(clippy::cast_possible_truncation, clippy::cast_sign_loss)]
+async fn entrances_are_drawn_passable_and_reachable_on_the_surface() {
+    for s in sites().await {
+        let (gx, gy) = (
+            s["cell"][0].as_u64().unwrap(),
+            s["cell"][1].as_u64().unwrap(),
+        );
+        let block = get(&format!("/v1/tactical/cell/{gx}/{gy}")).await;
+        assert_eq!(block.status, StatusCode::OK, "{gx},{gy}");
+        let v = block.json();
+        let want = if s["kind"] == "cave" {
+            "prop.cave_mouth"
+        } else {
+            "prop.site_entrance"
+        };
+        let placed = v["layout"]["placements"].as_array().unwrap();
+        assert!(
+            placed.iter().any(|p| p["asset"]["id"] == want),
+            "{gx},{gy}: no {want}"
+        );
+        let cells = v["rules"]["squares"].as_array().unwrap();
+        let blocked = |x: i64, y: i64| cells[(y * 64 + x) as usize]["blocks_movement"] == true;
+        for y in 30..=34 {
+            for x in 30..=34 {
+                assert!(!blocked(x, y), "{gx},{gy}: {x},{y} blocked");
+                assert_eq!(
+                    v["layout"]["squares"][(y * 64 + x) as usize]["water_depth_ft"],
+                    0
+                );
+            }
+        }
+        // The block border is reachable from the entrance square.
+        let mut seen = vec![false; 64 * 64];
+        let mut queue = vec![(32_i64, 32_i64)];
+        seen[32 * 64 + 32] = true;
+        let mut out = false;
+        while let Some((x, y)) = queue.pop() {
+            if x == 0 || y == 0 || x == 63 || y == 63 {
+                out = true;
+                break;
+            }
+            for (nx, ny) in [(x + 1, y), (x - 1, y), (x, y + 1), (x, y - 1)] {
+                let i = (ny * 64 + nx) as usize;
+                if !seen[i] && !blocked(nx, ny) {
+                    seen[i] = true;
+                    queue.push((nx, ny));
+                }
+            }
+        }
+        assert!(out, "{gx},{gy}: entrance walled in");
+    }
+}

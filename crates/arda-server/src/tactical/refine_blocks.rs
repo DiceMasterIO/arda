@@ -12,7 +12,6 @@ use super::block::{Block, BlockError, BlockRequest, BlockSource};
 use crate::cache::ByteLru;
 use crate::flight::Gate;
 use arda_blocks::demo::DemoOverlays;
-use arda_blocks::society::SocietyOverlays;
 use arda_blocks::{BlocksError, Overlays, Pipeline};
 use arda_people::shared::SharedSource;
 use arda_refine::{CellKey, WorldSource};
@@ -50,7 +49,7 @@ pub struct RefineBlocks {
     /// At most [`COMPOSE_SLOTS`] compositions at a time.
     slots: Gate,
     demos: Mutex<BTreeMap<[i64; 2], Arc<DemoOverlays>>>,
-    society: Option<Arc<SocietyOverlays>>,
+    society: Option<Arc<dyn Overlays>>,
 }
 
 impl std::fmt::Debug for RefineBlocks {
@@ -88,9 +87,10 @@ impl RefineBlocks {
         }
     }
 
-    /// Blocks over an opened world, with its society overlays when given.
+    /// Blocks over an opened world, with its overlays (the society's and
+    /// the sites' entrances) when given.
     #[must_use]
-    pub fn with_society(src: SharedSource, society: Option<Arc<SocietyOverlays>>) -> Self {
+    pub fn with_society(src: SharedSource, society: Option<Arc<dyn Overlays>>) -> Self {
         let mut b = Self::new(pipeline(Box::new(src)));
         b.society = society;
         b
@@ -134,7 +134,7 @@ impl RefineBlocks {
         let demo = req.demo_at.map(|at| self.demo(at)).transpose()?;
         let overlays = match (&demo, &self.society) {
             (Some(d), _) => Some(d.as_ref() as &dyn Overlays),
-            (None, Some(s)) => Some(s.as_ref() as &dyn Overlays),
+            (None, Some(s)) => Some(s.as_ref()),
             (None, None) => None,
         };
         let c = self

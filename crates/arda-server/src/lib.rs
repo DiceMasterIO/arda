@@ -314,8 +314,29 @@ impl AppState {
         let land = overlays
             .as_ref()
             .map(|o| arda_midzoom::Landscape::new(std::sync::Arc::clone(o)));
+        // logic/18 §site-entrance: the sites' entrances compose over the
+        // society's layers, and alone on a world without `society/`. Relief
+        // tiles keep the society alone: entrances are tactical detail.
+        let entrances = sites
+            .all()
+            .iter()
+            .map(|s| {
+                let [gsx, gsy] = s.entrance_gs();
+                arda_blocks::sites::Entrance {
+                    gsx,
+                    gsy,
+                    cave: s.kind == arda_dungeon::Kind::Cave,
+                }
+            })
+            .collect();
+        let society = overlays.map(|o| o as std::sync::Arc<dyn arda_blocks::overlays::Overlays>);
         tactical.set_block_source(Box::new(
-            tactical::refine_blocks::RefineBlocks::with_society(src, overlays),
+            tactical::refine_blocks::RefineBlocks::with_society(
+                src,
+                Some(std::sync::Arc::new(arda_blocks::sites::SiteOverlays::new(
+                    society, entrances,
+                ))),
+            ),
         ));
         let overview = overview::Overview::new(&query, config.overview)?;
         let relief = relief::Relief::open_with(

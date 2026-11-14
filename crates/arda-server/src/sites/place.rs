@@ -14,7 +14,7 @@ pub const STEEP_MILLI_DEG: u16 = 15_000;
 /// A cave's entrance cell must slope less than this.
 pub const WALKABLE_MILLI_DEG: u16 = 15_000;
 /// Share of qualifying tiles that keep their cave, per mille.
-pub const CAVE_ODDS: u64 = 400;
+pub const CAVE_ODDS: u64 = 300;
 /// Share of villages that get a dungeon, per mille.
 pub const VILLAGE_ODDS: u64 = 100;
 /// A dungeon's entrance lies this many cells from its settlement.
@@ -259,8 +259,8 @@ mod tests {
             free: true,
         };
         let got = choose(42, (640, 640), &steep, &[]);
-        // 400 tiles qualify; the hash keeps about 40 %.
-        assert!((120..=200).contains(&got.len()), "{}", got.len());
+        // 400 tiles qualify; the hash keeps about 30 %.
+        assert!((90..=150).contains(&got.len()), "{}", got.len());
         for c in &got {
             assert_eq!(c.kind, Kind::Cave);
             assert_eq!((c.settlement, c.base_tier, c.min_levels), (None, 2, 1));
