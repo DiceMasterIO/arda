@@ -68,6 +68,7 @@ Implemented (registered in `crates/arda-server/src/routes.rs` and `src/tactical/
 | `GET /v1/buildings/{building}/residents`, `/workers` | `NpcPage` | 13 |
 | `POST /v1/npc/population` | `Population` for a posted `PopulationRequest` | 13 |
 | `POST /v1/npc/generate` | `Npc`: one new NPC from optional `GenerateNpcRequest` inputs (Arda's own: `seed`, `job`, `office`, `rank`, `ancestry`, `sex`, `tier`, `culture`, `settlement_id`, `notable`), stored nowhere, synthetic ids; body ≤ 16 KiB, JSON only (415); 422 `unsatisfiable` | 13 §npc-generate-one |
+| `GET /v1/npc/occupations` | `OccupationList`: every job and office key `POST /v1/npc/generate` takes, with label, category and the tiers and ranks it is accepted in; the same on every world | 13 §npc-occupations |
 | `GET /v1/npc/demo`, `/v1/npc/demo/{npc_id}` | `NpcDemo`, `Npc` of the `arda-npc` sample town (debug) | 13 |
 | `GET /v1/gazetteer[?kind=&bbox=&min_rank=]` | `Gazetteer` (§api-gazetteer): natural features then settlement points in one list; `kind` is a comma list of kind keys, `bbox=x0,y0,x1,y1` metres keeps what meets the box, `min_rank=N` keeps rank N or more important; 400 on a bad value, 404 without `society/` or `gazetteer.json` | 08, 15 |
 | `GET /v1/realms` | `RealmList`: `{format_version, realms: [RealmSummary]}`, the `realms.json` records without `borders` plus `style`, `rank`, `government_label`, `ruler` when `society.json` exists, and `colour` (`#rrggbb`, the realm's political-map colour, §political-map) | 08, 14 |

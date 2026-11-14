@@ -584,6 +584,10 @@ Storage values: `HTTP JSON; ts-rs bindings/ts/arda/<Name>.ts` means the type is 
 | Population | `crates/arda-server/src/npc_dto/mod.rs:305` | HTTP JSON; ts-rs `bindings/ts/arda/Population.ts` | The population of one settlement; notables stored in full. |
 | PopulationRequest | `crates/arda-server/src/npc_dto/mod.rs:327` | HTTP JSON; ts-rs `bindings/ts/arda/PopulationRequest.ts` | Body of `POST /v1/npc/population`. |
 | GenerateNpcRequest | `crates/arda-server/src/npc_dto/mod.rs:340` | HTTP JSON; ts-rs `bindings/ts/arda/GenerateNpcRequest.ts` | Body of `POST /v1/npc/generate`: Arda's own inputs, every field optional. |
+| OccupationList | `crates/arda-server/src/npc_dto/occupations.rs` | HTTP JSON; ts-rs `bindings/ts/arda/OccupationList.ts` | Body of `GET /v1/npc/occupations`: every job and office key `POST /v1/npc/generate` takes. |
+| Occupation | `crates/arda-server/src/npc_dto/occupations.rs` | HTTP JSON; ts-rs `bindings/ts/arda/Occupation.ts` | One key: `kind`, `label`, `label_female`, `category`, `tiers`. Domain `arda_npc::Occupation` (`crates/arda-npc/src/one/catalog.rs`). |
+| OccupationKind | `crates/arda-server/src/npc_dto/occupations.rs` | HTTP JSON; ts-rs `bindings/ts/arda/OccupationKind.ts` | `job` or `office`. |
+| OccupationTier | `crates/arda-server/src/npc_dto/occupations.rs` | HTTP JSON; ts-rs `bindings/ts/arda/OccupationTier.ts` | A tier a key is accepted in and its `SocialRank` there. |
 | NpcDemo | `crates/arda-server/src/npc_dto/mod.rs:386` | HTTP JSON; ts-rs `bindings/ts/arda/NpcDemo.ts` | Body of `GET /v1/npc/demo`: the market-town example and its population. |
 | Ability | `crates/arda-server/src/npc_dto/sheet.rs:9` | HTTP JSON; ts-rs `bindings/ts/arda/Ability.ts` | One of the six abilities, in SRD order. |
 | SheetKind | `crates/arda-server/src/npc_dto/sheet.rs:33` | HTTP JSON; ts-rs `bindings/ts/arda/SheetKind.ts` | What the sheet is built from. |

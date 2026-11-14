@@ -29,6 +29,7 @@ edges:
     - { kind: http, name: "GET /v1/tiles/relief/{z}/{x}/{y}.webp", site: crates/arda-server/src/routes.rs }
     - { kind: http, name: "POST /v1/npc/population", site: crates/arda-server/src/routes.rs, schema: Population }
     - { kind: http, name: "POST /v1/npc/generate", site: crates/arda-server/src/npc.rs, schema: Npc }
+    - { kind: http, name: "GET /v1/npc/occupations", site: crates/arda-server/src/npc.rs, schema: OccupationList }
     - { kind: http, name: "GET /v1/npc/demo", site: crates/arda-server/src/routes.rs }
     - { kind: http, name: "GET /v1/npc/demo/{npc_id}", site: crates/arda-server/src/routes.rs, schema: Npc }
     - { kind: http, name: "GET /v1/npc/{npc_id}", site: crates/arda-server/src/npcs/mod.rs, schema: Npc }
@@ -98,6 +99,7 @@ The only cross-repo surface is `arda-server`'s HTTP API under `/v1` (consumed by
 | http | GET /v1/tiles/relief/{z}/{x}/{y}.webp | - | `crates/arda-server/src/routes.rs` |
 | http | POST /v1/npc/population | - | `crates/arda-server/src/routes.rs` |
 | http | POST /v1/npc/generate | - | `crates/arda-server/src/npc.rs` |
+| http | GET /v1/npc/occupations | - | `crates/arda-server/src/npc.rs` |
 | http | GET /v1/npc/demo | - | `crates/arda-server/src/routes.rs` |
 | http | GET /v1/npc/demo/{npc_id} | - | `crates/arda-server/src/routes.rs` |
 | http | GET /v1/npc/{npc_id} | - | `crates/arda-server/src/npcs/mod.rs` |
@@ -291,6 +293,22 @@ Request body: `GenerateNpcRequest` (`crates/arda-server/src/npc_dto/mod.rs:340`;
 | notable | bool | no | |
 
 400 `bad_request` (malformed seed or id, unknown field or key, a rank or tier the job lacks), 404 `not_found`, 413, 415, 422 `unsatisfiable`.
+
+### GET /v1/npc/occupations
+
+Model: OccupationList
+
+Handler `occupations_route` (`crates/arda-server/src/npc.rs:237`) serves `arda_npc::occupations()` (`crates/arda-npc/src/one/catalog.rs`): the keys `POST /v1/npc/generate` takes as `job` and `office`. No world work and no query parameters; the body is the same on every world. Type `OccupationList` (`crates/arda-server/src/npc_dto/occupations.rs`).
+
+| Field | Type | Required | Notes |
+|---|---|---|---|
+| occupations | Occupation[] | yes | every job, then every office, each in key order |
+| occupations[].key | String | yes | the `job` or `office` value of `GenerateNpcRequest` |
+| occupations[].kind | OccupationKind | yes | `job` or `office`; `(kind, key)` is unique |
+| occupations[].label | String | yes | job title, or office title without its place |
+| occupations[].label_female | String \| null | yes | a job's female title |
+| occupations[].category | JobCategory \| null | yes | jobs only |
+| occupations[].tiers | OccupationTier[] | yes | `{tier: Tier, rank: SocialRank}`, smallest tier first: a job's accepted tiers and rank in each; an office's four tiers and lowest holder rank |
 
 ### GET /v1/npc/demo
 

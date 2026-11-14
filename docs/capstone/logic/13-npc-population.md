@@ -102,6 +102,14 @@ Wealth (0–255) is `settlement/4 + home/4 + 30 × rank + d40`, then held inside
 - **Scrub.** `relationships` is emptied and `employer` and `workplace_building` are cleared, since they point into the synthetic settlement; `id` becomes `subseed(seed, "npc-generate/id", [id])`. `home_building` and `household` stay synthetic.
 - **Refusals.** Unknown job, office, ancestry or culture: `NpcError::UnknownKey` listing the valid keys. A `rank` the job (raised by the office) does not have in the tier, a job the fixed tier lacks, or a rank no job of the tier has (a noble in a hamlet or village): `NpcError::Unreachable` listing what is valid. Valid inputs with no match in 16 attempts (`farmhand` + `notable`): `NpcError::Unsatisfiable`.
 
+### §npc-occupations
+
+`occupations() -> Vec<Occupation>` (`crates/arda-npc/src/one/catalog.rs`) lists every key §npc-generate-one takes, so a caller never pins a copy of `occupations.json`; `GET /v1/npc/occupations` serves it (16 §api-routes). Every job, then every office, each in key order; `(kind, key)` is unique, since `elder`, `harbourmaster`, `high_priest`, `lord`, `reeve`, `shrine_keeper` and `steward` are both.
+
+- **Job.** `label` is the job's `title`, `label_female` its `title_female`, `category` its category. `tiers` are exactly the tiers in which the job exists by §npc-generate-one's Tier rule, each with the job's rank there by §npc-ranks; a job, a tier and a rank taken from one entry always generate.
+- **Office.** `label` is the office's own `label` in `occupations.json` (its `roles.json` title without the place: "Reeve of {settlement}" is "Reeve"); no female label or category. `tiers` are all four, each with the office's rank there, the lowest rank of a holder (a holder ranks at the higher of job and office).
+- **Data only.** The list is a function of the bundled tables: the same on every world and seed.
+
 ### §npc-queries
 
 `Population` answers `residents(building)`, `workers(building)`, `by_job(key)`, `job_of(id)`, `notables()`, `job_counts()`, `category_counts()` (goal 57). Realm-level and world-level queries (by realm, by job across settlements) are the service's, built by iterating settlements (16 §api-routes).

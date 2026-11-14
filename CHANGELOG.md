@@ -3,6 +3,16 @@
 Release notes for Arda. The design ledger (decisions, stage records and per-change detail)
 lives in `docs/capstone/changelog.md` and `docs/capstone/changelog.d/`.
 
+## Unreleased
+
+**API (`/v1`, additive)**
+
+- `GET /v1/npc/occupations` lists every key `POST /v1/npc/generate` takes: 96 jobs and 21 offices, each with its kind (`job` or `office`), a label, a job's female label and category, and the tiers it is accepted in with its `SocialRank` in each. New schema `OccupationList` (family `npc_format`, unchanged at 1). Stable, in the contract kit as `npc-occupations`.
+
+**Content changes (flagged per the versioning policy)**
+
+- `GET /v1/schema` lists `OccupationList`. No other body changes.
+
 ## 1.1.1 — 2026-11-14
 
 Dependency security updates. No API, format or content change from 1.1.0, which was tagged but not published; 1.1.1 is the first published release with the dungeon and cave sites described under 1.1.0.

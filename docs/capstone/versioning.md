@@ -15,7 +15,7 @@ The rules are held by tests:
 
 ## Route review (1.0 freeze)
 
-Every route `crates/arda-server/src/routes.rs` and `crates/arda-server/src/tactical/routes.rs` (with `tactical/bake_routes.rs`) register, one row per method and documented path. Paths that share a registered route are listed apart: `/cell/{gx}/{gy}` also serves `{gy}.png`, `/layout/{file}` serves `{name}` and `{name}.png`, `/sites/{id}/levels/{file}` serves `{n}` and `{n}.png`, and every `tiles/{z}/{x}/{y}` route takes the format as the suffix of `{y}`. Checked by hand against both routers on 2026-10-13, with the five site routes (`crates/arda-server/src/sites/routes.rs`) added on 2026-11-14: 55 rows, of which **48 stable**, **1 unstable** and **6 debug**. `HEAD` is answered wherever `GET` is, and `OPTIONS` is the CORS preflight; neither has a row.
+Every route `crates/arda-server/src/routes.rs` and `crates/arda-server/src/tactical/routes.rs` (with `tactical/bake_routes.rs`) register, one row per method and documented path. Paths that share a registered route are listed apart: `/cell/{gx}/{gy}` also serves `{gy}.png`, `/layout/{file}` serves `{name}` and `{name}.png`, `/sites/{id}/levels/{file}` serves `{n}` and `{n}.png`, and every `tiles/{z}/{x}/{y}` route takes the format as the suffix of `{y}`. Checked by hand against both routers on 2026-10-13, with the five site routes (`crates/arda-server/src/sites/routes.rs`) and `GET /v1/npc/occupations` added on 2026-11-14: 56 rows, of which **49 stable**, **1 unstable** and **6 debug**. `HEAD` is answered wherever `GET` is, and `OPTIONS` is the CORS preflight; neither has a row.
 
 Stability:
 
@@ -48,6 +48,7 @@ Every route can also answer `500 internal`; the table lists the other codes. "Di
 | `GET /v1/buildings/{building}/workers` | stable | `NpcPage` | `npc_page_format`, `npc_format` | `bad_request`, `not_found`, `sheet_mapping` | yes |
 | `POST /v1/npc/population` | stable | `Population` (body `PopulationRequest`) | `npc_format` | `bad_request`, `payload_too_large`, `unsupported_media_type`, `sheet_mapping` | yes |
 | `POST /v1/npc/generate` | stable | `Npc` (body `GenerateNpcRequest`) | `npc_format` | `bad_request`, `not_found`, `payload_too_large`, `unsupported_media_type`, `unsatisfiable`, `sheet_mapping` | no (planned) |
+| `GET /v1/npc/occupations` | stable | `OccupationList` | `npc_format` | — | no (planned) |
 | `GET /v1/npc/demo` | debug | `NpcDemo` | `npc_format` | `sheet_mapping` | no |
 | `GET /v1/npc/demo/{npc_id}` | debug | `Npc` | `npc_format` | `bad_request`, `not_found`, `sheet_mapping` | no |
 | `GET /v1/gazetteer` | stable | `Gazetteer` | `gazetteer_format` | `bad_request`, `not_found` | no (planned) |
@@ -104,7 +105,7 @@ Unstable and debug surface inside stable routes:
 | `scene_format` | `scene.format_version` | 1 | `SceneDto` (`arda-scene` `SCENE_FORMAT_VERSION`) |
 | `rules_sidecar_format` | `rules.format_version` | 2 | `RulesSidecarDto` (`arda-scene` `SIDECAR_FORMAT_VERSION`) |
 | `bake_format` | `format_version` | 1 | `BakeRequest`, `BakeAccepted`, `BakeStatus` |
-| `npc_format` | — | 1 | `Npc`, `Sheet`, `Population`, `PopulationRequest`, `GenerateNpcRequest`, `NpcDemo` |
+| `npc_format` | — | 1 | `Npc`, `Sheet`, `Population`, `PopulationRequest`, `GenerateNpcRequest`, `OccupationList`, `NpcDemo` |
 | `npc_page_format` | `format_version` | 1 | `NpcPage` |
 | `settlement_format` | `format_version` (list) | 1 | `SettlementList`, `SettlementDetail`, `Settlement`, `SettlementSociety`, `TownPlan`, `SettlementNpcs` |
 | `realm_format` | `format_version` (list) | 1 | `RealmList`, `RealmDetail`, `Realm`, `RealmSociety`, `Relation`, `Event` |

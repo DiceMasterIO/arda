@@ -168,6 +168,7 @@ Payload field tables live in `09-interfaces.md`; each row cites its section ther
 | GET | `/v1/tiles/relief/{z}/{x}/{y}` | `crates/arda-server/src/routes.rs:429` | path + `labels` query → WebP tile; `09-interfaces.md § GET /v1/tiles/relief/{z}/{x}/{y}.webp` |
 | POST | `/v1/npc/population` | `crates/arda-server/src/routes.rs:454` | JSON `PopulationRequest` (body limit `npc::MAX_BODY_BYTES`, `crates/arda-server/src/routes.rs:42`) → population JSON; `09-interfaces.md § POST /v1/npc/population` |
 | POST | `/v1/npc/generate` | `crates/arda-server/src/npc.rs:217` | JSON body (limit `npc::MAX_GENERATE_BODY_BYTES`, `crates/arda-server/src/npc.rs:33`, `crates/arda-server/src/routes.rs:46`) → one generated NPC; `09-interfaces.md § POST /v1/npc/generate` |
+| GET | `/v1/npc/occupations` | `crates/arda-server/src/npc.rs:237` | none → every job and office key of `POST /v1/npc/generate` from the bundled tables; `09-interfaces.md § GET /v1/npc/occupations` |
 | GET | `/v1/npc/demo` | `crates/arda-server/src/routes.rs:475` | none → demo population; `09-interfaces.md § GET /v1/npc/demo` |
 | GET | `/v1/npc/demo/{npc_id}` | `crates/arda-server/src/routes.rs:482` | path → one NPC; `09-interfaces.md § GET /v1/npc/demo/{npc_id}` |
 | GET | `/v1/npc/{npc_id}` | `crates/arda-server/src/npcs/mod.rs:218` | path → stored NPC; `09-interfaces.md § GET /v1/npc/{npc_id}` |
