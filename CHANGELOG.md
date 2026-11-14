@@ -3,6 +3,18 @@
 Release notes for Arda. The design ledger (decisions, stage records and per-change detail)
 lives in `docs/capstone/changelog.md` and `docs/capstone/changelog.d/`.
 
+## 1.1.1 — 2026-11-14
+
+Dependency security updates. No API, format or content change from 1.1.0, which was tagged but not published; 1.1.1 is the first published release with the dungeon and cave sites described under 1.1.0.
+
+**Security**
+
+- `tokio` 1.53.1 → 1.54.1 (RUSTSEC-2026-0386), `zstd` 0.13.3 → 0.13.5 (RUSTSEC-2026-0391), `zstd-safe` 7.2.4 → 7.4.1 (RUSTSEC-2026-0398, RUSTSEC-2026-0403) and `zstd-sys` 2.0.16 → 2.1.3 (RUSTSEC-2026-0410).
+
+**Build**
+
+- Lint passes under rustc 1.100.0: seven indexed loops became iterators, with no change in behaviour.
+
 ## 1.1.0 — 2026-11-14
 
 Dungeon and cave sites. The server places sites on the world it serves and serves each one whole: the record, its levels chained from the surface to a sealed bottom, a danger tier per level and its traps. Additive under `/v1`; no existing response shape changes.
