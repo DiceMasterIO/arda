@@ -350,8 +350,8 @@ mod rug_tests {
     fn a_rug_never_takes_the_floor_beyond_a_wall() {
         let mut l = TacticalLayout::new("t", 6, 1, "planks");
         l.squares[0].ground = "cobbles".into();
-        for x in 1..4 {
-            l.squares[x].ground = "rug".into();
+        for sq in &mut l.squares[1..4] {
+            sq.ground = "rug".into();
         }
         l.walls.push(WallSegment {
             x: 1,

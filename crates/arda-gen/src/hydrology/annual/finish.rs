@@ -94,9 +94,9 @@ pub(super) fn finish(
         }
         shares.clear();
         let mut allocated = 0_u128;
-        for j in s.next..end {
+        for (j, band) in input.bands.iter().enumerate().take(end).skip(s.next) {
             meter.tick()?;
-            let d = input.bands[j].open_water_evaporation.0 - input.bands[j].effective_land_loss.0;
+            let d = band.open_water_evaporation.0 - band.effective_land_loss.0;
             let product = s.partial.checked_mul(d).ok_or(AnnualError::Overflow)?;
             let whole = product / total;
             shares.push((j, whole, product % total));

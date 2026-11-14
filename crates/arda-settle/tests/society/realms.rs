@@ -9,8 +9,7 @@ fn realms_partition_the_land_with_closed_borders() {
     let realms = &f.society.realms;
     let n = u16::try_from(realms.realms.len()).unwrap();
     assert!(n >= 2, "two or more towns must give two or more realms");
-    for i in 0..g.len() {
-        let r = realms.map[i];
+    for (i, &r) in realms.map.iter().enumerate().take(g.len()) {
         if g.is_land(i) {
             assert!((1..=n).contains(&r), "land cell {i} has realm {r}");
         } else {

@@ -230,11 +230,11 @@ pub fn extract_rivers(grid: &ContinentGrid, hydro: &ContinentHydrology) -> Vec<C
 
     // Network inflows per cell, in row-major child order (deterministic).
     let mut inflows: Vec<Vec<u32>> = vec![Vec::new(); count];
-    for i in 0..count {
+    for (i, down) in hydro.downstream.iter().enumerate().take(count) {
         if !in_network(i) {
             continue;
         }
-        if let Some(d) = hydro.downstream[i] {
+        if let Some(d) = *down {
             inflows[d as usize].push(u32::try_from(i).unwrap_or(0));
         }
     }
@@ -252,11 +252,11 @@ pub fn extract_rivers(grid: &ContinentGrid, hydro: &ContinentHydrology) -> Vec<C
         std::collections::VecDeque::new();
 
     // Mouths: network cells draining to ocean or to a routing root.
-    for i in 0..count {
+    for (i, down) in hydro.downstream.iter().enumerate().take(count) {
         if !in_network(i) {
             continue;
         }
-        let to_sea = match hydro.downstream[i] {
+        let to_sea = match *down {
             None => true,
             Some(d) => !is_land(d as usize),
         };

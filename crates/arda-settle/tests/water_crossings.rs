@@ -74,9 +74,9 @@ fn a_ferry_leg_is_not_written_as_road_on_open_water() {
     ];
     let net = roads::build(&g, &cs, &towns);
     assert!(net.unreachable.is_empty());
-    for i in 0..g.len() {
+    for (i, &road) in net.raster.iter().enumerate().take(g.len()) {
         assert!(
-            !(g.is_water(i) && net.raster[i] != 0),
+            !(g.is_water(i) && road != 0),
             "road raster on open water at {:?}",
             g.xy(i)
         );

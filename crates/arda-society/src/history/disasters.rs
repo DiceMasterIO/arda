@@ -140,12 +140,12 @@ fn floods(ctx: &Ctx<'_>, f: &Founding, tl: &mut Timeline) {
 }
 
 fn local(ctx: &Ctx<'_>, f: &Founding, tl: &mut Timeline) {
-    for i in 0..ctx.n() {
+    for (i, &founded) in f.year.iter().enumerate().take(ctx.n()) {
         let s = ctx.s(i);
         let slots = Slots::new().with("settlement", s.name.clone());
         if s.tier.is_urban() {
             let mut rng = Stream::new(ctx.seed, "fire", s.id, 0);
-            let mut c = f.year[i] + 10;
+            let mut c = founded + 10;
             while c < ctx.present {
                 let year = c + i32_of(rng.range(0, 99));
                 c += 100;
@@ -169,8 +169,8 @@ fn local(ctx: &Ctx<'_>, f: &Founding, tl: &mut Timeline) {
         }
         if s.has(Function::Mining) {
             let mut rng = Stream::new(ctx.seed, "mine", s.id, 0);
-            let year = i32_of(rng.range(i64::from(f.year[i] + 15), i64::from(ctx.present - 3)));
-            if year > f.year[i] && rng.chance(380) {
+            let year = i32_of(rng.range(i64::from(founded + 15), i64::from(ctx.present - 3)));
+            if year > founded && rng.chance(380) {
                 let mut e = make(
                     ctx,
                     EventKind::MineCollapse,
