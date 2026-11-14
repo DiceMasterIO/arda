@@ -138,7 +138,7 @@ fn options_with_origin(q: &BTreeMap<String, String>) -> ServerResult<(u32, bool,
     Ok((ppsq, grid, origin))
 }
 
-pub(super) fn log(route: &str, detail: &str, hit: Hit, bytes: usize, start: Instant) -> f64 {
+pub(crate) fn log(route: &str, detail: &str, hit: Hit, bytes: usize, start: Instant) -> f64 {
     let ms = start.elapsed().as_secs_f64() * 1e3;
     let hit = match hit {
         Hit::Hit => "hit",
@@ -150,7 +150,7 @@ pub(super) fn log(route: &str, detail: &str, hit: Hit, bytes: usize, start: Inst
 
 /// An image or body response tagged with its request-keyed `etag`
 /// (review 3.6-11), answering `304` when `If-None-Match` names it.
-pub(super) fn image(
+pub(crate) fn image(
     headers: &HeaderMap,
     encoded: &Encoded,
     etag: &str,
@@ -182,7 +182,7 @@ pub(super) fn image(
 }
 
 /// `304` for a revalidation that names `etag`, before any work is done.
-pub(super) fn revalidated(
+pub(crate) fn revalidated(
     headers: &HeaderMap,
     etag: &str,
     cache_control: &'static str,

@@ -70,4 +70,10 @@ library_catalogue_format: number,
 /**
  * `--sheet-mapping` file `version` this server reads.
  */
-sheet_mapping_format: number, };
+sheet_mapping_format: number, 
+/**
+ * Site bodies (`SiteList.format_version`). Added in 1.1: optional in
+ * the schema, so the frozen `WorldInfo` shape gains no required
+ * property.
+ */
+site_format: number, };

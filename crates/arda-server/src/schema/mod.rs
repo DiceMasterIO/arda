@@ -112,6 +112,7 @@ use crate::dto::{AreaLakes, AreaRivers, Health, WorldInfo};
 use crate::error::{ApiError, NotYetError};
 use crate::npc_dto::{GenerateNpcRequest, Npc, NpcDemo, Population, PopulationRequest, Sheet};
 use crate::npcs::dto::NpcPage;
+use crate::sites::dto::{SiteDto, SiteLevel, SiteList};
 use crate::tactical::bake::{BakeAccepted, BakeRequest, BakeStatus};
 use crate::tactical::dto::{TacticalBlockDto, TacticalLayoutDto, TacticalLayouts};
 use crate::tactical::dungeon_dto::DungeonDto;
@@ -138,10 +139,13 @@ catalog! {
         ["GET /v1/tactical/cell/{gx}/{gy}", "GET /v1/tactical/window"];
     "RulesSidecarDto" => RulesSidecarDto, "rules_sidecar_format", Stable, ["TacticalBlockDto.rules", "DungeonDto.rules"];
     "SceneDto" => SceneDto, "scene_format", Stable,
-        ["GET /v1/tactical/dungeon/scene", "TacticalBlockDto.scene", "TacticalScene.scene"];
+        ["GET /v1/tactical/dungeon/scene", "GET /v1/sites/{id}/levels/{n}/scene", "TacticalBlockDto.scene", "TacticalScene.scene"];
     "TacticalScene" => TacticalScene, "tactical_format", Stable, ["GET /v1/tactical/cell/{gx}/{gy}/scene"];
     "TacticalLibraryDto" => TacticalLibraryDto, "tactical_format", Stable, ["GET /v1/tactical/library"];
     "DungeonDto" => DungeonDto, "tactical_format", Stable, ["GET /v1/tactical/dungeon"];
+    "SiteList" => SiteList, "site_format", Stable, ["GET /v1/sites"];
+    "Site" => SiteDto, "site_format", Stable, ["GET /v1/sites/{id}", "SiteList.sites"];
+    "SiteLevel" => SiteLevel, "site_format", Stable, ["GET /v1/sites/{id}/levels/{n}"];
     "PrefetchRequest" => PrefetchRequest, "tactical_format", Stable, ["POST /v1/tactical/prefetch (request)"];
     "PrefetchAccepted" => PrefetchAccepted, "tactical_format", Stable, ["POST /v1/tactical/prefetch"];
     "BakeRequest" => BakeRequest, "bake_format", Stable, ["POST /v1/tactical/bake (request)"];

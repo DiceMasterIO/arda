@@ -388,6 +388,7 @@ async fn world_and_health_name_the_server_build_and_every_version_family() {
             "sheet_mapping_format",
             arda_server::sheet_map::spec::VERSION,
         ),
+        ("site_format", arda_server::sites::dto::SITE_FORMAT),
     ];
     assert_eq!(v.as_object().unwrap().len(), expect.len(), "{v}");
     for (key, want) in expect {

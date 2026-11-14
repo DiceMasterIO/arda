@@ -62,6 +62,16 @@ pub fn router(state: Arc<AppState>) -> Router {
         .route("/gazetteer", get(crate::gazetteer::get))
         .route("/realms", get(crate::realms::list))
         .route("/realms/{id}", get(crate::realms::one))
+        .route("/sites", get(crate::sites::routes::list))
+        .route("/sites/{id}", get(crate::sites::routes::one))
+        .route(
+            "/sites/{id}/levels/{file}",
+            get(crate::sites::routes::level_or_png),
+        )
+        .route(
+            "/sites/{id}/levels/{n}/scene",
+            get(crate::sites::routes::scene),
+        )
         .route("/schema", get(crate::schema::routes::index))
         .route("/schema/{name}", get(crate::schema::routes::one))
         .nest(

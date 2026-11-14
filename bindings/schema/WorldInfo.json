@@ -205,6 +205,13 @@
           "minimum": 0,
           "type": "integer"
         },
+        "site_format": {
+          "default": 0,
+          "description": "Site bodies (`SiteList.format_version`). Added in 1.1: optional in\nthe schema, so the frozen `WorldInfo` shape gains no required\nproperty.",
+          "format": "uint32",
+          "minimum": 0,
+          "type": "integer"
+        },
         "tactical_format": {
           "description": "Tactical envelopes: `TacticalBlockDto`, `TacticalScene`,\n`DungeonDto`, `TacticalLibraryDto`, prefetch and layout listings.",
           "format": "uint32",

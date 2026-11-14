@@ -243,6 +243,8 @@ pub struct AppState {
     /// What the opened world and library hold beyond the configured
     /// budgets, admitted at startup ([`admission::Resident`]).
     pub resident: admission::Resident,
+    /// The world's dungeon and cave sites, placed at open.
+    pub sites: sites::Sites,
 }
 
 impl AppState {
@@ -292,6 +294,15 @@ impl AppState {
             // in flight fit the refine source (`refine_source` docs).
             w.warm_towns(refine_source::WARM_AREAS);
         }
+        // logic/18 §site-place: placed here, before the listener binds, so
+        // `/v1/health` never answers ahead of the site set.
+        let sites = sites::Sites::place(
+            &query,
+            people
+                .as_deref()
+                .map(|w| w.files.settlements.settlements.as_slice()),
+            tactical.library(),
+        )?;
         let overlays = people
             .as_ref()
             .map(|w| arda_blocks::society::SocietyOverlays::open(std::sync::Arc::clone(w)))
@@ -332,6 +343,7 @@ impl AppState {
         config.admit_resident(&resident)?;
         Ok(Self {
             resident,
+            sites,
             query,
             overview,
             relief,

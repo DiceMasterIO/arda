@@ -1,7 +1,9 @@
 //! Dungeon and cave sites of the served world (logic/18 §site-place,
 //! §site-levels): placed once when the server opens, held in memory.
 
+pub mod dto;
 pub mod place;
+pub mod routes;
 
 use crate::error::ServerResult;
 use crate::query::WorldQuery;

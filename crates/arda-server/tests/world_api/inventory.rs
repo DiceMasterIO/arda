@@ -26,6 +26,7 @@ fn probes(ids: &Ids) -> Vec<(&'static str, &'static str, String, Option<&'static
         &ids.realm,
         ids.relief_z,
     );
+    let site = &ids.site;
     vec![
         ("GET /v1/health", "GET", "/v1/health".into(), None),
         ("GET /v1/world", "GET", "/v1/world".into(), None),
@@ -262,6 +263,31 @@ fn probes(ids: &Ids) -> Vec<(&'static str, &'static str, String, Option<&'static
             "/v1/tactical/dungeon/scene?seed=7&w=16&h=16".into(),
             None,
         ),
+        ("GET /v1/sites", "GET", "/v1/sites?kind=cave".into(), None),
+        (
+            "GET /v1/sites/{id}",
+            "GET",
+            format!("/v1/sites/{site}"),
+            None,
+        ),
+        (
+            "GET /v1/sites/{id}/levels/{n}",
+            "GET",
+            format!("/v1/sites/{site}/levels/1"),
+            None,
+        ),
+        (
+            "GET /v1/sites/{id}/levels/{n}.png",
+            "GET",
+            format!("/v1/sites/{site}/levels/1.png?ppsq=64"),
+            None,
+        ),
+        (
+            "GET /v1/sites/{id}/levels/{n}/scene",
+            "GET",
+            format!("/v1/sites/{site}/levels/1/scene"),
+            None,
+        ),
     ]
 }
 
@@ -278,6 +304,7 @@ struct Ids {
     npc: String,
     realm: String,
     relief_z: u64,
+    site: String,
 }
 
 async fn call(method: &str, uri: &str, body: Option<&str>) -> Reply {
@@ -305,7 +332,10 @@ async fn ids() -> Ids {
     let realm = realms["realms"][0]["id"].as_str().unwrap().to_owned();
     let world = json("/v1/world").await;
     let relief_z = world["tiles"]["max_zoom"].as_u64().unwrap() + 1;
+    let sites = json("/v1/sites").await;
+    let site = sites["sites"][0]["id"].as_str().unwrap().to_owned();
     Ids {
+        site,
         settlement,
         building,
         npc,
