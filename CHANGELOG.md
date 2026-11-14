@@ -3,6 +3,13 @@
 Release notes for Arda. The design ledger (decisions, stage records and per-change detail)
 lives in `docs/capstone/changelog.md` and `docs/capstone/changelog.d/`.
 
+## Unreleased
+
+**Server**
+
+- `--memory-mib <MiB>` (or `ARDA_MEMORY_MIB`) caps one `arda-server` process: startup admits the worst case (every cache and transient, plus what the world and library hold) under it instead of under 16 GiB, and every budget not set by a flag derives from it: the query, overview, relief and tactical caches, the largest render, connections, area builds, compositions, the composed- and refined-block caches, the town-plan budget and, with baking on, the bake results. A ceiling below what the world needs refuses to start and names the least ceiling. Least ceilings for prefetch on and baking off: 5,507 MiB for the 500 × 1,000 km seed-42 world, 4,282 MiB for the MICRO kit world. At its least the full-size world peaks at 2.7 GiB over a 150-cell walk at 64 px per square, and a prefetched cell's JSON is served in 42 ms at p95. Without the flag nothing changes.
+- With a ceiling, a render larger than the fitted size is refused with `413 payload_too_large`; at the least ceiling only 64 px per square cells render.
+
 ## 1.1.1 — 2026-11-14
 
 Dependency security updates. No API, format or content change from 1.1.0, which was tagged but not published; 1.1.1 is the first published release with the dungeon and cave sites described under 1.1.0.

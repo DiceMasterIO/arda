@@ -2,6 +2,19 @@
 generated_date: 2026-08-24
 ---
 
+## 2026-11-14 - implement: 2026-11-14-memory-ceiling
+key: implement/2026-11-14-memory-ceiling@Q4
+
+- What: `--memory-mib` / `ARDA_MEMORY_MIB`, one setting that caps an `arda-server` process, for DiceMaster's three worlds on one 16 GB box.
+- Approach: `ceiling::fit` puts every unpinned budget at `floor + s × (default − floor)` with one shared `s`, the largest whose admitted worst case plus the measured residents fits; admission checks the same sum against the ceiling. `AppState::open` measures the residents before filling caches (the town warm-up runs under the plan budget fitted without the largest plan), then resizes the query, tactical and plan caches. The pipeline's constants (compositions, composed and refined blocks, plan budget) became `PipelineLimits`.
+- Rejected: a fixed 4.5 GiB profile (the brief: a setting, not a number); per-budget flags for the unflagged caches (the ask was one setting); scaling the fixed estimates (relief working set, area build, connection body) without measuring them.
+- Divergence: the brief's target, about 4.5 GiB for a full-size world, is not reachable: the least ceiling is 5,507 MiB (residents 1,409 MiB: library 89, society 773, shore 85, largest town plan 462). Recorded as OI-65; several worlds in one process as OI-66.
+- Found while measuring: one composition slot at the floor made a request wait behind the prefetch workers (MICRO at 4,608 MiB: prefetched cell p95 680 ms); the floor is two, as by default (276 ms).
+- Measured (Ryzen 9 9950X3D, release, 150-cell walk at 64 px per square with 12 view tiles and a ring prefetch per step): full42 at 5,507 MiB opens in 14.4 s, idles at 2,360 MiB, peaks at 2,723 MiB; prefetched cell JSON p50 1.1 ms, p95 42 ms; view tiles p95 86 ms; re-walk 11 of 118 cell bodies missed. Default config on the same walk: peak 6,764 MiB, prefetched p95 224 ms, view tiles p95 1,325 ms (prefetch renders up to ten neighbour images per step). MICRO at 4,608 MiB: peak 1,609 MiB, prefetched p95 276 ms, re-walk 332 ms, 33 of 150 bodies missed.
+- Tests: `ceiling::tests` (no ceiling changes nothing; every fitted worst case at every ceiling from the least to 16 GiB, four flag profiles, MICRO and full residents, stays under it; below the least refuses naming it; budgets grow with the ceiling to the defaults; pinned flags kept; documented least ceilings); `world_api/ceiling.rs` (MICRO opens at 4,608 MiB, admits 4,575 MiB, serves a 64 px cell, refuses a 128 px PNG with 413; 2,048 MiB refuses naming the least, which opens).
+- Process: the user was away; spec and plan written from the DiceMaster session's brief without the approval gates; the pull request is the gate.
+- `API.md` § Memory ceiling and the flag row; `logic/16` §api-memory; `07-operations.md` flag row; `open-items.md` OI-65, OI-66; `tools/docker-entrypoint.sh` comment.
+
 ## 2026-11-14 - implement: 2026-11-14-dungeon-sites
 key: implement/2026-11-14-dungeon-sites@Q12
 

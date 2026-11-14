@@ -99,6 +99,7 @@ Defined in `crates/arda-server/src/main.rs:16`; routes are nested under `/v1` (`
 | `--world` | required unless `--probe` | `crates/arda-server/src/main.rs:19` |
 | `--port` | 8787 | `crates/arda-server/src/main.rs:26` |
 | `--host` | `127.0.0.1` | `crates/arda-server/src/main.rs:29` |
+| `--memory-mib` | none (16,384 MiB ceiling, every budget its default); also `ARDA_MEMORY_MIB`. With a value, admission holds the worst case under it and every unpinned budget derives from it (`crates/arda-server/src/ceiling/mod.rs`; API.md § Memory ceiling) | `crates/arda-server/src/main.rs` |
 | `--area-cache-mib` | 256 (`crates/arda-server/src/query.rs:42`; 1024 before review 3.6-8, 384 before the server-startup fix) | `crates/arda-server/src/main.rs:32` |
 | `--fine-cache-mib` | 128 (`crates/arda-server/src/query.rs:44`; 512 before review 3.6-8, 256 before the server-startup fix) | `crates/arda-server/src/main.rs:35` |
 | `--max-overview-px` | 8192 | `crates/arda-server/src/main.rs:38` |
