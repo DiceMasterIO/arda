@@ -22,7 +22,7 @@ use std::time::Instant;
 type Shared = State<Arc<AppState>>;
 
 fn find(state: &AppState, id: &str) -> ServerResult<Site> {
-    id.parse::<u64>()
+    id.parse::<super::SiteId>()
         .ok()
         .and_then(|id| state.sites.get(id))
         .cloned()
@@ -184,20 +184,16 @@ async fn level(
     let n: u32 = parse("level", n)?;
     let site = find(&state, id)?;
     let detail = format!("{} level {n}", site.id);
+    let at = n
+        .checked_sub(1)
+        .map(|i| i as usize)
+        .filter(|i| *i < site.levels.len())
+        .ok_or_else(|| ServerError::NotFound(format!("site {} has no level {n}", site.id)))?;
     let body = blocking(state, move |s| {
-        let mine = generate(&site, n)?;
         // The chain needs every level's exits (logic/18 §site-links).
         let levels: Vec<Dungeon> = (1..=site.levels.len())
-            .map(|k| {
-                let k = u32::try_from(k).unwrap_or(u32::MAX);
-                if k == n {
-                    Ok(mine.clone())
-                } else {
-                    generate(&site, k)
-                }
-            })
+            .map(|k| generate(&site, u32::try_from(k).unwrap_or(u32::MAX)))
             .collect::<ServerResult<_>>()?;
-        let at = (n - 1) as usize;
         let d = &levels[at];
         let scene = scene_of(s, d)?;
         json(&LevelBody {

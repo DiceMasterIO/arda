@@ -2,8 +2,10 @@
 //! settlements, caves at the foot of steep ground. A pure function of the
 //! world seed, the cells and the settlements.
 
+use super::SiteId;
 use arda_dungeon::Kind;
 use arda_ids::hash::subseed;
+use arda_ids::SettlementId;
 use std::collections::BTreeSet;
 
 /// Side of a cave tile, cells (3.2 km). Fixed: density moves
@@ -38,7 +40,7 @@ pub struct CellFacts {
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub struct Seat {
     /// Settlement id.
-    pub id: u64,
+    pub id: SettlementId,
     /// Its cell.
     pub cell: (u32, u32),
     /// Its tier.
@@ -64,7 +66,7 @@ pub struct Chosen {
     /// Entrance cell.
     pub cell: (u32, u32),
     /// The settlement a dungeon hangs on.
-    pub settlement: Option<u64>,
+    pub settlement: Option<SettlementId>,
     /// Fewest levels it may have.
     pub min_levels: u32,
     /// Danger tier of level 1.
@@ -73,9 +75,9 @@ pub struct Chosen {
 
 /// The site id: stable per kind and entrance cell.
 #[must_use]
-pub fn site_id(kind: Kind, gx: u32, gy: u32) -> u64 {
+pub fn site_id(kind: Kind, gx: u32, gy: u32) -> SiteId {
     let k = u64::from(kind == Kind::Cave);
-    subseed(k, "arda-site id", &[u64::from(gx), u64::from(gy)])
+    SiteId(subseed(k, "arda-site id", &[u64::from(gx), u64::from(gy)]))
 }
 
 /// Every site of a `size` (cells wide, high) world, dungeons first, each
@@ -106,7 +108,7 @@ pub fn choose(
     let mut out = Vec::new();
     for s in seats {
         let picked = s.rank != SeatRank::Village
-            || subseed(seed, "arda-site village", &[s.id]) % 1000 < VILLAGE_ODDS;
+            || subseed(seed, "arda-site village", &[s.id.get()]) % 1000 < VILLAGE_ODDS;
         if !picked {
             continue;
         }
@@ -124,7 +126,11 @@ pub fn choose(
                     && cell(x, y).free
             })
             .min_by_key(|&(x, y)| {
-                subseed(seed, "arda-site ring", &[s.id, u64::from(x), u64::from(y)])
+                subseed(
+                    seed,
+                    "arda-site ring",
+                    &[s.id.get(), u64::from(x), u64::from(y)],
+                )
             });
         if let Some(at) = best {
             taken.insert(at);
@@ -205,12 +211,12 @@ mod tests {
     fn towns_and_cities_always_get_a_dungeon_and_hamlets_have_no_seat() {
         let seats = [
             Seat {
-                id: 1,
+                id: SettlementId(1),
                 cell: (100, 100),
                 rank: SeatRank::Town,
             },
             Seat {
-                id: 2,
+                id: SettlementId(2),
                 cell: (300, 300),
                 rank: SeatRank::City,
             },
@@ -238,7 +244,7 @@ mod tests {
     fn about_one_village_in_ten_gets_a_dungeon() {
         let seats: Vec<Seat> = (0..2000_u32)
             .map(|i| Seat {
-                id: u64::from(i) + 1,
+                id: SettlementId(u64::from(i) + 1),
                 cell: (20 + (i % 40) * 40, 20 + (i / 40) * 40),
                 rank: SeatRank::Village,
             })
@@ -279,7 +285,7 @@ mod tests {
         };
         assert!(choose(42, (640, 640), &taken, &[]).is_empty());
         let seat = [Seat {
-            id: 1,
+            id: SettlementId(1),
             cell: (100, 100),
             rank: SeatRank::Town,
         }];
@@ -298,7 +304,7 @@ mod tests {
             free: true,
         };
         let seat = [Seat {
-            id: 1,
+            id: SettlementId(1),
             cell: (320, 320),
             rank: SeatRank::Town,
         }];
@@ -315,7 +321,7 @@ mod tests {
     #[test]
     fn placement_is_deterministic_and_ids_are_per_cell_and_kind() {
         let seats = [Seat {
-            id: 1,
+            id: SettlementId(1),
             cell: (100, 100),
             rank: SeatRank::Town,
         }];

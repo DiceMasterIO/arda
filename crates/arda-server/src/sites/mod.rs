@@ -9,9 +9,29 @@ use crate::error::ServerResult;
 use crate::query::WorldQuery;
 use arda_dungeon::site::{danger_tier, level_seed, level_sizes, MAX_ATTEMPTS};
 use arda_dungeon::{DungeonError, Kind, Params};
+use arda_ids::SettlementId;
 use arda_settle::model::{Settlement, Tier};
 use arda_tactical::Library;
 use place::{CellFacts, Chosen, Seat, SeatRank};
+
+/// A site's id: stable as long as the site keeps its kind and entrance
+/// cell. A decimal string on the wire.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
+pub struct SiteId(pub u64);
+
+impl std::fmt::Display for SiteId {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "{}", self.0)
+    }
+}
+
+impl std::str::FromStr for SiteId {
+    type Err = std::num::ParseIntError;
+
+    fn from_str(s: &str) -> Result<Self, Self::Err> {
+        s.parse().map(Self)
+    }
+}
 
 /// One level of a site.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -32,13 +52,13 @@ pub struct LevelRef {
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct Site {
     /// Stable id.
-    pub id: u64,
+    pub id: SiteId,
     /// Dungeon or cave.
     pub kind: Kind,
     /// Entrance cell.
     pub cell: (u32, u32),
     /// The settlement a dungeon hangs on.
-    pub settlement: Option<u64>,
+    pub settlement: Option<SettlementId>,
     /// 1 to 3 levels, in depth order.
     pub levels: Vec<LevelRef>,
 }
@@ -74,7 +94,7 @@ impl Sites {
 
     /// One site.
     #[must_use]
-    pub fn get(&self, id: u64) -> Option<&Site> {
+    pub fn get(&self, id: SiteId) -> Option<&Site> {
         self.0
             .binary_search_by_key(&id, |s| s.id)
             .ok()
@@ -97,8 +117,10 @@ impl Sites {
         let size = query.cells();
         let n = u32::from(arda_core::AREA_CELLS);
         // ceiling: one sequential pass over every area through the query's
-        // bounded area cache; parallel per area if a default world's start
-        // grows past a few seconds.
+        // bounded area cache, and one `CellFacts` per cell held until the
+        // sites are chosen (about 200 MB for a 5,000 × 10,000 cell world).
+        // Place per area, in parallel, if a default world's start grows
+        // past a few seconds (OI-63).
         let mut facts: Vec<CellFacts> = Vec::with_capacity(size.0 as usize * size.1 as usize);
         facts.resize(
             size.0 as usize * size.1 as usize,
@@ -150,7 +172,7 @@ impl Sites {
                     Tier::City => SeatRank::City,
                 };
                 Some(Seat {
-                    id: s.id.into(),
+                    id: s.id,
                     cell: (s.cell_x, s.cell_y),
                     rank,
                 })
@@ -192,7 +214,7 @@ fn settle(seed: u64, id: u64, level: u32, works: &dyn Fn(u64) -> bool) -> Option
 
 fn build(seed: u64, c: &Chosen, library: &Library) -> Option<Site> {
     let id = place::site_id(c.kind, c.cell.0, c.cell.1);
-    let levels = level_sizes(id, c.min_levels)
+    let levels = level_sizes(id.0, c.min_levels)
         .into_iter()
         .zip(1_u32..)
         .map(|(size, level)| {
@@ -205,7 +227,7 @@ fn build(seed: u64, c: &Chosen, library: &Library) -> Option<Site> {
                 };
                 usable(&params, seed, library)
             };
-            settle(seed, id, level, &works).map(|s| LevelRef {
+            settle(seed, id.0, level, &works).map(|s| LevelRef {
                 level,
                 seed: s,
                 width: size.0,
