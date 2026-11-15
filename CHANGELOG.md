@@ -3,7 +3,9 @@
 Release notes for Arda. The design ledger (decisions, stage records and per-change detail)
 lives in `docs/capstone/changelog.md` and `docs/capstone/changelog.d/`.
 
-## Unreleased
+## 1.2.0 — 2026-11-15
+
+Three changes DiceMaster asked for: a memory ceiling for one server process, forest that is heavily obscured only in thickets, and the occupation keys served as a route. Additive under `/v1`; forest cells change content.
 
 **API (`/v1`, additive)**
 
