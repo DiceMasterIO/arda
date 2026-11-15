@@ -3,7 +3,8 @@
 # mounted at /worlds/world on 0.0.0.0:8787 with the best library the image
 # holds (the AI library stacked over the placeholder when present, else the
 # placeholder alone). ARDA_LIBRARY overrides the library, ARDA_WORLD the
-# world path. With arguments, they go to arda-server verbatim.
+# world path. ARDA_MEMORY_MIB, read by arda-server itself, caps the
+# process (--memory-mib). With arguments, they go to arda-server verbatim.
 set -eu
 
 if [ "$#" -gt 0 ]; then

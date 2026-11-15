@@ -331,6 +331,15 @@ Left open by the dungeon and cave sites feature (logic/18 §site-place to §site
 | OI-63 | Site placement cost on a default-size world | Placement runs in `AppState::open` as one sequential pass over every area and holds one `CellFacts` per cell until the sites are chosen (`crates/arda-server/src/sites/mod.rs:111`); on the MICRO fixture a release server reaches `/v1/health` in 2.3 s, placement included. | A measurement on a 500 × 1000 km world (none exists on the development machine): start time with about 200 areas read, and the transient of about 200 MB, which admission does not count. If it is slow, place per area in parallel. |
 | OI-64 | AI-library art for the site props (closed 2026-11-14) | Placeholder `prop.site_entrance`, `prop.cave_mouth`, `prop.stairs_sealed` and their `tools/art-gen` prompt families (`tools/art-gen/expansion.mjs`). Generated art for all three is in the maintainer's AI library (`out/art-gen/lib/props/`, 1,462 assets), imported with the openings painted black and checked in context on a dungeon entrance cell, a cave cell and a sealed deepest level. | `.alt1` variants of the three props. The AI library is not published (D1), so the released image draws the placeholder art. |
 
+## Open items recorded on `feat/memory-ceiling` (2026-11-14)
+
+Left open by the per-process memory ceiling (`--memory-mib`, logic/16 §api-memory), asked for by DiceMaster's plan of three worlds on one 16 GB box.
+
+| ID | Item | Exists | Does not exist |
+|---|---|---|---|
+| OI-65 | A full-size world under about 4.5 GiB | `--memory-mib` fits every derived budget to the ceiling; the least ceiling for DiceMaster's profile on the 500 × 1,000 km seed-42 world is 5,507 MiB (MICRO: 4,282 MiB), so three such processes admit 16.1 GiB, above the 14.5 GiB DiceMaster leaves them. Measured use is far below the admitted worst case (peak RSS 2.7 GiB at 5,507 MiB over a 150-cell walk). | Lower fixed terms. The largest are estimates, not measurements: the relief working set (768 MiB, `relief::RELIEF_WORKING_BYTES`), one area build (512 MiB, `AREA_BUILD_BYTES`), 48 MiB a connection (`MAX_BODY_BYTES`), the parsed `society/` files at twice their size (773 MiB on the full world) and the largest town plan (462 MiB). Measuring and tightening them, or one process serving several worlds under one ceiling (see the next row), is the maintainer's call. |
+| OI-66 | Several worlds in one process | One process serves one world. | One process serving three worlds would admit the per-process fixed terms once: one area build, the connections' bodies, each lane's transient render and encode and the two compositions, about 2.2 GiB at the floors, so three full-size worlds would admit about 12.1 GiB instead of 16.1 GiB. It needs a world segment in every route (`/v1/{world}/…` or a header), a shared cache budget across worlds and per-world ETags; a larger change than the ceiling, not started. |
+
 ## Scope boundaries and conditional extensions
 
 These are explicit future choices, not hidden blockers for the map pipeline.

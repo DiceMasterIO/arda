@@ -12,6 +12,7 @@
 pub mod admission;
 pub mod bindings;
 pub mod cache;
+pub mod ceiling;
 pub mod columnar;
 pub mod contract;
 pub mod derived;
@@ -52,7 +53,8 @@ pub use tactical::{Tactical, TacticalLimits};
 
 use std::path::PathBuf;
 
-/// The goal-prompt §8 memory ceiling; configured budgets must fit inside it.
+/// The goal-prompt §8 memory ceiling; configured budgets must fit inside
+/// it unless `--memory-mib` sets another ([`ServerConfig::memory_ceiling`]).
 pub const MEMORY_CEILING_BYTES: u64 = 16 << 30;
 
 /// Everything needed to serve one world.
@@ -84,6 +86,16 @@ pub struct ServerConfig {
     /// Sheet mapping file (`--sheet-mapping`, goal 69): reshapes every NPC
     /// the server sends; `None` serves Arda's own shape.
     pub sheet_mapping: Option<PathBuf>,
+    /// The tactical pipeline's budgets (compositions, composed and refined
+    /// blocks, town plans).
+    pub pipeline: admission::PipelineLimits,
+    /// Per-process memory ceiling, bytes (`--memory-mib`,
+    /// `ARDA_MEMORY_MIB`): admission holds the worst case under it and every
+    /// unpinned budget derives from it ([`ceiling::fit`]). `None` admits
+    /// against [`MEMORY_CEILING_BYTES`] and keeps every budget as set.
+    pub memory_ceiling: Option<u64>,
+    /// Budgets set by a flag, which a ceiling leaves alone.
+    pub pinned: ceiling::Pinned,
 }
 
 /// Worst-case transient bytes of one `/area/.../cells` build: 262,144
@@ -111,7 +123,16 @@ impl ServerConfig {
             bake_workers: tactical::bake::DEFAULT_WORKERS,
             bake_result_mib: tactical::bake::DEFAULT_RESULT_MIB,
             sheet_mapping: None,
+            pipeline: admission::PipelineLimits::default(),
+            memory_ceiling: None,
+            pinned: ceiling::Pinned::default(),
         }
+    }
+
+    /// The ceiling admission holds the worst case under.
+    #[must_use]
+    pub fn ceiling(&self) -> u64 {
+        self.memory_ceiling.unwrap_or(MEMORY_CEILING_BYTES)
     }
 
     /// Worst-case resident bytes: every cache full, the decoded pyramid base,
@@ -143,7 +164,7 @@ impl ServerConfig {
                 self.bake_workers,
                 self.bake_result_bytes(),
             ))
-            .saturating_add(admission::pipeline_bytes())
+            .saturating_add(admission::pipeline_bytes(&self.pipeline))
     }
 
     /// The finished bake tile sets' budget, bytes.
@@ -152,7 +173,7 @@ impl ServerConfig {
         (self.bake_result_mib as u64).saturating_mul(1 << 20)
     }
 
-    /// Refuses configurations whose worst case exceeds [`MEMORY_CEILING_BYTES`],
+    /// Refuses configurations whose worst case exceeds [`Self::ceiling`],
     /// and a bake result budget too small for one worst-case cell set.
     ///
     /// # Errors
@@ -165,10 +186,10 @@ impl ServerConfig {
                 self.bake_result_mib
             )));
         }
-        let need = self.admitted_bytes();
-        if need > MEMORY_CEILING_BYTES {
+        let (need, ceiling) = (self.admitted_bytes(), self.ceiling());
+        if need > ceiling {
             return Err(ServerError::ResourceLimit(format!(
-                "configured budgets need {need} bytes, above the {MEMORY_CEILING_BYTES}-byte ceiling"
+                "configured budgets need {need} bytes, above the {ceiling}-byte ceiling"
             )));
         }
         Ok(())
@@ -180,12 +201,16 @@ impl ServerConfig {
     /// # Errors
     /// [`ServerError::ResourceLimit`] naming each resident term.
     pub fn admit_resident(&self, resident: &admission::Resident) -> ServerResult<()> {
-        let need = self.admitted_bytes().saturating_add(resident.total());
-        if need > MEMORY_CEILING_BYTES {
+        let (need, ceiling) = (
+            self.admitted_bytes().saturating_add(resident.total()),
+            self.ceiling(),
+        );
+        if need > ceiling {
             return Err(ServerError::ResourceLimit(format!(
                 "configured budgets ({} bytes) plus this world and library ({} bytes: library {}, \
                  society {}, shore {}, plans {}) need {need} bytes, above the \
-                 {MEMORY_CEILING_BYTES}-byte ceiling; lower --area-cache-mib or --fine-cache-mib",
+                 {ceiling}-byte ceiling; lower --area-cache-mib or --fine-cache-mib, or set \
+                 --memory-mib",
                 self.admitted_bytes(),
                 resident.total(),
                 resident.library,
@@ -243,6 +268,14 @@ pub struct AppState {
     /// What the opened world and library hold beyond the configured
     /// budgets, admitted at startup ([`admission::Resident`]).
     pub resident: admission::Resident,
+    /// The admitted worst case of the budgets in force (fitted to the
+    /// ceiling when there is one), bytes, without [`Self::resident`].
+    pub admitted: u64,
+    /// The ceiling it was admitted against, bytes.
+    pub ceiling: u64,
+    /// The connection limits in force (`--max-connections`, or the
+    /// ceiling's).
+    pub serve_limits: serve::ServeLimits,
     /// The world's dungeon and cave sites, placed at open.
     pub sites: sites::Sites,
 }
@@ -254,14 +287,19 @@ impl AppState {
     /// # Errors
     /// Admission, library validation, world loading or limit failures.
     pub fn open(config: &ServerConfig) -> ServerResult<Self> {
-        config.admit()?;
+        // Without a ceiling the configured budgets are admitted up front;
+        // with one they are fitted once the world and library are measured
+        // (`ceiling`), before anything fills a cache.
+        if config.memory_ceiling.is_none() {
+            config.admit()?;
+        }
         // Goal 69: a bad mapping refuses startup before the world loads.
         let sheet_mapping = config
             .sheet_mapping
             .as_deref()
             .map(sheet_map::SheetMapping::load)
             .transpose()?;
-        let query = WorldQuery::open(&config.world, config.query)?;
+        let mut query = WorldQuery::open(&config.world, config.query)?;
         let mut tactical = Tactical::open(&config.library, query.world().seed(), config.tactical)?;
         // Request-keyed ETags (review 3.6-11).
         tactical.set_etags(etag::Etags::new(
@@ -288,11 +326,43 @@ impl AppState {
             None
         };
         if let Some(w) = &people {
+            // A ceiling sizes the plan cache before the warm-up fills it:
+            // fitted first without the largest plan, which the warm-up
+            // draws, then again below with it.
+            let budget = if config.memory_ceiling.is_some() {
+                let before = admission::Resident::measure(
+                    tactical.library(),
+                    &config.world,
+                    query.cells(),
+                    None,
+                );
+                ceiling::warm_plan_budget(config, &before)
+            } else {
+                config.pipeline.plan_cache_bytes
+            };
+            w.set_plan_budget(budget);
             // Towns and cities have the costliest plans: draw them now, so
             // their first tactical block is quick (goal 50): only plans
             // that read WARM_AREAS areas between them at once, so the areas
             // in flight fit the refine source (`refine_source` docs).
             w.warm_towns(refine_source::WARM_AREAS);
+        }
+        let resident = admission::Resident::measure(
+            tactical.library(),
+            &config.world,
+            query.cells(),
+            people.as_deref().and_then(largest_plan_bytes),
+        );
+        let fitted = ceiling::fit(config, &resident)?;
+        let config = &fitted;
+        config.admit()?;
+        config.admit_resident(&resident)?;
+        if config.memory_ceiling.is_some() {
+            query.set_limits(config.query);
+            tactical.set_limits(config.tactical);
+            if let Some(w) = &people {
+                w.set_plan_budget(config.pipeline.plan_cache_bytes);
+            }
         }
         // logic/18 §site-place: placed here, before the listener binds, so
         // `/v1/health` never answers ahead of the site set.
@@ -336,6 +406,7 @@ impl AppState {
                 Some(std::sync::Arc::new(arda_blocks::sites::SiteOverlays::new(
                     society, entrances,
                 ))),
+                &config.pipeline,
             ),
         ));
         let overview = overview::Overview::new(&query, config.overview)?;
@@ -355,14 +426,10 @@ impl AppState {
                 overview.set_labels(labels);
             }
         }
-        let resident = admission::Resident::measure(
-            tactical.library(),
-            &config.world,
-            query.cells(),
-            people.as_deref().and_then(largest_plan_bytes),
-        );
-        config.admit_resident(&resident)?;
         Ok(Self {
+            admitted: config.admitted_bytes(),
+            ceiling: config.ceiling(),
+            serve_limits: config.serve,
             resident,
             sites,
             query,

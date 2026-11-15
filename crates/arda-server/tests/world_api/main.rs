@@ -4,6 +4,7 @@
 
 mod admission;
 mod bake;
+mod ceiling;
 mod cells;
 mod contract;
 mod dungeon;

@@ -11,8 +11,13 @@ lives in `docs/capstone/changelog.md` and `docs/capstone/changelog.d/`.
 
 **Content changes (flagged per the versioning policy)**
 
-- `GET /v1/schema` lists `OccupationList`. No other body changes.
+- `GET /v1/schema` lists `OccupationList`.
 - Forest obscurement. Only a thicket is heavily obscured now: four or more small trees or woody shrubs (not ferns) within 2 squares of a square's centre. A wood's floor under two or more trunks is lightly obscured however closed the canopy (until now four trunks within 2.4 squares made it heavy). The canopy obscures in the rules sidecar (`blocks_sight`, `lightly_obscured`) and the scene (`obscured`) of tactical cells, windows, prefetches and bakes. On the contract kit's forest cell (479, 1245) `heavy` falls from 90.7 % of the squares to 0.2 %, and from its centre a creature sees every square within 60 ft instead of 1.8 % of them. No shape, image or dungeon body changes; the kit's `tactical-cell`, `tactical-scene-day`, `tactical-scene-night` and `tactical-window` bodies are re-recorded.
+
+**Server**
+
+- `--memory-mib <MiB>` (or `ARDA_MEMORY_MIB`) caps one `arda-server` process: startup admits the worst case (every cache and transient, plus what the world and library hold) under it instead of under 16 GiB, and every budget not set by a flag derives from it: the query, overview, relief and tactical caches, the largest render, connections, area builds, compositions, the composed- and refined-block caches, the town-plan budget and, with baking on, the bake results. A ceiling below what the world needs refuses to start and names the least ceiling. Least ceilings for prefetch on and baking off: 5,507 MiB for the 500 × 1,000 km seed-42 world, 4,282 MiB for the MICRO kit world. At its least the full-size world peaks at 2.7 GiB over a 150-cell walk at 64 px per square, and a prefetched cell's JSON is served in 42 ms at p95. Without the flag nothing changes.
+- With a ceiling, a render larger than the fitted size is refused with `413 payload_too_large`; at the least ceiling only 64 px per square cells render.
 
 ## 1.1.1 — 2026-11-14
 
